@@ -501,14 +501,20 @@ window._mnPrevCardsHtml = function(modo) {
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
                 </div>${linhaPlano}${linhaGarantia}
             </div>
-            <div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
+            ${ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
+                    <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
+                </div>
+                <span style="font-size:0.88rem;font-weight:800;color:#1e293b;">${v.km_atual ? Number(v.km_atual).toLocaleString('pt-BR') + ' km' : 'Não informado'}</span>
+            </div>` : `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
                 <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
                 <input type="number" id="mn-prevcard-km-${v.id}" value="${v.km_atual || ''}" placeholder="Digite KM"
                     style="flex:1;min-width:0;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;"
                     onkeydown="if(event.key==='Enter')window.mnPrevSalvarKmCard(${v.id})">
                 <button onclick="window.mnPrevSalvarKmCard(${v.id})" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">Salvar</button>
-            </div>
+            </div>`}
             <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                 <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${v.tipo_veiculo || 'VE\u00cdCULO'}</div>
                 ${btnAcao}
@@ -530,7 +536,7 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
     if (val === prevAte) {
         if (fromBlur && (!val || val < window._mnHojeISO())) {
             const gridRev0 = document.getElementById('mn-rev-cards');
-            if (gridRev0) gridRev0.innerHTML = window._mnPrevCardsHtml('revisao');
+            if (gridRev0 && gridRev0.style.display !== 'none') gridRev0.innerHTML = window._mnPrevCardsHtml('revisao');
         }
         return;
     }
@@ -557,21 +563,930 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
         }
         if (fromBlur && (!tem || val < window._mnHojeISO())) {
             const gridRev = document.getElementById('mn-rev-cards');
-            if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
+            if (gridRev && gridRev.style.display !== 'none') gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
         }
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Data de garantia atualizada!');
     } catch (e) { alert(e.message); }
 };
 
-// Aba Revis\u00e3o: mesmos cards da Preventiva
+// ══════════════════════════════════════════════════════════════════════════════
+// ABA REVISÃO — PLANO DE MANUTENÇÃO PROGRAMADA E PRESERVAÇÃO DE GARANTIA
+// Base técnica: Manual Fiat Strada 2026/2027 — Motor 1.3 Flex
+// ══════════════════════════════════════════════════════════════════════════════
+
+window._mnRevCatTrocas = [
+    { id: 'oleo_motor', nome: 'Óleo do motor', oQueFazer: 'Substituir no intervalo prescrito', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
+    { id: 'filtro_oleo', nome: 'Filtro de óleo', oQueFazer: 'Substituir junto com o óleo', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
+    { id: 'filtro_combustivel', nome: 'Filtro de combustível', oQueFazer: 'Substituir nas revisões marcadas no plano do motor 1.3', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
+    { id: 'filtro_ar_motor', nome: 'Filtro de ar do motor', oQueFazer: 'Verificar e substituir nos marcos prescritos; antecipar quando exigido pelas condições severas', classificacao: 'Inspeção e troca programada', risco: 'Sim, se descumprido o plano', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
+    { id: 'velas_ignicao', nome: 'Velas de ignição', oQueFazer: 'Substituir aos 40.000 km, independentemente do tempo', classificacao: 'Troca programada obrigatória', risco: 'Sim, se vencida e não realizada', marcosTroca: [40000,80000] },
+    { id: 'fluido_freio', nome: 'Fluido de freio', oQueFazer: 'Substituir a cada 24 meses ou 40.000 km, o que ocorrer primeiro', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [20000,40000,60000,80000,100000] },
+    { id: 'correias_auxiliares', nome: 'Correias dos órgãos auxiliares', oQueFazer: 'Verificar nas revisões e substituir a cada 48 meses ou 60.000 km, o que ocorrer primeiro, conforme o manual 1.3', classificacao: 'Inspeção e troca programada', risco: 'Sim, se descumprido o plano', marcosTroca: [40000,60000,100000] },
+    { id: 'liquido_arrefecimento', nome: 'Líquido de arrefecimento', oQueFazer: 'Verificar nível e contaminação; substituir a cada 120 meses ou 240.000 km, o que ocorrer primeiro', classificacao: 'Inspeção e troca por intervalo', risco: 'Sim, se descumprido o plano', marcosTroca: [] },
+    { id: 'oleo_cambio', nome: 'Óleo do câmbio manual', oQueFazer: 'Verificar nível nas revisões indicadas e substituir no marco assinalado pelo manual', classificacao: 'Inspeção e troca programada', risco: 'Sim, se prescrita e não realizada', marcosTroca: [] },
+    { id: 'filtro_canister', nome: 'Filtro de ar do canister', oQueFazer: 'Substituir nas revisões indicadas no plano', classificacao: 'Troca programada obrigatória', risco: 'Sim, se descumprido o plano', marcosTroca: [20000,40000,60000,80000,100000] }
+];
+
+window._mnRevCatVerificacoes = [
+    { id: 'niveis_fluidos', nome: 'Níveis de fluidos', oQueFazer: 'Verificar fluidos de freio, lavador dos vidros e demais sistemas aplicáveis', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'sistema_arrefecimento', nome: 'Sistema de arrefecimento', oQueFazer: 'Verificar nível, contaminação, mangueiras e tubulações', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'freios', nome: 'Freios', oQueFazer: 'Inspecionar pastilhas e discos; verificar lonas e tambores quando aplicável', classificacao: 'Verificação obrigatória; troca condicional', risco: 'Sim, se ignorado desgaste ou defeito relevante' },
+    { id: 'pneus', nome: 'Pneus', oQueFazer: 'Inspecionar pressão, desgaste e condições gerais', classificacao: 'Verificação obrigatória', risco: 'Sim, se a manutenção prescrita for negligenciada' },
+    { id: 'suspensao_direcao', nome: 'Suspensão e direção', oQueFazer: 'Verificar folgas, coifas, juntas, mangueiras e componentes', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'tubulacoes_escapamento', nome: 'Tubulações e escapamento', oQueFazer: 'Inspecionar sistemas de combustível, freios, arrefecimento e escapamento', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'motor_cambio', nome: 'Motor e câmbio', oQueFazer: 'Verificar estado e estanqueidade, incluindo vazamentos', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'injecao_ignicao', nome: 'Sistema de injeção e ignição', oQueFazer: 'Realizar diagnóstico conforme o plano', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
+    { id: 'bateria_12v', nome: 'Bateria de 12 V', oQueFazer: 'Verificar estado com equipamento de diagnóstico homologado', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; omitir a verificação prescrita pode gerar questionamento' },
+    { id: 'filtro_ar_condicionado', nome: 'Filtro do ar-condicionado', oQueFazer: 'Inspecionar nas revisões previstas', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; substituir conforme condição e plano' },
+    { id: 'freio_estacionamento', nome: 'Freio de estacionamento', oQueFazer: 'Verificar funcionamento e regular, se necessário', classificacao: 'Verificação obrigatória', risco: 'Sim, se houver falha relevante ignorada' },
+    { id: 'palhetas_iluminacao', nome: 'Palhetas, limpadores e iluminação', oQueFazer: 'Verificar funcionamento, desgaste e sinalização', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; defeitos devem ser corrigidos' },
+    { id: 'carroceria_protecoes', nome: 'Carroceria e proteções inferiores', oQueFazer: 'Verificar danos nas revisões', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática' },
+    { id: 'ventilacao_carter', nome: 'Sistema de ventilação do cárter (blow-by)', oQueFazer: 'Verificar nos marcos indicados para o motor 1.3', classificacao: 'Verificação programada', risco: 'Sim, se descumprido o plano' },
+    { id: 'higienizacao_alimentacao', nome: 'Higienização do sistema de alimentação', oQueFazer: 'Executar nas revisões indicadas no plano', classificacao: 'Operação programada', risco: 'Sim, quando prevista para a revisão' }
+];
+
+window._mnRevCatOpcionais = [
+    { id: 'opt_pastilhas_discos', nome: 'Pastilhas e discos de freio', obrigatorio: 'Não trocar automaticamente', quando: 'Quando atingirem o limite de desgaste ou apresentarem defeito' },
+    { id: 'opt_pneus', nome: 'Pneus', obrigatorio: 'Não trocar automaticamente', quando: 'Quando desgastados, danificados ou fora dos limites de segurança' },
+    { id: 'opt_bateria', nome: 'Bateria', obrigatorio: 'Não trocar automaticamente', quando: 'Se falhar nos testes ou não atender às especificações' },
+    { id: 'opt_palhetas', nome: 'Palhetas', obrigatorio: 'Não trocar automaticamente', quando: 'Quando desgastadas ou sem funcionamento adequado' },
+    { id: 'opt_filtro_ac', nome: 'Filtro do ar-condicionado', obrigatorio: 'Não necessariamente trocar em toda revisão', quando: 'Conforme o plano e a condição verificada' },
+    { id: 'opt_alinhamento', nome: 'Alinhamento e balanceamento', obrigatorio: 'Não necessariamente', quando: 'Quando houver sintomas, desgaste irregular ou necessidade técnica' },
+    { id: 'opt_bicos', nome: 'Limpeza de bicos injetores', obrigatorio: 'Não é troca automática universal', quando: 'Quando houver diagnóstico ou previsão expressa no plano' },
+    { id: 'opt_descarbonizacao', nome: 'Descarbonização do motor', obrigatorio: 'Não é troca automática universal', quando: 'Somente se tecnicamente indicada' },
+    { id: 'opt_aditivos', nome: 'Aditivos extras no combustível', obrigatorio: 'Não adicionar por rotina sem recomendação', quando: 'Seguir o combustível e os produtos especificados pela Fiat' },
+    { id: 'opt_lavagem_motor', nome: 'Lavagem técnica do motor', obrigatorio: 'Não é requisito universal de revisão', quando: 'Apenas se necessária e executada com segurança' },
+    { id: 'opt_acessorios', nome: 'Acessórios e personalizações', obrigatorio: 'Não são revisões obrigatórias', quando: 'Devem respeitar as especificações e condições da garantia' }
+];
+
 window.mnRenderRevisaoTela = function(sub) {
-    sub.innerHTML = `<div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>`;
+    sub.innerHTML = `
+        <div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>
+        <div id="mn-rev-detalhe" style="display:none;"></div>`;
     window._mnPrevAtualizarFrota();
 };
 
-window.mnRevisaoAbrirVeiculo = function(id) {
-    if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2139\uFE0F O plano de revis\u00e3o ser\u00e1 definido em breve.');
-    else alert('O plano de revis\u00e3o ser\u00e1 definido em breve.');
+window.mnRevisaoVoltarCards = function() {
+    const det = document.getElementById('mn-rev-detalhe');
+    const grid = document.getElementById('mn-rev-cards');
+    if (det) { det.style.display = 'none'; det.innerHTML = ''; }
+    if (grid) { grid.style.display = 'grid'; grid.innerHTML = window._mnPrevCardsHtml('revisao'); }
+    window._mnRevAtual = null;
+};
+
+function _mnRevSomarMesesISO(dtIso, meses) {
+    if (!dtIso) return '';
+    const p = String(dtIso).split('T')[0].split('-');
+    if (p.length !== 3) return '';
+    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), parseInt(p[2], 10));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function _mnRevDiffDias(dtAlvoIso, hojeIso) {
+    if (!dtAlvoIso || !hojeIso) return null;
+    const d1 = new Date(dtAlvoIso + 'T00:00:00');
+    const d0 = new Date(hojeIso + 'T00:00:00');
+    return Math.round((d1 - d0) / (1000 * 60 * 60 * 24));
+}
+
+function _mnRevFmtDataBR(dtIso) {
+    if (!dtIso) return '—';
+    const p = String(dtIso).split('T')[0].split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dtIso;
+}
+
+function _mnRevInferirInicioGarantia(v) {
+    const salva = String(v?.data_inicio_garantia || '').split('T')[0];
+    if (salva) return salva;
+    const ate = String(v?.garantia_fabrica_ate || '').split('T')[0];
+    if (ate) return _mnRevSomarMesesISO(ate, -12);
+    return '';
+}
+
+window.mnRevisaoAbrirVeiculo = async function(vid) {
+    const grid = document.getElementById('mn-rev-cards');
+    const det = document.getElementById('mn-rev-detalhe');
+    if (!det) return;
+    if (grid) grid.style.display = 'none';
+    det.style.display = 'block';
+    det.innerHTML = `<div style="padding:3rem;text-align:center;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;color:#7c3aed;"></i><div style="margin-top:8px;font-weight:600;">Carregando plano de revisão e garantia...</div></div>`;
+
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), {
+            headers: { Authorization: 'Bearer ' + tok },
+            cache: 'no-store'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao carregar revisões');
+        window._mnRevAtual = data;
+        window._mnRenderPainelRevisaoVeiculo();
+    } catch (e) {
+        det.innerHTML = `<div style="padding:2rem;text-align:center;color:#dc2626;font-weight:600;">Erro: ${e.message} <br><button onclick="window.mnRevisaoVoltarCards()" style="margin-top:1rem;padding:0.5rem 1rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;">Voltar</button></div>`;
+    }
+};
+
+window._mnRevSalvarConfigVeiculo = async function(vid) {
+    const dtIni = document.getElementById('mn-rev-cfg-inicio')?.value || '';
+    const usoSev = document.getElementById('mn-rev-cfg-severo')?.value === '1' ? 1 : 0;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ data_inicio_garantia: dtIni || null, uso_severo: usoSev })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar configuração');
+        if (window._mnRevAtual && window._mnRevAtual.veiculo) {
+            window._mnRevAtual.veiculo.data_inicio_garantia = dtIni || null;
+            window._mnRevAtual.veiculo.uso_severo = usoSev;
+        }
+        [window._manutFrota, window._frotaDados].forEach(arr => {
+            const v = (arr || []).find(x => String(x.id) === String(vid));
+            if (v) { v.data_inicio_garantia = dtIni || null; v.uso_severo = usoSev; }
+        });
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Parâmetros de revisão atualizados!');
+        window._mnRenderPainelRevisaoVeiculo();
+    } catch (e) { alert(e.message); }
+};
+
+window._mnRenderPainelRevisaoVeiculo = function() {
+    const det = document.getElementById('mn-rev-detalhe');
+    const ctx = window._mnRevAtual;
+    if (!det || !ctx || !ctx.veiculo) return;
+    const v = ctx.veiculo;
+    const revsMap = {};
+    (ctx.revisoes || []).forEach(r => { revsMap[Number(r.marco_km)] = r; });
+
+    const kmAtual = Number(v.km_atual || 0);
+    const hojeIso = window._mnHojeISO();
+    const dtIniGar = _mnRevInferirInicioGarantia(v);
+    const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
+    const usoSevero = Number(v.uso_severo || 0) === 1;
+    const passoKm = usoSevero ? 5000 : 10000;
+    const passoMeses = usoSevero ? 6 : 12;
+
+    const marcos = [];
+    for (let i = 1; i <= 6; i++) {
+        marcos.push({ ordem: i, km: i * passoKm, meses: i * passoMeses });
+    }
+    // Se já houver revisões salvas em marcos diferentes (ex: alternou normal/severo), inclui também
+    (ctx.revisoes || []).forEach(r => {
+        const mk = Number(r.marco_km);
+        if (mk && !marcos.some(m => m.km === mk)) {
+            marcos.push({ ordem: Math.round(mk / passoKm) || 1, km: mk, meses: Number(r.marco_meses) || Math.round(mk / 10000) * 12 });
+        }
+    });
+    marcos.sort((a, b) => a.km - b.km);
+
+    // Avalia cada marco por KM e por Tempo ("o que ocorrer primeiro")
+    let alertasCriticos = [];
+    let proxMarcoInfo = null;
+
+    const cardsMarcosHtml = marcos.map((m, idx) => {
+        const reg = revsMap[m.km] || null;
+        const status = reg ? (reg.status || 'pendente') : 'pendente';
+        const realizada = status === 'realizada';
+        const agendada = status === 'agendada';
+
+        // Cálculo de data-limite: se a revisão anterior foi realizada com data, soma passoMeses a partir dela; senão usa dtIniGar + m.meses
+        const revAnt = idx > 0 ? revsMap[marcos[idx - 1].km] : null;
+        const dtLimiteIso = (revAnt && revAnt.status === 'realizada' && revAnt.data_revisao)
+            ? _mnRevSomarMesesISO(revAnt.data_revisao, passoMeses)
+            : (dtIniGar ? _mnRevSomarMesesISO(dtIniGar, m.meses) : '');
+
+        const diffKm = m.km - kmAtual;
+        const diffDias = dtLimiteIso ? _mnRevDiffDias(dtLimiteIso, hojeIso) : null;
+
+        let sitCor = '#64748b', sitBg = '#f8fafc', sitBorda = '#e2e8f0', sitLabel = 'No Prazo';
+        let kmStatusTxt = '', tempoStatusTxt = '', prevalenciaTxt = '';
+
+        if (realizada) {
+            sitCor = '#15803d'; sitBg = '#f0fdf4'; sitBorda = '#86efac';
+            sitLabel = 'Realizada';
+            kmStatusTxt = reg.km_revisao ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Marco ${m.km.toLocaleString('pt-BR')} km`;
+            tempoStatusTxt = reg.data_revisao ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
+            prevalenciaTxt = reg.concessionaria ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
+        } else {
+            const vencKm = kmAtual > 0 && diffKm <= 0;
+            const vencTempo = diffDias !== null && diffDias < 0;
+            const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1500;
+            const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 45;
+
+            if (vencKm || vencTempo) {
+                sitCor = '#dc2626'; sitBg = '#fef2f2'; sitBorda = '#fca5a5';
+                sitLabel = agendada ? 'Agendada (Marco Atingido)' : 'Pendente / Vencida';
+                alertasCriticos.push(`Revisão de <b>${m.km.toLocaleString('pt-BR')} km (${m.meses}m)</b>: ${vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b> do marco` : ''}${vencKm && vencTempo ? ' e ' : ''}${vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
+            } else if (proxKm || proxTempo || agendada) {
+                sitCor = '#d97706'; sitBg = '#fffbeb'; sitBorda = '#fcd34d';
+                sitLabel = agendada ? 'Agendada' : 'Próxima Revisão';
+            } else {
+                sitCor = '#0284c7'; sitBg = '#f0f9ff'; sitBorda = '#bae6fd';
+                sitLabel = 'Programada';
+            }
+
+            kmStatusTxt = kmAtual > 0
+                ? (diffKm <= 0
+                    ? `<span style="color:#dc2626;font-weight:800;">Passou ${Math.abs(diffKm).toLocaleString('pt-BR')} km</span>`
+                    : `<span style="color:${diffKm <= 1500 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
+                : '<span style="color:#94a3b8;">KM atual não informado</span>';
+
+            tempoStatusTxt = dtLimiteIso
+                ? (diffDias < 0
+                    ? `<span style="color:#dc2626;font-weight:800;">Vencida há ${Math.abs(diffDias)} dias (${_mnRevFmtDataBR(dtLimiteIso)})</span>`
+                    : `<span style="color:${diffDias <= 45 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffDias} dias (${_mnRevFmtDataBR(dtLimiteIso)})</span>`)
+                : '<span style="color:#94a3b8;">Informe o início da garantia</span>';
+
+            // Comparativo: qual critério ocorre primeiro?
+            if (kmAtual > 0 && dtLimiteIso !== '') {
+                const percKm = Math.min(150, Math.round((kmAtual / m.km) * 100));
+                const diasTotais = Math.max(1, m.meses * 30.4);
+                const diasDecorridos = diasTotais - (diffDias || 0);
+                const percTempo = Math.min(150, Math.round((diasDecorridos / diasTotais) * 100));
+                if (percKm >= percTempo) {
+                    prevalenciaTxt = `\u26A1 Critério mais próximo: <b>Quilometragem (${percKm}% do limite de KM vs ${Math.max(0, percTempo)}% do tempo)</b>`;
+                } else {
+                    prevalenciaTxt = `\u23F0 Critério mais próximo: <b>Tempo (${Math.max(0, percTempo)}% do prazo vs ${percKm}% do limite de KM)</b>`;
+                }
+            } else if (kmAtual > 0) {
+                prevalenciaTxt = `\u26A1 Acompanhando por KM (${Math.min(150, Math.round((kmAtual / m.km) * 100))}% do marco)`;
+            } else {
+                prevalenciaTxt = 'Preencha a data de início da garantia para comparar KM × Tempo';
+            }
+
+            if (!proxMarcoInfo && diffKm > 0) {
+                proxMarcoInfo = { km: m.km, meses: m.meses, diffKm, diffDias, dtLimiteIso };
+            }
+        }
+
+        const nAnexos = reg && Array.isArray(reg.anexos) ? reg.anexos.length : 0;
+        const vTotal = reg ? Number(reg.valor_total || 0) : 0;
+        const itensObj = (reg && reg.itens) || {};
+        const qtdVerif = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].verificado === 'sim' || itensObj[k].realizado === 'sim')).length;
+        const qtdTrocaManut = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].acao === 'manutencao' || itensObj[k].acao === 'troca' || itensObj[k].realizado === 'sim')).length;
+
+        return `
+        <div style="background:#fff;border:2px solid ${sitBorda};border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:0.75rem;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <div>
+                    <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${idx + 1}ª Revisão Programada</div>
+                    <div style="font-size:1.15rem;font-weight:800;color:#1e293b;">${m.km.toLocaleString('pt-BR')} km <span style="font-size:0.85rem;font-weight:600;color:#64748b;">ou ${m.meses} meses</span></div>
+                </div>
+                <span style="background:${sitBg};color:${sitCor};border:1px solid ${sitBorda};padding:4px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;white-space:nowrap;">${sitLabel}</span>
+            </div>
+
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.8rem;display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <span style="color:#64748b;font-weight:600;"><i class="ph ph-gauge"></i> Por KM:</span>
+                    <span>${kmStatusTxt}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar"></i> Por Tempo:</span>
+                    <span>${tempoStatusTxt}</span>
+                </div>
+                <div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">
+                    ${prevalenciaTxt}
+                </div>
+            </div>
+
+            <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.75rem;">
+                <span style="background:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-weight:600;">
+                    <i class="ph ph-currency-circle-dollar"></i> Custo: <b>${vTotal > 0 ? vTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}</b>
+                </span>
+                <span style="background:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-weight:600;">
+                    <i class="ph ph-file-pdf"></i> Notas/OS: <b>${nAnexos}</b>
+                </span>
+                ${qtdVerif > 0 ? `<span style="background:#ecfdf5;color:#047857;padding:3px 8px;border-radius:6px;font-weight:600;"><i class="ph ph-check-square-offset"></i> ${qtdVerif} verificados (${qtdTrocaManut} c/ troca/manut.)</span>` : ''}
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:auto;padding-top:4px;">
+                <button onclick="window.mnRevAbrirModalMarco(${m.km}, ${m.meses})" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="ph ph-clipboard-text"></i> ${realizada ? 'Ver / Editar Revisão' : 'Registrar / Checklist'}
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+
+    const bannerDiagnHtml = alertasCriticos.length > 0
+        ? `<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-left:5px solid #dc2626;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+            <div style="font-weight:800;color:#991b1b;font-size:0.95rem;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-warning-octagon" style="font-size:1.3rem;color:#dc2626;"></i>
+                Atenção para Preservação da Garantia (${v.placa} — ${kmAtual.toLocaleString('pt-BR')} km)
+            </div>
+            <ul style="margin:0;padding-left:1.25rem;color:#7f1d1d;font-size:0.84rem;line-height:1.5;">
+                ${alertasCriticos.map(a => `<li>${a}</li>`).join('')}
+                <li>Se a revisão já foi executada na concessionária, clique em <b>"Registrar / Checklist"</b> no card correspondente abaixo, marque como <b>Realizada</b>, registre as verificações/trocas e anexe a Nota Fiscal / Ordem de Serviço.</li>
+                ${proxMarcoInfo ? `<li>Próximo marco subsequente: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>` : ''}
+            </ul>
+        </div>`
+        : `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-left:5px solid #16a34a;border-radius:12px;padding:0.9rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="color:#166534;font-size:0.86rem;font-weight:600;">
+                <i class="ph ph-seal-check" style="color:#16a34a;font-size:1.1rem;"></i>
+                Revisões em dia para a quilometragem atual (<b>${kmAtual.toLocaleString('pt-BR')} km</b>).
+                ${proxMarcoInfo ? `Próxima revisão programada aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).` : ''}
+            </div>
+        </div>`;
+
+    det.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+        <!-- Barra superior -->
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <button onclick="window.mnRevisaoVoltarCards()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                    <i class="ph ph-arrow-left"></i> Voltar aos veículos
+                </button>
+                <div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:1.25rem;font-weight:800;color:#1e293b;">${v.placa}</span>
+                        <span style="background:#f3e8ff;color:#6d28d9;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Plano de Revisão — Garantia</span>
+                    </div>
+                    <div style="font-size:0.84rem;color:#64748b;font-weight:600;">${v.marca_modelo_versao || ''}</div>
+                </div>
+            </div>
+
+            <!-- Parâmetros de KM (Somente Leitura) e Datas/Regime -->
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
+                    <div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">KM Atual (Somente leitura)</div>
+                    <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Compra / Início Garantia</label>
+                    <input type="date" id="mn-rev-cfg-inicio" value="${dtIniGar}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:600;color:#1e293b;">
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia de Fábrica Até</label>
+                    <div style="font-size:0.88rem;font-weight:800;color:#16a34a;padding:2px 0;">${_mnRevFmtDataBR(garAte)}</div>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso (Manual)</label>
+                    <select id="mn-rev-cfg-severo" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${usoSevero ? '#dc2626' : '#1e293b'};">
+                        <option value="0"${usoSevero ? '' : ' selected'}>Normal (10.000 km / 12m)</option>
+                        <option value="1"${usoSevero ? ' selected' : ''}>Uso Severo (5.000 km / 6m)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        ${bannerDiagnHtml}
+
+        <!-- Grid dos Marcos de Revisão (10k, 20k, 30k, 40k, 50k, 60k) -->
+        <div>
+            <h3 style="margin:0 0 0.75rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-calendar-check" style="color:#7c3aed;font-size:1.2rem;"></i>
+                Marcos de Revisão Programada — Comparativo por KM ou Tempo (o que ocorrer primeiro)
+            </h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1rem;">
+                ${cardsMarcosHtml}
+            </div>
+        </div>
+
+        <!-- Guia de Referência Rápida do Manual (Preservação da Garantia & Opcionais) -->
+        <details style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;">
+            <summary style="cursor:pointer;font-weight:800;color:#1e293b;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-book-open-text" style="color:#7c3aed;font-size:1.2rem;"></i>
+                Regras do Manual para Preservar a Garantia, Tabela de Verificações e O que é Opcional (Clique para expandir)
+            </summary>
+            <div style="margin-top:1rem;display:flex;flex-direction:column;gap:1rem;font-size:0.83rem;color:#334155;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.75rem;">
+                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.8rem;">
+                        <div style="font-weight:800;color:#166534;margin-bottom:4px;">\u2705 Obrigatório</div>
+                        Realizar as revisões programadas nos intervalos de KM ou tempo (na rede autorizada Fiat), executar as trocas e verificações prescritas e arquivar todas as NFs e Ordens de Serviço.
+                    </div>
+                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.8rem;">
+                        <div style="font-weight:800;color:#92400e;margin-bottom:4px;">\u26A0\uFE0F Obrigatório quando aplicável</div>
+                        Substituir peças que atingirem limites de desgaste ou apresentarem defeito (especialmente segurança). Pastilhas, discos, pneus, bateria e palhetas <b>não são troca automática</b>.
+                    </div>
+                    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:0.8rem;">
+                        <div style="font-weight:800;color:#075985;margin-bottom:4px;">\u2139\uFE0F Opcional (Sem perda de garantia)</div>
+                        Serviços extras não previstos no plano nem necessários para corrigir defeito (ex.: limpeza de bicos por rotina, descarbonização, aditivos extras, lavagem técnica).
+                    </div>
+                </div>
+            </div>
+        </details>
+    </div>`;
+};
+
+// Abre o modal completo para registrar/editar uma revisão específica (ex: 10.000 km) + checklist + notas R2
+window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
+    const ctx = window._mnRevAtual;
+    if (!ctx || !ctx.veiculo) return;
+    const v = ctx.veiculo;
+    const reg = (ctx.revisoes || []).find(r => Number(r.marco_km) === Number(marcoKm)) || {
+        id: null,
+        veiculo_id: v.id,
+        marco_km: marcoKm,
+        marco_meses: marcoMeses,
+        status: 'pendente',
+        data_revisao: '',
+        km_revisao: '',
+        concessionaria: 'Concessionária Autorizada Fiat',
+        numero_os: '',
+        valor_pecas: 0,
+        valor_mao_obra: 0,
+        valor_total: 0,
+        itens: {},
+        observacoes: '',
+        anexos: []
+    };
+    const itensSalvos = reg.itens || {};
+
+    let ov = document.getElementById('mn-rev-modal-ov');
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'mn-rev-modal-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(3px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;';
+
+    const linhasTrocasHtml = window._mnRevCatTrocas.map(item => {
+        const ehPrevistoNesteMarco = (item.marcosTroca || []).includes(Number(marcoKm));
+        const st = itensSalvos[item.id] || {};
+        const realizadoVal = st.realizado || (ehPrevistoNesteMarco ? 'sim' : 'inspecionado');
+        const acaoVal = st.acao || (ehPrevistoNesteMarco ? 'troca' : 'nao_necessario');
+        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
+        const badgeMarco = ehPrevistoNesteMarco
+            ? `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.68rem;font-weight:800;">Previsto aos ${marcoKm.toLocaleString('pt-BR')} km</span>`
+            : `<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.68rem;font-weight:700;">Conforme marco/condição</span>`;
+
+        return `
+        <tr style="border-bottom:1px solid #e2e8f0;background:${ehPrevistoNesteMarco ? '#fffdf9' : '#fff'};">
+            <td style="padding:8px 10px;">
+                <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${item.nome} ${badgeMarco}</div>
+                <div style="font-size:0.74rem;color:#64748b;">${item.oQueFazer}</div>
+            </td>
+            <td style="padding:8px 10px;font-size:0.74rem;color:#991b1b;font-weight:600;">${item.risco}</td>
+            <td style="padding:8px 10px;">
+                <select data-rev-item="${item.id}" data-rev-field="realizado" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                    <option value="sim"${realizadoVal === 'sim' ? ' selected' : ''}>Sim — Verificado / Executado</option>
+                    <option value="inspecionado"${realizadoVal === 'inspecionado' ? ' selected' : ''}>Inspecionado (Dentro do prazo)</option>
+                    <option value="nao"${realizadoVal === 'nao' ? ' selected' : ''}>Não realizado</option>
+                </select>
+            </td>
+            <td style="padding:8px 10px;">
+                <select data-rev-item="${item.id}" data-rev-field="acao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                    <option value="troca"${acaoVal === 'troca' ? ' selected' : ''}>Sim — Realizada troca</option>
+                    <option value="manutencao"${acaoVal === 'manutencao' ? ' selected' : ''}>Sim — Realizada manutenção</option>
+                    <option value="nao_necessario"${acaoVal === 'nao_necessario' ? ' selected' : ''}>Não foi necessário trocar</option>
+                </select>
+            </td>
+            <td style="padding:8px 10px;">
+                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Obs / marca / OS..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
+            </td>
+        </tr>`;
+    }).join('');
+
+    const linhasVerifHtml = window._mnRevCatVerificacoes.map(item => {
+        const st = itensSalvos[item.id] || {};
+        const verifVal = st.verificado || 'sim';
+        const acaoVal = st.acao || 'nao_necessario';
+        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
+        return `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:8px 10px;">
+                <div style="font-weight:700;color:#1e293b;">${item.nome}</div>
+                <div style="font-size:0.74rem;color:#64748b;">${item.oQueFazer}</div>
+            </td>
+            <td style="padding:8px 10px;font-size:0.74rem;color:#475569;">${item.risco}</td>
+            <td style="padding:8px 10px;">
+                <select data-rev-item="${item.id}" data-rev-field="verificado" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                    <option value="sim"${verifVal === 'sim' ? ' selected' : ''}>Sim — Verificado</option>
+                    <option value="nao"${verifVal === 'nao' ? ' selected' : ''}>Não verificado</option>
+                </select>
+            </td>
+            <td style="padding:8px 10px;">
+                <select data-rev-item="${item.id}" data-rev-field="acao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                    <option value="nao_necessario"${acaoVal === 'nao_necessario' ? ' selected' : ''}>Não foi necessário (Em bom estado)</option>
+                    <option value="manutencao"${acaoVal === 'manutencao' ? ' selected' : ''}>Sim — Realizada manutenção/ajuste</option>
+                    <option value="troca"${acaoVal === 'troca' ? ' selected' : ''}>Sim — Realizada troca de peça</option>
+                    <option value="pendente"${acaoVal === 'pendente' ? ' selected' : ''}>Necessário, mas pendente/recusado</option>
+                </select>
+            </td>
+            <td style="padding:8px 10px;">
+                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Detalhe da verificação/troca..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
+            </td>
+        </tr>`;
+    }).join('');
+
+    const linhasOptHtml = window._mnRevCatOpcionais.map(item => {
+        const st = itensSalvos[item.id] || {};
+        const decVal = st.decisao || 'nao_aplicavel';
+        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
+        return `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:7px 10px;font-weight:700;color:#1e293b;">${item.nome}</td>
+            <td style="padding:7px 10px;font-size:0.75rem;color:#475569;">${item.obrigatorio} — ${item.quando}</td>
+            <td style="padding:7px 10px;">
+                <select data-rev-item="${item.id}" data-rev-field="decisao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                    <option value="nao_aplicavel"${decVal === 'nao_aplicavel' ? ' selected' : ''}>Não ofertado / Sem necessidade</option>
+                    <option value="recusado_opcional"${decVal === 'recusado_opcional' ? ' selected' : ''}>Ofertado e Recusado (Opcional)</option>
+                    <option value="realizado"${decVal === 'realizado' ? ' selected' : ''}>Autorizado e Realizado</option>
+                </select>
+            </td>
+            <td style="padding:7px 10px;">
+                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Motivo / observação..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
+            </td>
+        </tr>`;
+    }).join('');
+
+    ov.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${v.placa} • ${v.marca_modelo_versao || ''} • KM Atual: ${Number(v.km_atual || 0).toLocaleString('pt-BR')} km</div>
+                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">Revisão de ${marcoKm.toLocaleString('pt-BR')} km (${marcoMeses} meses)</h3>
+            </div>
+            <button onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1.2rem;">&times;</button>
+        </div>
+
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1.25rem;">
+            <!-- 1. Dados Gerais da Revisão -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-Wrench" style="color:#7c3aed;"></i> 1. Registro de Execução da Revisão
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;">
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Situação da Revisão *</label>
+                        <select id="mn-rev-f-status" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
+                            <option value="pendente"${reg.status === 'pendente' ? ' selected' : ''}>Pendente</option>
+                            <option value="agendada"${reg.status === 'agendada' ? ' selected' : ''}>Agendada</option>
+                            <option value="realizada"${reg.status === 'realizada' ? ' selected' : ''}>Realizada (Concluída)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
+                        <input type="date" id="mn-rev-f-data" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM em que foi realizada</label>
+                        <input type="number" id="mn-rev-f-km" value="${reg.km_revisao || ''}" placeholder="Ex: ${marcoKm}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Concessionária / Autorizada</label>
+                        <input type="text" id="mn-rev-f-conc" value="${String(reg.concessionaria || '').replace(/"/g, '&quot;')}" placeholder="Ex: Concessionária Fiat" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº Ordem de Serviço (OS)</label>
+                        <input type="text" id="mn-rev-f-os" value="${String(reg.numero_os || '').replace(/"/g, '&quot;')}" placeholder="Nº da OS" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Precificação e Anexo de Notas Fiscais / OS (Cloudflare R2) -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-receipt" style="color:#0284c7;"></i> 2. Precificação e Notas Fiscais / Ordem de Serviço (PDF)
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem;margin-bottom:1rem;">
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Valor de Peças (R$)</label>
+                        <input type="number" step="0.01" id="mn-rev-f-vpecas" value="${reg.valor_pecas || 0}" oninput="window._mnRevCalcTotalModal()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Valor Mão de Obra / Serviço (R$)</label>
+                        <input type="number" step="0.01" id="mn-rev-f-vmo" value="${reg.valor_mao_obra || 0}" oninput="window._mnRevCalcTotalModal()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Valor Total da Revisão (R$)</label>
+                        <input type="number" step="0.01" id="mn-rev-f-vtotal" value="${reg.valor_total || 0}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;font-weight:800;color:#0f172a;background:#fff;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <!-- Upload de Nota / OS -->
+                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
+                    <div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:8px;">Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF):</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Tipo de Documento</label>
+                            <select id="mn-rev-anx-tipo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;">
+                                <option value="nota_servico">Nota Fiscal de Serviço (Mão de Obra)</option>
+                                <option value="nota_pecas">Nota Fiscal de Peças (DANFE)</option>
+                                <option value="ordem_servico">Ordem de Serviço (OS Concessionária)</option>
+                                <option value="outro">Outro Comprovante</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label>
+                            <input type="text" id="mn-rev-anx-num" placeholder="Preenchido pelo PDF ou manual" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Valor do Documento (R$)</label>
+                            <input type="number" step="0.01" id="mn-rev-anx-val" placeholder="0,00" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Arquivo PDF</label>
+                            <input type="file" id="mn-rev-anx-file" accept="application/pdf" onchange="window._mnRevAoEscolherPdf(this)" style="width:100%;font-size:0.76rem;">
+                        </div>
+                        <div>
+                            <button type="button" id="mn-rev-anx-btn" onclick="window._mnRevAnexarPdf(${marcoKm}, ${marcoMeses})" style="width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                <i class="ph ph-upload-simple"></i> Anexar PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div id="mn-rev-anx-lista" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:6px;">
+                        ${window._mnRevRenderListaAnexos(reg.anexos || [])}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Checklist de Trocas Programadas Obrigatórias -->
+            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;">
+                        <i class="ph ph-arrows-clockwise" style="color:#dc2626;"></i> 3. Trocas Programadas Obrigatórias (Plano Motor 1.3 Flex)
+                    </div>
+                    <span style="font-size:0.75rem;color:#64748b;">Informe se foi verificado/executado e se houve troca</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
+                                <th style="padding:8px 10px;">Item / Prescrição do Manual</th>
+                                <th style="padding:8px 10px;width:140px;">Risco p/ Garantia?</th>
+                                <th style="padding:8px 10px;width:190px;">Foi verificado / realizado?</th>
+                                <th style="padding:8px 10px;width:210px;">Precisou de manutenção/troca?</th>
+                                <th style="padding:8px 10px;width:180px;">Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasTrocasHtml}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. Checklist de Verificações Obrigatórias -->
+            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;">
+                        <i class="ph ph-check-square-offset" style="color:#0284c7;"></i> 4. Verificações Obrigatórias — O que verificar e se precisou de manutenção ou troca
+                    </div>
+                    <span style="font-size:0.75rem;color:#64748b;">Registre na OS todas as verificações e se houve necessidade de intervenção</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
+                                <th style="padding:8px 10px;">Item a Verificar</th>
+                                <th style="padding:8px 10px;width:170px;">Risco p/ Garantia?</th>
+                                <th style="padding:8px 10px;width:160px;">Foi verificado?</th>
+                                <th style="padding:8px 10px;width:230px;">Precisou de manutenção ou troca?</th>
+                                <th style="padding:8px 10px;width:180px;">Detalhes / Peça</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasVerifHtml}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. O que é opcional e condicional -->
+            <details style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                <summary style="background:#f8fafc;padding:0.75rem 1rem;cursor:pointer;font-weight:800;color:#1e293b;font-size:0.9rem;">
+                    <i class="ph ph-shield-check" style="color:#16a34a;"></i> 5. Serviços Condicionais / Opcionais de Concessionária (Clique para abrir/registrar)
+                </summary>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
+                                <th style="padding:8px 10px;">Serviço ou Peça</th>
+                                <th style="padding:8px 10px;">Regra do Manual / Quando realizar</th>
+                                <th style="padding:8px 10px;width:230px;">Decisão na Revisão</th>
+                                <th style="padding:8px 10px;width:200px;">Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhasOptHtml}</tbody>
+                    </table>
+                </div>
+            </details>
+
+            <div>
+                <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações Gerais da Revisão / Recomendações da Concessionária</label>
+                <textarea id="mn-rev-f-obs" rows="2" placeholder="Anote detalhes da Ordem de Serviço, pendências ou observações..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">${String(reg.observacoes || '')}</textarea>
+            </div>
+        </div>
+
+        <div style="background:#f8fafc;padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">
+            <button type="button" onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;">Cancelar</button>
+            <button type="button" id="mn-rev-btn-salvar" onclick="window.mnRevSalvarMarco(${marcoKm}, ${marcoMeses}, false)" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-floppy-disk"></i> Salvar Revisão
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(ov);
+};
+
+window._mnRevCalcTotalModal = function() {
+    const vp = parseFloat(document.getElementById('mn-rev-f-vpecas')?.value || '0') || 0;
+    const vm = parseFloat(document.getElementById('mn-rev-f-vmo')?.value || '0') || 0;
+    const vtEl = document.getElementById('mn-rev-f-vtotal');
+    if (vtEl) vtEl.value = (Math.round((vp + vm) * 100) / 100).toFixed(2);
+};
+
+window._mnRevRenderListaAnexos = function(anexos) {
+    if (!anexos || !anexos.length) {
+        return `<div style="font-size:0.78rem;color:#94a3b8;padding:4px 0;">Nenhuma nota ou OS anexada ainda nesta revisão.</div>`;
+    }
+    const tipoLbl = { nota_servico: 'NF Serviço (Mão de Obra)', nota_pecas: 'NF Peças (DANFE)', ordem_servico: 'Ordem de Serviço (OS)', outro: 'Comprovante' };
+    return anexos.map(a => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>
+                <span style="font-weight:700;color:#1e293b;">${tipoLbl[a.tipo_documento] || a.tipo_documento}</span>
+                ${a.numero_nota ? `<span style="color:#475569;">Nº <b>${a.numero_nota}</b></span>` : ''}
+                ${Number(a.valor || 0) > 0 ? `<span style="color:#15803d;font-weight:700;">${Number(a.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>` : ''}
+                <span style="color:#94a3b8;">(${a.nome_arquivo || 'PDF'})</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <button type="button" onclick="window._mnRevAbrirPdfAnexo(${a.id})" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;font-weight:700;cursor:pointer;">Abrir PDF</button>
+                <button type="button" onclick="window._mnRevExcluirAnexo(${a.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>
+            </div>
+        </div>`).join('');
+};
+
+window._mnRevAoEscolherPdf = async function(inp) {
+    const file = inp && inp.files && inp.files[0];
+    if (!file) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const fd = new FormData();
+        fd.append('arquivo', file);
+        const r = await fetch('/api/frota/revisoes/analisar-nota', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + tok },
+            body: fd
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return;
+        const tipo = document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico';
+        const d = tipo === 'nota_pecas' ? (j.nf_pecas || j.nf_servico) : (j.nf_servico || j.nf_pecas);
+        if (d) {
+            const numEl = document.getElementById('mn-rev-anx-num');
+            const valEl = document.getElementById('mn-rev-anx-val');
+            const concEl = document.getElementById('mn-rev-f-conc');
+            if (numEl && d.numero && !numEl.value) numEl.value = d.numero;
+            if (valEl && d.valor_total && !valEl.value) valEl.value = Number(d.valor_total).toFixed(2);
+            if (concEl && d.fornecedor && (!concEl.value || concEl.value === 'Concessionária Autorizada Fiat')) concEl.value = d.fornecedor;
+        }
+    } catch (e) {}
+};
+
+window._mnRevColetarItensModal = function() {
+    const itens = {};
+    document.querySelectorAll('#mn-rev-modal-ov [data-rev-item]').forEach(el => {
+        const id = el.getAttribute('data-rev-item');
+        const field = el.getAttribute('data-rev-field');
+        if (!id || !field) return;
+        if (!itens[id]) itens[id] = {};
+        itens[id][field] = el.value;
+    });
+    return itens;
+};
+
+window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
+    const ctx = window._mnRevAtual;
+    if (!ctx || !ctx.veiculo) return null;
+    const vid = ctx.veiculo.id;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const btn = document.getElementById('mn-rev-btn-salvar');
+    if (btn && !silencioso) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+    const body = {
+        marco_km: marcoKm,
+        marco_meses: marcoMeses,
+        status: document.getElementById('mn-rev-f-status')?.value || 'pendente',
+        data_revisao: document.getElementById('mn-rev-f-data')?.value || null,
+        km_revisao: document.getElementById('mn-rev-f-km')?.value || null,
+        concessionaria: document.getElementById('mn-rev-f-conc')?.value || null,
+        numero_os: document.getElementById('mn-rev-f-os')?.value || null,
+        valor_pecas: parseFloat(document.getElementById('mn-rev-f-vpecas')?.value || '0') || 0,
+        valor_mao_obra: parseFloat(document.getElementById('mn-rev-f-vmo')?.value || '0') || 0,
+        valor_total: parseFloat(document.getElementById('mn-rev-f-vtotal')?.value || '0') || 0,
+        itens: window._mnRevColetarItensModal(),
+        observacoes: document.getElementById('mn-rev-f-obs')?.value || null
+    };
+
+    try {
+        const res = await fetch('/api/frota/revisoes/' + vid + '/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify(body)
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar revisão');
+        if (!silencioso) {
+            if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão salva com sucesso!');
+            document.getElementById('mn-rev-modal-ov')?.remove();
+            await window.mnRevisaoAbrirVeiculo(vid);
+        }
+        return j.revisao;
+    } catch (e) {
+        if (!silencioso) alert('Erro: ' + e.message);
+        if (btn && !silencioso) { btn.disabled = false; btn.textContent = 'Salvar Revisão'; }
+        return null;
+    }
+};
+
+window._mnRevAnexarPdf = async function(marcoKm, marcoMeses) {
+    const fileInp = document.getElementById('mn-rev-anx-file');
+    const file = fileInp && fileInp.files && fileInp.files[0];
+    if (!file) return alert('Selecione um arquivo PDF para anexar.');
+
+    const btn = document.getElementById('mn-rev-anx-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+    try {
+        // Garante que a revisão já existe no banco antes de anexar
+        const savedRev = await window.mnRevSalvarMarco(marcoKm, marcoMeses, true);
+        if (!savedRev || !savedRev.id) throw new Error('Não foi possível criar o registro da revisão.');
+
+        const tipo = document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico';
+        const num = document.getElementById('mn-rev-anx-num')?.value || '';
+        const val = parseFloat(document.getElementById('mn-rev-anx-val')?.value || '0') || 0;
+        const conc = document.getElementById('mn-rev-f-conc')?.value || '';
+
+        const fd = new FormData();
+        fd.append('arquivo', file);
+        fd.append('tipo_documento', tipo);
+        fd.append('numero_nota', num);
+        fd.append('valor', String(val));
+        fd.append('fornecedor', conc);
+
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        const res = await fetch('/api/frota/revisoes/' + savedRev.id + '/anexos', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + tok },
+            body: fd
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Erro ao enviar PDF');
+
+        // Se informou valor no anexo, soma no campo correspondente (peças ou mão de obra) se ainda estiver zerado
+        if (val > 0) {
+            if (tipo === 'nota_pecas') {
+                const elP = document.getElementById('mn-rev-f-vpecas');
+                if (elP) elP.value = (Math.round(((parseFloat(elP.value || '0') || 0) + val) * 100) / 100).toFixed(2);
+            } else if (tipo === 'nota_servico') {
+                const elM = document.getElementById('mn-rev-f-vmo');
+                if (elM) elM.value = (Math.round(((parseFloat(elM.value || '0') || 0) + val) * 100) / 100).toFixed(2);
+            }
+            window._mnRevCalcTotalModal();
+            await window.mnRevSalvarMarco(marcoKm, marcoMeses, true);
+        }
+
+        // Recarrega dados do veículo em memória e atualiza lista de anexos no modal
+        const vid = window._mnRevAtual.veiculo.id;
+        const r2 = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
+        window._mnRevAtual = await r2.json();
+        const revAtualizada = (window._mnRevAtual.revisoes || []).find(r => Number(r.marco_km) === Number(marcoKm));
+        const listaEl = document.getElementById('mn-rev-anx-lista');
+        if (listaEl && revAtualizada) listaEl.innerHTML = window._mnRevRenderListaAnexos(revAtualizada.anexos || []);
+        if (fileInp) fileInp.value = '';
+        if (document.getElementById('mn-rev-anx-num')) document.getElementById('mn-rev-anx-num').value = '';
+        if (document.getElementById('mn-rev-anx-val')) document.getElementById('mn-rev-anx-val').value = '';
+        window._mnRenderPainelRevisaoVeiculo();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Nota / OS anexada no R2 com sucesso!');
+    } catch (e) {
+        alert('Erro ao anexar PDF: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-upload-simple"></i> Anexar PDF'; }
+    }
+};
+
+window._mnRevAbrirPdfAnexo = async function(anexoId) {
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId + '/pdf', {
+            headers: { Authorization: 'Bearer ' + tok }
+        });
+        if (!res.ok) throw new Error('Não foi possível abrir o PDF.');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    } catch (e) { alert(e.message); }
+};
+
+window._mnRevExcluirAnexo = async function(anexoId) {
+    if (!confirm('Deseja realmente excluir este PDF anexado?')) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + tok }
+        });
+        if (!res.ok) throw new Error('Erro ao excluir anexo');
+        const vid = window._mnRevAtual.veiculo.id;
+        const r2 = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
+        window._mnRevAtual = await r2.json();
+        const listaEl = document.getElementById('mn-rev-anx-lista');
+        if (listaEl) {
+            const todosAnexos = (window._mnRevAtual.revisoes || []).flatMap(r => r.anexos || []);
+            listaEl.innerHTML = window._mnRevRenderListaAnexos(todosAnexos);
+        }
+        window._mnRenderPainelRevisaoVeiculo();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Anexo removido!');
+    } catch (e) { alert(e.message); }
 };
 
 window._mnPrevAtualizarFrota = async function() {
@@ -584,7 +1499,7 @@ window._mnPrevAtualizarFrota = async function() {
         const grid = document.getElementById('mn-prev-cards');
         if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
         const gridRev = document.getElementById('mn-rev-cards');
-        if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
+        if (gridRev && gridRev.style.display !== 'none') gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
     } catch (e) { /* mantem os dados ja carregados */ }
 };
 

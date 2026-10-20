@@ -23321,7 +23321,7 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
                fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
                fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
-               fv.created_at, fv.updated_at, fv.km_atual, fv.garantia_fabrica, fv.garantia_fabrica_ate,
+               fv.created_at, fv.updated_at, fv.km_atual, fv.garantia_fabrica, fv.garantia_fabrica_ate, fv.data_inicio_garantia, fv.uso_severo,
                CASE
                    WHEN EXISTS (
                        SELECT 1 FROM frota_manutencoes fm0
@@ -25730,6 +25730,231 @@ app.put('/api/frota/veiculos/:id/garantia', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true, garantia_fabrica: tem, garantia_fabrica_ate: ate });
     });
+});
+
+// ── Plano de Revisão e Garantia de Fábrica (ex: Fiat Strada 1.3 Flex) ──
+db.run("ALTER TABLE frota_veiculos ADD COLUMN data_inicio_garantia TEXT", (err) => {
+    if (err && !String(err.message).includes('duplicate column')) console.error('[MIGRATION frota_veiculos data_inicio_garantia]', err.message);
+});
+db.run("ALTER TABLE frota_veiculos ADD COLUMN uso_severo INTEGER DEFAULT 0", (err) => {
+    if (err && !String(err.message).includes('duplicate column')) console.error('[MIGRATION frota_veiculos uso_severo]', err.message);
+});
+db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL,
+    marco_km INTEGER NOT NULL,
+    marco_meses INTEGER NOT NULL,
+    status TEXT DEFAULT 'pendente',
+    data_revisao TEXT,
+    km_revisao INTEGER,
+    concessionaria TEXT,
+    numero_os TEXT,
+    valor_pecas REAL DEFAULT 0,
+    valor_mao_obra REAL DEFAULT 0,
+    valor_total REAL DEFAULT 0,
+    itens_json TEXT,
+    observacoes TEXT,
+    usuario_nome TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(veiculo_id, marco_km)
+)`, (err) => {
+    if (err) console.error('[MIGRATION frota_revisoes]', err.message);
+});
+db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    revisao_id INTEGER NOT NULL,
+    veiculo_id INTEGER NOT NULL,
+    tipo_documento TEXT DEFAULT 'nota_servico',
+    numero_nota TEXT,
+    fornecedor TEXT,
+    valor REAL DEFAULT 0,
+    nome_arquivo TEXT,
+    r2_key TEXT NOT NULL,
+    usuario_nome TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[MIGRATION frota_revisao_anexos]', err.message);
+});
+
+// GET - retorna dados do veículo, revisões registradas e anexos de notas/OS
+app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) => {
+    try {
+        const vid = parseInt(req.params.veiculoId, 10);
+        const veiculo = await _fmGet(
+            'SELECT id, placa, marca_modelo_versao, ano_modelo, tipo_veiculo, km_atual, garantia_fabrica, garantia_fabrica_ate, data_inicio_garantia, uso_severo, foto_url, foto_base64 FROM frota_veiculos WHERE id = ?',
+            [vid]
+        );
+        if (!veiculo) return res.status(404).json({ error: 'Veículo não encontrado.' });
+        const revisoes = await _fmAll('SELECT * FROM frota_revisoes WHERE veiculo_id = ? ORDER BY marco_km ASC', [vid]);
+        const anexos = await _fmAll(
+            'SELECT id, revisao_id, veiculo_id, tipo_documento, numero_nota, fornecedor, valor, nome_arquivo, r2_key, usuario_nome, created_at FROM frota_revisao_anexos WHERE veiculo_id = ? ORDER BY id DESC',
+            [vid]
+        );
+        revisoes.forEach(r => {
+            try { r.itens = JSON.parse(r.itens_json || '{}'); } catch (e) { r.itens = {}; }
+            r.anexos = anexos.filter(a => Number(a.revisao_id) === Number(r.id));
+        });
+        res.json({ veiculo, revisoes, anexos });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// PUT - configura data de início da garantia / compra e regime de uso (normal vs severo)
+app.put('/api/frota/revisoes/:veiculoId/config', authenticateToken, async (req, res) => {
+    try {
+        const vid = parseInt(req.params.veiculoId, 10);
+        const { data_inicio_garantia, uso_severo } = req.body || {};
+        const dtIni = String(data_inicio_garantia || '').trim() || null;
+        const usoSev = (uso_severo === 1 || uso_severo === '1' || uso_severo === true) ? 1 : 0;
+        await _fmRun(
+            'UPDATE frota_veiculos SET data_inicio_garantia=?, uso_severo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+            [dtIni, usoSev, vid]
+        );
+        res.json({ ok: true, data_inicio_garantia: dtIni, uso_severo: usoSev });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST - analisa PDF de nota fiscal / OS para preenchimento rápido na tela de revisão
+app.post('/api/frota/revisoes/analisar-nota', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Envie o PDF da nota fiscal ou OS.' });
+        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+        const { analisarNotaFiscal, analisarNotaServico } = require('./utils/nfParser');
+        const [nfPecas, nfServ] = await Promise.all([
+            analisarNotaFiscal(req.file.buffer).catch(() => null),
+            analisarNotaServico(req.file.buffer).catch(() => null)
+        ]);
+        res.json({ nf_pecas: nfPecas, nf_servico: nfServ });
+    } catch (e) {
+        res.status(500).json({ error: 'Erro ao analisar PDF: ' + e.message });
+    }
+});
+
+// POST - salva (cria ou atualiza) o registro de uma revisão de garantia (ex: 10.000 km, 20.000 km...)
+app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req, res) => {
+    try {
+        const vid = parseInt(req.params.veiculoId, 10);
+        const b = req.body || {};
+        const marcoKm = parseInt(b.marco_km, 10);
+        if (!marcoKm || marcoKm <= 0) return res.status(400).json({ error: 'Informe o marco de KM da revisão.' });
+        const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
+        const status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
+        const dataRev = String(b.data_revisao || '').trim() || null;
+        const kmRev = b.km_revisao ? parseInt(b.km_revisao, 10) : null;
+        const conc = String(b.concessionaria || '').trim() || null;
+        const numOs = String(b.numero_os || '').trim() || null;
+        const vPecas = _fmNumero(b.valor_pecas);
+        const vMo = _fmNumero(b.valor_mao_obra);
+        const vTot = _fmNumero(b.valor_total) > 0 ? _fmNumero(b.valor_total) : Math.round((vPecas + vMo) * 100) / 100;
+        const itensJson = JSON.stringify(b.itens && typeof b.itens === 'object' ? b.itens : {});
+        const obs = String(b.observacoes || '').trim() || null;
+        const usuario = _fmUsuario(req);
+
+        const existing = await _fmGet('SELECT id FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        let revId;
+        if (existing) {
+            await _fmRun(
+                `UPDATE frota_revisoes
+                 SET marco_meses=?, status=?, data_revisao=?, km_revisao=?, concessionaria=?, numero_os=?,
+                     valor_pecas=?, valor_mao_obra=?, valor_total=?, itens_json=?, observacoes=?, usuario_nome=?,
+                     updated_at=CURRENT_TIMESTAMP
+                 WHERE id=?`,
+                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, existing.id]
+            );
+            revId = existing.id;
+        } else {
+            const ins = await _fmRun(
+                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario]
+            );
+            revId = ins.lastID;
+        }
+        const saved = await _fmGet('SELECT * FROM frota_revisoes WHERE id = ?', [revId]);
+        res.json({ ok: true, revisao: saved });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST - anexa PDF de Nota Fiscal / Ordem de Serviço da revisão no Cloudflare R2
+app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const revId = parseInt(req.params.revisaoId, 10);
+        const rev = await _fmGet(
+            'SELECT fr.*, fv.placa FROM frota_revisoes fr LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id WHERE fr.id = ?',
+            [revId]
+        );
+        if (!rev) return res.status(404).json({ error: 'Revisão não encontrada. Salve a revisão primeiro.' });
+        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF para anexar.' });
+        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF.' });
+
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
+
+        const safe = (s) => String(s || 'doc').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+        const agora = new Date();
+        const tipoDoc = ['nota_pecas', 'nota_servico', 'ordem_servico', 'outro'].includes(req.body.tipo_documento)
+            ? req.body.tipo_documento
+            : 'nota_servico';
+        const numNota = String(req.body.numero_nota || '').trim() || null;
+        const forn = String(req.body.fornecedor || '').trim() || null;
+        const val = _fmNumero(req.body.valor);
+
+        const r2Key = 'Frota/Revisoes/' + safe(rev.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+            + String(agora.getDate()).padStart(2, '0') + '_REV_' + (rev.marco_km || 0) + 'km_' + safe(tipoDoc) + '_' + Date.now().toString(36) + '.pdf';
+        await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+        keyEnviada = r2Key;
+
+        const usuario = _fmUsuario(req);
+        const ins = await _fmRun(
+            'INSERT INTO frota_revisao_anexos (revisao_id, veiculo_id, tipo_documento, numero_nota, fornecedor, valor, nome_arquivo, r2_key, usuario_nome) VALUES (?,?,?,?,?,?,?,?,?)',
+            [revId, rev.veiculo_id, tipoDoc, numNota, forn, val, req.file.originalname || 'nota_revisao.pdf', r2Key, usuario]
+        );
+        const anexo = await _fmGet('SELECT * FROM frota_revisao_anexos WHERE id = ?', [ins.lastID]);
+        res.json({ ok: true, anexo });
+    } catch (e) {
+        if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) {} }
+        res.status(500).json({ error: 'Erro ao anexar PDF: ' + e.message });
+    }
+});
+
+// GET - abre/baixa o PDF anexado à revisão via stream do Cloudflare R2
+app.get('/api/frota/revisoes/anexos/:anexoId/pdf', authenticateToken, async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, r2_key, nome_arquivo FROM frota_revisao_anexos WHERE id = ?', [req.params.anexoId]);
+        if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado.');
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).send('R2 não configurado.');
+        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        const fn = String(row.nome_arquivo || 'nota_revisao.pdf').replace(/["\r\n]/g, '');
+        res.setHeader('Content-Type', contentType || 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${fn}"`);
+        stream.pipe(res);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir PDF: ' + e.message);
+    }
+});
+
+// DELETE - remove anexo da revisão do Cloudflare R2 e do banco
+app.delete('/api/frota/revisoes/anexos/:anexoId', authenticateToken, async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, r2_key FROM frota_revisao_anexos WHERE id = ?', [req.params.anexoId]);
+        if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
+        const r2 = require('./utils/r2');
+        if (row.r2_key && r2.isReady()) {
+            await r2.deleteFromR2(row.r2_key).catch(() => {});
+        }
+        await _fmRun('DELETE FROM frota_revisao_anexos WHERE id = ?', [row.id]);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // PUT - atualizar km do veiculo
