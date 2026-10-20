@@ -116,7 +116,7 @@ async function _carregarBannerManutencao() {
                 ${lista.map(v => {
                     const tipoIcon = v.tipo_manutencao === 'corretiva' ? '🔧' : '🗓️';
                     const diasText = v.dias_parado > 0 ? ` · ${v.dias_parado} dia${v.dias_parado!==1?'s':''} parado` : '';
-                    const statusLbl = { agendada: 'Agendada', em_andamento: 'Em Andamento' };
+                    const statusLbl = { agendada: 'Novo', em_andamento: 'Em Manutenção', aguardando: 'Aguardando' };
                     return `<div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);" title="${v.motivo||''}">
                         <span style="font-weight:800;color:#fff;font-size:0.88rem;">${tipoIcon} ${v.placa}</span>
                         <span style="font-size:0.75rem;color:rgba(255,255,255,0.75);">${(v.marca_modelo_versao||'').substring(0,20)}</span>

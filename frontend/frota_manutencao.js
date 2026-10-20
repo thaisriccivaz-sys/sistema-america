@@ -780,7 +780,7 @@ function mnRenderCorretivaTela(sub) {
             <select id="mn-corr-status" onchange="window.mnCarregarCorretivas()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
                 <option value="">Todos Status</option>
                 <option value="agendada" style="color:#d97706;font-weight:700;">Novo</option>
-                <option value="em_andamento" style="color:#dc2626;font-weight:700;">Em Andamento</option>
+                <option value="em_andamento" style="color:#dc2626;font-weight:700;">Em Manutenção</option>
                 <option value="aguardando" style="color:#2563eb;font-weight:700;">Aguardando</option>
                 <option value="concluida" style="color:#10b981;font-weight:700;">Concluído</option>
                 <option value="cancelada">Cancelada</option>
@@ -800,7 +800,8 @@ function mnRenderCorretivaTela(sub) {
                 <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;">Defeito / Problema</th>
                 <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Status</th>
                 <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Data Início</th>
-                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">⏱ Dias Parado</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">⏱ Dias do Pedido</th>
+                <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">🚫 Dias Sem Rodar</th>
                 <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Data Conclusão</th>
                 <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Fornecedor</th>
                 <th style="padding:10px 12px;text-align:right;color:#475569;font-weight:700;">R$ Peças</th>
@@ -809,7 +810,7 @@ function mnRenderCorretivaTela(sub) {
                 <th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Ações</th>
             </tr></thead>
             <tbody id="mn-corr-tbody">
-                <tr><td colspan="11" style="padding:2rem;text-align:center;color:#94a3b8;">
+                <tr><td colspan="12" style="padding:2rem;text-align:center;color:#94a3b8;">
                     <i class="ph ph-circle-notch ph-spin" style="font-size:1.5rem;"></i>
                 </td></tr>
             </tbody>
@@ -835,7 +836,7 @@ window.mnCarregarCorretivas = async function() {
         _mnRenderCorretivaDados(window._mnCorrDados);
     } catch(e) {
         const tbody = document.getElementById('mn-corr-tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="11" style="padding:1.5rem;text-align:center;color:#dc2626;">Erro ao carregar manutenções corretivas.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="padding:1.5rem;text-align:center;color:#dc2626;">Erro ao carregar manutenções corretivas.</td></tr>';
     }
 };
 
@@ -846,13 +847,13 @@ function _mnRenderCorretivaDados(lista) {
         const agendadas   = lista.filter(m => m.status === 'agendada').length;
         const mesAtual    = new Date().toISOString().slice(0, 7);
         const concluidasMes = lista.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual)).length;
-        const maxDias     = lista.filter(m => m.status === 'em_andamento').reduce((mx, m) => Math.max(mx, m.dias_parado || 0), 0);
+        const maxDias     = lista.filter(m => m.status !== 'concluida' && m.status !== 'cancelada').reduce((mx, m) => Math.max(mx, m.dias_parado || 0), 0);
         cardsEl.innerHTML = [
-            { cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Andamento',         val: emAndamento },
+            { cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
             { cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                 val: agendadas },
             { cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',            val: lista.filter(m => m.status === 'aguardando').length },
             { cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',   val: concluidasMes },
-            { cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-clock',         label: 'Máx. dias parado',      val: maxDias + ' dia' + (maxDias !== 1 ? 's' : '') },
+            { cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-clock',         label: 'Máx. dias sem rodar',   val: maxDias + ' dia' + (maxDias !== 1 ? 's' : '') },
         ].map(c => `
             <div style="background:${c.bg};border:1px solid ${c.cor}30;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
                 <div style="background:${c.cor}18;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -869,7 +870,7 @@ function _mnRenderCorretivaDados(lista) {
     if (count) count.textContent = lista.length + ' registro' + (lista.length !== 1 ? 's' : '');
 
     const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', aguardando:'#2563eb', concluida:'#10b981', cancelada:'#94a3b8' };
-    const statusLbl = { agendada:'Novo', em_andamento:'Em Andamento', aguardando:'Aguardando', concluida:'Concluído', cancelada:'Cancelada' };
+    const statusLbl = { agendada:'Novo', em_andamento:'Em Manutenção', aguardando:'Aguardando', concluida:'Concluído', cancelada:'Cancelada' };
     const fmtD = d => {
         if (!d) return '<span style="color:#94a3b8;">—</span>';
         const p = d.split('T')[0].split('-');
@@ -880,7 +881,7 @@ function _mnRenderCorretivaDados(lista) {
     if (!tbody) return;
 
     if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="11" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma manutenção corretiva encontrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-wrench" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Nenhuma manutenção corretiva encontrada.</td></tr>';
         return;
     }
 
@@ -888,12 +889,14 @@ function _mnRenderCorretivaDados(lista) {
         const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
         const sKey = m.status || 'agendada';
         const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`;
+        const tp = window._mnCalcTempos ? window._mnCalcTempos(m) : { pedido: { diasTxt: '0 dias', relogio: '00:00:00', dias: 0 }, parado: { diasTxt: '0 dias', relogio: '00:00:00', dias: 0, ativo: false, rodando: 'sim' } };
+        const pCor = tp.pedido.dias >= 7 ? '#dc2626' : tp.pedido.dias >= 3 ? '#d97706' : '#0284c7';
+        const pedidoBadge = `<div data-cron-pedido="${m.id}" style="display:inline-flex;flex-direction:column;align-items:center;background:${pCor}15;color:${pCor};padding:3px 10px;border-radius:10px;line-height:1.15;white-space:nowrap;"><span class="cron-d" style="font-size:0.78rem;font-weight:800;">${tp.pedido.diasTxt}</span><span class="cron-h" style="font-size:0.68rem;font-family:monospace;font-weight:600;opacity:0.9;">${tp.pedido.relogio}</span></div>`;
 
-        const dias = m.dias_parado || 0;
-        const diasCor = dias >= 7 ? '#dc2626' : dias >= 3 ? '#d97706' : '#10b981';
-        const diasBadge = sKey === 'agendada'
-            ? '<span style="color:#d97706;font-size:0.8rem;font-weight:700;">Novo</span>'
-            : `<span style="background:${diasCor}18;color:${diasCor};padding:2px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;">${dias} dia${dias !== 1 ? 's' : ''}</span>`;
+        const srCor = tp.parado.ativo ? (tp.parado.dias >= 7 ? '#dc2626' : '#b91c1c') : (tp.parado.dias > 0 ? '#64748b' : '#10b981');
+        const srBg = tp.parado.ativo ? '#fef2f2' : (tp.parado.dias > 0 ? '#f1f5f9' : '#ecfdf5');
+        const srTag = tp.parado.ativo ? '🔴 Parado' : (sKey === 'concluida' || sKey === 'cancelada' ? 'Concluído' : '🟢 Rodando');
+        const paradoBadge = `<div data-cron-parado="${m.id}" style="display:inline-flex;flex-direction:column;align-items:center;background:${srBg};color:${srCor};border:1px solid ${srCor}30;padding:3px 10px;border-radius:10px;line-height:1.15;white-space:nowrap;"><span style="font-size:0.65rem;font-weight:700;">${srTag}</span><span class="cron-d" style="font-size:0.78rem;font-weight:800;">${tp.parado.diasTxt}</span><span class="cron-h" style="font-size:0.68rem;font-family:monospace;font-weight:600;opacity:0.9;">${tp.parado.relogio}</span></div>`;
 
         let acoes = '';
         acoes += '<button onclick="window.mnCorrEditarInterno(' + m.id + ')" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-pencil-simple"></i> Editar</button>';
@@ -906,7 +909,8 @@ function _mnRenderCorretivaDados(lista) {
             <td style="padding:10px 12px;max-width:220px;"><span title="${(m.descricao||'').replace(/"/g,'&quot;')}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${m.descricao||'—'}</span></td>
             <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
             <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_inicio)}</td>
-            <td style="padding:10px 12px;text-align:center;">${diasBadge}</td>
+            <td style="padding:10px 12px;text-align:center;">${pedidoBadge}</td>
+            <td style="padding:10px 12px;text-align:center;">${paradoBadge}</td>
             <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_conclusao)}</td>
             <td style="padding:10px 12px;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
             <td style="padding:10px 12px;text-align:right;color:#2563eb;font-weight:600;white-space:nowrap;">${window._mnFmtR(m.custo_pecas)}</td>
@@ -915,22 +919,25 @@ function _mnRenderCorretivaDados(lista) {
             <td style="padding:10px 12px;text-align:center;"><div style="display:flex;gap:4px;align-items:center;justify-content:center;">${acoes}</div></td>
         </tr>`;
     }).join('');
+    if (window._mnIniciarCronometros) window._mnIniciarCronometros();
 }
 
-window.mnCorrAcaoInterno = async function(id, status) {
-    const labels = { em_andamento: 'iniciar', cancelada: 'cancelar' };
-    if (!confirm(`Deseja ${labels[status]||'atualizar'} esta manutenção?`)) return;
-    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
-    try {
-        const r = await fetch(`/api/frota/manutencoes/${id}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-            body: JSON.stringify({ status })
-        });
-        if (!r.ok) throw new Error((await r.json()).error || 'Erro');
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Status atualizado!');
-        window.mnCarregarCorretivas();
-    } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
+window.mnCorrAcaoInterno = function(id, status) {
+    var m = (window._mnCorrDados || []).find(function(x) { return String(x.id) === String(id); });
+    var stAtual = m ? m.status : 'agendada';
+    window._mnEdPedirJustificativaStatus(stAtual, status, async function(justTxt) {
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        try {
+            const r = await fetch('/api/frota/manutencoes/' + id + '/status', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({ status: status, justificativa_status: justTxt })
+            });
+            if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+            if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Status atualizado!');
+            window.mnCarregarCorretivas();
+        } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
+    });
 };
 
 window.mnCorrConcluirInterno = function(id) {
@@ -995,11 +1002,95 @@ window._mnFmtR = function(v) {
 };
 
 window._MN_STATUS = [
-    { v: 'agendada',     l: 'Novo',         c: '#d97706' },
-    { v: 'em_andamento', l: 'Em andamento', c: '#dc2626' },
-    { v: 'aguardando',   l: 'Aguardando',   c: '#2563eb' },
-    { v: 'concluida',    l: 'Concluído',    c: '#10b981' }
+    { v: 'agendada',     l: 'Novo',          c: '#d97706' },
+    { v: 'em_andamento', l: 'Em manutenção', c: '#dc2626' },
+    { v: 'aguardando',   l: 'Aguardando',    c: '#2563eb' },
+    { v: 'concluida',    l: 'Concluído',     c: '#10b981' }
 ];
+
+window._mnParseTS = function(v) {
+    if (!v) return null;
+    var t = String(v).trim();
+    if (!t) return null;
+    var d;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        d = new Date(t + 'T00:00:00');
+    } else if (/Z|[+-]\d\d:\d\d$/.test(t)) {
+        d = new Date(t);
+    } else {
+        d = new Date(t.replace(' ', 'T') + 'Z');
+    }
+    return isNaN(d.getTime()) ? null : d.getTime();
+};
+
+window._mnFmtCron = function(seg) {
+    var sTot = Math.max(0, Math.floor(Number(seg) || 0));
+    var d = Math.floor(sTot / 86400);
+    var h = Math.floor((sTot % 86400) / 3600);
+    var mi = Math.floor((sTot % 3600) / 60);
+    var s = Math.floor(sTot % 60);
+    var dTxt = d + (d === 1 ? ' dia' : ' dias');
+    var rel = String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    return { dias: d, diasTxt: dTxt, relogio: rel, completo: dTxt + ' · ' + rel };
+};
+
+window._mnCalcTempos = function(m, statusOverride, rodandoOverride) {
+    m = m || {};
+    var agora = Date.now();
+    var st = statusOverride || m.status || 'agendada';
+    var encerrada = (st === 'concluida' || st === 'cancelada');
+    var iniPed = window._mnParseTS(m.created_at) || window._mnParseTS(m.data_agendamento) || window._mnParseTS(m.data_inicio) || agora;
+    var fimPed = encerrada ? (window._mnParseTS(m.data_conclusao ? (String(m.data_conclusao).length === 10 ? m.data_conclusao + 'T23:59:59' : m.data_conclusao) : m.updated_at) || agora) : agora;
+    var segPed = Math.max(0, Math.floor((fimPed - iniPed) / 1000));
+
+    var rod = rodandoOverride || m.veiculo_rodando || m.veiculo_rodando_efetivo || m.sinistro_rodando || (st === 'em_andamento' ? 'nao' : 'sim');
+    if (st === 'em_andamento') rod = 'nao';
+    var paradoAtivo = !encerrada && rod === 'nao';
+    var segPar = Number(m.parado_segundos_acum || 0);
+    if (paradoAtivo) {
+        var pDesde = window._mnParseTS(m.parado_desde) || window._mnParseTS(m.data_inicio) || window._mnParseTS(m.created_at) || agora;
+        segPar += Math.max(0, Math.floor((agora - pDesde) / 1000));
+    } else if (!segPar && m.parado_desde) {
+        var pIni = window._mnParseTS(m.parado_desde);
+        if (pIni) segPar += Math.max(0, Math.floor(((encerrada ? fimPed : agora) - pIni) / 1000));
+    }
+    var fPed = window._mnFmtCron(segPed);
+    var fPar = window._mnFmtCron(segPar);
+    fPar.ativo = paradoAtivo;
+    fPar.rodando = rod;
+    return { pedido: fPed, parado: fPar };
+};
+
+window._mnTickCronometros = function() {
+    var lista = window._mnCorrDados || [];
+    if (lista.length) {
+        lista.forEach(function(m) {
+            var elPed = document.querySelector('[data-cron-pedido="' + m.id + '"]');
+            var elPar = document.querySelector('[data-cron-parado="' + m.id + '"]');
+            if (!elPed && !elPar) return;
+            var tp = window._mnCalcTempos(m);
+            if (elPed) {
+                var d1 = elPed.querySelector('.cron-d'), h1 = elPed.querySelector('.cron-h');
+                if (d1) d1.textContent = tp.pedido.diasTxt;
+                if (h1) h1.textContent = tp.pedido.relogio;
+            }
+            if (elPar) {
+                var d2 = elPar.querySelector('.cron-d'), h2 = elPar.querySelector('.cron-h');
+                if (d2) d2.textContent = tp.parado.diasTxt;
+                if (h2) h2.textContent = tp.parado.relogio;
+            }
+        });
+    }
+    if (window._mnEd && document.getElementById('mn-corr-edit-modal')) {
+        window._mnEdAtualizarCronModal();
+    }
+};
+
+window._mnIniciarCronometros = function() {
+    if (window._mnCronTimer) clearInterval(window._mnCronTimer);
+    window._mnTickCronometros();
+    window._mnCronTimer = setInterval(window._mnTickCronometros, 1000);
+};
 
 window._mnEdEsc = function(v) {
     return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -1111,8 +1202,8 @@ window.mnCorrNovaInterno = async function(opts) {
     await window._mnEdCarregarCatalogo();
     window._mnEd = {
         id: null, novo: true,
-        m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: '', data_conclusao: '' },
-        status: 'agendada', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
+        m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: '', data_conclusao: '', created_at: new Date().toISOString(), veiculo_rodando: opts.veiculo_rodando || '', parado_desde: null, parado_segundos_acum: 0 },
+        status: 'agendada', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
     };
     window._mnEdMontar();
 };
@@ -1127,9 +1218,12 @@ window.mnCorrEditarInterno = async function(id) {
     } catch (e) { alert(e.message); return; }
     await window._mnEdCarregarCatalogo();
     var m = det.manutencao;
+    var rodIni = m.veiculo_rodando || (m.status === 'em_andamento' ? 'nao' : 'sim');
     window._mnEd = {
         id: id, novo: false, m: m,
         status: m.status || 'agendada',
+        veiculo_rodando: rodIni,
+        justificativa_status: '',
         solicitados: (det.solicitados || []).map(function(s) { return s.nome; }),
         realizados: (det.realizados || []).map(window._mnEdMapRealizado),
         pecas: det.pecas || [],
@@ -1149,10 +1243,13 @@ window._mnEdGarantirId = async function() {
     var desc = document.getElementById('mned-desc').value.trim();
     if (!veic) throw new Error('Selecione o veículo antes de continuar.');
     if (!desc) throw new Error('Informe o defeito / problema antes de continuar.');
+    if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
+        throw new Error('Informe se o veículo está rodando ou parado ("O veículo está rodando? *").');
+    }
     var r = await fetch('/api/frota/manutencoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: 'agendada' })
+        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: 'agendada', veiculo_rodando: ed.veiculo_rodando })
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao criar a manutenção'); }
     var j = await r.json();
@@ -1164,7 +1261,7 @@ window._mnEdGarantirId = async function() {
 };
 
 window._mnEdFechar = function() {
-    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop'].forEach(function(i) {
+    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop'].forEach(function(i) {
         var el = document.getElementById(i); if (el) el.remove();
     });
 };
@@ -1215,6 +1312,31 @@ window._mnEdMontar = function() {
       +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
+      +           '<div style="grid-column:1/-1;margin-top:2px;">'
+      +             '<label style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">O veículo está rodando? *</label>'
+      +             '<div id="mned-rodando-box" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+      +               '<label id="mned-rod-lbl-sim" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bbf7d0;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#f0fdf4;color:#1e293b;font-weight:500;transition:all .15s;">'
+      +                 '<input type="radio" name="mned_veiculo_rodando" value="sim" style="width:16px;height:16px;accent-color:#16a34a;">'
+      +                 '<span>Sim, está rodando <small style="color:#64748b;">(agendar)</small></span>'
+      +               '</label>'
+      +               '<label id="mned-rod-lbl-nao" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #fecaca;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#fef2f2;color:#1e293b;font-weight:500;transition:all .15s;">'
+      +                 '<input type="radio" name="mned_veiculo_rodando" value="nao" style="width:16px;height:16px;accent-color:#2563eb;">'
+      +                 '<span>Não, está parado <small style="color:#64748b;">(indisponível)</small></span>'
+      +               '</label>'
+      +             '</div>'
+      +           '</div>'
+      +           '<div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">'
+      +             '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">'
+      +               '<div style="background:#0284c718;color:#0284c7;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-timer" style="font-size:1.25rem;"></i></div>'
+      +               '<div><div style="font-size:0.68rem;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.04em;">Dias do pedido de manutenção</div>'
+      +               '<div id="mned-cron-pedido-txt" style="font-size:0.95rem;font-weight:800;color:#0c4a6e;font-family:monospace;margin-top:2px;">0 dias · 00:00:00</div></div>'
+      +             '</div>'
+      +             '<div id="mned-cron-parado-card" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">'
+      +               '<div id="mned-cron-parado-ico" style="background:#dc262618;color:#dc2626;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-prohibit" style="font-size:1.25rem;"></i></div>'
+      +               '<div><div style="font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em;">Dias do veículo sem rodar <span id="mned-cron-parado-tag" style="font-weight:700;"></span></div>'
+      +               '<div id="mned-cron-parado-txt" style="font-size:0.95rem;font-weight:800;color:#991b1b;font-family:monospace;margin-top:2px;">0 dias · 00:00:00</div></div>'
+      +             '</div>'
+      +           '</div>'
       +         '</div>'
       +       '</div>'
       +       '<div style="' + sec + '">'
@@ -1297,13 +1419,133 @@ window._mnEdMontar = function() {
     document.getElementById('mned-dc').onchange = function() { window._mnEd.m.data_conclusao = this.value; window._mnEdRenderServ(); };
     if (ed.novo && m.veiculo_id) document.getElementById('mned-veic').onchange.call(document.getElementById('mned-veic'));
 
+    document.querySelectorAll('input[name="mned_veiculo_rodando"]').forEach(function(r) {
+        r.onchange = function() {
+            if (window._mnEd.status === 'em_andamento' && this.value === 'sim') {
+                alert('Enquanto o status estiver "Em manutenção", o veículo permanece como "Não, está parado (indisponível)".');
+                window._mnEdRenderRodando();
+                return;
+            }
+            window._mnEd.veiculo_rodando = this.value;
+            if (this.value === 'nao' && !window._mnEd.m.parado_desde) {
+                window._mnEd.m.parado_desde = new Date().toISOString();
+            }
+            window._mnEdRenderRodando();
+            window._mnEdAtualizarCronModal();
+        };
+    });
+
     window._mnEdRenderStatus();
+    window._mnEdRenderRodando();
+    window._mnEdAtualizarCronModal();
     window._mnEdRenderSolic();
     window._mnEdPickRender();
     window._mnEdRenderServ();
     window._mnEdRenderNotas();
     window._mnEdRenderMo();
     window._mnEdRenderHist();
+    if (window._mnIniciarCronometros) window._mnIniciarCronometros();
+};
+
+window._mnEdRenderRodando = function() {
+    var ed = window._mnEd;
+    if (!ed) return;
+    if (ed.status === 'em_andamento') ed.veiculo_rodando = 'nao';
+    var rSim = document.querySelector('input[name="mned_veiculo_rodando"][value="sim"]');
+    var rNao = document.querySelector('input[name="mned_veiculo_rodando"][value="nao"]');
+    var lSim = document.getElementById('mned-rod-lbl-sim');
+    var lNao = document.getElementById('mned-rod-lbl-nao');
+    if (rSim) rSim.checked = (ed.veiculo_rodando === 'sim');
+    if (rNao) rNao.checked = (ed.veiculo_rodando === 'nao');
+    if (lSim) {
+        lSim.style.borderColor = ed.veiculo_rodando === 'sim' ? '#16a34a' : '#bbf7d0';
+        lSim.style.boxShadow = ed.veiculo_rodando === 'sim' ? '0 0 0 2px #16a34a33' : 'none';
+    }
+    if (lNao) {
+        lNao.style.borderColor = ed.veiculo_rodando === 'nao' ? '#dc2626' : '#fecaca';
+        lNao.style.boxShadow = ed.veiculo_rodando === 'nao' ? '0 0 0 2px #dc262633' : 'none';
+    }
+};
+
+window._mnEdAtualizarCronModal = function() {
+    var ed = window._mnEd;
+    if (!ed || !ed.m) return;
+    var tp = window._mnCalcTempos(ed.m, ed.status, ed.veiculo_rodando || 'sim');
+    var elPed = document.getElementById('mned-cron-pedido-txt');
+    var elPar = document.getElementById('mned-cron-parado-txt');
+    var elTag = document.getElementById('mned-cron-parado-tag');
+    var elCard = document.getElementById('mned-cron-parado-card');
+    var elIco = document.getElementById('mned-cron-parado-ico');
+    if (elPed) elPed.textContent = tp.pedido.completo;
+    if (elPar) {
+        elPar.textContent = tp.parado.completo;
+        elPar.style.color = tp.parado.ativo ? '#991b1b' : '#065f46';
+    }
+    if (elTag) {
+        elTag.textContent = tp.parado.ativo ? '(parado · contando)' : '(rodando)';
+        elTag.style.color = tp.parado.ativo ? '#dc2626' : '#059669';
+    }
+    if (elCard) {
+        elCard.style.background = tp.parado.ativo ? '#fef2f2' : '#f0fdf4';
+        elCard.style.borderColor = tp.parado.ativo ? '#fecaca' : '#bbf7d0';
+    }
+    if (elIco) {
+        elIco.style.background = tp.parado.ativo ? '#dc262618' : '#16a34a18';
+        elIco.style.color = tp.parado.ativo ? '#dc2626' : '#16a34a';
+        elIco.innerHTML = tp.parado.ativo ? '<i class="ph ph-prohibit" style="font-size:1.25rem;"></i>' : '<i class="ph ph-check-circle" style="font-size:1.25rem;"></i>';
+    }
+};
+
+window._mnEdPedirJustificativaStatus = function(statusDe, statusPara, cb) {
+    var esc = window._mnEdEsc;
+    var rot = function(v) {
+        var x = (window._MN_STATUS || []).find(function(s) { return s.v === v; });
+        if (x) return x;
+        if (v === 'cancelada') return { v: 'cancelada', l: 'Cancelada', c: '#94a3b8' };
+        return { v: v, l: v || '—', c: '#64748b' };
+    };
+    var rDe = rot(statusDe), rPara = rot(statusPara);
+    var old = document.getElementById('mned-just-pop'); if (old) old.remove();
+    var avisoParado = (statusPara === 'em_andamento' && (!window._mnEd || window._mnEd.veiculo_rodando !== 'nao'))
+        ? '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Em manutenção</b>, o veículo mudará automaticamente para <b>Não, está parado (indisponível)</b>.</span></div>'
+        : '';
+    var pop = document.createElement('div');
+    pop.id = 'mned-just-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);display:flex;align-items:center;justify-content:center;z-index:10030;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;display:flex;align-items:center;gap:10px;">'
+      +   '<div style="background:#d97706;border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-chat-centered-text" style="color:#fff;font-size:1.2rem;"></i></div>'
+      +   '<div style="color:#fff;font-weight:700;font-size:0.95rem;">Justificativa de mudança de status</div>'
+      +   '<button type="button" id="mned-just-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:18px 20px;">'
+      +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:0.84rem;color:#475569;">'
+      +     '<span>Alterando de</span>'
+      +     '<span style="background:' + rDe.c + '22;color:' + rDe.c + ';padding:2px 10px;border-radius:999px;font-weight:700;">' + esc(rDe.l) + '</span>'
+      +     '<i class="ph ph-arrow-right"></i>'
+      +     '<span style="background:' + rPara.c + '22;color:' + rPara.c + ';padding:2px 10px;border-radius:999px;font-weight:700;">' + esc(rPara.l) + '</span>'
+      +   '</div>'
+      +   avisoParado
+      +   '<label style="font-size:0.78rem;font-weight:700;color:#334155;display:block;margin-bottom:6px;">Justificativa / Motivo *</label>'
+      +   '<textarea id="mned-just-txt" rows="3" placeholder="Informe o motivo da mudança de status (ficará registrado no histórico e comentários)..." style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;outline:none;"></textarea>'
+      +   '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">'
+      +     '<button type="button" id="mned-just-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+      +     '<button type="button" id="mned-just-ok" style="padding:9px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-check"></i> Confirmar</button>'
+      +   '</div>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var el = document.getElementById('mned-just-pop'); if (el) el.remove(); };
+    document.getElementById('mned-just-x').onclick = fechar;
+    document.getElementById('mned-just-cancel').onclick = fechar;
+    pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
+    var ta = document.getElementById('mned-just-txt');
+    setTimeout(function() { if (ta) ta.focus(); }, 50);
+    document.getElementById('mned-just-ok').onclick = function() {
+        var txt = ta ? ta.value.trim() : '';
+        if (!txt) { alert('Informe a justificativa para alterar o status.'); if (ta) ta.focus(); return; }
+        fechar();
+        if (cb) cb(txt);
+    };
 };
 
 window._mnEdRenderStatus = function() {
@@ -1324,13 +1566,47 @@ window._mnEdRenderStatus = function() {
     box.querySelectorAll('[data-s]').forEach(function(b) {
         b.onclick = function() {
             var novo = b.getAttribute('data-s');
-            window._mnEd.status = novo;
-            var di = document.getElementById('mned-di'), dc = document.getElementById('mned-dc');
-            if (novo === 'em_andamento' && di && !di.value) { di.value = window._mnHojeISO(); window._mnEd.m.data_inicio = di.value; }
-            if (novo === 'concluida' && dc && !dc.value) { dc.value = window._mnHojeISO(); }
-            if (dc) window._mnEd.m.data_conclusao = dc.value;
-            window._mnEdRenderStatus();
-            window._mnEdRenderServ();
+            if (novo === window._mnEd.status) return;
+            var statusAnterior = window._mnEd.status;
+            window._mnEdPedirJustificativaStatus(statusAnterior, novo, async function(justTxt) {
+                window._mnEd.status = novo;
+                window._mnEd.justificativa_status = justTxt;
+                var di = document.getElementById('mned-di'), dc = document.getElementById('mned-dc');
+                if (novo === 'em_andamento' && di && !di.value) { di.value = window._mnHojeISO(); window._mnEd.m.data_inicio = di.value; }
+                if (novo === 'concluida' && dc && !dc.value) { dc.value = window._mnHojeISO(); }
+                if (dc) window._mnEd.m.data_conclusao = dc.value;
+                if (novo === 'em_andamento' && window._mnEd.veiculo_rodando !== 'nao') {
+                    window._mnEd.veiculo_rodando = 'nao';
+                    if (!window._mnEd.m.parado_desde) window._mnEd.m.parado_desde = new Date().toISOString();
+                }
+                window._mnEdRenderStatus();
+                window._mnEdRenderRodando();
+                window._mnEdAtualizarCronModal();
+                window._mnEdRenderServ();
+                if (window._mnEd.id) {
+                    try {
+                        var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };
+                        var rs = await fetch('/api/frota/manutencoes/' + window._mnEd.id + '/status', {
+                            method: 'PUT',
+                            headers: hdr,
+                            body: JSON.stringify({
+                                status: novo,
+                                veiculo_rodando: window._mnEd.veiculo_rodando,
+                                justificativa_status: justTxt,
+                                data_inicio: di ? (di.value || null) : null,
+                                data_conclusao: (novo === 'concluida' && dc) ? (dc.value || null) : undefined
+                            })
+                        });
+                        if (rs.ok) {
+                            window._mnEd.justificativa_status = '';
+                            await window._mnEdRecarregarDetalhe();
+                            window._mnEdRenderHist();
+                            window._mnEdAtualizarCronModal();
+                            window.mnCarregarCorretivas();
+                        }
+                    } catch (e) { console.warn('[Status] erro ao salvar imediato:', e); }
+                }
+            });
         };
     });
 };
@@ -1628,9 +1904,19 @@ window._mnEdRenderHist = function() {
         var quem = h.usuario_nome ? esc(h.usuario_nome) : 'Sistema';
         var cab = '<div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;"><i class="ph ph-clock"></i> ' + esc(quando) + ' · <i class="ph ph-user"></i> <b>' + quem + '</b></div>';
         var cor = '#cbd5e1', corpo = '';
+        var rotRod = function(v) {
+            return v === 'nao'
+                ? { l: 'Não, está parado (indisponível)', c: '#dc2626' }
+                : { l: 'Sim, está rodando (agendar)', c: '#16a34a' };
+        };
         if (h.tipo === 'status') {
             cor = '#d97706';
-            corpo = '<div style="font-size:0.84rem;color:#334155;"><i class="ph ph-arrows-left-right"></i> Situação alterada: ' + badge(rotulo(h.status_de)) + ' → ' + badge(rotulo(h.status_para)) + '</div>';
+            corpo = '<div style="font-size:0.84rem;color:#334155;"><i class="ph ph-arrows-left-right"></i> Situação alterada: ' + badge(rotulo(h.status_de)) + ' → ' + badge(rotulo(h.status_para)) + '</div>'
+                + (h.texto ? '<div style="margin-top:5px;padding:6px 10px;background:#fff;border:1px solid #fde68a;border-radius:6px;font-size:0.84rem;color:#1e293b;white-space:pre-wrap;word-break:break-word;"><i class="ph ph-chat-text" style="color:#d97706;"></i> <b>Justificativa:</b> ' + esc(h.texto) + '</div>' : '');
+        } else if (h.tipo === 'rodando') {
+            cor = '#7c3aed';
+            corpo = '<div style="font-size:0.84rem;color:#334155;"><i class="ph ph-truck"></i> O veículo está rodando? alterado: ' + badge(rotRod(h.status_de)) + ' → ' + badge(rotRod(h.status_para)) + '</div>'
+                + (h.texto ? '<div style="margin-top:3px;font-size:0.78rem;color:#64748b;">' + esc(h.texto) + '</div>' : '');
         } else if (h.tipo === 'comentario') {
             cor = '#2563eb';
             corpo = '<div style="font-size:0.86rem;color:#1e293b;white-space:pre-wrap;word-break:break-word;">' + esc(h.texto) + '</div>';
@@ -2261,6 +2547,10 @@ window._mnEdRecarregarDetalhe = async function() {
     var r = await fetch('/api/frota/manutencoes/' + ed.id + '/detalhe', { headers: { Authorization: 'Bearer ' + window._mnEdTok() } });
     if (!r.ok) throw new Error('Erro ao recarregar a manutenção');
     var d = await r.json();
+    if (d.manutencao) {
+        ed.m = d.manutencao;
+        if (d.manutencao.veiculo_rodando) ed.veiculo_rodando = d.manutencao.veiculo_rodando;
+    }
     ed.pecas = d.pecas || [];
     ed.notas = d.notas || [];
     ed.mo = (d.mo || []).map(window._mnEdMapMo);
@@ -2613,6 +2903,12 @@ window.mnCorrSalvarEdicaoInterno = async function() {
     var desc = document.getElementById('mned-desc').value.trim();
     if (!veic) { mostrarMsg('Selecione o veículo.', false); alert('Selecione o veículo.'); return; }
     if (!desc) { mostrarMsg('Informe o defeito / problema.', false); alert('Informe o defeito / problema.'); return; }
+    if (ed.status === 'em_andamento') ed.veiculo_rodando = 'nao';
+    if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
+        mostrarMsg('Informe se o veículo está rodando ou parado.', false);
+        alert('Informe se o veículo está rodando ou parado ("O veículo está rodando? *").');
+        return;
+    }
     if (msgEl) msgEl.style.display = 'none';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
@@ -2637,11 +2933,14 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             data_inicio: di || null,
             km_na_manutencao: document.getElementById('mned-km').value || null,
             km_final_manutencao: ehConcl ? (document.getElementById('mned-km-final').value || null) : null,
-            fornecedor: document.getElementById('mned-forn').value.trim() || null
+            fornecedor: document.getElementById('mned-forn').value.trim() || null,
+            veiculo_rodando: ed.veiculo_rodando,
+            justificativa_status: ed.justificativa_status || undefined
         };
         if (ehConcl) corpo.data_conclusao = document.getElementById('mned-dc').value || null;
         var rs = await fetch('/api/frota/manutencoes/' + ed.id + '/status', { method: 'PUT', headers: hdr, body: JSON.stringify(corpo) });
         if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar a manutenção'); }
+        ed.justificativa_status = '';
         await window._mnEdRecarregarDetalhe();
         var vObj = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veic); });
         ed.m.veiculo_id = veic;
@@ -2656,6 +2955,8 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         var subTit = document.getElementById('mned-subtitulo');
         if (subTit && ed.m.placa) subTit.textContent = ed.m.placa;
         window._mnEdRenderStatus();
+        window._mnEdRenderRodando();
+        window._mnEdAtualizarCronModal();
         window._mnEdRenderSolic();
         window._mnEdPickRender();
         window._mnEdRenderServ();

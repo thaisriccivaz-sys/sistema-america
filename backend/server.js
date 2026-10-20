@@ -7102,56 +7102,56 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                         manVeiculoId = vRow ? vRow.id : null;
                     }
                 }
-                if (String(body.necessita_manutencao) === '1') {
-                    if (manItem && manVeiculoId) {
+                if (String(body.necessita_manutencao) !== '0') {
+                    const itemEfetivo = manItem || String(body.natureza || body.tipo_sinistro || 'Averiguação de sinistro').trim();
+                    if (manVeiculoId) {
                         const hojeMan = new Date().toISOString().split('T')[0];
-                        const statusMan = manRodando === 'nao' ? 'em_andamento' : 'agendada';
-                        const descMan = 'Sinistro #' + sinistroId + ' - ' + manItem + (manObs ? ': ' + manObs : '');
+                        const agoraIso = new Date().toISOString();
+                        const descMan = 'Sinistro #' + sinistroId + ' - ' + itemEfetivo + (manObs ? ': ' + manObs : '');
                         const usuarioMan = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
                         if (!sinistro.manutencao_id) {
+                            const pDesde = manRodando === 'nao' ? agoraIso : null;
                             const manId = await new Promise((resolve, reject) => {
                                 db.run(`INSERT INTO frota_manutencoes
-                                    (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, sinistro_id, created_at, updated_at)
-                                    VALUES (?, 'corretiva', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                                    [manVeiculoId, descMan, statusMan, hojeMan, hojeMan, usuarioMan, sinistroId],
+                                    (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, sinistro_id, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
+                                    VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                                    [manVeiculoId, descMan, hojeMan, hojeMan, usuarioMan, sinistroId, manRodando, pDesde],
                                     function (err) { err ? reject(err) : resolve(this.lastID); });
                             });
-                            if (statusMan === 'em_andamento') {
-                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
-                            }
+                            await _fmHist(manId, 'evento', 'Manutenção registrada via Sinistro #' + sinistroId + ' (' + (manRodando === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', usuarioMan);
                             await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_id=? WHERE id=?',
-                                [manItem, manObs || null, manRodando, manId, sinistroId], () => r()));
-                            await _fmSyncSolicitados(manId, manItem);
+                                [manItem || null, manObs || null, manRodando, manId, sinistroId], () => r()));
+                            if (manItem) await _fmSyncSolicitados(manId, manItem);
+                            await _fmAtualizaEmManutencao(manVeiculoId);
                         } else {
-                            const curMan = await new Promise(r => db.get('SELECT status FROM frota_manutencoes WHERE id=?', [sinistro.manutencao_id], (e, row) => r(row)));
-                            const manStatusAtual = curMan ? curMan.status : null;
-                            const statusFinalMan = ['aguardando', 'concluida', 'cancelada'].includes(manStatusAtual) ? manStatusAtual : statusMan;
-                            await new Promise(r => db.run('UPDATE frota_manutencoes SET descricao=?, status=?, veiculo_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-                                [descMan, statusFinalMan, manVeiculoId, sinistro.manutencao_id], () => r()));
-                            await _fmSyncSolicitados(sinistro.manutencao_id, manItem);
-                            if (statusFinalMan === 'em_andamento') {
-                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
-                            } else if (statusFinalMan === 'agendada') {
-                                const cnt = await new Promise(r => db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?", [manVeiculoId, sinistro.manutencao_id], (e, row) => r(row ? row.cnt : 0)));
-                                if (cnt === 0) {
-                                    await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
-                                }
+                            const curMan = await new Promise(r => db.get('SELECT status, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum FROM frota_manutencoes WHERE id=?', [sinistro.manutencao_id], (e, row) => r(row)));
+                            const manStatusAtual = curMan ? curMan.status : 'agendada';
+                            const rodFinal = manStatusAtual === 'em_andamento' ? 'nao' : manRodando;
+                            let pDesde = curMan ? curMan.parado_desde : null;
+                            let pAcum = curMan ? (curMan.parado_segundos_acum || 0) : 0;
+                            if (rodFinal === 'nao' && !pDesde && !['concluida', 'cancelada'].includes(manStatusAtual)) {
+                                pDesde = agoraIso;
+                            } else if (rodFinal === 'sim' && pDesde) {
+                                pAcum += _fmCalcSegundosDesde(pDesde);
+                                pDesde = null;
                             }
+                            await new Promise(r => db.run('UPDATE frota_manutencoes SET descricao=?, veiculo_id=?, veiculo_rodando=?, parado_desde=?, parado_segundos_acum=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                                [descMan, manVeiculoId, rodFinal, pDesde, pAcum, sinistro.manutencao_id], () => r()));
+                            if (curMan && curMan.veiculo_rodando && curMan.veiculo_rodando !== rodFinal) {
+                                await _fmHist(sinistro.manutencao_id, 'rodando', 'Alterado via Sinistro #' + sinistroId, usuarioMan, curMan.veiculo_rodando, rodFinal);
+                            }
+                            if (manItem) await _fmSyncSolicitados(sinistro.manutencao_id, manItem);
+                            await _fmAtualizaEmManutencao(manVeiculoId);
                             await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=? WHERE id=?',
-                                [manItem, manObs || null, manRodando, sinistroId], () => r()));
+                                [manItem || null, manObs || null, rodFinal, sinistroId], () => r()));
                         }
                     } else {
-                        console.warn('[SINISTRO MANUT] Item ou veiculo nao identificado; manutencao nao criada. item=', manItem, 'veiculo=', manVeiculoId);
+                        console.warn('[SINISTRO MANUT] Veiculo nao identificado; manutencao nao criada.');
                     }
                 } else if (String(body.necessita_manutencao) === '0') {
                     if (sinistro.manutencao_id) {
-                        await new Promise(r => db.run("UPDATE frota_manutencoes SET status='cancelada', updated_at=CURRENT_TIMESTAMP WHERE id=?", [sinistro.manutencao_id], () => r()));
-                        if (manVeiculoId) {
-                            const cnt = await new Promise(r => db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?", [manVeiculoId, sinistro.manutencao_id], (e, row) => r(row ? row.cnt : 0)));
-                            if (cnt === 0) {
-                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
-                            }
-                        }
+                        await new Promise(r => db.run("UPDATE frota_manutencoes SET status='cancelada', parado_desde=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?", [sinistro.manutencao_id], () => r()));
+                        if (manVeiculoId) await _fmAtualizaEmManutencao(manVeiculoId);
                     }
                     await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=0, manutencao_item=NULL, manutencao_obs=NULL, manutencao_rodando=NULL, manutencao_id=NULL WHERE id=?', [sinistroId], () => r()));
                 }
@@ -23266,11 +23266,21 @@ app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
                fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
                fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
-               fv.created_at, fv.updated_at, fv.km_atual, fv.em_manutencao,
+               fv.created_at, fv.updated_at, fv.km_atual,
+               CASE
+                   WHEN EXISTS (
+                       SELECT 1 FROM frota_manutencoes fm0
+                       WHERE fm0.veiculo_id = fv.id
+                         AND fm0.status IN ('agendada','em_andamento','aguardando')
+                         AND (COALESCE(fm0.veiculo_rodando, CASE WHEN fm0.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm0.status = 'em_andamento')
+                   ) THEN 1
+                   ELSE 0
+               END as em_manutencao,
                (
                    SELECT fm.status FROM frota_manutencoes fm
                    WHERE fm.veiculo_id = fv.id
-                     AND fm.status IN ('agendada','em_andamento')
+                     AND fm.status IN ('agendada','em_andamento','aguardando')
+                     AND (COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm.status = 'em_andamento')
                    ORDER BY CASE fm.status WHEN 'em_andamento' THEN 1 ELSE 2 END, fm.created_at DESC
                    LIMIT 1
                ) as status_manutencao_ativo
@@ -23517,22 +23527,24 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
 // GET - veiculos em manutenção (para banner de aviso no resumo de rota)
 app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
     db.all(`
-        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.em_manutencao,
+        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, 1 as em_manutencao,
                fm.descricao as motivo, fm.tipo as tipo_manutencao,
                fm.data_inicio, fm.status as status_manutencao,
+               fm.veiculo_rodando, fm.parado_desde, COALESCE(fm.parado_segundos_acum, 0) as parado_segundos_acum,
                CASE
+                   WHEN fm.parado_desde IS NOT NULL THEN
+                       CAST((julianday('now') - julianday(fm.parado_desde)) + (COALESCE(fm.parado_segundos_acum, 0) / 86400.0) AS INTEGER)
                    WHEN fm.data_inicio IS NOT NULL THEN
                        CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
                    ELSE 0
                END as dias_parado
         FROM frota_veiculos fv
-        LEFT JOIN frota_manutencoes fm ON fm.veiculo_id = fv.id
-            AND fm.status IN ('agendada','em_andamento')
+        INNER JOIN frota_manutencoes fm ON fm.veiculo_id = fv.id
             AND fm.id = (SELECT id FROM frota_manutencoes fm2
                          WHERE fm2.veiculo_id = fv.id
-                           AND fm2.status IN ('agendada','em_andamento')
-                         ORDER BY fm2.created_at DESC LIMIT 1)
-        WHERE fv.em_manutencao = 1
+                           AND fm2.status IN ('agendada','em_andamento','aguardando')
+                           AND (COALESCE(fm2.veiculo_rodando, CASE WHEN fm2.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm2.status = 'em_andamento')
+                         ORDER BY CASE fm2.status WHEN 'em_andamento' THEN 1 ELSE 2 END, fm2.created_at DESC LIMIT 1)
         ORDER BY dias_parado DESC, fv.placa ASC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -23585,20 +23597,37 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
     }
 });
 
-// GET - listar manutenº??es corretivas com dias parado calculado
+function _fmCalcSegundosDesde(dtStr) {
+    if (!dtStr) return 0;
+    const t = String(dtStr).trim();
+    const d = /Z|[+-]\d\d:\d\d$/.test(t) ? new Date(t) : new Date(t.replace(' ', 'T') + (t.length === 10 ? 'T00:00:00Z' : 'Z'));
+    if (isNaN(d.getTime())) return 0;
+    return Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+}
+
+// GET - listar manutenções corretivas com dias do pedido e dias sem rodar calculados
 app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     const { status, veiculo_id } = req.query;
     let sql = `
         SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo,
+               sin.manutencao_rodando as sinistro_rodando,
+               COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) as veiculo_rodando_efetivo,
                CASE
-                   WHEN fm.data_inicio IS NOT NULL AND fm.status NOT IN ('concluida','cancelada') THEN
-                       CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
-                   WHEN fm.data_inicio IS NOT NULL AND fm.status IN ('concluida','cancelada') AND fm.data_conclusao IS NOT NULL THEN
-                       CAST((julianday(fm.data_conclusao) - julianday(fm.data_inicio)) AS INTEGER)
+                   WHEN fm.status NOT IN ('concluida','cancelada') AND COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio) IS NOT NULL THEN
+                       MAX(0, CAST((julianday('now') - julianday(COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio))) AS INTEGER))
+                   WHEN fm.status IN ('concluida','cancelada') AND COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio) IS NOT NULL THEN
+                       MAX(0, CAST((julianday(COALESCE(fm.data_conclusao, fm.updated_at)) - julianday(COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio))) AS INTEGER))
                    ELSE 0
+               END as dias_pedido,
+               CASE
+                   WHEN fm.status NOT IN ('concluida','cancelada') AND (COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm.status = 'em_andamento') THEN
+                       MAX(0, CAST((COALESCE(fm.parado_segundos_acum, 0) / 86400.0) + (julianday('now') - julianday(COALESCE(fm.parado_desde, fm.data_inicio, fm.created_at))) AS INTEGER))
+                   ELSE
+                       MAX(0, CAST(COALESCE(fm.parado_segundos_acum, 0) / 86400.0 AS INTEGER))
                END as dias_parado
         FROM frota_manutencoes fm
         LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+        LEFT JOIN sinistros sin ON sin.id = fm.sinistro_id
         WHERE fm.tipo = 'corretiva'
     `;
     const params = [];
@@ -23611,19 +23640,42 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     });
 });
 
-// PUT - atualiza a manutencao corretiva (situacao, veiculo, defeito, datas, KM, fornecedor...) e registra a mudanca de situacao no historico
+// PUT - atualiza a manutencao corretiva (situacao, veiculo, defeito, datas, KM, fornecedor, veiculo_rodando, justificativa...) e registra no historico
 app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_conclusao } = req.body;
+        const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_conclusao, veiculo_rodando, justificativa_status } = req.body;
         const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
         if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
-        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio FROM frota_manutencoes WHERE id = ?', [id]);
+        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id FROM frota_manutencoes WHERE id = ?', [id]);
         if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
         const now = new Date().toISOString().split('T')[0];
+        const agoraIso = new Date().toISOString();
         const fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
         const params = [status];
+
+        // Regra: se mudar para Em manutencao (em_andamento), automaticamente muda para Nao, esta parado (nao)
+        let rodandoNovo = (veiculo_rodando === 'nao' || veiculo_rodando === 'sim') ? veiculo_rodando : (prev.veiculo_rodando || 'sim');
+        if (status === 'em_andamento') rodandoNovo = 'nao';
+
+        let pDesde = prev.parado_desde || null;
+        let pAcum = Number(prev.parado_segundos_acum || 0);
+        if (status === 'concluida' || status === 'cancelada') {
+            if (pDesde) {
+                pAcum += _fmCalcSegundosDesde(pDesde);
+                pDesde = null;
+            }
+        } else {
+            if (rodandoNovo === 'nao' && !pDesde) {
+                pDesde = agoraIso;
+            } else if (rodandoNovo === 'sim' && pDesde) {
+                pAcum += _fmCalcSegundosDesde(pDesde);
+                pDesde = null;
+            }
+        }
+        fields.push('veiculo_rodando=?', 'parado_desde=?', 'parado_segundos_acum=?');
+        params.push(rodandoNovo, pDesde, pAcum);
 
         if (data_inicio !== undefined) { fields.push('data_inicio=?'); params.push(data_inicio || null); }
         else if (status === 'em_andamento' && !prev.data_inicio) { fields.push('data_inicio=?'); params.push(now); }
@@ -23659,23 +23711,32 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         params.push(id);
         await _fmRun('UPDATE frota_manutencoes SET ' + fields.join(',') + ' WHERE id=?', params);
 
-        // historico: quem mudou a situacao e quando
-        if (prev.status !== status) await _fmHist(id, 'status', null, _fmUsuario(req), prev.status, status);
+        const usuario = _fmUsuario(req);
+        // historico: quem mudou a situacao, quando e a justificativa
+        if (prev.status !== status) {
+            const justTxt = justificativa_status ? String(justificativa_status).trim() : null;
+            await _fmHist(id, 'status', justTxt, usuario, prev.status, status);
+        }
+        // historico: quem mudou "O veiculo esta rodando?" e quando
+        const rodandoAnt = prev.veiculo_rodando || null;
+        if (rodandoAnt && rodandoAnt !== rodandoNovo) {
+            const motivoAuto = (prev.status !== status && status === 'em_andamento') ? 'Alterado automaticamente ao mudar o status para Em manutenção' : null;
+            await _fmHist(id, 'rodando', motivoAuto, usuario, rodandoAnt, rodandoNovo);
+        }
+        if (prev.sinistro_id && rodandoAnt !== rodandoNovo) {
+            await _fmRun('UPDATE sinistros SET manutencao_rodando = ? WHERE id = ?', [rodandoNovo, prev.sinistro_id]);
+        }
 
-        // marca "em manutencao" dos veiculos
+        // marca "em manutencao" dos veiculos (apenas quando veiculo_rodando = 'nao')
         const vidAtual = novoVeic || prev.veiculo_id;
         if (novoVeic && novoVeic !== prev.veiculo_id) await _fmAtualizaEmManutencao(prev.veiculo_id);
-        if (status === 'concluida' || status === 'cancelada') {
-            await _fmAtualizaEmManutencao(vidAtual);
-            if (status === 'concluida') {
-                const row = await _fmGet('SELECT km_final_manutencao, km_na_manutencao FROM frota_manutencoes WHERE id = ?', [id]);
-                const kmF = row ? (row.km_final_manutencao || row.km_na_manutencao) : null;
-                if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
-            }
-        } else if (status === 'em_andamento') {
-            await _fmRun('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [vidAtual]);
+        await _fmAtualizaEmManutencao(vidAtual);
+        if (status === 'concluida') {
+            const row = await _fmGet('SELECT km_final_manutencao, km_na_manutencao FROM frota_manutencoes WHERE id = ?', [id]);
+            const kmF = row ? (row.km_final_manutencao || row.km_na_manutencao) : null;
+            if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
         }
-        res.json({ ok: true });
+        res.json({ ok: true, veiculo_rodando: rodandoNovo, parado_desde: pDesde, parado_segundos_acum: pAcum });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -23803,11 +23864,15 @@ async function _fmRecalcTotais(manutencaoId) {
     return { custo_mao_obra: totMo, custo_pecas: totPc, custo: Math.round((totMo + totPc) * 100) / 100 };
 }
 
-// Se o veiculo nao tem mais manutencao ativa, tira a marca "em manutencao"
+// Veiculo so fica "em_manutencao = 1" (indisponivel no resumo da rota) quando houver manutencao ativa com veiculo_rodando = 'nao' (ou status = 'em_andamento')
 async function _fmAtualizaEmManutencao(veiculoId) {
     if (!veiculoId) return;
-    const cnt = await _fmGet("SELECT COUNT(*) AS n FROM frota_manutencoes WHERE veiculo_id = ? AND status IN ('agendada','em_andamento','aguardando')", [veiculoId]);
-    if (!cnt || !cnt.n) await _fmRun('UPDATE frota_veiculos SET em_manutencao = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [veiculoId]);
+    const cnt = await _fmGet(
+        "SELECT COUNT(*) AS n FROM frota_manutencoes WHERE veiculo_id = ? AND status IN ('agendada','em_andamento','aguardando') AND (COALESCE(veiculo_rodando, CASE WHEN status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR status = 'em_andamento')",
+        [veiculoId]
+    );
+    const indisponivel = (cnt && cnt.n > 0) ? 1 : 0;
+    await _fmRun('UPDATE frota_veiculos SET em_manutencao = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [indisponivel, veiculoId]);
 }
 
 // Catalogo unico de manutencao (22 categorias) - ver backend/utils/catalogoManutencao.js
@@ -23832,6 +23897,16 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
         const id = parseInt(req.params.id);
         const m = await _fmGet('SELECT fm.*, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
         if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        if (m.sinistro_id && !m.veiculo_rodando) {
+            const sRod = await _fmGet('SELECT manutencao_rodando FROM sinistros WHERE id = ?', [m.sinistro_id]);
+            if (sRod && sRod.manutencao_rodando) {
+                m.veiculo_rodando = sRod.manutencao_rodando === 'nao' ? 'nao' : 'sim';
+                await _fmRun('UPDATE frota_manutencoes SET veiculo_rodando = ? WHERE id = ?', [m.veiculo_rodando, id]);
+            }
+        }
+        if (!m.veiculo_rodando) {
+            m.veiculo_rodando = m.status === 'em_andamento' ? 'nao' : 'sim';
+        }
         let servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
         if (servicos.length === 0 && m.sinistro_id) {
             const s = await _fmGet('SELECT manutencao_item FROM sinistros WHERE id = ?', [m.sinistro_id]);
@@ -24453,21 +24528,21 @@ app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
 
 // POST - registrar manutenção
 app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
-    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao } = req.body;
+    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao, veiculo_rodando } = req.body;
     if (!veiculo_id || !descricao) return res.status(400).json({ error: 'veiculo_id e descricao são obrigatórios' });
     const usuario_nome = req.user?.username || 'sistema';
+    const stEfetivo = status || 'programada';
+    const rodEfetivo = stEfetivo === 'em_andamento' ? 'nao' : (veiculo_rodando === 'nao' ? 'nao' : 'sim');
+    const pDesde = (rodEfetivo === 'nao' && stEfetivo !== 'concluida' && stEfetivo !== 'cancelada') ? new Date().toISOString() : null;
 
     db.run(
-        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null],
+        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao, veiculo_rodando, parado_desde, parado_segundos_acum)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
+        [veiculo_id, tipo||'preventiva', descricao, stEfetivo, km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null, rodEfetivo, pDesde],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Se status à 'em_andamento', marcar veiculo como em manutenção
-            if (status === 'em_andamento') {
-                db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [veiculo_id]);
-            }
-            _fmHist(this.lastID, 'evento', 'Manutenção registrada', _fmUsuario(req)).catch(() => {});
+            _fmAtualizaEmManutencao(veiculo_id).catch(() => {});
+            _fmHist(this.lastID, 'evento', 'Manutenção registrada (' + (rodEfetivo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', _fmUsuario(req)).catch(() => {});
             res.json({ id: this.lastID, message: 'Manutenção registrada' });
         }
     );
@@ -32335,7 +32410,10 @@ app.listen(PORT, () => {
         { col: 'sinistro_id', def: 'INTEGER' },
         { col: 'custo_pecas', def: 'REAL' },
         { col: 'custo_mao_obra', def: 'REAL' },
-        { col: 'km_final_manutencao', def: 'INTEGER' }
+        { col: 'km_final_manutencao', def: 'INTEGER' },
+        { col: 'veiculo_rodando', def: 'TEXT' },
+        { col: 'parado_desde', def: 'DATETIME' },
+        { col: 'parado_segundos_acum', def: 'INTEGER DEFAULT 0' }
     ];
     // ---- Manutencao corretiva: servicos realizados, pecas e notas fiscais
     db.run('ALTER TABLE frota_servicos_catalogo ADD COLUMN item_ref TEXT', (e) => { /* coluna ja existe: ignorar */ });
@@ -32374,6 +32452,15 @@ app.listen(PORT, () => {
             }
         });
     });
+    setTimeout(() => {
+        db.run("UPDATE frota_manutencoes SET veiculo_rodando = (SELECT CASE WHEN s.manutencao_rodando = 'nao' THEN 'nao' ELSE 'sim' END FROM sinistros s WHERE s.id = frota_manutencoes.sinistro_id) WHERE sinistro_id IS NOT NULL AND veiculo_rodando IS NULL", () => {
+            db.run("UPDATE frota_manutencoes SET veiculo_rodando = CASE WHEN status = 'em_andamento' THEN 'nao' ELSE 'sim' END WHERE tipo = 'corretiva' AND veiculo_rodando IS NULL", () => {
+                db.run("UPDATE frota_manutencoes SET parado_desde = COALESCE(created_at, data_inicio) WHERE (veiculo_rodando = 'nao' OR status = 'em_andamento') AND parado_desde IS NULL AND COALESCE(parado_segundos_acum, 0) = 0 AND status NOT IN ('concluida', 'cancelada')", () => {
+                    db.run("UPDATE frota_veiculos SET em_manutencao = CASE WHEN EXISTS (SELECT 1 FROM frota_manutencoes fm WHERE fm.veiculo_id = frota_veiculos.id AND fm.status IN ('agendada','em_andamento','aguardando') AND (COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm.status = 'em_andamento')) THEN 1 ELSE 0 END");
+                });
+            });
+        });
+    }, 5000);
 
     // ?????? Seed automático: categorias e servi??os de manutenção ??????????????????????????????????????????????????????
     // Se o banco nao tiver nenhuma categoria, insere as categorias e servi??os padrão.

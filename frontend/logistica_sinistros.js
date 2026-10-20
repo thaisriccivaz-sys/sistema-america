@@ -2296,7 +2296,7 @@ window._logSinManutAbrirPopupInterno = function(origem) {
         lista += '</div>';
     });
 
-    var rodSim = (st.rodando === 'sim' || !st.rodando) ? ' checked' : '';
+    var rodSim = (st.rodando === 'sim') ? ' checked' : '';
     var rodNao = (st.rodando === 'nao') ? ' checked' : '';
 
     var p = document.createElement('div');
