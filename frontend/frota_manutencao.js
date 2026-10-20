@@ -1217,12 +1217,26 @@ window._mnCalcTempos = function(m, statusOverride, rodandoOverride) {
     var fimPed = encerrada ? (window._mnParseTS(m.data_conclusao ? (String(m.data_conclusao).length === 10 ? m.data_conclusao + 'T23:59:59' : m.data_conclusao) : m.updated_at) || agora) : agora;
     var segPed = Math.max(0, Math.floor((fimPed - iniPed) / 1000));
 
+    var hojeStr = window._mnHojeISO ? window._mnHojeISO() : new Date().toISOString().split('T')[0];
+    var diStr = m.data_inicio ? String(m.data_inicio).split('T')[0] : '';
+    var dfStr = m.data_fim ? String(m.data_fim).split('T')[0] : '';
     var rod = rodandoOverride || m.veiculo_rodando || m.veiculo_rodando_efetivo || m.sinistro_rodando || (st === 'em_andamento' ? 'nao' : 'sim');
     if (st === 'em_andamento') rod = 'nao';
+    if (!encerrada && st !== 'em_andamento') {
+        if (diStr && dfStr) {
+            if (hojeStr < diStr) rod = 'sim';
+            else if (hojeStr >= diStr && hojeStr <= dfStr) rod = 'nao';
+            else if (hojeStr > dfStr) rod = 'sim';
+        } else if (rod === 'nao' && diStr && diStr > hojeStr) {
+            rod = 'sim';
+        }
+    }
     var paradoAtivo = !encerrada && rod === 'nao';
     var segPar = Number(m.parado_segundos_acum || 0);
     if (paradoAtivo) {
-        var pDesde = window._mnParseTS(m.parado_desde) || window._mnParseTS(m.data_inicio) || window._mnParseTS(m.created_at) || agora;
+        var tsDi = (diStr && diStr <= hojeStr) ? window._mnParseTS(diStr) : null;
+        var tsPd = window._mnParseTS(m.parado_desde);
+        var pDesde = (tsDi && (!tsPd || Number(m.parado_segundos_acum || 0) === 0)) ? tsDi : (tsPd || tsDi || window._mnParseTS(m.created_at) || agora);
         segPar += Math.max(0, Math.floor((agora - pDesde) / 1000));
     } else if (!segPar && m.parado_desde) {
         var pIni = window._mnParseTS(m.parado_desde);
@@ -1376,7 +1390,7 @@ window.mnCorrNovaInterno = async function(opts) {
     await window._mnEdCarregarCatalogo();
     window._mnEd = {
         id: null, novo: true,
-        m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: '', data_conclusao: '', created_at: new Date().toISOString(), veiculo_rodando: opts.veiculo_rodando || '', parado_desde: null, parado_segundos_acum: 0 },
+        m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: window._mnHojeISO(), data_fim: '', data_conclusao: '', created_at: new Date().toISOString(), veiculo_rodando: opts.veiculo_rodando || '', parado_desde: null, parado_segundos_acum: 0 },
         status: 'agendada', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
     };
     window._mnEdMontar();
@@ -1420,10 +1434,12 @@ window._mnEdGarantirId = async function() {
     if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
         throw new Error('Informe se o veículo está rodando ou parado ("O veículo está rodando? *").');
     }
+    var diVal = document.getElementById('mned-di') ? document.getElementById('mned-di').value : '';
+    var dfVal = document.getElementById('mned-df') ? document.getElementById('mned-df').value : '';
     var r = await fetch('/api/frota/manutencoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: ed.status || 'agendada', veiculo_rodando: ed.veiculo_rodando })
+        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: ed.status || 'agendada', veiculo_rodando: ed.veiculo_rodando, data_inicio: diVal || null, data_fim: dfVal || null })
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao criar a manutenção'); }
     var j = await r.json();
@@ -1456,8 +1472,9 @@ window._mnEdMontar = function() {
     var catOpts = '<option value="__todas__">★ Todas as categorias</option>' + window._mnMontarGruposCategorias(window._manutCategorias).map(function(g) {
         return '<optgroup label="' + esc(g.grupo) + '">'
             + '<option value="grupo:' + esc(g.grupo) + '">▸ Toda a categoria: ' + esc(g.grupo) + '</option>'
-            + g.itens.filter(function(it) { return it.id; }).map(function(it) {
-                return '<option value="' + it.id + '">' + esc(it.rotulo || it.nome) + '</option>';
+            + g.itens.map(function(it) {
+                var valOpt = it.id ? it.id : ('sub:' + (it.rotulo || it.nome));
+                return '<option value="' + esc(valOpt) + '">' + esc(it.rotulo || it.nome) + '</option>';
             }).join('')
             + '</optgroup>';
     }).join('');
@@ -1483,6 +1500,7 @@ window._mnEdMontar = function() {
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
       +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">'
       +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"></div>'
+      +           '<div><label style="' + lbl + '">Data de fim <span style="font-weight:400;color:#94a3b8;font-size:0.7rem;">(liberação p/ rodar)</span></label><input type="date" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '" style="' + inp + '"></div>'
       +           '<div id="mned-dc-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
       +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
@@ -1591,7 +1609,26 @@ window._mnEdMontar = function() {
         var v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(this.value); }.bind(this));
         if (window._mnEd.novo && v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
     };
-    document.getElementById('mned-di').onchange = function() { window._mnEd.m.data_inicio = this.value; };
+    var syncDatasRodando = function() {
+        var ed = window._mnEd;
+        if (!ed || !ed.m) return;
+        var diEl = document.getElementById('mned-di'), dfEl = document.getElementById('mned-df');
+        var di = diEl ? diEl.value : '', df = dfEl ? dfEl.value : '';
+        ed.m.data_inicio = di;
+        ed.m.data_fim = df;
+        var hoje = window._mnHojeISO();
+        if (ed.status !== 'concluida' && ed.status !== 'cancelada' && ed.status !== 'em_andamento') {
+            if (di && df) {
+                if (hoje < di) ed.veiculo_rodando = 'sim';
+                else if (hoje >= di && hoje <= df) ed.veiculo_rodando = 'nao';
+                else if (hoje > df) ed.veiculo_rodando = 'sim';
+                window._mnEdRenderRodando();
+            }
+        }
+        window._mnEdAtualizarCronModal();
+    };
+    document.getElementById('mned-di').onchange = syncDatasRodando;
+    document.getElementById('mned-df').onchange = syncDatasRodando;
     document.getElementById('mned-dc').onchange = function() { window._mnEd.m.data_conclusao = this.value; window._mnEdRenderServ(); };
     if (ed.novo && m.veiculo_id) document.getElementById('mned-veic').onchange.call(document.getElementById('mned-veic'));
 
@@ -1787,6 +1824,7 @@ window._mnEdRenderStatus = function() {
                                 veiculo_rodando: window._mnEd.veiculo_rodando,
                                 justificativa_status: justTxt,
                                 data_inicio: di ? (di.value || null) : null,
+                                data_fim: document.getElementById('mned-df') ? (document.getElementById('mned-df').value || null) : null,
                                 data_conclusao: (novo === 'concluida' && dc) ? (dc.value || null) : undefined
                             })
                         });
@@ -1878,7 +1916,8 @@ window._MN_GRUPOS_PADRAO = [
             { nome: 'Válvulas', icone: 'ph-funnel' },
             { nome: 'Sistema hidráulico', icone: 'ph-drop' },
             { nome: 'Estrutura', icone: 'ph-grid-four' },
-            { nome: 'Chassi', icone: 'ph-truck' }
+            { nome: 'Chassi', icone: 'ph-truck' },
+            { nome: 'Câmeras e Rastreadores', icone: 'ph-video-camera' }
         ]
     },
     {
@@ -1922,7 +1961,7 @@ window._mnCatMeta = function(catObjOuNome) {
 window._mnMontarGruposCategorias = function(cats) {
     var lista = Array.isArray(cats) && cats.length ? cats : [];
     if (!lista.length) return window._MN_GRUPOS_PADRAO;
-    var grupos = {}, ordem = [];
+    var grupos = {}, ordem = [], vistos = {};
     lista.forEach(function(c) {
         var meta = window._mnCatMeta(c);
         if (!grupos[meta.grupo]) {
@@ -1930,15 +1969,40 @@ window._mnMontarGruposCategorias = function(cats) {
             ordem.push(grupos[meta.grupo]);
         }
         grupos[meta.grupo].itens.push({ id: c.id, nome: meta.nome, rotulo: meta.nome, icone: meta.icone, ordem: c.ordem || meta.ordem });
+        vistos[window._mnNorm(meta.nome)] = 1;
+    });
+    window._MN_GRUPOS_PADRAO.forEach(function(g) {
+        g.itens.forEach(function(it) {
+            if (!vistos[window._mnNorm(it.nome)]) {
+                if (!grupos[g.grupo]) {
+                    grupos[g.grupo] = { grupo: g.grupo, icone: g.icone, itens: [] };
+                    ordem.push(grupos[g.grupo]);
+                }
+                var meta = window._mnCatMeta(it.nome);
+                grupos[g.grupo].itens.push({ id: null, nome: it.nome, rotulo: it.nome, icone: it.icone, ordem: meta.ordem });
+                vistos[window._mnNorm(it.nome)] = 1;
+            }
+        });
     });
     return ordem.length ? ordem : window._MN_GRUPOS_PADRAO;
 };
 
 window._mnCatalogoLista = function() {
     var catPorId = {};
-    (window._manutCategorias || []).forEach(function(c, i) { catPorId[c.id] = { c: c, idx: i }; });
+    var catCamId = 'sub:Câmeras e Rastreadores';
+    (window._manutCategorias || []).forEach(function(c, i) {
+        catPorId[c.id] = { c: c, idx: i };
+        if (window._mnNorm(c.nome) === window._mnNorm('Câmeras e Rastreadores')) catCamId = c.id;
+    });
+    var rawCat = (window._manutCatalogo || []).slice();
+    ['Câmera - troca', 'Câmera - manutenção'].forEach(function(nm, idx) {
+        var jaTem = rawCat.some(function(s) { return window._mnNorm(s.nome) === window._mnNorm(nm); });
+        if (!jaTem) {
+            rawCat.push({ id: 'cam_' + (idx + 1), categoria_id: catCamId, nome: nm, categoria_nome: 'Câmeras e Rastreadores', icone: 'video-camera', grupo: 'OPERACIONAL', grupo_icone: 'gear-six', item_ref: 'Câmeras e Rastreadores', ordem: idx + 1 });
+        }
+    });
     var vistos = {};
-    return (window._manutCatalogo || []).filter(function(s) {
+    return rawCat.filter(function(s) {
         var k = s.categoria_id + '|' + window._mnNorm(s.nome);
         if (vistos[k]) return false;
         vistos[k] = 1;
@@ -1974,6 +2038,8 @@ window._mnEdPickRender = function() {
         if (catSel && catSel !== '__todas__') {
             if (catSel.indexOf('grupo:') === 0) {
                 if (s._grupoNome !== catSel.substring(6)) return false;
+            } else if (catSel.indexOf('sub:') === 0) {
+                if (norm(s._subNome) !== norm(catSel.substring(4))) return false;
             } else if (String(s.categoria_id) !== String(catSel)) {
                 return false;
             }
@@ -3124,13 +3190,19 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         }
         var ehConcl = ed.status === 'concluida';
         var diEl = document.getElementById('mned-di');
+        var dfEl = document.getElementById('mned-df');
         var di = diEl ? diEl.value : '';
+        var df = dfEl ? dfEl.value : '';
+        if (di && df && df < di) {
+            throw new Error('A Data de fim não pode ser anterior à Data de início.');
+        }
         if (ed.status === 'em_andamento' && !di) { di = window._mnHojeISO(); if (diEl) diEl.value = di; }
         var corpo = {
             status: ed.status,
             veiculo_id: veic,
             descricao: desc,
             data_inicio: di || null,
+            data_fim: df || null,
             km_na_manutencao: document.getElementById('mned-km').value || null,
             km_final_manutencao: ehConcl ? (document.getElementById('mned-km-final').value || null) : null,
             fornecedor: document.getElementById('mned-forn').value.trim() || null,

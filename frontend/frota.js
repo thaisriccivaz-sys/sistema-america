@@ -472,7 +472,8 @@ window._FROTA_CARD_GRUPOS_PADRAO = [
             { nome: 'Válvulas', icone: 'ph-funnel' },
             { nome: 'Sistema hidráulico', icone: 'ph-drop' },
             { nome: 'Estrutura', icone: 'ph-grid-four' },
-            { nome: 'Chassi', icone: 'ph-truck' }
+            { nome: 'Chassi', icone: 'ph-truck' },
+            { nome: 'Câmeras e Rastreadores', icone: 'ph-video-camera' }
         ]
     },
     {
@@ -492,6 +493,7 @@ window._mnCardMontarGruposCategorias = function(cats) {
         g.itens.forEach(function(it) { mapaSub[it.nome] = { grupo: g.grupo, grupoIcone: g.icone, icone: it.icone }; });
     });
     var grupos = {}, ordem = [];
+    var vistos = {};
     cats.forEach(function(c) {
         var nome = c.nome === 'Outros serviços' ? 'Outros' : c.nome;
         var pad = mapaSub[nome] || {};
@@ -500,6 +502,16 @@ window._mnCardMontarGruposCategorias = function(cats) {
         var ico = c.icone ? ('ph-' + String(c.icone).replace(/^ph-/, '')) : (pad.icone || 'ph-wrench');
         if (!grupos[grp]) { grupos[grp] = { grupo: grp, icone: grpIco, itens: [] }; ordem.push(grupos[grp]); }
         grupos[grp].itens.push({ nome: nome, rotulo: nome, icone: ico });
+        vistos[nome] = 1;
+    });
+    window._FROTA_CARD_GRUPOS_PADRAO.forEach(function(g) {
+        g.itens.forEach(function(it) {
+            if (!vistos[it.nome]) {
+                if (!grupos[g.grupo]) { grupos[g.grupo] = { grupo: g.grupo, icone: g.icone, itens: [] }; ordem.push(grupos[g.grupo]); }
+                grupos[g.grupo].itens.push({ nome: it.nome, rotulo: it.nome, icone: it.icone });
+                vistos[it.nome] = 1;
+            }
+        });
     });
     return ordem.length ? ordem : window._FROTA_CARD_GRUPOS_PADRAO;
 };
@@ -626,13 +638,22 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
                 </div>
             </div>
 
-            <!-- Data de início -->
-            <div style="margin-bottom:18px;">
-                <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
-                    <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início
-                </label>
-                <input type="date" id="mn-card-data" value="${new Date().toISOString().split('T')[0]}"
-                    style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+            <!-- Data de início e Data de fim -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+                <div>
+                    <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
+                        <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início
+                    </label>
+                    <input type="date" id="mn-card-data" value="${(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})()}"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
+                        <i class="ph ph-calendar-check" style="margin-right:4px;color:#059669;"></i>Data de Fim <span style="font-weight:400;text-transform:none;font-size:0.72rem;color:#94a3b8;">(opcional)</span>
+                    </label>
+                    <input type="date" id="mn-card-data-fim" value=""
+                        style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                </div>
             </div>
 
             <!-- Seção Corretiva: pergunta se está rodando + categorias/subcategorias + descrição do defeito -->
@@ -728,10 +749,15 @@ window._mnCardConfirmar = async function(vid) {
     const tipo = window._mnCardTipoAtual;
     if (!tipo) return;
     const data = document.getElementById('mn-card-data')?.value;
+    const dataFim = document.getElementById('mn-card-data-fim')?.value;
+    if (data && dataFim && dataFim < data) {
+        alert('A Data de Fim não pode ser anterior à Data de Início.');
+        return;
+    }
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
     const btn = document.getElementById('mn-card-btn-confirmar');
 
-    let body = { veiculo_id: vid, tipo, data_inicio: data || null };
+    let body = { veiculo_id: vid, tipo, data_inicio: data || null, data_fim: dataFim || null };
     if (tipo === 'corretiva') {
         const selRod = document.querySelector('input[name="mn-card-corr-rodando"]:checked');
         if (!selRod) {

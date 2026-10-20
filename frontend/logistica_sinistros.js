@@ -968,6 +968,8 @@ window.logSinFinalizarSinistro = async function() {
             formData.append('manutencao_item', window._logSinManutItemTexto());
             if (_man.obs) formData.append('manutencao_obs', _man.obs);
             formData.append('manutencao_rodando', _man.rodando === 'nao' ? 'nao' : 'sim');
+            if (_man.data_inicio) formData.append('manutencao_data_inicio', _man.data_inicio);
+            if (_man.data_fim) formData.append('manutencao_data_fim', _man.data_fim);
             if (window._logSinVeiculoSelecionado && window._logSinVeiculoSelecionado.id) formData.append('veiculo_id', String(window._logSinVeiculoSelecionado.id));
         }
 
@@ -1070,6 +1072,8 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
         outros: _parsed.outros || '',
         obs: sinistro.manutencao_obs || '',
         rodando: sinistro.manutencao_rodando || 'sim',
+        data_inicio: sinistro.manutencao_data_inicio || '',
+        data_fim: sinistro.manutencao_data_fim || '',
         manutencao_id: sinistro.manutencao_id || null
     };
 
@@ -1668,6 +1672,8 @@ window.logSinSalvarEdicao = async function() {
                 formData.append('manutencao_item', window._logSinEditManutItemTexto());
                 formData.append('manutencao_rodando', window._logSinEditManut.rodando || 'sim');
                 formData.append('manutencao_obs', window._logSinEditManut.obs || '');
+                formData.append('manutencao_data_inicio', window._logSinEditManut.data_inicio || '');
+                formData.append('manutencao_data_fim', window._logSinEditManut.data_fim || '');
             }
         }
 
@@ -2010,7 +2016,8 @@ window._LOG_SIN_GRUPOS_PADRAO = [
             { nome: 'Válvulas', icone: 'ph-funnel' },
             { nome: 'Sistema hidráulico', icone: 'ph-drop' },
             { nome: 'Estrutura', icone: 'ph-grid-four' },
-            { nome: 'Chassi', icone: 'ph-truck' }
+            { nome: 'Chassi', icone: 'ph-truck' },
+            { nome: 'Câmeras e Rastreadores', icone: 'ph-video-camera' }
         ]
     },
     {
@@ -2034,6 +2041,7 @@ window._logSinMontarItens = function(cats) {
         g.itens.forEach(function(it) { mapaSub[it.nome] = { grupo: g.grupo, grupoIcone: g.icone, icone: it.icone }; });
     });
     var grupos = {}, ordem = [];
+    var vistos = {};
     cats.forEach(function(c) {
         var nome = c.nome === 'Outros serviços' ? 'Outros' : c.nome;
         var pad = mapaSub[nome] || {};
@@ -2042,6 +2050,16 @@ window._logSinMontarItens = function(cats) {
         var ico = c.icone ? ('ph-' + String(c.icone).replace(/^ph-/, '')) : (pad.icone || 'ph-wrench');
         if (!grupos[grp]) { grupos[grp] = { grupo: grp, icone: grpIco, itens: [] }; ordem.push(grupos[grp]); }
         grupos[grp].itens.push({ nome: nome, rotulo: nome, icone: ico });
+        vistos[nome] = 1;
+    });
+    window._LOG_SIN_GRUPOS_PADRAO.forEach(function(g) {
+        g.itens.forEach(function(it) {
+            if (!vistos[it.nome]) {
+                if (!grupos[g.grupo]) { grupos[g.grupo] = { grupo: g.grupo, icone: g.icone, itens: [] }; ordem.push(grupos[g.grupo]); }
+                grupos[g.grupo].itens.push({ nome: it.nome, rotulo: it.nome, icone: it.icone });
+                vistos[it.nome] = 1;
+            }
+        });
     });
     return ordem.length ? ordem : window._LOG_SIN_GRUPOS_PADRAO;
 };
@@ -2133,7 +2151,7 @@ window._logSinEditManutItemTexto = function() {
 };
 
 window._logSinManutReset = function() {
-    window._logSinManut = { ativo: false, itens: [], item: '', outros: '', obs: '', rodando: '' };
+    window._logSinManut = { ativo: false, itens: [], item: '', outros: '', obs: '', rodando: '', data_inicio: '', data_fim: '' };
 };
 
 window._logSinManutRender = function() {
@@ -2163,9 +2181,11 @@ window._logSinManutRender = function() {
         if (st.ativo) {
             var txt = String(window._logSinManutItemTexto(st)).replace(/</g, '&lt;');
             var rod = st.rodando === 'nao' ? 'Veículo parado (ficará indisponível)' : 'Veículo rodando (manutenção agendada)';
+            var fmtBr = function(d) { var p = String(d || '').split('T')[0].split('-'); return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : d; };
+            var datasTxt = st.data_inicio ? (' · Início: ' + fmtBr(st.data_inicio) + (st.data_fim ? ' · Fim: ' + fmtBr(st.data_fim) : '')) : '';
             resumo.style.display = 'block';
             resumo.innerHTML = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#7c2d12;">'
-                + '<b>' + txt + '</b><br>' + rod
+                + '<b>' + txt + '</b><br>' + rod + datasTxt
                 + ' <button type="button" onclick="window._logSinManutAbrirPopup(\'novo\')" style="margin-left:6px;background:none;border:none;color:#2563eb;cursor:pointer;font-weight:600;font-size:0.8rem;">Editar</button></div>';
         } else {
             resumo.style.display = 'none';
@@ -2201,9 +2221,11 @@ window._logSinEditManutRender = function() {
         if (st.ativo) {
             var txt = String(window._logSinEditManutItemTexto()).replace(/</g, '&lt;');
             var rod = st.rodando === 'nao' ? 'Veículo parado (ficará indisponível)' : 'Veículo rodando (manutenção agendada)';
+            var fmtBr = function(d) { var p = String(d || '').split('T')[0].split('-'); return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : d; };
+            var datasTxt = st.data_inicio ? (' · Início: ' + fmtBr(st.data_inicio) + (st.data_fim ? ' · Fim: ' + fmtBr(st.data_fim) : '')) : '';
             resumo.style.display = 'block';
             resumo.innerHTML = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#7c2d12;">'
-                + '<b>' + txt + '</b><br>' + rod
+                + '<b>' + txt + '</b><br>' + rod + datasTxt
                 + ' <button type="button" onclick="window._logSinManutAbrirPopup(\'edit\')" style="margin-left:6px;background:none;border:none;color:#2563eb;cursor:pointer;font-weight:600;font-size:0.8rem;">Editar</button></div>';
         } else {
             resumo.style.display = 'none';
@@ -2300,6 +2322,10 @@ window._logSinManutAbrirPopupInterno = function(origem) {
 
     var rodSim = (st.rodando === 'sim') ? ' checked' : '';
     var rodNao = (st.rodando === 'nao') ? ' checked' : '';
+    var dNow = new Date();
+    var hojeIso = dNow.getFullYear() + '-' + String(dNow.getMonth() + 1).padStart(2, '0') + '-' + String(dNow.getDate()).padStart(2, '0');
+    var dtIniVal = st.data_inicio ? String(st.data_inicio).split('T')[0] : hojeIso;
+    var dtFimVal = st.data_fim ? String(st.data_fim).split('T')[0] : '';
 
     var p = document.createElement('div');
     p.id = 'log-sin-manut-popup';
@@ -2313,9 +2339,15 @@ window._logSinManutAbrirPopupInterno = function(origem) {
         + '</div>'
         + '<div style="padding:18px 20px;">'
         + '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando? *</p>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">'
         + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#f0fdf4;"><input type="radio" name="log-sin-manut-rodando" value="sim"' + rodSim + '> Sim, está rodando <small style="color:#64748b;">(agendar)</small></label>'
         + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #fecaca;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fef2f2;"><input type="radio" name="log-sin-manut-rodando" value="nao"' + rodNao + '> Não, está parado <small style="color:#64748b;">(indisponível)</small></label>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">'
+        + '<div><label style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;"><i class="ph ph-calendar"></i> Data de Início</label>'
+        + '<input type="date" id="log-sin-manut-data-inicio" value="' + dtIniVal + '" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;box-sizing:border-box;outline:none;"></div>'
+        + '<div><label style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;"><i class="ph ph-calendar-check" style="color:#059669;"></i> Data de Fim <span style="font-weight:400;text-transform:none;font-size:0.7rem;color:#94a3b8;">(opcional)</span></label>'
+        + '<input type="date" id="log-sin-manut-data-fim" value="' + dtFimVal + '" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;box-sizing:border-box;outline:none;"></div>'
         + '</div>'
         + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Quais manutenções são necessárias? (selecione uma ou mais) *</p>'
         + lista
@@ -2358,13 +2390,21 @@ window._logSinManutConfirmar = function(origem) {
     var selRod = document.querySelector('input[name="log-sin-manut-rodando"]:checked');
     if (!selRod) return alert('Informe se o veículo está rodando ou parado.');
 
+    var dtIni = (document.getElementById('log-sin-manut-data-inicio') || { value: '' }).value.trim();
+    var dtFim = (document.getElementById('log-sin-manut-data-fim') || { value: '' }).value.trim();
+    if (dtIni && dtFim && dtFim < dtIni) {
+        return alert('A Data de Fim não pode ser anterior à Data de Início.');
+    }
+
     var dados = {
         ativo: true,
         itens: itens,
         item: itens.join(', '),
         outros: temOutros ? outros : '',
         obs: (document.getElementById('log-sin-manut-obs') || { value: '' }).value.trim(),
-        rodando: selRod.value
+        rodando: selRod.value,
+        data_inicio: dtIni || '',
+        data_fim: dtFim || ''
     };
 
     if (origem === 'edit') {

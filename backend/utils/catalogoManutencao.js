@@ -564,6 +564,14 @@ const GRUPOS = [
                     "Suporte da bomba - Reparo",
                     "Chassi - Avaliação de danos estruturais"
                 ]
+            },
+            {
+                "nome": "Câmeras e Rastreadores",
+                "icone": "video-camera",
+                "servicos": [
+                    "Câmera - troca",
+                    "Câmera - manutenção"
+                ]
             }
         ]
     },
