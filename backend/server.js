@@ -24262,6 +24262,12 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             }
         }
         await _fmHistGarantir(m);
+        const delMoEmPecas = await _fmRun("DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ? AND (descricao LIKE '%SERVIÇOS A EXECUTAR%' OR descricao LIKE '%SERVICOS A EXECUTAR%' OR descricao LIKE '%MECANICA - CA (29-ATENDIMENTO)%')", [id]);
+        if (delMoEmPecas && delMoEmPecas.changes > 0) {
+            await _fmRecalcTotais(id);
+            const mAt = await _fmGet('SELECT custo, custo_pecas, custo_mao_obra FROM frota_manutencoes WHERE id = ?', [id]);
+            if (mAt) { m.custo = mAt.custo; m.custo_pecas = mAt.custo_pecas; m.custo_mao_obra = mAt.custo_mao_obra; }
+        }
         const pecas = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
         const notas = await _fmAll("SELECT id, manutencao_id, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, COALESCE(tipo, 'pecas') AS tipo, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id", [id]);
         res.json({
@@ -24420,9 +24426,12 @@ function _fmEhPdf(buf) { return !!buf && buf.length > 5 && buf.slice(0, 5).toStr
 async function _fmInserirPecas(manId, notaId, pecas) {
     const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [manId])).map(r => r.id);
     let rotOffset = 0;
+    const { limparDescricaoItem, ehItemDeMaoDeObra } = require('./utils/nfParser');
     for (const p of pecas) {
-        const desc = String(p.descricao || '').trim();
-        if (!desc) continue;
+        const descBruta = String(p.descricao || '').trim();
+        if (!descBruta || ehItemDeMaoDeObra(descBruta)) continue;
+        const desc = limparDescricaoItem(descBruta);
+        if (!desc || ehItemDeMaoDeObra(desc)) continue;
         const qtd = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
         const vu = _fmNumero(p.valor_unit);
         let vt = _fmNumero(p.valor_total);
