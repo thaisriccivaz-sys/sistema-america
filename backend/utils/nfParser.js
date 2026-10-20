@@ -363,8 +363,35 @@ async function textoDoPdf(buffer) {
     return { texto: texto, itensServ: itensServ };
 }
 
+// NFS-e padrao nacional (DANFSe): rotulos e valores ficam em linhas diferentes
+function lerNfseNacional(texto) {
+    const L = String(texto || '').split('\n').map(l => l.trim());
+    if (!L.some(l => /^DESCRI[ÇC][ÃA]O DO SERVI[ÇC]O$/i.test(l)) || !L.some(l => /DANFSe|N[ÚU]MERO DA NFS-?E/i.test(l))) return null;
+    const valorApos = (re) => { const i = L.findIndex(l => re.test(l)); return i >= 0 ? (L[i + 1] || '') : ''; };
+    const out = { numero: '', emissao: '', fornecedor: '', valor_total: 0, itens: [] };
+    const mNum = valorApos(/^N[ÚU]MERO DA NFS-?E\b/i).match(/^(\d{1,12})\b/);
+    if (mNum) out.numero = String(parseInt(mNum[1], 10));
+    const mEmi = valorApos(/DATA E HORA DA EMISS[ÃA]O DA NFS-?E\s*$/i).match(/(\d{2}\/\d{2}\/\d{4})/) || valorApos(/^N[ÚU]MERO DA NFS-?E\b/i).match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (mEmi) out.emissao = mEmi[1];
+    let nome = valorApos(/^NOME \/ NOME EMPRESARIAL\b/i);
+    const mSuf = nome.match(/^(.*?\b(?:LTDA|EIRELI|EPP|MEI|S\.?A\.?|ME))\b/i);
+    nome = mSuf ? mSuf[1] : nome.replace(/\s+[^\s/]+\/[A-Z]{2}\b.*$/, '');
+    out.fornecedor = nome.replace(/\s+/g, ' ').trim();
+    const mTot = valorApos(/^VALOR DA OPERA[ÇC][ÃA]O \/ SERVI[ÇC]O\b/i).match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
+    if (mTot) out.valor_total = parseBR(mTot[1]) || 0;
+    const ini = L.findIndex(l => /^DESCRI[ÇC][ÃA]O DO SERVI[ÇC]O$/i.test(l));
+    for (let i = ini + 1; i < L.length && !/^TIPO TRIBUTA[ÇC][ÃA]O/i.test(L[i]); i++) {
+        const m = L[i].match(/^(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})$/);
+        if (m && !/^(PLACA|O\.?\s?S\b)/i.test(m[1].trim())) out.itens.push({ descricao: limparDescricaoItem(m[1]), valor: parseBR(m[2]) || 0 });
+    }
+    out.itens = out.itens.filter(i => i.descricao && i.valor > 0);
+    return out;
+}
+
 function dadosServicoLocal(texto, itensServ) {
     const cab = dadosCabecalho(texto);
+    const nfse = lerNfseNacional(texto);
+    if (nfse) { ['numero', 'emissao', 'fornecedor'].forEach(k => { if (nfse[k]) cab[k] = nfse[k]; }); if (!(itensServ && itensServ.length) && nfse.itens.length) itensServ = nfse.itens; }
     const r = {
         numero: cab.numero || '',
         serie: cab.serie || '',
@@ -386,7 +413,9 @@ function dadosServicoLocal(texto, itensServ) {
     if (mForn && !r.fornecedor) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
     const mTot = texto.match(/(?:VALOR\s+(?:TOTAL\s+DA\s+NOTA|TOTAL\s+DOS\s+SERVI[ÇC]OS|DOS\s+SERVI[ÇC]OS|L[ÍI]QUIDO|TOTAL)|TOTAL\s+(?:DA\s+NOTA|DOS\s+SERVI[ÇC]OS|GERAL|L[ÍI]QUIDO|DO\s+PEDIDO|DO\s+OR[ÇC]AMENTO)|VLR\.?\s*TOTAL)[^\d]{0,40}(\d{1,3}(?:\.\d{3})*,\d{2})/i);
     if (mTot) r.valor_total = parseBR(mTot[1]) || 0;
+    if (nfse && nfse.valor_total) r.valor_total = nfse.valor_total;
     if (itensServ && itensServ.length) {
+        r.tabela = true;
         r.itens = itensServ.map(i => ({ descricao: limparDescricaoItem(i.descricao), valor: i.valor })).filter(i => i.descricao);
         if (!r.valor_total) r.valor_total = Math.round(r.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
     } else {
@@ -455,8 +484,8 @@ async function analisarNotaServico(buffer) {
     let local = null, ia = null, erroIa = null, tabelaLida = false;
     try {
         const t = await textoDoPdf(buffer);
-        tabelaLida = !!(t.itensServ && t.itensServ.length);
         local = dadosServicoLocal(t.texto, t.itensServ);
+        tabelaLida = !!local.tabela;
     } catch (e) { console.error('[NF-MO] leitor local falhou:', e.message); }
     let localConfiavel = false;
     if (local && local.itens.length && local.numero && local.fornecedor && local.valor_total > 0 && tabelaLida) {

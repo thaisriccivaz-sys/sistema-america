@@ -3021,7 +3021,7 @@ window._mnoSalvar = async function() {
     var linhas = window._mnMo.linhas.filter(function(l) { return String(l.descricao || '').trim() || Number(l.valor) > 0; });
     if (!linhas.length) { alert('Informe ao menos uma linha de serviço com valor.'); return; }
     var semVinculo = linhas.some(function(l) { return !l.ratear && !(l.servicos || []).length; });
-    if (semVinculo && servsValidos.length > 1) {
+    if (semVinculo) {
         alert('Vincule as linhas aos serviços realizados clicando em "Vincular a serviços" na linha ou no botão "Ratear total da nota".');
         return;
     }
@@ -3574,7 +3574,7 @@ window._mnpSalvar = async function() {
     });
     if (!pecas.length) { alert('Informe ao menos uma peça (descrição).'); return; }
     var semVinculo = pecas.some(function(p) { return !(p.servicos || []).length; });
-    if (semVinculo && servsValidos.length > 1) {
+    if (semVinculo) {
         alert('Vincule as peças aos serviços realizados clicando em "Vincular a serviços" na linha da peça ou no botão "Ratear total da nota".');
         return;
     }
