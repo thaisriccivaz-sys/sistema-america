@@ -982,6 +982,14 @@ window.mnCarregarCorretivas = async function() {
         const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
         const lista = await r.json();
         window._mnCorrDados = Array.isArray(lista) ? lista : [];
+        if (Array.isArray(window._manutFrota) && window._mnCorrDados.length) {
+            window._mnCorrDados.forEach(function(m) {
+                if (m.veiculo_em_manutencao !== undefined) {
+                    var vf = window._manutFrota.find(function(x) { return String(x.id) === String(m.veiculo_id); });
+                    if (vf) vf.em_manutencao = m.veiculo_em_manutencao;
+                }
+            });
+        }
         window._mnRenderCorretivaDados(window._mnCorrDados);
     } catch(e) {
         const tbody = document.getElementById('mn-corr-tbody');
@@ -989,12 +997,20 @@ window.mnCarregarCorretivas = async function() {
     }
 };
 
-// Celula da placa: foto circular do veiculo + placa (vermelha quando o veiculo esta parado/sem rodar)
+// Celula da placa: foto circular do veiculo + placa (vermelha quando o veiculo esta parado/sem rodar em qualquer solicitacao aberta da placa)
 window._mnPlacaCell = function(m) {
     const v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(m.veiculo_id); }) || {};
     const foto = v.foto_url || v.foto_base64 || '';
     const ativa = m.status !== 'concluida' && m.status !== 'cancelada';
-    const parado = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true) || (ativa && m.veiculo_rodando_efetivo === 'nao');
+    const temAbertaParada = (window._mnCorrDados || []).some(function(x) {
+        return String(x.veiculo_id) === String(m.veiculo_id)
+            && x.status !== 'concluida' && x.status !== 'cancelada'
+            && (x.veiculo_rodando_efetivo === 'nao' || x.veiculo_rodando === 'nao');
+    });
+    const emManutVeic = (m.veiculo_em_manutencao !== undefined)
+        ? (m.veiculo_em_manutencao == 1 || m.veiculo_em_manutencao === '1' || m.veiculo_em_manutencao === true)
+        : (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
+    const parado = emManutVeic || temAbertaParada || (ativa && m.veiculo_rodando_efetivo === 'nao');
     const avatar = foto
         ? '<img src="' + foto + '" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid ' + (parado ? '#fecaca' : '#e2e8f0') + ';flex-shrink:0;background:#f1f5f9;">'
         : '<div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;border:2px solid ' + (parado ? '#fecaca' : '#e2e8f0') + ';display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;"><i class="ph ph-truck"></i></div>';
@@ -1159,9 +1175,13 @@ window.mnCorrAcaoInterno = function(id, status) {
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
                 body: JSON.stringify({ status: status, justificativa_status: justTxt })
             });
-            if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+            const rj = await r.json().catch(function() { return {}; });
+            if (!r.ok) throw new Error(rj.error || 'Erro');
             if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Status atualizado!');
-            window.mnCarregarCorretivas();
+            await window.mnCarregarCorretivas();
+            if (typeof window._mnTratarOutrasAbertasPosStatus === 'function') {
+                window._mnTratarOutrasAbertasPosStatus(status, rj, m ? m.placa : '');
+            }
         } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
     });
 };
@@ -1204,16 +1224,21 @@ window._mnCorrSalvarConclInterno = async function(id) {
     const custo = document.getElementById('mn-corri-custo')?.value;
     const fornecedor = document.getElementById('mn-corri-forn')?.value;
     const observacoes = document.getElementById('mn-corri-obs')?.value;
+    var mRef = (window._mnCorrDados || []).find(function(x) { return String(x.id) === String(id); });
     try {
         const r = await fetch(`/api/frota/manutencoes/${id}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
             body: JSON.stringify({ status: 'concluida', km_na_manutencao: km||null, custo: custo||null, fornecedor: fornecedor||null, observacoes: observacoes||null })
         });
-        if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+        const rj = await r.json().catch(function() { return {}; });
+        if (!r.ok) throw new Error(rj.error || 'Erro');
         document.getElementById('mn-corr-concl-modal')?.remove();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção concluída!');
-        window.mnCarregarCorretivas();
+        await window.mnCarregarCorretivas();
+        if (typeof window._mnTratarOutrasAbertasPosStatus === 'function') {
+            window._mnTratarOutrasAbertasPosStatus('concluida', rj, mRef ? mRef.placa : '');
+        }
     } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
 };
 
@@ -1509,7 +1534,7 @@ window.mnCorrNovaInterno = async function(opts) {
     window._mnEd = {
         id: null, novo: true,
         m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: window._mnHojeISO(), data_fim: '', data_conclusao: '', created_at: new Date().toISOString(), veiculo_rodando: opts.veiculo_rodando || '', parado_desde: null, parado_segundos_acum: 0 },
-        status: 'agendada', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
+        status: 'agendada', _statusInicial: 'agendada', _jaPerguntouStatus: '', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
     };
     window._mnEdMontar();
 };
@@ -1528,6 +1553,8 @@ window.mnCorrEditarInterno = async function(id) {
     window._mnEd = {
         id: id, novo: false, m: m,
         status: m.status || 'agendada',
+        _statusInicial: m.status || 'agendada',
+        _jaPerguntouStatus: '',
         veiculo_rodando: rodIni,
         justificativa_status: '',
         solicitados: (det.solicitados || []).map(function(s) { return s.nome; }),
@@ -1854,10 +1881,19 @@ window._mnEdPedirJustificativaStatus = function(statusDe, statusPara, cb) {
     var rDe = rot(statusDe), rPara = rot(statusPara);
     var old = document.getElementById('mned-just-pop'); if (old) old.remove();
     var avisoParado = '';
+    var veicIdAt = (window._mnEd && (document.getElementById('mned-veic') ? document.getElementById('mned-veic').value : (window._mnEd.m && window._mnEd.m.veiculo_id))) || '';
+    var idAt = (window._mnEd && window._mnEd.id) || 0;
+    var outrasMesmaPlaca = (window._mnCorrDados || []).filter(function(x) {
+        return veicIdAt && String(x.veiculo_id) === String(veicIdAt) && String(x.id) !== String(idAt) && x.status !== 'concluida' && x.status !== 'cancelada';
+    });
     if (statusPara === 'em_andamento' && (!window._mnEd || window._mnEd.veiculo_rodando !== 'nao')) {
-        avisoParado = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Em manutenção</b>, o veículo mudará automaticamente para <b>Não, está parado (indisponível)</b>.</span></div>';
-    } else if (statusPara === 'concluida' && (!window._mnEd || window._mnEd.veiculo_rodando === 'nao')) {
-        avisoParado = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Concluído</b>, o veículo mudará automaticamente para <b>Sim, está rodando</b>.</span></div>';
+        avisoParado = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Em manutenção</b>, o veículo (e as demais solicitações em aberto desta placa) ficará como <b>Não, está parado (indisponível)</b>.</span></div>';
+    } else if (statusPara === 'concluida') {
+        if (outrasMesmaPlaca.some(function(x) { return x.veiculo_rodando_efetivo === 'nao' || x.veiculo_rodando === 'nao'; })) {
+            avisoParado = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning" style="font-size:1.1rem;flex-shrink:0;"></i><span>Esta solicitação será concluída, mas o veículo <b>continuará constando como parado</b> enquanto houver outra solicitação em aberto desta placa marcada como "Não, está parado".</span></div>';
+        } else if (!window._mnEd || window._mnEd.veiculo_rodando === 'nao') {
+            avisoParado = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Concluído</b>, esta solicitação passará para <b>Sim, está rodando</b>.</span></div>';
+        }
     }
     var pop = document.createElement('div');
     pop.id = 'mned-just-pop';
@@ -1896,6 +1932,210 @@ window._mnEdPedirJustificativaStatus = function(statusDe, statusPara, cb) {
         fechar();
         if (cb) cb(txt);
     };
+};
+
+window._mnTratarOutrasAbertasPosStatus = function(novoStatus, respJson, placaFallback) {
+    if (!respJson || !Array.isArray(respJson.outras_abertas) || !respJson.outras_abertas.length) return;
+    var outras = respJson.outras_abertas;
+    var placa = (outras[0] && outras[0].placa) || placaFallback || '';
+    if (novoStatus === 'concluida') {
+        window._mnMostrarPopupConcluirOutras(placa, outras);
+    } else if (novoStatus === 'em_andamento') {
+        window._mnMostrarPopupRevisarOutras(placa, outras);
+    }
+};
+
+window._mnMostrarPopupConcluirOutras = function(placa, outras) {
+    var esc = window._mnEdEsc || function(s) { return String(s == null ? '' : s); };
+    var old = document.getElementById('mn-pop-concluir-outras'); if (old) old.remove();
+    var statusLbl = { agendada: 'Novo', em_andamento: 'Em Manutenção', aguardando: 'Aguardando', concluida: 'Concluído', cancelada: 'Cancelada' };
+    var statusCor = { agendada: '#d97706', em_andamento: '#dc2626', aguardando: '#2563eb', concluida: '#10b981', cancelada: '#94a3b8' };
+    var pop = document.createElement('div');
+    pop.id = 'mn-pop-concluir-outras';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.68);display:flex;align-items:center;justify-content:center;z-index:10050;padding:16px;';
+    var listaHtml = outras.map(function(o, idx) {
+        var sCor = statusCor[o.status] || '#64748b';
+        var sTxt = statusLbl[o.status] || o.status || '—';
+        var rodNao = (o.veiculo_rodando === 'nao' || o.status === 'em_andamento');
+        var rodBadge = rodNao
+            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">Não, está parado</span>'
+            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">Sim, está rodando</span>';
+        return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;margin-bottom:8px;cursor:pointer;">'
+            + (outras.length > 1 ? '<input type="radio" name="mn_concl_outra_sel" value="' + o.id + '"' + (idx === 0 ? ' checked' : '') + ' style="margin-top:4px;accent-color:#10b981;">' : '')
+            + '<div style="flex:1;min-width:0;">'
+            +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'
+            +     '<span style="font-size:0.76rem;font-weight:800;color:#334155;">#' + o.id + '</span>'
+            +     '<span style="background:' + sCor + '22;color:' + sCor + ';padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">' + esc(sTxt) + '</span>'
+            +     rodBadge
+            +   '</div>'
+            +   '<div style="font-size:0.84rem;color:#1e293b;font-weight:600;word-break:break-word;">' + esc(o.descricao || 'Sem descrição') + '</div>'
+            + '</div>'
+            + '</label>';
+    }).join('');
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+      + '<div style="background:linear-gradient(135deg,#065f46,#10b981);padding:14px 20px;display:flex;align-items:center;gap:10px;">'
+      +   '<div style="background:rgba(255,255,255,0.2);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-question" style="color:#fff;font-size:1.3rem;"></i></div>'
+      +   '<div style="color:#fff;font-weight:700;font-size:0.98rem;">Encerrar outra solicitação da placa ' + esc(placa) + '?</div>'
+      +   '<button type="button" id="mn-pop-concl-x" style="margin-left:auto;background:rgba(255,255,255,0.18);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:18px 20px;">'
+      +   '<p style="margin:0 0 12px;font-size:0.9rem;color:#334155;line-height:1.45;">'
+      +     (outras.length === 1
+                ? 'Existe <b>outra solicitação de manutenção em aberto</b> para o veículo <b>' + esc(placa) + '</b>. Gostaria de encerrar/atualizar essa outra solicitação de manutenção também?'
+                : 'Existem <b>' + outras.length + ' outras solicitações de manutenção em aberto</b> para o veículo <b>' + esc(placa) + '</b>. Gostaria de encerrar/atualizar outra solicitação de manutenção também?')
+      +   '</p>'
+      +   '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.78rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;">'
+      +     '<i class="ph ph-info" style="font-size:1.1rem;flex-shrink:0;"></i>'
+      +     '<span>O veículo só volta a ser considerado rodando quando todas as solicitações em aberto desta placa forem alteradas manualmente para <b>Sim, está rodando</b> ou <b>Concluído</b>.</span>'
+      +   '</div>'
+      +   '<div style="max-height:220px;overflow-y:auto;margin-bottom:14px;">' + listaHtml + '</div>'
+      +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+      +     '<button type="button" id="mn-pop-concl-nao" style="padding:9px 18px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:700;">Não</button>'
+      +     '<button type="button" id="mn-pop-concl-sim" style="padding:9px 20px;border:none;border-radius:8px;background:#10b981;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-arrow-square-out"></i> Sim, abrir solicitação</button>'
+      +   '</div>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var el = document.getElementById('mn-pop-concluir-outras'); if (el) el.remove(); };
+    document.getElementById('mn-pop-concl-x').onclick = fechar;
+    document.getElementById('mn-pop-concl-nao').onclick = fechar;
+    document.getElementById('mn-pop-concl-sim').onclick = function() {
+        var selEl = pop.querySelector('input[name="mn_concl_outra_sel"]:checked');
+        var idAlvo = selEl ? selEl.value : (outras[0] && outras[0].id);
+        fechar();
+        if (idAlvo) window.mnCorrEditarInterno(idAlvo);
+    };
+};
+
+window._mnMostrarPopupRevisarOutras = function(placa, outras) {
+    var esc = window._mnEdEsc || function(s) { return String(s == null ? '' : s); };
+    var old = document.getElementById('mn-pop-revisar-outras'); if (old) old.remove();
+    var pop = document.createElement('div');
+    pop.id = 'mn-pop-revisar-outras';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.68);display:flex;align-items:center;justify-content:center;z-index:10050;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:500px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;display:flex;align-items:center;gap:10px;">'
+      +   '<div style="background:#d97706;border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench" style="color:#fff;font-size:1.25rem;"></i></div>'
+      +   '<div style="color:#fff;font-weight:700;font-size:0.98rem;">Revisar outras solicitações — Placa ' + esc(placa) + '</div>'
+      +   '<button type="button" id="mn-pop-rev-x" style="margin-left:auto;background:rgba(255,255,255,0.18);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:20px;">'
+      +   '<p style="margin:0 0 16px;font-size:0.92rem;color:#334155;line-height:1.5;">'
+      +     'Gostaria de <b>revisar as outras solicitações de manutenção (' + outras.length + ')</b> do veículo <b>' + esc(placa) + '</b> para tentar aproveitar que esse veículo está parado para fazer junto?'
+      +   '</p>'
+      +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+      +     '<button type="button" id="mn-pop-rev-nao" style="padding:9px 18px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:700;">Não</button>'
+      +     '<button type="button" id="mn-pop-rev-sim" style="padding:9px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-magnifying-glass"></i> Sim, ver solicitações</button>'
+      +   '</div>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var el = document.getElementById('mn-pop-revisar-outras'); if (el) el.remove(); };
+    document.getElementById('mn-pop-rev-x').onclick = fechar;
+    document.getElementById('mn-pop-rev-nao').onclick = fechar;
+    document.getElementById('mn-pop-rev-sim').onclick = function() {
+        fechar();
+        window._mnMostrarModalListaOutrasAbertas(placa, outras);
+    };
+};
+
+window._mnMostrarModalListaOutrasAbertas = function(placa, outras) {
+    var esc = window._mnEdEsc || function(s) { return String(s == null ? '' : s); };
+    var old = document.getElementById('mn-modal-lista-outras'); if (old) old.remove();
+    var statusLbl = { agendada: 'Novo', em_andamento: 'Em Manutenção', aguardando: 'Aguardando', concluida: 'Concluído', cancelada: 'Cancelada' };
+    var statusCor = { agendada: '#d97706', em_andamento: '#dc2626', aguardando: '#2563eb', concluida: '#10b981', cancelada: '#94a3b8' };
+    var fmtData = function(d) {
+        if (!d) return '—';
+        var p = String(d).split('T')[0].split(' ')[0].split('-');
+        return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : d;
+    };
+    var cardsHtml = outras.map(function(o) {
+        var sCor = statusCor[o.status] || '#64748b';
+        var sTxt = statusLbl[o.status] || o.status || '—';
+        var rodNao = (o.veiculo_rodando === 'nao' || o.status === 'em_andamento');
+        var rodBadge = rodNao
+            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Não, está parado</span>'
+            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Sim, está rodando</span>';
+        var solicArr = (Array.isArray(o.solicitados) && o.solicitados.length)
+            ? o.solicitados
+            : (o.itens_solicitados ? String(o.itens_solicitados).split(',').map(function(x) { return x.trim(); }).filter(Boolean) : []);
+        var solicHtml = solicArr.length
+            ? solicArr.map(function(it) { return '<span style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:600;">' + esc(it) + '</span>'; }).join(' ')
+            : '<span style="color:#94a3b8;font-size:0.8rem;">Nenhum item específico listado</span>';
+        var realArr = Array.isArray(o.realizados) ? o.realizados : [];
+        var realHtml = realArr.length
+            ? realArr.map(function(it) { return '<span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:600;">' + esc(it) + '</span>'; }).join(' ')
+            : '<span style="color:#94a3b8;font-size:0.8rem;">Nenhum serviço registrado ainda</span>';
+        var comArr = Array.isArray(o.comentarios) ? o.comentarios : [];
+        var comHtml = '';
+        if (o.observacoes) {
+            comHtml += '<div style="font-size:0.82rem;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;margin-bottom:6px;"><b>Observações:</b> ' + esc(o.observacoes) + '</div>';
+        }
+        if (comArr.length) {
+            comHtml += comArr.map(function(c) {
+                return '<div style="font-size:0.8rem;color:#475569;background:#f8fafc;border-left:3px solid #2563eb;padding:5px 10px;margin-bottom:4px;border-radius:0 6px 6px 0;">'
+                    + '<span style="font-weight:700;color:#1e293b;">' + esc(c.usuario_nome || 'Usuário') + ':</span> ' + esc(c.texto || '')
+                    + '</div>';
+            }).join('');
+        }
+        if (!comHtml) comHtml = '<span style="color:#94a3b8;font-size:0.8rem;">Sem observações ou comentários</span>';
+
+        return '<div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,0.04);">'
+            + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">'
+            +   '<span style="font-size:0.88rem;font-weight:800;color:#0f172a;">Solicitação #' + o.id + '</span>'
+            +   '<span style="background:' + sCor + '22;color:' + sCor + ';padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">' + esc(sTxt) + '</span>'
+            +   rodBadge
+            +   '<span style="font-size:0.76rem;color:#64748b;margin-left:4px;">Aberta em: <b>' + esc(fmtData(o.created_at)) + '</b></span>'
+            +   '<button type="button" data-abrir-outra="' + o.id + '" style="margin-left:auto;padding:6px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;font-size:0.78rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> Abrir esta solicitação</button>'
+            + '</div>'
+            + '<div style="margin-bottom:10px;">'
+            +   '<div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:3px;">Defeito / Problema relatado</div>'
+            +   '<div style="font-size:0.9rem;font-weight:700;color:#1e293b;background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;">' + esc(o.descricao || '—') + '</div>'
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;">'
+            +   '<div><div style="font-size:0.7rem;color:#64748b;font-weight:700;">Data de início</div><div style="font-size:0.82rem;font-weight:700;color:#1e293b;">' + esc(fmtData(o.data_inicio)) + '</div></div>'
+            +   '<div><div style="font-size:0.7rem;color:#64748b;font-weight:700;">Data de fim</div><div style="font-size:0.82rem;font-weight:700;color:#1e293b;">' + esc(fmtData(o.data_fim)) + '</div></div>'
+            +   '<div><div style="font-size:0.7rem;color:#64748b;font-weight:700;">Fornecedor / Oficina</div><div style="font-size:0.82rem;font-weight:700;color:#1e293b;">' + esc(o.fornecedor || '—') + '</div></div>'
+            +   '<div><div style="font-size:0.7rem;color:#64748b;font-weight:700;">KM na manutenção</div><div style="font-size:0.82rem;font-weight:700;color:#1e293b;">' + esc(o.km_na_manutencao || '—') + '</div></div>'
+            + '</div>'
+            + '<div style="margin-bottom:10px;">'
+            +   '<div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">Manutenções solicitadas</div>'
+            +   '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + solicHtml + '</div>'
+            + '</div>'
+            + '<div style="margin-bottom:10px;">'
+            +   '<div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">Serviços realizados</div>'
+            +   '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + realHtml + '</div>'
+            + '</div>'
+            + '<div>'
+            +   '<div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">Observações e comentários</div>'
+            +   comHtml
+            + '</div>'
+            + '</div>';
+    }).join('');
+
+    var pop = document.createElement('div');
+    pop.id = 'mn-modal-lista-outras';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);display:flex;align-items:center;justify-content:center;z-index:10055;padding:16px;';
+    pop.innerHTML = '<div style="background:#f8fafc;border-radius:16px;width:100%;max-width:780px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.4);overflow:hidden;">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:15px 22px;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<div style="background:#2563eb;border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-clipboard-text" style="color:#fff;font-size:1.3rem;"></i></div>'
+      +   '<div><div style="color:#fff;font-weight:700;font-size:1rem;">Outras Solicitações de Manutenção — Placa ' + esc(placa) + '</div>'
+      +   '<div style="color:rgba(255,255,255,0.75);font-size:0.78rem;">Consulte abaixo os detalhes de todas as solicitações em aberto deste veículo (' + outras.length + ')</div></div>'
+      +   '<button type="button" id="mn-modal-lista-outras-x" style="margin-left:auto;background:rgba(255,255,255,0.18);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:18px 22px;overflow-y:auto;flex:1;">' + cardsHtml + '</div>'
+      + '<div style="padding:12px 22px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;flex-shrink:0;">'
+      +   '<button type="button" id="mn-modal-lista-outras-fechar" style="padding:9px 22px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;cursor:pointer;font-weight:700;">Fechar</button>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var el = document.getElementById('mn-modal-lista-outras'); if (el) el.remove(); };
+    document.getElementById('mn-modal-lista-outras-x').onclick = fechar;
+    document.getElementById('mn-modal-lista-outras-fechar').onclick = fechar;
+    pop.querySelectorAll('[data-abrir-outra]').forEach(function(btn) {
+        btn.onclick = function() {
+            var oid = btn.getAttribute('data-abrir-outra');
+            fechar();
+            if (oid) window.mnCorrEditarInterno(oid);
+        };
+    });
 };
 
 window._mnEdRenderStatus = function() {
@@ -1953,7 +2193,9 @@ window._mnEdRenderStatus = function() {
                             })
                         });
                         if (rs.ok) {
+                            var rsJson = await rs.json().catch(function() { return {}; });
                             window._mnEd.justificativa_status = '';
+                            window._mnEd._jaPerguntouStatus = novo;
                             await window._mnEdRecarregarDetalhe();
                             window._mnEdRenderStatus();
                             window._mnEdRenderRodando();
@@ -1964,6 +2206,7 @@ window._mnEdRenderStatus = function() {
                                 var frotaAt = await fetch('/api/frota/veiculos?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + window._mnEdTok() } }).then(function(x) { return x.json(); });
                                 if (Array.isArray(frotaAt)) { window._manutFrota = frotaAt; window._frotaDados = frotaAt; }
                             } catch (eF) {}
+                            window._mnTratarOutrasAbertasPosStatus(novo, rsJson, window._mnEd.m ? window._mnEd.m.placa : '');
                         }
                     } catch (e) { console.warn('[Status] erro ao salvar imediato:', e); }
                 }
@@ -3883,7 +4126,8 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         };
         if (ehConcl) corpo.data_conclusao = document.getElementById('mned-dc').value || null;
         var rs = await fetch('/api/frota/manutencoes/' + ed.id + '/status', { method: 'PUT', headers: hdr, body: JSON.stringify(corpo) });
-        if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar a manutenção'); }
+        var rsJson = await rs.json().catch(function() { return {}; });
+        if (!rs.ok) { throw new Error(rsJson.error || 'Erro ao salvar a manutenção'); }
         ed.justificativa_status = '';
         await window._mnEdRecarregarDetalhe();
         var vObj = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veic); });
@@ -3918,6 +4162,13 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             window._manutDados = lista || [];
         } catch (e3) { /* lista sera recarregada abaixo */ }
         window.mnCarregarCorretivas();
+        if (ed.status !== ed._statusInicial && ed._jaPerguntouStatus !== ed.status) {
+            ed._jaPerguntouStatus = ed.status;
+            ed._statusInicial = ed.status;
+            window._mnTratarOutrasAbertasPosStatus(ed.status, rsJson, ed.m.placa);
+        } else {
+            ed._statusInicial = ed.status;
+        }
     } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
         mostrarMsg('Erro: ' + e.message, false);

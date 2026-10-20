@@ -7134,8 +7134,9 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                             await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_data_inicio=?, manutencao_data_fim=?, manutencao_id=? WHERE id=?',
                                 [manItem || null, manObs || null, calc.rodandoNovo, calc.dtIni, calc.dtFim, manId, sinistroId], () => r()));
                             if (manItem) await _fmSyncSolicitados(manId, manItem);
+                            if (calc.rodandoNovo === 'nao') await _fmPropagarVeiculoParado(manVeiculoId, manId, usuarioMan);
                             await _fmAtualizaEmManutencao(manVeiculoId);
-                            _fmNotificarSolicitacaoManutencao({
+                            await _fmNotificarSolicitacaoManutencao({
                                 manutencao_id: manId,
                                 veiculo_id: manVeiculoId,
                                 descricao: descMan,
@@ -7156,6 +7157,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                                 await _fmHist(sinistro.manutencao_id, 'rodando', calc.notaAuto || ('Alterado via Sinistro #' + sinistroId), usuarioMan, curMan.veiculo_rodando, calc.rodandoNovo);
                             }
                             if (manItem) await _fmSyncSolicitados(sinistro.manutencao_id, manItem);
+                            if (calc.rodandoNovo === 'nao') await _fmPropagarVeiculoParado(manVeiculoId, sinistro.manutencao_id, usuarioMan);
                             await _fmAtualizaEmManutencao(manVeiculoId);
                             await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_data_inicio=?, manutencao_data_fim=? WHERE id=?',
                                 [manItem || null, manObs || null, calc.rodandoNovo, calc.dtIni, calc.dtFim, sinistroId], () => r()));
@@ -23951,6 +23953,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
             if (observacoes && String(observacoes).trim()) {
                 await _fmHist(newManutId, 'comentario', String(observacoes).trim(), usuarioNome);
             }
+            if (calc.rodandoNovo === 'nao') await _fmPropagarVeiculoParado(veiculo_id, newManutId, usuarioNome);
             await _fmAtualizaEmManutencao(veiculo_id);
 
             await _fmNotificarSolicitacaoManutencao({
@@ -23998,7 +24001,7 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, async (req, res)
     await _fmProcessarTransicoesAutomaticas().catch(() => {});
     const { status, veiculo_id } = req.query;
     let sql = `
-        SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo,
+        SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.em_manutencao as veiculo_em_manutencao,
                sin.manutencao_rodando as sinistro_rodando,
                COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) as veiculo_rodando_efetivo,
                CASE
@@ -24115,6 +24118,9 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
 
         // marca "em manutencao" dos veiculos (apenas quando veiculo_rodando = 'nao')
         const vidAtual = novoVeic || prev.veiculo_id;
+        if (rodandoNovo === 'nao' && status !== 'concluida' && status !== 'cancelada' && (rodandoAnt !== 'nao' || prev.status !== status || novoVeic)) {
+            await _fmPropagarVeiculoParado(vidAtual, id, usuario);
+        }
         if (novoVeic && novoVeic !== prev.veiculo_id) await _fmAtualizaEmManutencao(prev.veiculo_id);
         await _fmAtualizaEmManutencao(vidAtual);
         if (status === 'concluida') {
@@ -24122,7 +24128,8 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             const kmF = row ? (row.km_final_manutencao || row.km_na_manutencao) : null;
             if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
         }
-        res.json({ ok: true, veiculo_rodando: rodandoNovo, parado_desde: pDesde, parado_segundos_acum: pAcum });
+        const outrasAbertas = await _fmBuscarOutrasAbertas(vidAtual, id);
+        res.json({ ok: true, veiculo_rodando: rodandoNovo, parado_desde: pDesde, parado_segundos_acum: pAcum, outras_abertas: outrasAbertas });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -24249,6 +24256,69 @@ async function _fmRecalcTotais(manutencaoId) {
     }
     return { custo_mao_obra: totMo, custo_pecas: totPc, custo: Math.round((totMo + totPc) * 100) / 100 };
 }
+
+// Quando uma manutencao marca o veiculo como "nao esta rodando", todas as demais manutencoes em aberto da mesma placa tambem passam para "nao esta rodando"
+async function _fmPropagarVeiculoParado(veiculoId, excetoId, usuarioNome) {
+    if (!veiculoId) return;
+    const agoraIso = new Date().toISOString();
+    const abertas = await _fmAll(
+        "SELECT id, sinistro_id, veiculo_rodando, parado_desde FROM frota_manutencoes WHERE veiculo_id = ? AND id <> ? AND tipo = 'corretiva' AND status NOT IN ('concluida', 'cancelada') AND COALESCE(veiculo_rodando, 'sim') <> 'nao'",
+        [veiculoId, excetoId || 0]
+    );
+    for (const m of abertas) {
+        const pDesde = m.parado_desde || agoraIso;
+        await _fmRun(
+            "UPDATE frota_manutencoes SET veiculo_rodando = 'nao', parado_desde = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [pDesde, m.id]
+        );
+        if (m.sinistro_id) {
+            await _fmRun("UPDATE sinistros SET manutencao_rodando = 'nao' WHERE id = ?", [m.sinistro_id]);
+        }
+        await _fmHist(
+            m.id,
+            'rodando',
+            'Alterado automaticamente para "Não, está parado (indisponível)" pois outra solicitação da mesma placa marcou o veículo como parado.',
+            usuarioNome || 'Sistema (Automático)',
+            m.veiculo_rodando || 'sim',
+            'nao'
+        );
+    }
+}
+
+async function _fmBuscarOutrasAbertas(veiculoId, excetoId) {
+    if (!veiculoId) return [];
+    const rows = await _fmAll(
+        `SELECT fm.id, fm.veiculo_id, fm.descricao, fm.status, fm.data_inicio, fm.data_fim, fm.km_na_manutencao,
+                fm.fornecedor, fm.observacoes, fm.veiculo_rodando, fm.sinistro_id, fm.usuario_nome, fm.created_at,
+                fv.placa, fv.marca_modelo_versao
+         FROM frota_manutencoes fm
+         LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+         WHERE fm.veiculo_id = ? AND fm.id <> ? AND fm.tipo = 'corretiva' AND fm.status NOT IN ('concluida', 'cancelada')
+         ORDER BY fm.created_at DESC, fm.id DESC`,
+        [veiculoId, excetoId || 0]
+    );
+    for (const r of rows) {
+        const servs = await _fmAll("SELECT tipo, nome FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id", [r.id]);
+        r.solicitados = servs.filter(s => s.tipo === 'solicitado').map(s => s.nome);
+        r.realizados = servs.filter(s => s.tipo === 'realizado').map(s => s.nome);
+        const hists = await _fmAll("SELECT tipo, texto, usuario_nome, created_at FROM frota_manutencao_historico WHERE manutencao_id = ? AND tipo = 'comentario' ORDER BY created_at DESC, id DESC LIMIT 5", [r.id]);
+        r.comentarios = hists;
+    }
+    return rows;
+}
+
+// Sincronizacao inicial: se um veiculo ja possui manutencao aberta como 'nao', alinha as outras abertas da mesma placa
+setTimeout(async () => {
+    try {
+        const veicsParados = await _fmAll("SELECT DISTINCT veiculo_id FROM frota_manutencoes WHERE tipo = 'corretiva' AND status NOT IN ('concluida','cancelada') AND COALESCE(veiculo_rodando, CASE WHEN status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao'");
+        for (const v of veicsParados) {
+            if (v && v.veiculo_id) {
+                await _fmPropagarVeiculoParado(v.veiculo_id, 0, 'Sistema (Automático)');
+                await _fmAtualizaEmManutencao(v.veiculo_id);
+            }
+        }
+    } catch (e) {}
+}, 4000);
 
 // Veiculo so fica "em_manutencao = 1" (indisponivel no resumo da rota) quando houver manutencao ativa com veiculo_rodando = 'nao'
 async function _fmAtualizaEmManutencao(veiculoId) {
@@ -25222,6 +25292,9 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
         async function(err) {
             if (err) return res.status(500).json({ error: err.message });
             const newId = this.lastID;
+            if (rodEfetivo === 'nao') {
+                await _fmPropagarVeiculoParado(veiculo_id, newId, _fmUsuario(req)).catch(() => {});
+            }
             _fmAtualizaEmManutencao(veiculo_id).catch(() => {});
             _fmHist(newId, 'evento', 'Manutenção registrada (' + (rodEfetivo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', _fmUsuario(req)).catch(() => {});
             if (calc.notaAuto) {
