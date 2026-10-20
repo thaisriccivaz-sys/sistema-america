@@ -23883,6 +23883,7 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
         }
 
         // Servicos realizados (diff por id para nao perder o vinculo com as pecas)
+        const tmpMap = {};
         if (Array.isArray(body.realizados)) {
             const existentes = await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id]);
             const idsExist = existentes.map(r => r.id);
@@ -23906,9 +23907,11 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 if (idsExist.includes(rid)) {
                     await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, garantia_valor = ?, garantia_unidade = ?, observacao = ? WHERE id = ? AND manutencao_id = ?',
                         [nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs, rid, id]);
+                    if (r.tmp_id) tmpMap[String(r.tmp_id)] = rid;
                 } else {
-                    await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade, observacao) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?, ?)",
+                    const insSvc = await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade, observacao) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?, ?)",
                         [id, nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs]);
+                    if (r.tmp_id && insSvc && insSvc.lastID) tmpMap[String(r.tmp_id)] = insSvc.lastID;
                 }
             }
         }
@@ -23923,6 +23926,7 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 if (!mantidos.includes(eid)) await _fmRun('DELETE FROM frota_manutencao_pecas WHERE id = ?', [eid]);
             }
             for (const p of listaP) {
+                if (p.servico_id && tmpMap[String(p.servico_id)]) p.servico_id = tmpMap[String(p.servico_id)];
                 const pid = parseInt(p.id);
                 if (idsEx.includes(pid)) {
                     const qtd = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;

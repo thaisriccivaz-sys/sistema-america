@@ -1587,7 +1587,8 @@ window._mnEdPickAdicionar = function() {
         var s = catalogo.find(function(x) { return String(x.id) === String(k); });
         if (!s) return;
         if (ed.realizados.some(function(r) { return String(r.catalogo_id) === String(s.id); })) return;
-        ed.realizados.push({ id: null, nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
+        window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+        ed.realizados.push({ id: null, _tmpId: 'tmp_' + window._mnSvcSeq + '_' + Date.now(), nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
     });
     ed.pickSel = {};
     window._mnEdRenderServ();
@@ -1600,7 +1601,8 @@ window._mnEdPickNovo = function() {
     var txt = buscaEl.value.trim();
     if (!txt) return;
     if (ed.realizados.some(function(r) { return window._mnNorm(r.nome) === window._mnNorm(txt); })) { alert('Esse serviço já foi adicionado.'); return; }
-    ed.realizados.push({ id: null, nome: txt, catalogo_id: null, item_ref: null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
+    window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+    ed.realizados.push({ id: null, _tmpId: 'tmp_' + window._mnSvcSeq + '_' + Date.now(), nome: txt, catalogo_id: null, item_ref: null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
     buscaEl.value = '';
     window._mnEdRenderServ();
     window._mnEdPickRender();
@@ -1665,8 +1667,13 @@ window._mnEdComentar = async function() {
 window._mnEdSvcOptions = function(sel) {
     var ed = window._mnEd, esc = window._mnEdEsc;
     var h = '<option value="">Sem vínculo (geral)</option>';
-    ed.realizados.forEach(function(s) {
-        if (s.id) h += '<option value="' + s.id + '"' + (String(s.id) === String(sel) ? ' selected' : '') + '>' + esc(s.nome) + '</option>';
+    ed.realizados.forEach(function(s, idx) {
+        if (!s.id && !s._tmpId) {
+            window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+            s._tmpId = 'tmp_' + window._mnSvcSeq + '_' + idx;
+        }
+        var val = s.id || s._tmpId;
+        h += '<option value="' + esc(val) + '"' + (String(val) === String(sel) ? ' selected' : '') + '>' + esc(s.nome) + '</option>';
     });
     return h;
 };
@@ -1700,7 +1707,14 @@ window._mnEdRenderServ = function() {
     var ed = window._mnEd, box = document.getElementById('mned-serv'), esc = window._mnEdEsc, fm = window._mnMoneyFmt;
     if (!box) return;
     window._mnGarantirDatalist();
-    var temServico = function(sid) { return ed.realizados.some(function(s) { return s.id && String(s.id) === String(sid); }); };
+    var getSvcKey = function(s, idx) {
+        if (!s.id && !s._tmpId) {
+            window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+            s._tmpId = 'tmp_' + window._mnSvcSeq + '_' + (idx || 0);
+        }
+        return s.id || s._tmpId;
+    };
+    var temServico = function(sid) { return sid && ed.realizados.some(function(s, idx) { return String(getSvcKey(s, idx)) === String(sid); }); };
     var orfas = [];
     ed.pecas.forEach(function(p, i) { if (!p.servico_id || !temServico(p.servico_id)) orfas.push(i); });
     if (!ed.realizados.length && !orfas.length) {
@@ -1713,9 +1727,10 @@ window._mnEdRenderServ = function() {
     var btnPeca = 'padding:5px 12px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;';
     var html = ed.realizados.map(function(s, i) {
         var g = window._mnGarantiaAte(ed.m.data_conclusao, s.garantia_valor, s.garantia_unidade, ed.status);
+        var sKey = getSvcKey(s, i);
         var pecasHtml = '';
-        if (s.id) {
-            ed.pecas.forEach(function(p, pi) { if (String(p.servico_id) === String(s.id)) pecasHtml += window._mnEdPecaHtml(p, pi); });
+        if (sKey) {
+            ed.pecas.forEach(function(p, pi) { if (String(p.servico_id) === String(sKey)) pecasHtml += window._mnEdPecaHtml(p, pi); });
         }
         var catRef = s.item_ref;
         if (!catRef && s.catalogo_id && window._manutCatalogo) {
@@ -1770,7 +1785,8 @@ window._mnEdRenderServ = function() {
         b.onclick = function() {
             var i = parseInt(b.getAttribute('data-rm'));
             var rem = window._mnEd.realizados[i];
-            if (rem && rem.id) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(rem.id)) p.servico_id = null; });
+            var remKey = rem ? (rem.id || rem._tmpId) : null;
+            if (remKey) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(remKey)) p.servico_id = null; });
             if (rem && rem.id) (window._mnEd.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
             window._mnEd.realizados.splice(i, 1);
             window._mnEdRenderServ();
@@ -1793,7 +1809,7 @@ window._mnEdRenderServ = function() {
         var aplicar = function() {
             var p = window._mnEd.pecas[i];
             if (!p) return;
-            if (f === 'servico_id') p[f] = el.value ? parseInt(el.value) : null;
+            if (f === 'servico_id') p[f] = el.value ? (/^\d+$/.test(el.value) ? parseInt(el.value) : el.value) : null;
             else if (dinheiro) p[f] = window._mnNum(el.value);
             else if (f === 'unidade') p[f] = el.value.toUpperCase();
             else p[f] = el.value;
@@ -2224,7 +2240,7 @@ window._mnEdSalvarDetalhe = async function() {
         body: JSON.stringify({
             solicitados: ed.solicitados,
             realizados: ed.realizados.map(function(s) {
-                return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
+                return { id: s.id, tmp_id: s._tmpId || null, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
             }),
             pecas: ed.pecas.map(function(p) {
                 return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
