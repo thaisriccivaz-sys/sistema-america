@@ -15707,15 +15707,17 @@ setInterval(checkLogisticaNotificacoes, 60000);
 setTimeout(checkLogisticaNotificacoes, 5000);
 
 // --- POLLING: Notificacoes por Usuario (Configuraveis) ---
-// Persistir IDs vistos no sessionStorage para sobreviver a navegações SPA sem reload
-const _userNotifSeen = new Set(
-    JSON.parse(sessionStorage.getItem('_userNotifSeenIds') || '[]')
-);
+// Persistir IDs vistos no localStorage (compartilhado entre abas e sobrevive a reload/novo login)
+const _userNotifSeen = new Set((function () {
+    try {
+        return JSON.parse(localStorage.getItem('_userNotifSeenIds') || sessionStorage.getItem('_userNotifSeenIds') || '[]');
+    } catch (e) { return []; }
+})());
 function _userNotifMarkSeen(id) {
     _userNotifSeen.add(id);
     try {
-        const arr = Array.from(_userNotifSeen).slice(-200); // manter só os últimos 200
-        sessionStorage.setItem('_userNotifSeenIds', JSON.stringify(arr));
+        const arr = Array.from(_userNotifSeen).slice(-500); // manter só os últimos 500
+        localStorage.setItem('_userNotifSeenIds', JSON.stringify(arr));
     } catch(e) {}
 }
 let _checkUserNotifRunning = false;

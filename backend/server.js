@@ -21030,7 +21030,7 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
 
 // GET /api/notificacoes/me
 app.get('/api/notificacoes/me', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM notificacoes_usuarios WHERE usuario_id = ? AND lida = 0 ORDER BY id DESC LIMIT 30", [req.user.id], (err, rows) => {
+    db.all("SELECT * FROM notificacoes_usuarios WHERE usuario_id = ? AND lida = 0 ORDER BY criado_em DESC, id DESC LIMIT 20", [req.user.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
