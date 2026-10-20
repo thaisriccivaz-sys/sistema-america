@@ -424,11 +424,12 @@ window.mnPrevMudarSub = function(aba) {
 
 function mnPrevRenderPlano(c) {
     const frota = window._manutFrota || [];
-    const idsComPrev = new Set((window._manutDados||[]).filter(m => m.tipo==='preventiva').map(m => String(m.veiculo_id)));
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
     c.innerHTML = `
-    <div style="background:#fff;padding:1rem 1.25rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <label style="font-weight:700;color:#475569;font-size:0.9rem;">Veículo:</label>
+    <div id="mn-prev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml()}</div>
+    <div id="mn-prev-bar" style="display:none;background:#fff;padding:1rem 1.25rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:1rem;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <button type="button" onclick="window.mnPrevVoltarCards()" style="padding:0.55rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-arrow-left"></i> Todos os ve\u00edculos</button>
+        <label style="font-weight:700;color:#475569;font-size:0.9rem;">Ve\u00edculo:</label>
         <select id="mn-prev-veiculo" onchange="window.mnCarregarPreventivoVeiculo()" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;min-width:240px;background:#fff;">
             <option value="">Selecione...</option>${veicOpts}
         </select>
@@ -438,8 +439,102 @@ function mnPrevRenderPlano(c) {
             <span id="mn-prev-km-label" style="font-size:0.82rem;color:#64748b;font-weight:700;"></span>
         </div>
     </div>
-    <div id="mn-prev-plano"><div style="padding:3rem;text-align:center;color:#94a3b8;">Selecione um ve\u00edculo para ver o plano preventivo.</div></div>`;
+    <div id="mn-prev-plano"></div>`;
+    // Atualiza KM/fotos com os dados mais recentes (KM pode ter sido alterado na Gest\u00e3o de Frota)
+    window._mnPrevAtualizarFrota();
 }
+
+// Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota)
+window._mnPrevCardsHtml = function() {
+    const frota = (window._manutFrota || []).slice().sort((a, b) => String(a.placa || '').localeCompare(String(b.placa || '')));
+    if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
+    const prevPorVeic = {};
+    (window._manutDados || []).forEach(m => { if (m.tipo === 'preventiva') prevPorVeic[String(m.veiculo_id)] = (prevPorVeic[String(m.veiculo_id)] || 0) + 1; });
+    return frota.map(v => {
+        const foto = v.foto_url || v.foto_base64 || '';
+        const parado = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
+        const nPrev = prevPorVeic[String(v.id)] || 0;
+        const fotoHtml = foto
+            ? `<div style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;"></div>`
+            : `<div style="height:140px;width:100%;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:3rem;"><i class="ph ph-truck"></i></div>`;
+        return `
+        <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${parado ? '2px solid #fca5a5' : '1px solid #e2e8f0'};position:relative;display:flex;flex-direction:column;transition:transform .2s, box-shadow .2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+            ${fotoHtml}
+            <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
+                <div style="display:flex;flex-direction:column;gap:0.1rem;">
+                    <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Placa</span>
+                    <span style="font-weight:800;color:${parado ? '#dc2626' : '#1e293b'};font-size:1.2rem;">${v.placa || 'N/D'}</span>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:0.6rem;border-radius:8px;">
+                    <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                    <span style="font-weight:600;color:#94a3b8;">Plano preventivo:</span>
+                    <span style="font-weight:700;color:${nPrev ? '#0284c7' : '#d97706'};">${nPrev ? nPrev + (nPrev === 1 ? ' item' : ' itens') : 'N\u00e3o cadastrado'}</span>
+                </div>
+            </div>
+            <div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
+                <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
+                <input type="number" id="mn-prevcard-km-${v.id}" value="${v.km_atual || ''}" placeholder="Digite KM"
+                    style="flex:1;min-width:0;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;"
+                    onkeydown="if(event.key==='Enter')window.mnPrevSalvarKmCard(${v.id})">
+                <button onclick="window.mnPrevSalvarKmCard(${v.id})" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">Salvar</button>
+            </div>
+            <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${v.tipo_veiculo || 'VE\u00cdCULO'}</div>
+                <button onclick="window.mnPrevAbrirVeiculo(${v.id})" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Ver plano</button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window._mnPrevAtualizarFrota = async function() {
+    try {
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        const r = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
+        const lista = await r.json();
+        if (!Array.isArray(lista)) return;
+        window._manutFrota = lista;
+        const grid = document.getElementById('mn-prev-cards');
+        if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
+    } catch (e) { /* mantem os dados ja carregados */ }
+};
+
+window.mnPrevAbrirVeiculo = function(id) {
+    const sel = document.getElementById('mn-prev-veiculo');
+    if (!sel) return;
+    sel.value = String(id);
+    window.mnCarregarPreventivoVeiculo();
+};
+
+window.mnPrevVoltarCards = function() {
+    const sel = document.getElementById('mn-prev-veiculo');
+    if (sel) sel.value = '';
+    window.mnCarregarPreventivoVeiculo();
+    const grid = document.getElementById('mn-prev-cards');
+    if (grid) grid.innerHTML = window._mnPrevCardsHtml();
+};
+
+window.mnPrevSalvarKmCard = async function(vid) {
+    const inp = document.getElementById('mn-prevcard-km-' + vid);
+    if (!inp || !inp.value) return alert('Informe o KM atual.');
+    const km = parseInt(inp.value, 10);
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/veiculos/' + vid + '/km', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ km_atual: km })
+        });
+        if (!res.ok) throw new Error('Erro ao salvar KM');
+        [window._manutFrota, window._frotaDados].forEach(function(arr) {
+            const v = (arr || []).find(function(x) { return String(x.id) === String(vid); });
+            if (v) v.km_atual = km;
+        });
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 KM atualizado!');
+    } catch (e) { alert(e.message); }
+};
 
 async function mnPrevRenderHistorico(c) {
     const frota = window._manutFrota || [];
@@ -565,7 +660,9 @@ window.mnCarregarPreventivoVeiculo = async function() {
     const kmBox = document.getElementById('mn-prev-km-box');
     const planoEl = document.getElementById('mn-prev-plano');
     if (!kmBox || !planoEl) return;
-    if (!vid) { kmBox.style.display='none'; planoEl.innerHTML=''; return; }
+    const _gridPv = document.getElementById('mn-prev-cards'), _barPv = document.getElementById('mn-prev-bar');
+    if (!vid) { kmBox.style.display='none'; planoEl.innerHTML=''; if (_gridPv) _gridPv.style.display='grid'; if (_barPv) _barPv.style.display='none'; return; }
+    if (_gridPv) _gridPv.style.display='none'; if (_barPv) _barPv.style.display='flex';
     kmBox.style.display = 'flex';
     const v = (window._manutFrota||[]).find(x => x.id == vid);
     const kmInp = document.getElementById('mn-prev-km');
@@ -785,6 +882,9 @@ function mnRenderCorretivaTela(sub) {
                 <option value="concluida" style="color:#10b981;font-weight:700;">Concluído</option>
                 <option value="cancelada">Cancelada</option>
             </select>
+            <select id="mn-corr-tipoveic" onchange="window._mnRenderCorretivaDados(window._mnCorrDados||[])" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                <option value="">Todos os Tipos</option>${window._mnCorrTipoVeicOpts()}
+            </select>
             <button onclick="window.mnCarregarCorretivas()" style="padding:6px 12px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
                 <i class="ph ph-arrows-clockwise"></i> Atualizar
             </button>
@@ -793,7 +893,7 @@ function mnRenderCorretivaTela(sub) {
                 <i class="ph ph-plus"></i> Nova Manutenção Corretiva
             </button>
         </div>
-        <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 350px);">
+        <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 230px);">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
             <thead id="mn-corr-thead" style="position:sticky;top:0;z-index:2;background:#f1f5f9;"></thead>
             <tbody id="mn-corr-tbody">
@@ -889,8 +989,31 @@ window.mnCarregarCorretivas = async function() {
     }
 };
 
+// Celula da placa: foto circular do veiculo + placa (vermelha quando o veiculo esta parado/sem rodar)
+window._mnPlacaCell = function(m) {
+    const v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(m.veiculo_id); }) || {};
+    const foto = v.foto_url || v.foto_base64 || '';
+    const ativa = m.status !== 'concluida' && m.status !== 'cancelada';
+    const parado = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true) || (ativa && m.veiculo_rodando_efetivo === 'nao');
+    const avatar = foto
+        ? '<img src="' + foto + '" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid ' + (parado ? '#fecaca' : '#e2e8f0') + ';flex-shrink:0;background:#f1f5f9;">'
+        : '<div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;border:2px solid ' + (parado ? '#fecaca' : '#e2e8f0') + ';display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;"><i class="ph ph-truck"></i></div>';
+    return '<div style="display:flex;align-items:center;gap:10px;">' + avatar
+        + '<div style="text-align:left;"><div style="font-weight:700;color:' + (parado ? '#dc2626' : '#1e293b') + ';">' + (m.placa || '\u2014') + '</div>'
+        + '<div style="font-size:0.72rem;font-weight:400;color:#64748b;">' + String(m.tipo_veiculo || '').toLowerCase() + '</div></div></div>';
+};
+
+window._mnCorrTipoVeicOpts = function() {
+    const tipos = {};
+    (window._manutFrota || []).forEach(function(v) { const t = String(v.tipo_veiculo || '').trim(); if (t) tipos[t.toLowerCase()] = t; });
+    (window._mnCorrDados || []).forEach(function(m) { const t = String(m.tipo_veiculo || '').trim(); if (t && !tipos[t.toLowerCase()]) tipos[t.toLowerCase()] = t; });
+    return Object.keys(tipos).sort().map(function(k) { return '<option value="' + k + '">' + tipos[k].charAt(0).toUpperCase() + tipos[k].slice(1) + '</option>'; }).join('');
+};
+
 window._mnRenderCorretivaDados = function(listaBase) {
-    const todas = Array.isArray(listaBase) ? listaBase : [];
+    const todasBase = Array.isArray(listaBase) ? listaBase : [];
+    const fTipoVeic = (document.getElementById('mn-corr-tipoveic') || {}).value || '';
+    const todas = fTipoVeic ? todasBase.filter(function(m) { return String(m.tipo_veiculo || '').toLowerCase() === fTipoVeic; }) : todasBase;
     const mesAtual = new Date().toISOString().slice(0, 7);
     const getTempos = m => window._mnCalcTempos ? window._mnCalcTempos(m) : { pedido: { diasTxt: '0 dias', dias: 0, seg: 0 }, parado: { diasTxt: '0 dias', dias: 0, seg: 0, ativo: false } };
 
@@ -1007,7 +1130,7 @@ window._mnRenderCorretivaDados = function(listaBase) {
         acoes += ' <button title="Excluir manutenção" onclick="window.mnCorrExcluirInterno(' + m.id + ')" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-trash"></i></button>';
 
         return `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fefce8'" onmouseout="this.style.background='${bgRow}'">
-            <td style="padding:10px 12px;font-weight:700;color:#1e293b;white-space:nowrap;text-align:center;">${m.placa||'—'}<br><span style="font-size:0.72rem;font-weight:400;color:#64748b;">${(m.tipo_veiculo||'').toLowerCase()}</span></td>
+            <td style="padding:8px 12px;white-space:nowrap;">${window._mnPlacaCell(m)}</td>
             <td style="padding:10px 12px;max-width:220px;"><span title="${(m.descricao||'').replace(/"/g,'&quot;')}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${m.descricao||'—'}</span></td>
             <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
             <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_inicio)}</td>
