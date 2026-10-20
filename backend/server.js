@@ -23367,7 +23367,7 @@ app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
 
 // POST - cadastrar novo veiculo
 app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64, garantia_fabrica, garantia_fabrica_ate } = req.body;
     if (!placa) return res.status(400).json({ error: 'Placa à obrigatéria' });
 
     let crlv_url = null;
@@ -23406,10 +23406,13 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
         }
     }
 
+    const garAtePost = garantia_fabrica_ate ? String(garantia_fabrica_ate).trim() : null;
+    const garFlagPost = garAtePost ? 1 : ((garantia_fabrica === 1 || garantia_fabrica === '1' || garantia_fabrica === true) ? 1 : 0);
+
     db.run(
-        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url],
+        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, garantia_fabrica, garantia_fabrica_ate, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url, garFlagPost, garAtePost],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -23419,7 +23422,7 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
 
 // PUT - atualizar veiculo (incluindo novo CRLV)
 app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64, garantia_fabrica, garantia_fabrica_ate } = req.body;
 
     let fields = [
         placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo,
@@ -23429,6 +23432,12 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
     ];
 
     let query = `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?`;
+    if (garantia_fabrica_ate !== undefined || garantia_fabrica !== undefined) {
+        const garAtePut = garantia_fabrica_ate ? String(garantia_fabrica_ate).trim() : null;
+        const garFlagPut = garAtePut ? 1 : ((garantia_fabrica === 1 || garantia_fabrica === '1' || garantia_fabrica === true) ? 1 : 0);
+        query += `, garantia_fabrica=?, garantia_fabrica_ate=?`;
+        fields.push(garFlagPut, garAtePut);
+    }
 
     const oldRow = await new Promise((resolve) => {
         db.get('SELECT crlv_url, foto_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => resolve(row));

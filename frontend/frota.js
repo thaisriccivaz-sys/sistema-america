@@ -1349,7 +1349,8 @@ ${alertaHtml}
         <div>${lbl('Código RENAVAM')}${inp('fv-renavam',v.renavam,'00000000000')}</div>
         <div>${lbl('Tanque (Litros)')}${inp('fv-tanque',v.capacidade_tanque,'','number')}</div>
         <div>${lbl('Carga (Unidades)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
-        <div style="grid-column:span 3;">${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${optT}</select></div>
+        <div>${lbl('Data de Garantia do Veículo')}${inp('fv-garantia-ate',String(v.garantia_fabrica_ate||'').split('T')[0],'','date')}</div>
+        <div style="grid-column:span 2;">${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${optT}</select></div>
     </div>
 </div>
 
@@ -1436,6 +1437,8 @@ window.salvarVeiculoFrota=async function(id){
     capacidade_tanque:g('fv-tanque'),
     capacidade_carga:g('fv-carga'),
     tipo_veiculo:g('fv-tipo'),
+    garantia_fabrica:g('fv-garantia-ate')?1:0,
+    garantia_fabrica_ate:g('fv-garantia-ate')||null,
     altura_com_banheiro:g('fv-alt-c'),
     altura_sem_banheiro:g('fv-alt-s'),
     largura_com_banheiro:g('fv-larg-c'),

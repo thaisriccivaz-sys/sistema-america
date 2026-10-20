@@ -455,17 +455,24 @@ function mnPrevRenderPlano(c) {
 // Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota). modo: 'preventiva' (padrao) ou 'revisao'
 window._mnPrevCardsHtml = function(modo) {
     const ehRevisao = modo === 'revisao';
-    const frota = window._mnOrdenarFrota(window._manutFrota || []);
-    if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
+    const hojeISO = window._mnHojeISO();
+    const todos = window._mnOrdenarFrota(window._manutFrota || []);
+    if (!todos.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
+    const frota = ehRevisao ? todos.filter(v => {
+        const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
+        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true || !!garAte);
+        return temGar && (!garAte || garAte >= hojeISO);
+    }) : todos;
+    if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo na garantia no momento.</div>';
     const prevPorVeic = {};
     (window._manutDados || []).forEach(m => { if (m.tipo === 'preventiva') prevPorVeic[String(m.veiculo_id)] = (prevPorVeic[String(m.veiculo_id)] || 0) + 1; });
     return frota.map(v => {
         const foto = v.foto_url || v.foto_base64 || '';
         const parado = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
         const nPrev = prevPorVeic[String(v.id)] || 0;
-        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true);
         const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
-        const garVencida = temGar && garAte && garAte < window._mnHojeISO();
+        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true || !!garAte);
+        const garVencida = temGar && garAte && garAte < hojeISO;
         const fotoHtml = foto
             ? `<div onclick="if(window.abrirFotoVeiculoFrota)window.abrirFotoVeiculoFrota(${v.id})" title="Clique para abrir e salvar a foto" style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;cursor:pointer;"></div>`
             : `<div style="height:140px;width:100%;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:3rem;"><i class="ph ph-truck"></i></div>`;
@@ -560,6 +567,8 @@ window.mnGarantiaSalvar = async function(vid) {
             dt.style.borderColor = venc ? '#fca5a5' : '#e2e8f0';
             dt.style.color = venc ? '#dc2626' : '#1e293b';
         }
+        const gridRev = document.getElementById('mn-rev-cards');
+        if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Garantia de f\u00e1brica atualizada!');
     } catch (e) { alert(e.message); }
 };
