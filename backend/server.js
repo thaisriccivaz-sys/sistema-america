@@ -24416,8 +24416,10 @@ function _fmNumero(v) { const n = parseFloat(String(v == null ? '' : v).replace(
 function _fmGarantia(v, u) { const gv = parseInt(v); return gv > 0 ? { v: gv, u: (u === 'meses' ? 'meses' : 'dias') } : { v: null, u: null }; }
 function _fmEhPdf(buf) { return !!buf && buf.length > 5 && buf.slice(0, 5).toString() === '%PDF-'; }
 
-// Insere pecas (digitadas ou vindas da nota). Valida o vinculo com o servico realizado da propria manutencao
+// Insere pecas (digitadas ou vindas da nota). Suporta vinculo unico (100% do valor) ou rateio entre varios servicos selecionados
 async function _fmInserirPecas(manId, notaId, pecas) {
+    const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [manId])).map(r => r.id);
+    let rotOffset = 0;
     for (const p of pecas) {
         const desc = String(p.descricao || '').trim();
         if (!desc) continue;
@@ -24426,13 +24428,39 @@ async function _fmInserirPecas(manId, notaId, pecas) {
         let vt = _fmNumero(p.valor_total);
         if (!vt) vt = Math.round(qtd * vu * 100) / 100;
         const g = _fmGarantia(p.garantia_valor, p.garantia_unidade);
-        let sid = parseInt(p.servico_id) || null;
-        if (sid) {
-            const sv = await _fmGet("SELECT id FROM frota_manutencao_servicos WHERE id = ? AND manutencao_id = ? AND tipo = 'realizado'", [sid, manId]);
-            if (!sv) sid = null;
+        const cod = String(p.codigo || '').trim() || null;
+        const unid = String(p.unidade || '').trim() || null;
+
+        let alvo = [];
+        if (Array.isArray(p.servicos) && p.servicos.length > 0) {
+            alvo = p.servicos.map(s => parseInt(s)).filter(sid => servValidos.includes(sid));
+        } else if (p.ratear && servValidos.length > 0) {
+            alvo = servValidos.slice();
+        } else if (p.servico_id) {
+            const sid = parseInt(p.servico_id);
+            if (servValidos.includes(sid)) alvo = [sid];
         }
-        await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-            [manId, sid, notaId || null, String(p.codigo || '').trim() || null, desc.substring(0, 300), String(p.unidade || '').trim() || null, qtd, vu, vt, g.v, g.u]);
+
+        if (alvo.length <= 1) {
+            const sidUnico = alvo.length === 1 ? alvo[0] : null;
+            await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                [manId, sidUnico, notaId || null, cod, desc.substring(0, 300), unid, qtd, vu, vt, g.v, g.u]);
+        } else {
+            const nAlvo = alvo.length;
+            const cents = Math.round(vt * 100);
+            const base = Math.floor(cents / nAlvo);
+            const resto = cents - base * nAlvo;
+            for (let idx = 0; idx < nAlvo; idx++) {
+                const sid = alvo[idx];
+                const ganhaResto = ((idx - rotOffset + nAlvo * 100) % nAlvo) < resto;
+                const valParcela = (base + (ganhaResto ? 1 : 0)) / 100;
+                const sufixoRateio = ' (rateio ' + (idx + 1) + '/' + nAlvo + ')';
+                const descRateada = (desc.length + sufixoRateio.length > 300 ? desc.substring(0, 300 - sufixoRateio.length) : desc) + sufixoRateio;
+                await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                    [manId, sid, notaId || null, cod, descRateada, unid, 1, valParcela, valParcela, g.v, g.u]);
+            }
+            rotOffset = (rotOffset + resto) % nAlvo;
+        }
     }
 }
 

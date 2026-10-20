@@ -2489,7 +2489,7 @@ window._mnVincularPopup = function(linha, cb) {
         if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
         grupos[k].push(s);
     });
-    var valLinha = Number(linha.valor) || 0;
+    var valLinha = Number(linha.valor_total !== undefined ? linha.valor_total : linha.valor) || 0;
     var pop = document.createElement('div');
     pop.id = 'mnv-pop';
     pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:10010;padding:16px;';
@@ -3067,6 +3067,16 @@ window._mnpAtualizarTotal = function() {
     el.innerHTML = 'Total das peças' + (qtdItens ? ' (' + qtdItens + ')' : '') + ': <b style="color:#2563eb;">' + window._mnFmtMoeda(soma) + '</b>';
 };
 
+window._mnpAtualizarBtnVinculo = function(row) {
+    if (!row || !row._obj) return;
+    var btn = row.querySelector('[data-pvinc]');
+    if (!btn) return;
+    var rv = window._mnEdResumoVinculo(row._obj);
+    btn.style.borderColor = rv.cor;
+    btn.style.color = rv.cor;
+    btn.innerHTML = '<i class="ph ph-link"></i> ' + window._mnEdEsc(rv.txt);
+};
+
 window._mnpAddLinha = function(init) {
     var box = document.getElementById('mnp-rows');
     if (!box) return;
@@ -3079,25 +3089,40 @@ window._mnpAddLinha = function(init) {
     var unidIni = String(d.unidade || 'UN').toUpperCase();
     var garVal = d.garantia_valor !== undefined && d.garantia_valor !== null ? d.garantia_valor : '';
     var garUni = d.garantia_unidade === 'meses' ? 'meses' : 'dias';
-    var svcSel = d.servico_id !== undefined ? d.servico_id : (window._mnp ? window._mnp.servicoId : null);
+    var servicosIni = [];
+    if (Array.isArray(d.servicos) && d.servicos.length) {
+        servicosIni = d.servicos.map(function(x) { return parseInt(x); }).filter(Boolean);
+    } else if (d.servico_id) {
+        servicosIni = [parseInt(d.servico_id)];
+    } else if (window._mnp && window._mnp.servicoId) {
+        servicosIni = [parseInt(window._mnp.servicoId)];
+    }
+    var obj = {
+        descricao: d.descricao || '',
+        quantidade: qtdIni,
+        valor_unit: vuIni,
+        valor_total: vtIni,
+        ratear: 0,
+        servicos: servicosIni
+    };
+    var rv = window._mnEdResumoVinculo(obj);
     var ipt = 'padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.83rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
     var row = document.createElement('div');
     row.className = 'mnp-row';
     row.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;margin-bottom:8px;';
     row.innerHTML = '<input type="hidden" data-k="codigo" value="' + esc(d.codigo || '') + '">'
-      + '<input type="text" data-k="descricao" value="' + esc(d.descricao || '') + '" placeholder="Descrição da peça *" style="' + ipt + 'flex:2;min-width:200px;">'
-      + '<input type="number" data-k="quantidade" min="0" step="1" value="' + esc(qtdIni) + '" title="Quantidade" style="' + ipt + 'width:70px;">'
-      + '<input type="text" list="mn-unidades" data-k="unidade" value="' + esc(unidIni) + '" placeholder="Un." title="Unidade de medida" style="' + ipt + 'width:58px;text-transform:uppercase;">'
+      + '<input type="text" data-k="descricao" value="' + esc(d.descricao || '') + '" placeholder="Descrição da peça *" style="' + ipt + 'flex:2;min-width:190px;">'
+      + '<input type="number" data-k="quantidade" min="0" step="1" value="' + esc(qtdIni) + '" title="Quantidade" style="' + ipt + 'width:68px;">'
+      + '<input type="text" list="mn-unidades" data-k="unidade" value="' + esc(unidIni) + '" placeholder="Un." title="Unidade de medida" style="' + ipt + 'width:56px;text-transform:uppercase;">'
       + '<span style="font-size:0.78rem;color:#64748b;">× R$</span>'
-      + '<input type="text" data-k="valor_unit" value="' + fm(vuIni) + '" title="Valor unitário" style="' + ipt + 'width:100px;text-align:right;">'
+      + '<input type="text" data-k="valor_unit" value="' + fm(vuIni) + '" title="Valor unitário" style="' + ipt + 'width:98px;text-align:right;">'
       + '<span style="font-size:0.78rem;color:#64748b;">= R$</span>'
-      + '<input type="text" data-k="valor_total" value="' + fm(vtIni) + '" title="Total" style="' + ipt + 'width:108px;text-align:right;font-weight:700;color:#2563eb;">'
-      + '<input type="number" data-k="garantia_valor" min="0" step="1" value="' + esc(garVal) + '" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:84px;">'
+      + '<input type="text" data-k="valor_total" value="' + fm(vtIni) + '" title="Total" style="' + ipt + 'width:106px;text-align:right;font-weight:700;color:#2563eb;">'
+      + '<input type="number" data-k="garantia_valor" min="0" step="1" value="' + esc(garVal) + '" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:80px;">'
       + '<select data-k="garantia_unidade" style="' + ipt + '"><option value="dias"' + (garUni !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (garUni === 'meses' ? ' selected' : '') + '>meses</option></select>'
-      + '<select data-k="servico_id" title="Serviço ao qual a peça pertence" style="' + ipt + 'max-width:210px;">' + window._mnEdSvcOptions(svcSel) + '</select>'
+      + '<button type="button" data-pvinc="1" style="padding:6px 10px;border:1.5px solid ' + rv.cor + ';border-radius:8px;background:#fff;color:' + rv.cor + ';cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-link"></i> ' + esc(rv.txt) + '</button>'
       + '<button type="button" data-x="1" title="Remover linha" style="padding:6px 9px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>';
     box.appendChild(row);
-    var obj = { quantidade: qtdIni, valor_unit: vuIni, valor_total: vtIni };
     row._obj = obj;
     var descEl = row.querySelector('[data-k="descricao"]');
     var q = row.querySelector('[data-k="quantidade"]'), un = row.querySelector('[data-k="valor_unit"]'), tt = row.querySelector('[data-k="valor_total"]');
@@ -3107,12 +3132,161 @@ window._mnpAddLinha = function(init) {
         if (campo !== 'valor_total') tt.value = fm(obj.valor_total);
         window._mnpAtualizarTotal();
     };
-    if (descEl) descEl.addEventListener('input', window._mnpAtualizarTotal);
+    if (descEl) descEl.addEventListener('input', function() { obj.descricao = descEl.value; window._mnpAtualizarTotal(); });
     q.addEventListener('input', function() { obj.quantidade = q.value; sync('quantidade'); });
     window._mnMask(un, function(n) { obj.valor_unit = n; sync('valor_unit'); });
     window._mnMask(tt, function(n) { obj.valor_total = n; sync('valor_total'); });
+    row.querySelector('[data-pvinc]').onclick = function() {
+        obj.descricao = descEl ? (descEl.value.trim() || 'Peça da manutenção') : 'Peça da manutenção';
+        window._mnVincularPopup(obj, function() { window._mnpAtualizarBtnVinculo(row); });
+    };
     row.querySelector('[data-x]').onclick = function() { row.remove(); window._mnpAtualizarTotal(); };
     window._mnpAtualizarTotal();
+};
+
+// Popup "Ratear total da nota" para PECAS: divide o valor total das pecas (ou da nota) entre os servicos selecionados
+window._mnpRatearTotalPopup = function() {
+    var ed = window._mnEd, esc = window._mnEdEsc, fm = window._mnMoneyFmt, N = window._mnNum;
+    var servs = (ed.realizados || []).filter(function(s) { return s.id; });
+    if (!servs.length) { alert('Adicione primeiro os serviços realizados na manutenção para vincular/ratear as peças.'); return; }
+    var antigo = document.getElementById('mnprt-pop'); if (antigo) antigo.remove();
+    var somaAtual = 0;
+    document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
+        var o = r._obj || {};
+        var qEl = r.querySelector('[data-k="quantidade"]');
+        var qtd = N(qEl ? qEl.value : 1) || 1;
+        var vu = N(o.valor_unit);
+        var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
+        somaAtual += vt;
+    });
+    var sel = {};
+    var prevSel = (window._mnp && window._mnp.rateioTotalServicos) || [];
+    if (prevSel.length) {
+        prevSel.forEach(function(id) { sel[id] = true; });
+    } else {
+        servs.forEach(function(s) { sel[s.id] = true; });
+    }
+    var grupos = {}, ordem = [];
+    servs.forEach(function(s) {
+        var k = s.item_ref || 'Sem categoria';
+        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
+        grupos[k].push(s);
+    });
+    var ipt = 'padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
+    var pop = document.createElement('div');
+    pop.id = 'mnprt-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);display:flex;align-items:center;justify-content:center;z-index:10012;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<div style="background:#2563eb;border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-split" style="color:#fff;font-size:1.2rem;"></i></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Ratear total da nota de peças</div><div style="color:rgba(255,255,255,0.75);font-size:0.76rem;">Divide o valor total das peças entre os serviços selecionados</div></div>'
+      +   '<button type="button" id="mnprt-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;margin-bottom:12px;flex-wrap:wrap;">'
+      +     '<div style="font-size:0.84rem;font-weight:700;color:#1e40af;">Valor total das peças a ratear (R$):</div>'
+      +     '<input type="text" id="mnprt-val" value="' + fm(somaAtual) + '" style="' + ipt + 'width:150px;text-align:right;font-weight:800;color:#2563eb;">'
+      +   '</div>'
+      +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
+      +     '<input type="checkbox" id="mnprt-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<div id="mnprt-lista"></div>'
+      +   '<div id="mnprt-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;"></div>'
+      + '</div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">'
+      +   '<button type="button" id="mnprt-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+      +   '<button type="button" id="mnprt-ok" style="padding:9px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-check"></i> Aplicar rateio do total</button>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var p = document.getElementById('mnprt-pop'); if (p) p.remove(); };
+    var valNum = somaAtual;
+    var valEl = document.getElementById('mnprt-val');
+    var chkAll = document.getElementById('mnprt-all');
+    var lista = document.getElementById('mnprt-lista');
+    var resumoEl = document.getElementById('mnprt-resumo');
+    var atualizarResumo = function() {
+        var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
+        if (!idsSel.length) {
+            resumoEl.style.background = '#fef2f2';
+            resumoEl.style.border = '1px solid #fecaca';
+            resumoEl.style.color = '#991b1b';
+            resumoEl.innerHTML = '<i class="ph ph-warning"></i> Selecione ao menos um serviço para receber o rateio das peças.';
+        } else if (idsSel.length === 1) {
+            var sv = servs.find(function(s) { return String(s.id) === String(idsSel[0]); });
+            resumoEl.style.background = '#ecfdf5';
+            resumoEl.style.border = '1px solid #a7f3d0';
+            resumoEl.style.color = '#065f46';
+            resumoEl.innerHTML = '<i class="ph ph-check-circle"></i> <b>1 serviço selecionado</b> (' + esc(sv ? sv.nome : '') + '): receberá 100% do total das peças (<b>' + window._mnFmtMoeda(valNum) + '</b>).';
+        } else {
+            resumoEl.style.background = '#eff6ff';
+            resumoEl.style.border = '1px solid #bfdbfe';
+            resumoEl.style.color = '#1e40af';
+            resumoEl.innerHTML = '<i class="ph ph-arrows-split"></i> <b>' + idsSel.length + ' serviços selecionados</b>: o total de <b>' + window._mnFmtMoeda(valNum) + '</b> será rateado em <b>' + window._mnFmtMoeda(valNum / idsSel.length) + '</b> para cada serviço.';
+        }
+    };
+    var desenhar = function() {
+        chkAll.checked = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
+        lista.innerHTML = ordem.map(function(k, gi) {
+            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
+            return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
+              + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
+              +   '<input type="checkbox" data-prtcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
+              +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
+              + grupos[k].map(function(s) {
+                    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
+                      + '<input type="checkbox" data-prtid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
+                }).join('')
+              + '</div>';
+        }).join('');
+        lista.querySelectorAll('[data-prtid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-prtid')] = c.checked; desenhar(); }; });
+        lista.querySelectorAll('[data-prtcat]').forEach(function(c) {
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-prtcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+        });
+        atualizarResumo();
+    };
+    window._mnMask(valEl, function(n) { valNum = n; atualizarResumo(); });
+    chkAll.onchange = function() {
+        var v = chkAll.checked;
+        servs.forEach(function(s) { sel[s.id] = v; });
+        desenhar();
+    };
+    desenhar();
+    document.getElementById('mnprt-x').onclick = fechar;
+    document.getElementById('mnprt-cancel').onclick = fechar;
+    pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
+    document.getElementById('mnprt-ok').onclick = function() {
+        var escolhidos = Object.keys(sel).filter(function(k) { return sel[k]; }).map(function(k) { return parseInt(k); });
+        if (!escolhidos.length) { alert('Selecione ao menos um serviço.'); return; }
+        if (window._mnp) window._mnp.rateioTotalServicos = escolhidos.slice();
+        var rows = Array.from(document.querySelectorAll('#mnp-rows .mnp-row'));
+        var rowsComDados = rows.filter(function(r) {
+            var dEl = r.querySelector('[data-k="descricao"]');
+            var o = r._obj || {};
+            return (dEl && dEl.value.trim()) || (Number(o.valor_total) || 0) > 0;
+        });
+        if (!rowsComDados.length || (valNum > 0 && Math.abs(valNum - somaAtual) >= 0.01 && rows.length <= 1)) {
+            var descPadrao = (rows[0] && rows[0].querySelector('[data-k="descricao"]') && rows[0].querySelector('[data-k="descricao"]').value.trim()) || 'Peças (total da nota)';
+            var box = document.getElementById('mnp-rows');
+            if (box) box.innerHTML = '';
+            window._mnpAddLinha({
+                descricao: descPadrao,
+                quantidade: 1,
+                unidade: 'UN',
+                valor_unit: valNum,
+                valor_total: valNum,
+                servicos: escolhidos.slice()
+            });
+        } else {
+            rows.forEach(function(r) {
+                if (!r._obj) r._obj = {};
+                r._obj.ratear = 0;
+                r._obj.servicos = escolhidos.slice();
+                window._mnpAtualizarBtnVinculo(r);
+            });
+        }
+        fechar();
+        window._mnpAtualizarTotal();
+    };
 };
 
 window._mnpAnalisar = async function() {
@@ -3158,12 +3332,12 @@ window._mnpAnalisar = async function() {
                     valor_total: it.valor_total || 0,
                     garantia_valor: g ? g.valor : '',
                     garantia_unidade: g ? g.unidade : 'dias',
-                    servico_id: window._mnp.servicoId || ''
+                    servicos: window._mnp.servicoId ? [parseInt(window._mnp.servicoId)] : []
                 });
             });
             aviso.innerHTML = j.soma_confere
-                ? '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota fiscal lida (' + itens.length + ' peça(s) carregada(s), soma ' + window._mnFmtMoeda(j.soma_itens) + '). Confira ou edite os campos abaixo antes de salvar.</div>'
-                : '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + (avisosTxt || 'Nota lida. Confira os valores das peças abaixo antes de salvar.') + '</div>';
+                ? '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota fiscal lida (' + itens.length + ' peça(s) carregada(s), soma ' + window._mnFmtMoeda(j.soma_itens) + '). Use "Vincular a serviços" em cada peça ou "Ratear total da nota".</div>'
+                : '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + (avisosTxt || 'Nota lida. Confira os valores e vincule as peças aos serviços antes de salvar.') + '</div>';
         } else {
             aviso.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-info"></i> ' + (avisosTxt || 'Nenhum item identificado automaticamente no PDF.') + ' O arquivo continuará anexado como recibo/comprovante — digite as peças abaixo manualmente.</div>';
         }
@@ -3179,6 +3353,7 @@ window._mnpSalvar = async function() {
     var ed = window._mnEd, N = window._mnNum;
     var fileEl = document.getElementById('mnp-file');
     var arq = (window._mnp && window._mnp.arquivo) || (fileEl && fileEl.files && fileEl.files[0]) || null;
+    var servsValidos = (ed.realizados || []).filter(function(s) { return s.id; });
     var pecas = [];
     document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
         var g = function(k) { var el = r.querySelector('[data-k="' + k + '"]'); return el ? el.value : ''; };
@@ -3189,6 +3364,10 @@ window._mnpSalvar = async function() {
         var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
         if (!desc && vt > 0 && arq) desc = 'Peças conforme anexo';
         if (!desc) return;
+        var svcs = Array.isArray(o.servicos) ? o.servicos.slice() : [];
+        if (!svcs.length && servsValidos.length === 1) {
+            svcs = [servsValidos[0].id];
+        }
         pecas.push({
             codigo: g('codigo').trim() || null,
             descricao: desc,
@@ -3198,10 +3377,16 @@ window._mnpSalvar = async function() {
             valor_total: vt,
             garantia_valor: g('garantia_valor'),
             garantia_unidade: g('garantia_unidade'),
-            servico_id: g('servico_id') || null
+            servico_id: svcs.length === 1 ? svcs[0] : null,
+            servicos: svcs
         });
     });
     if (!pecas.length) { alert('Informe ao menos uma peça (descrição).'); return; }
+    var semVinculo = pecas.some(function(p) { return !(p.servicos || []).length; });
+    if (semVinculo && servsValidos.length > 1) {
+        alert('Vincule as peças aos serviços realizados clicando em "Vincular a serviços" na linha da peça ou no botão "Ratear total da nota".');
+        return;
+    }
     var btn = document.getElementById('mnp-salvar');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
@@ -3239,7 +3424,7 @@ window._mnEdAbrirPecas = async function(servicoId) {
     try { await window._mnEdGarantirId(); await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
     window._mnEdRenderServ();
     window._mnpFechar();
-    window._mnp = { servicoId: servicoId || null, arquivo: null, nfDados: null };
+    window._mnp = { servicoId: servicoId || null, arquivo: null, nfDados: null, rateioTotalServicos: null };
     var nomeSvc = '';
     if (servicoId) { var s = window._mnEd.realizados.find(function(x) { return String(x.id) === String(servicoId); }); if (s) nomeSvc = s.nome; }
     var esc = window._mnEdEsc;
@@ -3250,7 +3435,7 @@ window._mnEdAbrirPecas = async function(servicoId) {
     pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:1040px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
       + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
       +   '<div style="background:#2563eb;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-gear-six" style="color:#fff;font-size:1.3rem;"></i></div>'
-      +   '<div><div style="color:#fff;font-weight:700;">Incluir peças</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (nomeSvc ? 'Serviço: ' + esc(nomeSvc) + ' · ' : '') + 'Anexe a nota fiscal / recibo em PDF ou inclua as peças manualmente</div></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Incluir peças</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (nomeSvc ? 'Serviço: ' + esc(nomeSvc) + ' · ' : '') + 'Anexe a nota fiscal / recibo em PDF, inclua as peças e vincule ou rateie entre os serviços</div></div>'
       +   '<button type="button" id="mnp-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
       + '</div>'
       + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
@@ -3267,17 +3452,14 @@ window._mnEdAbrirPecas = async function(servicoId) {
       +   '</div>'
       +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:16px 0 8px;">'
       +     '<div style="font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;">Peças da manutenção</div>'
-      +     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-      +       '<span style="font-size:0.76rem;color:#64748b;">Vincular todas ao serviço:</span>'
-      +       '<select id="mnp-bulk" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#fff;max-width:220px;">' + window._mnEdSvcOptions(servicoId || '') + '</select>'
-      +       '<button type="button" id="mnp-bulk-ok" style="padding:5px 10px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.76rem;">Aplicar a todas</button>'
-      +     '</div>'
+      +     '<button type="button" id="mnp-ratear-total" style="padding:7px 14px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
       +   '</div>'
       +   '<div id="mnp-rows"></div>'
       +   '<button type="button" id="mnp-add-linha" style="margin-top:4px;padding:7px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.8rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
       + '</div>'
-      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">'
       +   '<div id="mnp-total" style="font-size:0.88rem;color:#334155;"></div>'
+      +   '<button type="button" id="mnp-ratear-total-rodape" style="padding:8px 14px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
       +   '<button type="button" id="mnp-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar peças</button>'
       + '</div></div>';
     document.body.appendChild(pop);
@@ -3285,11 +3467,9 @@ window._mnEdAbrirPecas = async function(servicoId) {
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) window._mnpFechar(); });
     document.getElementById('mnp-file').onchange = function() { window._mnp.arquivo = this.files[0] || null; };
     document.getElementById('mnp-analisar').onclick = window._mnpAnalisar;
+    document.getElementById('mnp-ratear-total').onclick = window._mnpRatearTotalPopup;
+    document.getElementById('mnp-ratear-total-rodape').onclick = window._mnpRatearTotalPopup;
     document.getElementById('mnp-add-linha').onclick = function() { window._mnpAddLinha(); };
-    document.getElementById('mnp-bulk-ok').onclick = function() {
-        var v = document.getElementById('mnp-bulk').value;
-        document.querySelectorAll('#mnp-rows .mnp-row [data-k="servico_id"]').forEach(function(selEl) { selEl.value = v; });
-    };
     document.getElementById('mnp-salvar').onclick = window._mnpSalvar;
     window._mnpAddLinha();
 };
