@@ -46,7 +46,7 @@ window.initFrotaManutencoes = async function(containerEl) {
         fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json())
     ]);
 
-    window._manutFrota = frota || [];
+    window._manutFrota = window._mnOrdenarFrota ? window._mnOrdenarFrota(frota || []) : (frota || []);
     window._manutDados = manut || [];
 
     window.mnMudarSubAba(window._mnSubAba || 'preventiva');
@@ -422,8 +422,26 @@ window.mnPrevMudarSub = function(aba) {
     else mnPrevRenderHistorico(c);
 };
 
+window._mnOrdenarFrota = function(lista) {
+    const typeWeight = function(t) {
+        t = String(t || '').trim().toLowerCase();
+        if (t === 'utilitário' || t === 'utilitario') return 1;
+        if (t === 'caminhonete') return 2;
+        if (t === 'caminhão' || t === 'caminhao') return 3;
+        if (t === 'caminhão tanque' || t === 'caminhao tanque') return 4;
+        if (t === 'carretinha') return 5;
+        return 6;
+    };
+    return (lista || []).slice().sort(function(a, b) {
+        const wA = typeWeight(a.tipo_veiculo);
+        const wB = typeWeight(b.tipo_veiculo);
+        if (wA !== wB) return wA - wB;
+        return String(a.placa || '').localeCompare(String(b.placa || ''));
+    });
+};
+
 function mnPrevRenderPlano(c) {
-    const frota = window._manutFrota || [];
+    const frota = window._mnOrdenarFrota(window._manutFrota || []);
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa} \u2014 ${(v.marca_modelo_versao||'').substring(0,28)}</option>`).join('');
     c.innerHTML = `
     <div id="mn-prev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml()}</div>
@@ -446,7 +464,7 @@ function mnPrevRenderPlano(c) {
 
 // Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota)
 window._mnPrevCardsHtml = function() {
-    const frota = (window._manutFrota || []).slice().sort((a, b) => String(a.placa || '').localeCompare(String(b.placa || '')));
+    const frota = window._mnOrdenarFrota(window._manutFrota || []);
     if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
     const prevPorVeic = {};
     (window._manutDados || []).forEach(m => { if (m.tipo === 'preventiva') prevPorVeic[String(m.veiculo_id)] = (prevPorVeic[String(m.veiculo_id)] || 0) + 1; });
@@ -4807,7 +4825,7 @@ window.salvarManutencao = async function(idEdit) {
             fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.json())
         ]);
         window._manutDados = manut || [];
-        window._manutFrota = frota || [];
+        window._manutFrota = window._mnOrdenarFrota ? window._mnOrdenarFrota(frota || []) : (frota || []);
         window._frotaDados = frota || [];
         
         if (window._mnSubAba === 'corretiva') {
