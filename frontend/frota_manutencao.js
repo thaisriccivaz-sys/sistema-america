@@ -174,9 +174,9 @@ window._mnRenderHistLista = function(lista) {
     }
 
     let html = `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 300px);">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-            <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+            <thead style="position:sticky;top:0;z-index:2;background:#f1f5f9;box-shadow:inset 0 -2px 0 #e2e8f0;"><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
                 <th style="padding:10px;width:36px;"></th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Placa</th>
                 <th style="padding:10px;text-align:left;color:#475569;font-weight:700;">Tipo Veículo</th>
@@ -793,9 +793,9 @@ function mnRenderCorretivaTela(sub) {
                 <i class="ph ph-plus"></i> Nova Manutenção Corretiva
             </button>
         </div>
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 350px);">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-            <thead id="mn-corr-thead"></thead>
+            <thead id="mn-corr-thead" style="position:sticky;top:0;z-index:2;background:#f1f5f9;"></thead>
             <tbody id="mn-corr-tbody">
                 <tr><td colspan="12" style="padding:2rem;text-align:center;color:#94a3b8;">
                     <i class="ph ph-circle-notch ph-spin" style="font-size:1.5rem;"></i>
@@ -833,11 +833,11 @@ window._mnRenderCorrThead = function() {
         var seta = ativo
             ? (st.dir === 'asc' ? '<i class="ph ph-arrow-up" style="color:#d97706;font-size:0.85rem;"></i>' : '<i class="ph ph-arrow-down" style="color:#d97706;font-size:0.85rem;"></i>')
             : '<i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.8rem;opacity:0.75;"></i>';
-        return '<th onclick="window.mnCorrOrdenar(\'' + c.k + '\')" title="Clique para ordenar" style="padding:10px 10px;text-align:center;vertical-align:middle;color:' + (ativo ? '#b45309' : '#475569') + ';font-weight:700;cursor:pointer;user-select:none;line-height:1.25;transition:background .15s;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'transparent\'">'
+        return '<th onclick="window.mnCorrOrdenar(\'' + c.k + '\')" title="Clique para ordenar" style="position:sticky;top:0;z-index:2;background:#f1f5f9;box-shadow:inset 0 -2px 0 #e2e8f0;padding:10px 10px;text-align:center;vertical-align:middle;color:' + (ativo ? '#b45309' : '#475569') + ';font-weight:700;cursor:pointer;user-select:none;line-height:1.25;transition:background .15s;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f1f5f9\'">'
             + '<div style="display:inline-flex;align-items:center;justify-content:center;gap:4px;text-align:center;"><span>' + c.l + '</span>' + seta + '</div>'
             + '</th>';
     }).join('');
-    ths += '<th style="padding:10px 10px;text-align:center;vertical-align:middle;color:#475569;font-weight:700;line-height:1.25;">Ações</th>';
+    ths += '<th style="position:sticky;top:0;z-index:2;background:#f1f5f9;box-shadow:inset 0 -2px 0 #e2e8f0;padding:10px 10px;text-align:center;vertical-align:middle;color:#475569;font-weight:700;line-height:1.25;">Ações</th>';
     thead.innerHTML = '<tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">' + ths + '</tr>';
 };
 
