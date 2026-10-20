@@ -23655,9 +23655,13 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         const fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
         const params = [status];
 
-        // Regra: se mudar para Em manutencao (em_andamento), automaticamente muda para Nao, esta parado (nao)
-        let rodandoNovo = (veiculo_rodando === 'nao' || veiculo_rodando === 'sim') ? veiculo_rodando : (prev.veiculo_rodando || 'sim');
+        const rodandoAnt = prev.veiculo_rodando === 'nao' ? 'nao' : (prev.veiculo_rodando === 'sim' ? 'sim' : (prev.status === 'em_andamento' ? 'nao' : 'sim'));
+        // Regras automaticas:
+        // - Ao mudar para Em manutencao (em_andamento) -> muda automaticamente para Nao, esta parado ('nao')
+        // - Ao mudar para Concluido (concluida) -> se estiver Nao, esta parado, muda automaticamente para Sim, esta rodando ('sim')
+        let rodandoNovo = (veiculo_rodando === 'nao' || veiculo_rodando === 'sim') ? veiculo_rodando : rodandoAnt;
         if (status === 'em_andamento') rodandoNovo = 'nao';
+        else if (status === 'concluida') rodandoNovo = 'sim';
 
         let pDesde = prev.parado_desde || null;
         let pAcum = Number(prev.parado_segundos_acum || 0);
@@ -23718,9 +23722,13 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             await _fmHist(id, 'status', justTxt, usuario, prev.status, status);
         }
         // historico: quem mudou "O veiculo esta rodando?" e quando
-        const rodandoAnt = prev.veiculo_rodando || null;
-        if (rodandoAnt && rodandoAnt !== rodandoNovo) {
-            const motivoAuto = (prev.status !== status && status === 'em_andamento') ? 'Alterado automaticamente ao mudar o status para Em manutenção' : null;
+        if (rodandoAnt !== rodandoNovo) {
+            let motivoAuto = null;
+            if (prev.status !== status && status === 'em_andamento') {
+                motivoAuto = 'Alterado automaticamente ao mudar o status para Em manutenção';
+            } else if (prev.status !== status && status === 'concluida') {
+                motivoAuto = 'Alterado automaticamente ao mudar o status para Concluído';
+            }
             await _fmHist(id, 'rodando', motivoAuto, usuario, rodandoAnt, rodandoNovo);
         }
         if (prev.sinistro_id && rodandoAnt !== rodandoNovo) {
@@ -23904,7 +23912,16 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 await _fmRun('UPDATE frota_manutencoes SET veiculo_rodando = ? WHERE id = ?', [m.veiculo_rodando, id]);
             }
         }
-        if (!m.veiculo_rodando) {
+        if (m.status === 'em_andamento' && m.veiculo_rodando !== 'nao') {
+            m.veiculo_rodando = 'nao';
+            if (!m.parado_desde) m.parado_desde = m.data_inicio || m.created_at || new Date().toISOString();
+            await _fmRun('UPDATE frota_manutencoes SET veiculo_rodando = ?, parado_desde = ? WHERE id = ?', ['nao', m.parado_desde, id]);
+            await _fmAtualizaEmManutencao(m.veiculo_id);
+        } else if (m.status === 'concluida' && m.veiculo_rodando === 'nao') {
+            m.veiculo_rodando = 'sim';
+            await _fmRun('UPDATE frota_manutencoes SET veiculo_rodando = ?, parado_desde = NULL WHERE id = ?', ['sim', id]);
+            await _fmAtualizaEmManutencao(m.veiculo_id);
+        } else if (!m.veiculo_rodando) {
             m.veiculo_rodando = m.status === 'em_andamento' ? 'nao' : 'sim';
         }
         let servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
@@ -24742,12 +24759,38 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DELETE - excluir manutenção
-app.delete('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM frota_manutencoes WHERE id=?', [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Manutenção exclu??da' });
-    });
+// DELETE - excluir manutenção (requer senha log123, remove anexos R2 e atualiza disponibilidade do veículo)
+app.delete('/api/frota/manutencoes/:id', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const senha = (req.body && req.body.senha) || req.query.senha || '';
+        if (senha !== 'log123') {
+            return res.status(403).json({ error: 'Senha incorreta para excluir a manutenção.' });
+        }
+        const row = await _fmGet('SELECT id, veiculo_id FROM frota_manutencoes WHERE id = ?', [id]);
+        if (!row) return res.status(404).json({ error: 'Manutenção não encontrada' });
+
+        const notas = await _fmAll('SELECT id, r2_key FROM frota_manutencao_notas WHERE manutencao_id = ?', [id]);
+        const r2 = require('./utils/r2');
+        if (r2.isReady()) {
+            for (const n of notas) {
+                if (n.r2_key) {
+                    try { await r2.deleteFromR2(n.r2_key); } catch (eR2) { console.warn('[R2] Erro ao deletar nota da manutenção:', eR2.message); }
+                }
+            }
+        }
+        await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ?)', [id]);
+        await _fmRun('DELETE FROM frota_manutencao_mo WHERE manutencao_id = ?', [id]);
+        await _fmRun('DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ?', [id]);
+        await _fmRun('DELETE FROM frota_manutencao_notas WHERE manutencao_id = ?', [id]);
+        await _fmRun('DELETE FROM frota_manutencao_servicos WHERE manutencao_id = ?', [id]);
+        await _fmRun('DELETE FROM frota_manutencao_historico WHERE manutencao_id = ?', [id]);
+        await _fmRun('DELETE FROM frota_manutencoes WHERE id = ?', [id]);
+        if (row.veiculo_id) await _fmAtualizaEmManutencao(row.veiculo_id);
+        res.json({ ok: true, message: 'Manutenção excluída com sucesso' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // GET - plano preventivo (itens de manutenção preventiva com status por veiculo)
@@ -32455,8 +32498,12 @@ app.listen(PORT, () => {
     setTimeout(() => {
         db.run("UPDATE frota_manutencoes SET veiculo_rodando = (SELECT CASE WHEN s.manutencao_rodando = 'nao' THEN 'nao' ELSE 'sim' END FROM sinistros s WHERE s.id = frota_manutencoes.sinistro_id) WHERE sinistro_id IS NOT NULL AND veiculo_rodando IS NULL", () => {
             db.run("UPDATE frota_manutencoes SET veiculo_rodando = CASE WHEN status = 'em_andamento' THEN 'nao' ELSE 'sim' END WHERE tipo = 'corretiva' AND veiculo_rodando IS NULL", () => {
-                db.run("UPDATE frota_manutencoes SET parado_desde = COALESCE(created_at, data_inicio) WHERE (veiculo_rodando = 'nao' OR status = 'em_andamento') AND parado_desde IS NULL AND COALESCE(parado_segundos_acum, 0) = 0 AND status NOT IN ('concluida', 'cancelada')", () => {
-                    db.run("UPDATE frota_veiculos SET em_manutencao = CASE WHEN EXISTS (SELECT 1 FROM frota_manutencoes fm WHERE fm.veiculo_id = frota_veiculos.id AND fm.status IN ('agendada','em_andamento','aguardando') AND (COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm.status = 'em_andamento')) THEN 1 ELSE 0 END");
+                db.run("UPDATE frota_manutencoes SET veiculo_rodando = 'nao' WHERE status = 'em_andamento' AND COALESCE(veiculo_rodando, '') != 'nao'", () => {
+                    db.run("UPDATE frota_manutencoes SET veiculo_rodando = 'sim', parado_desde = NULL WHERE status = 'concluida' AND COALESCE(veiculo_rodando, '') = 'nao'", () => {
+                        db.run("UPDATE frota_manutencoes SET parado_desde = COALESCE(created_at, data_inicio) WHERE (veiculo_rodando = 'nao' OR status = 'em_andamento') AND parado_desde IS NULL AND COALESCE(parado_segundos_acum, 0) = 0 AND status NOT IN ('concluida', 'cancelada')", () => {
+                            db.run("UPDATE frota_veiculos SET em_manutencao = CASE WHEN EXISTS (SELECT 1 FROM frota_manutencoes fm WHERE fm.veiculo_id = frota_veiculos.id AND fm.status IN ('agendada','em_andamento','aguardando') AND (COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' OR fm.status = 'em_andamento')) THEN 1 ELSE 0 END");
+                        });
+                    });
                 });
             });
         });
