@@ -16126,10 +16126,7 @@ window.markUserNotifLida = function (id) {
     fetch('/api/notificacoes/me/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
-window.checkUserNotificacoes = function() {
-    if (_checkUserNotifRunning) { setTimeout(checkUserNotificacoes, 400); return; }
-    return checkUserNotificacoes();
-};
+window.checkUserNotificacoes = checkUserNotificacoes;
 setInterval(checkUserNotificacoes, 60000);
 setTimeout(checkUserNotificacoes, 8000);
 
