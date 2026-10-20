@@ -8,7 +8,7 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutTok = tok;
 
     // Sub-tab state
-    window._mnSubAba = window._mnSubAba || 'preventiva';
+    window._mnSubAba = 'corretiva';
 
     c.innerHTML = `<div style="padding:1.5rem;background:#f8fafc;min-height:100%;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:1rem;">
@@ -23,11 +23,11 @@ window.initFrotaManutencoes = async function(containerEl) {
 <!-- Sub-abas -->
 <div style="display:flex;gap:4px;margin-bottom:1.5rem;background:#fff;padding:6px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
     <button id="mn-sub-btn-corretiva" onclick="window.mnMudarSubAba('corretiva')" 
-        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:#d97706;color:#fff;">
         <i class="ph ph-wrench"></i> Corretiva
     </button>
     <button id="mn-sub-btn-preventiva" onclick="window.mnMudarSubAba('preventiva')" 
-        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:#d97706;color:#fff;">
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
         <i class="ph ph-calendar-check"></i> Preventiva
     </button>
     <button id="mn-sub-btn-revisao" onclick="window.mnMudarSubAba('revisao')" 
@@ -53,7 +53,7 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutFrota = window._mnOrdenarFrota ? window._mnOrdenarFrota(frota || []) : (frota || []);
     window._manutDados = manut || [];
 
-    window.mnMudarSubAba(window._mnSubAba || 'preventiva');
+    window.mnMudarSubAba(window._mnSubAba || 'corretiva');
 };
 
 
