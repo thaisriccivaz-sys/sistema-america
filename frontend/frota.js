@@ -33,6 +33,18 @@ function alertaPlaca(placa, exercicio) {
     }
     return 'ok';
 }
+function getDataVencExercicioFmt(placa, exercicio) {
+    if (!exercicio) return '';
+    const mesVencimento = getMesVenc(placa);
+    const exAno = parseInt(exercicio, 10);
+    if (!mesVencimento || isNaN(exAno)) return '';
+    const anoVencimento = exAno + 1;
+    const dtVenc = new Date(anoVencimento, mesVencimento, 0);
+    const dd = String(dtVenc.getDate()).padStart(2, '0');
+    const mm = String(dtVenc.getMonth() + 1).padStart(2, '0');
+    const aa = String(dtVenc.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${aa}`;
+}
 async function extrairCRLV(file){
   return new Promise(resolve=>{
     const fr=new FileReader();
@@ -286,7 +298,7 @@ function renderCardsFrota() {
             
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
-                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${v.exercicio||'N/D'} ${alerta==='vencendo'?'(Vencendo)':''}</span>
+                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${!v.exercicio ? 'N/D' : (alerta === 'vencendo' ? `${v.exercicio} (Vencendo ${getDataVencExercicioFmt(v.placa, v.exercicio)})` : alerta === 'expirado' ? `${v.exercicio} (Vencido ${getDataVencExercicioFmt(v.placa, v.exercicio)})` : `${v.exercicio}${getDataVencExercicioFmt(v.placa, v.exercicio) ? ' (' + getDataVencExercicioFmt(v.placa, v.exercicio) + ')' : ''}`)}</span>
             </div>
 
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
