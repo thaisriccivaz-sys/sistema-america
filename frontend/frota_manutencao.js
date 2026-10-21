@@ -460,9 +460,9 @@ window._mnRevBadgeHtml = function(v) {
     const base = 'padding:2px 8px;border-radius:999px;font-size:0.66rem;font-weight:800;display:inline-flex;align-items:center;gap:4px;letter-spacing:0.3px;white-space:nowrap;';
     const mapa = {
         vencida:    { bg: '#fee2e2', cor: '#dc2626', bd: '#fca5a5', ico: 'ph-warning-circle', txt: 'REVISÃO VENCIDA' },
-        a_vencer:   { bg: '#fef9c3', cor: '#a16207', bd: '#fde047', ico: 'ph-clock-countdown', txt: 'REVISÃO A VENCER' },
+        a_vencer:   { bg: '#ffedd5', cor: '#ea580c', bd: '#fdba74', ico: 'ph-calendar-plus', txt: 'AGENDAR REVISÃO' },
         agendada:   { bg: '#dbeafe', cor: '#1d4ed8', bd: '#93c5fd', ico: 'ph-calendar-check', txt: 'REVISÃO AGENDADA' },
-        em_revisao: { bg: '#ffedd5', cor: '#c2410c', bd: '#fdba74', ico: 'ph-wrench', txt: 'EM REVISÃO' },
+        em_revisao: { bg: '#fef3c7', cor: '#b45309', bd: '#fde68a', ico: 'ph-wrench', txt: 'EM REVISÃO' },
         ok:         { bg: '#dcfce7', cor: '#15803d', bd: '#86efac', ico: 'ph-check-circle', txt: 'REVISÃO OK' }
     };
     const m = mapa[st];
@@ -576,8 +576,47 @@ window._mnRevFiltroAceita = function(v) {
     }
     return true;
 };
+window._mnRevKpiCardsHtml = function() {
+    const frota = window._manutFrota || [];
+    const f = window._mnRevFiltro || {};
+    const stAtivo = f.status || 'todos';
+    const cont = { vencida: 0, a_vencer: 0, agendada: 0, em_revisao: 0, ok: 0 };
+    frota.forEach(function(v) {
+        const s = v && v.revisao_status;
+        if (s && cont[s] !== undefined) cont[s]++;
+    });
+    const cards = [
+        { key: 'vencida',    cor: '#dc2626', bg: '#fef2f2', icone: 'ph-warning-circle', label: 'Revisão Vencida',  val: cont.vencida },
+        { key: 'a_vencer',   cor: '#ea580c', bg: '#fff7ed', icone: 'ph-calendar-plus',  label: 'Agendar Revisão',  val: cont.a_vencer },
+        { key: 'agendada',   cor: '#2563eb', bg: '#eff6ff', icone: 'ph-calendar-check', label: 'Revisão Agendada', val: cont.agendada },
+        { key: 'em_revisao', cor: '#d97706', bg: '#fffbeb', icone: 'ph-wrench',         label: 'Em Revisão',       val: cont.em_revisao },
+        { key: 'ok',         cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',   label: 'Revisão OK',       val: cont.ok },
+        { key: 'todos',      cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',   label: 'Todos',            val: frota.length }
+    ];
+    return cards.map(function(k) {
+        const ativo = stAtivo === k.key;
+        return '<div onclick="window._mnRevFiltrarCard(\'' + k.key + '\')" title="Filtrar por: ' + k.label + '"'
+            + ' style="background:' + (ativo ? k.bg : '#fff') + ';border:' + (ativo ? '2px solid ' + k.cor : '1px solid #e2e8f0') + ';border-left:4px solid ' + k.cor + ';border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px;box-shadow:' + (ativo ? '0 4px 12px ' + k.cor + '22' : '0 2px 6px rgba(0,0,0,0.04)') + ';cursor:pointer;transition:all 0.15s;user-select:none;">'
+            + '<div style="width:42px;height:42px;border-radius:10px;background:' + k.cor + '18;color:' + k.cor + ';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'
+            + '<i class="ph ' + k.icone + '"></i></div>'
+            + '<div>'
+            + '<div style="font-size:1.5rem;font-weight:800;color:#1e293b;line-height:1;">' + k.val + '</div>'
+            + '<div style="font-size:0.75rem;color:' + (ativo ? k.cor : '#64748b') + ';font-weight:' + (ativo ? '700' : '600') + ';margin-top:2px;">' + k.label + '</div>'
+            + '</div>'
+            + '</div>';
+    }).join('');
+};
+window._mnRevFiltrarCard = function(key) {
+    const f = window._mnRevFiltro || {};
+    const novoStatus = (key === 'todos' || f.status === key) ? '' : key;
+    const sel = document.getElementById('mn-rev-f-status');
+    if (sel) sel.value = novoStatus;
+    window._mnRevFiltroAtualizar('status', novoStatus);
+};
 window._mnRevFiltroAtualizar = function(campo, valor) {
     window._mnRevFiltro[campo] = valor;
+    const kpiBox = document.getElementById('mn-rev-kpi-cards');
+    if (kpiBox) kpiBox.innerHTML = window._mnRevKpiCardsHtml();
     const grid = document.getElementById('mn-rev-cards');
     if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml('revisao');
     const cont = document.getElementById('mn-rev-filtro-cont');
@@ -600,12 +639,13 @@ window._mnRevFiltroBarraHtml = function() {
     const opt = function(val, txt, atual) { return '<option value="' + val + '"' + (atual === val ? ' selected' : '') + '>' + txt + '</option>'; };
     const total = (window._manutFrota || []).length;
     const n = (window._manutFrota || []).filter(window._mnRevFiltroAceita).length;
-    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+    return '<div id="mn-rev-kpi-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;">' + window._mnRevKpiCardsHtml() + '</div>'
+        + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
         + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
         + '<input type="text" id="mn-rev-f-busca" autocomplete="off" value="' + E(f.busca || '') + '" placeholder="Pesquisar placa, modelo ou tipo do veículo..." oninput="window._mnRevFiltroAtualizar(\'busca\', this.value)" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem 0.5rem 2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.84rem;outline:none;"></div>'
         + '<select onchange="window._mnRevFiltroAtualizar(\'tipo\', this.value)" style="' + sel + '" title="Tipo de veículo">' + opt('', 'Todos os tipos', f.tipo || '') + tipos.map(function(t) { return opt(E(t), E(t), f.tipo || ''); }).join('') + '</select>'
         + '<select onchange="window._mnRevFiltroAtualizar(\'garantia\', this.value)" style="' + sel + '" title="Garantia">' + opt('', 'Garantia: todos', f.garantia || '') + opt('sim', 'Em garantia', f.garantia || '') + opt('nao', 'Fora de garantia', f.garantia || '') + '</select>'
-        + '<select onchange="window._mnRevFiltroAtualizar(\'status\', this.value)" style="' + sel + '" title="Status da revisão">' + opt('', 'Status da revisão: todos', f.status || '') + opt('vencida', 'Revisão vencida', f.status || '') + opt('a_vencer', 'Revisão a vencer', f.status || '') + opt('agendada', 'Revisão agendada', f.status || '') + opt('em_revisao', 'Em revisão', f.status || '') + opt('ok', 'Revisão OK', f.status || '') + opt('sem_status', 'Sem status', f.status || '') + '</select>'
+        + '<select id="mn-rev-f-status" onchange="window._mnRevFiltroAtualizar(\'status\', this.value)" style="' + sel + '" title="Status da revisão">' + opt('', 'Status da revisão: todos', f.status || '') + opt('vencida', 'Revisão vencida', f.status || '') + opt('a_vencer', 'Agendar Revisão', f.status || '') + opt('agendada', 'Revisão agendada', f.status || '') + opt('em_revisao', 'Em revisão', f.status || '') + opt('ok', 'Revisão OK', f.status || '') + opt('sem_status', 'Sem status', f.status || '') + '</select>'
         + '<button type="button" onclick="window._mnRevFiltroLimpar()" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-x-circle"></i> Limpar</button>'
         + '<span id="mn-rev-filtro-cont" style="font-size:0.78rem;color:#64748b;font-weight:700;">' + n + ' de ' + total + ' veículo(s)</span>'
         + '</div>';
@@ -630,24 +670,30 @@ window._mnPrevCardsHtml = function(modo) {
         const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
         const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true || !!garAte);
         const garVencida = temGar && garAte && garAte < hojeISO;
+        const manutRibbon = parado ? `
+            <div style="position:absolute;top:0;left:0;width:0;height:0;border-top:60px solid #dc2626;border-right:60px solid transparent;z-index:2;"></div>
+            <div style="position:absolute;top:8px;left:6px;z-index:3;color:#fff;font-size:1.1rem;transform:rotate(-45deg);width:30px;text-align:center;">
+                <i class="ph ph-wrench"></i>
+            </div>` : '';
         const fotoHtml = foto
-            ? `<div onclick="if(window.abrirFotoVeiculoFrota)window.abrirFotoVeiculoFrota(${v.id})" title="Clique para abrir e salvar a foto" style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;cursor:pointer;"></div>`
-            : `<div style="height:140px;width:100%;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:3rem;"><i class="ph ph-truck"></i></div>`;
+            ? `<div onclick="if(window.abrirFotoVeiculoFrota)window.abrirFotoVeiculoFrota(${v.id})" title="Clique para abrir e salvar a foto" style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid ${parado ? '#fecaca' : '#e2e8f0'};cursor:pointer;"></div>`
+            : `<div style="height:140px;width:100%;background:${parado ? '#fee2e2' : '#f1f5f9'};border-bottom:1px solid ${parado ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;justify-content:center;color:${parado ? '#fca5a5' : '#cbd5e1'};font-size:3rem;"><i class="ph ph-truck"></i></div>`;
         const linhaPlano = ehRevisao ? '' : `
                 <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                     <span style="font-weight:600;color:#94a3b8;">Plano preventivo:</span>
                     <span style="font-weight:700;color:${nPrev ? '#0284c7' : '#d97706'};">${nPrev ? nPrev + (nPrev === 1 ? ' item' : ' itens') : 'N\u00e3o cadastrado'}</span>
                 </div>`;
         const linhaGarantia = !ehRevisao ? '' : `
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid ${parado ? '#fecaca' : '#f1f5f9'};padding-bottom:0.4rem;">
                     <span style="font-weight:600;color:#94a3b8;">Garantia at\u00e9:</span>
-                    <input type="date" id="mn-gar-dt-${v.id}" value="${garAte}" onchange="window.mnGarantiaSalvar(${v.id}, false)" onblur="window.mnGarantiaSalvar(${v.id}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="padding:0.2rem 0.4rem;border:1px solid ${garVencida ? '#fca5a5' : '#e2e8f0'};border-radius:6px;font-size:0.8rem;outline:none;color:${garVencida ? '#dc2626' : '#1e293b'};">
+                    <input type="date" id="mn-gar-dt-${v.id}" value="${garAte}" onchange="window.mnGarantiaSalvar(${v.id}, false)" onblur="window.mnGarantiaSalvar(${v.id}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="padding:0.2rem 0.4rem;border:1px solid ${garVencida ? '#fca5a5' : '#e2e8f0'};border-radius:6px;font-size:0.8rem;outline:none;color:${garVencida ? '#dc2626' : '#1e293b'};background:#fff;">
                 </div>`;
         const btnAcao = ehRevisao
             ? `<button onclick="window.mnRevisaoAbrirVeiculo(${v.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-seal-check"></i> Ver revis\u00e3o</button>`
             : `<button onclick="window.mnPrevAbrirVeiculo(${v.id})" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Ver plano</button>`;
         return `
-        <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${parado ? '2px solid #fca5a5' : '1px solid #e2e8f0'};position:relative;display:flex;flex-direction:column;transition:transform .2s, box-shadow .2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+        <div style="background:${parado ? '#fff5f5' : '#fff'};border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${parado ? '2px solid #fca5a5' : '1px solid #e2e8f0'};position:relative;display:flex;flex-direction:column;transition:transform .2s, box-shadow .2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+            ${manutRibbon}
             ${fotoHtml}
             <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
                 <div style="display:flex;flex-direction:column;gap:0.1rem;">
@@ -658,17 +704,17 @@ window._mnPrevCardsHtml = function(modo) {
                     </div>
                     ${ehRevisao ? window._mnRevBadgeDiasHtml(v) : ''}
                 </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:0.6rem;border-radius:8px;">
+                <div style="background:${parado ? '#fef2f2' : '#f8fafc'};border:1px solid ${parado ? '#fecaca' : '#e2e8f0'};padding:0.6rem;border-radius:8px;">
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
                 </div>${linhaPlano}${linhaGarantia}
             </div>
-            ${(ehRevisao && window._mnRevEhCarretinha(v)) ? window._mnRevCarretinhaCardFooterHtml(v) : ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
+            ${(ehRevisao && window._mnRevEhCarretinha(v)) ? window._mnRevCarretinhaCardFooterHtml(v) : ehRevisao ? `<div style="background:${parado ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${parado ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
                     <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
                 </div>
                 <span style="font-size:0.88rem;font-weight:800;color:#1e293b;">${v.km_atual ? Number(v.km_atual).toLocaleString('pt-BR') + ' km' : 'Não informado'}</span>
-            </div>` : `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
+            </div>` : `<div style="background:${parado ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${parado ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
                 <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
                 <input type="number" id="mn-prevcard-km-${v.id}" value="${v.km_atual || ''}" placeholder="Digite KM"
@@ -676,8 +722,8 @@ window._mnPrevCardsHtml = function(modo) {
                     onkeydown="if(event.key==='Enter')window.mnPrevSalvarKmCard(${v.id})">
                 <button onclick="window.mnPrevSalvarKmCard(${v.id})" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">Salvar</button>
             </div>`}
-            <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${v.tipo_veiculo || 'VE\u00cdCULO'}</div>
+            <div style="background:${parado ? '#fef2f2' : '#f8fafc'};padding:0.75rem 1rem;border-top:1px solid ${parado ? '#fecaca' : '#e2e8f0'};display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <div style="font-weight:800;color:${parado ? '#f87171' : '#cbd5e1'};font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${v.tipo_veiculo || 'VE\u00cdCULO'}</div>
                 ${btnAcao}
             </div>
         </div>`;
@@ -1159,15 +1205,9 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     const emRevLocal = revsLista.find(r => r.status === 'agendada' && (!r.data_revisao || String(r.data_revisao).trim() === '' || String(r.data_revisao).slice(0, 10) <= hojeIso));
     const agLocal = !emRevLocal ? revsLista.filter(r => r.status === 'agendada' && r.data_revisao && String(r.data_revisao).slice(0, 10) > hojeIso).sort((a, b) => String(a.data_revisao).localeCompare(String(b.data_revisao)))[0] : null;
     const ultimoItem = lista[lista.length - 1] || null;
-    let revInfoCalc = { status: null };
-    if (emRevLocal) {
-        const ini = String(emRevLocal.parado_desde || emRevLocal.data_revisao || emRevLocal.created_at || '').slice(0, 10);
-        const dias = ini ? Math.max(0, _mnRevDiffDias(hojeIso, ini) || 0) : 0;
-        revInfoCalc = { status: 'em_revisao', dias_parado: dias, marco_km: emRevLocal.marco_km, eh_carretinha: !!ehCar };
-    } else if (agLocal) {
-        revInfoCalc = { status: 'agendada', data_agendada: String(agLocal.data_revisao).slice(0, 10), marco_km: agLocal.marco_km, eh_carretinha: !!ehCar };
-    } else if (temVencidaLoop && ultimaVencidaLoop) {
-        revInfoCalc = {
+    let marcoPendenteLocal = null;
+    if (temVencidaLoop && ultimaVencidaLoop) {
+        marcoPendenteLocal = {
             status: 'vencida',
             n: ultimaVencidaLoop.n,
             marco_km: ultimaVencidaLoop.kmNominal,
@@ -1182,8 +1222,32 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     } else if (ultimoItem && !ultimoItem.realizada) {
         const proxKmCalc = kmAtual > 0 && ultimoItem.diffKm > 0 && ultimoItem.diffKm <= 1000;
         const proxTempoCalc = ultimoItem.diffDias !== null && ultimoItem.diffDias >= 0 && ultimoItem.diffDias <= 30;
+        if (proxKmCalc || proxTempoCalc) {
+            marcoPendenteLocal = {
+                status: 'a_vencer',
+                n: ultimoItem.n,
+                marco_km: ultimoItem.kmNominal,
+                marco_meses: ultimoItem.mesesNominal,
+                limite_km: ultimoItem.kmLimite,
+                limite_data: ultimoItem.dtLimite || null,
+                falta_km: (kmAtual > 0 && ultimoItem.diffKm > 0) ? ultimoItem.diffKm : null,
+                falta_dias: (ultimoItem.diffDias !== null && ultimoItem.diffDias >= 0) ? ultimoItem.diffDias : null,
+                eh_carretinha: !!ehCar
+            };
+        }
+    }
+    let revInfoCalc = { status: null };
+    if (emRevLocal) {
+        const ini = String(emRevLocal.parado_desde || emRevLocal.data_revisao || emRevLocal.created_at || '').slice(0, 10);
+        const dias = ini ? Math.max(0, _mnRevDiffDias(hojeIso, ini) || 0) : 0;
+        revInfoCalc = { status: 'em_revisao', dias_parado: dias, marco_km: emRevLocal.marco_km, eh_carretinha: !!ehCar, marco_pendente: marcoPendenteLocal };
+    } else if (agLocal) {
+        revInfoCalc = { status: 'agendada', data_agendada: String(agLocal.data_revisao).slice(0, 10), marco_km: agLocal.marco_km, eh_carretinha: !!ehCar, marco_pendente: marcoPendenteLocal };
+    } else if (marcoPendenteLocal) {
+        revInfoCalc = Object.assign({}, marcoPendenteLocal, { marco_pendente: marcoPendenteLocal });
+    } else if (ultimoItem && !ultimoItem.realizada) {
         revInfoCalc = {
-            status: (proxKmCalc || proxTempoCalc) ? 'a_vencer' : ((kmAtual > 0 || dtIniGar) ? 'ok' : null),
+            status: (kmAtual > 0 || dtIniGar) ? 'ok' : null,
             n: ultimoItem.n,
             marco_km: ultimoItem.kmNominal,
             marco_meses: ultimoItem.mesesNominal,
@@ -1227,9 +1291,12 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 alertasCriticos.push(ehCar
                     ? `${m.n}ª revisão (a cada 12 meses${dtLimite ? ' — venceu em <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): venceu por tempo há <b>${Math.abs(diffDias)} ${Math.abs(diffDias) === 1 ? 'dia' : 'dias'}</b>.`
                     : `${m.n}ª revisão (limite <b>${kmLimite.toLocaleString('pt-BR')} km</b>${dtLimite ? ' ou <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): ${m.vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b>` : ''}${m.vencKm && m.vencTempo ? ' e ' : ''}${m.vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
-            } else if (proxKm || proxTempo || agendada) {
-                sitCor = '#d97706'; sitBg = '#fffbeb'; sitBorda = '#fcd34d';
-                sitLabel = agendada ? 'Agendada' : 'Próxima Revisão';
+            } else if (agendada) {
+                sitCor = '#1d4ed8'; sitBg = '#dbeafe'; sitBorda = '#93c5fd';
+                sitLabel = 'Agendada';
+            } else if (proxKm || proxTempo) {
+                sitCor = '#ea580c'; sitBg = '#ffedd5'; sitBorda = '#fdba74';
+                sitLabel = 'Agendar Revisão';
             } else {
                 sitCor = '#0284c7'; sitBg = '#f0f9ff'; sitBorda = '#bae6fd';
                 sitLabel = 'Próxima Revisão';
@@ -2782,6 +2849,12 @@ window._mnPrevAtualizarFrota = async function() {
         if (!Array.isArray(lista)) return;
         window._manutFrota = lista;
         window._frotaDados = lista;
+        const kpiBox = document.getElementById('mn-rev-kpi-cards');
+        if (kpiBox && typeof window._mnRevKpiCardsHtml === 'function') kpiBox.innerHTML = window._mnRevKpiCardsHtml();
+        const contRev = document.getElementById('mn-rev-filtro-cont');
+        if (contRev && typeof window._mnRevFiltroAceita === 'function') {
+            contRev.textContent = lista.filter(window._mnRevFiltroAceita).length + ' de ' + lista.length + ' veículo(s)';
+        }
         const grid = document.getElementById('mn-prev-cards');
         if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
         const gridRev = document.getElementById('mn-rev-cards');
@@ -3986,9 +4059,10 @@ window._mnEdFechar = function() {
 
 window._mnEdMarcoRevisaoTexto = function(v) {
     if (!v) return null;
-    var st = v.revisao_status;
+    var rawInfo = v.revisao_info || {};
+    var info = rawInfo.marco_pendente || rawInfo;
+    var st = (rawInfo.marco_pendente && rawInfo.marco_pendente.status) || v.revisao_status;
     if (st !== 'vencida' && st !== 'a_vencer') return null;
-    var info = v.revisao_info || {};
     var ehCar = !!(info.eh_carretinha || (typeof window._mnRevEhCarretinha === 'function' && window._mnRevEhCarretinha(v)));
     var usoSev = !ehCar && Number(v.uso_severo || 0) === 1;
     var marcoKm = Number(info.marco_km || (usoSev ? 5000 : 10000));
@@ -4015,7 +4089,7 @@ window._mnEdRenderAlertaRevisao = function() {
     var vid = (document.getElementById('mned-veic') && document.getElementById('mned-veic').value) || (window._mnEd && window._mnEd.m && window._mnEd.m.veiculo_id) || '';
     if (!vid) { box.innerHTML = ''; return; }
     var v = (window._manutFrota || window._frotaDados || []).find(function(x) { return String(x.id) === String(vid); });
-    if (v && (v.revisao_status === undefined || ((v.revisao_status === 'vencida' || v.revisao_status === 'a_vencer') && (!v.revisao_info || !v.revisao_info.marco_km))) && !window._mnEdBuscandoFrotaRev) {
+    if (v && (v.revisao_status === undefined || ((v.revisao_status === 'vencida' || v.revisao_status === 'a_vencer') && (!v.revisao_info || (!v.revisao_info.marco_km && !v.revisao_info.marco_pendente)))) && !window._mnEdBuscandoFrotaRev) {
         window._mnEdBuscandoFrotaRev = true;
         if (typeof window._mnPrevAtualizarFrota === 'function') {
             window._mnPrevAtualizarFrota().then(function() {
@@ -4028,15 +4102,15 @@ window._mnEdRenderAlertaRevisao = function() {
     if (!r) { box.innerHTML = ''; return; }
     var esc = window._mnEdEsc;
     var ehVenc = r.status === 'vencida';
-    var bg = ehVenc ? 'linear-gradient(135deg,#fef2f2,#fee2e2)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
-    var borda = ehVenc ? '#ef4444' : '#f59e0b';
-    var bordaEsq = ehVenc ? '#dc2626' : '#d97706';
-    var corTit = ehVenc ? '#991b1b' : '#92400e';
-    var corTxt = ehVenc ? '#7f1d1d' : '#78350f';
-    var ico = ehVenc ? 'ph-warning-octagon' : 'ph-warning';
+    var bg = ehVenc ? 'linear-gradient(135deg,#fef2f2,#fee2e2)' : 'linear-gradient(135deg,#fff7ed,#ffedd5)';
+    var borda = ehVenc ? '#ef4444' : '#f97316';
+    var bordaEsq = ehVenc ? '#dc2626' : '#ea580c';
+    var corTit = ehVenc ? '#991b1b' : '#9a3412';
+    var corTxt = ehVenc ? '#7f1d1d' : '#7c2d12';
+    var ico = ehVenc ? 'ph-warning-octagon' : 'ph-calendar-plus';
     var titulo = ehVenc
         ? 'Revisão Vencida — Realize o Agendamento da Revisão!'
-        : 'Revisão Próxima do Vencimento — Realize o Agendamento da Revisão!';
+        : 'Agendar Revisão — Revisão Próxima do Vencimento!';
     var sub = ehVenc
         ? ('Este veículo está com revisão vencida no marco de <b>' + esc(r.marcoTxt) + '</b>' + (r.detalheTxt ? ' (' + esc(r.detalheTxt) + ')' : '') + '. Aproveite para agendar ou iniciar a revisão.')
         : ('Este veículo está próximo do marco de revisão de <b>' + esc(r.marcoTxt) + '</b>' + (r.detalheTxt ? ' (' + esc(r.detalheTxt) + ')' : '') + '. Providencie o agendamento da revisão.');
@@ -4054,37 +4128,18 @@ window._mnEdRenderAlertaRevisao = function() {
 };
 
 window._mnEdIniciarRevisaoDoMarco = async function(vid, marcoKm, marcoMeses, dataIni, fornecedor) {
-    var tok = window._mnEdTok ? window._mnEdTok() : (window._manutTok || window.currentToken || localStorage.getItem('token'));
-    var di = dataIni || (document.getElementById('mned-di') && document.getElementById('mned-di').value) || window._mnHojeISO();
+    var di = dataIni || (document.getElementById('mned-di') && document.getElementById('mned-di').value) || '';
     var forn = fornecedor || (document.getElementById('mned-forn') && document.getElementById('mned-forn').value.trim()) || '';
-    try {
-        var rCheck = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
-        var dCheck = await rCheck.json().catch(function() { return {}; });
-        var regExist = ((dCheck && dCheck.revisoes) || []).find(function(x) { return Number(x.marco_km) === Number(marcoKm); });
-        if (!regExist || regExist.status === 'pendente') {
-            await fetch('/api/frota/revisoes/' + vid + '/salvar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-                body: JSON.stringify({
-                    marco_km: Number(marcoKm),
-                    marco_meses: Number(marcoMeses) || 12,
-                    status: 'agendada',
-                    data_revisao: di,
-                    concessionaria: forn || (regExist && regExist.concessionaria) || null,
-                    numero_os: (regExist && regExist.numero_os) || null,
-                    itens: (regExist && regExist.itens) || {},
-                    observacoes: (regExist && regExist.observacoes) || null
-                })
-            });
-        }
-    } catch (e) { /* abre o painel mesmo se falhar o pre-agendamento */ }
     window._mnEdFechar();
-    if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
     window._mnRevVeicId = vid;
     if (typeof window.mnMudarSubAba === 'function') window.mnMudarSubAba('revisao');
     await window.mnRevisaoAbrirVeiculo(vid);
     if (typeof window.mnRevAbrirModalMarco === 'function') {
         window.mnRevAbrirModalMarco(Number(marcoKm), Number(marcoMeses) || 12);
+        var inpDt = document.getElementById('mn-rev-f-data');
+        if (inpDt && !inpDt.value && di) inpDt.value = di;
+        var inpConc = document.getElementById('mn-rev-f-conc');
+        if (inpConc && !inpConc.value && forn) inpConc.value = forn;
     }
 };
 
