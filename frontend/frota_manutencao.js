@@ -1006,7 +1006,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         let kmLimite = kmNominal;
         let dtLimite = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, mesesNominal) : '';
         if (prevReal) {
-            if (prevReal.km_revisao) kmLimite = Number(prevReal.km_revisao) + passoKm;
+            const kmPrev = String(prevReal.observacoes || '').includes('marcada como feita manualmente') ? Number(prevReal.marco_km || 0) : Number(prevReal.km_revisao || 0);
+            if (kmPrev) kmLimite = kmPrev + passoKm;
             if (prevReal.data_revisao) dtLimite = _mnRevSomarMesesISO(prevReal.data_revisao, passoMeses);
         }
         const diffKm = kmLimite - kmAtual;
@@ -1019,7 +1020,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         if (!realizada && !vencida) break;
     }
     const totalMarcos = lista.length;
-    const marcos = lista.slice(-12);
+    const marcos = lista.slice().reverse();
 
     let alertasCriticos = [];
     let proxMarcoInfo = null;
@@ -1036,7 +1037,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         if (realizada) {
             sitCor = '#15803d'; sitBg = '#f0fdf4'; sitBorda = '#86efac';
             sitLabel = 'Realizada';
-            kmStatusTxt = (reg && reg.km_revisao) ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Limite ${kmLimite.toLocaleString('pt-BR')} km`;
+            const kmFeita = (reg && String(reg.observacoes || '').includes('marcada como feita manualmente')) ? Number(reg.marco_km || reg.km_revisao || kmLimite) : Number((reg && reg.km_revisao) || 0);
+            kmStatusTxt = kmFeita ? `Feita com ${kmFeita.toLocaleString('pt-BR')} km` : `Limite ${kmLimite.toLocaleString('pt-BR')} km`;
             tempoStatusTxt = (reg && reg.data_revisao) ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
             prevalenciaTxt = (reg && reg.concessionaria) ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
         } else {
@@ -1135,7 +1137,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <button onclick="window.mnRevAbrirModalMarco(${m.kmNominal}, ${m.mesesNominal})" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                     <i class="ph ph-clipboard-text"></i> ${realizada ? 'Ver / Editar Revisão' : 'Registrar / Checklist'}
                 </button>
-                ${(m.vencida && !realizada) ? `<button type="button" onclick="window.mnRevMarcarFeita(${m.kmNominal}, ${m.mesesNominal})" title="Marcar esta revisão vencida como feita" style="flex:0 0 auto;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-check"></i></button>` : ''}
+                ${(m.vencida && !realizada) ? `<button type="button" onclick="window.mnRevMarcarFeita(${m.kmNominal}, ${m.mesesNominal}, this)" title="Marcar esta revisão vencida como feita" style="flex:0 0 auto;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-check"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -1147,7 +1149,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 Revisões vencidas (${v.placa}${ehCar ? '' : ' — ' + kmAtual.toLocaleString('pt-BR') + ' km'})
             </div>
             <ul style="margin:0;padding-left:1.25rem;color:#7f1d1d;font-size:0.84rem;line-height:1.5;">
-                ${alertasCriticos.map(a => `<li>${a}</li>`).join('')}
+                ${alertasCriticos.slice(0, 6).map(a => `<li>${a}</li>`).join('')}
+                ${alertasCriticos.length > 6 ? `<li>... e mais <b>${alertasCriticos.length - 6}</b> revisão(ões) anterior(es) vencida(s) listadas nos cards abaixo.</li>` : ''}
                 <li>Se a revisão já foi executada, clique em <b>"Registrar / Checklist"</b> no card correspondente, marque como <b>Realizada</b>, marque os serviços realizados e anexe a Nota Fiscal / Ordem de Serviço.</li>
                 ${proxMarcoInfo ? (ehCar ? `<li>Próxima revisão até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>.</li>` : `<li>Próxima revisão: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>`) : ''}
             </ul>
@@ -1214,7 +1217,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <i class="ph ph-calendar-check" style="color:#7c3aed;font-size:1.2rem;"></i>
                 ${ehCar ? 'Revisões — a cada 12 meses da última revisão (plano por tempo, sem KM)' : 'Revisões — a cada ' + passoKm.toLocaleString('pt-BR') + ' km ou ' + passoMeses + ' meses da última revisão (o que ocorrer primeiro)'}
             </h3>
-            <div style="font-size:0.76rem;color:#64748b;margin-bottom:0.75rem;">Exibindo as últimas ${marcos.length} de ${totalMarcos} revisões (vencidas/concluídas + a próxima). Todas as revisões realizadas ficam na aba Histórico.</div>
+            <div style="font-size:0.76rem;color:#64748b;margin-bottom:0.75rem;">Exibindo ${marcos.length} revisão(ões) — ordenadas da mais próxima do vencimento para a mais antiga. Todas as revisões realizadas ficam na aba Histórico.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1rem;">
                 ${cardsMarcosHtml}
             </div>
@@ -2288,12 +2291,12 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
 };
 
 // Atalho: marca uma revisao VENCIDA como feita (sem checklist/fotos), so para atualizar o historico rapidamente
-window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
+window.mnRevMarcarFeita = async function(kmNominal, mesesNominal, btnEl) {
     const ctx = window._mnRevAtual;
     if (!ctx || !ctx.veiculo) return;
     const v = ctx.veiculo;
     const marcoTxt = window._mnRevEhCarretinha(v) ? ((Number(mesesNominal) || 12) + ' meses') : (Number(kmNominal).toLocaleString('pt-BR') + ' km');
-    if (!confirm('Marcar a revisão de ' + marcoTxt + ' do veículo ' + (v.placa || '') + ' como FEITA?\n\nSomente esta revisão será registrada como realizada hoje' + (window._mnRevEhCarretinha(v) ? '' : ', com a KM atual do veículo (' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km)') + '. As demais revisões atrasadas continuam pendentes para você formalizar.')) return;
+    if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.6'; btnEl.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i>'; }
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(kmNominal); });
     const body = {
@@ -2315,10 +2318,12 @@ window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
         });
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao marcar a revisão como feita');
+        await window._mnRevRecarregarDados();
+        window._mnRenderPainelRevisaoVeiculo();
+        if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão de ' + marcoTxt + ' marcada como feita!');
-        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
-        await window.mnRevisaoAbrirVeiculo(v.id);
     } catch (e) {
+        if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = ''; btnEl.innerHTML = '<i class="ph ph-check"></i>'; }
         alert('Erro: ' + e.message);
     }
 };

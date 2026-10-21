@@ -21731,7 +21731,8 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
         let kmLimite = kmNominal;
         let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
         if (prev) {
-            if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
+            const kmPrev = String(prev.observacoes || '').includes('marcada como feita manualmente') ? Number(prev.marco_km || 0) : Number(prev.km_revisao || 0);
+            if (kmPrev) kmLimite = kmPrev + passoKm;
             if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
         }
         const diffKm = kmLimite - kmAtual;
@@ -21896,7 +21897,8 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
         let kmLimite = kmNominal;
         let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
         if (prev) {
-            if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
+            const kmPrev = String(prev.observacoes || '').includes('marcada como feita manualmente') ? Number(prev.marco_km || 0) : Number(prev.km_revisao || 0);
+            if (kmPrev) kmLimite = kmPrev + passoKm;
             if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
         }
         const diffKm = kmLimite - kmAtual;
@@ -26380,6 +26382,7 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
             if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisoes col]', e2.message);
         });
     });
+    db.run("UPDATE frota_revisoes SET km_revisao = marco_km WHERE observacoes LIKE '%marcada como feita manualmente%' AND km_revisao > marco_km", () => {});
 });
 db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_anexos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26609,9 +26612,11 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
             if (confSemFoto.length > 0) {
                 return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), anexe ao menos uma foto em cada item de Conferências internas OBRIGATÓRIAS.' });
             }
-            kmRev = (existing && existing.status === 'realizada' && existing.km_revisao)
-                ? existing.km_revisao
-                : ((veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null);
+            kmRev = rapido
+                ? (ehCarretinhaRev ? null : marcoKm)
+                : ((existing && existing.status === 'realizada' && existing.km_revisao)
+                    ? existing.km_revisao
+                    : ((veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null));
             paradoDesde = dataRev || (existing && (existing.parado_desde || existing.data_revisao)) || hoje;
             const jaConcluidaMesmaData = existing && existing.status === 'realizada' && existing.parado_minutos !== null && existing.parado_minutos !== undefined && (!dataRev || dataRev === existing.parado_desde);
             if (jaConcluidaMesmaData) {
