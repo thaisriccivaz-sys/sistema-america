@@ -1089,10 +1089,26 @@ window._mnRevLinhaServicoHtml = function(s, st) {
     const isConf = s.grupo === 'conferencia';
     const obrig = s.grupo === 'obrigatorio' || isConf;
     const badgeHtml = isConf
-        ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>'
+        ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;white-space:nowrap;">OBRIGATÓRIO</span>'
         : (obrig
-            ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>'
-            : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;">OPCIONAL</span>');
+            ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;white-space:nowrap;">OBRIGATÓRIO</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;white-space:nowrap;">OPCIONAL</span>');
+    const selectTipoHtml = `<select data-rev-item="${s.id}" data-rev-field="tipo" ${marcado ? '' : 'disabled'} style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;${marcado ? '' : 'background:#f1f5f9;color:#94a3b8;'}">
+                <option value="troca_manutencao"${tipo === 'troca_manutencao' ? ' selected' : ''}>Manutenção / troca realizada</option>
+                <option value="vistoriado"${tipo === 'vistoriado' ? ' selected' : ''}>Vistoriado (sem manutenção/troca)</option>
+            </select>`;
+    const inputObsHtml = `<input type="text" data-rev-item="${s.id}" data-rev-field="obs" value="${E(st.obs || '')}" placeholder="Obs / marca / detalhe..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;${isConf ? 'margin-top:5px;' : ''}">`;
+    const colsTipoObs = isConf ? `
+        <td style="padding:8px 10px;width:240px;">
+            ${selectTipoHtml}
+            ${inputObsHtml}
+        </td>` : `
+        <td style="padding:8px 10px;width:250px;">
+            ${selectTipoHtml}
+        </td>
+        <td style="padding:8px 10px;width:190px;">
+            ${inputObsHtml}
+        </td>`;
     const colFotoConf = isConf ? `
         <td style="padding:8px 10px;min-width:210px;">
             <div style="display:flex;flex-direction:column;gap:5px;">
@@ -1111,21 +1127,13 @@ window._mnRevLinhaServicoHtml = function(s, st) {
             <input type="checkbox" data-rev-item="${s.id}" data-rev-field="realizado" data-rev-grupo="${s.grupo}" ${marcado ? 'checked' : ''} onchange="window._mnRevServicoMarcou('${s.id}')" style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
         </td>
         <td style="padding:8px 10px;">
-            <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${E(s.nome)}
+            <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:${isConf ? 'nowrap' : 'wrap'};">${E(s.nome)}
                 ${badgeHtml}
             </div>
             <div style="font-size:0.74rem;color:#64748b;">${E(s.desc)}</div>
             ${(s.origem || s.risco) ? `<div style="font-size:0.7rem;color:#94a3b8;">${E(s.origem || '')}${s.risco ? ' • Risco p/ garantia: ' + E(s.risco) : ''}</div>` : ''}
         </td>
-        <td style="padding:8px 10px;width:250px;">
-            <select data-rev-item="${s.id}" data-rev-field="tipo" ${marcado ? '' : 'disabled'} style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;${marcado ? '' : 'background:#f1f5f9;color:#94a3b8;'}">
-                <option value="troca_manutencao"${tipo === 'troca_manutencao' ? ' selected' : ''}>Manutenção / troca realizada</option>
-                <option value="vistoriado"${tipo === 'vistoriado' ? ' selected' : ''}>Vistoriado (sem manutenção/troca)</option>
-            </select>
-        </td>
-        <td style="padding:8px 10px;width:190px;">
-            <input type="text" data-rev-item="${s.id}" data-rev-field="obs" value="${E(st.obs || '')}" placeholder="Obs / marca / detalhe..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
-        </td>
+        ${colsTipoObs}
         ${colFotoConf}
     </tr>`;
 };
@@ -1249,8 +1257,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     const thConf = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
         <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
         <th style="padding:8px 10px;">Conferência / O que fazer</th>
-        <th style="padding:8px 10px;width:250px;">Foi realizado como?</th>
-        <th style="padding:8px 10px;width:190px;">Observações</th>
+        <th style="padding:8px 10px;width:240px;">Foi realizado como?</th>
         <th style="padding:8px 10px;min-width:210px;">Fotos obrigatórias (R2)</th></tr></thead>`;
 
     ov.innerHTML = `
@@ -3438,7 +3445,7 @@ window._mnEdMontar = function() {
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
       +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">'
       +           '<div><label style="' + lbl + '">Data da solicitação</label><input type="date" id="mned-dsol" value="' + esc(window._mnDataInput(m.created_at)) + '" readonly tabindex="-1" title="Data em que a manutenção foi solicitada" style="' + inp + 'background:#f1f5f9;color:#475569;cursor:not-allowed;"></div>'
-      +           '<div><label style="' + lbl + '">Data de início <span style="font-weight:400;color:#94a3b8;font-size:0.7rem;">(entrada em manutenção / veículo parado)</span></label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
+      +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
       +           '<div id="mned-dc-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
       +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
