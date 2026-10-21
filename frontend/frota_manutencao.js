@@ -474,7 +474,25 @@ window._mnRevBadgeHtml = function(v) {
     return '<span title="' + titulo + '" style="background:' + m.bg + ';color:' + m.cor + ';border:1px solid ' + m.bd + ';' + base + '"><i class="ph-fill ' + m.ico + '"></i> ' + m.txt + '</span>';
 };
 
-// Linha abaixo da placa: dias parado em revisao (EM REVISAO) ou data do agendamento (REVISAO AGENDADA)
+window._mnRevCarretinhaPrazoInfo = function(v) {
+    if (!v || !window._mnRevEhCarretinha(v)) return null;
+    const info = v.revisao_info || {};
+    const hoje = window._mnHojeISO();
+    let dtLimite = info.limite_data ? String(info.limite_data).slice(0, 10) : '';
+    if (!dtLimite) {
+        const base = String(v.data_inicio_garantia || '').split(/[T ]/)[0] || String(v.created_at || '').split(/[T ]/)[0];
+        if (base) dtLimite = _mnRevSomarMesesISO(base, 12);
+    }
+    const diffDias = dtLimite ? _mnRevDiffDias(dtLimite, hoje) : null;
+    return {
+        dtLimite: dtLimite,
+        dtLimiteBR: dtLimite ? _mnRevFmtDataBR(dtLimite) : '—',
+        diffDias: diffDias,
+        vencida: (v.revisao_status === 'vencida' || (diffDias !== null && diffDias < 0))
+    };
+};
+
+// Linha abaixo da placa: dias parado em revisao (EM REVISAO), data do agendamento (REVISAO AGENDADA) ou vencimento da carretinha
 window._mnRevBadgeDiasHtml = function(v) {
     const st = v && v.revisao_status;
     const info = (v && v.revisao_info) || {};
@@ -485,7 +503,54 @@ window._mnRevBadgeDiasHtml = function(v) {
     if (st === 'agendada' && info.data_agendada) {
         return '<span style="font-size:0.74rem;font-weight:700;color:#1d4ed8;"><i class="ph ph-calendar-blank"></i> Agendada para ' + _mnRevFmtDataBR(info.data_agendada) + '</span>';
     }
+    if (v && window._mnRevEhCarretinha(v)) {
+        const cp = window._mnRevCarretinhaPrazoInfo(v);
+        if (cp && cp.dtLimite && cp.diffDias !== null) {
+            if (cp.diffDias < 0) {
+                const atr = Math.abs(cp.diffDias);
+                return '<span style="font-size:0.74rem;font-weight:700;color:#dc2626;"><i class="ph ph-calendar-x"></i> Venceu em ' + cp.dtLimiteBR + ' • há ' + atr + (atr === 1 ? ' dia' : ' dias') + '</span>';
+            }
+            if (cp.diffDias === 0) {
+                return '<span style="font-size:0.74rem;font-weight:700;color:#d97706;"><i class="ph ph-calendar-check"></i> Vence hoje (' + cp.dtLimiteBR + ')</span>';
+            }
+            return '<span style="font-size:0.74rem;font-weight:700;color:' + (cp.diffDias <= 30 ? '#d97706' : '#15803d') + ';"><i class="ph ph-calendar-check"></i> Vence em ' + cp.dtLimiteBR + ' • faltam ' + cp.diffDias + (cp.diffDias === 1 ? ' dia' : ' dias') + '</span>';
+        }
+    }
     return '';
+};
+
+window._mnRevCarretinhaCardFooterHtml = function(v) {
+    const cp = window._mnRevCarretinhaPrazoInfo(v);
+    if (!cp || !cp.dtLimite || cp.diffDias === null) {
+        return '<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;font-size:0.78rem;color:#64748b;font-weight:600;"><i class="ph ph-calendar-check" style="color:#7c3aed;"></i> Plano por tempo — revisão a cada 12 meses (sem KM)</div>';
+    }
+    if (cp.diffDias < 0) {
+        const atr = Math.abs(cp.diffDias);
+        return '<div style="background:#fef2f2;padding:0.6rem 1rem;border-top:1px solid #fecaca;display:flex;flex-direction:column;gap:3px;">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+            + '<span style="font-size:0.76rem;color:#991b1b;font-weight:700;"><i class="ph-fill ph-warning-circle" style="color:#dc2626;"></i> Data que venceu:</span>'
+            + '<span style="font-size:0.84rem;font-weight:800;color:#dc2626;">' + cp.dtLimiteBR + '</span>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+            + '<span style="font-size:0.74rem;color:#7f1d1d;font-weight:600;">Situação do prazo:</span>'
+            + '<span style="font-size:0.78rem;font-weight:800;color:#b91c1c;">Venceu há ' + atr + (atr === 1 ? ' dia' : ' dias') + '</span>'
+            + '</div>'
+            + '</div>';
+    }
+    const cor = cp.diffDias <= 30 ? '#d97706' : '#15803d';
+    const bg = cp.diffDias <= 30 ? '#fffbeb' : '#f8fafc';
+    const bd = cp.diffDias <= 30 ? '#fde68a' : '#e2e8f0';
+    const txtDias = cp.diffDias === 0 ? 'Vence hoje!' : ('Faltam ' + cp.diffDias + (cp.diffDias === 1 ? ' dia' : ' dias') + ' para vencer');
+    return '<div style="background:' + bg + ';padding:0.6rem 1rem;border-top:1px solid ' + bd + ';display:flex;flex-direction:column;gap:3px;">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        + '<span style="font-size:0.76rem;color:#475569;font-weight:700;"><i class="ph ph-calendar-check" style="color:#7c3aed;"></i> Data que vence:</span>'
+        + '<span style="font-size:0.84rem;font-weight:800;color:#1e293b;">' + cp.dtLimiteBR + '</span>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        + '<span style="font-size:0.74rem;color:#64748b;font-weight:600;">Prazo:</span>'
+        + '<span style="font-size:0.78rem;font-weight:800;color:' + cor + ';">' + txtDias + '</span>'
+        + '</div>'
+        + '</div>';
 };
 
 // Filtros da aba Revisao: busca (placa / modelo / tipo), tipo, garantia e status da revisao
@@ -597,7 +662,7 @@ window._mnPrevCardsHtml = function(modo) {
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
                 </div>${linhaPlano}${linhaGarantia}
             </div>
-            ${(ehRevisao && window._mnRevEhCarretinha(v)) ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;font-size:0.78rem;color:#64748b;font-weight:600;"><i class="ph ph-calendar-check" style="color:#7c3aed;"></i> Plano por tempo — revisão a cada 12 meses (sem KM)</div>` : ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
+            ${(ehRevisao && window._mnRevEhCarretinha(v)) ? window._mnRevCarretinhaCardFooterHtml(v) : ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
                     <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
@@ -846,7 +911,10 @@ function _mnRevSomarMesesISO(dtIso, meses) {
     if (!dtIso) return '';
     const p = String(dtIso).split('T')[0].split('-');
     if (p.length !== 3) return '';
-    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), 1);
+    const yr = parseInt(p[0], 10);
+    if (isNaN(yr) || yr < 1900) return '';
+    const d = new Date(yr, parseInt(p[1], 10) - 1 + Number(meses || 0), 1);
+    d.setFullYear(yr, parseInt(p[1], 10) - 1 + Number(meses || 0), 1);
     const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
     d.setDate(Math.min(parseInt(p[2], 10), ultimoDia));
     const y = d.getFullYear();
@@ -900,7 +968,11 @@ window.mnRevisaoAbrirVeiculo = async function(vid) {
 };
 
 window._mnRevSalvarConfigVeiculo = async function(vid) {
-    const dtGarAte = document.getElementById('mn-rev-cfg-garantia')?.value || '';
+    const dtGarAte = String(document.getElementById('mn-rev-cfg-garantia')?.value || '').trim();
+    if (dtGarAte) {
+        const ano = parseInt(dtGarAte.split('-')[0], 10);
+        if (!ano || ano < 2000 || ano > 2100) return;
+    }
     const usoSev = document.getElementById('mn-rev-cfg-severo')?.value === '1' ? 1 : 0;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
@@ -915,6 +987,10 @@ window._mnRevSalvarConfigVeiculo = async function(vid) {
             window._mnRevAtual.veiculo.garantia_fabrica = dtGarAte ? 1 : 0;
             window._mnRevAtual.veiculo.garantia_fabrica_ate = dtGarAte || null;
             window._mnRevAtual.veiculo.uso_severo = usoSev;
+            if (j.revisao_status !== undefined) {
+                window._mnRevAtual.veiculo.revisao_status = j.revisao_status;
+                window._mnRevAtual.veiculo.revisao_info = j.revisao_info || {};
+            }
         }
         [window._manutFrota, window._frotaDados].forEach(arr => {
             const v = (arr || []).find(x => String(x.id) === String(vid));
@@ -922,6 +998,10 @@ window._mnRevSalvarConfigVeiculo = async function(vid) {
                 v.garantia_fabrica = dtGarAte ? 1 : 0;
                 v.garantia_fabrica_ate = dtGarAte || null;
                 v.uso_severo = usoSev;
+                if (j.revisao_status !== undefined) {
+                    v.revisao_status = j.revisao_status;
+                    v.revisao_info = j.revisao_info || {};
+                }
             }
         });
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Parâmetros de revisão atualizados!');
@@ -931,7 +1011,11 @@ window._mnRevSalvarConfigVeiculo = async function(vid) {
 };
 
 window._mnRevSalvarInicioPlano = async function(vid) {
-    const dt = document.getElementById('mn-rev-cfg-inicio')?.value || '';
+    const dt = String(document.getElementById('mn-rev-cfg-inicio')?.value || '').trim();
+    if (dt) {
+        const ano = parseInt(dt.split('-')[0], 10);
+        if (!ano || ano < 2000 || ano > 2100) return;
+    }
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
         const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
@@ -943,19 +1027,48 @@ window._mnRevSalvarInicioPlano = async function(vid) {
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar o início do plano');
         [window._manutFrota, window._frotaDados].forEach(arr => {
             const v = (arr || []).find(x => String(x.id) === String(vid));
-            if (v) v.data_inicio_garantia = dt || null;
+            if (v) {
+                v.data_inicio_garantia = dt || null;
+                if (j.revisao_status !== undefined) {
+                    v.revisao_status = j.revisao_status;
+                    v.revisao_info = j.revisao_info || {};
+                }
+            }
         });
-        if (window._mnRevAtual && window._mnRevAtual.veiculo) window._mnRevAtual.veiculo.data_inicio_garantia = dt || null;
+        if (window._mnRevAtual && window._mnRevAtual.veiculo) {
+            window._mnRevAtual.veiculo.data_inicio_garantia = dt || null;
+            if (j.revisao_status !== undefined) {
+                window._mnRevAtual.veiculo.revisao_status = j.revisao_status;
+                window._mnRevAtual.veiculo.revisao_info = j.revisao_info || {};
+            }
+        }
         if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
         await window.mnRevisaoAbrirVeiculo(vid);
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Início do plano atualizado!');
     } catch (e) { alert(e.message); }
 };
 
-window._mnRevSalvarDataPrimeiraRevisao = async function(vid, dtPrimeiraIso, passoMeses) {
+window._mnRevSalvarDataPrimeiraRevisao = async function(vid, dtPrimeiraIso, passoMeses, fromBlur) {
     const dtAlvo = String(dtPrimeiraIso || '').trim();
+    if (dtAlvo) {
+        const ano = parseInt(dtAlvo.split('-')[0], 10);
+        if (!ano || ano < 2000 || ano > 2100) return;
+    }
+    if (!fromBlur && document.activeElement && document.activeElement.type === 'date') {
+        clearTimeout(window._mnRevTimerDtPrimeira);
+        window._mnRevTimerDtPrimeira = setTimeout(function() {
+            window._mnRevSalvarDataPrimeiraRevisao(vid, dtAlvo, passoMeses, true);
+        }, 550);
+        return;
+    }
+    clearTimeout(window._mnRevTimerDtPrimeira);
     const meses = Number(passoMeses) || 12;
     const dtIni = dtAlvo ? _mnRevSomarMesesISO(dtAlvo, -meses) : '';
+    const vAtual = (window._mnRevAtual && window._mnRevAtual.veiculo && String(window._mnRevAtual.veiculo.id) === String(vid))
+        ? window._mnRevAtual.veiculo
+        : (window._manutFrota || []).find(function(x) { return String(x.id) === String(vid); });
+    const prevIni = vAtual ? String(vAtual.data_inicio_garantia || '').split('T')[0] : '';
+    if ((dtIni || '') === (prevIni || '')) return;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
         const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
@@ -967,11 +1080,23 @@ window._mnRevSalvarDataPrimeiraRevisao = async function(vid, dtPrimeiraIso, pass
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar a data da 1ª revisão');
         [window._manutFrota, window._frotaDados].forEach(arr => {
             const v = (arr || []).find(x => String(x.id) === String(vid));
-            if (v) v.data_inicio_garantia = dtIni || null;
+            if (v) {
+                v.data_inicio_garantia = dtIni || null;
+                if (j.revisao_status !== undefined) {
+                    v.revisao_status = j.revisao_status;
+                    v.revisao_info = j.revisao_info || {};
+                }
+            }
         });
-        if (window._mnRevAtual && window._mnRevAtual.veiculo) window._mnRevAtual.veiculo.data_inicio_garantia = dtIni || null;
-        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
+        if (window._mnRevAtual && window._mnRevAtual.veiculo) {
+            window._mnRevAtual.veiculo.data_inicio_garantia = dtIni || null;
+            if (j.revisao_status !== undefined) {
+                window._mnRevAtual.veiculo.revisao_status = j.revisao_status;
+                window._mnRevAtual.veiculo.revisao_info = j.revisao_info || {};
+            }
+        }
         await window.mnRevisaoAbrirVeiculo(vid);
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Data da 1ª revisão atualizada!');
     } catch (e) { alert(e.message); }
 };
@@ -997,7 +1122,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     // Marcos: cada ciclo respeita +passoKm ou +passoMeses (o que ocorrer primeiro) a partir da ultima revisao realizada.
     // Lista = concluidos/vencidos + o proximo marco ainda nao vencido (sem marcos futuros alem dele).
     const lista = [];
-    let prevReal = null;
+    let prevReal = null, temVencidaLoop = false, ultimaVencidaLoop = null, qtdVencidasLoop = 0;
     for (let n = 1; n <= 400; n++) {
         const kmNominal = n * passoKm;
         const mesesNominal = n * passoMeses;
@@ -1015,12 +1140,64 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const vencKm = kmAtual > 0 && diffKm <= 0;
         const vencTempo = diffDias !== null && diffDias < 0;
         const vencida = !realizada && (vencKm || vencTempo);
-        lista.push({ n: n, kmNominal: kmNominal, mesesNominal: mesesNominal, reg: reg, realizada: realizada, kmLimite: kmLimite, dtLimite: dtLimite, diffKm: diffKm, diffDias: diffDias, vencKm: vencKm, vencTempo: vencTempo, vencida: vencida });
+        if (ehCar && temVencidaLoop && !realizada && !vencida) break;
+        const item = { n: n, kmNominal: kmNominal, mesesNominal: mesesNominal, reg: reg, realizada: realizada, kmLimite: kmLimite, dtLimite: dtLimite, diffKm: diffKm, diffDias: diffDias, vencKm: vencKm, vencTempo: vencTempo, vencida: vencida };
+        lista.push(item);
+        if (vencida) {
+            temVencidaLoop = true;
+            ultimaVencidaLoop = item;
+            qtdVencidasLoop++;
+        }
         prevReal = realizada ? reg : null;
         if (!realizada && !vencida) break;
     }
     const totalMarcos = lista.length;
     const marcos = lista.slice().reverse();
+
+    // Sincroniza o status do veiculo (usado no cabecalho e no card externo) diretamente com os marcos calculados
+    const revsLista = Array.isArray(ctx.revisoes) ? ctx.revisoes : [];
+    const emRevLocal = revsLista.find(r => r.status === 'agendada' && (!r.data_revisao || String(r.data_revisao).trim() === '' || String(r.data_revisao).slice(0, 10) <= hojeIso));
+    const agLocal = !emRevLocal ? revsLista.filter(r => r.status === 'agendada' && r.data_revisao && String(r.data_revisao).slice(0, 10) > hojeIso).sort((a, b) => String(a.data_revisao).localeCompare(String(b.data_revisao)))[0] : null;
+    const ultimoItem = lista[lista.length - 1] || null;
+    let revInfoCalc = { status: null };
+    if (emRevLocal) {
+        const ini = String(emRevLocal.parado_desde || emRevLocal.data_revisao || emRevLocal.created_at || '').slice(0, 10);
+        const dias = ini ? Math.max(0, _mnRevDiffDias(hojeIso, ini) || 0) : 0;
+        revInfoCalc = { status: 'em_revisao', dias_parado: dias, marco_km: emRevLocal.marco_km, eh_carretinha: !!ehCar };
+    } else if (agLocal) {
+        revInfoCalc = { status: 'agendada', data_agendada: String(agLocal.data_revisao).slice(0, 10), marco_km: agLocal.marco_km, eh_carretinha: !!ehCar };
+    } else if (temVencidaLoop && ultimaVencidaLoop) {
+        revInfoCalc = {
+            status: 'vencida',
+            n: ultimaVencidaLoop.n,
+            marco_km: ultimaVencidaLoop.kmNominal,
+            marco_meses: ultimaVencidaLoop.mesesNominal,
+            limite_km: ultimaVencidaLoop.kmLimite,
+            limite_data: ultimaVencidaLoop.dtLimite || null,
+            atraso_km: (kmAtual > 0 && ultimaVencidaLoop.diffKm <= 0) ? Math.abs(ultimaVencidaLoop.diffKm) : null,
+            atraso_dias: (ultimaVencidaLoop.diffDias !== null && ultimaVencidaLoop.diffDias < 0) ? Math.abs(ultimaVencidaLoop.diffDias) : null,
+            qtd_vencidas: qtdVencidasLoop,
+            eh_carretinha: !!ehCar
+        };
+    } else if (ultimoItem && !ultimoItem.realizada) {
+        const proxKmCalc = kmAtual > 0 && ultimoItem.diffKm > 0 && ultimoItem.diffKm <= 1000;
+        const proxTempoCalc = ultimoItem.diffDias !== null && ultimoItem.diffDias >= 0 && ultimoItem.diffDias <= 30;
+        revInfoCalc = {
+            status: (proxKmCalc || proxTempoCalc) ? 'a_vencer' : ((kmAtual > 0 || dtIniGar) ? 'ok' : null),
+            n: ultimoItem.n,
+            marco_km: ultimoItem.kmNominal,
+            marco_meses: ultimoItem.mesesNominal,
+            limite_km: ultimoItem.kmLimite,
+            limite_data: ultimoItem.dtLimite || null,
+            falta_km: (kmAtual > 0 && ultimoItem.diffKm > 0) ? ultimoItem.diffKm : null,
+            falta_dias: (ultimoItem.diffDias !== null && ultimoItem.diffDias >= 0) ? ultimoItem.diffDias : null,
+            eh_carretinha: !!ehCar
+        };
+    } else if (kmAtual > 0 || dtIniGar) {
+        revInfoCalc = { status: 'ok', eh_carretinha: !!ehCar };
+    }
+    v.revisao_status = revInfoCalc.status;
+    v.revisao_info = revInfoCalc;
 
     let alertasCriticos = [];
     let proxMarcoInfo = null;
@@ -1032,7 +1209,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const { realizada, kmLimite, dtLimite, diffKm, diffDias } = m;
 
         let sitCor = '#64748b', sitBg = '#f8fafc', sitBorda = '#e2e8f0', sitLabel = 'No Prazo';
-        let kmStatusTxt = '', tempoStatusTxt = '', prevalenciaTxt = '';
+        let kmStatusTxt = '', tempoStatusTxt = '', prevalenciaTxt = '', carDataVencRowHtml = '';
 
         if (realizada) {
             sitCor = '#15803d'; sitBg = '#f0fdf4'; sitBorda = '#86efac';
@@ -1042,13 +1219,13 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             tempoStatusTxt = (reg && reg.data_revisao) ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
             prevalenciaTxt = (reg && reg.concessionaria) ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
         } else {
-            const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1500;
-            const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 45;
+            const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1000;
+            const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 30;
             if (m.vencida) {
                 sitCor = '#dc2626'; sitBg = '#fef2f2'; sitBorda = '#fca5a5';
                 sitLabel = agendada ? 'Agendada (Vencida)' : 'Vencida';
                 alertasCriticos.push(ehCar
-                    ? `${m.n}ª revisão (a cada 12 meses${dtLimite ? ' — prazo <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): venceu por tempo há <b>${Math.abs(diffDias)} dias</b>.`
+                    ? `${m.n}ª revisão (a cada 12 meses${dtLimite ? ' — venceu em <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): venceu por tempo há <b>${Math.abs(diffDias)} ${Math.abs(diffDias) === 1 ? 'dia' : 'dias'}</b>.`
                     : `${m.n}ª revisão (limite <b>${kmLimite.toLocaleString('pt-BR')} km</b>${dtLimite ? ' ou <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): ${m.vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b>` : ''}${m.vencKm && m.vencTempo ? ' e ' : ''}${m.vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
             } else if (proxKm || proxTempo || agendada) {
                 sitCor = '#d97706'; sitBg = '#fffbeb'; sitBorda = '#fcd34d';
@@ -1061,14 +1238,31 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             kmStatusTxt = kmAtual > 0
                 ? (diffKm <= 0
                     ? `<span style="color:#dc2626;font-weight:800;">Passou ${Math.abs(diffKm).toLocaleString('pt-BR')} km</span>`
-                    : `<span style="color:${diffKm <= 1500 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
+                    : `<span style="color:${diffKm <= 1000 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
                 : '<span style="color:#94a3b8;">KM atual não informado</span>';
 
-            tempoStatusTxt = dtLimite
-                ? (diffDias < 0
-                    ? `<span style="color:#dc2626;font-weight:800;">Vencida há ${Math.abs(diffDias)} dias (${_mnRevFmtDataBR(dtLimite)})</span>`
-                    : `<span style="color:${diffDias <= 45 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffDias} dias (${_mnRevFmtDataBR(dtLimite)})</span>`)
-                : '<span style="color:#94a3b8;">Informe o início da garantia / compra</span>';
+            if (ehCar) {
+                if (dtLimite) {
+                    const atrDias = Math.abs(diffDias);
+                    carDataVencRowHtml = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar-blank"></i> ${diffDias < 0 ? 'Data que venceu:' : 'Data que vence:'}</span>
+                        <span style="color:${diffDias < 0 ? '#dc2626' : '#0f172a'};font-weight:800;">${_mnRevFmtDataBR(dtLimite)}</span>
+                    </div>`;
+                    tempoStatusTxt = diffDias < 0
+                        ? `<span style="color:#dc2626;font-weight:800;">Venceu há ${atrDias} ${atrDias === 1 ? 'dia' : 'dias'} (${_mnRevFmtDataBR(dtLimite)})</span>`
+                        : (diffDias === 0
+                            ? `<span style="color:#d97706;font-weight:800;">Vence hoje (${_mnRevFmtDataBR(dtLimite)})</span>`
+                            : `<span style="color:${diffDias <= 30 ? '#d97706' : '#15803d'};font-weight:800;">Faltam ${diffDias} ${diffDias === 1 ? 'dia' : 'dias'} para vencer (${_mnRevFmtDataBR(dtLimite)})</span>`);
+                } else {
+                    tempoStatusTxt = '<span style="color:#94a3b8;">Informe a data da 1ª revisão</span>';
+                }
+            } else {
+                tempoStatusTxt = dtLimite
+                    ? (diffDias < 0
+                        ? `<span style="color:#dc2626;font-weight:800;">Vencida há ${Math.abs(diffDias)} dias (${_mnRevFmtDataBR(dtLimite)})</span>`
+                        : `<span style="color:${diffDias <= 30 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffDias} dias (${_mnRevFmtDataBR(dtLimite)})</span>`)
+                    : '<span style="color:#94a3b8;">Informe o início da garantia / compra</span>';
+            }
 
             if (kmAtual > 0 && dtLimite) {
                 const percKm = Math.max(0, Math.min(150, Math.round(((kmAtual - (kmLimite - passoKm)) / passoKm) * 100)));
@@ -1098,7 +1292,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                 <div>
                     <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${m.n}ª Revisão</div>
-                    <div style="font-size:1.1rem;font-weight:800;color:#1e293b;">${ehCar ? (m.n * 12) + ' meses' : kmLimite.toLocaleString('pt-BR') + ' km'} <span style="font-size:0.82rem;font-weight:600;color:#64748b;">${dtLimite ? (ehCar ? 'até ' : 'ou até ') + _mnRevFmtDataBR(dtLimite) : 'ou ' + passoMeses + ' meses'}</span></div>
+                    <div style="font-size:1.1rem;font-weight:800;color:#1e293b;">${ehCar ? (m.n * 12) + ' meses' : kmLimite.toLocaleString('pt-BR') + ' km'} <span style="font-size:0.82rem;font-weight:600;color:${ehCar && !realizada && m.vencida ? '#dc2626' : '#64748b'};">${dtLimite ? (ehCar ? (!realizada && m.vencida ? '• Venceu em ' : '• Vence em ') : 'ou até ') + _mnRevFmtDataBR(dtLimite) : 'ou ' + passoMeses + ' meses'}</span></div>
                 </div>
                 <span style="background:${sitBg};color:${sitCor};border:1px solid ${sitBorda};padding:4px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;white-space:nowrap;">${sitLabel}</span>
             </div>
@@ -1106,17 +1300,17 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             ${window._mnRevParadoCardBannerHtml(reg)}
 
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.8rem;display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">
-                ${ehCar ? '' : `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                ${ehCar ? carDataVencRowHtml : `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <span style="color:#64748b;font-weight:600;"><i class="ph ph-gauge"></i> Por KM:</span>
                     <span>${kmStatusTxt}</span>
                 </div>`}
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                    <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar"></i> Por Tempo:</span>
+                    <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar"></i> ${ehCar ? 'Prazo da revisão:' : 'Por Tempo:'}</span>
                     <span>${tempoStatusTxt}</span>
                 </div>
                 ${(m.n === 1 && !realizada) ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #cbd5e1;">
                     <span style="color:#475569;font-weight:700;font-size:0.76rem;"><i class="ph ph-pencil-simple" style="color:#7c3aed;"></i> Data da 1ª revisão:</span>
-                    <input type="date" value="${dtLimite || ''}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses})" style="border:1.5px solid #c4b5fd;border-radius:6px;padding:2px 8px;font-size:0.78rem;font-weight:700;color:#1e293b;background:#fff;cursor:pointer;" title="Altere a data desta 1ª revisão para definir se está vencida ou espaçar a próxima revisão">
+                    <input type="date" value="${dtLimite || ''}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, false)" onblur="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="border:1.5px solid #c4b5fd;border-radius:6px;padding:2px 8px;font-size:0.78rem;font-weight:700;color:#1e293b;background:#fff;cursor:pointer;" title="Altere a data desta 1ª revisão para definir se está vencida ou espaçar a próxima revisão">
                 </div>` : ''}
                 <div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">
                     ${prevalenciaTxt}
@@ -1159,16 +1353,18 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             <div style="color:#166534;font-size:0.86rem;font-weight:600;">
                 <i class="ph ph-seal-check" style="color:#16a34a;font-size:1.1rem;"></i>
                 ${ehCar ? 'Revisões em dia (plano por tempo — a cada 12 meses).' : 'Revisões em dia para a quilometragem atual (<b>' + kmAtual.toLocaleString('pt-BR') + ' km</b>).'}
-                ${proxMarcoInfo ? (ehCar ? `Próxima revisão até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>.` : `Próxima revisão aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).`) : ''}
+                ${proxMarcoInfo ? (ehCar ? `Próxima revisão em <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b> (faltam <b>${proxMarcoInfo.diffDias} ${proxMarcoInfo.diffDias === 1 ? 'dia' : 'dias'}</b>).` : `Próxima revisão aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).`) : ''}
             </div>
         </div>`;
 
-    if (v.revisao_status) {
-        [window._manutFrota, window._frotaDados].forEach(arr => {
-            const fv = (arr || []).find(x => String(x.id) === String(v.id));
-            if (fv) { fv.revisao_status = v.revisao_status; fv.revisao_info = v.revisao_info || {}; }
-        });
-    }
+    [window._manutFrota, window._frotaDados].forEach(arr => {
+        const fv = (arr || []).find(x => String(x.id) === String(v.id));
+        if (fv) {
+            fv.revisao_status = v.revisao_status;
+            fv.revisao_info = v.revisao_info || {};
+            if (v.data_inicio_garantia !== undefined) fv.data_inicio_garantia = v.data_inicio_garantia;
+        }
+    });
 
     det.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1rem;">
@@ -1194,11 +1390,11 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 </div>`}
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Defina a data da 1ª revisão do plano (coloque data passada se já estiver vencida ou datas espaçadas para não vencerem todas no mesmo dia)">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Data da 1ª Revisão:</label>
-                    <input type="date" id="mn-rev-cfg-primeira" value="${dtPrimeiraRev}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${dtPrimeiraRev ? (dtPrimeiraRev < hojeIso ? '#dc2626' : '#1e293b') : '#1e293b'};">
+                    <input type="date" id="mn-rev-cfg-primeira" value="${dtPrimeiraRev}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, false)" onblur="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${dtPrimeiraRev ? (dtPrimeiraRev < hojeIso ? '#dc2626' : '#1e293b') : '#1e293b'};">
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia até:</label>
-                    <input type="date" id="mn-rev-cfg-garantia" value="${garAte}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${garAte ? (garAte < hojeIso ? '#dc2626' : '#16a34a') : '#1e293b'};">
+                    <input type="date" id="mn-rev-cfg-garantia" value="${garAte}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" onblur="window._mnRevSalvarConfigVeiculo(${v.id})" onkeydown="if(event.key==='Enter')this.blur()" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${garAte ? (garAte < hojeIso ? '#dc2626' : '#16a34a') : '#1e293b'};">
                 </div>
                 ${ehCar ? '' : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso</label>
@@ -1829,6 +2025,7 @@ window._mnRevParadoIniciarTick = function() {
 
 window._mnRevCalcMinConcluida = function(reg) {
     if (!reg) return null;
+    if (String(reg.observacoes || '').includes('marcada como feita manualmente')) return null;
     if (reg.parado_minutos !== null && reg.parado_minutos !== undefined && reg.parado_minutos !== '') return Number(reg.parado_minutos);
     if (reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') return Number(reg.dias_parado) * 1440;
     const ini = String(reg.parado_desde || reg.data_revisao || '').split('T')[0];
@@ -2318,9 +2515,15 @@ window.mnRevMarcarFeita = async function(kmNominal, mesesNominal, btnEl) {
         });
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao marcar a revisão como feita');
+        if (j.revisao_status !== undefined) {
+            [window._manutFrota, window._frotaDados].forEach(function(arr) {
+                const fv = (arr || []).find(function(x) { return String(x.id) === String(v.id); });
+                if (fv) { fv.revisao_status = j.revisao_status; fv.revisao_info = j.revisao_info || {}; }
+            });
+        }
         await window._mnRevRecarregarDados();
         window._mnRenderPainelRevisaoVeiculo();
-        if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão de ' + marcoTxt + ' marcada como feita!');
     } catch (e) {
         if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = ''; btnEl.innerHTML = '<i class="ph ph-check"></i>'; }
