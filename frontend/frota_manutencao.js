@@ -919,7 +919,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 </div>
                 <div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">
                     ${prevalenciaTxt}
-                </div>
+                </div>${window._mnRevParadoTxt(reg) ? '<div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">' + window._mnRevParadoTxt(reg) + '</div>' : ''}
             </div>
 
             <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.75rem;">
@@ -1085,6 +1085,7 @@ window._mnRevServicoMarcou = function(id) {
     if (!cb) return;
     if (sel) { sel.disabled = !cb.checked; sel.style.background = cb.checked ? '' : '#f1f5f9'; sel.style.color = cb.checked ? '' : '#94a3b8'; }
     if (row) row.style.background = cb.checked ? '#f0fdf4' : '#fff';
+    if (!cb.checked) window._mnRevPodarVinculos(id);
     window._mnRevAtualizarContadorObrig();
 };
 
@@ -1150,10 +1151,11 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
             <!-- 1. Registro de execucao -->
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
                 <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-wrench" style="color:#7c3aed;"></i> 1. Registro de Execução da Revisão</div>
+                <div id="mn-rev-parado-info" style="margin-bottom:0.75rem;"></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Situação da Revisão *</label>
-                        <select id="mn-rev-f-status" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
+                        <select id="mn-rev-f-status" onchange="window._mnRevAtualizarInfoParado()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
                             <option value="pendente"${reg.status === 'pendente' ? ' selected' : ''}>Pendente</option>
                             <option value="agendada"${reg.status === 'agendada' ? ' selected' : ''}>Agendada</option>
                             <option value="realizada"${reg.status === 'realizada' ? ' selected' : ''}>Realizada (Concluída)</option>
@@ -1161,11 +1163,11 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
-                        <input type="date" id="mn-rev-f-data" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <input type="date" id="mn-rev-f-data" onchange="window._mnRevAtualizarInfoParado()" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
-                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM em que foi realizada</label>
-                        <input type="number" id="mn-rev-f-km" value="${reg.km_revisao || ''}" placeholder="Ex: ${marcoKm}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM da revisão (automático da Gestão de Frota)</label>
+                        <input type="number" id="mn-rev-f-km" value="${(reg.status === 'realizada' && reg.km_revisao) ? reg.km_revisao : (v.km_atual || '')}" readonly tabindex="-1" title="Preenchido automaticamente com o KM da Gestão de Frota" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;background:#f1f5f9;color:#475569;cursor:not-allowed;">
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Concessionária / Autorizada</label>
@@ -1253,6 +1255,154 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     document.body.appendChild(ov);
     window._mnRevAtualizarModalDados(false);
     window._mnRevAtualizarContadorObrig();
+    window._mnRevAtualizarInfoParado();
+};
+
+// ── Vinculo de linhas da nota a servicos: lista suspensa (na frente de tudo) apenas com os servicos marcados no passo 2 ──
+window._mnRevServicosMarcados = function() {
+    return (window._mnRevServicosModal || []).filter(function(s) {
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+        return cb && cb.checked;
+    });
+};
+
+window._mnRevVincLabel = function(servicos) {
+    const arr = servicos || [];
+    if (!arr.length) return 'Vincular serviço... \u25BE';
+    if (arr.length === 1) {
+        const s = (window._mnRevServicosModal || []).find(function(x) { return x.id === arr[0]; });
+        return (s ? s.nome : arr[0]) + ' \u25BE';
+    }
+    return arr.length + ' serviços \u25BE';
+};
+
+window._mnRevFecharVinculo = function() {
+    const el = document.getElementById('mn-rev-vinc-pop');
+    if (el) el.remove();
+    if (window._mnRevVincOutside) {
+        document.removeEventListener('mousedown', window._mnRevVincOutside, true);
+        window.removeEventListener('scroll', window._mnRevVincScroll, true);
+        window.removeEventListener('keydown', window._mnRevVincKey, true);
+        window._mnRevVincOutside = null;
+    }
+};
+
+window._mnRevAbrirVinculo = function(i, btn) {
+    const st = window._mnRevNotaStage;
+    if (!st || !st.lancs[i] || !btn) return;
+    const jaAberto = document.getElementById('mn-rev-vinc-pop');
+    const mesmo = jaAberto && jaAberto.getAttribute('data-linha') === String(i);
+    window._mnRevFecharVinculo();
+    if (mesmo) return;
+    const E = window._mnRevEsc;
+    const l = st.lancs[i];
+    const marcados = window._mnRevServicosMarcados();
+    const bloco = function(titulo, lista) {
+        if (!lista.length) return '';
+        return '<div style="font-size:0.66rem;font-weight:800;color:#64748b;margin:6px 0 2px;">' + titulo + '</div>' + lista.map(function(s) {
+            return '<label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#1e293b;padding:3px 0;cursor:pointer;"><input type="checkbox" ' + (l.servicos.indexOf(s.id) >= 0 ? 'checked' : '') + ' onchange="window._mnRevStageToggleServ(' + i + ',\'' + s.id + '\',this.checked)" style="accent-color:#7c3aed;"> ' + E(s.nome) + '</label>';
+        }).join('');
+    };
+    const pop = document.createElement('div');
+    pop.id = 'mn-rev-vinc-pop';
+    pop.setAttribute('data-linha', String(i));
+    const r = btn.getBoundingClientRect();
+    const largura = 310;
+    const esq = Math.min(Math.max(8, r.right - largura), window.innerWidth - largura - 8);
+    const abreAcima = (window.innerHeight - r.bottom) < 260 && r.top > 260;
+    pop.style.cssText = 'position:fixed;z-index:10300;width:' + largura + 'px;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.28);padding:8px 12px;left:' + esq + 'px;' + (abreAcima ? 'bottom:' + (window.innerHeight - r.top + 4) + 'px;' : 'top:' + (r.bottom + 4) + 'px;');
+    pop.innerHTML = '<div style="font-size:0.74rem;font-weight:800;color:#075985;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">Serviços marcados no passo 2</div>'
+        + (marcados.length
+            ? bloco('OBRIGATÓRIOS', marcados.filter(function(s) { return s.grupo === 'obrigatorio'; })) + bloco('OPCIONAIS', marcados.filter(function(s) { return s.grupo === 'opcional'; }))
+            : '<div style="font-size:0.78rem;color:#b45309;padding:8px 0;">Nenhum serviço marcado. Marque no passo 2 os serviços que foram realizados para poder vincular.</div>');
+    document.body.appendChild(pop);
+    window._mnRevVincOutside = function(ev) { if (!pop.contains(ev.target) && ev.target !== btn) window._mnRevFecharVinculo(); };
+    window._mnRevVincScroll = function(ev) { if (!pop.contains(ev.target)) window._mnRevFecharVinculo(); };
+    window._mnRevVincKey = function(ev) { if (ev.key === 'Escape') window._mnRevFecharVinculo(); };
+    document.addEventListener('mousedown', window._mnRevVincOutside, true);
+    window.addEventListener('scroll', window._mnRevVincScroll, true);
+    window.addEventListener('keydown', window._mnRevVincKey, true);
+};
+
+window._mnRevStageToggleServ = function(i, id, marcado) {
+    const st = window._mnRevNotaStage;
+    if (!st || !st.lancs[i]) return;
+    const arr = st.lancs[i].servicos;
+    const pos = arr.indexOf(id);
+    if (marcado && pos < 0) arr.push(id);
+    if (!marcado && pos >= 0) arr.splice(pos, 1);
+    const btn = document.getElementById('mn-stg-btn-' + i);
+    if (btn) { btn.textContent = window._mnRevVincLabel(arr); btn.style.color = arr.length ? '#15803d' : '#b45309'; }
+    window._mnRevAtualizarCustosPreview();
+};
+
+// Servico desmarcado no passo 2: remove o vinculo das linhas ainda nao anexadas
+window._mnRevPodarVinculos = function(id) {
+    const st = window._mnRevNotaStage;
+    if (!st) return;
+    let mudou = false;
+    st.lancs.forEach(function(l) { const p = l.servicos.indexOf(id); if (p >= 0) { l.servicos.splice(p, 1); mudou = true; } });
+    if (mudou) { window._mnRevFecharVinculo(); window._mnRevRenderStage(); }
+};
+
+// Custo por servico em tempo real: notas ja lancadas + linhas da nota em edicao (conforme vai vinculando)
+window._mnRevAtualizarCustosPreview = function() {
+    const el = document.getElementById('mn-rev-custos-serv');
+    if (!el) return;
+    const reg = window._mnRevRegAtual();
+    const lancs = reg ? (reg.lancamentos || []).slice() : [];
+    const st = window._mnRevNotaStage;
+    if (st) st.lancs.forEach(function(l) {
+        if (l.incluir && Number(l.valor_total) > 0) lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [] });
+    });
+    el.innerHTML = window._mnRevCustosPorServicoHtml(lancs);
+};
+
+// ── Veiculo parado durante a revisao (agendada): dias parado ──
+window._mnRevParadoTxt = function(reg) {
+    if (!reg) return '';
+    const hoje = window._mnHojeISO();
+    if (reg.status === 'agendada') {
+        const ini = String(reg.data_revisao || reg.parado_desde || '').split('T')[0];
+        if (!ini) return '';
+        if (ini > hoje) return '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — veículo disponível até essa data';
+        const d = _mnRevDiffDias(hoje, ini);
+        return '\uD83D\uDEA7 Veículo <b style="color:#dc2626;">indisponível</b> — parado há <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b> (desde ' + _mnRevFmtDataBR(ini) + ')';
+    }
+    if (reg.status === 'realizada' && reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') {
+        const d = Number(reg.dias_parado);
+        return '\u2705 Ficou parado <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b>' + (reg.parado_desde ? ' (de ' + _mnRevFmtDataBR(reg.parado_desde) + (reg.concluido_em ? ' até ' + _mnRevFmtDataBR(reg.concluido_em) : '') + ')' : '');
+    }
+    return '';
+};
+
+window._mnRevAtualizarInfoParado = function() {
+    const el = document.getElementById('mn-rev-parado-info');
+    if (!el) return;
+    const reg = window._mnRevRegAtual();
+    const status = document.getElementById('mn-rev-f-status')?.value || 'pendente';
+    const dt = String(document.getElementById('mn-rev-f-data')?.value || '').split('T')[0];
+    const hoje = window._mnHojeISO();
+    let html = '', bg = '#f0fdf4', borda = '#bbf7d0', cor = '#166534';
+    if (status === 'agendada') {
+        const iniSalvo = (reg && reg.status === 'agendada' && reg.parado_desde) ? String(reg.parado_desde).split('T')[0] : '';
+        const ini = dt || iniSalvo || hoje;
+        if (ini > hoje) { html = '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — o veículo continua <b>disponível</b> no resumo da rota até essa data.'; bg = '#fffbeb'; borda = '#fde68a'; cor = '#92400e'; }
+        else { const d = _mnRevDiffDias(hoje, ini); html = '\uD83D\uDEA7 Veículo <b>indisponível</b> no resumo da rota — parado há <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b> (desde ' + _mnRevFmtDataBR(ini) + '). A contagem recomeça se a data da revisão for alterada.'; bg = '#fef2f2'; borda = '#fecaca'; cor = '#991b1b'; }
+    } else if (status === 'realizada') {
+        if (reg && reg.status === 'realizada' && reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') {
+            html = window._mnRevParadoTxt(reg) + ' — veículo disponível no resumo da rota.';
+        } else if (reg && reg.status === 'agendada' && reg.parado_desde) {
+            const ini = String(reg.parado_desde).split('T')[0];
+            const d = ini > hoje ? 0 : _mnRevDiffDias(hoje, ini);
+            html = '\u2705 Ao salvar como Realizada o veículo volta a ficar <b>disponível</b> no resumo da rota. Tempo parado: <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b>.';
+        } else {
+            html = '\u2705 Veículo disponível no resumo da rota.';
+        }
+    } else {
+        html = '\u2705 Veículo disponível no resumo da rota (revisão sem agendamento).';
+    }
+    el.innerHTML = '<div style="background:' + bg + ';border:1px solid ' + borda + ';color:' + cor + ';border-radius:8px;padding:6px 10px;font-size:0.8rem;">' + html + '</div>';
 };
 
 // Revisao do marco aberto (dados mais recentes vindos do servidor)
@@ -1273,11 +1423,11 @@ window._mnRevAtualizarModalDados = function(atualizaValores) {
         set('mn-rev-f-vpecas', reg.valor_pecas); set('mn-rev-f-vmo', reg.valor_mao_obra); set('mn-rev-f-vtotal', reg.valor_total);
     }
     const custEl = document.getElementById('mn-rev-custos-serv');
-    if (custEl) custEl.innerHTML = window._mnRevCustosPorServicoHtml(reg ? (reg.lancamentos || []) : []);
+    if (custEl) window._mnRevAtualizarCustosPreview();
 };
 
 window._mnRevCustosPorServicoHtml = function(lancs) {
-    if (!lancs || !lancs.length) return '<div style="font-size:0.78rem;color:#94a3b8;">Os custos por serviço aparecem aqui depois de anexar e vincular as notas.</div>';
+    if (!lancs || !lancs.length) return '<div style="font-size:0.78rem;color:#94a3b8;">Os custos por serviço aparecem aqui conforme você vincula as linhas da nota aos serviços.</div>';
     const nomes = {};
     (window._mnRevServicosModal || []).forEach(function(s) { nomes[s.id] = s; });
     const acc = {};
@@ -1351,7 +1501,7 @@ window._mnRevRenderListaAnexos = function(anexos, lancs) {
 window._mnRevAoEscolherPdf = async function(inp) {
     const file = inp && inp.files && inp.files[0];
     const stageEl = document.getElementById('mn-rev-stage');
-    if (!file) { window._mnRevNotaStage = null; if (stageEl) stageEl.innerHTML = ''; return; }
+    if (!file) { window._mnRevNotaStage = null; if (stageEl) stageEl.innerHTML = ''; window._mnRevAtualizarCustosPreview(); return; }
     if (stageEl) stageEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#64748b;font-size:0.82rem;"><i class="ph ph-circle-notch ph-spin" style="color:#0284c7;"></i> Lendo a nota fiscal... (pode levar alguns segundos)</div>';
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     let j = {};
@@ -1419,14 +1569,7 @@ window._mnRevRenderStage = function() {
             <td style="padding:5px 6px;"><select onchange="window._mnRevStageSet(${i},'tipo',this.value)" style="padding:3px 4px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;"><option value="peca"${l.tipo === 'peca' ? ' selected' : ''}>Peça</option><option value="mao_obra"${l.tipo === 'mao_obra' ? ' selected' : ''}>Mão de obra</option></select></td>
             <td style="padding:5px 6px;"><input type="text" value="${E(l.descricao)}" onchange="window._mnRevStageSet(${i},'descricao',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;box-sizing:border-box;"></td>
             <td style="padding:5px 6px;width:110px;"><input type="number" step="0.01" value="${Number(l.valor_total || 0).toFixed(2)}" onchange="window._mnRevStageSet(${i},'valor_total',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;text-align:right;box-sizing:border-box;"></td>
-            <td style="padding:5px 6px;width:190px;">
-                <details style="position:relative;">
-                    <summary id="mn-stg-sum-${i}" style="cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;list-style:none;">${resumo}</summary>
-                    <div style="position:absolute;right:0;z-index:5;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,0.15);padding:6px 10px;max-height:240px;overflow-y:auto;min-width:260px;">
-                        ${window._mnRevServicosOpcoesHtml(l.servicos, 'l' + i, "window._mnRevStageToggleServ(" + i + ",'__ID__',this.checked)")}
-                    </div>
-                </details>
-            </td>
+            <td style="padding:5px 6px;width:190px;"><button type="button" id="mn-stg-btn-${i}" onclick="window._mnRevAbrirVinculo(${i}, this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window._mnRevVincLabel(l.servicos)}</button></td>
             <td style="padding:5px 6px;width:30px;text-align:center;"><button type="button" onclick="window._mnRevStageRemove(${i})" title="Remover linha" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;">&times;</button></td>
         </tr>`;
     }).join('');
@@ -1448,23 +1591,7 @@ window._mnRevRenderStage = function() {
             <button type="button" onclick="window._mnRevStageAdd()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:6px;padding:3px 10px;font-size:0.76rem;font-weight:700;cursor:pointer;">+ Adicionar linha manual</button>
             <div id="mn-rev-stage-tot" style="font-size:0.8rem;font-weight:800;color:#0f172a;"></div>
         </div>
-        <div style="margin-top:10px;border-top:1px dashed #7dd3fc;padding-top:8px;">
-            <div style="font-size:0.78rem;font-weight:800;color:#075985;margin-bottom:4px;">Ratear entre serviços selecionados</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
-                <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;max-height:150px;overflow-y:auto;min-width:240px;">
-                    ${window._mnRevServicosOpcoesHtml(sel, 'r', "window._mnRevRateioToggleServ('__ID__',this.checked)")}
-                </div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
-                    <select id="mn-rev-rateio-escopo" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                        <option value="produto">Ratear por produto (todas as peças)</option>
-                        <option value="mao_obra">Ratear por mão de obra (todas as linhas de serviço)</option>
-                        <option value="total">Ratear pelo valor total da nota (peças + mão de obra)</option>
-                    </select>
-                    <button type="button" onclick="window._mnRevAplicarRateio()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.78rem;font-weight:700;cursor:pointer;">Aplicar rateio nos serviços selecionados</button>
-                    <div style="font-size:0.7rem;color:#64748b;max-width:300px;">O valor de cada linha é dividido igualmente entre os serviços marcados. Você também pode vincular linha a linha na coluna "Serviço vinculado".</div>
-                </div>
-            </div>
-        </div>
+        
         <div style="margin-top:10px;text-align:right;">
             <button type="button" id="mn-rev-anx-btn" onclick="window._mnRevAnexarPdf()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 1.1rem;font-size:0.82rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-upload-simple"></i> Anexar PDF e lançar valores</button>
         </div>
@@ -1480,6 +1607,7 @@ window._mnRevStageTotais = function() {
     st.lancs.forEach(function(l) { if (!l.incluir) return; if (l.tipo === 'mao_obra') m += Number(l.valor_total) || 0; else p += Number(l.valor_total) || 0; });
     const f = function(n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
     el.textContent = 'Peças: ' + f(p) + '  •  Mão de obra: ' + f(m) + '  •  Total da nota: ' + f(p + m);
+    window._mnRevAtualizarCustosPreview();
 };
 
 window._mnRevStageSet = function(i, campo, valor) {
@@ -1488,17 +1616,6 @@ window._mnRevStageSet = function(i, campo, valor) {
     if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
     else st.lancs[i][campo] = valor;
     window._mnRevStageTotais();
-};
-
-window._mnRevStageToggleServ = function(i, id, marcado) {
-    const st = window._mnRevNotaStage;
-    if (!st || !st.lancs[i]) return;
-    const arr = st.lancs[i].servicos;
-    const pos = arr.indexOf(id);
-    if (marcado && pos < 0) arr.push(id);
-    if (!marcado && pos >= 0) arr.splice(pos, 1);
-    const sum = document.getElementById('mn-stg-sum-' + i);
-    if (sum) { sum.textContent = arr.length ? (arr.length + ' serviço(s)') : 'Vincular serviço...'; sum.style.color = arr.length ? '#15803d' : '#b45309'; }
 };
 
 window._mnRevStageAdd = function() {
@@ -1514,28 +1631,6 @@ window._mnRevStageRemove = function(i) {
     if (!st) return;
     st.lancs.splice(i, 1);
     window._mnRevRenderStage();
-};
-
-window._mnRevRateioToggleServ = function(id, marcado) {
-    const arr = window._mnRevRateioSel = window._mnRevRateioSel || [];
-    const pos = arr.indexOf(id);
-    if (marcado && pos < 0) arr.push(id);
-    if (!marcado && pos >= 0) arr.splice(pos, 1);
-};
-
-window._mnRevAplicarRateio = function() {
-    const st = window._mnRevNotaStage;
-    const sel = window._mnRevRateioSel || [];
-    if (!st) return;
-    if (!sel.length) return alert('Marque ao menos um serviço para ratear.');
-    const escopo = document.getElementById('mn-rev-rateio-escopo')?.value || 'total';
-    st.lancs.forEach(function(l) {
-        if (!l.incluir) return;
-        const alvo = escopo === 'total' || (escopo === 'produto' && l.tipo === 'peca') || (escopo === 'mao_obra' && l.tipo === 'mao_obra');
-        if (alvo) { l.servicos = sel.slice(); l.modo_rateio = escopo; }
-    });
-    window._mnRevRenderStage();
-    if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Rateio aplicado às linhas.');
 };
 
 window._mnRevColetarItensModal = function() {

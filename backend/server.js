@@ -23328,9 +23328,9 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
                        WHERE fm0.veiculo_id = fv.id
                          AND fm0.status IN ('agendada','em_andamento','aguardando')
                          AND COALESCE(fm0.veiculo_rodando, CASE WHEN fm0.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao'
-                   ) THEN 1
-                   ELSE 0
-               END as em_manutencao,
+                   ) OR EXISTS (SELECT 1 FROM frota_revisoes fr0 WHERE fr0.veiculo_id = fv.id AND fr0.status = 'agendada' AND (fr0.data_revisao IS NULL OR TRIM(fr0.data_revisao) = '' OR substr(TRIM(fr0.data_revisao), 1, 10) <= date('now', '-3 hours'))) THEN 1
+                    ELSE 0
+                END as em_manutencao,
                (
                    SELECT fm.status FROM frota_manutencoes fm
                    WHERE fm.veiculo_id = fv.id
@@ -23612,9 +23612,28 @@ app.get('/api/frota/veiculos/em-manutencao', authenticateToken, async (req, res)
                            AND COALESCE(fm2.veiculo_rodando, CASE WHEN fm2.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao'
                          ORDER BY CASE fm2.status WHEN 'em_andamento' THEN 1 ELSE 2 END, fm2.created_at DESC LIMIT 1)
         ORDER BY dias_parado DESC, fv.placa ASC
-    `, [], (err, rows) => {
+    `, [], async (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        try {
+            const lista = rows || [];
+            const hoje = _fmHojeBR();
+            const revs = await _fmAll(
+                "SELECT fr.veiculo_id, fr.marco_km, fr.data_revisao, fr.parado_desde, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo FROM frota_revisoes fr INNER JOIN frota_veiculos fv ON fv.id = fr.veiculo_id WHERE fr.status = 'agendada' AND (fr.data_revisao IS NULL OR TRIM(fr.data_revisao) = '' OR substr(TRIM(fr.data_revisao), 1, 10) <= ?) ORDER BY fr.id",
+                [hoje]
+            );
+            revs.forEach(r => {
+                if (lista.some(x => Number(x.id) === Number(r.veiculo_id))) return;
+                const ini = String(r.parado_desde || r.data_revisao || hoje).trim().split('T')[0];
+                const dias = Math.max(0, Math.round((new Date(hoje + 'T00:00:00Z') - new Date(ini + 'T00:00:00Z')) / 86400000));
+                lista.push({
+                    id: r.veiculo_id, placa: r.placa, marca_modelo_versao: r.marca_modelo_versao, tipo_veiculo: r.tipo_veiculo, em_manutencao: 1,
+                    motivo: 'Revisão programada', tipo_manutencao: 'revisao', data_inicio: ini, data_fim: null, status_manutencao: 'agendada',
+                    veiculo_rodando: 'nao', parado_desde: ini, parado_segundos_acum: 0, dias_parado: dias
+                });
+            });
+            lista.sort((a, b) => (b.dias_parado || 0) - (a.dias_parado || 0) || String(a.placa).localeCompare(String(b.placa)));
+            res.json(lista);
+        } catch (e) { res.json(rows || []); }
     });
 });
 
@@ -23913,6 +23932,12 @@ async function _fmProcessarTransicoesAutomaticas() {
             const msgLib = 'Alterado automaticamente para "Sim, está rodando" após a Data de Fim programada (' + _fmFmtDataBR(dtFim) + '). Veículo liberado e disponível para a rota (status da manutenção mantido).';
             await _fmHist(m.id, 'rodando', msgLib, 'Sistema (Automático)', 'nao', 'sim');
             if (m.veiculo_id) await _fmAtualizaEmManutencao(m.veiculo_id);
+        }
+
+        // 3) Revisoes agendadas: atualiza a disponibilidade (indisponivel quando a data da revisao chega)
+        const veicsRev = await _fmAll("SELECT DISTINCT veiculo_id FROM frota_revisoes WHERE status = 'agendada'");
+        for (const rv of veicsRev) {
+            if (rv && rv.veiculo_id) await _fmAtualizaEmManutencao(rv.veiculo_id);
         }
     } catch (e) {
         console.error('[_fmProcessarTransicoesAutomaticas]', e.message);
@@ -24337,7 +24362,16 @@ async function _fmAtualizaEmManutencao(veiculoId) {
         [veiculoId]
     );
     const indisponivel = (cnt && cnt.n > 0) ? 1 : 0;
-    await _fmRun('UPDATE frota_veiculos SET em_manutencao = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [indisponivel, veiculoId]);
+    // Revisao agendada: veiculo fica indisponivel a partir da data da revisao (ou de imediato quando nao ha data)
+    let indispRev = 0;
+    try {
+        const rv = await _fmGet(
+            "SELECT COUNT(*) AS n FROM frota_revisoes WHERE veiculo_id = ? AND status = 'agendada' AND (data_revisao IS NULL OR TRIM(data_revisao) = '' OR substr(TRIM(data_revisao), 1, 10) <= ?)",
+            [veiculoId, _fmHojeBR()]
+        );
+        indispRev = (rv && rv.n > 0) ? 1 : 0;
+    } catch (e) { indispRev = 0; }
+    await _fmRun('UPDATE frota_veiculos SET em_manutencao = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [(indisponivel || indispRev) ? 1 : 0, veiculoId]);
 }
 
 // Catalogo unico de manutencao (22 categorias) - ver backend/utils/catalogoManutencao.js
@@ -25760,6 +25794,11 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
     UNIQUE(veiculo_id, marco_km)
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisoes]', err.message);
+    ['parado_desde TEXT', 'concluido_em TEXT', 'dias_parado INTEGER'].forEach(col => {
+        db.run('ALTER TABLE frota_revisoes ADD COLUMN ' + col, (e2) => {
+            if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisoes col]', e2.message);
+        });
+    });
 });
 db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_anexos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25895,8 +25934,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         if (!marcoKm || marcoKm <= 0) return res.status(400).json({ error: 'Informe o marco de KM da revisão.' });
         const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
         const status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
-        const dataRev = String(b.data_revisao || '').trim() || null;
-        const kmRev = b.km_revisao ? parseInt(b.km_revisao, 10) : null;
+        const dataRev = String(b.data_revisao || '').trim().split('T')[0] || null;
         const conc = String(b.concessionaria || '').trim() || null;
         const numOs = String(b.numero_os || '').trim() || null;
         const vPecas = _fmNumero(b.valor_pecas);
@@ -25905,27 +25943,51 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const itensJson = JSON.stringify(b.itens && typeof b.itens === 'object' ? b.itens : {});
         const obs = String(b.observacoes || '').trim() || null;
         const usuario = _fmUsuario(req);
+        const hoje = _fmHojeBR();
+        const diffDias = (de, ate) => Math.max(0, Math.round((new Date(ate + 'T00:00:00Z') - new Date(de + 'T00:00:00Z')) / 86400000));
 
-        const existing = await _fmGet('SELECT id FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const existing = await _fmGet('SELECT id, status, km_revisao, parado_desde, concluido_em, dias_parado FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const veic = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [vid]);
+
+        // KM e sempre o da Gestao de Frota (nao vem da tela de revisao)
+        let kmRev = null, paradoDesde = null, concluidoEm = null, diasParado = null;
+        if (status === 'realizada') {
+            if (existing && existing.status === 'realizada') {
+                kmRev = existing.km_revisao || (veic && veic.km_atual) || null;
+                paradoDesde = existing.parado_desde || null;
+                concluidoEm = existing.concluido_em || hoje;
+                diasParado = existing.dias_parado;
+            } else {
+                kmRev = (veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null;
+                paradoDesde = (existing && existing.status === 'agendada' && existing.parado_desde) ? existing.parado_desde : null;
+                concluidoEm = hoje;
+                diasParado = paradoDesde ? diffDias(paradoDesde, hoje) : null;
+            }
+        } else if (status === 'agendada') {
+            // Contagem de dias parado comeca na data da revisao; se a data for alterada, a contagem recomeca
+            paradoDesde = dataRev || ((existing && existing.status === 'agendada' && existing.parado_desde) ? existing.parado_desde : hoje);
+        }
+
         let revId;
         if (existing) {
             await _fmRun(
                 `UPDATE frota_revisoes
                  SET marco_meses=?, status=?, data_revisao=?, km_revisao=?, concessionaria=?, numero_os=?,
                      valor_pecas=?, valor_mao_obra=?, valor_total=?, itens_json=?, observacoes=?, usuario_nome=?,
-                     updated_at=CURRENT_TIMESTAMP
+                     parado_desde=?, concluido_em=?, dias_parado=?, updated_at=CURRENT_TIMESTAMP
                  WHERE id=?`,
-                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, existing.id]
+                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, existing.id]
             );
             revId = existing.id;
         } else {
             const ins = await _fmRun(
-                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario]
+                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome, parado_desde, concluido_em, dias_parado)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado]
             );
             revId = ins.lastID;
         }
+        await _fmAtualizaEmManutencao(vid);
         const saved = await _fmGet('SELECT * FROM frota_revisoes WHERE id = ?', [revId]);
         res.json({ ok: true, revisao: saved });
     } catch (e) {
