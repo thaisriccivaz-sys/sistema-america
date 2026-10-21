@@ -21694,8 +21694,17 @@ function _fmDiffDiasISO(alvoIso, baseIso) {
     if (isNaN(a) || isNaN(b)) return null;
     return Math.round((a - b) / 86400000);
 }
+// Parametros do plano de revisao: veiculos comuns = km OU tempo (o que ocorrer primeiro); carretinhas = somente tempo (12 meses)
+function _fmParamsRevisao(v) {
+    const ehCar = _ehCarretinhaTipo(v.tipo_veiculo);
+    if (ehCar) {
+        const base = String(v.data_inicio_garantia || '').slice(0, 10) || String(v.created_at || '').slice(0, 10);
+        return { ehCar: true, kmAtual: 0, passoKm: 10000, passoMeses: 12, dtIni: base };
+    }
+    const uso = Number(v.uso_severo || 0) === 1;
+    return { ehCar: false, kmAtual: Number(v.km_atual || 0), passoKm: uso ? 5000 : 10000, passoMeses: uso ? 6 : 12, dtIni: String(v.data_inicio_garantia || '').slice(0, 10) };
+}
 function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
-    if (_ehCarretinhaTipo(v.tipo_veiculo)) return { status: null };
     const lista = Array.isArray(revs) ? revs : [];
     // 1) Em revisao: revisao agendada com data hoje/passada (ou sem data) = veiculo parado
     const emRev = lista.find(r => r.status === 'agendada' && (!r.data_revisao || String(r.data_revisao).trim() === '' || String(r.data_revisao).slice(0, 10) <= hojeIso));
@@ -21709,11 +21718,7 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
         .sort((a, b) => String(a.data_revisao).localeCompare(String(b.data_revisao)))[0];
     if (ag) return { status: 'agendada', data_agendada: String(ag.data_revisao).slice(0, 10), marco_km: ag.marco_km };
     // 3) Vencida / a vencer / ok
-    const kmAtual = Number(v.km_atual || 0);
-    const uso = Number(v.uso_severo || 0) === 1;
-    const passoKm = uso ? 5000 : 10000;
-    const passoMeses = uso ? 6 : 12;
-    const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
+    const { kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
     const mapa = {};
     let maxMarcoReal = 0, regMaxReal = null;
     lista.forEach(r => {
@@ -21884,16 +21889,11 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_avisos (
 )`, (err) => { if (err) console.error('[MIGRATION frota_revisao_avisos]', err.message); });
 
 function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
-    if (_ehCarretinhaTipo(v.tipo_veiculo)) return null;
     const lista = Array.isArray(revs) ? revs : [];
     // Ja agendada / em revisao: nao precisa avisar para agendar
     const temAgendamento = lista.some(r => r.status === 'agendada');
     if (temAgendamento) return null;
-    const kmAtual = Number(v.km_atual || 0);
-    const uso = Number(v.uso_severo || 0) === 1;
-    const passoKm = uso ? 5000 : 10000;
-    const passoMeses = uso ? 6 : 12;
-    const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
+    const { kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
     const mapa = {};
     let maxMarcoReal = 0, regMaxReal = null;
     lista.forEach(r => {
@@ -21934,7 +21934,7 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
 async function verificarMarcoRevisaoCron() {
     try {
         const hojeIso = _obterDataHoraSPStr().slice(0, 10);
-        const veics = await _fmAll('SELECT id, placa, marca_modelo_versao, tipo_veiculo, km_atual, uso_severo, data_inicio_garantia FROM frota_veiculos ORDER BY placa ASC');
+        const veics = await _fmAll('SELECT id, placa, marca_modelo_versao, tipo_veiculo, km_atual, uso_severo, data_inicio_garantia, created_at FROM frota_veiculos ORDER BY placa ASC');
         const revs = await _fmAll('SELECT veiculo_id, marco_km, status, data_revisao, km_revisao FROM frota_revisoes');
         const porVeic = {};
         revs.forEach(r => { (porVeic[r.veiculo_id] = porVeic[r.veiculo_id] || []).push(r); });
@@ -21944,7 +21944,7 @@ async function verificarMarcoRevisaoCron() {
         veics.forEach(v => {
             const m = _fmMarcoRevisaoAtingido(v, porVeic[v.id] || [], hojeIso);
             if (m && !jaAvisou.has(v.id + '|' + m.marco_km)) {
-                novos.push({ id: v.id, placa: v.placa, marca_modelo_versao: v.marca_modelo_versao || '-', marco_km: m.marco_km, n: m.n,
+                novos.push({ id: v.id, placa: v.placa, marca_modelo_versao: v.marca_modelo_versao || '-', marco_km: m.marco_km, n: m.n, car: _ehCarretinhaTipo(v.tipo_veiculo),
                     limite_km: m.limite_km, limite_data: m.limite_data, por_km: m.por_km, por_data: m.por_data, km_atual: m.km_atual });
             }
         });
@@ -21962,7 +21962,7 @@ async function verificarMarcoRevisaoCron() {
         }
         const linhas = novos.map(x => '<tr><td style="padding:10px 12px;border:1px solid #fde68a;font-weight:bold;color:#b45309;">' + x.placa + '</td>'
             + '<td style="padding:10px 12px;border:1px solid #fde68a;color:#334155;">' + x.marca_modelo_versao + '</td>'
-            + '<td style="padding:10px 12px;border:1px solid #fde68a;text-align:center;font-weight:bold;">' + x.n + 'ª revisão (' + Number(x.marco_km).toLocaleString('pt-BR') + ' km)</td>'
+            + '<td style="padding:10px 12px;border:1px solid #fde68a;text-align:center;font-weight:bold;">' + x.n + 'ª revisão (' + (x.car ? (x.n * 12) + ' meses' : Number(x.marco_km).toLocaleString('pt-BR') + ' km') + ')</td>'
             + '<td style="padding:10px 12px;border:1px solid #fde68a;color:#b91c1c;font-weight:bold;">' + motivo(x) + '</td></tr>').join('');
         const html = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:680px;margin:0 auto;border:1px solid #eee;border-radius:10px;overflow:hidden;">'
             + '<div style="text-align:center;padding:20px 20px 10px;"><img src="cid:empresa-logo" style="max-height:80px;"></div>'
@@ -24614,6 +24614,14 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             if (!vidRow) {
                 return res.status(400).json({ error: 'Para mudar a situação para Concluído, é obrigatório anexar o vídeo geral do veículo.' });
             }
+            const svcsConcl = await _fmAll("SELECT nome, mao_obra, mao_obra_informado FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id]);
+            if (!svcsConcl.length) {
+                return res.status(400).json({ error: 'Para mudar a situação para Concluído, informe os serviços realizados e o valor de cada um (mesmo que seja R$ 0,00).' });
+            }
+            const svcsSemValor = svcsConcl.filter(s => !(Number(s.mao_obra_informado) === 1 || Number(s.mao_obra) > 0));
+            if (svcsSemValor.length) {
+                return res.status(400).json({ error: 'Para mudar a situação para Concluído, preencha o valor (mesmo que seja R$ 0,00) dos serviços realizados:\n- ' + svcsSemValor.map(s => s.nome).join('\n- ') });
+            }
         }
 
         const now = _fmHojeBR();
@@ -25060,13 +25068,14 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 const itemRef = r.item_ref ? String(r.item_ref) : null;
                 const obs = r.observacao ? String(r.observacao).trim() : null;
                 const rid = parseInt(r.id);
+                const moInf = (r.mao_obra_informado === 1 || r.mao_obra_informado === '1' || r.mao_obra_informado === true || num(r.mao_obra) > 0) ? 1 : 0;
                 if (idsExist.includes(rid)) {
-                    await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, garantia_valor = ?, garantia_unidade = ?, observacao = ? WHERE id = ? AND manutencao_id = ?',
-                        [nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs, rid, id]);
+                    await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, mao_obra_informado = ?, garantia_valor = ?, garantia_unidade = ?, observacao = ? WHERE id = ? AND manutencao_id = ?',
+                        [nome, catId, itemRef, num(r.mao_obra), moInf, gValor, gUni, obs, rid, id]);
                     if (r.tmp_id) tmpMap[String(r.tmp_id)] = rid;
                 } else {
-                    const insSvc = await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade, observacao) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?, ?)",
-                        [id, nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs]);
+                    const insSvc = await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, mao_obra_informado, garantia_valor, garantia_unidade, observacao) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?, ?, ?)",
+                        [id, nome, catId, itemRef, num(r.mao_obra), moInf, gValor, gUni, obs]);
                     if (r.tmp_id && insSvc && insSvc.lastID) tmpMap[String(r.tmp_id)] = insSvc.lastID;
                 }
             }
@@ -26483,7 +26492,7 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
     try {
         const vid = parseInt(req.params.veiculoId, 10);
         const veiculo = await _fmGet(
-            'SELECT id, placa, marca_modelo_versao, ano_modelo, tipo_veiculo, km_atual, garantia_fabrica, garantia_fabrica_ate, data_inicio_garantia, uso_severo, foto_url, foto_base64 FROM frota_veiculos WHERE id = ?',
+            'SELECT id, placa, marca_modelo_versao, ano_modelo, tipo_veiculo, km_atual, garantia_fabrica, garantia_fabrica_ate, data_inicio_garantia, uso_severo, foto_url, foto_base64, created_at FROM frota_veiculos WHERE id = ?',
             [vid]
         );
         if (!veiculo) return res.status(404).json({ error: 'Veículo não encontrado.' });
@@ -26578,7 +26587,8 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const diffDias = (de, ate) => Math.max(0, Math.round((new Date(ate + 'T00:00:00Z') - new Date(de + 'T00:00:00Z')) / 86400000));
 
         const existing = await _fmGet('SELECT id, status, data_revisao, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
-        const veic = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [vid]);
+        const veic = await _fmGet('SELECT km_atual, tipo_veiculo FROM frota_veiculos WHERE id = ?', [vid]);
+        const ehCarretinhaRev = !!(veic && _ehCarretinhaTipo(veic.tipo_veiculo));
         // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
         if (existing) {
             const sm = await _fmGet("SELECT COALESCE(SUM(CASE WHEN tipo='peca' THEN valor_total ELSE 0 END),0) AS p, COALESCE(SUM(CASE WHEN tipo='mao_obra' THEN valor_total ELSE 0 END),0) AS m FROM frota_revisao_lancamentos WHERE revisao_id = ?", [existing.id]);
@@ -26602,7 +26612,9 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
             if (!temVideo) {
                 return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), é obrigatório anexar o 5. Vídeo geral do veículo.' });
             }
-            const confObrigIds = ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor'];
+            const confObrigIds = ehCarretinhaRev
+                ? ['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios']
+                : ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao'];
             const fotosSet = new Set(midiasRev.filter(m => m.categoria === 'conferencia_foto' && m.servico_id).map(m => m.servico_id));
             const confSemFoto = rapido ? [] : confObrigIds.filter(id => !fotosSet.has(id));
             if (confSemFoto.length > 0) {
@@ -34596,6 +34608,7 @@ app.listen(PORT, () => {
     db.run('ALTER TABLE frota_servicos_catalogo ADD COLUMN item_ref TEXT', (e) => { /* coluna ja existe: ignorar */ });
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'realizado\', nome TEXT NOT NULL, catalogo_id INTEGER, item_ref TEXT, mao_obra REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, observacao TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('ALTER TABLE frota_manutencao_servicos ADD COLUMN observacao TEXT', (e) => { /* coluna ja existe: ignorar */ });
+    db.run('ALTER TABLE frota_manutencao_servicos ADD COLUMN mao_obra_informado INTEGER DEFAULT 0', (e) => { /* coluna ja existe: ignorar */ });
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_notas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, r2_key TEXT, nome_arquivo TEXT, numero TEXT, serie TEXT, fornecedor TEXT, cnpj TEXT, data_emissao TEXT, valor_total REAL, chave_acesso TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     // Historico (comentarios, mudancas de situacao, eventos) e mao de obra por nota fiscal

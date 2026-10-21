@@ -488,12 +488,74 @@ window._mnRevBadgeDiasHtml = function(v) {
     return '';
 };
 
+// Filtros da aba Revisao: busca (placa / modelo / tipo), tipo, garantia e status da revisao
+window._mnRevFiltro = window._mnRevFiltro || { busca: '', tipo: '', garantia: '', status: '' };
+window._mnRevFiltroAceita = function(v) {
+    const f = window._mnRevFiltro || {};
+    const norm = window._mnNorm || function(t) { return String(t || '').toLowerCase(); };
+    if (f.busca) {
+        const alvo = norm((v.placa || '') + ' ' + (v.marca_modelo_versao || '') + ' ' + (v.tipo_veiculo || ''));
+        if (!norm(f.busca).split(' ').filter(Boolean).every(function(p) { return alvo.indexOf(p) !== -1; })) return false;
+    }
+    if (f.tipo && norm(v.tipo_veiculo) !== norm(f.tipo)) return false;
+    if (f.garantia) {
+        const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
+        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true || !!garAte);
+        const emGar = temGar && !(garAte && garAte < window._mnHojeISO());
+        if (f.garantia === 'sim' && !emGar) return false;
+        if (f.garantia === 'nao' && emGar) return false;
+    }
+    if (f.status) {
+        const st = v.revisao_status || 'sem_status';
+        if (st !== f.status) return false;
+    }
+    return true;
+};
+window._mnRevFiltroAtualizar = function(campo, valor) {
+    window._mnRevFiltro[campo] = valor;
+    const grid = document.getElementById('mn-rev-cards');
+    if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml('revisao');
+    const cont = document.getElementById('mn-rev-filtro-cont');
+    if (cont) {
+        const total = (window._manutFrota || []).length;
+        const n = (window._manutFrota || []).filter(window._mnRevFiltroAceita).length;
+        cont.textContent = n + ' de ' + total + ' veículo(s)';
+    }
+};
+window._mnRevFiltroLimpar = function() {
+    window._mnRevFiltro = { busca: '', tipo: '', garantia: '', status: '' };
+    const sub = document.getElementById('mn-sub-conteudo');
+    if (sub) window.mnRenderRevisaoTela(sub);
+};
+window._mnRevFiltroBarraHtml = function() {
+    const f = window._mnRevFiltro || {};
+    const E = window._mnRevEsc;
+    const tipos = Array.from(new Set((window._manutFrota || []).map(function(v) { return String(v.tipo_veiculo || '').trim(); }).filter(Boolean))).sort();
+    const sel = 'padding:0.5rem 0.7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#fff;outline:none;';
+    const opt = function(val, txt, atual) { return '<option value="' + val + '"' + (atual === val ? ' selected' : '') + '>' + txt + '</option>'; };
+    const total = (window._manutFrota || []).length;
+    const n = (window._manutFrota || []).filter(window._mnRevFiltroAceita).length;
+    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+        + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
+        + '<input type="text" id="mn-rev-f-busca" autocomplete="off" value="' + E(f.busca || '') + '" placeholder="Pesquisar placa, modelo ou tipo do veículo..." oninput="window._mnRevFiltroAtualizar(\'busca\', this.value)" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem 0.5rem 2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.84rem;outline:none;"></div>'
+        + '<select onchange="window._mnRevFiltroAtualizar(\'tipo\', this.value)" style="' + sel + '" title="Tipo de veículo">' + opt('', 'Todos os tipos', f.tipo || '') + tipos.map(function(t) { return opt(E(t), E(t), f.tipo || ''); }).join('') + '</select>'
+        + '<select onchange="window._mnRevFiltroAtualizar(\'garantia\', this.value)" style="' + sel + '" title="Garantia">' + opt('', 'Garantia: todos', f.garantia || '') + opt('sim', 'Em garantia', f.garantia || '') + opt('nao', 'Fora de garantia', f.garantia || '') + '</select>'
+        + '<select onchange="window._mnRevFiltroAtualizar(\'status\', this.value)" style="' + sel + '" title="Status da revisão">' + opt('', 'Status da revisão: todos', f.status || '') + opt('vencida', 'Revisão vencida', f.status || '') + opt('a_vencer', 'Revisão a vencer', f.status || '') + opt('agendada', 'Revisão agendada', f.status || '') + opt('em_revisao', 'Em revisão', f.status || '') + opt('ok', 'Revisão OK', f.status || '') + opt('sem_status', 'Sem status', f.status || '') + '</select>'
+        + '<button type="button" onclick="window._mnRevFiltroLimpar()" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-x-circle"></i> Limpar</button>'
+        + '<span id="mn-rev-filtro-cont" style="font-size:0.78rem;color:#64748b;font-weight:700;">' + n + ' de ' + total + ' veículo(s)</span>'
+        + '</div>';
+};
+
 window._mnPrevCardsHtml = function(modo) {
     const ehRevisao = modo === 'revisao';
     const hojeISO = window._mnHojeISO();
     const todos = window._mnOrdenarFrota(window._manutFrota || []);
     if (!todos.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
-    const frota = todos;
+    let frota = todos;
+    if (ehRevisao && window._mnRevFiltroAceita) {
+        frota = todos.filter(window._mnRevFiltroAceita);
+        if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-funnel" style="font-size:2rem;"></i><div style="margin-top:6px;font-weight:600;">Nenhum veículo encontrado com os filtros aplicados.</div></div>';
+    }
     const prevPorVeic = {};
     (window._manutDados || []).forEach(m => { if (m.tipo === 'preventiva') prevPorVeic[String(m.veiculo_id)] = (prevPorVeic[String(m.veiculo_id)] || 0) + 1; });
     return frota.map(v => {
@@ -535,7 +597,7 @@ window._mnPrevCardsHtml = function(modo) {
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
                 </div>${linhaPlano}${linhaGarantia}
             </div>
-            ${ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
+            ${(ehRevisao && window._mnRevEhCarretinha(v)) ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;font-size:0.78rem;color:#64748b;font-weight:600;"><i class="ph ph-calendar-check" style="color:#7c3aed;"></i> Plano por tempo — revisão a cada 12 meses (sem KM)</div>` : ehRevisao ? `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
                     <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
@@ -664,6 +726,12 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
         C('verif_cameras_rastreadores', 'Verificação de câmeras e rastreadores'),
         C('verif_capas_banco_volante', 'Verificação de capas de banco e volante'),
         C('verif_kit_socorro', 'Verificação do kit de socorro'),
+        C('verif_mangueiras', 'Verificação de mangueiras'),
+        C('verif_tanques', 'Verificação de tanques'),
+        C('verif_mangote', 'Verificação de mangote'),
+        C('verif_tanque_succao', 'Verificação de tanque de sucção'),
+        C('verif_tanque_agua', 'Verificação de tanque de água'),
+        C('verif_motor_succao', 'Verificação de motor de sucção'),
         C('lavagem_motor', 'Lavagem técnica do motor', 'A cada 10.000 km ou 12 meses', 'troca_manutencao'),
         // OPCIONAIS
         O('rodizio_pneus', 'Rodízio de pneus'),
@@ -672,11 +740,29 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
         O('descarbonizacao', 'Descarbonização do motor'),
         O('aditivos_combustivel', 'Aditivos extras no combustível')
     ];
+
+    // Plano das CARRETINHAS: sem KM, revisao somente por TEMPO (a cada 12 meses). Todos os itens sao verificacao obrigatoria com foto obrigatoria.
+    const CC = function(id, nome) { return C(id, nome, 'Verificar a cada 12 meses', 'vistoriado'); };
+    window._mnRevPlanoCarretinha = [
+        CC('car_pneus', 'Verificação de pneus'),
+        CC('car_funilaria', 'Verificação de funilaria'),
+        CC('car_pintura', 'Verificação de pintura'),
+        CC('car_alinhamento_balanceamento', 'Verificação de alinhamento e balanceamento'),
+        CC('car_eixo', 'Verificação de eixo'),
+        CC('car_step', 'Verificação de step'),
+        CC('car_eletrica', 'Verificação da parte elétrica'),
+        CC('car_iluminacao', 'Verificação da iluminação'),
+        CC('car_acessorios', 'Verificação de acessórios')
+    ];
 })();
 
 // Cada modelo de veiculo tera seu plano (chave = marca_modelo_versao em maiusculas). Por enquanto todos usam o PADRAO.
 window._mnRevPlanosPorModelo = window._mnRevPlanosPorModelo || {};
+window._mnRevEhCarretinha = function(v) {
+    return String((v && v.tipo_veiculo) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().indexOf('carretinha') !== -1;
+};
 window._mnRevPlanoDoVeiculo = function(v) {
+    if (window._mnRevEhCarretinha(v)) return window._mnRevPlanoCarretinha;
     const chave = String((v && v.marca_modelo_versao) || '').toUpperCase().trim();
     return window._mnRevPlanosPorModelo[chave] || window._mnRevPlanoPadrao;
 };
@@ -737,6 +823,7 @@ window._mnRevHistAbrir = function(vid) {
 
 window.mnRenderRevisaoTela = function(sub) {
     sub.innerHTML = `
+        ${window._mnRevFiltroBarraHtml()}
         <div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>
         <div id="mn-rev-detalhe" style="display:none;"></div>`;
     window._mnPrevAtualizarFrota();
@@ -840,6 +927,28 @@ window._mnRevSalvarConfigVeiculo = async function(vid) {
     } catch (e) { alert(e.message); }
 };
 
+window._mnRevSalvarInicioPlano = async function(vid) {
+    const dt = document.getElementById('mn-rev-cfg-inicio')?.value || '';
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ data_inicio_garantia: dt || null, uso_severo: 0 })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar o início do plano');
+        [window._manutFrota, window._frotaDados].forEach(arr => {
+            const v = (arr || []).find(x => String(x.id) === String(vid));
+            if (v) v.data_inicio_garantia = dt || null;
+        });
+        if (window._mnRevAtual && window._mnRevAtual.veiculo) window._mnRevAtual.veiculo.data_inicio_garantia = dt || null;
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
+        await window.mnRevisaoAbrirVeiculo(vid);
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Início do plano atualizado!');
+    } catch (e) { alert(e.message); }
+};
+
 window._mnRenderPainelRevisaoVeiculo = function() {
     const det = document.getElementById('mn-rev-detalhe');
     const ctx = window._mnRevAtual;
@@ -856,11 +965,12 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         }
     });
 
-    const kmAtual = Number(v.km_atual || 0);
+    const ehCar = window._mnRevEhCarretinha(v);
+    const kmAtual = ehCar ? 0 : Number(v.km_atual || 0);
     const hojeIso = window._mnHojeISO();
-    const dtIniGar = _mnRevInferirInicioGarantia(v);
+    const dtIniGar = ehCar ? (_mnRevInferirInicioGarantia(v) || String(v.created_at || '').split(/[T ]/)[0]) : _mnRevInferirInicioGarantia(v);
     const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
-    const usoSevero = Number(v.uso_severo || 0) === 1;
+    const usoSevero = !ehCar && Number(v.uso_severo || 0) === 1;
     const passoKm = usoSevero ? 5000 : 10000;
     const passoMeses = usoSevero ? 6 : 12;
 
@@ -917,7 +1027,9 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             if (m.vencida) {
                 sitCor = '#dc2626'; sitBg = '#fef2f2'; sitBorda = '#fca5a5';
                 sitLabel = agendada ? 'Agendada (Vencida)' : 'Vencida';
-                alertasCriticos.push(`${m.n}ª revisão (limite <b>${kmLimite.toLocaleString('pt-BR')} km</b>${dtLimite ? ' ou <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): ${m.vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b>` : ''}${m.vencKm && m.vencTempo ? ' e ' : ''}${m.vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
+                alertasCriticos.push(ehCar
+                    ? `${m.n}ª revisão (a cada 12 meses${dtLimite ? ' — prazo <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): venceu por tempo há <b>${Math.abs(diffDias)} dias</b>.`
+                    : `${m.n}ª revisão (limite <b>${kmLimite.toLocaleString('pt-BR')} km</b>${dtLimite ? ' ou <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): ${m.vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b>` : ''}${m.vencKm && m.vencTempo ? ' e ' : ''}${m.vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
             } else if (proxKm || proxTempo || agendada) {
                 sitCor = '#d97706'; sitBg = '#fffbeb'; sitBorda = '#fcd34d';
                 sitLabel = agendada ? 'Agendada' : 'Próxima Revisão';
@@ -945,6 +1057,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 prevalenciaTxt = percKm >= percTempo
                     ? `\u26A1 Critério mais próximo: <b>Quilometragem (${percKm}% do ciclo vs ${percTempo}% do tempo)</b>`
                     : `\u23F0 Critério mais próximo: <b>Tempo (${percTempo}% do prazo vs ${percKm}% do ciclo de KM)</b>`;
+            } else if (ehCar) {
+                prevalenciaTxt = '\u23F0 Plano por tempo: verificação obrigatória a cada 12 meses (sem KM)';
             } else if (kmAtual > 0) {
                 prevalenciaTxt = `\u26A1 Acompanhando por KM (${Math.max(0, Math.round(((kmAtual - (kmLimite - passoKm)) / passoKm) * 100))}% do ciclo)`;
             } else {
@@ -964,7 +1078,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                 <div>
                     <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${m.n}ª Revisão</div>
-                    <div style="font-size:1.1rem;font-weight:800;color:#1e293b;">${kmLimite.toLocaleString('pt-BR')} km <span style="font-size:0.82rem;font-weight:600;color:#64748b;">${dtLimite ? 'ou até ' + _mnRevFmtDataBR(dtLimite) : 'ou ' + passoMeses + ' meses'}</span></div>
+                    <div style="font-size:1.1rem;font-weight:800;color:#1e293b;">${ehCar ? (m.n * 12) + ' meses' : kmLimite.toLocaleString('pt-BR') + ' km'} <span style="font-size:0.82rem;font-weight:600;color:#64748b;">${dtLimite ? (ehCar ? 'até ' : 'ou até ') + _mnRevFmtDataBR(dtLimite) : 'ou ' + passoMeses + ' meses'}</span></div>
                 </div>
                 <span style="background:${sitBg};color:${sitCor};border:1px solid ${sitBorda};padding:4px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;white-space:nowrap;">${sitLabel}</span>
             </div>
@@ -972,10 +1086,10 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             ${window._mnRevParadoCardBannerHtml(reg)}
 
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.8rem;display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                ${ehCar ? '' : `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <span style="color:#64748b;font-weight:600;"><i class="ph ph-gauge"></i> Por KM:</span>
                     <span>${kmStatusTxt}</span>
-                </div>
+                </div>`}
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar"></i> Por Tempo:</span>
                     <span>${tempoStatusTxt}</span>
@@ -1008,19 +1122,19 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         ? `<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-left:5px solid #dc2626;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
             <div style="font-weight:800;color:#991b1b;font-size:0.95rem;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-warning-octagon" style="font-size:1.3rem;color:#dc2626;"></i>
-                Revisões vencidas (${v.placa} — ${kmAtual.toLocaleString('pt-BR')} km)
+                Revisões vencidas (${v.placa}${ehCar ? '' : ' — ' + kmAtual.toLocaleString('pt-BR') + ' km'})
             </div>
             <ul style="margin:0;padding-left:1.25rem;color:#7f1d1d;font-size:0.84rem;line-height:1.5;">
                 ${alertasCriticos.map(a => `<li>${a}</li>`).join('')}
                 <li>Se a revisão já foi executada, clique em <b>"Registrar / Checklist"</b> no card correspondente, marque como <b>Realizada</b>, marque os serviços realizados e anexe a Nota Fiscal / Ordem de Serviço.</li>
-                ${proxMarcoInfo ? `<li>Próxima revisão: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>` : ''}
+                ${proxMarcoInfo ? (ehCar ? `<li>Próxima revisão até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>.</li>` : `<li>Próxima revisão: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>`) : ''}
             </ul>
         </div>`
         : `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-left:5px solid #16a34a;border-radius:12px;padding:0.9rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div style="color:#166534;font-size:0.86rem;font-weight:600;">
                 <i class="ph ph-seal-check" style="color:#16a34a;font-size:1.1rem;"></i>
-                Revisões em dia para a quilometragem atual (<b>${kmAtual.toLocaleString('pt-BR')} km</b>).
-                ${proxMarcoInfo ? `Próxima revisão aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).` : ''}
+                ${ehCar ? 'Revisões em dia (plano por tempo — a cada 12 meses).' : 'Revisões em dia para a quilometragem atual (<b>' + kmAtual.toLocaleString('pt-BR') + ' km</b>).'}
+                ${proxMarcoInfo ? (ehCar ? `Próxima revisão até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>.` : `Próxima revisão aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).`) : ''}
             </div>
         </div>`;
 
@@ -1049,21 +1163,24 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             </div>
 
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
+                ${ehCar ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Data base para contar os 12 meses do plano da carretinha">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Início do plano (data base)</label>
+                    <input type="date" id="mn-rev-cfg-inicio" value="${dtIniGar}" onchange="window._mnRevSalvarInicioPlano(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;">
+                </div>` : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
                     <div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">KM Atual (Somente leitura)</div>
                     <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
-                </div>
+                </div>`}
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia até:</label>
                     <input type="date" id="mn-rev-cfg-garantia" value="${garAte}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${garAte ? (garAte < hojeIso ? '#dc2626' : '#16a34a') : '#1e293b'};">
                 </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
+                ${ehCar ? '' : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso</label>
                     <select id="mn-rev-cfg-severo" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${usoSevero ? '#dc2626' : '#1e293b'};">
                         <option value="0"${usoSevero ? '' : ' selected'}>Normal (10.000 km / 12m)</option>
                         <option value="1"${usoSevero ? ' selected' : ''}>Uso Severo (5.000 km / 6m)</option>
                     </select>
-                </div>
+                </div>`}
             </div>
         </div>
 
@@ -1072,7 +1189,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         <div>
             <h3 style="margin:0 0 0.25rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-calendar-check" style="color:#7c3aed;font-size:1.2rem;"></i>
-                Revisões — a cada ${passoKm.toLocaleString('pt-BR')} km ou ${passoMeses} meses da última revisão (o que ocorrer primeiro)
+                ${ehCar ? 'Revisões — a cada 12 meses da última revisão (plano por tempo, sem KM)' : 'Revisões — a cada ' + passoKm.toLocaleString('pt-BR') + ' km ou ' + passoMeses + ' meses da última revisão (o que ocorrer primeiro)'}
             </h3>
             <div style="font-size:0.76rem;color:#64748b;margin-bottom:0.75rem;">Exibindo as últimas ${marcos.length} de ${totalMarcos} revisões (vencidas/concluídas + a próxima). Todas as revisões realizadas ficam na aba Histórico.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1rem;">
@@ -1196,6 +1313,16 @@ window._mnRevLinhaServicoHtml = function(s, st) {
     </tr>`;
 };
 
+// Pesquisa de servicos no modal da revisao (filtra as linhas pelo nome/descricao)
+window._mnRevFiltrarServicos = function(txt) {
+    const norm = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+    const palavras = norm(txt).split(' ').filter(Boolean);
+    document.querySelectorAll('#mn-rev-modal-ov tr[data-rev-row]').forEach(function(tr) {
+        const alvo = norm(tr.textContent);
+        tr.style.display = palavras.every(function(p) { return alvo.indexOf(p) !== -1; }) ? '' : 'none';
+    });
+};
+
 window._mnRevServicoMarcou = function(id) {
     const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + id + '"][data-rev-field="realizado"]');
     const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + id + '"][data-rev-field="tipo"]');
@@ -1286,6 +1413,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     if (!ctx || !ctx.veiculo) return;
     const E = window._mnRevEsc;
     const v = ctx.veiculo;
+    const ehCar = window._mnRevEhCarretinha(v);
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(marcoKm); }) || {
         id: null, veiculo_id: v.id, marco_km: marcoKm, marco_meses: marcoMeses, status: 'pendente', data_revisao: '', km_revisao: '',
         concessionaria: (function() { const ga = String(v.garantia_fabrica_ate || '').split('T')[0]; return (ga && ga >= window._mnHojeISO()) ? 'Concessionária Autorizada Fiat' : ''; })(), numero_os: '', valor_pecas: 0, valor_mao_obra: 0, valor_total: 0,
@@ -1322,8 +1450,8 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     <div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
         <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <div>
-                <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${E(v.placa)} • ${E(v.marca_modelo_versao || '')} • KM Atual: ${Number(v.km_atual || 0).toLocaleString('pt-BR')} km</div>
-                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">${Math.round(Number(marcoKm) / (Number(v.uso_severo) === 1 ? 5000 : 10000))}ª Revisão (marco ${Number(marcoKm).toLocaleString('pt-BR')} km / ${marcoMeses} meses)</h3>
+                <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${E(v.placa)} • ${E(v.marca_modelo_versao || '')}${ehCar ? ' • Plano por tempo (a cada 12 meses)' : ' • KM Atual: ' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km'}</div>
+                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">${ehCar ? (Math.round(Number(marcoKm) / 10000) + 'ª Revisão (' + marcoMeses + ' meses)') : (Math.round(Number(marcoKm) / (Number(v.uso_severo) === 1 ? 5000 : 10000)) + 'ª Revisão (marco ' + Number(marcoKm).toLocaleString('pt-BR') + ' km / ' + marcoMeses + ' meses)')}</h3>
             </div>
             <button onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1.2rem;">&times;</button>
         </div>
@@ -1346,7 +1474,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
                         <input type="date" id="mn-rev-f-data" onchange="window._mnRevAoMudarData()" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
-                    <div>
+                    <div${ehCar ? ' style="display:none;"' : ''}>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM da revisão (automático)</label>
                         <input type="number" id="mn-rev-f-km" value="${(reg.status === 'realizada' && reg.km_revisao) ? reg.km_revisao : (v.km_atual || '')}" readonly tabindex="-1" title="Preenchido automaticamente com o KM da Gestão de Frota" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;background:#f1f5f9;color:#475569;cursor:not-allowed;">
                     </div>
@@ -1365,15 +1493,19 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
             <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:1.25rem;">
                 <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <div style="font-weight:800;color:#1e293b;font-size:0.9rem;"><i class="ph ph-list-checks" style="color:#7c3aed;"></i> 2. Serviços da Revisão — marque o que foi realizado</div>
+                    <div style="position:relative;flex:1;min-width:200px;max-width:340px;margin-left:auto;">
+                        <i class="ph ph-magnifying-glass" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>
+                        <input type="text" id="mn-rev-busca-serv" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." oninput="window._mnRevFiltrarServicos(this.value)" style="width:100%;padding:0.4rem 0.6rem 0.4rem 1.9rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.8rem;box-sizing:border-box;">
+                    </div>
                     <span id="mn-rev-cont-obrig" style="font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;"></span>
                 </div>
-                <div style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                ${obrig.length ? `                <div style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <span>Serviços OBRIGATÓRIOS (Mecânico)</span>
                     <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #fca5a5;color:#991b1b;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-obrig" onchange="window._mnRevMarcarTodosGrupo('obrigatorio', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os obrigatórios
                     </label>
                 </div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
                 <div style="padding:7px 12px;background:#eff6ff;color:#1e40af;font-size:0.78rem;font-weight:800;border-top:1px solid #bfdbfe;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <span>Conferências internas OBRIGATÓRIAS (obrigatório anexar foto de cada item)</span>
                     <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
@@ -1381,13 +1513,13 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </label>
                 </div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thConf}<tbody>${conf.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
-                <div style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                ${opcio.length ? `                <div style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <span>OPCIONAIS</span>
                     <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #cbd5e1;color:#334155;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-opcio" onchange="window._mnRevMarcarTodosGrupo('opcional', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os opcionais
                     </label>
                 </div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
             </div>
 
             <!-- 3. Anexar notas / OS -->
@@ -3402,7 +3534,7 @@ window._mnHojeISO = function() {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 };
 window._mnEdMapRealizado = function(s) {
-    return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias', observacao: s.observacao || '', mo_alocado: s.mo_alocado || 0 };
+    return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', mao_obra_informado: (Number(s.mao_obra_informado) === 1 || Number(s.mao_obra) > 0) ? 1 : 0, garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias', observacao: s.observacao || '', mo_alocado: s.mo_alocado || 0 };
 };
 window._mnEdMapMo = function(l) {
     return { id: l.id, nota_id: l.nota_id || null, descricao: l.descricao || '', valor: l.valor || 0, ratear: l.ratear ? 1 : 0, servicos: Array.isArray(l.servicos) ? l.servicos.slice() : [] };
@@ -3681,7 +3813,6 @@ window._mnEdMontar = function() {
       +             '<label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#0284c7;cursor:pointer;"><input type="checkbox" id="mned-pick-all" style="width:16px;height:16px;accent-color:#0284c7;"> Selecionar todos (da lista mostrada)</label>'
       +             '<span id="mned-pick-cont" style="font-size:0.78rem;color:#64748b;"></span>'
       +             '<button type="button" id="mned-pick-novo" style="display:none;' + btnSec + 'color:#d97706;border-color:#fcd34d;"><i class="ph ph-plus"></i> <span></span></button>'
-      +             '<button type="button" id="mned-pick-add" style="margin-left:auto;padding:9px 16px;border:none;border-radius:8px;background:#0284c7;color:#fff;cursor:pointer;font-weight:700;font-size:0.82rem;">Adicionar serviços selecionados à lista</button>'
       +           '</div>'
       +         '</div>'
       +         '<div id="mned-serv"></div>'
@@ -3733,12 +3864,9 @@ window._mnEdMontar = function() {
     document.getElementById('mned-coment-btn').onclick = window._mnEdComentar;
     document.getElementById('mned-pick-cat').onchange = window._mnEdPickRender;
     document.getElementById('mned-pick-busca').oninput = window._mnEdPickRender;
-    document.getElementById('mned-pick-add').onclick = window._mnEdPickAdicionar;
     document.getElementById('mned-pick-novo').onclick = window._mnEdPickNovo;
     document.getElementById('mned-pick-all').onchange = function() {
-        var marcar = this.checked;
-        (window._mnEd.pickVisiveis || []).forEach(function(id) { window._mnEd.pickSel[id] = marcar; });
-        window._mnEdPickRender();
+        window._mnEdPickToggleVarios((window._mnEd.pickVisiveis || []), this.checked);
     };
     document.getElementById('mned-veic').onchange = function() {
         var kmEl = document.getElementById('mned-km');
@@ -4156,6 +4284,7 @@ window._mnEdRenderStatus = function() {
                     alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
                     return;
                 }
+                if (!window._mnEdValidarServicosConclusao()) return;
             }
             var statusAnterior = window._mnEd.status;
             window._mnEdPedirJustificativaStatus(statusAnterior, novo, async function(justTxt) {
@@ -4179,6 +4308,7 @@ window._mnEdRenderStatus = function() {
                 window._mnEdRenderServ();
                 if (window._mnEd.id) {
                     try {
+                        if (novo === 'concluida') await window._mnEdSalvarDetalhe();
                         var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };
                         var rs = await fetch('/api/frota/manutencoes/' + window._mnEd.id + '/status', {
                             method: 'PUT',
@@ -4217,6 +4347,29 @@ window._mnEdRenderStatus = function() {
             });
         };
     });
+};
+
+// Para concluir: precisa ter servicos realizados e o valor de cada um preenchido (mesmo que seja 0,00)
+window._mnEdValidarServicosConclusao = function() {
+    var ed = window._mnEd || {};
+    var lista = ed.realizados || [];
+    var N = window._mnNum;
+    if (!lista.length) {
+        alert('Para mudar a situação para Concluído, informe os serviços realizados e o valor de cada um (mesmo que seja R$ 0,00).');
+        return false;
+    }
+    var pend = lista.filter(function(s) { return !(s.mao_obra_informado || N(s.mao_obra) > 0); });
+    if (pend.length) {
+        var primeiro = document.querySelector('#mned-serv [data-f="mao_obra"][data-i="' + lista.indexOf(pend[0]) + '"]');
+        if (primeiro) {
+            primeiro.style.borderColor = '#dc2626';
+            if (primeiro.scrollIntoView) primeiro.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try { primeiro.focus(); } catch (e) {}
+        }
+        alert('Para mudar a situação para Concluído, preencha o valor de mão de obra (mesmo que seja 0,00) dos serviços realizados:\n- ' + pend.map(function(s) { return s.nome; }).join('\n- '));
+        return false;
+    }
+    return true;
 };
 
 window._mnEdRenderSolic = function() {
@@ -4418,7 +4571,7 @@ window._mnEdPickRender = function() {
         var n = norm(s.nome + ' ' + (s._subNome || '') + ' ' + (s._grupoNome || ''));
         return palavras.every(function(p) { return n.indexOf(p) !== -1; });
     });
-    ed.pickVisiveis = lista.filter(function(s) { return !jaAdd[s.id]; }).map(function(s) { return s.id; });
+    ed.pickVisiveis = lista.map(function(s) { return s.id; });
 
     var btnNovo = document.getElementById('mned-pick-novo');
     var texto = buscaEl.value.trim();
@@ -4440,8 +4593,8 @@ window._mnEdPickRender = function() {
             if (s._grupoNome !== ultimoGrupo) {
                 ultimoGrupo = s._grupoNome;
                 ultimoCat = null;
-                var doGrupo = (porGrupo[s._grupoNome] || []).filter(function(x) { return !jaAdd[x.id]; });
-                var todosGrp = doGrupo.length > 0 && doGrupo.every(function(x) { return ed.pickSel[x.id]; });
+                var doGrupo = (porGrupo[s._grupoNome] || []);
+                var todosGrp = doGrupo.length > 0 && doGrupo.every(function(x) { return jaAdd[x.id]; });
                 html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.76rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.05em;margin-top:10px;padding:7px 8px;background:#f1f5f9;border-radius:6px;cursor:pointer;">'
                     + '<input type="checkbox" data-pkmacro="' + esc(s._grupoNome) + '"' + (todosGrp ? ' checked' : '') + (doGrupo.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#d97706;">'
                     + '<i class="ph ' + esc(s._grupoIcone) + '" style="font-size:1.05rem;color:#d97706;"></i>'
@@ -4449,45 +4602,66 @@ window._mnEdPickRender = function() {
             }
             if (s.categoria_id !== ultimoCat) {
                 ultimoCat = s.categoria_id;
-                var doCat = (porCat[s.categoria_id] || []).filter(function(x) { return !jaAdd[x.id]; });
-                var todosMarc = doCat.length > 0 && doCat.every(function(x) { return ed.pickSel[x.id]; });
+                var doCat = (porCat[s.categoria_id] || []);
+                var todosMarc = doCat.length > 0 && doCat.every(function(x) { return jaAdd[x.id]; });
                 html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.73rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding:5px 4px 4px 14px;border-top:1px solid #e2e8f0;cursor:pointer;">'
                     + '<input type="checkbox" data-pkcat="' + s.categoria_id + '"' + (todosMarc ? ' checked' : '') + (doCat.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
                     + '<i class="ph ' + esc(s._subIcone) + '" style="font-size:1rem;color:#d97706;"></i>'
                     + '<span>' + esc(s._subNome || s.categoria_nome || 'Outros') + '</span> <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da subcategoria)</span></label>';
             }
             var add = !!jaAdd[s.id];
-            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:' + (add ? '#94a3b8' : '#1e293b') + ';cursor:' + (add ? 'default' : 'pointer') + ';padding:3px 4px 3px 32px;">'
-                + '<input type="checkbox" data-pk="' + s.id + '"' + (ed.pickSel[s.id] ? ' checked' : '') + (add ? ' disabled' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
-                + esc(s.nome) + (add ? ' <span style="font-size:0.7rem;background:#f1f5f9;border-radius:999px;padding:1px 8px;">já adicionado</span>' : '') + '</label>';
+            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:#1e293b;cursor:pointer;padding:3px 4px 3px 32px;' + (add ? 'font-weight:700;' : '') + '">'
+                + '<input type="checkbox" data-pk="' + s.id + '"' + (add ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
+                + esc(s.nome) + '</label>';
         });
         box.innerHTML = html;
         box.querySelectorAll('[data-pk]').forEach(function(c) {
             c.onchange = function() {
-                window._mnEd.pickSel[c.getAttribute('data-pk')] = c.checked;
-                window._mnEdPickRender();
+                window._mnEdPickToggleVarios([c.getAttribute('data-pk')], c.checked);
             };
         });
         box.querySelectorAll('[data-pkcat]').forEach(function(c) {
             c.onchange = function() {
                 var cid = c.getAttribute('data-pkcat');
-                (porCat[cid] || []).forEach(function(x) { if (!jaAdd[x.id]) window._mnEd.pickSel[x.id] = c.checked; });
-                window._mnEdPickRender();
+                window._mnEdPickToggleVarios((porCat[cid] || []).map(function(x) { return x.id; }), c.checked);
             };
         });
         box.querySelectorAll('[data-pkmacro]').forEach(function(c) {
             c.onchange = function() {
                 var grp = c.getAttribute('data-pkmacro');
-                (porGrupo[grp] || []).forEach(function(x) { if (!jaAdd[x.id]) window._mnEd.pickSel[x.id] = c.checked; });
-                window._mnEdPickRender();
+                window._mnEdPickToggleVarios((porGrupo[grp] || []).map(function(x) { return x.id; }), c.checked);
             };
         });
     }
-    var selecionados = Object.keys(ed.pickSel).filter(function(k) { return ed.pickSel[k]; }).length;
     var cont = document.getElementById('mned-pick-cont');
-    if (cont) cont.textContent = selecionados + ' selecionado(s) · ' + lista.length + ' na lista';
+    if (cont) cont.textContent = ed.realizados.length + ' serviço(s) na lista · ' + lista.length + ' na busca';
     var all = document.getElementById('mned-pick-all');
-    if (all) all.checked = ed.pickVisiveis.length > 0 && ed.pickVisiveis.every(function(id) { return ed.pickSel[id]; });
+    if (all) all.checked = ed.pickVisiveis.length > 0 && ed.pickVisiveis.every(function(id) { return jaAdd[id]; });
+};
+
+// Marcar o checkbox adiciona o servico na lista automaticamente; desmarcar remove da lista
+window._mnEdPickToggleVarios = function(ids, marcar) {
+    var ed = window._mnEd;
+    var catalogo = window._manutCatalogo || [];
+    var lista = window._mnCatalogoLista('corretiva');
+    (ids || []).forEach(function(k) {
+        var s = lista.find(function(x) { return String(x.id) === String(k); }) || catalogo.find(function(x) { return String(x.id) === String(k); });
+        if (!s) return;
+        var idx = -1;
+        ed.realizados.forEach(function(r, i) { if (idx < 0 && String(r.catalogo_id) === String(s.id)) idx = i; });
+        if (marcar && idx < 0) {
+            window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+            ed.realizados.push({ id: null, _tmpId: 'tmp_' + window._mnSvcSeq + '_' + Date.now(), nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
+        } else if (!marcar && idx >= 0) {
+            var rem = ed.realizados[idx];
+            var remKey = rem.id || rem._tmpId;
+            if (remKey) ed.pecas.forEach(function(p) { if (String(p.servico_id) === String(remKey)) p.servico_id = null; });
+            if (rem.id) (ed.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
+            ed.realizados.splice(idx, 1);
+        }
+    });
+    window._mnEdRenderServ();
+    window._mnEdPickRender();
 };
 
 window._mnEdPickAdicionar = function() {
@@ -4641,7 +4815,7 @@ window._mnEdRenderServ = function() {
     var orfas = [];
     ed.pecas.forEach(function(p, i) { if (!p.servico_id || !temServico(p.servico_id)) orfas.push(i); });
     if (!ed.realizados.length && !orfas.length) {
-        box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado ainda. Marque os serviços na lista acima e clique em "Adicionar serviços selecionados à lista".</div>';
+        box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado ainda. Marque os serviços na lista acima e eles serão adicionados automaticamente.</div>';
         window._mnEdRenderTotais();
         return;
     }
@@ -4671,7 +4845,7 @@ window._mnEdRenderServ = function() {
           +   '</div>'
           +   '<div style="display:flex;flex-direction:column;gap:6px;">'
           +     '<div style="display:flex;align-items:flex-end;gap:10px;">'
-          +       '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + fm(window._mnNum(s.mao_obra)) + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;"></div>'
+          +       '<div><label style="' + lbl + '">Mão de obra (R$) <span style="color:#dc2626;">*</span></label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? fm(window._mnNum(s.mao_obra)) : '') + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? '' : 'border-color:#fca5a5;') + '"></div>'
           +       '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;background:#fff;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
           +       '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
           +     '</div>'
@@ -4694,6 +4868,8 @@ window._mnEdRenderServ = function() {
         if (f === 'mao_obra') {
             window._mnMask(el, function(n) {
                 window._mnEd.realizados[i].mao_obra = n;
+                window._mnEd.realizados[i].mao_obra_informado = 1;
+                el.style.borderColor = '#e2e8f0';
                 window._mnEdRenderTotais();
             });
             return;
@@ -5538,7 +5714,7 @@ window._mnEdSalvarDetalhe = async function() {
         body: JSON.stringify({
             solicitados: ed.solicitados,
             realizados: ed.realizados.map(function(s) {
-                return { id: s.id, tmp_id: s._tmpId || null, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
+                return { id: s.id, tmp_id: s._tmpId || null, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), mao_obra_informado: (s.mao_obra_informado || N(s.mao_obra) > 0) ? 1 : 0, garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
             }),
             pecas: ed.pecas.map(function(p) {
                 return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
@@ -6183,6 +6359,7 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
             return;
         }
+        if (!window._mnEdValidarServicosConclusao()) { mostrarMsg('Preencha o valor dos serviços realizados (pode ser 0,00).', false); return; }
     }
     if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
         mostrarMsg('Informe se o veículo está rodando ou parado.', false);
