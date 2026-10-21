@@ -18631,9 +18631,6 @@ app.post('/api/config-notificacoes/batch', authenticateToken, (req, res) => {
                         if (configuracoes.some(cfg => cfg && cfg.tipo === 'crlv_vencidos' && Array.isArray(cfg.usuarios) && cfg.usuarios.length > 0)) {
                             setTimeout(() => { try { verificarCRLVVencidoCron({ apenasSeNaoEnviouHoje: true }); } catch (e) {} }, 300);
                         }
-                        if (configuracoes.some(cfg => cfg && cfg.tipo === 'atualizacao_km' && Array.isArray(cfg.usuarios) && cfg.usuarios.length > 0)) {
-                            setTimeout(() => { try { verificarKmSemanalCron({ apenasSeNaoEnviouHoje: true }); } catch (e) {} }, 300);
-                        }
                     });
                     return;
                 }
@@ -21623,7 +21620,14 @@ db.run("ALTER TABLE frota_veiculos ADD COLUMN km_updated_at TEXT", (err) => {
                 SELECT MAX(CASE WHEN h.created_at IS NOT NULL AND length(TRIM(h.created_at)) >= 19 THEN substr(REPLACE(TRIM(h.created_at), 'T', ' '), 1, 19) ELSE h.data || ' 12:00:00' END)
                 FROM frota_km_historico h WHERE h.veiculo_id = frota_veiculos.id
             )
-            WHERE km_updated_at IS NULL`, () => {});
+            WHERE km_updated_at IS NULL`, () => {
+        // Veiculos que nunca tiveram KM registrada iniciam a contagem de 7 dias a partir de agora (evita falso vencimento "Sem registro")
+        db.run(
+            "UPDATE frota_veiculos SET km_updated_at = ? WHERE km_updated_at IS NULL OR TRIM(km_updated_at) = ''",
+            [_obterDataHoraSPStr()],
+            () => { try { sincronizarPopupKmAbertoSilencioso(); } catch (e) {} }
+        );
+    });
 });
 db.run("ALTER TABLE frota_km_historico ADD COLUMN usuario_nome TEXT", (err) => {
     if (err && !String(err.message).includes('duplicate column')) console.error('[MIGRATION frota_km_historico usuario_nome]', err.message);
@@ -21740,13 +21744,8 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
     return { status: null };
 }
 
-function verificarKmSemanalCron(opts) {
-    const opcoes = opts || {};
-    const agoraSP = _obterAgoraSP();
-    const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
-    if (opcoes.apenasSeNaoEnviouHoje && _ultimoDisparoKmData === hojeStr) return;
-
-    const marcoSegunda8h = _obterLimiteKm7dSPStr(); // limite: ultima atualizacao ha mais de 7 dias
+function _buscarVeiculosKmVencida(cb) {
+    const limite7d = _obterLimiteKm7dSPStr();
     db.all(`
         SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.km_atual, fv.km_updated_at,
                (SELECT MAX(h.data) FROM frota_km_historico h WHERE h.veiculo_id = fv.id) as ultima_data_km,
@@ -21763,11 +21762,10 @@ function verificarKmSemanalCron(opts) {
         FROM frota_veiculos fv
         ORDER BY fv.placa ASC
     `, [], (err, veiculos) => {
-        if (err) { console.error('[CRON KM]', err.message); return; }
-
+        if (err) return cb(err, []);
         const vencidos = [];
         (veiculos || []).forEach(v => {
-            if (_isVeiculoKmVencida(v, marcoSegunda8h)) {
+            if (_isVeiculoKmVencida(v, limite7d)) {
                 const ultRaw = String(v.km_updated_at || v.ultima_data_km || '').trim();
                 const ultData = ultRaw ? ultRaw.slice(0, 10).split('-').reverse().join('/') : 'Sem registro';
                 vencidos.push({
@@ -21780,47 +21778,85 @@ function verificarKmSemanalCron(opts) {
                 });
             }
         });
+        cb(null, vencidos);
+    });
+}
 
-        // Modo horario: so gera novo popup quando algum veiculo acabou de passar de 7 dias sem atualizar a KM
-        const novosVencidos = vencidos.filter(v => !_kmVencidasAnteriores.has(v.placa));
-        _kmVencidasAnteriores = new Set(vencidos.map(v => v.placa));
-        if (opcoes.somenteSeNovos && novosVencidos.length === 0) return;
+// Atualiza ou limpa apenas popups JA ABERTOS (lida = 0) quando uma KM e salva ou veiculo entra em manutencao,
+// SEM criar nova notificacao nem disparar e-mail.
+function sincronizarPopupKmAbertoSilencioso() {
+    _buscarVeiculosKmVencida((err, vencidos) => {
+        if (err) return;
+        if (!vencidos || vencidos.length === 0) {
+            db.run("DELETE FROM notificacoes_usuarios WHERE tipo = 'atualizacao_km' AND lida = 0");
+            return;
+        }
+        const placasStr = vencidos.map(v => v.placa).join(', ');
+        const msg = vencidos.length === 1
+            ? `A KM do veículo ${vencidos[0].placa} está vencida e precisa ser atualizada no sistema.`
+            : `Existem ${vencidos.length} veículos com a KM vencida (${placasStr}) que precisam ser atualizadas no sistema.`;
+        const dadosStr = JSON.stringify({
+            quantidade: vencidos.length,
+            placas: vencidos.map(v => v.placa),
+            veiculos: vencidos
+        });
+        db.run("UPDATE notificacoes_usuarios SET mensagem = ?, dados = ? WHERE tipo = 'atualizacao_km' AND lida = 0", [msg, dadosStr]);
+    });
+}
+
+function verificarKmSemanalCron() {
+    const agoraSP = _obterAgoraSP();
+    const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
+    if (_ultimoDisparoKmData === hojeStr) return;
+
+    _buscarVeiculosKmVencida((err, vencidos) => {
+        if (err) { console.error('[CRON KM]', err.message); return; }
 
         if (vencidos.length === 0) {
             db.run("DELETE FROM notificacoes_usuarios WHERE tipo = 'atualizacao_km' AND lida = 0");
-            console.log('[CRON KM] Todos os veículos rodando estão com a KM atualizada na semana.');
+            console.log('[CRON KM] Todos os veículos rodando estão com a KM atualizada (<= 7 dias).');
             return;
         }
 
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_km'", [], (errC, rowsC) => {
-            if (errC) { console.error('[CRON KM] Erro ao consultar config_notificacoes:', errC.message); return; }
-            if (!rowsC || rowsC.length === 0) {
-                console.log(`[CRON KM] ${vencidos.length} veículo(s) com KM vencida, mas nenhum usuário selecionado em 'atualizacao_km'.`);
-                return;
-            }
+        // Garante no maximo 1 disparo por dia mesmo se o servidor reiniciar ao longo do dia
+        db.get(
+            "SELECT COUNT(*) AS n FROM notificacoes_usuarios WHERE tipo = 'atualizacao_km' AND date(created_at, '-3 hours') = ?",
+            [hojeStr],
+            (errJ, rowJ) => {
+                if (!errJ && rowJ && Number(rowJ.n) > 0) {
+                    _ultimoDisparoKmData = hojeStr;
+                    return;
+                }
 
-            const placasStr = vencidos.map(v => v.placa).join(', ');
-            const msg = vencidos.length === 1
-                ? `A KM do veículo ${vencidos[0].placa} está vencida e precisa ser atualizada no sistema.`
-                : `Existem ${vencidos.length} veículos com a KM vencida (${placasStr}) que precisam ser atualizadas no sistema.`;
-            const dadosStr = JSON.stringify({
-                quantidade: vencidos.length,
-                placas: vencidos.map(v => v.placa),
-                veiculos: vencidos
-            });
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_km'", [], (errC, rowsC) => {
+                    if (errC) { console.error('[CRON KM] Erro ao consultar config_notificacoes:', errC.message); return; }
+                    if (!rowsC || rowsC.length === 0) {
+                        console.log(`[CRON KM] ${vencidos.length} veículo(s) com KM vencida, mas nenhum usuário selecionado em 'atualizacao_km'.`);
+                        return;
+                    }
 
-            rowsC.forEach(c => {
-                db.run("DELETE FROM notificacoes_usuarios WHERE usuario_id = ? AND tipo = 'atualizacao_km' AND lida = 0", [c.usuario_id], () => {
-                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'atualizacao_km', ?, ?)",
-                        [c.usuario_id, msg, dadosStr]);
+                    const placasStr = vencidos.map(v => v.placa).join(', ');
+                    const msg = vencidos.length === 1
+                        ? `A KM do veículo ${vencidos[0].placa} está vencida e precisa ser atualizada no sistema.`
+                        : `Existem ${vencidos.length} veículos com a KM vencida (${placasStr}) que precisam ser atualizadas no sistema.`;
+                    const dadosStr = JSON.stringify({
+                        quantidade: vencidos.length,
+                        placas: vencidos.map(v => v.placa),
+                        veiculos: vencidos
+                    });
+
+                    rowsC.forEach(c => {
+                        db.run("DELETE FROM notificacoes_usuarios WHERE usuario_id = ? AND tipo = 'atualizacao_km' AND lida = 0", [c.usuario_id], () => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'atualizacao_km', ?, ?)",
+                                [c.usuario_id, msg, dadosStr]);
+                        });
+                    });
+
+                    _ultimoDisparoKmData = hojeStr;
+                    enviarEmailAlertaKmVencido(vencidos);
                 });
-            });
-
-            if (!opcoes.apenasPopup) {
-                _ultimoDisparoKmData = hojeStr;
-                enviarEmailAlertaKmVencido(vencidos);
             }
-        });
+        );
     });
 }
 
@@ -22313,11 +22349,6 @@ cron.schedule('0 8 * * *', () => {
     verificarKmSemanalCron();
     verificarMarcoRevisaoCron();
     verificarLicencasVencimentoCron();
-}, { timezone: 'America/Sao_Paulo' });
-
-// A cada hora: gera popup quando algum veículo acabou de passar de 7 dias sem atualizar a KM
-cron.schedule('10 * * * *', () => {
-    try { verificarKmSemanalCron({ apenasPopup: true, somenteSeNovos: true }); } catch (e) {}
 }, { timezone: 'America/Sao_Paulo' });
 
 // Roda à 1:00 da manhã para ativar colaboradores com data de admissão
@@ -23871,9 +23902,9 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
     const garFlagPost = garAtePost ? 1 : ((garantia_fabrica === 1 || garantia_fabrica === '1' || garantia_fabrica === true) ? 1 : 0);
 
     db.run(
-        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, garantia_fabrica, garantia_fabrica_ate, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url, garFlagPost, garAtePost],
+        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, garantia_fabrica, garantia_fabrica_ate, km_updated_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url, garFlagPost, garAtePost, _obterDataHoraSPStr()],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -24873,7 +24904,7 @@ async function _fmAtualizaEmManutencao(veiculoId) {
         indispRev = (rv && rv.n > 0) ? 1 : 0;
     } catch (e) { indispRev = 0; }
     await _fmRun('UPDATE frota_veiculos SET em_manutencao = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [(indisponivel || indispRev) ? 1 : 0, veiculoId]);
-    setTimeout(() => { try { verificarKmSemanalCron({ apenasPopup: true }); } catch (e) {} }, 200);
+    setTimeout(() => { try { sincronizarPopupKmAbertoSilencioso(); } catch (e) {} }, 200);
 }
 
 // Catalogo unico de manutencao (22 categorias) - ver backend/utils/catalogoManutencao.js
@@ -26959,7 +26990,7 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
                 (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
             );
         });
-        setTimeout(() => { try { verificarKmSemanalCron({ apenasPopup: true }); } catch (e) {} }, 200);
+        setTimeout(() => { try { sincronizarPopupKmAbertoSilencioso(); } catch (e) {} }, 200);
         setTimeout(() => { try { verificarMarcoRevisaoCron(); } catch (e) {} }, 400);
         res.json({ message: 'Quilometragem atualizada', km_atual: kmNum, km_updated_at: agoraSPStr, data: hoje, km_vencida: 0 });
     });
