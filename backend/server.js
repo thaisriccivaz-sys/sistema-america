@@ -21715,14 +21715,24 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
     const passoMeses = uso ? 6 : 12;
     const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
     const mapa = {};
-    lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
+    let maxMarcoReal = 0, regMaxReal = null;
+    lista.forEach(r => {
+        const mk = Number(r.marco_km);
+        mapa[mk] = r;
+        if (r.status === 'realizada' && mk >= maxMarcoReal) {
+            maxMarcoReal = mk;
+            regMaxReal = r;
+        }
+    });
     let prev = null, temVencida = false, ultimo = null;
     for (let n = 1; n <= 400; n++) {
-        const reg = mapa[n * passoKm] || null;
-        const realizada = !!(reg && reg.status === 'realizada');
-        let kmLimite = n * passoKm;
+        const kmNominal = n * passoKm;
+        const reg = mapa[kmNominal] || null;
+        const superadaPorPosterior = maxMarcoReal > 0 && kmNominal < maxMarcoReal;
+        const realizada = !!(reg && reg.status === 'realizada') || superadaPorPosterior;
+        let kmLimite = kmNominal;
         let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
-        if (prev) {
+        if (prev && !superadaPorPosterior) {
             if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
             if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
         }
@@ -21731,7 +21741,8 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
         const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
         ultimo = { realizada, vencida, diffKm, diffDias, kmLimite, dtLimite };
         if (vencida) temVencida = true;
-        prev = realizada ? reg : null;
+        if (kmNominal === maxMarcoReal && regMaxReal) prev = regMaxReal;
+        else prev = (reg && reg.status === 'realizada') ? reg : null;
         if (!realizada && !vencida) break;
     }
     if (temVencida) return { status: 'vencida' };
@@ -21884,14 +21895,24 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
     const passoMeses = uso ? 6 : 12;
     const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
     const mapa = {};
-    lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
+    let maxMarcoReal = 0, regMaxReal = null;
+    lista.forEach(r => {
+        const mk = Number(r.marco_km);
+        mapa[mk] = r;
+        if (r.status === 'realizada' && mk >= maxMarcoReal) {
+            maxMarcoReal = mk;
+            regMaxReal = r;
+        }
+    });
     let prev = null;
     for (let n = 1; n <= 400; n++) {
-        const reg = mapa[n * passoKm] || null;
-        const realizada = !!(reg && reg.status === 'realizada');
-        let kmLimite = n * passoKm;
+        const kmNominal = n * passoKm;
+        const reg = mapa[kmNominal] || null;
+        const superadaPorPosterior = maxMarcoReal > 0 && kmNominal < maxMarcoReal;
+        const realizada = !!(reg && reg.status === 'realizada') || superadaPorPosterior;
+        let kmLimite = kmNominal;
         let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
-        if (prev) {
+        if (prev && !superadaPorPosterior) {
             if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
             if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
         }
@@ -21901,9 +21922,10 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
         const porData = diffDias !== null && diffDias <= 0;
         const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
         if (!realizada && (porKm || porData)) {
-            return { n, marco_km: n * passoKm, limite_km: kmLimite, limite_data: dtLimite, por_km: porKm, por_data: porData, km_atual: kmAtual };
+            return { n, marco_km: kmNominal, limite_km: kmLimite, limite_data: dtLimite, por_km: porKm, por_data: porData, km_atual: kmAtual };
         }
-        prev = realizada ? reg : null;
+        if (kmNominal === maxMarcoReal && regMaxReal) prev = regMaxReal;
+        else prev = (reg && reg.status === 'realizada') ? reg : null;
         if (!realizada && !vencida) break;
     }
     return null;
@@ -26485,6 +26507,9 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
                 return Object.assign({}, l, { servicos: Array.isArray(sv) ? sv : [] });
             });
         });
+        const revRes = _fmResumoRevisaoVeiculo(veiculo, revisoes, _fmHojeBR());
+        veiculo.revisao_status = revRes.status || null;
+        veiculo.revisao_info = revRes;
         res.json({ veiculo, revisoes, anexos });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -26627,6 +26652,18 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
                 [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado]
             );
             revId = ins.lastID;
+        }
+        if (rapido && status === 'realizada') {
+            await _fmRun(
+                "UPDATE frota_revisoes SET status='realizada', data_revisao=COALESCE(data_revisao, ?), km_revisao=COALESCE(km_revisao, marco_km), updated_at=CURRENT_TIMESTAMP WHERE veiculo_id=? AND marco_km < ? AND status='pendente'",
+                [dataRev || hoje, vid, marcoKm]
+            );
+            if (kmRev) {
+                await _fmRun(
+                    "UPDATE frota_revisoes SET km_revisao=MAX(COALESCE(km_revisao, 0), ?), data_revisao=COALESCE(?, data_revisao), updated_at=CURRENT_TIMESTAMP WHERE veiculo_id=? AND marco_km > ? AND status='realizada'",
+                    [kmRev, dataRev || hoje, vid, marcoKm]
+                );
+            }
         }
         await _fmAtualizaEmManutencao(vid);
         const saved = await _fmGet('SELECT * FROM frota_revisoes WHERE id = ?', [revId]);

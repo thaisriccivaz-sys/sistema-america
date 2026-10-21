@@ -846,7 +846,15 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     if (!det || !ctx || !ctx.veiculo) return;
     const v = ctx.veiculo;
     const revsMap = {};
-    (ctx.revisoes || []).forEach(r => { revsMap[Number(r.marco_km)] = r; });
+    let maxMarcoReal = 0, regMaxReal = null;
+    (ctx.revisoes || []).forEach(r => {
+        const mk = Number(r.marco_km);
+        revsMap[mk] = r;
+        if (r.status === 'realizada' && mk >= maxMarcoReal) {
+            maxMarcoReal = mk;
+            regMaxReal = r;
+        }
+    });
 
     const kmAtual = Number(v.km_atual || 0);
     const hojeIso = window._mnHojeISO();
@@ -864,10 +872,11 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const kmNominal = n * passoKm;
         const mesesNominal = n * passoMeses;
         const reg = revsMap[kmNominal] || null;
-        const realizada = !!(reg && reg.status === 'realizada');
+        const superadaPorPosterior = maxMarcoReal > 0 && kmNominal < maxMarcoReal;
+        const realizada = !!(reg && reg.status === 'realizada') || superadaPorPosterior;
         let kmLimite = kmNominal;
         let dtLimite = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, mesesNominal) : '';
-        if (prevReal) {
+        if (prevReal && !superadaPorPosterior) {
             if (prevReal.km_revisao) kmLimite = Number(prevReal.km_revisao) + passoKm;
             if (prevReal.data_revisao) dtLimite = _mnRevSomarMesesISO(prevReal.data_revisao, passoMeses);
         }
@@ -877,7 +886,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const vencTempo = diffDias !== null && diffDias < 0;
         const vencida = !realizada && (vencKm || vencTempo);
         lista.push({ n: n, kmNominal: kmNominal, mesesNominal: mesesNominal, reg: reg, realizada: realizada, kmLimite: kmLimite, dtLimite: dtLimite, diffKm: diffKm, diffDias: diffDias, vencKm: vencKm, vencTempo: vencTempo, vencida: vencida });
-        prevReal = realizada ? reg : null;
+        if (kmNominal === maxMarcoReal && regMaxReal) prevReal = regMaxReal;
+        else prevReal = (reg && reg.status === 'realizada') ? reg : null;
         if (!realizada && !vencida) break;
     }
     const totalMarcos = lista.length;
@@ -898,9 +908,9 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         if (realizada) {
             sitCor = '#15803d'; sitBg = '#f0fdf4'; sitBorda = '#86efac';
             sitLabel = 'Realizada';
-            kmStatusTxt = reg.km_revisao ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Limite ${kmLimite.toLocaleString('pt-BR')} km`;
-            tempoStatusTxt = reg.data_revisao ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
-            prevalenciaTxt = reg.concessionaria ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
+            kmStatusTxt = (reg && reg.km_revisao) ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Limite ${kmLimite.toLocaleString('pt-BR')} km`;
+            tempoStatusTxt = (reg && reg.data_revisao) ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
+            prevalenciaTxt = (reg && reg.concessionaria) ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
         } else {
             const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1500;
             const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 45;
@@ -1014,6 +1024,13 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             </div>
         </div>`;
 
+    if (v.revisao_status) {
+        [window._manutFrota, window._frotaDados].forEach(arr => {
+            const fv = (arr || []).find(x => String(x.id) === String(v.id));
+            if (fv) { fv.revisao_status = v.revisao_status; fv.revisao_info = v.revisao_info || {}; }
+        });
+    }
+
     det.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1rem;">
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -1022,8 +1039,9 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                     <i class="ph ph-arrow-left"></i> Voltar aos veículos
                 </button>
                 <div>
-                    <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                         <span style="font-size:1.25rem;font-weight:800;color:#1e293b;">${v.placa}</span>
+                        ${window._mnRevBadgeHtml(v)}
                         <span style="background:#f3e8ff;color:#6d28d9;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Plano de Revisão</span>
                     </div>
                     <div style="font-size:0.84rem;color:#64748b;font-weight:600;">${v.marca_modelo_versao || ''}</div>
@@ -2064,7 +2082,7 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         if (!silencioso) {
             if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão salva com sucesso!');
             document.getElementById('mn-rev-modal-ov')?.remove();
-            if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
+            if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
             await window.mnRevisaoAbrirVeiculo(vid);
         }
         return j.revisao;
@@ -2104,7 +2122,7 @@ window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao marcar a revisão como feita');
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão de ' + marcoTxt + ' marcada como feita!');
-        if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
         await window.mnRevisaoAbrirVeiculo(v.id);
     } catch (e) {
         alert('Erro: ' + e.message);
