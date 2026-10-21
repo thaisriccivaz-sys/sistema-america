@@ -25904,6 +25904,20 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_lancamentos (
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisao_lancamentos]', err.message);
 });
+db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_midias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    revisao_id INTEGER NOT NULL,
+    veiculo_id INTEGER NOT NULL,
+    categoria TEXT NOT NULL,
+    servico_id TEXT,
+    nome_arquivo TEXT,
+    mime_type TEXT,
+    r2_key TEXT NOT NULL,
+    usuario_nome TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[MIGRATION frota_revisao_midias]', err.message);
+});
 
 // Recalcula valor de peças / mão de obra / total da revisão a partir dos lançamentos das notas
 async function _frRecalcRevisao(revisaoId) {
@@ -25949,9 +25963,14 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
             [vid]
         );
         const lancs = await _fmAll('SELECT * FROM frota_revisao_lancamentos WHERE veiculo_id = ? ORDER BY id ASC', [vid]);
+        const midias = await _fmAll(
+            'SELECT id, revisao_id, veiculo_id, categoria, servico_id, nome_arquivo, mime_type, r2_key, usuario_nome, created_at FROM frota_revisao_midias WHERE veiculo_id = ? ORDER BY id ASC',
+            [vid]
+        );
         revisoes.forEach(r => {
             try { r.itens = JSON.parse(r.itens_json || '{}'); } catch (e) { r.itens = {}; }
             r.anexos = anexos.filter(a => Number(a.revisao_id) === Number(r.id));
+            r.midias = midias.filter(m => Number(m.revisao_id) === Number(r.id)).map(m => Object.assign({}, m, { url: '/api/frota/revisoes/midias/' + m.id + '/arquivo' }));
             r.lancamentos = lancs.filter(l => Number(l.revisao_id) === Number(r.id)).map(l => {
                 let sv = [];
                 try { sv = JSON.parse(l.servicos_json || '[]'); } catch (e) { sv = []; }
@@ -26032,6 +26051,20 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         // Contagem de parado: comeca as 08:00 (Brasilia) do dia da revisao agendada
         const minutosParado = (desde) => { const ini = new Date(desde + 'T08:00:00-03:00').getTime(); return isNaN(ini) ? null : Math.max(0, Math.floor((Date.now() - ini) / 60000)); };
         if (status === 'realizada') {
+            if (!existing) {
+                return res.status(400).json({ error: 'Anexe as fotos obrigatórias das conferências internas e o vídeo geral do veículo antes de concluir a revisão.' });
+            }
+            const midiasRev = await _fmAll('SELECT categoria, servico_id FROM frota_revisao_midias WHERE revisao_id = ?', [existing.id]);
+            const temVideo = midiasRev.some(m => m.categoria === 'video_geral');
+            if (!temVideo) {
+                return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), é obrigatório anexar o 5. Vídeo geral do veículo.' });
+            }
+            const confObrigIds = ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor'];
+            const fotosSet = new Set(midiasRev.filter(m => m.categoria === 'conferencia_foto' && m.servico_id).map(m => m.servico_id));
+            const confSemFoto = confObrigIds.filter(id => !fotosSet.has(id));
+            if (confSemFoto.length > 0) {
+                return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), anexe ao menos uma foto em cada item de Conferências internas OBRIGATÓRIAS.' });
+            }
             kmRev = (existing && existing.status === 'realizada' && existing.km_revisao)
                 ? existing.km_revisao
                 : ((veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null);
@@ -26213,6 +26246,110 @@ app.delete('/api/frota/revisoes/anexos/:anexoId', authenticateToken, async (req,
         const restam = await _fmGet('SELECT COUNT(*) AS n FROM frota_revisao_lancamentos WHERE revisao_id = ?', [row.revisao_id]);
         if (restam && restam.n > 0) await _frRecalcRevisao(row.revisao_id);
         else await _fmRun('UPDATE frota_revisoes SET valor_pecas=0, valor_mao_obra=0, valor_total=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.revisao_id]);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Mídias da Revisão (Fotos das Conferências Internas Obrigatórias + 5. Vídeo Geral do Veículo) no Cloudflare R2 ──
+const multerMidiaRevisao = require('multer')({
+    storage: require('multer').memoryStorage(),
+    limits: { fileSize: 250 * 1024 * 1024, files: 30 }
+});
+
+app.post('/api/frota/revisoes/:revisaoId/midias', authenticateToken, multerMidiaRevisao.array('arquivos', 30), async (req, res) => {
+    const keysEnviadas = [];
+    try {
+        const revId = parseInt(req.params.revisaoId, 10);
+        const rev = await _fmGet(
+            'SELECT fr.*, fv.placa FROM frota_revisoes fr LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id WHERE fr.id = ?',
+            [revId]
+        );
+        if (!rev) return res.status(404).json({ error: 'Revisão não encontrada.' });
+        const files = Array.isArray(req.files) ? req.files : [];
+        if (!files.length) return res.status(400).json({ error: 'Selecione ao menos um arquivo.' });
+
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
+
+        const categoria = req.body.categoria === 'video_geral' ? 'video_geral' : 'conferencia_foto';
+        const servicoId = categoria === 'conferencia_foto' ? (String(req.body.servico_id || '').trim() || null) : null;
+        if (categoria === 'conferencia_foto' && !servicoId) {
+            return res.status(400).json({ error: 'Informe o serviço da conferência interna.' });
+        }
+
+        const safe = (s) => String(s || 'arq').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+        const agora = new Date();
+        const usuario = _fmUsuario(req);
+        const inseridos = [];
+
+        // Se for video_geral, remove vídeos anteriores da mesma revisão antes de substituir
+        if (categoria === 'video_geral') {
+            const ant = await _fmAll("SELECT id, r2_key FROM frota_revisao_midias WHERE revisao_id = ? AND categoria = 'video_geral'", [revId]);
+            for (const old of ant) {
+                if (old.r2_key) await r2.deleteFromR2(old.r2_key).catch(() => {});
+                await _fmRun('DELETE FROM frota_revisao_midias WHERE id = ?', [old.id]);
+            }
+        }
+
+        for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            const extOrig = (path.extname(f.originalname || '') || (categoria === 'video_geral' ? '.mp4' : '.jpg')).toLowerCase();
+            const mime = f.mimetype || (categoria === 'video_geral' ? 'video/mp4' : 'image/jpeg');
+            const prefixo = categoria === 'video_geral' ? 'VIDEO_GERAL' : ('CONF_' + safe(servicoId));
+            const r2Key = 'Frota/Revisoes/' + safe(rev.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                + String(agora.getDate()).padStart(2, '0') + '_REV_' + (rev.marco_km || 0) + 'km_' + prefixo + '_' + Date.now().toString(36) + '_' + i + extOrig;
+
+            await r2.uploadToR2(r2Key, f.buffer, mime);
+            keysEnviadas.push(r2Key);
+
+            const ins = await _fmRun(
+                'INSERT INTO frota_revisao_midias (revisao_id, veiculo_id, categoria, servico_id, nome_arquivo, mime_type, r2_key, usuario_nome) VALUES (?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, categoria, servicoId, f.originalname || ('midia' + extOrig), mime, r2Key, usuario]
+            );
+            const row = await _fmGet('SELECT * FROM frota_revisao_midias WHERE id = ?', [ins.lastID]);
+            if (row) {
+                row.url = '/api/frota/revisoes/midias/' + row.id + '/arquivo';
+                inseridos.push(row);
+            }
+        }
+
+        res.json({ ok: true, midias: inseridos });
+    } catch (e) {
+        const r2 = require('./utils/r2');
+        for (const k of keysEnviadas) { try { await r2.deleteFromR2(k); } catch (_) {} }
+        res.status(500).json({ error: 'Erro ao enviar arquivo(s) para o R2: ' + e.message });
+    }
+});
+
+app.get('/api/frota/revisoes/midias/:midiaId/arquivo', async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, r2_key, nome_arquivo, mime_type FROM frota_revisao_midias WHERE id = ?', [req.params.midiaId]);
+        if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado.');
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).send('R2 não configurado.');
+        const { stream, contentType, contentLength } = await r2.downloadStreamFromR2(row.r2_key);
+        const fn = String(row.nome_arquivo || 'arquivo').replace(/["\r\n]/g, '');
+        res.setHeader('Content-Type', row.mime_type || contentType || 'application/octet-stream');
+        if (contentLength) res.setHeader('Content-Length', contentLength);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Content-Disposition', `inline; filename="${fn}"`);
+        stream.pipe(res);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir mídia: ' + e.message);
+    }
+});
+
+app.delete('/api/frota/revisoes/midias/:midiaId', authenticateToken, async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, r2_key FROM frota_revisao_midias WHERE id = ?', [req.params.midiaId]);
+        if (!row) return res.status(404).json({ error: 'Mídia não encontrada.' });
+        const r2 = require('./utils/r2');
+        if (row.r2_key && r2.isReady()) {
+            await r2.deleteFromR2(row.r2_key).catch(() => {});
+        }
+        await _fmRun('DELETE FROM frota_revisao_midias WHERE id = ?', [row.id]);
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ error: e.message });

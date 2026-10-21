@@ -585,9 +585,11 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
         return { id: id, nome: 'Verificação de ' + nome, tipo: 'verificacao', verificaDe: verificaDe, grupo: 'obrigatorio', desc: 'Verificar a cada 10.000 km ou 12 meses' };
     };
     const F = function(id, nome) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'obrigatorio', desc: 'Verificar a cada 10.000 km ou 12 meses' }; };
-    const O = function(id, nome, desc) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'opcional', desc: desc || 'A cada 10.000 km ou 12 meses' }; };
+    const C = function(id, nome, desc, tipoPadrao) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'conferencia', desc: desc || 'Verificar a cada 10.000 km ou 12 meses', tipoPadrao: tipoPadrao || 'vistoriado' }; };
+    const O = function(id, nome, desc) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'opcional', desc: desc || 'A cada 10.000 km ou 12 meses', tipoPadrao: 'vistoriado' }; };
 
     window._mnRevPlanoPadrao = [
+        // Serviços OBRIGATÓRIOS (Mecânico)
         T('troca_oleo_motor', 'Óleo do motor', 10000, 12),
         T('troca_filtro_oleo', 'Filtro de óleo', 10000, 12),
         T('troca_filtro_combustivel', 'Filtro de combustível', 10000, 12),
@@ -603,33 +605,35 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
         V('verif_fluido_embreagem', 'Fluido da embreagem', 'troca_fluido_embreagem'),
         F('verif_pastilhas_discos', 'Verificação das pastilhas e discos de freio'),
         F('verif_freio_estacionamento', 'Verificação do freio de estacionamento'),
-        F('verif_pneus', 'Verificação de pneus'),
-        O('rodizio_pneus', 'Rodízio de pneus'),
         F('verif_suspensao', 'Verificação da suspensão'),
         F('verif_caixa_direcao', 'Verificação da caixa de direção'),
         F('verif_homocinetica', 'Verificação de homocinética'),
-        O('alinhamento_rodas', 'Alinhamento das rodas', 'Conforme necessidade identificada'),
         F('verif_escapamento', 'Verificação do escapamento'),
         F('verif_estanqueidade', 'Verificação de estanqueidade do motor e do câmbio'),
         T('troca_velas', 'Velas de ignição', 40000, null, { desc: 'Substituir a cada 40.000 km, independentemente do tempo' }),
         V('verif_velas', 'Velas de ignição', 'troca_velas'),
-        F('verif_bateria_12v', 'Verificação da bateria de 12 V'),
         F('verif_filtro_ar_condicionado', 'Verificação do filtro do ar-condicionado'),
-        F('verif_palhetas', 'Verificação das palhetas'),
-        F('verif_iluminacao', 'Verificação da iluminação'),
-        F('verif_carroceria', 'Verificação da carroceria e proteções inferiores'),
         F('verif_ventilacao_carter', 'Verificação do sistema de ventilação do cárter'),
         F('higienizacao_alimentacao', 'Higienização do sistema de alimentação'),
         T('troca_correias', 'Correias dos órgãos auxiliares', 120000, 72),
         V('verif_correias', 'Correias dos órgãos auxiliares', 'troca_correias'),
         F('verif_filtro_canister', 'Verificação do filtro de ar do canister'),
+        // Conferências internas OBRIGATÓRIAS
+        C('verif_pneus', 'Verificação de pneus'),
+        C('verif_bateria_12v', 'Verificação da bateria de 12 V'),
+        C('verif_palhetas', 'Verificação das palhetas'),
+        C('verif_iluminacao', 'Verificação da iluminação'),
+        C('verif_carroceria', 'Verificação da carroceria e proteções inferiores'),
+        C('verif_cameras_rastreadores', 'Verificação de câmeras e rastreadores'),
+        C('verif_capas_banco_volante', 'Verificação de capas de banco e volante'),
+        C('verif_kit_socorro', 'Verificação do kit de socorro'),
+        C('lavagem_motor', 'Lavagem técnica do motor', 'A cada 10.000 km ou 12 meses', 'troca_manutencao'),
+        // OPCIONAIS
+        O('rodizio_pneus', 'Rodízio de pneus'),
+        O('alinhamento_rodas', 'Alinhamento das rodas', 'Conforme necessidade identificada'),
         O('limpeza_bicos', 'Limpeza de bicos injetores'),
         O('descarbonizacao', 'Descarbonização do motor'),
-        O('aditivos_combustivel', 'Aditivos extras no combustível'),
-        O('lavagem_motor', 'Lavagem técnica do motor'),
-        F('verif_cameras_rastreadores', 'Verificação de câmeras e rastreadores'),
-        F('verif_capas_banco_volante', 'Verificação de capas de banco e volante'),
-        F('verif_kit_socorro', 'Verificação do kit de socorro')
+        O('aditivos_combustivel', 'Aditivos extras no combustível')
     ];
 })();
 
@@ -1021,7 +1025,7 @@ window._mnRevEsc = function(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
-// Lista de servicos da revisao: obrigatorios (trocas previstas no marco + verificacoes obrigatorias) e opcionais (demais)
+// Lista de servicos da revisao: obrigatorios mecanicos, conferencias internas obrigatorias e opcionais
 window._mnRevServicosDoMarco = function(marcoKm) {
     const ctx = window._mnRevAtual;
     const v = (ctx && ctx.veiculo) || {};
@@ -1044,39 +1048,81 @@ window._mnRevServicosDoMarco = function(marcoKm) {
             if (trocaVence[d.id]) lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: 'Troca prevista neste marco', tipoPadrao: 'troca_manutencao' });
         } else if (d.tipo === 'verificacao') {
             if (!trocaVence[d.verificaDe]) lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: 'Verificação (a troca não é prevista neste marco)', tipoPadrao: 'vistoriado' });
+        } else if (d.grupo === 'conferencia') {
+            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: 'conferencia', origem: 'Conferência interna obrigatória (anexar foto)', tipoPadrao: d.tipoPadrao || 'vistoriado' });
         } else {
-            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: d.grupo === 'obrigatorio' ? 'Obrigatório em toda revisão' : 'Opcional', tipoPadrao: d.grupo === 'obrigatorio' ? 'vistoriado' : 'troca_manutencao' });
+            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: d.grupo === 'obrigatorio' ? 'Obrigatório em toda revisão' : '', tipoPadrao: 'vistoriado' });
         }
     });
     return lista;
 };
 
+window._mnRevFotosConfDoItem = function(servicoId) {
+    const reg = window._mnRevRegAtual();
+    const midias = (reg && Array.isArray(reg.midias)) ? reg.midias : [];
+    return midias.filter(function(m) { return m.categoria === 'conferencia_foto' && String(m.servico_id) === String(servicoId); });
+};
+
+window._mnRevRenderFotosConfItem = function(servicoId) {
+    const E = window._mnRevEsc;
+    const fotos = window._mnRevFotosConfDoItem(servicoId);
+    if (!fotos.length) {
+        return '<span style="font-size:0.7rem;color:#dc2626;font-weight:700;">Nenhuma foto anexada (obrigatória)</span>';
+    }
+    return fotos.map(function(f) {
+        const url = f.url || ('/api/frota/revisoes/midias/' + f.id + '/arquivo');
+        return `<div style="position:relative;width:44px;height:44px;border-radius:6px;overflow:hidden;border:1.5px solid #cbd5e1;background:#f8fafc;flex-shrink:0;" title="${E(f.nome_arquivo || 'Foto')} — clique para ampliar">
+            <img src="${E(url)}" onclick="window._mnRevVerMidia(${f.id})" style="width:100%;height:100%;object-fit:cover;cursor:pointer;display:block;">
+            <button type="button" onclick="window._mnRevExcluirMidia(${f.id})" title="Remover foto" style="position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:rgba(220,38,38,0.9);color:#fff;border:none;font-size:11px;line-height:14px;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>`;
+    }).join('');
+};
+
 window._mnRevLinhaServicoHtml = function(s, st) {
     const E = window._mnRevEsc;
     const marcado = st.realizado === true || st.realizado === 'true';
-    const tipo = st.tipo || s.tipoPadrao;
-    const obrig = s.grupo === 'obrigatorio';
+    const tipo = (s.grupo === 'opcional' && !marcado) ? 'vistoriado' : (st.tipo || s.tipoPadrao);
+    const isConf = s.grupo === 'conferencia';
+    const obrig = s.grupo === 'obrigatorio' || isConf;
+    const badgeHtml = isConf
+        ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">CONFERÊNCIA OBRIGATÓRIA</span>'
+        : (obrig
+            ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;">OPCIONAL</span>');
+    const colFotoConf = isConf ? `
+        <td style="padding:8px 10px;min-width:210px;">
+            <div style="display:flex;flex-direction:column;gap:5px;">
+                <div>
+                    <label id="mn-rev-lbl-conf-${s.id}" style="display:inline-flex;align-items:center;gap:5px;background:#0284c7;color:#fff;padding:3px 9px;border-radius:6px;font-size:0.73rem;font-weight:700;cursor:pointer;">
+                        <i class="ph ph-camera"></i> + Anexar foto(s)
+                        <input type="file" accept="image/*" multiple style="display:none;" onchange="window._mnRevAnexarFotosConf('${s.id}', this)">
+                    </label>
+                </div>
+                <div id="mn-rev-conf-fotos-${s.id}" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">${window._mnRevRenderFotosConfItem(s.id)}</div>
+            </div>
+        </td>` : '';
     return `
     <tr data-rev-row="${s.id}" style="border-bottom:1px solid #e2e8f0;background:${marcado ? '#f0fdf4' : '#fff'};">
         <td style="padding:8px 10px;width:34px;text-align:center;">
-            <input type="checkbox" data-rev-item="${s.id}" data-rev-field="realizado" ${marcado ? 'checked' : ''} onchange="window._mnRevServicoMarcou('${s.id}')" style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
+            <input type="checkbox" data-rev-item="${s.id}" data-rev-field="realizado" data-rev-grupo="${s.grupo}" ${marcado ? 'checked' : ''} onchange="window._mnRevServicoMarcou('${s.id}')" style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
         </td>
         <td style="padding:8px 10px;">
             <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${E(s.nome)}
-                ${obrig ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;">OPCIONAL</span>'}
+                ${badgeHtml}
             </div>
             <div style="font-size:0.74rem;color:#64748b;">${E(s.desc)}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;">${E(s.origem)}${s.risco ? ' • Risco p/ garantia: ' + E(s.risco) : ''}</div>
+            ${(s.origem || s.risco) ? `<div style="font-size:0.7rem;color:#94a3b8;">${E(s.origem || '')}${s.risco ? ' • Risco p/ garantia: ' + E(s.risco) : ''}</div>` : ''}
         </td>
-        <td style="padding:8px 10px;width:260px;">
+        <td style="padding:8px 10px;width:250px;">
             <select data-rev-item="${s.id}" data-rev-field="tipo" ${marcado ? '' : 'disabled'} style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;${marcado ? '' : 'background:#f1f5f9;color:#94a3b8;'}">
                 <option value="troca_manutencao"${tipo === 'troca_manutencao' ? ' selected' : ''}>Manutenção / troca realizada</option>
                 <option value="vistoriado"${tipo === 'vistoriado' ? ' selected' : ''}>Vistoriado (sem manutenção/troca)</option>
             </select>
         </td>
-        <td style="padding:8px 10px;width:200px;">
+        <td style="padding:8px 10px;width:190px;">
             <input type="text" data-rev-item="${s.id}" data-rev-field="obs" value="${E(st.obs || '')}" placeholder="Obs / marca / detalhe..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
         </td>
+        ${colFotoConf}
     </tr>`;
 };
 
@@ -1085,7 +1131,12 @@ window._mnRevServicoMarcou = function(id) {
     const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + id + '"][data-rev-field="tipo"]');
     const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + id + '"]');
     if (!cb) return;
-    if (sel) { sel.disabled = !cb.checked; sel.style.background = cb.checked ? '' : '#f1f5f9'; sel.style.color = cb.checked ? '' : '#94a3b8'; }
+    if (sel) {
+        if (cb.checked && cb.getAttribute('data-rev-grupo') === 'opcional') sel.value = 'vistoriado';
+        sel.disabled = !cb.checked;
+        sel.style.background = cb.checked ? '' : '#f1f5f9';
+        sel.style.color = cb.checked ? '' : '#94a3b8';
+    }
     if (row) row.style.background = cb.checked ? '#f0fdf4' : '#fff';
     if (!cb.checked) window._mnRevPodarVinculos(id);
     window._mnRevAtualizarContadorObrig();
@@ -1094,11 +1145,17 @@ window._mnRevServicoMarcou = function(id) {
 window._mnRevAtualizarContadorObrig = function() {
     const servs = window._mnRevServicosModal || [];
     const obrig = servs.filter(function(s) { return s.grupo === 'obrigatorio'; });
+    const conf = servs.filter(function(s) { return s.grupo === 'conferencia'; });
     const opcio = servs.filter(function(s) { return s.grupo === 'opcional'; });
-    let ok = 0, okOpcio = 0;
+    let ok = 0, okConf = 0, okConfFotos = 0, okOpcio = 0;
     obrig.forEach(function(s) {
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
         if (cb && cb.checked) ok++;
+    });
+    conf.forEach(function(s) {
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+        if (cb && cb.checked) okConf++;
+        if (window._mnRevFotosConfDoItem(s.id).length > 0) okConfFotos++;
     });
     opcio.forEach(function(s) {
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
@@ -1106,13 +1163,17 @@ window._mnRevAtualizarContadorObrig = function() {
     });
     const el = document.getElementById('mn-rev-cont-obrig');
     if (el) {
-        const completo = ok === obrig.length;
-        el.textContent = ok + ' de ' + obrig.length + ' obrigatórios marcados';
+        const totalObrig = obrig.length + conf.length;
+        const okTotal = ok + okConf;
+        const completo = okTotal === totalObrig && okConfFotos === conf.length;
+        el.textContent = okTotal + ' de ' + totalObrig + ' obrigatórios marcados • ' + okConfFotos + ' de ' + conf.length + ' c/ foto';
         el.style.background = completo ? '#dcfce7' : '#fef2f2';
         el.style.color = completo ? '#15803d' : '#b91c1c';
     }
     const cbAllObrig = document.getElementById('mn-rev-cb-all-obrig');
     if (cbAllObrig) cbAllObrig.checked = obrig.length > 0 && ok === obrig.length;
+    const cbAllConf = document.getElementById('mn-rev-cb-all-conf');
+    if (cbAllConf) cbAllConf.checked = conf.length > 0 && okConf === conf.length;
     const cbAllOpcio = document.getElementById('mn-rev-cb-all-opcio');
     if (cbAllOpcio) cbAllOpcio.checked = opcio.length > 0 && okOpcio === opcio.length;
 };
@@ -1124,7 +1185,12 @@ window._mnRevMarcarTodosGrupo = function(grupo, marcado) {
         const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + s.id + '"][data-rev-field="tipo"]');
         const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]');
         if (cb) cb.checked = !!marcado;
-        if (sel) { sel.disabled = !marcado; sel.style.background = marcado ? '' : '#f1f5f9'; sel.style.color = marcado ? '' : '#94a3b8'; }
+        if (sel) {
+            if (marcado && grupo === 'opcional') sel.value = 'vistoriado';
+            sel.disabled = !marcado;
+            sel.style.background = marcado ? '' : '#f1f5f9';
+            sel.style.color = marcado ? '' : '#94a3b8';
+        }
         if (row) row.style.background = marcado ? '#f0fdf4' : '#fff';
         if (!marcado) window._mnRevPodarVinculos(s.id);
     });
@@ -1153,7 +1219,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(marcoKm); }) || {
         id: null, veiculo_id: v.id, marco_km: marcoKm, marco_meses: marcoMeses, status: 'pendente', data_revisao: '', km_revisao: '',
         concessionaria: (function() { const ga = String(v.garantia_fabrica_ate || '').split('T')[0]; return (ga && ga >= window._mnHojeISO()) ? 'Concessionária Autorizada Fiat' : ''; })(), numero_os: '', valor_pecas: 0, valor_mao_obra: 0, valor_total: 0,
-        itens: {}, observacoes: '', anexos: [], lancamentos: []
+        itens: {}, observacoes: '', anexos: [], midias: [], lancamentos: []
     };
     const itensSalvos = reg.itens || {};
     window._mnRevMarcoAtual = { km: marcoKm, meses: marcoMeses };
@@ -1169,12 +1235,19 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(3px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;';
 
     const obrig = servicos.filter(function(s) { return s.grupo === 'obrigatorio'; });
+    const conf = servicos.filter(function(s) { return s.grupo === 'conferencia'; });
     const opcio = servicos.filter(function(s) { return s.grupo === 'opcional'; });
     const thServ = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
         <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
         <th style="padding:8px 10px;">Serviço / O que fazer</th>
-        <th style="padding:8px 10px;width:260px;">Foi realizado como?</th>
-        <th style="padding:8px 10px;width:200px;">Observações</th></tr></thead>`;
+        <th style="padding:8px 10px;width:250px;">Foi realizado como?</th>
+        <th style="padding:8px 10px;width:190px;">Observações</th></tr></thead>`;
+    const thConf = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
+        <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
+        <th style="padding:8px 10px;">Conferência / O que fazer</th>
+        <th style="padding:8px 10px;width:250px;">Foi realizado como?</th>
+        <th style="padding:8px 10px;width:190px;">Observações</th>
+        <th style="padding:8px 10px;min-width:210px;">Fotos obrigatórias (R2)</th></tr></thead>`;
 
     ov.innerHTML = `
     <div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
@@ -1219,21 +1292,28 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                 </div>
             </div>
 
-            <!-- 2. Servicos obrigatorios e opcionais -->
+            <!-- 2. Servicos obrigatorios, conferencias internas e opcionais -->
             <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:1.25rem;">
                 <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <div style="font-weight:800;color:#1e293b;font-size:0.9rem;"><i class="ph ph-list-checks" style="color:#7c3aed;"></i> 2. Serviços da Revisão — marque o que foi realizado</div>
                     <span id="mn-rev-cont-obrig" style="font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;"></span>
                 </div>
                 <div style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>Serviços OBRIGATÓRIOS (todos devem ser marcados como realizados para salvar a revisão como Realizada)</span>
+                    <span>Serviços OBRIGATÓRIOS (Mecânico)</span>
                     <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #fca5a5;color:#991b1b;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-obrig" onchange="window._mnRevMarcarTodosGrupo('obrigatorio', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os obrigatórios
                     </label>
                 </div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+                <div style="padding:7px 12px;background:#eff6ff;color:#1e40af;font-size:0.78rem;font-weight:800;border-top:1px solid #bfdbfe;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <span>Conferências internas OBRIGATÓRIAS (obrigatório anexar foto de cada item)</span>
+                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                        <input type="checkbox" id="mn-rev-cb-all-conf" onchange="window._mnRevMarcarTodosGrupo('conferencia', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todas as conferências
+                    </label>
+                </div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thConf}<tbody>${conf.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
                 <div style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>Serviços OPCIONAIS / condicionais (marque apenas se foram vistoriados ou realizados)</span>
+                    <span>OPCIONAIS</span>
                     <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #cbd5e1;color:#334155;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-opcio" onchange="window._mnRevMarcarTodosGrupo('opcional', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os opcionais
                     </label>
@@ -1286,6 +1366,26 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </div>
                 </div>
                 <div id="mn-rev-custos-serv" style="margin-top:0.9rem;"></div>
+            </div>
+
+            <!-- 5. Video geral do veiculo -->
+            <div id="mn-rev-sec-video" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:0.65rem;">
+                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <i class="ph ph-video-camera" style="color:#7c3aed;"></i> 5. Vídeo geral do veículo
+                        <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;">OBRIGATÓRIO PARA CONCLUIR</span>
+                    </div>
+                </div>
+                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                        <div style="font-size:0.78rem;color:#475569;">Anexe um vídeo geral do veículo (obrigatório para alterar a situação da revisão para Realizada / Concluída).</div>
+                        <label id="mn-rev-lbl-video" style="display:inline-flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;padding:0.45rem 0.95rem;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">
+                            <i class="ph ph-upload-simple"></i> Anexar vídeo geral do veículo
+                            <input type="file" id="mn-rev-inp-video" accept="video/*" style="display:none;" onchange="window._mnRevAnexarVideoGeral(this)">
+                        </label>
+                    </div>
+                    <div id="mn-rev-video-lista" style="margin-top:0.75rem;"></div>
+                </div>
             </div>
 
             <div>
@@ -1363,7 +1463,9 @@ window._mnRevAbrirVinculo = function(i, btn) {
     pop.style.cssText = 'position:fixed;z-index:10300;width:' + largura + 'px;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.28);padding:8px 12px;left:' + esq + 'px;' + (abreAcima ? 'bottom:' + (window.innerHeight - r.top + 4) + 'px;' : 'top:' + (r.bottom + 4) + 'px;');
     pop.innerHTML = '<div style="font-size:0.74rem;font-weight:800;color:#075985;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">Serviços marcados no passo 2</div>'
         + (marcados.length
-            ? bloco('OBRIGATÓRIOS', marcados.filter(function(s) { return s.grupo === 'obrigatorio'; })) + bloco('OPCIONAIS', marcados.filter(function(s) { return s.grupo === 'opcional'; }))
+            ? bloco('OBRIGATÓRIOS (MECÂNICO)', marcados.filter(function(s) { return s.grupo === 'obrigatorio'; }))
+              + bloco('CONFERÊNCIAS INTERNAS', marcados.filter(function(s) { return s.grupo === 'conferencia'; }))
+              + bloco('OPCIONAIS', marcados.filter(function(s) { return s.grupo === 'opcional'; }))
             : '<div style="font-size:0.78rem;color:#b45309;padding:8px 0;">Nenhum serviço marcado. Marque no passo 2 os serviços que foram realizados para poder vincular.</div>');
     document.body.appendChild(pop);
     window._mnRevVincOutside = function(ev) { if (!pop.contains(ev.target) && ev.target !== btn) window._mnRevFecharVinculo(); };
@@ -1559,7 +1661,7 @@ window._mnRevRegAtual = function() {
     return (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(m.km); }) || null;
 };
 
-// Atualiza lista de anexos e custo por servico (e, se pedido, os campos de valores) a partir dos dados do servidor
+// Atualiza lista de anexos, midias (fotos/video) e custo por servico (e, se pedido, os campos de valores) a partir dos dados do servidor
 window._mnRevAtualizarModalDados = function(atualizaValores) {
     const reg = window._mnRevRegAtual();
     const listaEl = document.getElementById('mn-rev-anx-lista');
@@ -1568,6 +1670,13 @@ window._mnRevAtualizarModalDados = function(atualizaValores) {
         const set = function(id, val) { const el = document.getElementById(id); if (el) el.value = Number(val || 0).toFixed(2); };
         set('mn-rev-f-vpecas', reg.valor_pecas); set('mn-rev-f-vmo', reg.valor_mao_obra); set('mn-rev-f-vtotal', reg.valor_total);
     }
+    (window._mnRevServicosModal || []).forEach(function(s) {
+        if (s.grupo !== 'conferencia') return;
+        const box = document.getElementById('mn-rev-conf-fotos-' + s.id);
+        if (box) box.innerHTML = window._mnRevRenderFotosConfItem(s.id);
+    });
+    if (typeof window._mnRevRenderVideoGeral === 'function') window._mnRevRenderVideoGeral();
+    if (typeof window._mnRevAtualizarContadorObrig === 'function') window._mnRevAtualizarContadorObrig();
     const custEl = document.getElementById('mn-rev-custos-serv');
     if (custEl) window._mnRevAtualizarCustosPreview();
 };
@@ -1593,7 +1702,9 @@ window._mnRevCustosPorServicoHtml = function(lancs) {
     const linhas = Object.keys(acc).map(function(id) {
         const s = nomes[id];
         const a = acc[id];
-        return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)} <span style="font-size:0.66rem;font-weight:800;color:${s && s.grupo === 'obrigatorio' ? '#dc2626' : '#64748b'};">${s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : 'OPCIONAL') : ''}</span></td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
+        const grpCor = s ? (s.grupo === 'obrigatorio' ? '#dc2626' : (s.grupo === 'conferencia' ? '#1d4ed8' : '#64748b')) : '#64748b';
+        const grpTxt = s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : (s.grupo === 'conferencia' ? 'CONFERÊNCIA OBRIGATÓRIA' : 'OPCIONAL')) : '';
+        return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)} <span style="font-size:0.66rem;font-weight:800;color:${grpCor};">${grpTxt}</span></td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
     }).join('');
     return `<div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:4px;">Custo por serviço (rateado entre os serviços vinculados)</div>
     <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
@@ -1832,14 +1943,38 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     const status = document.getElementById('mn-rev-f-status')?.value || 'pendente';
     const itens = window._mnRevColetarItensModal();
 
-    // Para concluir a revisao, todos os servicos obrigatorios precisam estar marcados como realizados
+    // Para concluir a revisao, todos os servicos obrigatorios (mecanico + conferencia interna), fotos de conferencia e video geral sao obrigatorios
     if (!silencioso && status === 'realizada') {
-        const faltando = (window._mnRevServicosModal || []).filter(function(s) { return s.grupo === 'obrigatorio' && !(itens[s.id] && itens[s.id].realizado); });
+        const faltando = (window._mnRevServicosModal || []).filter(function(s) {
+            return (s.grupo === 'obrigatorio' || s.grupo === 'conferencia') && !(itens[s.id] && itens[s.id].realizado);
+        });
         if (faltando.length) {
             faltando.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
             const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + faltando[0].id + '"]');
             if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            alert('Para salvar a revisão como Realizada, marque como realizados todos os serviços obrigatórios.\n\nFaltam (' + faltando.length + '):\n- ' + faltando.map(function(s) { return s.nome; }).join('\n- '));
+            alert('Para salvar a revisão como Realizada, marque como realizados todos os serviços obrigatórios (Mecânico) e todas as conferências internas obrigatórias.\n\nFaltam (' + faltando.length + '):\n- ' + faltando.map(function(s) { return s.nome; }).join('\n- '));
+            return null;
+        }
+        const semFoto = (window._mnRevServicosModal || []).filter(function(s) {
+            return s.grupo === 'conferencia' && window._mnRevFotosConfDoItem(s.id).length === 0;
+        });
+        if (semFoto.length) {
+            semFoto.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
+            const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + semFoto[0].id + '"]');
+            if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert('Para salvar a revisão como Realizada, é obrigatório anexar ao menos uma foto em cada item de Conferências internas OBRIGATÓRIAS.\n\nItens sem foto anexada (' + semFoto.length + '):\n- ' + semFoto.map(function(s) { return s.nome; }).join('\n- '));
+            return null;
+        }
+        const regAtual = window._mnRevRegAtual();
+        const temVideo = ((regAtual && regAtual.midias) || []).some(function(m) { return m.categoria === 'video_geral'; });
+        if (!temVideo) {
+            const secVid = document.getElementById('mn-rev-sec-video');
+            if (secVid) {
+                secVid.style.borderColor = '#dc2626';
+                secVid.style.background = '#fef2f2';
+                secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            alert('Para salvar a revisão como Realizada (Concluída), é obrigatório anexar o vídeo geral do veículo no item "5. Vídeo geral do veículo".');
             return null;
         }
     }
@@ -1847,10 +1982,15 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     const btn = document.getElementById('mn-rev-btn-salvar');
     if (btn && !silencioso) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
+    const regExistente = window._mnRevRegAtual();
+    const statusEnvio = (silencioso && status === 'realizada' && (!regExistente || regExistente.status !== 'realizada'))
+        ? ((regExistente && regExistente.status) ? regExistente.status : (document.getElementById('mn-rev-f-data')?.value ? 'agendada' : 'pendente'))
+        : status;
+
     const body = {
         marco_km: marcoKm,
         marco_meses: marcoMeses,
-        status: status,
+        status: statusEnvio,
         data_revisao: document.getElementById('mn-rev-f-data')?.value || null,
         km_revisao: document.getElementById('mn-rev-f-km')?.value || null,
         concessionaria: document.getElementById('mn-rev-f-conc')?.value || null,
@@ -1962,6 +2102,168 @@ window._mnRevExcluirAnexo = async function(anexoId) {
         window._mnRenderPainelRevisaoVeiculo();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Anexo removido!');
     } catch (e) { alert(e.message); }
+};
+
+// ── Fotos das Conferências Internas e 5. Vídeo Geral do Veículo (Cloudflare R2) ──
+window._mnRevRenderVideoGeral = function() {
+    const el = document.getElementById('mn-rev-video-lista');
+    if (!el) return;
+    const E = window._mnRevEsc;
+    const reg = window._mnRevRegAtual();
+    const videos = ((reg && reg.midias) || []).filter(function(m) { return m.categoria === 'video_geral'; });
+    if (!videos.length) {
+        el.innerHTML = '<div style="font-size:0.76rem;color:#dc2626;font-weight:700;padding:4px 0;"><i class="ph ph-warning-circle"></i> Nenhum vídeo geral anexado ainda (obrigatório para concluir a revisão).</div>';
+        return;
+    }
+    const secVid = document.getElementById('mn-rev-sec-video');
+    if (secVid) { secVid.style.borderColor = '#e2e8f0'; secVid.style.background = '#f8fafc'; }
+    el.innerHTML = videos.map(function(v) {
+        const url = v.url || ('/api/frota/revisoes/midias/' + v.id + '/arquivo');
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <video src="${E(url)}" controls preload="metadata" style="width:240px;max-width:100%;height:135px;border-radius:8px;background:#0f172a;object-fit:cover;"></video>
+                <div>
+                    <div style="font-size:0.82rem;font-weight:800;color:#15803d;display:flex;align-items:center;gap:5px;"><i class="ph ph-check-circle"></i> Vídeo geral anexado</div>
+                    <div style="font-size:0.75rem;color:#475569;margin-top:2px;">${E(v.nome_arquivo || 'video.mp4')}</div>
+                    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                        <a href="${E(url)}" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;text-decoration:none;border-radius:6px;padding:4px 10px;font-size:0.74rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrow-square-out"></i> Abrir vídeo</a>
+                        <button type="button" onclick="window._mnRevExcluirMidia(${v.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir vídeo</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window._mnRevAnexarFotosConf = async function(servicoId, inp) {
+    const files = Array.from((inp && inp.files) || []);
+    if (!files.length) return;
+    const m = window._mnRevMarcoAtual;
+    if (!m) return;
+    const lbl = document.getElementById('mn-rev-lbl-conf-' + servicoId);
+    const origHtml = lbl ? lbl.innerHTML : '';
+    if (lbl) { lbl.style.opacity = '0.6'; lbl.style.pointerEvents = 'none'; }
+    try {
+        let reg = window._mnRevRegAtual();
+        if (!reg || !reg.id) {
+            reg = await window.mnRevSalvarMarco(m.km, m.meses, true);
+        }
+        if (!reg || !reg.id) throw new Error('Não foi possível preparar o registro da revisão.');
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        const fd = new FormData();
+        fd.append('categoria', 'conferencia_foto');
+        fd.append('servico_id', servicoId);
+        files.forEach(function(f) { fd.append('arquivos', f); });
+        const res = await fetch('/api/frota/revisoes/' + reg.id + '/midias', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + tok },
+            body: fd
+        });
+        const j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao enviar foto(s) para o R2');
+
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + servicoId + '"][data-rev-field="realizado"]');
+        if (cb && !cb.checked) {
+            cb.checked = true;
+            window._mnRevServicoMarcou(servicoId);
+        }
+        await window._mnRevRecarregarDados();
+        const box = document.getElementById('mn-rev-conf-fotos-' + servicoId);
+        if (box) box.innerHTML = window._mnRevRenderFotosConfItem(servicoId);
+        window._mnRevAtualizarContadorObrig();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 ' + files.length + ' foto(s) anexada(s) com sucesso!');
+    } catch (e) {
+        alert('Erro ao anexar foto(s): ' + e.message);
+    } finally {
+        if (inp) inp.value = '';
+        if (lbl) {
+            lbl.style.opacity = '';
+            lbl.style.pointerEvents = '';
+            if (origHtml && !lbl.querySelector('input')) lbl.innerHTML = origHtml;
+        }
+    }
+};
+
+window._mnRevAnexarVideoGeral = async function(inp) {
+    const file = inp && inp.files && inp.files[0];
+    if (!file) return;
+    const m = window._mnRevMarcoAtual;
+    if (!m) return;
+    const lbl = document.getElementById('mn-rev-lbl-video');
+    if (lbl) { lbl.style.opacity = '0.6'; lbl.style.pointerEvents = 'none'; }
+    const listaEl = document.getElementById('mn-rev-video-lista');
+    if (listaEl) listaEl.innerHTML = '<div style="font-size:0.8rem;color:#0284c7;font-weight:700;padding:6px 0;"><i class="ph ph-circle-notch ph-spin"></i> Enviando vídeo geral do veículo para o Cloudflare R2... aguarde.</div>';
+    try {
+        let reg = window._mnRevRegAtual();
+        if (!reg || !reg.id) {
+            reg = await window.mnRevSalvarMarco(m.km, m.meses, true);
+        }
+        if (!reg || !reg.id) throw new Error('Não foi possível preparar o registro da revisão.');
+        const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+        const fd = new FormData();
+        fd.append('categoria', 'video_geral');
+        fd.append('arquivos', file);
+        const res = await fetch('/api/frota/revisoes/' + reg.id + '/midias', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + tok },
+            body: fd
+        });
+        const j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao enviar vídeo para o R2');
+
+        await window._mnRevRecarregarDados();
+        window._mnRevRenderVideoGeral();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Vídeo geral do veículo anexado com sucesso!');
+    } catch (e) {
+        alert('Erro ao anexar vídeo: ' + e.message);
+        window._mnRevRenderVideoGeral();
+    } finally {
+        if (inp) inp.value = '';
+        if (lbl) { lbl.style.opacity = ''; lbl.style.pointerEvents = ''; }
+    }
+};
+
+window._mnRevExcluirMidia = async function(midiaId) {
+    if (!confirm('Deseja realmente excluir este arquivo (foto/vídeo)?')) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/midias/' + midiaId, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + tok }
+        });
+        const j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao excluir mídia');
+        await window._mnRevRecarregarDados();
+        window._mnRevAtualizarModalDados(false);
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Arquivo removido!');
+    } catch (e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
+};
+
+window._mnRevVerMidia = function(midiaId) {
+    const reg = window._mnRevRegAtual();
+    const midia = ((reg && reg.midias) || []).find(function(m) { return Number(m.id) === Number(midiaId); });
+    const url = (midia && midia.url) ? midia.url : ('/api/frota/revisoes/midias/' + midiaId + '/arquivo');
+    const nome = (midia && midia.nome_arquivo) ? midia.nome_arquivo : 'Foto da conferência';
+    const E = window._mnRevEsc;
+    let ov = document.getElementById('mn-rev-lightbox-ov');
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'mn-rev-lightbox-ov';
+    ov.onclick = function(ev) { if (ev.target === ov) ov.remove(); };
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.88);backdrop-filter:blur(4px);z-index:10600;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;';
+    ov.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:920px;margin-bottom:10px;color:#fff;">
+            <div style="font-size:0.9rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${E(nome)}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <a href="${E(url)}" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;text-decoration:none;padding:5px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-arrow-square-out"></i> Abrir original</a>
+                <button type="button" onclick="document.getElementById('mn-rev-lightbox-ov')?.remove()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;">&times;</button>
+            </div>
+        </div>
+        <img src="${E(url)}" alt="${E(nome)}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;background:#0f172a;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+    `;
+    document.body.appendChild(ov);
 };
 
 window._mnPrevAtualizarFrota = async function() {
