@@ -908,6 +908,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <span style="background:${sitBg};color:${sitCor};border:1px solid ${sitBorda};padding:4px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;white-space:nowrap;">${sitLabel}</span>
             </div>
 
+            ${window._mnRevParadoCardBannerHtml(reg)}
+
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.8rem;display:flex;flex-direction:column;gap:6px;font-size:0.8rem;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <span style="color:#64748b;font-weight:600;"><i class="ph ph-gauge"></i> Por KM:</span>
@@ -919,7 +921,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 </div>
                 <div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">
                     ${prevalenciaTxt}
-                </div>${window._mnRevParadoTxt(reg) ? '<div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">' + window._mnRevParadoTxt(reg) + '</div>' : ''}
+                </div>
             </div>
 
             <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.75rem;">
@@ -1092,10 +1094,15 @@ window._mnRevServicoMarcou = function(id) {
 window._mnRevAtualizarContadorObrig = function() {
     const servs = window._mnRevServicosModal || [];
     const obrig = servs.filter(function(s) { return s.grupo === 'obrigatorio'; });
-    let ok = 0;
+    const opcio = servs.filter(function(s) { return s.grupo === 'opcional'; });
+    let ok = 0, okOpcio = 0;
     obrig.forEach(function(s) {
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
         if (cb && cb.checked) ok++;
+    });
+    opcio.forEach(function(s) {
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+        if (cb && cb.checked) okOpcio++;
     });
     const el = document.getElementById('mn-rev-cont-obrig');
     if (el) {
@@ -1104,6 +1111,38 @@ window._mnRevAtualizarContadorObrig = function() {
         el.style.background = completo ? '#dcfce7' : '#fef2f2';
         el.style.color = completo ? '#15803d' : '#b91c1c';
     }
+    const cbAllObrig = document.getElementById('mn-rev-cb-all-obrig');
+    if (cbAllObrig) cbAllObrig.checked = obrig.length > 0 && ok === obrig.length;
+    const cbAllOpcio = document.getElementById('mn-rev-cb-all-opcio');
+    if (cbAllOpcio) cbAllOpcio.checked = opcio.length > 0 && okOpcio === opcio.length;
+};
+
+window._mnRevMarcarTodosGrupo = function(grupo, marcado) {
+    const servs = (window._mnRevServicosModal || []).filter(function(s) { return s.grupo === grupo; });
+    servs.forEach(function(s) {
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+        const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + s.id + '"][data-rev-field="tipo"]');
+        const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]');
+        if (cb) cb.checked = !!marcado;
+        if (sel) { sel.disabled = !marcado; sel.style.background = marcado ? '' : '#f1f5f9'; sel.style.color = marcado ? '' : '#94a3b8'; }
+        if (row) row.style.background = marcado ? '#f0fdf4' : '#fff';
+        if (!marcado) window._mnRevPodarVinculos(s.id);
+    });
+    window._mnRevAtualizarContadorObrig();
+};
+
+window._mnRevAoMudarStatus = function() {
+    const st = document.getElementById('mn-rev-f-status')?.value || 'pendente';
+    const dtEl = document.getElementById('mn-rev-f-data');
+    if (st === 'pendente' && dtEl) dtEl.value = '';
+    window._mnRevAtualizarInfoParado();
+};
+
+window._mnRevAoMudarData = function() {
+    const dt = String(document.getElementById('mn-rev-f-data')?.value || '').trim();
+    const stEl = document.getElementById('mn-rev-f-status');
+    if (dt && stEl && stEl.value === 'pendente') stEl.value = 'agendada';
+    window._mnRevAtualizarInfoParado();
 };
 
 window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
@@ -1155,7 +1194,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Situação da Revisão *</label>
-                        <select id="mn-rev-f-status" onchange="window._mnRevAtualizarInfoParado()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
+                        <select id="mn-rev-f-status" onchange="window._mnRevAoMudarStatus()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
                             <option value="pendente"${reg.status === 'pendente' ? ' selected' : ''}>Pendente</option>
                             <option value="agendada"${reg.status === 'agendada' ? ' selected' : ''}>Agendada</option>
                             <option value="realizada"${reg.status === 'realizada' ? ' selected' : ''}>Realizada (Concluída)</option>
@@ -1163,7 +1202,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
-                        <input type="date" id="mn-rev-f-data" onchange="window._mnRevAtualizarInfoParado()" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <input type="date" id="mn-rev-f-data" onchange="window._mnRevAoMudarData()" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM da revisão (automático)</label>
@@ -1186,9 +1225,19 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     <div style="font-weight:800;color:#1e293b;font-size:0.9rem;"><i class="ph ph-list-checks" style="color:#7c3aed;"></i> 2. Serviços da Revisão — marque o que foi realizado</div>
                     <span id="mn-rev-cont-obrig" style="font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;"></span>
                 </div>
-                <div style="padding:6px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;">Serviços OBRIGATÓRIOS (todos devem ser marcados como realizados para salvar a revisão como Realizada)</div>
+                <div style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <span>Serviços OBRIGATÓRIOS (todos devem ser marcados como realizados para salvar a revisão como Realizada)</span>
+                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #fca5a5;color:#991b1b;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                        <input type="checkbox" id="mn-rev-cb-all-obrig" onchange="window._mnRevMarcarTodosGrupo('obrigatorio', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os obrigatórios
+                    </label>
+                </div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
-                <div style="padding:6px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">Serviços OPCIONAIS / condicionais (marque apenas se foram vistoriados ou realizados)</div>
+                <div style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <span>Serviços OPCIONAIS / condicionais (marque apenas se foram vistoriados ou realizados)</span>
+                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #cbd5e1;color:#334155;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                        <input type="checkbox" id="mn-rev-cb-all-opcio" onchange="window._mnRevMarcarTodosGrupo('opcional', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os opcionais
+                    </label>
+                </div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
             </div>
 
@@ -1410,6 +1459,53 @@ window._mnRevParadoIniciarTick = function() {
     if (!window._mnRevParadoTimer) window._mnRevParadoTimer = setInterval(window._mnRevParadoTick, 60000);
 };
 
+window._mnRevCalcMinConcluida = function(reg) {
+    if (!reg) return null;
+    if (reg.parado_minutos !== null && reg.parado_minutos !== undefined && reg.parado_minutos !== '') return Number(reg.parado_minutos);
+    if (reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') return Number(reg.dias_parado) * 1440;
+    const ini = String(reg.parado_desde || reg.data_revisao || '').split('T')[0];
+    if (!ini) return null;
+    const fimStr = reg.concluido_em || reg.updated_at || reg.created_at;
+    const fimMs = fimStr ? new Date(String(fimStr).includes('T') ? fimStr : (String(fimStr).replace(' ', 'T') + 'Z')).getTime() : Date.now();
+    const dur = window._mnRevParadoDur(ini, isNaN(fimMs) ? Date.now() : fimMs);
+    return dur ? dur.min : 0;
+};
+
+window._mnRevParadoCardBannerHtml = function(reg) {
+    if (!reg) return '';
+    const hoje = window._mnHojeISO();
+    if (reg.status === 'agendada') {
+        const ini = String(reg.data_revisao || reg.parado_desde || '').split('T')[0];
+        if (!ini) return '';
+        if (ini > hoje) {
+            return '<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:0.6rem 0.8rem;color:#92400e;font-size:0.78rem;font-weight:600;">\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — veículo disponível até essa data (contagem inicia às 08:00)</div>';
+        }
+        return '<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #ef4444;border-radius:10px;padding:0.65rem 0.8rem;box-shadow:0 2px 6px rgba(220,38,38,0.12);">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">'
+            + '<span style="background:#dc2626;color:#fff;padding:3px 9px;border-radius:6px;font-size:0.78rem;font-weight:900;letter-spacing:0.3px;">\uD83D\uDEA7 VEÍCULO INDISPONÍVEL</span>'
+            + '<span style="font-size:0.75rem;font-weight:800;color:#991b1b;">(desde ' + _mnRevFmtDataBR(ini) + ' 08:00)</span>'
+            + '</div>'
+            + '<div style="margin-top:6px;font-size:0.82rem;font-weight:700;color:#7f1d1d;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            + '<span>Parado há:</span>'
+            + '<span style="background:#fff;border:1.5px solid #f87171;color:#b91c1c;padding:2px 10px;border-radius:6px;font-size:0.92rem;font-weight:900;">' + window._mnRevParadoLive(ini) + '</span>'
+            + '</div>'
+            + '</div>';
+    }
+    if (reg.status === 'realizada') {
+        const min = window._mnRevCalcMinConcluida(reg);
+        if (min === null || isNaN(min)) return '';
+        const ini = String(reg.parado_desde || reg.data_revisao || '').split('T')[0];
+        return '<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:0.6rem 0.8rem;">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">'
+            + '<span style="font-size:0.78rem;font-weight:800;color:#15803d;">\u23F1\uFE0F Tempo com veículo parado:</span>'
+            + '<span style="background:#16a34a;color:#fff;padding:2px 9px;border-radius:6px;font-size:0.86rem;font-weight:900;">' + window._mnRevDurTxt(min) + '</span>'
+            + '</div>'
+            + (ini ? '<div style="margin-top:3px;font-size:0.73rem;font-weight:600;color:#166534;">(desde ' + _mnRevFmtDataBR(ini) + ' 08:00' + (reg.concluido_em ? ' até ' + window._mnRevFmtDataHora(reg.concluido_em) : '') + ')</div>' : '')
+            + '</div>';
+    }
+    return '';
+};
+
 window._mnRevParadoTxt = function(reg) {
     if (!reg) return '';
     const hoje = window._mnHojeISO();
@@ -1420,11 +1516,10 @@ window._mnRevParadoTxt = function(reg) {
         return '\uD83D\uDEA7 Veículo <b style="color:#dc2626;">indisponível</b> — parado há ' + window._mnRevParadoLive(ini) + ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00)';
     }
     if (reg.status === 'realizada') {
-        let min = null;
-        if (reg.parado_minutos !== null && reg.parado_minutos !== undefined && reg.parado_minutos !== '') min = Number(reg.parado_minutos);
-        else if (reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') min = Number(reg.dias_parado) * 1440;
+        const min = window._mnRevCalcMinConcluida(reg);
         if (min === null || isNaN(min)) return '';
-        return '\u2705 Ficou parado ' + window._mnRevDurTxt(min) + (reg.parado_desde ? ' (de ' + _mnRevFmtDataBR(reg.parado_desde) + ' 08:00' + (reg.concluido_em ? ' até ' + window._mnRevFmtDataHora(reg.concluido_em) : '') + ')' : '');
+        const ini = String(reg.parado_desde || reg.data_revisao || '').split('T')[0];
+        return '\u2705 Ficou parado ' + window._mnRevDurTxt(min) + (ini ? ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00' + (reg.concluido_em ? ' até ' + window._mnRevFmtDataHora(reg.concluido_em) : '') + ')' : '');
     }
     return '';
 };
@@ -1443,14 +1538,12 @@ window._mnRevAtualizarInfoParado = function() {
         if (ini > hoje) { html = '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — o veículo continua <b>disponível</b> no resumo da rota até essa data. A contagem de parado começa às 08:00 desse dia.'; bg = '#fffbeb'; borda = '#fde68a'; cor = '#92400e'; }
         else { html = '\uD83D\uDEA7 Veículo <b>indisponível</b> no resumo da rota — parado há ' + window._mnRevParadoLive(ini) + ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00). A contagem recomeça se a data da revisão for alterada.'; bg = '#fef2f2'; borda = '#fecaca'; cor = '#991b1b'; }
     } else if (status === 'realizada') {
-        if (reg && reg.status === 'realizada' && window._mnRevParadoTxt(reg)) {
+        if (reg && reg.status === 'realizada' && (!dt || dt === String(reg.parado_desde || reg.data_revisao || '').split('T')[0]) && window._mnRevParadoTxt(reg)) {
             html = window._mnRevParadoTxt(reg) + ' — veículo disponível no resumo da rota.';
-        } else if (reg && reg.status === 'agendada' && reg.parado_desde) {
-            const ini = String(reg.parado_desde).split('T')[0];
-            const dur = ini > hoje ? null : window._mnRevParadoDur(ini);
-            html = '\u2705 Ao salvar como Realizada o veículo volta a ficar <b>disponível</b> no resumo da rota. Tempo parado: ' + window._mnRevDurTxt(dur ? dur.min : 0) + '.';
         } else {
-            html = '\u2705 Veículo disponível no resumo da rota.';
+            const ini = dt || (reg && String(reg.parado_desde || reg.data_revisao || '').split('T')[0]) || hoje;
+            const dur = ini > hoje ? null : window._mnRevParadoDur(ini);
+            html = '\u2705 Ao salvar como Realizada o veículo volta a ficar <b>disponível</b> no resumo da rota. Tempo parado: ' + window._mnRevDurTxt(dur ? dur.min : 0) + ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00).';
         }
     } else {
         html = '\u2705 Veículo disponível no resumo da rota (revisão sem agendamento).';

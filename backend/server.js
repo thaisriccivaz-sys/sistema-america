@@ -25934,7 +25934,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         if (!marcoKm || marcoKm <= 0) return res.status(400).json({ error: 'Informe o marco de KM da revisão.' });
         const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
         const status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
-        const dataRev = String(b.data_revisao || '').trim().split('T')[0] || null;
+        const dataRev = status === 'pendente' ? null : (String(b.data_revisao || '').trim().split('T')[0] || null);
         const conc = String(b.concessionaria || '').trim() || null;
         const numOs = String(b.numero_os || '').trim() || null;
         let vPecas = 0, vMo = 0, vTot = 0;
@@ -25944,7 +25944,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const hoje = _fmHojeBR();
         const diffDias = (de, ate) => Math.max(0, Math.round((new Date(ate + 'T00:00:00Z') - new Date(de + 'T00:00:00Z')) / 86400000));
 
-        const existing = await _fmGet('SELECT id, status, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const existing = await _fmGet('SELECT id, status, data_revisao, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
         const veic = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [vid]);
         // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
         if (existing) {
@@ -25960,18 +25960,19 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         // Contagem de parado: comeca as 08:00 (Brasilia) do dia da revisao agendada
         const minutosParado = (desde) => { const ini = new Date(desde + 'T08:00:00-03:00').getTime(); return isNaN(ini) ? null : Math.max(0, Math.floor((Date.now() - ini) / 60000)); };
         if (status === 'realizada') {
-            if (existing && existing.status === 'realizada') {
-                kmRev = existing.km_revisao || (veic && veic.km_atual) || null;
-                paradoDesde = existing.parado_desde || null;
+            kmRev = (existing && existing.status === 'realizada' && existing.km_revisao)
+                ? existing.km_revisao
+                : ((veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null);
+            paradoDesde = dataRev || (existing && (existing.parado_desde || existing.data_revisao)) || hoje;
+            const jaConcluidaMesmaData = existing && existing.status === 'realizada' && existing.parado_minutos !== null && existing.parado_minutos !== undefined && (!dataRev || dataRev === existing.parado_desde);
+            if (jaConcluidaMesmaData) {
                 concluidoEm = existing.concluido_em || agoraIso;
-                diasParado = existing.dias_parado;
                 minParado = existing.parado_minutos;
+                diasParado = (existing.dias_parado !== null && existing.dias_parado !== undefined) ? existing.dias_parado : Math.floor(minParado / 1440);
             } else {
-                kmRev = (veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null;
-                paradoDesde = (existing && existing.status === 'agendada' && existing.parado_desde) ? existing.parado_desde : null;
-                concluidoEm = agoraIso;
-                minParado = paradoDesde ? minutosParado(paradoDesde) : null;
-                diasParado = minParado !== null ? Math.floor(minParado / 1440) : null;
+                concluidoEm = (existing && existing.status === 'realizada' && existing.concluido_em) ? existing.concluido_em : agoraIso;
+                minParado = paradoDesde ? minutosParado(paradoDesde) : 0;
+                diasParado = minParado !== null ? Math.floor(minParado / 1440) : 0;
             }
         } else if (status === 'agendada') {
             // Contagem de dias parado comeca na data da revisao; se a data for alterada, a contagem recomeca
