@@ -21720,16 +21720,17 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
         .sort((a, b) => String(a.data_revisao).localeCompare(String(b.data_revisao)))[0];
     if (ag) return { status: 'agendada', data_agendada: String(ag.data_revisao).slice(0, 10), marco_km: ag.marco_km };
     // 3) Vencida / a vencer / ok
-    const { kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
+    const { ehCar, kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
     const mapa = {};
     lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
-    let prev = null, temVencida = false, ultimo = null;
+    let prev = null, temVencida = false, ultimaVencida = null, qtdVencidas = 0, ultimo = null;
     for (let n = 1; n <= 400; n++) {
         const kmNominal = n * passoKm;
+        const mesesNominal = n * passoMeses;
         const reg = mapa[kmNominal] || null;
         const realizada = !!(reg && reg.status === 'realizada');
         let kmLimite = kmNominal;
-        let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
+        let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, mesesNominal) : '';
         if (prev) {
             const kmPrev = String(prev.observacoes || '').includes('marcada como feita manualmente') ? Number(prev.marco_km || 0) : Number(prev.km_revisao || 0);
             if (kmPrev) kmLimite = kmPrev + passoKm;
@@ -21738,16 +21739,46 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
         const diffKm = kmLimite - kmAtual;
         const diffDias = dtLimite ? _fmDiffDiasISO(dtLimite, hojeIso) : null;
         const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
-        ultimo = { realizada, vencida, diffKm, diffDias, kmLimite, dtLimite };
-        if (vencida) temVencida = true;
+        const item = { n, marco_km: kmNominal, marco_meses: mesesNominal, realizada, vencida, diffKm, diffDias, kmLimite, dtLimite };
+        ultimo = item;
+        if (vencida) {
+            temVencida = true;
+            ultimaVencida = item;
+            qtdVencidas++;
+        }
         prev = realizada ? reg : null;
         if (!realizada && !vencida) break;
     }
-    if (temVencida) return { status: 'vencida' };
+    if (temVencida && ultimaVencida) {
+        return {
+            status: 'vencida',
+            n: ultimaVencida.n,
+            marco_km: ultimaVencida.marco_km,
+            marco_meses: ultimaVencida.marco_meses,
+            limite_km: ultimaVencida.kmLimite,
+            limite_data: ultimaVencida.dtLimite || null,
+            atraso_km: (kmAtual > 0 && ultimaVencida.diffKm <= 0) ? Math.abs(ultimaVencida.diffKm) : null,
+            atraso_dias: (ultimaVencida.diffDias !== null && ultimaVencida.diffDias < 0) ? Math.abs(ultimaVencida.diffDias) : null,
+            qtd_vencidas: qtdVencidas,
+            eh_carretinha: !!ehCar
+        };
+    }
     if (ultimo && !ultimo.realizada) {
         const proxKm = kmAtual > 0 && ultimo.diffKm > 0 && ultimo.diffKm <= 1000;
         const proxTempo = ultimo.diffDias !== null && ultimo.diffDias >= 0 && ultimo.diffDias <= 30;
-        if (proxKm || proxTempo) return { status: 'a_vencer', falta_km: proxKm ? ultimo.diffKm : null, falta_dias: proxTempo ? ultimo.diffDias : null };
+        if (proxKm || proxTempo) {
+            return {
+                status: 'a_vencer',
+                n: ultimo.n,
+                marco_km: ultimo.marco_km,
+                marco_meses: ultimo.marco_meses,
+                limite_km: ultimo.kmLimite,
+                limite_data: ultimo.dtLimite || null,
+                falta_km: proxKm ? ultimo.diffKm : null,
+                falta_dias: proxTempo ? ultimo.diffDias : null,
+                eh_carretinha: !!ehCar
+            };
+        }
     }
     if (kmAtual > 0 || dtIni) return { status: 'ok' };
     return { status: null };

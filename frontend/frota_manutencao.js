@@ -3776,9 +3776,156 @@ window._mnEdGarantirId = async function() {
 };
 
 window._mnEdFechar = function() {
-    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop', 'mned-senha-pop'].forEach(function(i) {
+    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop', 'mned-senha-pop', 'mned-rev-pop'].forEach(function(i) {
         var el = document.getElementById(i); if (el) el.remove();
     });
+};
+
+window._mnEdMarcoRevisaoTexto = function(v) {
+    if (!v) return null;
+    var st = v.revisao_status;
+    if (st !== 'vencida' && st !== 'a_vencer') return null;
+    var info = v.revisao_info || {};
+    var ehCar = !!(info.eh_carretinha || (typeof window._mnRevEhCarretinha === 'function' && window._mnRevEhCarretinha(v)));
+    var usoSev = !ehCar && Number(v.uso_severo || 0) === 1;
+    var marcoKm = Number(info.marco_km || (usoSev ? 5000 : 10000));
+    var marcoMeses = Number(info.marco_meses || (usoSev ? 6 : 12));
+    var limKm = Number(info.limite_km || marcoKm);
+    var limData = info.limite_data ? _mnRevFmtDataBR(info.limite_data) : '';
+    var marcoTxt = ehCar
+        ? (marcoMeses + ' meses' + (limData ? ' (até ' + limData + ')' : ''))
+        : (limKm.toLocaleString('pt-BR') + ' km ou ' + marcoMeses + ' meses' + (limData ? ' (até ' + limData + ')' : ''));
+    var det = [];
+    if (st === 'vencida') {
+        if (!ehCar && info.atraso_km) det.push('ultrapassou ' + Number(info.atraso_km).toLocaleString('pt-BR') + ' km');
+        if (info.atraso_dias) det.push('venceu há ' + info.atraso_dias + ' dias');
+    } else {
+        if (!ehCar && info.falta_km !== null && info.falta_km !== undefined) det.push('faltam ' + Number(info.falta_km).toLocaleString('pt-BR') + ' km');
+        if (info.falta_dias !== null && info.falta_dias !== undefined) det.push('faltam ' + info.falta_dias + ' dias');
+    }
+    return { status: st, ehCar: ehCar, marcoKm: marcoKm, marcoMeses: marcoMeses, marcoTxt: marcoTxt, detalheTxt: det.join(' • ') };
+};
+
+window._mnEdRenderAlertaRevisao = function() {
+    var box = document.getElementById('mned-rev-alerta');
+    if (!box) return;
+    var vid = (document.getElementById('mned-veic') && document.getElementById('mned-veic').value) || (window._mnEd && window._mnEd.m && window._mnEd.m.veiculo_id) || '';
+    if (!vid) { box.innerHTML = ''; return; }
+    var v = (window._manutFrota || window._frotaDados || []).find(function(x) { return String(x.id) === String(vid); });
+    if (v && (v.revisao_status === undefined || ((v.revisao_status === 'vencida' || v.revisao_status === 'a_vencer') && (!v.revisao_info || !v.revisao_info.marco_km))) && !window._mnEdBuscandoFrotaRev) {
+        window._mnEdBuscandoFrotaRev = true;
+        if (typeof window._mnPrevAtualizarFrota === 'function') {
+            window._mnPrevAtualizarFrota().then(function() {
+                window._mnEdBuscandoFrotaRev = false;
+                window._mnEdRenderAlertaRevisao();
+            }).catch(function() { window._mnEdBuscandoFrotaRev = false; });
+        }
+    }
+    var r = window._mnEdMarcoRevisaoTexto(v);
+    if (!r) { box.innerHTML = ''; return; }
+    var esc = window._mnEdEsc;
+    var ehVenc = r.status === 'vencida';
+    var bg = ehVenc ? 'linear-gradient(135deg,#fef2f2,#fee2e2)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
+    var borda = ehVenc ? '#ef4444' : '#f59e0b';
+    var bordaEsq = ehVenc ? '#dc2626' : '#d97706';
+    var corTit = ehVenc ? '#991b1b' : '#92400e';
+    var corTxt = ehVenc ? '#7f1d1d' : '#78350f';
+    var ico = ehVenc ? 'ph-warning-octagon' : 'ph-warning';
+    var titulo = ehVenc
+        ? 'Revisão Vencida — Realize o Agendamento da Revisão!'
+        : 'Revisão Próxima do Vencimento — Realize o Agendamento da Revisão!';
+    var sub = ehVenc
+        ? ('Este veículo está com revisão vencida no marco de <b>' + esc(r.marcoTxt) + '</b>' + (r.detalheTxt ? ' (' + esc(r.detalheTxt) + ')' : '') + '. Aproveite para agendar ou iniciar a revisão.')
+        : ('Este veículo está próximo do marco de revisão de <b>' + esc(r.marcoTxt) + '</b>' + (r.detalheTxt ? ' (' + esc(r.detalheTxt) + ')' : '') + '. Providencie o agendamento da revisão.');
+    box.innerHTML =
+        '<div style="background:' + bg + ';border:2px solid ' + borda + ';border-left:6px solid ' + bordaEsq + ';border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,0.06);">'
+      +   '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:260px;">'
+      +     '<div style="background:' + bordaEsq + ';color:#fff;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.3rem;"><i class="ph ' + ico + '"></i></div>'
+      +     '<div>'
+      +       '<div style="font-size:0.9rem;font-weight:900;color:' + corTit + ';text-transform:uppercase;letter-spacing:0.3px;">' + titulo + '</div>'
+      +       '<div style="font-size:0.83rem;color:' + corTxt + ';font-weight:600;margin-top:2px;">' + sub + '</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<button type="button" onclick="window._mnEdIniciarRevisaoDoMarco(' + v.id + ', ' + r.marcoKm + ', ' + r.marcoMeses + ')" style="background:' + bordaEsq + ';color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.8rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><i class="ph ph-calendar-plus"></i> Agendar / Iniciar Revisão</button>'
+      + '</div>';
+};
+
+window._mnEdIniciarRevisaoDoMarco = async function(vid, marcoKm, marcoMeses, dataIni, fornecedor) {
+    var tok = window._mnEdTok ? window._mnEdTok() : (window._manutTok || window.currentToken || localStorage.getItem('token'));
+    var di = dataIni || (document.getElementById('mned-di') && document.getElementById('mned-di').value) || window._mnHojeISO();
+    var forn = fornecedor || (document.getElementById('mned-forn') && document.getElementById('mned-forn').value.trim()) || '';
+    try {
+        var rCheck = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
+        var dCheck = await rCheck.json().catch(function() { return {}; });
+        var regExist = ((dCheck && dCheck.revisoes) || []).find(function(x) { return Number(x.marco_km) === Number(marcoKm); });
+        if (!regExist || regExist.status === 'pendente') {
+            await fetch('/api/frota/revisoes/' + vid + '/salvar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                body: JSON.stringify({
+                    marco_km: Number(marcoKm),
+                    marco_meses: Number(marcoMeses) || 12,
+                    status: 'agendada',
+                    data_revisao: di,
+                    concessionaria: forn || (regExist && regExist.concessionaria) || null,
+                    numero_os: (regExist && regExist.numero_os) || null,
+                    itens: (regExist && regExist.itens) || {},
+                    observacoes: (regExist && regExist.observacoes) || null
+                })
+            });
+        }
+    } catch (e) { /* abre o painel mesmo se falhar o pre-agendamento */ }
+    window._mnEdFechar();
+    if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
+    window._mnRevVeicId = vid;
+    if (typeof window.mnMudarSubAba === 'function') window.mnMudarSubAba('revisao');
+    await window.mnRevisaoAbrirVeiculo(vid);
+    if (typeof window.mnRevAbrirModalMarco === 'function') {
+        window.mnRevAbrirModalMarco(Number(marcoKm), Number(marcoMeses) || 12);
+    }
+};
+
+window._mnEdPerguntarIniciarRevisao = function(vObj, r, corpo) {
+    if (!vObj || !r) return;
+    var old = document.getElementById('mned-rev-pop');
+    if (old) old.remove();
+    var esc = window._mnEdEsc;
+    var ehVenc = r.status === 'vencida';
+    var corHdr = ehVenc ? 'linear-gradient(135deg,#991b1b,#dc2626)' : 'linear-gradient(135deg,#b45309,#d97706)';
+    var bgBox = ehVenc ? '#fef2f2' : '#fffbeb';
+    var bordaBox = ehVenc ? '#fca5a5' : '#fde68a';
+    var corBox = ehVenc ? '#7f1d1d' : '#78350f';
+    var pop = document.createElement('div');
+    pop.id = 'mned-rev-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.68);backdrop-filter:blur(3px);z-index:10060;display:flex;align-items:center;justify-content:center;padding:16px;';
+    pop.innerHTML =
+        '<div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+      +   '<div style="background:' + corHdr + ';color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;">'
+      +     '<i class="ph ' + (ehVenc ? 'ph-warning-octagon' : 'ph-warning') + '" style="font-size:1.6rem;"></i>'
+      +     '<div>'
+      +       '<div style="font-weight:800;font-size:1.02rem;">' + (ehVenc ? 'Revisão Vencida' : 'Revisão Próxima do Vencimento') + ' — ' + esc(vObj.placa || '') + '</div>'
+      +       '<div style="font-size:0.8rem;opacity:0.9;">Manutenção corretiva salva com sucesso</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="padding:18px 20px;">'
+      +     '<div style="background:' + bgBox + ';border:1.5px solid ' + bordaBox + ';border-radius:10px;padding:12px 14px;color:' + corBox + ';font-size:0.86rem;line-height:1.45;margin-bottom:14px;">'
+      +       'O veículo <b>' + esc(vObj.placa || '') + '</b> está com a revisão <b>' + (ehVenc ? 'vencida' : 'próxima do vencimento') + '</b> no marco de <b>' + esc(r.marcoTxt) + '</b>' + (r.detalheTxt ? ' (' + esc(r.detalheTxt) + ')' : '') + '.'
+      +     '</div>'
+      +     '<div style="font-size:0.92rem;font-weight:700;color:#1e293b;line-height:1.45;">Gostaria de aproveitar e iniciar a revisão do marco de <span style="color:' + (ehVenc ? '#dc2626' : '#d97706') + ';">' + esc(r.marcoTxt) + '</span>?</div>'
+      +   '</div>'
+      +   '<div style="padding:14px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">'
+      +     '<button type="button" id="mned-rev-nao" style="padding:9px 18px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;cursor:pointer;">Agora não</button>'
+      +     '<button type="button" id="mned-rev-sim" style="padding:9px 20px;border:none;border-radius:8px;background:' + (ehVenc ? '#dc2626' : '#d97706') + ';color:#fff;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Sim, iniciar revisão</button>'
+      +   '</div>'
+      + '</div>';
+    document.body.appendChild(pop);
+    document.getElementById('mned-rev-nao').onclick = function() { pop.remove(); };
+    document.getElementById('mned-rev-sim').onclick = function() {
+        var btnSim = this;
+        btnSim.disabled = true;
+        btnSim.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Abrindo revisão...';
+        window._mnEdIniciarRevisaoDoMarco(vObj.id, r.marcoKm, r.marcoMeses, corpo && corpo.data_inicio, corpo && corpo.fornecedor);
+    };
 };
 
 window._mnEdMontar = function() {
@@ -3815,6 +3962,7 @@ window._mnEdMontar = function() {
       +   '<button type="button" id="mned-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-x"></i></button>'
       + '</div>'
       + '<div style="flex:1;overflow-y:auto;padding:18px 24px;">'
+      +   '<div id="mned-rev-alerta" style="max-width:1900px;margin:0 auto;"></div>'
       +   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:18px;align-items:start;max-width:1900px;margin:0 auto;">'
       +     '<div>'
       +       '<div style="' + sec + '">'
@@ -3939,6 +4087,7 @@ window._mnEdMontar = function() {
         var kmEl = document.getElementById('mned-km');
         var v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(this.value); }.bind(this));
         if (window._mnEd.novo && v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
+        if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
     };
     var syncDatasRodando = function() {
         var ed = window._mnEd;
@@ -3989,6 +4138,7 @@ window._mnEdMontar = function() {
     window._mnEdRenderMo();
     window._mnEdRenderHist();
     if (typeof window._mnEdRenderVideoGeral === 'function') window._mnEdRenderVideoGeral();
+    if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
     if (window._mnIniciarCronometros) window._mnIniciarCronometros();
 };
 
@@ -6544,6 +6694,8 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         window._mnEdRenderNotas();
         window._mnEdRenderMo();
         window._mnEdRenderHist();
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
+        if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
         mostrarMsg('Manutenção salva!', true);
         if (typeof window.checkUserNotificacoes === 'function') {
@@ -6561,6 +6713,11 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             window._mnTratarOutrasAbertasPosStatus(ed.status, rsJson, ed.m.placa);
         } else {
             ed._statusInicial = ed.status;
+        }
+        var vObjAtual = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veic); }) || vObj;
+        var rRev = typeof window._mnEdMarcoRevisaoTexto === 'function' ? window._mnEdMarcoRevisaoTexto(vObjAtual) : null;
+        if (rRev && (rRev.status === 'vencida' || rRev.status === 'a_vencer')) {
+            window._mnEdPerguntarIniciarRevisao(vObjAtual, rRev, corpo);
         }
     } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
