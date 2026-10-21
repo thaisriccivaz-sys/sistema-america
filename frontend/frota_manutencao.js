@@ -769,24 +769,29 @@ window.mnRevisaoAbrirVeiculo = async function(vid) {
 };
 
 window._mnRevSalvarConfigVeiculo = async function(vid) {
-    const dtIni = document.getElementById('mn-rev-cfg-inicio')?.value || '';
+    const dtGarAte = document.getElementById('mn-rev-cfg-garantia')?.value || '';
     const usoSev = document.getElementById('mn-rev-cfg-severo')?.value === '1' ? 1 : 0;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
         const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-            body: JSON.stringify({ data_inicio_garantia: dtIni || null, uso_severo: usoSev })
+            body: JSON.stringify({ garantia_fabrica_ate: dtGarAte || null, uso_severo: usoSev })
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar configuração');
         if (window._mnRevAtual && window._mnRevAtual.veiculo) {
-            window._mnRevAtual.veiculo.data_inicio_garantia = dtIni || null;
+            window._mnRevAtual.veiculo.garantia_fabrica = dtGarAte ? 1 : 0;
+            window._mnRevAtual.veiculo.garantia_fabrica_ate = dtGarAte || null;
             window._mnRevAtual.veiculo.uso_severo = usoSev;
         }
         [window._manutFrota, window._frotaDados].forEach(arr => {
             const v = (arr || []).find(x => String(x.id) === String(vid));
-            if (v) { v.data_inicio_garantia = dtIni || null; v.uso_severo = usoSev; }
+            if (v) {
+                v.garantia_fabrica = dtGarAte ? 1 : 0;
+                v.garantia_fabrica_ate = dtGarAte || null;
+                v.uso_severo = usoSev;
+            }
         });
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Parâmetros de revisão atualizados!');
         window._mnRenderPainelRevisaoVeiculo();
@@ -988,13 +993,9 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                     <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
-                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Compra / Início do Plano</label>
-                    <input type="date" id="mn-rev-cfg-inicio" value="${dtIniGar}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:600;color:#1e293b;">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia até:</label>
+                    <input type="date" id="mn-rev-cfg-garantia" value="${garAte}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${garAte ? (garAte < hojeIso ? '#dc2626' : '#16a34a') : '#1e293b'};">
                 </div>
-                ${garAte ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
-                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia de Fábrica Até</label>
-                    <div style="font-size:0.88rem;font-weight:800;color:${garAte < hojeIso ? '#dc2626' : '#16a34a'};padding:2px 0;">${_mnRevFmtDataBR(garAte)}</div>
-                </div>` : ''}
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso</label>
                     <select id="mn-rev-cfg-severo" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${usoSevero ? '#dc2626' : '#1e293b'};">
@@ -3313,7 +3314,7 @@ window.mnCorrNovaInterno = async function(opts) {
     window._mnEd = {
         id: null, novo: true,
         m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: window._mnHojeISO(), data_fim: '', data_conclusao: '', created_at: new Date().toISOString(), veiculo_rodando: opts.veiculo_rodando || '', parado_desde: null, parado_segundos_acum: 0 },
-        status: 'agendada', _statusInicial: 'agendada', _jaPerguntouStatus: '', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
+        status: 'agendada', _statusInicial: 'agendada', _jaPerguntouStatus: '', veiculo_rodando: opts.veiculo_rodando || '', justificativa_status: '', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], midias: [], pickSel: {}
     };
     window._mnEdMontar();
 };
@@ -3342,6 +3343,7 @@ window.mnCorrEditarInterno = async function(id) {
         notas: det.notas || [],
         mo: (det.mo || []).map(window._mnEdMapMo),
         historico: det.historico || [],
+        midias: det.midias || [],
         pickSel: {}
     };
     window._mnEdMontar();
@@ -3363,10 +3365,11 @@ window._mnEdGarantirId = async function() {
     var itensSolic = (ed.solicitados && ed.solicitados.length)
         ? ed.solicitados.join(', ')
         : ((ed.realizados && ed.realizados.length) ? ed.realizados.map(function(s) { return s.nome; }).join(', ') : desc);
+    var stCriacao = (ed.status && ed.status !== 'concluida') ? ed.status : 'agendada';
     var r = await fetch('/api/frota/manutencoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, itens_solicitados: itensSolic, status: ed.status || 'agendada', veiculo_rodando: ed.veiculo_rodando, data_inicio: diVal || null, data_fim: dfVal || null })
+        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, itens_solicitados: itensSolic, status: stCriacao, veiculo_rodando: ed.veiculo_rodando, data_inicio: diVal || null, data_fim: dfVal || null })
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao criar a manutenção'); }
     var j = await r.json();
@@ -3501,6 +3504,17 @@ window._mnEdMontar = function() {
       +         '<div style="display:none;"><div style="' + secT + '"><i class="ph ph-hammer" style="color:#d97706;"></i> Mão de obra (notas e lançamentos)</div><button type="button" id="mned-mo-add" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Linha de mão de obra</button><div id="mned-mo"></div></div>'
       +       '</div>'
       +       '<div id="mned-total" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>'
+      +       '<div id="mned-sec-video" style="' + sec + '">'
+      +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+      +           '<div style="' + secT + '"><i class="ph ph-video-camera" style="color:#7c3aed;"></i> Vídeo geral do veículo <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;text-transform:none;">Obrigatório para concluir</span></div>'
+      +           '<label id="mned-lbl-video" style="display:inline-flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">'
+      +             '<i class="ph ph-upload-simple"></i> Anexar vídeo geral do veículo'
+      +             '<input type="file" id="mned-inp-video" accept="video/*" style="display:none;" onchange="window._mnEdAnexarVideoGeral(this)">'
+      +           '</label>'
+      +         '</div>'
+      +         '<div style="font-size:0.78rem;color:#64748b;margin-bottom:8px;">Anexe um vídeo geral do veículo para poder mudar a situação da manutenção para <b>Concluído</b>.</div>'
+      +         '<div id="mned-video-lista"></div>'
+      +       '</div>'
       +     '</div>'
       +   '</div>'
       + '</div>'
@@ -3587,6 +3601,7 @@ window._mnEdMontar = function() {
     window._mnEdRenderNotas();
     window._mnEdRenderMo();
     window._mnEdRenderHist();
+    if (typeof window._mnEdRenderVideoGeral === 'function') window._mnEdRenderVideoGeral();
     if (window._mnIniciarCronometros) window._mnIniciarCronometros();
 };
 
@@ -3936,6 +3951,19 @@ window._mnEdRenderStatus = function() {
         b.onclick = function() {
             var novo = b.getAttribute('data-s');
             if (novo === window._mnEd.status) return;
+            if (novo === 'concluida') {
+                var temVideo = ((window._mnEd && window._mnEd.midias) || []).some(function(m) { return m.categoria === 'video_geral'; });
+                if (!temVideo) {
+                    var secVid = document.getElementById('mned-sec-video');
+                    if (secVid) {
+                        secVid.style.borderColor = '#dc2626';
+                        secVid.style.background = '#fef2f2';
+                        if (secVid.scrollIntoView) secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
+                    return;
+                }
+            }
             var statusAnterior = window._mnEd.status;
             window._mnEdPedirJustificativaStatus(statusAnterior, novo, async function(justTxt) {
                 window._mnEd.status = novo;
@@ -3971,8 +3999,8 @@ window._mnEdRenderStatus = function() {
                                 data_conclusao: (novo === 'concluida' && dc) ? (dc.value || null) : undefined
                             })
                         });
+                        var rsJson = await rs.json().catch(function() { return {}; });
                         if (rs.ok) {
-                            var rsJson = await rs.json().catch(function() { return {}; });
                             window._mnEd.justificativa_status = '';
                             window._mnEd._jaPerguntouStatus = novo;
                             await window._mnEdRecarregarDetalhe();
@@ -3986,6 +4014,10 @@ window._mnEdRenderStatus = function() {
                                 if (Array.isArray(frotaAt)) { window._manutFrota = frotaAt; window._frotaDados = frotaAt; }
                             } catch (eF) {}
                             window._mnTratarOutrasAbertasPosStatus(novo, rsJson, window._mnEd.m ? window._mnEd.m.placa : '');
+                        } else {
+                            window._mnEd.status = statusAnterior;
+                            window._mnEdRenderStatus();
+                            alert(rsJson.error || 'Erro ao alterar status da manutenção.');
                         }
                     } catch (e) { console.warn('[Status] erro ao salvar imediato:', e); }
                 }
@@ -5343,6 +5375,87 @@ window._mnEdRecarregarDetalhe = async function() {
     ed.mo = (d.mo || []).map(window._mnEdMapMo);
     ed.realizados = (d.realizados || []).map(window._mnEdMapRealizado);
     ed.historico = d.historico || [];
+    ed.midias = d.midias || [];
+    if (typeof window._mnEdRenderVideoGeral === 'function') window._mnEdRenderVideoGeral();
+};
+
+// ── Vídeo Geral do Veículo na Manutenção Corretiva (Cloudflare R2) ──────────
+window._mnEdRenderVideoGeral = function() {
+    var el = document.getElementById('mned-video-lista');
+    if (!el) return;
+    var ed = window._mnEd || {};
+    var esc = window._mnEdEsc;
+    var videos = (ed.midias || []).filter(function(m) { return m.categoria === 'video_geral'; });
+    if (!videos.length) {
+        el.innerHTML = '<div style="font-size:0.78rem;color:#dc2626;font-weight:700;padding:4px 0;"><i class="ph ph-warning-circle"></i> Nenhum vídeo geral anexado ainda (obrigatório para mudar a situação para Concluído).</div>';
+        return;
+    }
+    var secVid = document.getElementById('mned-sec-video');
+    if (secVid) { secVid.style.borderColor = '#e2e8f0'; secVid.style.background = '#fff'; }
+    el.innerHTML = videos.map(function(v) {
+        var url = v.url || ('/api/frota/manutencoes/midias/' + v.id + '/arquivo');
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;">'
+            + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
+            +   '<video src="' + esc(url) + '" controls preload="metadata" style="width:240px;max-width:100%;height:135px;border-radius:8px;background:#0f172a;object-fit:cover;"></video>'
+            +   '<div>'
+            +     '<div style="font-size:0.82rem;font-weight:800;color:#15803d;display:flex;align-items:center;gap:5px;"><i class="ph ph-check-circle"></i> Vídeo geral anexado</div>'
+            +     '<div style="font-size:0.75rem;color:#475569;margin-top:2px;">' + esc(v.nome_arquivo || 'video.mp4') + '</div>'
+            +     '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">'
+            +       '<a href="' + esc(url) + '" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;text-decoration:none;border-radius:6px;padding:4px 10px;font-size:0.74rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrow-square-out"></i> Abrir vídeo</a>'
+            +       '<button type="button" onclick="window._mnEdExcluirMidia(' + v.id + ')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir vídeo</button>'
+            +     '</div>'
+            +   '</div>'
+            + '</div>'
+            + '</div>';
+    }).join('');
+};
+
+window._mnEdAnexarVideoGeral = async function(inp) {
+    var file = inp && inp.files && inp.files[0];
+    if (!file) return;
+    var lbl = document.getElementById('mned-lbl-video');
+    if (lbl) { lbl.style.opacity = '0.6'; lbl.style.pointerEvents = 'none'; }
+    var listaEl = document.getElementById('mned-video-lista');
+    if (listaEl) listaEl.innerHTML = '<div style="font-size:0.8rem;color:#0284c7;font-weight:700;padding:6px 0;"><i class="ph ph-circle-notch ph-spin"></i> Enviando vídeo geral do veículo para o Cloudflare R2... aguarde.</div>';
+    try {
+        await window._mnEdGarantirId();
+        var ed = window._mnEd;
+        var fd = new FormData();
+        fd.append('arquivo', file);
+        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/midias', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + window._mnEdTok() },
+            body: fd
+        });
+        var j = await r.json().catch(function() { return {}; });
+        if (!r.ok) throw new Error(j.error || 'Erro ao enviar vídeo para o R2');
+        await window._mnEdRecarregarDetalhe();
+        window._mnEdRenderHist();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Vídeo geral do veículo anexado com sucesso!');
+    } catch (e) {
+        alert('Erro ao anexar vídeo: ' + e.message);
+        window._mnEdRenderVideoGeral();
+    } finally {
+        if (inp) inp.value = '';
+        if (lbl) { lbl.style.opacity = ''; lbl.style.pointerEvents = ''; }
+    }
+};
+
+window._mnEdExcluirMidia = async function(midiaId) {
+    if (!confirm('Deseja realmente excluir o vídeo geral anexado nesta manutenção?')) return;
+    try {
+        var r = await fetch('/api/frota/manutencoes/midias/' + midiaId, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + window._mnEdTok() }
+        });
+        var j = await r.json().catch(function() { return {}; });
+        if (!r.ok) throw new Error(j.error || 'Erro ao excluir vídeo');
+        await window._mnEdRecarregarDetalhe();
+        window._mnEdRenderHist();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Vídeo removido!');
+    } catch (e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
 };
 
 // Botao de olho: abre o PDF da nota (stream privado do R2)
@@ -5864,6 +5977,20 @@ window.mnCorrSalvarEdicaoInterno = async function() {
     if (!desc) { mostrarMsg('Informe o defeito / problema.', false); alert('Informe o defeito / problema.'); return; }
     if (ed.status === 'em_andamento') ed.veiculo_rodando = 'nao';
     else if (ed.status === 'concluida' && ed.veiculo_rodando === 'nao') ed.veiculo_rodando = 'sim';
+    if (ed.status === 'concluida') {
+        var temVideoConcl = (ed.midias || []).some(function(m) { return m.categoria === 'video_geral'; });
+        if (!temVideoConcl) {
+            var secVid = document.getElementById('mned-sec-video');
+            if (secVid) {
+                secVid.style.borderColor = '#dc2626';
+                secVid.style.background = '#fef2f2';
+                if (secVid.scrollIntoView) secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            mostrarMsg('Anexe o vídeo geral do veículo para concluir.', false);
+            alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
+            return;
+        }
+    }
     if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
         mostrarMsg('Informe se o veículo está rodando ou parado.', false);
         alert('Informe se o veículo está rodando ou parado ("O veículo está rodando? *").');

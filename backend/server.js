@@ -24137,6 +24137,13 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id FROM frota_manutencoes WHERE id = ?', [id]);
         if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
+        if (status === 'concluida') {
+            const vidRow = await _fmGet("SELECT id FROM frota_manutencao_midias WHERE manutencao_id = ? AND categoria = 'video_geral' LIMIT 1", [id]);
+            if (!vidRow) {
+                return res.status(400).json({ error: 'Para mudar a situação para Concluído, é obrigatório anexar o vídeo geral do veículo.' });
+            }
+        }
+
         const now = _fmHojeBR();
         const fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
         const params = [status];
@@ -24489,6 +24496,8 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
         }
         const pecas = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
         const notas = await _fmAll("SELECT id, manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, COALESCE(tipo, 'pecas') AS tipo, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id", [id]);
+        const midiasRaw = await _fmAll("SELECT id, manutencao_id, veiculo_id, categoria, nome_arquivo, mime_type, r2_key, usuario_nome, created_at FROM frota_manutencao_midias WHERE manutencao_id = ? ORDER BY id ASC", [id]).catch(() => []);
+        const midias = midiasRaw.map(md => Object.assign({}, md, { url: '/api/frota/manutencoes/midias/' + md.id + '/arquivo' }));
         res.json({
             manutencao: m,
             solicitados: servicos.filter(s => s.tipo === 'solicitado'),
@@ -24496,7 +24505,8 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             pecas: pecas,
             notas: notas,
             mo: await _fmMoLinhas(id),
-            historico: await _fmHistLista(id)
+            historico: await _fmHistLista(id),
+            midias: midias
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -25641,6 +25651,7 @@ app.delete('/api/frota/manutencoes/:id', authenticateToken, async (req, res) => 
         if (!row) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
         const notas = await _fmAll('SELECT id, r2_key FROM frota_manutencao_notas WHERE manutencao_id = ?', [id]);
+        const midiasManut = await _fmAll('SELECT id, r2_key FROM frota_manutencao_midias WHERE manutencao_id = ?', [id]).catch(() => []);
         const r2 = require('./utils/r2');
         if (r2.isReady()) {
             for (const n of notas) {
@@ -25648,7 +25659,13 @@ app.delete('/api/frota/manutencoes/:id', authenticateToken, async (req, res) => 
                     try { await r2.deleteFromR2(n.r2_key); } catch (eR2) { console.warn('[R2] Erro ao deletar nota da manutenção:', eR2.message); }
                 }
             }
+            for (const md of midiasManut) {
+                if (md.r2_key) {
+                    try { await r2.deleteFromR2(md.r2_key); } catch (eR2) { console.warn('[R2] Erro ao deletar mídia da manutenção:', eR2.message); }
+                }
+            }
         }
+        await _fmRun('DELETE FROM frota_manutencao_midias WHERE manutencao_id = ?', [id]).catch(() => {});
         await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ?)', [id]);
         await _fmRun('DELETE FROM frota_manutencao_mo WHERE manutencao_id = ?', [id]);
         await _fmRun('DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ?', [id]);
@@ -25918,6 +25935,19 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_midias (
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisao_midias]', err.message);
 });
+db.run(`CREATE TABLE IF NOT EXISTS frota_manutencao_midias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    manutencao_id INTEGER NOT NULL,
+    veiculo_id INTEGER,
+    categoria TEXT NOT NULL,
+    nome_arquivo TEXT,
+    mime_type TEXT,
+    r2_key TEXT NOT NULL,
+    usuario_nome TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[MIGRATION frota_manutencao_midias]', err.message);
+});
 
 // Recalcula valor de peças / mão de obra / total da revisão a partir dos lançamentos das notas
 async function _frRecalcRevisao(revisaoId) {
@@ -25983,13 +26013,22 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
     }
 });
 
-// PUT - configura data de início da garantia / compra e regime de uso (normal vs severo)
+// PUT - configura data de garantia até (e/ou início da garantia) e regime de uso (normal vs severo)
 app.put('/api/frota/revisoes/:veiculoId/config', authenticateToken, async (req, res) => {
     try {
         const vid = parseInt(req.params.veiculoId, 10);
-        const { data_inicio_garantia, uso_severo } = req.body || {};
-        const dtIni = String(data_inicio_garantia || '').trim() || null;
+        const { data_inicio_garantia, garantia_fabrica_ate, uso_severo } = req.body || {};
         const usoSev = (uso_severo === 1 || uso_severo === '1' || uso_severo === true) ? 1 : 0;
+        if (garantia_fabrica_ate !== undefined) {
+            const garAte = String(garantia_fabrica_ate || '').trim() || null;
+            const temGar = garAte ? 1 : 0;
+            await _fmRun(
+                'UPDATE frota_veiculos SET garantia_fabrica=?, garantia_fabrica_ate=?, uso_severo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [temGar, garAte, usoSev, vid]
+            );
+            return res.json({ ok: true, garantia_fabrica: temGar, garantia_fabrica_ate: garAte, uso_severo: usoSev });
+        }
+        const dtIni = String(data_inicio_garantia || '').trim() || null;
         await _fmRun(
             'UPDATE frota_veiculos SET data_inicio_garantia=?, uso_severo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
             [dtIni, usoSev, vid]
@@ -26350,6 +26389,95 @@ app.delete('/api/frota/revisoes/midias/:midiaId', authenticateToken, async (req,
             await r2.deleteFromR2(row.r2_key).catch(() => {});
         }
         await _fmRun('DELETE FROM frota_revisao_midias WHERE id = ?', [row.id]);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Mídias da Manutenção Corretiva (Vídeo Geral do Veículo no Cloudflare R2) ──
+app.post('/api/frota/manutencoes/:id/midias', authenticateToken, multerMidiaRevisao.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const manId = parseInt(req.params.id, 10);
+        const man = await _fmGet(
+            'SELECT fm.*, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?',
+            [manId]
+        );
+        if (!man) return res.status(404).json({ error: 'Manutenção não encontrada.' });
+        const f = req.file;
+        if (!f) return res.status(400).json({ error: 'Selecione o arquivo de vídeo.' });
+
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
+
+        const categoria = 'video_geral';
+        const safe = (s) => String(s || 'arq').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+        const agora = new Date();
+        const usuario = _fmUsuario(req);
+
+        // Remove vídeos anteriores desta manutenção no R2 antes de substituir
+        const ant = await _fmAll("SELECT id, r2_key FROM frota_manutencao_midias WHERE manutencao_id = ? AND categoria = 'video_geral'", [manId]);
+        for (const old of ant) {
+            if (old.r2_key) await r2.deleteFromR2(old.r2_key).catch(() => {});
+            await _fmRun('DELETE FROM frota_manutencao_midias WHERE id = ?', [old.id]);
+        }
+
+        const extOrig = (path.extname(f.originalname || '') || '.mp4').toLowerCase();
+        const mime = f.mimetype || 'video/mp4';
+        const r2Key = 'Frota/Manutencoes/' + safe(man.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+            + String(agora.getDate()).padStart(2, '0') + '_MANUT_' + manId + '_VIDEO_GERAL_' + Date.now().toString(36) + extOrig;
+
+        await r2.uploadToR2(r2Key, f.buffer, mime);
+        keyEnviada = r2Key;
+
+        const ins = await _fmRun(
+            'INSERT INTO frota_manutencao_midias (manutencao_id, veiculo_id, categoria, nome_arquivo, mime_type, r2_key, usuario_nome) VALUES (?,?,?,?,?,?,?)',
+            [manId, man.veiculo_id, categoria, f.originalname || ('video' + extOrig), mime, r2Key, usuario]
+        );
+        const row = await _fmGet('SELECT * FROM frota_manutencao_midias WHERE id = ?', [ins.lastID]);
+        if (row) row.url = '/api/frota/manutencoes/midias/' + row.id + '/arquivo';
+        await _fmHist(manId, 'evento', 'Vídeo geral do veículo anexado (' + (f.originalname || 'vídeo') + ')', usuario);
+
+        res.json({ ok: true, midia: row });
+    } catch (e) {
+        if (keyEnviada) {
+            try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (_) {}
+        }
+        res.status(500).json({ error: 'Erro ao enviar vídeo para o R2: ' + e.message });
+    }
+});
+
+app.get('/api/frota/manutencoes/midias/:midiaId/arquivo', async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, r2_key, nome_arquivo, mime_type FROM frota_manutencao_midias WHERE id = ?', [req.params.midiaId]);
+        if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado.');
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).send('R2 não configurado.');
+        const { stream, contentType, contentLength } = await r2.downloadStreamFromR2(row.r2_key);
+        const fn = String(row.nome_arquivo || 'video.mp4').replace(/["\r\n]/g, '');
+        res.setHeader('Content-Type', row.mime_type || contentType || 'video/mp4');
+        if (contentLength) res.setHeader('Content-Length', contentLength);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Content-Disposition', `inline; filename="${fn}"`);
+        stream.pipe(res);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir mídia: ' + e.message);
+    }
+});
+
+app.delete('/api/frota/manutencoes/midias/:midiaId', authenticateToken, async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, manutencao_id, nome_arquivo, r2_key FROM frota_manutencao_midias WHERE id = ?', [req.params.midiaId]);
+        if (!row) return res.status(404).json({ error: 'Mídia não encontrada.' });
+        const r2 = require('./utils/r2');
+        if (row.r2_key && r2.isReady()) {
+            await r2.deleteFromR2(row.r2_key).catch(() => {});
+        }
+        await _fmRun('DELETE FROM frota_manutencao_midias WHERE id = ?', [row.id]);
+        if (row.manutencao_id) {
+            await _fmHist(row.manutencao_id, 'evento', 'Vídeo geral do veículo removido (' + (row.nome_arquivo || 'vídeo') + ')', _fmUsuario(req));
+        }
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ error: e.message });

@@ -71,6 +71,7 @@ async function extrairCRLV(file){
           }
         }
         for(const l of linhas){if(/^\d{9,11}$/.test(l)&&l!==d.placa&&l!==d.exercicio&&l!==d.ano_fabricacao&&l!==d.ano_modelo){d.renavam=l;break;}}
+        for(const l of linhas){const u=l.trim().toUpperCase();if(/^[A-HJ-NPR-Z0-9]{17}$/.test(u)&&/[A-Z]/.test(u)&&/\d{4,}$/.test(u)){d.chassi=u;break;}}
         const cores=['BRANCA','PRETA','CINZA','VERMELHA','AZUL','VERDE','AMARELA','LARANJA','MARROM','BEGE','PRATA','DOURADA','VINHO','BEGE'];
         for(const l of linhas){const u=l.toUpperCase();for(const c of cores){if(u===c||u.startsWith(c)){d.cor=c;break;}}if(d.cor)break;}
         const excl=/^(BRANCA|PRETA|CINZA|VERMELHA|AZUL|VERDE|AMARELA|LARANJA|MARROM|BEGE|PRATA|DOURADA|VINHO|PARTICULAR|COMERCIAL|CARROCERIA|CARGA|SEM OBS|AMERICA|GUARULHOS|DETRAN|SENATRAN|INFORMACOES|REPASSE|CUSTO|VALOR|TOTAL|ESPECIE|COMBUSTIVEL|LOCAL|DATA|CPF|CNPJ|SP|MG|RJ|PR|SC|RS|BA|GO)/i;
@@ -102,7 +103,7 @@ window.processarCRLV=async function(inp,modo){
     if(st)st.innerHTML=n>0?`<span style="color:#16a34a;font-weight:600">✅ Exercício extraído: ${d.exercicio||'não encontrado'}</span>`:`<span style="color:#f59e0b;font-weight:600">⚠️ Preencha o exercício manualmente</span>`;
   }else{
     if(d.placa){const el=document.getElementById('fv-placa');if(el){el.value=d.placa;n++;}}
-    set('fv-marca',d.marca_modelo_versao);set('fv-cor',d.cor);set('fv-anomodelo',d.ano_modelo);set('fv-exercicio',d.exercicio);set('fv-renavam',d.renavam);
+    set('fv-marca',d.marca_modelo_versao);set('fv-cor',d.cor);set('fv-anomodelo',d.ano_modelo);set('fv-exercicio',d.exercicio);set('fv-renavam',d.renavam);set('fv-chassi',d.chassi);
     if(st)st.innerHTML=n>0?`<span style="color:#16a34a;font-weight:600">✅ ${n} campo(s) preenchido(s)</span>`:`<span style="color:#f59e0b;font-weight:600">⚠️ PDF processado mas dados não identificados</span>`;
   }
 };
@@ -1350,8 +1351,9 @@ ${alertaHtml}
         <div>${lbl('Código RENAVAM')}${inp('fv-renavam',v.renavam,'00000000000')}</div>
         <div>${lbl('Tanque (Litros)')}${inp('fv-tanque',v.capacidade_tanque,'','number')}</div>
         <div>${lbl('Carga (Unidades)')}${inp('fv-carga',v.capacidade_carga,'','number')}</div>
+        <div>${lbl('Chassi')}${inp('fv-chassi',v.chassi,'Ex: 9BWZZZ...')}</div>
         <div>${lbl('Data de Garantia do Veículo')}${inp('fv-garantia-ate',String(v.garantia_fabrica_ate||'').split('T')[0],'','date')}</div>
-        <div style="grid-column:span 2;">${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${optT}</select></div>
+        <div>${lbl('Tipo de Veículo')}<select id="fv-tipo" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">${optT}</select></div>
     </div>
 </div>
 
@@ -1435,6 +1437,7 @@ window.salvarVeiculoFrota=async function(id){
     ano_modelo:g('fv-anomodelo'),
     exercicio:g('fv-exercicio'),
     renavam:g('fv-renavam'),
+    chassi:g('fv-chassi'),
     capacidade_tanque:g('fv-tanque'),
     capacidade_carga:g('fv-carga'),
     tipo_veiculo:g('fv-tipo'),
