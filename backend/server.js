@@ -21684,7 +21684,9 @@ let _kmVencidasAnteriores = new Set();
 function _fmSomarMesesISO(dtIso, meses) {
     const p = String(dtIso || '').slice(0, 10).split('-');
     if (p.length !== 3) return '';
-    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), parseInt(p[2], 10));
+    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), 1);
+    const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(parseInt(p[2], 10), ultimoDia));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function _fmDiffDiasISO(alvoIso, baseIso) {
@@ -26521,11 +26523,18 @@ app.put('/api/frota/revisoes/:veiculoId/config', authenticateToken, async (req, 
             return res.json({ ok: true, garantia_fabrica: temGar, garantia_fabrica_ate: garAte, uso_severo: usoSev });
         }
         const dtIni = String(data_inicio_garantia || '').trim() || null;
-        await _fmRun(
-            'UPDATE frota_veiculos SET data_inicio_garantia=?, uso_severo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-            [dtIni, usoSev, vid]
-        );
-        res.json({ ok: true, data_inicio_garantia: dtIni, uso_severo: usoSev });
+        if (uso_severo !== undefined) {
+            await _fmRun(
+                'UPDATE frota_veiculos SET data_inicio_garantia=?, uso_severo=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [dtIni, usoSev, vid]
+            );
+        } else {
+            await _fmRun(
+                'UPDATE frota_veiculos SET data_inicio_garantia=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [dtIni, vid]
+            );
+        }
+        res.json({ ok: true, data_inicio_garantia: dtIni });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

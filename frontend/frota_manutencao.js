@@ -846,7 +846,9 @@ function _mnRevSomarMesesISO(dtIso, meses) {
     if (!dtIso) return '';
     const p = String(dtIso).split('T')[0].split('-');
     if (p.length !== 3) return '';
-    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), parseInt(p[2], 10));
+    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), 1);
+    const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(parseInt(p[2], 10), ultimoDia));
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -923,7 +925,8 @@ window._mnRevSalvarConfigVeiculo = async function(vid) {
             }
         });
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Parâmetros de revisão atualizados!');
-        window._mnRenderPainelRevisaoVeiculo();
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
+        await window.mnRevisaoAbrirVeiculo(vid);
     } catch (e) { alert(e.message); }
 };
 
@@ -934,7 +937,7 @@ window._mnRevSalvarInicioPlano = async function(vid) {
         const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-            body: JSON.stringify({ data_inicio_garantia: dt || null, uso_severo: 0 })
+            body: JSON.stringify({ data_inicio_garantia: dt || null })
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar o início do plano');
@@ -946,6 +949,30 @@ window._mnRevSalvarInicioPlano = async function(vid) {
         if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
         await window.mnRevisaoAbrirVeiculo(vid);
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Início do plano atualizado!');
+    } catch (e) { alert(e.message); }
+};
+
+window._mnRevSalvarDataPrimeiraRevisao = async function(vid, dtPrimeiraIso, passoMeses) {
+    const dtAlvo = String(dtPrimeiraIso || '').trim();
+    const meses = Number(passoMeses) || 12;
+    const dtIni = dtAlvo ? _mnRevSomarMesesISO(dtAlvo, -meses) : '';
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes/' + vid + '/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ data_inicio_garantia: dtIni || null })
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar a data da 1ª revisão');
+        [window._manutFrota, window._frotaDados].forEach(arr => {
+            const v = (arr || []).find(x => String(x.id) === String(vid));
+            if (v) v.data_inicio_garantia = dtIni || null;
+        });
+        if (window._mnRevAtual && window._mnRevAtual.veiculo) window._mnRevAtual.veiculo.data_inicio_garantia = dtIni || null;
+        if (typeof window._mnPrevAtualizarFrota === 'function') await window._mnPrevAtualizarFrota();
+        await window.mnRevisaoAbrirVeiculo(vid);
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Data da 1ª revisão atualizada!');
     } catch (e) { alert(e.message); }
 };
 
@@ -965,6 +992,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     const usoSevero = !ehCar && Number(v.uso_severo || 0) === 1;
     const passoKm = usoSevero ? 5000 : 10000;
     const passoMeses = usoSevero ? 6 : 12;
+    const dtPrimeiraRev = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, passoMeses) : '';
 
     // Marcos: cada ciclo respeita +passoKm ou +passoMeses (o que ocorrer primeiro) a partir da ultima revisao realizada.
     // Lista = concluidos/vencidos + o proximo marco ainda nao vencido (sem marcos futuros alem dele).
@@ -1084,6 +1112,10 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                     <span style="color:#64748b;font-weight:600;"><i class="ph ph-calendar"></i> Por Tempo:</span>
                     <span>${tempoStatusTxt}</span>
                 </div>
+                ${(m.n === 1 && !realizada) ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #cbd5e1;">
+                    <span style="color:#475569;font-weight:700;font-size:0.76rem;"><i class="ph ph-pencil-simple" style="color:#7c3aed;"></i> Data da 1ª revisão:</span>
+                    <input type="date" value="${dtLimite || ''}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses})" style="border:1.5px solid #c4b5fd;border-radius:6px;padding:2px 8px;font-size:0.78rem;font-weight:700;color:#1e293b;background:#fff;cursor:pointer;" title="Altere a data desta 1ª revisão para definir se está vencida ou espaçar a próxima revisão">
+                </div>` : ''}
                 <div style="border-top:1px dashed #cbd5e1;padding-top:5px;font-size:0.75rem;color:#475569;">
                     ${prevalenciaTxt}
                 </div>
@@ -1153,13 +1185,14 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             </div>
 
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                ${ehCar ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Data base para contar os 12 meses do plano da carretinha">
-                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Início do plano (data base)</label>
-                    <input type="date" id="mn-rev-cfg-inicio" value="${dtIniGar}" onchange="window._mnRevSalvarInicioPlano(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;">
-                </div>` : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
+                ${ehCar ? '' : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
                     <div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">KM Atual (Somente leitura)</div>
                     <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
                 </div>`}
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Defina a data da 1ª revisão do plano (coloque data passada se já estiver vencida ou datas espaçadas para não vencerem todas no mesmo dia)">
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Data da 1ª Revisão:</label>
+                    <input type="date" id="mn-rev-cfg-primeira" value="${dtPrimeiraRev}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${dtPrimeiraRev ? (dtPrimeiraRev < hojeIso ? '#dc2626' : '#1e293b') : '#1e293b'};">
+                </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia até:</label>
                     <input type="date" id="mn-rev-cfg-garantia" value="${garAte}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${garAte ? (garAte < hojeIso ? '#dc2626' : '#16a34a') : '#1e293b'};">
@@ -2259,7 +2292,7 @@ window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
     const ctx = window._mnRevAtual;
     if (!ctx || !ctx.veiculo) return;
     const v = ctx.veiculo;
-    const marcoTxt = Number(kmNominal).toLocaleString('pt-BR') + ' km';
+    const marcoTxt = window._mnRevEhCarretinha(v) ? ((Number(mesesNominal) || 12) + ' meses') : (Number(kmNominal).toLocaleString('pt-BR') + ' km');
     if (!confirm('Marcar a revisão de ' + marcoTxt + ' do veículo ' + (v.placa || '') + ' como FEITA?\n\nSomente esta revisão será registrada como realizada hoje' + (window._mnRevEhCarretinha(v) ? '' : ', com a KM atual do veículo (' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km)') + '. As demais revisões atrasadas continuam pendentes para você formalizar.')) return;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(kmNominal); });
