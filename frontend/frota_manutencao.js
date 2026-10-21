@@ -1086,7 +1086,7 @@ window._mnRevLinhaServicoHtml = function(s, st) {
     const isConf = s.grupo === 'conferencia';
     const obrig = s.grupo === 'obrigatorio' || isConf;
     const badgeHtml = isConf
-        ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">CONFERÊNCIA OBRIGATÓRIA</span>'
+        ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>'
         : (obrig
             ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>'
             : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;">OPCIONAL</span>');
@@ -1704,7 +1704,7 @@ window._mnRevCustosPorServicoHtml = function(lancs) {
         const s = nomes[id];
         const a = acc[id];
         const grpCor = s ? (s.grupo === 'obrigatorio' ? '#dc2626' : (s.grupo === 'conferencia' ? '#1d4ed8' : '#64748b')) : '#64748b';
-        const grpTxt = s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : (s.grupo === 'conferencia' ? 'CONFERÊNCIA OBRIGATÓRIA' : 'OPCIONAL')) : '';
+        const grpTxt = s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : (s.grupo === 'conferencia' ? 'OBRIGATÓRIO' : 'OPCIONAL')) : '';
         return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)} <span style="font-size:0.66rem;font-weight:800;color:${grpCor};">${grpTxt}</span></td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
     }).join('');
     return `<div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:4px;">Custo por serviço (rateado entre os serviços vinculados)</div>
