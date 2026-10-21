@@ -25838,8 +25838,7 @@ async function _frRecalcRevisao(revisaoId) {
         "SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN tipo='peca' THEN valor_total ELSE 0 END),0) AS p, COALESCE(SUM(CASE WHEN tipo='mao_obra' THEN valor_total ELSE 0 END),0) AS m FROM frota_revisao_lancamentos WHERE revisao_id = ?",
         [revisaoId]
     );
-    if (!r || !r.n) return;
-    const p = Math.round(r.p * 100) / 100, m = Math.round(r.m * 100) / 100;
+    const p = Math.round(((r && r.p) || 0) * 100) / 100, m = Math.round(((r && r.m) || 0) * 100) / 100;
     await _fmRun('UPDATE frota_revisoes SET valor_pecas=?, valor_mao_obra=?, valor_total=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [p, m, Math.round((p + m) * 100) / 100, revisaoId]);
 }
 
@@ -25937,9 +25936,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const dataRev = String(b.data_revisao || '').trim().split('T')[0] || null;
         const conc = String(b.concessionaria || '').trim() || null;
         const numOs = String(b.numero_os || '').trim() || null;
-        const vPecas = _fmNumero(b.valor_pecas);
-        const vMo = _fmNumero(b.valor_mao_obra);
-        const vTot = _fmNumero(b.valor_total) > 0 ? _fmNumero(b.valor_total) : Math.round((vPecas + vMo) * 100) / 100;
+        let vPecas = 0, vMo = 0, vTot = 0;
         const itensJson = JSON.stringify(b.itens && typeof b.itens === 'object' ? b.itens : {});
         const obs = String(b.observacoes || '').trim() || null;
         const usuario = _fmUsuario(req);
@@ -25948,6 +25945,13 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
 
         const existing = await _fmGet('SELECT id, status, km_revisao, parado_desde, concluido_em, dias_parado FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
         const veic = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [vid]);
+        // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
+        if (existing) {
+            const sm = await _fmGet("SELECT COALESCE(SUM(CASE WHEN tipo='peca' THEN valor_total ELSE 0 END),0) AS p, COALESCE(SUM(CASE WHEN tipo='mao_obra' THEN valor_total ELSE 0 END),0) AS m FROM frota_revisao_lancamentos WHERE revisao_id = ?", [existing.id]);
+            vPecas = Math.round(((sm && sm.p) || 0) * 100) / 100;
+            vMo = Math.round(((sm && sm.m) || 0) * 100) / 100;
+            vTot = Math.round((vPecas + vMo) * 100) / 100;
+        }
 
         // KM e sempre o da Gestao de Frota (nao vem da tela de revisao)
         let kmRev = null, paradoDesde = null, concluidoEm = null, diasParado = null;
@@ -26053,6 +26057,48 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
     } catch (e) {
         if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) {} }
         res.status(500).json({ error: 'Erro ao anexar PDF: ' + e.message });
+    }
+});
+
+// POST - lancamentos manuais (peca ou servico digitado, sem PDF) vinculados a servicos da revisao
+app.post('/api/frota/revisoes/:revisaoId/lancamentos', authenticateToken, async (req, res) => {
+    try {
+        const revId = parseInt(req.params.revisaoId, 10);
+        const rev = await _fmGet('SELECT id, veiculo_id FROM frota_revisoes WHERE id = ?', [revId]);
+        if (!rev) return res.status(404).json({ error: 'Revisão não encontrada. Salve a revisão primeiro.' });
+        const lancs = Array.isArray(req.body && req.body.lancamentos) ? req.body.lancamentos : [];
+        let n = 0;
+        for (const l of lancs) {
+            const desc = String(l.descricao || '').trim();
+            const vt = _fmNumero(l.valor_total);
+            if (!desc || !(vt > 0)) continue;
+            const tipoL = l.tipo === 'mao_obra' ? 'mao_obra' : 'peca';
+            const svs = Array.isArray(l.servicos) ? l.servicos.map(x => String(x)).filter(Boolean) : [];
+            await _fmRun(
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, null, tipoL, null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), null]
+            );
+            n++;
+        }
+        if (!n) return res.status(400).json({ error: 'Informe ao menos uma linha com descrição e valor.' });
+        await _frRecalcRevisao(revId);
+        res.json({ ok: true, inseridos: n });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// DELETE - remove um lancamento manual (linhas vindas de PDF so saem junto com o PDF)
+app.delete('/api/frota/revisoes/lancamentos/:id', authenticateToken, async (req, res) => {
+    try {
+        const row = await _fmGet('SELECT id, revisao_id, anexo_id FROM frota_revisao_lancamentos WHERE id = ?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Lançamento não encontrado.' });
+        if (row.anexo_id) return res.status(400).json({ error: 'Este lançamento veio de um PDF. Exclua o PDF para remover.' });
+        await _fmRun('DELETE FROM frota_revisao_lancamentos WHERE id = ?', [row.id]);
+        await _frRecalcRevisao(row.revisao_id);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
