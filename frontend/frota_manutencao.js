@@ -639,7 +639,8 @@ window._mnRevFiltroBarraHtml = function() {
     const opt = function(val, txt, atual) { return '<option value="' + val + '"' + (atual === val ? ' selected' : '') + '>' + txt + '</option>'; };
     const total = (window._manutFrota || []).length;
     const n = (window._manutFrota || []).filter(window._mnRevFiltroAceita).length;
-    return '<div id="mn-rev-kpi-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;">' + window._mnRevKpiCardsHtml() + '</div>'
+    return '<div id="mn-rev-filtros-wrap">'
+        + '<div id="mn-rev-kpi-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;">' + window._mnRevKpiCardsHtml() + '</div>'
         + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
         + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
         + '<input type="text" id="mn-rev-f-busca" autocomplete="off" value="' + E(f.busca || '') + '" placeholder="Pesquisar placa, modelo ou tipo do veículo..." oninput="window._mnRevFiltroAtualizar(\'busca\', this.value)" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem 0.5rem 2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.84rem;outline:none;"></div>'
@@ -648,6 +649,7 @@ window._mnRevFiltroBarraHtml = function() {
         + '<select id="mn-rev-f-status" onchange="window._mnRevFiltroAtualizar(\'status\', this.value)" style="' + sel + '" title="Status da revisão">' + opt('', 'Status da revisão: todos', f.status || '') + opt('vencida', 'Revisão vencida', f.status || '') + opt('a_vencer', 'Agendar Revisão', f.status || '') + opt('agendada', 'Revisão agendada', f.status || '') + opt('em_revisao', 'Em revisão', f.status || '') + opt('ok', 'Revisão OK', f.status || '') + opt('sem_status', 'Sem status', f.status || '') + '</select>'
         + '<button type="button" onclick="window._mnRevFiltroLimpar()" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-x-circle"></i> Limpar</button>'
         + '<span id="mn-rev-filtro-cont" style="font-size:0.78rem;color:#64748b;font-weight:700;">' + n + ' de ' + total + ' veículo(s)</span>'
+        + '</div>'
         + '</div>';
 };
 
@@ -948,7 +950,16 @@ window.mnRenderRevisaoTela = function(sub) {
 window.mnRevisaoVoltarCards = function() {
     const det = document.getElementById('mn-rev-detalhe');
     const grid = document.getElementById('mn-rev-cards');
+    const filtrosWrap = document.getElementById('mn-rev-filtros-wrap');
     if (det) { det.style.display = 'none'; det.innerHTML = ''; }
+    if (filtrosWrap) filtrosWrap.style.display = '';
+    const kpiBox = document.getElementById('mn-rev-kpi-cards');
+    if (kpiBox && typeof window._mnRevKpiCardsHtml === 'function') kpiBox.innerHTML = window._mnRevKpiCardsHtml();
+    const contRev = document.getElementById('mn-rev-filtro-cont');
+    if (contRev && typeof window._mnRevFiltroAceita === 'function') {
+        const lista = window._manutFrota || [];
+        contRev.textContent = lista.filter(window._mnRevFiltroAceita).length + ' de ' + lista.length + ' veículo(s)';
+    }
     if (grid) { grid.style.display = 'grid'; grid.innerHTML = window._mnPrevCardsHtml('revisao'); }
     window._mnRevAtual = null;
 };
@@ -993,7 +1004,9 @@ function _mnRevInferirInicioGarantia(v) {
 window.mnRevisaoAbrirVeiculo = async function(vid) {
     const grid = document.getElementById('mn-rev-cards');
     const det = document.getElementById('mn-rev-detalhe');
+    const filtrosWrap = document.getElementById('mn-rev-filtros-wrap');
     if (!det) return;
+    if (filtrosWrap) filtrosWrap.style.display = 'none';
     if (grid) grid.style.display = 'none';
     det.style.display = 'block';
     det.innerHTML = `<div style="padding:3rem;text-align:center;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;color:#7c3aed;"></i><div style="margin-top:8px;font-weight:600;">Carregando plano de revisão e garantia...</div></div>`;
@@ -3402,6 +3415,7 @@ window._mnRenderCorretivaDados = function(listaBase) {
         const aguardando  = todas.filter(m => m.status === 'aguardando').length;
         const concluidasMes = todas.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual)).length;
         const totalTodos  = todas.length;
+        const stAtivo = fCard || 'todos';
         cardsEl.innerHTML = [
             { key: 'em_andamento',  cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',      val: emAndamento },
             { key: 'agendada',      cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',              val: agendadas },
@@ -3409,18 +3423,16 @@ window._mnRenderCorretivaDados = function(listaBase) {
             { key: 'concluidas_mes',cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',val: concluidasMes },
             { key: 'todos',         cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',              val: totalTodos },
         ].map(c => {
-            const ativo = c.key !== 'todos' && fCard === c.key;
-            return `
-            <div onclick="window.mnCorrFiltrarCard('${c.key}')" title="Clique para filtrar por ${c.label}" style="background:${c.bg};border:${ativo ? '2px solid ' + c.cor : '1px solid ' + c.cor + '30'};box-shadow:${ativo ? '0 4px 12px ' + c.cor + '33' : 'none'};border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s;user-select:none;position:relative;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-                <div style="background:${c.cor}18;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ph ${c.icone}" style="color:${c.cor};font-size:1.3rem;"></i>
-                </div>
-                <div>
-                    <div style="font-size:1.4rem;font-weight:800;color:${c.cor};">${c.val}</div>
-                    <div style="font-size:0.75rem;color:#64748b;font-weight:600;">${c.label}</div>
-                </div>
-                ${ativo ? `<span style="position:absolute;top:6px;right:8px;background:${c.cor};color:#fff;font-size:0.62rem;font-weight:700;padding:1px 6px;border-radius:99px;">Filtro ativo ✕</span>` : ''}
-            </div>`;
+            const ativo = stAtivo === c.key;
+            return '<div onclick="window.mnCorrFiltrarCard(\'' + c.key + '\')" title="Filtrar por: ' + c.label + '"'
+                + ' style="background:' + (ativo ? c.bg : '#fff') + ';border:' + (ativo ? '2px solid ' + c.cor : '1px solid #e2e8f0') + ';border-left:4px solid ' + c.cor + ';border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px;box-shadow:' + (ativo ? '0 4px 12px ' + c.cor + '22' : '0 2px 6px rgba(0,0,0,0.04)') + ';cursor:pointer;transition:all 0.15s;user-select:none;">'
+                + '<div style="width:42px;height:42px;border-radius:10px;background:' + c.cor + '18;color:' + c.cor + ';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">'
+                + '<i class="ph ' + c.icone + '"></i></div>'
+                + '<div>'
+                + '<div style="font-size:1.5rem;font-weight:800;color:#1e293b;line-height:1;">' + c.val + '</div>'
+                + '<div style="font-size:0.75rem;color:' + (ativo ? c.cor : '#64748b') + ';font-weight:' + (ativo ? '700' : '600') + ';margin-top:2px;">' + c.label + '</div>'
+                + '</div>'
+                + '</div>';
         }).join('');
     }
 
