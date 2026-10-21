@@ -114,8 +114,10 @@ window.mnRenderHistoricoTela = function(sub) {
         <span id="mn-tab-hist-count" style="margin-left:auto;background:#dcfce7;color:#166534;border-radius:99px;padding:2px 10px;font-size:0.8rem;font-weight:700;"></span>
     </div>
     <!-- Área de conteúdo: lista ou calendário -->
-    <div id="mn-hist-view-container"></div>`;
+    <div id="mn-hist-view-container"></div>
+    <div id="mn-hist-revisoes" style="margin-top:1.5rem;"></div>`;
     window.mnCarregarTabHistorico();
+    window.mnCarregarHistRevisoes();
 };
 
 window._mnTabHistDados = [];
@@ -458,12 +460,7 @@ window._mnPrevCardsHtml = function(modo) {
     const hojeISO = window._mnHojeISO();
     const todos = window._mnOrdenarFrota(window._manutFrota || []);
     if (!todos.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
-    const frota = ehRevisao ? todos.filter(v => {
-        const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
-        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true || !!garAte);
-        return temGar && (!garAte || garAte >= hojeISO);
-    }) : todos;
-    if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo na garantia no momento.</div>';
+    const frota = todos;
     const prevPorVeic = {};
     (window._manutDados || []).forEach(m => { if (m.tipo === 'preventiva') prevPorVeic[String(m.veiculo_id)] = (prevPorVeic[String(m.veiculo_id)] || 0) + 1; });
     return frota.map(v => {
@@ -574,50 +571,128 @@ window.mnGarantiaSalvar = async function(vid, fromBlur) {
 // Base técnica: Manual Fiat Strada 2026/2027 — Motor 1.3 Flex
 // ══════════════════════════════════════════════════════════════════════════════
 
-window._mnRevCatTrocas = [
-    { id: 'oleo_motor', nome: 'Óleo do motor', oQueFazer: 'Substituir no intervalo prescrito', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
-    { id: 'filtro_oleo', nome: 'Filtro de óleo', oQueFazer: 'Substituir junto com o óleo', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
-    { id: 'filtro_combustivel', nome: 'Filtro de combustível', oQueFazer: 'Substituir nas revisões marcadas no plano do motor 1.3', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
-    { id: 'filtro_ar_motor', nome: 'Filtro de ar do motor', oQueFazer: 'Verificar e substituir nos marcos prescritos; antecipar quando exigido pelas condições severas', classificacao: 'Inspeção e troca programada', risco: 'Sim, se descumprido o plano', marcosTroca: [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] },
-    { id: 'velas_ignicao', nome: 'Velas de ignição', oQueFazer: 'Substituir aos 40.000 km, independentemente do tempo', classificacao: 'Troca programada obrigatória', risco: 'Sim, se vencida e não realizada', marcosTroca: [40000,80000] },
-    { id: 'fluido_freio', nome: 'Fluido de freio', oQueFazer: 'Substituir a cada 24 meses ou 40.000 km, o que ocorrer primeiro', classificacao: 'Troca programada obrigatória', risco: 'Sim', marcosTroca: [20000,40000,60000,80000,100000] },
-    { id: 'correias_auxiliares', nome: 'Correias dos órgãos auxiliares', oQueFazer: 'Verificar nas revisões e substituir a cada 48 meses ou 60.000 km, o que ocorrer primeiro, conforme o manual 1.3', classificacao: 'Inspeção e troca programada', risco: 'Sim, se descumprido o plano', marcosTroca: [40000,60000,100000] },
-    { id: 'liquido_arrefecimento', nome: 'Líquido de arrefecimento', oQueFazer: 'Verificar nível e contaminação; substituir a cada 120 meses ou 240.000 km, o que ocorrer primeiro', classificacao: 'Inspeção e troca por intervalo', risco: 'Sim, se descumprido o plano', marcosTroca: [] },
-    { id: 'oleo_cambio', nome: 'Óleo do câmbio manual', oQueFazer: 'Verificar nível nas revisões indicadas e substituir no marco assinalado pelo manual', classificacao: 'Inspeção e troca programada', risco: 'Sim, se prescrita e não realizada', marcosTroca: [] },
-    { id: 'filtro_canister', nome: 'Filtro de ar do canister', oQueFazer: 'Substituir nas revisões indicadas no plano', classificacao: 'Troca programada obrigatória', risco: 'Sim, se descumprido o plano', marcosTroca: [20000,40000,60000,80000,100000] }
-];
+// ── Plano de revisao (por modelo de veiculo). Hoje todos os modelos usam o plano PADRAO; depois cada modelo tera o seu em _mnRevPlanosPorModelo ──
+// Cada servico: tipo 'troca' (aparece so quando o marco da revisao atinge km OU meses, o que ocorrer primeiro),
+// 'verificacao' com verificaDe (aparece apenas quando a troca correspondente NAO aparece) ou 'fixo' (aparece em toda revisao).
+(function() {
+    const fmtKm = function(n) { return Number(n).toLocaleString('pt-BR'); };
+    const T = function(id, nome, km, meses, extra) {
+        const o = { id: id, nome: 'Troca de ' + nome, tipo: 'troca', grupo: 'obrigatorio', km: km, meses: meses };
+        o.desc = 'Substituir a cada ' + (km ? fmtKm(km) + ' km' : '') + (km && meses ? ' ou ' : '') + (meses ? meses + ' meses' : '');
+        return Object.assign(o, extra || {});
+    };
+    const V = function(id, nome, verificaDe) {
+        return { id: id, nome: 'Verificação de ' + nome, tipo: 'verificacao', verificaDe: verificaDe, grupo: 'obrigatorio', desc: 'Verificar a cada 10.000 km ou 12 meses' };
+    };
+    const F = function(id, nome) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'obrigatorio', desc: 'Verificar a cada 10.000 km ou 12 meses' }; };
+    const O = function(id, nome, desc) { return { id: id, nome: nome, tipo: 'fixo', grupo: 'opcional', desc: desc || 'A cada 10.000 km ou 12 meses' }; };
 
-window._mnRevCatVerificacoes = [
-    { id: 'niveis_fluidos', nome: 'Níveis de fluidos', oQueFazer: 'Verificar fluidos de freio, lavador dos vidros e demais sistemas aplicáveis', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'sistema_arrefecimento', nome: 'Sistema de arrefecimento', oQueFazer: 'Verificar nível, contaminação, mangueiras e tubulações', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'freios', nome: 'Freios', oQueFazer: 'Inspecionar pastilhas e discos; verificar lonas e tambores quando aplicável', classificacao: 'Verificação obrigatória; troca condicional', risco: 'Sim, se ignorado desgaste ou defeito relevante' },
-    { id: 'pneus', nome: 'Pneus', oQueFazer: 'Inspecionar pressão, desgaste e condições gerais', classificacao: 'Verificação obrigatória', risco: 'Sim, se a manutenção prescrita for negligenciada' },
-    { id: 'suspensao_direcao', nome: 'Suspensão e direção', oQueFazer: 'Verificar folgas, coifas, juntas, mangueiras e componentes', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'tubulacoes_escapamento', nome: 'Tubulações e escapamento', oQueFazer: 'Inspecionar sistemas de combustível, freios, arrefecimento e escapamento', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'motor_cambio', nome: 'Motor e câmbio', oQueFazer: 'Verificar estado e estanqueidade, incluindo vazamentos', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'injecao_ignicao', nome: 'Sistema de injeção e ignição', oQueFazer: 'Realizar diagnóstico conforme o plano', classificacao: 'Verificação obrigatória', risco: 'Sim, se a operação prescrita for omitida' },
-    { id: 'bateria_12v', nome: 'Bateria de 12 V', oQueFazer: 'Verificar estado com equipamento de diagnóstico homologado', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; omitir a verificação prescrita pode gerar questionamento' },
-    { id: 'filtro_ar_condicionado', nome: 'Filtro do ar-condicionado', oQueFazer: 'Inspecionar nas revisões previstas', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; substituir conforme condição e plano' },
-    { id: 'freio_estacionamento', nome: 'Freio de estacionamento', oQueFazer: 'Verificar funcionamento e regular, se necessário', classificacao: 'Verificação obrigatória', risco: 'Sim, se houver falha relevante ignorada' },
-    { id: 'palhetas_iluminacao', nome: 'Palhetas, limpadores e iluminação', oQueFazer: 'Verificar funcionamento, desgaste e sinalização', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática; defeitos devem ser corrigidos' },
-    { id: 'carroceria_protecoes', nome: 'Carroceria e proteções inferiores', oQueFazer: 'Verificar danos nas revisões', classificacao: 'Verificação obrigatória', risco: 'Não implica troca automática' },
-    { id: 'ventilacao_carter', nome: 'Sistema de ventilação do cárter (blow-by)', oQueFazer: 'Verificar nos marcos indicados para o motor 1.3', classificacao: 'Verificação programada', risco: 'Sim, se descumprido o plano' },
-    { id: 'higienizacao_alimentacao', nome: 'Higienização do sistema de alimentação', oQueFazer: 'Executar nas revisões indicadas no plano', classificacao: 'Operação programada', risco: 'Sim, quando prevista para a revisão' }
-];
+    window._mnRevPlanoPadrao = [
+        T('troca_oleo_motor', 'Óleo do motor', 10000, 12),
+        T('troca_filtro_oleo', 'Filtro de óleo', 10000, 12),
+        T('troca_filtro_combustivel', 'Filtro de combustível', 10000, 12),
+        T('troca_filtro_ar_motor', 'Filtro de ar do motor', 20000, 24),
+        V('verif_filtro_ar_motor', 'Filtro de ar do motor', 'troca_filtro_ar_motor'),
+        T('troca_liquido_arrefecimento', 'Líquido de arrefecimento', 240000, 120),
+        V('verif_liquido_arrefecimento', 'Líquido de arrefecimento', 'troca_liquido_arrefecimento'),
+        T('troca_oleo_cambio', 'Óleo do câmbio manual', 10000, 12, { apenasPrimeira: true, desc: 'Substituir na primeira revisão (10.000 km ou 12 meses); nas demais, apenas verificação' }),
+        V('verif_oleo_cambio', 'Óleo do câmbio manual', 'troca_oleo_cambio'),
+        T('troca_fluido_freio', 'Fluido de freio', 40000, 24),
+        V('verif_fluido_freio', 'Fluido de freio', 'troca_fluido_freio'),
+        T('troca_fluido_embreagem', 'Fluido da embreagem', 40000, 24),
+        V('verif_fluido_embreagem', 'Fluido da embreagem', 'troca_fluido_embreagem'),
+        F('verif_pastilhas_discos', 'Verificação das pastilhas e discos de freio'),
+        F('verif_freio_estacionamento', 'Verificação do freio de estacionamento'),
+        F('verif_pneus', 'Verificação de pneus'),
+        O('rodizio_pneus', 'Rodízio de pneus'),
+        F('verif_suspensao', 'Verificação da suspensão'),
+        F('verif_caixa_direcao', 'Verificação da caixa de direção'),
+        F('verif_homocinetica', 'Verificação de homocinética'),
+        O('alinhamento_rodas', 'Alinhamento das rodas', 'Conforme necessidade identificada'),
+        F('verif_escapamento', 'Verificação do escapamento'),
+        F('verif_estanqueidade', 'Verificação de estanqueidade do motor e do câmbio'),
+        T('troca_velas', 'Velas de ignição', 40000, null, { desc: 'Substituir a cada 40.000 km, independentemente do tempo' }),
+        V('verif_velas', 'Velas de ignição', 'troca_velas'),
+        F('verif_bateria_12v', 'Verificação da bateria de 12 V'),
+        F('verif_filtro_ar_condicionado', 'Verificação do filtro do ar-condicionado'),
+        F('verif_palhetas', 'Verificação das palhetas'),
+        F('verif_iluminacao', 'Verificação da iluminação'),
+        F('verif_carroceria', 'Verificação da carroceria e proteções inferiores'),
+        F('verif_ventilacao_carter', 'Verificação do sistema de ventilação do cárter'),
+        F('higienizacao_alimentacao', 'Higienização do sistema de alimentação'),
+        T('troca_correias', 'Correias dos órgãos auxiliares', 120000, 72),
+        V('verif_correias', 'Correias dos órgãos auxiliares', 'troca_correias'),
+        F('verif_filtro_canister', 'Verificação do filtro de ar do canister'),
+        O('limpeza_bicos', 'Limpeza de bicos injetores'),
+        O('descarbonizacao', 'Descarbonização do motor'),
+        O('aditivos_combustivel', 'Aditivos extras no combustível'),
+        O('lavagem_motor', 'Lavagem técnica do motor'),
+        F('verif_cameras_rastreadores', 'Verificação de câmeras e rastreadores'),
+        F('verif_capas_banco_volante', 'Verificação de capas de banco e volante'),
+        F('verif_kit_socorro', 'Verificação do kit de socorro')
+    ];
+})();
 
-window._mnRevCatOpcionais = [
-    { id: 'opt_pastilhas_discos', nome: 'Pastilhas e discos de freio', obrigatorio: 'Não trocar automaticamente', quando: 'Quando atingirem o limite de desgaste ou apresentarem defeito' },
-    { id: 'opt_pneus', nome: 'Pneus', obrigatorio: 'Não trocar automaticamente', quando: 'Quando desgastados, danificados ou fora dos limites de segurança' },
-    { id: 'opt_bateria', nome: 'Bateria', obrigatorio: 'Não trocar automaticamente', quando: 'Se falhar nos testes ou não atender às especificações' },
-    { id: 'opt_palhetas', nome: 'Palhetas', obrigatorio: 'Não trocar automaticamente', quando: 'Quando desgastadas ou sem funcionamento adequado' },
-    { id: 'opt_filtro_ac', nome: 'Filtro do ar-condicionado', obrigatorio: 'Não necessariamente trocar em toda revisão', quando: 'Conforme o plano e a condição verificada' },
-    { id: 'opt_alinhamento', nome: 'Alinhamento e balanceamento', obrigatorio: 'Não necessariamente', quando: 'Quando houver sintomas, desgaste irregular ou necessidade técnica' },
-    { id: 'opt_bicos', nome: 'Limpeza de bicos injetores', obrigatorio: 'Não é troca automática universal', quando: 'Quando houver diagnóstico ou previsão expressa no plano' },
-    { id: 'opt_descarbonizacao', nome: 'Descarbonização do motor', obrigatorio: 'Não é troca automática universal', quando: 'Somente se tecnicamente indicada' },
-    { id: 'opt_aditivos', nome: 'Aditivos extras no combustível', obrigatorio: 'Não adicionar por rotina sem recomendação', quando: 'Seguir o combustível e os produtos especificados pela Fiat' },
-    { id: 'opt_lavagem_motor', nome: 'Lavagem técnica do motor', obrigatorio: 'Não é requisito universal de revisão', quando: 'Apenas se necessária e executada com segurança' },
-    { id: 'opt_acessorios', nome: 'Acessórios e personalizações', obrigatorio: 'Não são revisões obrigatórias', quando: 'Devem respeitar as especificações e condições da garantia' }
-];
+// Cada modelo de veiculo tera seu plano (chave = marca_modelo_versao em maiusculas). Por enquanto todos usam o PADRAO.
+window._mnRevPlanosPorModelo = window._mnRevPlanosPorModelo || {};
+window._mnRevPlanoDoVeiculo = function(v) {
+    const chave = String((v && v.marca_modelo_versao) || '').toUpperCase().trim();
+    return window._mnRevPlanosPorModelo[chave] || window._mnRevPlanoPadrao;
+};
+
+// Historico: TODAS as revisoes ja realizadas de todos os veiculos (a aba Revisao mostra so as ultimas 12 de cada veiculo)
+window.mnCarregarHistRevisoes = async function() {
+    const box = document.getElementById('mn-hist-revisoes');
+    if (!box) return;
+    box.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;font-size:0.85rem;"><i class="ph ph-circle-notch ph-spin"></i> Carregando revisões...</div>';
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/revisoes-historico/todas?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
+        const rows = await res.json();
+        if (!res.ok || !Array.isArray(rows)) throw new Error((rows && rows.error) || 'Erro ao carregar');
+        const E = window._mnRevEsc;
+        const fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+        const fd = function(d) { if (!d) return '—'; const p = String(d).split('T')[0].split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; };
+        const linhas = rows.map(function(r, i) {
+            const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+            return `<tr style="background:${bg};border-bottom:1px solid #f1f5f9;">
+                <td style="padding:9px 12px;font-weight:800;color:#1e293b;white-space:nowrap;">${E(r.placa || '—')}</td>
+                <td style="padding:9px 12px;color:#475569;">${E(r.marca_modelo_versao || '')}</td>
+                <td style="padding:9px 12px;text-align:center;color:#6d28d9;font-weight:700;">${Number(r.marco_km).toLocaleString('pt-BR')} km</td>
+                <td style="padding:9px 12px;text-align:center;">${fd(r.data_revisao)}</td>
+                <td style="padding:9px 12px;text-align:center;">${r.km_revisao ? Number(r.km_revisao).toLocaleString('pt-BR') + ' km' : '—'}</td>
+                <td style="padding:9px 12px;">${E(r.concessionaria || '—')}${r.numero_os ? ' <span style="color:#94a3b8;">(OS ' + E(r.numero_os) + ')</span>' : ''}</td>
+                <td style="padding:9px 12px;text-align:right;">${fmt(r.valor_pecas)}</td>
+                <td style="padding:9px 12px;text-align:right;">${fmt(r.valor_mao_obra)}</td>
+                <td style="padding:9px 12px;text-align:right;font-weight:800;">${fmt(r.valor_total)}</td>
+                <td style="padding:9px 12px;text-align:center;">${r.n_anexos || 0}</td>
+                <td style="padding:9px 12px;text-align:center;"><button type="button" onclick="window._mnRevHistAbrir(${r.veiculo_id})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;">Ver</button></td>
+            </tr>`;
+        }).join('');
+        box.innerHTML = `
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+            <div style="padding:0.8rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <div style="font-weight:800;color:#1e293b;font-size:0.95rem;"><i class="ph ph-seal-check" style="color:#7c3aed;"></i> Histórico de Revisões Realizadas</div>
+                <span style="background:#f3e8ff;color:#6d28d9;border-radius:99px;padding:2px 10px;font-size:0.8rem;font-weight:700;">${rows.length} revisão(ões)</span>
+            </div>
+            <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;">
+                    <th style="padding:9px 12px;">Placa</th><th style="padding:9px 12px;">Veículo</th><th style="padding:9px 12px;text-align:center;">Marco</th>
+                    <th style="padding:9px 12px;text-align:center;">Data</th><th style="padding:9px 12px;text-align:center;">KM</th><th style="padding:9px 12px;">Concessionária</th>
+                    <th style="padding:9px 12px;text-align:right;">Peças</th><th style="padding:9px 12px;text-align:right;">Mão de obra</th><th style="padding:9px 12px;text-align:right;">Total</th>
+                    <th style="padding:9px 12px;text-align:center;">Notas</th><th style="padding:9px 12px;"></th></tr></thead>
+                <tbody>${linhas || '<tr><td colspan="11" style="padding:1.5rem;text-align:center;color:#94a3b8;">Nenhuma revisão realizada ainda.</td></tr>'}</tbody>
+            </table></div>
+        </div>`;
+    } catch (e) {
+        box.innerHTML = '<div style="padding:1rem;color:#dc2626;font-size:0.85rem;">Erro ao carregar o histórico de revisões: ' + window._mnRevEsc(e.message) + '</div>';
+    }
+};
+
+window._mnRevHistAbrir = function(vid) {
+    if (typeof window.mnMudarSubAba === 'function') window.mnMudarSubAba('revisao');
+    setTimeout(function() { window.mnRevisaoAbrirVeiculo(vid); }, 60);
+};
 
 window.mnRenderRevisaoTela = function(sub) {
     sub.innerHTML = `
@@ -662,7 +737,7 @@ function _mnRevInferirInicioGarantia(v) {
     const salva = String(v?.data_inicio_garantia || '').split('T')[0];
     if (salva) return salva;
     const ate = String(v?.garantia_fabrica_ate || '').split('T')[0];
-    if (ate) return _mnRevSomarMesesISO(ate, -12);
+    
     return '';
 }
 
@@ -730,37 +805,41 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     const passoKm = usoSevero ? 5000 : 10000;
     const passoMeses = usoSevero ? 6 : 12;
 
-    const marcos = [];
-    for (let i = 1; i <= 6; i++) {
-        marcos.push({ ordem: i, km: i * passoKm, meses: i * passoMeses });
-    }
-    // Se já houver revisões salvas em marcos diferentes (ex: alternou normal/severo), inclui também
-    (ctx.revisoes || []).forEach(r => {
-        const mk = Number(r.marco_km);
-        if (mk && !marcos.some(m => m.km === mk)) {
-            marcos.push({ ordem: Math.round(mk / passoKm) || 1, km: mk, meses: Number(r.marco_meses) || Math.round(mk / 10000) * 12 });
+    // Marcos: cada ciclo respeita +passoKm ou +passoMeses (o que ocorrer primeiro) a partir da ultima revisao realizada.
+    // Lista = concluidos/vencidos + o proximo marco ainda nao vencido (sem marcos futuros alem dele).
+    const lista = [];
+    let prevReal = null;
+    for (let n = 1; n <= 400; n++) {
+        const kmNominal = n * passoKm;
+        const mesesNominal = n * passoMeses;
+        const reg = revsMap[kmNominal] || null;
+        const realizada = !!(reg && reg.status === 'realizada');
+        let kmLimite = kmNominal;
+        let dtLimite = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, mesesNominal) : '';
+        if (prevReal) {
+            if (prevReal.km_revisao) kmLimite = Number(prevReal.km_revisao) + passoKm;
+            if (prevReal.data_revisao) dtLimite = _mnRevSomarMesesISO(prevReal.data_revisao, passoMeses);
         }
-    });
-    marcos.sort((a, b) => a.km - b.km);
+        const diffKm = kmLimite - kmAtual;
+        const diffDias = dtLimite ? _mnRevDiffDias(dtLimite, hojeIso) : null;
+        const vencKm = kmAtual > 0 && diffKm <= 0;
+        const vencTempo = diffDias !== null && diffDias < 0;
+        const vencida = !realizada && (vencKm || vencTempo);
+        lista.push({ n: n, kmNominal: kmNominal, mesesNominal: mesesNominal, reg: reg, realizada: realizada, kmLimite: kmLimite, dtLimite: dtLimite, diffKm: diffKm, diffDias: diffDias, vencKm: vencKm, vencTempo: vencTempo, vencida: vencida });
+        prevReal = realizada ? reg : null;
+        if (!realizada && !vencida) break;
+    }
+    const totalMarcos = lista.length;
+    const marcos = lista.slice(-12);
 
-    // Avalia cada marco por KM e por Tempo ("o que ocorrer primeiro")
     let alertasCriticos = [];
     let proxMarcoInfo = null;
 
-    const cardsMarcosHtml = marcos.map((m, idx) => {
-        const reg = revsMap[m.km] || null;
+    const cardsMarcosHtml = marcos.map(m => {
+        const reg = m.reg;
         const status = reg ? (reg.status || 'pendente') : 'pendente';
-        const realizada = status === 'realizada';
         const agendada = status === 'agendada';
-
-        // Cálculo de data-limite: se a revisão anterior foi realizada com data, soma passoMeses a partir dela; senão usa dtIniGar + m.meses
-        const revAnt = idx > 0 ? revsMap[marcos[idx - 1].km] : null;
-        const dtLimiteIso = (revAnt && revAnt.status === 'realizada' && revAnt.data_revisao)
-            ? _mnRevSomarMesesISO(revAnt.data_revisao, passoMeses)
-            : (dtIniGar ? _mnRevSomarMesesISO(dtIniGar, m.meses) : '');
-
-        const diffKm = m.km - kmAtual;
-        const diffDias = dtLimiteIso ? _mnRevDiffDias(dtLimiteIso, hojeIso) : null;
+        const { realizada, kmLimite, dtLimite, diffKm, diffDias } = m;
 
         let sitCor = '#64748b', sitBg = '#f8fafc', sitBorda = '#e2e8f0', sitLabel = 'No Prazo';
         let kmStatusTxt = '', tempoStatusTxt = '', prevalenciaTxt = '';
@@ -768,25 +847,22 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         if (realizada) {
             sitCor = '#15803d'; sitBg = '#f0fdf4'; sitBorda = '#86efac';
             sitLabel = 'Realizada';
-            kmStatusTxt = reg.km_revisao ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Marco ${m.km.toLocaleString('pt-BR')} km`;
+            kmStatusTxt = reg.km_revisao ? `Feita com ${Number(reg.km_revisao).toLocaleString('pt-BR')} km` : `Limite ${kmLimite.toLocaleString('pt-BR')} km`;
             tempoStatusTxt = reg.data_revisao ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
             prevalenciaTxt = reg.concessionaria ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
         } else {
-            const vencKm = kmAtual > 0 && diffKm <= 0;
-            const vencTempo = diffDias !== null && diffDias < 0;
             const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1500;
             const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 45;
-
-            if (vencKm || vencTempo) {
+            if (m.vencida) {
                 sitCor = '#dc2626'; sitBg = '#fef2f2'; sitBorda = '#fca5a5';
-                sitLabel = agendada ? 'Agendada (Marco Atingido)' : 'Pendente / Vencida';
-                alertasCriticos.push(`Revisão de <b>${m.km.toLocaleString('pt-BR')} km (${m.meses}m)</b>: ${vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b> do marco` : ''}${vencKm && vencTempo ? ' e ' : ''}${vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
+                sitLabel = agendada ? 'Agendada (Vencida)' : 'Vencida';
+                alertasCriticos.push(`${m.n}ª revisão (limite <b>${kmLimite.toLocaleString('pt-BR')} km</b>${dtLimite ? ' ou <b>' + _mnRevFmtDataBR(dtLimite) + '</b>' : ''}): ${m.vencKm ? `ultrapassou <b>${Math.abs(diffKm).toLocaleString('pt-BR')} km</b>` : ''}${m.vencKm && m.vencTempo ? ' e ' : ''}${m.vencTempo ? `venceu por tempo há <b>${Math.abs(diffDias)} dias</b>` : ''}.`);
             } else if (proxKm || proxTempo || agendada) {
                 sitCor = '#d97706'; sitBg = '#fffbeb'; sitBorda = '#fcd34d';
                 sitLabel = agendada ? 'Agendada' : 'Próxima Revisão';
             } else {
                 sitCor = '#0284c7'; sitBg = '#f0f9ff'; sitBorda = '#bae6fd';
-                sitLabel = 'Programada';
+                sitLabel = 'Próxima Revisão';
             }
 
             kmStatusTxt = kmAtual > 0
@@ -795,32 +871,25 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                     : `<span style="color:${diffKm <= 1500 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
                 : '<span style="color:#94a3b8;">KM atual não informado</span>';
 
-            tempoStatusTxt = dtLimiteIso
+            tempoStatusTxt = dtLimite
                 ? (diffDias < 0
-                    ? `<span style="color:#dc2626;font-weight:800;">Vencida há ${Math.abs(diffDias)} dias (${_mnRevFmtDataBR(dtLimiteIso)})</span>`
-                    : `<span style="color:${diffDias <= 45 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffDias} dias (${_mnRevFmtDataBR(dtLimiteIso)})</span>`)
-                : '<span style="color:#94a3b8;">Informe o início da garantia</span>';
+                    ? `<span style="color:#dc2626;font-weight:800;">Vencida há ${Math.abs(diffDias)} dias (${_mnRevFmtDataBR(dtLimite)})</span>`
+                    : `<span style="color:${diffDias <= 45 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffDias} dias (${_mnRevFmtDataBR(dtLimite)})</span>`)
+                : '<span style="color:#94a3b8;">Informe o início da garantia / compra</span>';
 
-            // Comparativo: qual critério ocorre primeiro?
-            if (kmAtual > 0 && dtLimiteIso !== '') {
-                const percKm = Math.min(150, Math.round((kmAtual / m.km) * 100));
-                const diasTotais = Math.max(1, m.meses * 30.4);
-                const diasDecorridos = diasTotais - (diffDias || 0);
-                const percTempo = Math.min(150, Math.round((diasDecorridos / diasTotais) * 100));
-                if (percKm >= percTempo) {
-                    prevalenciaTxt = `\u26A1 Critério mais próximo: <b>Quilometragem (${percKm}% do limite de KM vs ${Math.max(0, percTempo)}% do tempo)</b>`;
-                } else {
-                    prevalenciaTxt = `\u23F0 Critério mais próximo: <b>Tempo (${Math.max(0, percTempo)}% do prazo vs ${percKm}% do limite de KM)</b>`;
-                }
+            if (kmAtual > 0 && dtLimite) {
+                const percKm = Math.max(0, Math.min(150, Math.round(((kmAtual - (kmLimite - passoKm)) / passoKm) * 100)));
+                const diasTotais = Math.max(1, passoMeses * 30.4);
+                const percTempo = Math.max(0, Math.min(150, Math.round(((diasTotais - diffDias) / diasTotais) * 100)));
+                prevalenciaTxt = percKm >= percTempo
+                    ? `\u26A1 Critério mais próximo: <b>Quilometragem (${percKm}% do ciclo vs ${percTempo}% do tempo)</b>`
+                    : `\u23F0 Critério mais próximo: <b>Tempo (${percTempo}% do prazo vs ${percKm}% do ciclo de KM)</b>`;
             } else if (kmAtual > 0) {
-                prevalenciaTxt = `\u26A1 Acompanhando por KM (${Math.min(150, Math.round((kmAtual / m.km) * 100))}% do marco)`;
+                prevalenciaTxt = `\u26A1 Acompanhando por KM (${Math.max(0, Math.round(((kmAtual - (kmLimite - passoKm)) / passoKm) * 100))}% do ciclo)`;
             } else {
-                prevalenciaTxt = 'Preencha a data de início da garantia para comparar KM × Tempo';
+                prevalenciaTxt = 'Preencha a data de início para comparar KM × Tempo';
             }
-
-            if (!proxMarcoInfo && diffKm > 0) {
-                proxMarcoInfo = { km: m.km, meses: m.meses, diffKm, diffDias, dtLimiteIso };
-            }
+            if (!m.vencida) proxMarcoInfo = { km: kmLimite, diffKm: diffKm, diffDias: diffDias, dtLimiteIso: dtLimite };
         }
 
         const nAnexos = reg && Array.isArray(reg.anexos) ? reg.anexos.length : 0;
@@ -833,8 +902,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         <div style="background:#fff;border:2px solid ${sitBorda};border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:0.75rem;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                 <div>
-                    <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${idx + 1}ª Revisão Programada</div>
-                    <div style="font-size:1.15rem;font-weight:800;color:#1e293b;">${m.km.toLocaleString('pt-BR')} km <span style="font-size:0.85rem;font-weight:600;color:#64748b;">ou ${m.meses} meses</span></div>
+                    <div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">${m.n}ª Revisão</div>
+                    <div style="font-size:1.1rem;font-weight:800;color:#1e293b;">${kmLimite.toLocaleString('pt-BR')} km <span style="font-size:0.82rem;font-weight:600;color:#64748b;">${dtLimite ? 'ou até ' + _mnRevFmtDataBR(dtLimite) : 'ou ' + passoMeses + ' meses'}</span></div>
                 </div>
                 <span style="background:${sitBg};color:${sitCor};border:1px solid ${sitBorda};padding:4px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;white-space:nowrap;">${sitLabel}</span>
             </div>
@@ -860,11 +929,11 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <span style="background:#f1f5f9;color:#334155;padding:3px 8px;border-radius:6px;font-weight:600;">
                     <i class="ph ph-file-pdf"></i> Notas/OS: <b>${nAnexos}</b>
                 </span>
-                ${qtdVerif > 0 ? `<span style="background:#ecfdf5;color:#047857;padding:3px 8px;border-radius:6px;font-weight:600;"><i class="ph ph-check-square-offset"></i> ${qtdVerif} verificados (${qtdTrocaManut} c/ troca/manut.)</span>` : ''}
+                ${qtdVerif > 0 ? `<span style="background:#ecfdf5;color:#047857;padding:3px 8px;border-radius:6px;font-weight:600;"><i class="ph ph-check-square-offset"></i> ${qtdVerif} serviços realizados (${qtdTrocaManut} c/ troca/manut.)</span>` : ''}
             </div>
 
             <div style="display:flex;gap:8px;margin-top:auto;padding-top:4px;">
-                <button onclick="window.mnRevAbrirModalMarco(${m.km}, ${m.meses})" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <button onclick="window.mnRevAbrirModalMarco(${m.kmNominal}, ${m.mesesNominal})" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                     <i class="ph ph-clipboard-text"></i> ${realizada ? 'Ver / Editar Revisão' : 'Registrar / Checklist'}
                 </button>
             </div>
@@ -875,25 +944,24 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         ? `<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-left:5px solid #dc2626;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
             <div style="font-weight:800;color:#991b1b;font-size:0.95rem;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-warning-octagon" style="font-size:1.3rem;color:#dc2626;"></i>
-                Atenção para Preservação da Garantia (${v.placa} — ${kmAtual.toLocaleString('pt-BR')} km)
+                Revisões vencidas (${v.placa} — ${kmAtual.toLocaleString('pt-BR')} km)
             </div>
             <ul style="margin:0;padding-left:1.25rem;color:#7f1d1d;font-size:0.84rem;line-height:1.5;">
                 ${alertasCriticos.map(a => `<li>${a}</li>`).join('')}
-                <li>Se a revisão já foi executada na concessionária, clique em <b>"Registrar / Checklist"</b> no card correspondente abaixo, marque como <b>Realizada</b>, registre as verificações/trocas e anexe a Nota Fiscal / Ordem de Serviço.</li>
-                ${proxMarcoInfo ? `<li>Próximo marco subsequente: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>` : ''}
+                <li>Se a revisão já foi executada, clique em <b>"Registrar / Checklist"</b> no card correspondente, marque como <b>Realizada</b>, marque os serviços realizados e anexe a Nota Fiscal / Ordem de Serviço.</li>
+                ${proxMarcoInfo ? `<li>Próxima revisão: <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).</li>` : ''}
             </ul>
         </div>`
         : `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-left:5px solid #16a34a;border-radius:12px;padding:0.9rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div style="color:#166534;font-size:0.86rem;font-weight:600;">
                 <i class="ph ph-seal-check" style="color:#16a34a;font-size:1.1rem;"></i>
                 Revisões em dia para a quilometragem atual (<b>${kmAtual.toLocaleString('pt-BR')} km</b>).
-                ${proxMarcoInfo ? `Próxima revisão programada aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).` : ''}
+                ${proxMarcoInfo ? `Próxima revisão aos <b>${proxMarcoInfo.km.toLocaleString('pt-BR')} km</b> (faltam <b>${proxMarcoInfo.diffKm.toLocaleString('pt-BR')} km</b>${proxMarcoInfo.dtLimiteIso ? ` ou até <b>${_mnRevFmtDataBR(proxMarcoInfo.dtLimiteIso)}</b>` : ''}).` : ''}
             </div>
         </div>`;
 
     det.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1rem;">
-        <!-- Barra superior -->
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <button onclick="window.mnRevisaoVoltarCards()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.82rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
@@ -902,28 +970,27 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-size:1.25rem;font-weight:800;color:#1e293b;">${v.placa}</span>
-                        <span style="background:#f3e8ff;color:#6d28d9;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Plano de Revisão — Garantia</span>
+                        <span style="background:#f3e8ff;color:#6d28d9;padding:2px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Plano de Revisão</span>
                     </div>
                     <div style="font-size:0.84rem;color:#64748b;font-weight:600;">${v.marca_modelo_versao || ''}</div>
                 </div>
             </div>
 
-            <!-- Parâmetros de KM (Somente Leitura) e Datas/Regime -->
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.45rem 0.85rem;" title="Preenchido diariamente pelo assistente na tela de Gestão de Frota">
                     <div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">KM Atual (Somente leitura)</div>
                     <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
-                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Compra / Início Garantia</label>
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Compra / Início do Plano</label>
                     <input type="date" id="mn-rev-cfg-inicio" value="${dtIniGar}" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:600;color:#1e293b;">
                 </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
+                ${garAte ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Garantia de Fábrica Até</label>
-                    <div style="font-size:0.88rem;font-weight:800;color:#16a34a;padding:2px 0;">${_mnRevFmtDataBR(garAte)}</div>
-                </div>
+                    <div style="font-size:0.88rem;font-weight:800;color:${garAte < hojeIso ? '#dc2626' : '#16a34a'};padding:2px 0;">${_mnRevFmtDataBR(garAte)}</div>
+                </div>` : ''}
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
-                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso (Manual)</label>
+                    <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso</label>
                     <select id="mn-rev-cfg-severo" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${usoSevero ? '#dc2626' : '#1e293b'};">
                         <option value="0"${usoSevero ? '' : ' selected'}>Normal (10.000 km / 12m)</option>
                         <option value="1"${usoSevero ? ' selected' : ''}>Uso Severo (5.000 km / 6m)</option>
@@ -934,40 +1001,16 @@ window._mnRenderPainelRevisaoVeiculo = function() {
 
         ${bannerDiagnHtml}
 
-        <!-- Grid dos Marcos de Revisão (10k, 20k, 30k, 40k, 50k, 60k) -->
         <div>
-            <h3 style="margin:0 0 0.75rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
+            <h3 style="margin:0 0 0.25rem;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-calendar-check" style="color:#7c3aed;font-size:1.2rem;"></i>
-                Marcos de Revisão Programada — Comparativo por KM ou Tempo (o que ocorrer primeiro)
+                Revisões — a cada ${passoKm.toLocaleString('pt-BR')} km ou ${passoMeses} meses da última revisão (o que ocorrer primeiro)
             </h3>
+            <div style="font-size:0.76rem;color:#64748b;margin-bottom:0.75rem;">Exibindo as últimas ${marcos.length} de ${totalMarcos} revisões (vencidas/concluídas + a próxima). Todas as revisões realizadas ficam na aba Histórico.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1rem;">
                 ${cardsMarcosHtml}
             </div>
         </div>
-
-        <!-- Guia de Referência Rápida do Manual (Preservação da Garantia & Opcionais) -->
-        <details style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;">
-            <summary style="cursor:pointer;font-weight:800;color:#1e293b;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
-                <i class="ph ph-book-open-text" style="color:#7c3aed;font-size:1.2rem;"></i>
-                Regras do Manual para Preservar a Garantia, Tabela de Verificações e O que é Opcional (Clique para expandir)
-            </summary>
-            <div style="margin-top:1rem;display:flex;flex-direction:column;gap:1rem;font-size:0.83rem;color:#334155;">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.75rem;">
-                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.8rem;">
-                        <div style="font-weight:800;color:#166534;margin-bottom:4px;">\u2705 Obrigatório</div>
-                        Realizar as revisões programadas nos intervalos de KM ou tempo (na rede autorizada Fiat), executar as trocas e verificações prescritas e arquivar todas as NFs e Ordens de Serviço.
-                    </div>
-                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.8rem;">
-                        <div style="font-weight:800;color:#92400e;margin-bottom:4px;">\u26A0\uFE0F Obrigatório quando aplicável</div>
-                        Substituir peças que atingirem limites de desgaste ou apresentarem defeito (especialmente segurança). Pastilhas, discos, pneus, bateria e palhetas <b>não são troca automática</b>.
-                    </div>
-                    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:0.8rem;">
-                        <div style="font-weight:800;color:#075985;margin-bottom:4px;">\u2139\uFE0F Opcional (Sem perda de garantia)</div>
-                        Serviços extras não previstos no plano nem necessários para corrigir defeito (ex.: limpeza de bicos por rotina, descarbonização, aditivos extras, lavagem técnica).
-                    </div>
-                </div>
-            </div>
-        </details>
     </div>`;
 };
 
@@ -978,24 +1021,30 @@ window._mnRevEsc = function(s) {
 
 // Lista de servicos da revisao: obrigatorios (trocas previstas no marco + verificacoes obrigatorias) e opcionais (demais)
 window._mnRevServicosDoMarco = function(marcoKm) {
+    const ctx = window._mnRevAtual;
+    const v = (ctx && ctx.veiculo) || {};
+    const passoKm = Number(v.uso_severo) === 1 ? 5000 : 10000;
+    const passoMeses = Number(v.uso_severo) === 1 ? 6 : 12;
+    const n = Math.max(1, Math.round(Number(marcoKm) / passoKm));
+    const plano = window._mnRevPlanoDoVeiculo(v);
+    // Troca vence quando o marco atinge o intervalo em km OU em meses (o que ocorrer primeiro)
+    const vence = function(def) {
+        if (def.apenasPrimeira) return n === 1;
+        const porKm = def.km ? Math.floor((n * passoKm) / def.km) > Math.floor(((n - 1) * passoKm) / def.km) : false;
+        const porTempo = def.meses ? Math.floor((n * passoMeses) / def.meses) > Math.floor(((n - 1) * passoMeses) / def.meses) : false;
+        return porKm || porTempo;
+    };
+    const trocaVence = {};
+    plano.forEach(function(d) { if (d.tipo === 'troca') trocaVence[d.id] = vence(d); });
     const lista = [];
-    const mk = Number(marcoKm);
-    window._mnRevCatTrocas.forEach(function(it) {
-        const previsto = (it.marcosTroca || []).includes(mk)
-            || (it.marcosTroca || []).length === 0
-            || (mk % 10000 !== 0 && ['oleo_motor', 'filtro_oleo'].includes(it.id));
-        lista.push({
-            id: it.id, nome: it.nome, desc: it.oQueFazer, risco: it.risco,
-            grupo: previsto ? 'obrigatorio' : 'opcional',
-            origem: previsto ? 'Troca/inspeção prevista neste marco' : 'Não prevista neste marco (somente se necessário)',
-            tipoPadrao: previsto && (it.marcosTroca || []).includes(mk) ? 'troca_manutencao' : 'vistoriado'
-        });
-    });
-    window._mnRevCatVerificacoes.forEach(function(it) {
-        lista.push({ id: it.id, nome: it.nome, desc: it.oQueFazer, risco: it.risco, grupo: 'obrigatorio', origem: 'Verificação obrigatória', tipoPadrao: 'vistoriado' });
-    });
-    window._mnRevCatOpcionais.forEach(function(it) {
-        lista.push({ id: it.id, nome: it.nome, desc: it.obrigatorio + ' — ' + it.quando, risco: '', grupo: 'opcional', origem: 'Opcional / condicional', tipoPadrao: 'troca_manutencao' });
+    plano.forEach(function(d) {
+        if (d.tipo === 'troca') {
+            if (trocaVence[d.id]) lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: 'Troca prevista neste marco', tipoPadrao: 'troca_manutencao' });
+        } else if (d.tipo === 'verificacao') {
+            if (!trocaVence[d.verificaDe]) lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: 'Verificação (a troca não é prevista neste marco)', tipoPadrao: 'vistoriado' });
+        } else {
+            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: d.grupo === 'obrigatorio' ? 'Obrigatório em toda revisão' : 'Opcional', tipoPadrao: d.grupo === 'obrigatorio' ? 'vistoriado' : 'troca_manutencao' });
+        }
     });
     return lista;
 };
@@ -1092,7 +1141,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
         <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <div>
                 <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${E(v.placa)} • ${E(v.marca_modelo_versao || '')} • KM Atual: ${Number(v.km_atual || 0).toLocaleString('pt-BR')} km</div>
-                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">Revisão de ${Number(marcoKm).toLocaleString('pt-BR')} km (${marcoMeses} meses)</h3>
+                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">${Math.round(Number(marcoKm) / (Number(v.uso_severo) === 1 ? 5000 : 10000))}ª Revisão (marco ${Number(marcoKm).toLocaleString('pt-BR')} km / ${marcoMeses} meses)</h3>
             </div>
             <button onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1.2rem;">&times;</button>
         </div>

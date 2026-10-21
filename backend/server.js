@@ -25804,6 +25804,25 @@ async function _frRecalcRevisao(revisaoId) {
     await _fmRun('UPDATE frota_revisoes SET valor_pecas=?, valor_mao_obra=?, valor_total=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [p, m, Math.round((p + m) * 100) / 100, revisaoId]);
 }
 
+// GET - historico completo: todas as revisoes realizadas de todos os veiculos
+app.get('/api/frota/revisoes-historico/todas', authenticateToken, async (req, res) => {
+    try {
+        const rows = await _fmAll(
+            `SELECT fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao, fr.km_revisao, fr.concessionaria, fr.numero_os,
+                    fr.valor_pecas, fr.valor_mao_obra, fr.valor_total, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo,
+                    (SELECT COUNT(*) FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id) AS n_anexos
+             FROM frota_revisoes fr
+             LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
+             WHERE fr.status = 'realizada'
+             ORDER BY COALESCE(fr.data_revisao, fr.updated_at) DESC, fr.id DESC`,
+            []
+        );
+        res.json(rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // GET - retorna dados do veículo, revisões registradas e anexos de notas/OS
 app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) => {
     try {
@@ -26146,7 +26165,47 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
         LIMIT 1000
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        db.all(`
+            SELECT r.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo, v.uso_severo
+            FROM frota_revisoes r
+            JOIN frota_veiculos v ON v.id = r.veiculo_id
+            WHERE r.status = 'realizada'
+            ORDER BY COALESCE(r.data_revisao, r.updated_at) DESC, r.marco_km DESC
+        `, [], (errRev, revRows) => {
+            const listaManut = Array.isArray(rows) ? rows : [];
+            const listaRev = (!errRev && Array.isArray(revRows)) ? revRows.map(r => {
+                const mk = Number(r.marco_km || 0);
+                const mm = Number(r.marco_meses || Math.round(mk / 10000) * 12);
+                const kmFeita = Number(r.km_revisao || mk) || mk;
+                const passoKm = Number(r.uso_severo || 0) === 1 ? 5000 : 10000;
+                return {
+                    id: 'rev_' + r.id,
+                    revisao_id: r.id,
+                    veiculo_id: r.veiculo_id,
+                    placa: r.placa,
+                    marca_modelo_versao: r.marca_modelo_versao,
+                    tipo_veiculo: r.tipo_veiculo,
+                    tipo: 'revisao',
+                    categoria_nome: 'Revisão',
+                    descricao: 'Revisão ' + mk.toLocaleString('pt-BR') + ' km (' + mm + ' meses)' + (r.numero_os ? ' — OS ' + r.numero_os : ''),
+                    status: 'concluida',
+                    data_conclusao: r.data_revisao || (r.updated_at ? String(r.updated_at).slice(0, 10) : null),
+                    data_agendamento: null,
+                    km_na_manutencao: kmFeita,
+                    km_proxima_manutencao: kmFeita + passoKm,
+                    fornecedor: r.concessionaria || '',
+                    observacoes: r.observacoes || '',
+                    valor_total: r.valor_total || 0
+                };
+            }) : [];
+            const todos = listaManut.concat(listaRev).sort((a, b) => {
+                const da = String(a.data_conclusao || a.data_agendamento || '');
+                const db2 = String(b.data_conclusao || b.data_agendamento || '');
+                if (da !== db2) return db2.localeCompare(da);
+                return String(b.id).localeCompare(String(a.id));
+            });
+            res.json(todos);
+        });
     });
 });
 
