@@ -701,6 +701,11 @@ window.mnRenderRevisaoTela = function(sub) {
         <div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>
         <div id="mn-rev-detalhe" style="display:none;"></div>`;
     window._mnPrevAtualizarFrota();
+    if (window._mnRevVeicId) {
+        const vid = window._mnRevVeicId;
+        window._mnRevVeicId = null;
+        window.mnRevisaoAbrirVeiculo(vid);
+    }
 };
 
 window.mnRevisaoVoltarCards = function() {
@@ -2012,6 +2017,7 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         if (!silencioso) {
             if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão salva com sucesso!');
             document.getElementById('mn-rev-modal-ov')?.remove();
+            if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
             await window.mnRevisaoAbrirVeiculo(vid);
         }
         return j.revisao;
@@ -2272,6 +2278,7 @@ window._mnPrevAtualizarFrota = async function() {
         const lista = await r.json();
         if (!Array.isArray(lista)) return;
         window._manutFrota = lista;
+        window._frotaDados = lista;
         const grid = document.getElementById('mn-prev-cards');
         if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
         const gridRev = document.getElementById('mn-rev-cards');
