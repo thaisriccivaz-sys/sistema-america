@@ -4186,8 +4186,8 @@ window._mnCatalogoLista = function() {
         if (window._mnNorm(c.nome) === window._mnNorm('Câmeras e Rastreadores')) catCamId = c.id;
     });
     var rawCat = (window._manutCatalogo || []).slice();
-    ['Câmera - troca', 'Câmera - manutenção'].forEach(function(nm, idx) {
-        var jaTem = rawCat.some(function(s) { return window._mnNorm(s.nome) === window._mnNorm(nm); });
+    ['Troca de câmera', 'Manutenção de câmera'].forEach(function(nm, idx) {
+        var jaTem = rawCat.some(function(s) { return window._mnNorm(s.nome) === window._mnNorm(nm) || window._mnNorm(s.nome) === window._mnNorm(idx === 0 ? 'Câmera - troca' : 'Câmera - manutenção'); });
         if (!jaTem) {
             rawCat.push({ id: 'cam_' + (idx + 1), categoria_id: catCamId, nome: nm, categoria_nome: 'Câmeras e Rastreadores', icone: 'video-camera', grupo: 'OPERACIONAL', grupo_icone: 'gear-six', item_ref: 'Câmeras e Rastreadores', ordem: idx + 1 });
         }

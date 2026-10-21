@@ -317,18 +317,21 @@ function renderCardsFrota() {
             </div>
         </div>
 
-        <!-- KM diario -->
-        <div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
-            <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
-            <span style="font-size:0.78rem;color:#64748b;font-weight:600;">KM atual:</span>
-            <input type="number" id="km-card-${v.id}" value="${v.km_atual||''}" placeholder="Digite KM" 
-                style="flex:1;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" 
-                onkeydown="if(event.key==='Enter')window.salvarKmCard(${v.id})">
-            <button onclick="window.salvarKmCard(${v.id})" 
-                style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">
-                Salvar
-            </button>
-        </div>
+        <!-- KM semanal -->
+        ${(() => {
+            const kmVencida = !emManutencao && (v.km_vencida == 1 || v.km_vencida === true);
+            return `<div style="background:${kmVencida ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${kmVencida ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;gap:8px;" title="${kmVencida ? 'KM vencida — atualize (ou salve a mesma KM) nesta semana' : 'Atualização semanal de KM'}">
+                <i class="ph ph-gauge" style="color:${kmVencida ? '#dc2626' : '#d97706'};font-size:1rem;"></i>
+                <span style="font-size:0.78rem;color:${kmVencida ? '#dc2626' : '#64748b'};font-weight:${kmVencida ? '800' : '600'};">KM atual:</span>
+                <input type="number" id="km-card-${v.id}" value="${v.km_atual != null && v.km_atual !== '' ? v.km_atual : ''}" placeholder="Digite KM" 
+                    style="flex:1;padding:0.3rem 0.5rem;border:${kmVencida ? '1.5px solid #dc2626' : '1px solid #e2e8f0'};background:${kmVencida ? '#fff5f5' : '#fff'};color:${kmVencida ? '#dc2626' : '#1e293b'};font-weight:${kmVencida ? '800' : '600'};border-radius:6px;font-size:0.8rem;outline:none;" 
+                    onkeydown="if(event.key==='Enter')window.salvarKmCard(${v.id})">
+                <button onclick="window.salvarKmCard(${v.id})" 
+                    style="background:${kmVencida ? '#dc2626' : '#d97706'};color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">
+                    Salvar
+                </button>
+            </div>`;
+        })()}
 
         <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
             <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">
@@ -981,8 +984,15 @@ window.toggleManutencaoFrota = async function(vid, novoStatus) {
 
 window.salvarKmCard = async function(vid) {
     const inp = document.getElementById('km-card-' + vid);
-    if (!inp || !inp.value) return;
-    const km = parseInt(inp.value);
+    if (!inp || inp.value === '' || inp.value === null) {
+        alert('Informe a KM do veículo para salvar.');
+        return;
+    }
+    const km = parseInt(inp.value, 10);
+    if (isNaN(km) || km < 0) {
+        alert('Informe uma KM válida.');
+        return;
+    }
     const tok = window.currentToken || localStorage.getItem('token');
     try {
         const res = await fetch('/api/frota/veiculos/' + vid + '/km', {
@@ -990,27 +1000,30 @@ window.salvarKmCard = async function(vid) {
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
             body: JSON.stringify({ km_atual: km })
         });
-        if (!res.ok) throw new Error('Erro ao salvar KM');
-        // Update local data and re-render
+        const respData = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(respData.error || 'Erro ao salvar KM');
+        // Update local data and clear overdue flag (mesmo quando a KM se mantém igual)
         const v = (window._frotaDados||[]).find(x => x.id === vid);
-        if (v) v.km_atual = km;
-        // Check alert status for this vehicle and re-render just this card's background
-        const alertRes = await fetch('/api/frota/veiculos/' + vid + '/alertas', { headers: { Authorization: 'Bearer ' + tok } });
-        const alertData = await alertRes.json();
-        const temAlerta = alertData.tem_alerta;
-        if (window._frotaStatusManut) {
-            window._frotaStatusManut[vid] = {
-                ...(window._frotaStatusManut[vid]||{}),
-                km_atual: km,
-                alerta_manutencao: temAlerta ? 'proxima' : 'ok'
-            };
+        if (v) {
+            v.km_atual = km;
+            v.km_vencida = 0;
+            if (respData.km_updated_at) v.km_updated_at = respData.km_updated_at;
+            if (respData.data) v.ultima_data_km = respData.data;
         }
-        // Visual feedback
-        inp.style.borderColor = '#2d9e5f';
-        setTimeout(() => {
-            if (inp) inp.style.borderColor = '#e2e8f0';
-        }, 1500);
-        // Full re-render to update card color
+        // Check alert status for this vehicle and re-render
+        const alertRes = await fetch('/api/frota/veiculos/' + vid + '/alertas', { headers: { Authorization: 'Bearer ' + tok } }).catch(() => null);
+        if (alertRes && alertRes.ok) {
+            const alertData = await alertRes.json().catch(() => ({}));
+            const temAlerta = alertData.tem_alerta;
+            if (window._frotaStatusManut) {
+                window._frotaStatusManut[vid] = {
+                    ...(window._frotaStatusManut[vid]||{}),
+                    km_atual: km,
+                    alerta_manutencao: temAlerta ? 'proxima' : 'ok'
+                };
+            }
+        }
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ KM atualizada com sucesso!');
         renderCardsFrota();
     } catch(e) {
         alert('Erro ao salvar KM: ' + e.message);
@@ -1419,14 +1432,105 @@ ${alertaHtml}
     </div>
 </div>
 
-<div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:1rem;border-top:1px solid #e2e8f0;">
-${id?`<button onclick="window.abrirAtualizarCRLV(${id})" style="background:#fff;color:#f59e0b;border:1px solid #f59e0b;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;margin-right:auto;" onmouseover="this.style.background='#fef3c7'"><i class="ph ph-arrows-clockwise"></i> Atualizar apenas CRLV</button>`:''}
+<div style="display:flex;gap:1rem;justify-content:flex-end;align-items:center;padding-top:1rem;border-top:1px solid #e2e8f0;flex-wrap:wrap;">
+${id?`<div style="margin-right:auto;display:flex;gap:0.75rem;flex-wrap:wrap;">
+    <button onclick="window.abrirHistoricoKmVeiculo(${id})" style="background:#fff;color:#0284c7;border:1px solid #0284c7;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#fff'"><i class="ph ph-clock-counter-clockwise"></i> Histórico de KM</button>
+    <button onclick="window.abrirAtualizarCRLV(${id})" style="background:#fff;color:#f59e0b;border:1px solid #f59e0b;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fff'"><i class="ph ph-arrows-clockwise"></i> Atualizar apenas CRLV</button>
+</div>`:''}
 <button onclick="document.getElementById('modal-frota-ov').remove()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer;color:#475569;font-size:0.9rem;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'">Cancelar</button>
 <button onclick="window.salvarVeiculoFrota(${id||'null'})" style="background:#2d9e5f;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(45,158,95,0.3);transition:0.2s;" onmouseover="this.style.background='#23824e'"><i class="ph ph-floppy-disk"></i> ${id?'Salvar Alterações':'Cadastrar Veículo'}</button>
 </div>
 </div></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+};
+
+window.abrirHistoricoKmVeiculo = async function(id) {
+  const tok = window.currentToken || localStorage.getItem('token');
+  let ovH = document.getElementById('modal-hist-km');
+  if (ovH) ovH.remove();
+  ovH = document.createElement('div');
+  ovH.id = 'modal-hist-km';
+  ovH.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.82);z-index:10020;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ovH.innerHTML = `<div style="background:#fff;border-radius:16px;width:94vw;max-width:560px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.4);overflow:hidden;">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f0f9ff;">
+      <div style="font-weight:700;color:#0369a1;display:flex;align-items:center;gap:8px;font-size:1rem;">
+        <i class="ph ph-clock-counter-clockwise" style="font-size:1.25rem;color:#0284c7;"></i>
+        <span id="modal-hist-km-titulo">Histórico de KM</span>
+      </div>
+      <button onclick="document.getElementById('modal-hist-km').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;"><i class="ph ph-x"></i></button>
+    </div>
+    <div id="modal-hist-km-body" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;">
+      <div style="text-align:center;padding:2rem;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:1.6rem;"></i><br>Carregando histórico de KM...</div>
+    </div>
+    <div style="padding:0.9rem 1.5rem;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:flex-end;">
+      <button onclick="document.getElementById('modal-hist-km').remove()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.55rem 1.3rem;font-weight:600;cursor:pointer;font-size:0.88rem;">Fechar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ovH);
+  ovH.addEventListener('click', e => { if (e.target === ovH) ovH.remove(); });
+
+  try {
+    const res = await fetch('/api/frota/veiculos/' + id + '/km-historico?_=' + Date.now(), {
+      headers: { Authorization: 'Bearer ' + tok }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao buscar histórico de KM');
+    const veic = data.veiculo || {};
+    const hist = Array.isArray(data.historico) ? data.historico : [];
+    const titEl = document.getElementById('modal-hist-km-titulo');
+    if (titEl && veic.placa) {
+      titEl.textContent = `Histórico de KM — ${veic.placa}${veic.marca_modelo_versao ? ' (' + veic.marca_modelo_versao + ')' : ''}`;
+    }
+    const bodyEl = document.getElementById('modal-hist-km-body');
+    if (!bodyEl) return;
+    if (!hist.length) {
+      bodyEl.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.92rem;">Nenhuma atualização de KM registrada para este veículo até o momento.</div>`;
+      return;
+    }
+    const fmtData = (dStr, cStr) => {
+      const base = String(dStr || '').slice(0, 10);
+      const dtFmt = base && base.includes('-') ? base.split('-').reverse().join('/') : (base || '-');
+      const hora = cStr && String(cStr).length >= 16 ? String(cStr).replace('T', ' ').slice(11, 16) : '';
+      return hora && hora !== '12:00' ? `${dtFmt} às ${hora}` : dtFmt;
+    };
+    const rowsHtml = hist.map((item, idx) => {
+      const kmAtualNum = Number(item.km || 0);
+      const proxAnt = hist[idx + 1];
+      let diffHtml = '<span style="color:#94a3b8;font-size:0.75rem;">Registro inicial</span>';
+      if (proxAnt) {
+        const diff = kmAtualNum - Number(proxAnt.km || 0);
+        if (diff > 0) diffHtml = `<span style="color:#16a34a;font-weight:700;font-size:0.78rem;">+${diff.toLocaleString('pt-BR')} km</span>`;
+        else if (diff === 0) diffHtml = `<span style="color:#0284c7;font-weight:600;font-size:0.76rem;">Mesma KM (0 km)</span>`;
+        else diffHtml = `<span style="color:#d97706;font-weight:600;font-size:0.76rem;">${diff.toLocaleString('pt-BR')} km</span>`;
+      }
+      return `<tr style="border-bottom:1px solid #f1f5f9;background:${idx === 0 ? '#f0f9ff' : '#fff'};">
+        <td style="padding:10px 12px;font-weight:700;color:#0f172a;font-size:0.88rem;">
+          ${fmtData(item.data, item.created_at)}
+          ${idx === 0 ? '<span style="margin-left:6px;background:#0284c7;color:#fff;font-size:0.65rem;padding:2px 6px;border-radius:999px;font-weight:700;vertical-align:middle;">ATUAL</span>' : ''}
+        </td>
+        <td style="padding:10px 12px;text-align:right;font-weight:800;color:#0369a1;font-size:0.92rem;">${kmAtualNum.toLocaleString('pt-BR')} km</td>
+        <td style="padding:10px 12px;text-align:right;">${diffHtml}</td>
+      </tr>`;
+    }).join('');
+
+    bodyEl.innerHTML = `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#475569;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.4px;">
+              <th style="padding:10px 12px;text-align:left;">Data da Atualização</th>
+              <th style="padding:10px 12px;text-align:right;">KM Registrada</th>
+              <th style="padding:10px 12px;text-align:right;">Variação</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    const bodyEl = document.getElementById('modal-hist-km-body');
+    if (bodyEl) bodyEl.innerHTML = `<div style="text-align:center;padding:1.5rem;color:#dc2626;font-weight:600;">Erro: ${e.message}</div>`;
+  }
 };
 
 window.abrirAtualizarCRLV=function(id){

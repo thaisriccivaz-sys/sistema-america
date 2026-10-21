@@ -15807,6 +15807,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff7ed'; color = '#d97706'; icon = 'ph-wrench'; titulo = 'Solicitação de Manutenção'; navTarget = 'frota';
                 } else if (notif.tipo === 'crlv_vencidos') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-file-pdf'; titulo = 'CRLV Vencido'; navTarget = 'frota';
+                } else if (notif.tipo === 'atualizacao_km') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-gauge'; titulo = 'Atualização de KM Vencida'; navTarget = 'frota';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16031,6 +16033,22 @@ async function checkUserNotificacoes() {
                             ${listaPlacasHtml}
                         </div>
                     `;
+                } else if (notif.tipo === 'atualizacao_km') {
+                    const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
+                    const listaKmHtml = veics.length
+                        ? veics.map(v => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #fecaca;font-size:0.8rem;gap:8px;"><span style="font-weight:800;color:#dc2626;">${v.placa}</span><span style="color:#475569;">${v.km_atual != null ? Number(v.km_atual).toLocaleString('pt-BR') + ' km' : '-'} • ${v.ultima_atualizacao || 'Sem data'}</span></div>`).join('')
+                        : `<div style="font-size:0.82rem;color:#334155;">${notif.mensagem || ''}</div>`;
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.05rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+                            <i class="ph ${icon}"></i> ${titulo} (${veics.length || 1})
+                        </div>
+                        <div style="color:#0f172a;font-size:0.82rem;font-weight:600;margin-bottom:6px;">
+                            A KM do(s) veículo(s) abaixo está vencida e precisa ser atualizada:
+                        </div>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;max-height:110px;overflow-y:auto;">
+                            ${listaKmHtml}
+                        </div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16071,7 +16089,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'solicitacao_manutencao') {
                     const _manId = Number(dados.manutencao_id) || 0;
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
-                } else if (notif.tipo === 'crlv_vencidos') {
+                } else if (notif.tipo === 'crlv_vencidos' || notif.tipo === 'atualizacao_km') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('gestao'); }, 200);`;
                 }
 
