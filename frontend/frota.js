@@ -319,15 +319,16 @@ function renderCardsFrota() {
 
         <!-- KM semanal -->
         ${(() => {
+            if (/carretinha/i.test(String(v.tipo_veiculo || ''))) return '';
             const kmVencida = !emManutencao && (v.km_vencida == 1 || v.km_vencida === true);
-            return `<div style="background:${kmVencida ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${kmVencida ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;gap:8px;" title="${kmVencida ? 'KM vencida — atualize (ou salve a mesma KM) nesta semana' : 'Atualização semanal de KM'}">
+            return `<div style="background:${kmVencida ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${kmVencida ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;gap:8px;" title="${kmVencida ? 'KM vencida — mais de 7 dias sem atualizar. Atualize (ou salve a mesma KM).' : 'A KM deve ser atualizada no máximo a cada 7 dias'}">
                 <i class="ph ph-gauge" style="color:${kmVencida ? '#dc2626' : '#d97706'};font-size:1rem;"></i>
-                <span style="font-size:0.78rem;color:${kmVencida ? '#dc2626' : '#64748b'};font-weight:${kmVencida ? '800' : '600'};">KM atual:</span>
+                <span style="font-size:0.78rem;color:${kmVencida ? '#dc2626' : '#64748b'};font-weight:${kmVencida ? '800' : '600'};white-space:nowrap;">KM atual:</span>
                 <input type="number" id="km-card-${v.id}" value="${v.km_atual != null && v.km_atual !== '' ? v.km_atual : ''}" placeholder="Digite KM" 
-                    style="flex:1;padding:0.3rem 0.5rem;border:${kmVencida ? '1.5px solid #dc2626' : '1px solid #e2e8f0'};background:${kmVencida ? '#fff5f5' : '#fff'};color:${kmVencida ? '#dc2626' : '#1e293b'};font-weight:${kmVencida ? '800' : '600'};border-radius:6px;font-size:0.8rem;outline:none;" 
+                    style="flex:1 1 0;min-width:0;width:100%;max-width:110px;padding:0.3rem 0.4rem;border:${kmVencida ? '1.5px solid #dc2626' : '1px solid #e2e8f0'};background:${kmVencida ? '#fff5f5' : '#fff'};color:${kmVencida ? '#dc2626' : '#1e293b'};font-weight:${kmVencida ? '800' : '600'};border-radius:6px;font-size:0.8rem;outline:none;" 
                     onkeydown="if(event.key==='Enter')window.salvarKmCard(${v.id})">
                 <button onclick="window.salvarKmCard(${v.id})" 
-                    style="background:${kmVencida ? '#dc2626' : '#d97706'};color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">
+                    style="flex:0 0 auto;margin-left:auto;background:${kmVencida ? '#dc2626' : '#d97706'};color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;">
                     Salvar
                 </button>
             </div>`;
@@ -935,6 +936,18 @@ window._mnCardConfirmar = async function(vid) {
         body.marco_km = marcoKm;
         body.marco_meses = parseInt(opt?.getAttribute('data-meses') || '12', 10);
         body.observacoes = (document.getElementById('mn-card-rev-obs')?.value || '').trim() || null;
+    }
+
+    if (tipo === 'corretiva' && typeof window._mnChecarSolicitacaoExistente === 'function') {
+        // Veiculo ja tem solicitacao aberta? O usuario decide entre reforcar a existente ou criar nova
+        const ck = await window._mnChecarSolicitacaoExistente(vid, body.descricao_corretiva || '');
+        if (ck.acao === 'cancelar') return;
+        if (ck.acao === 'reforco') {
+            document.getElementById('mn-card-popup')?.remove();
+            window.initFrotaVeiculos();
+            if (typeof window.mnCarregarCorretivas === 'function' && document.getElementById('mn-corr-tbody')) window.mnCarregarCorretivas();
+            return;
+        }
     }
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...'; }

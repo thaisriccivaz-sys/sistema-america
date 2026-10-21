@@ -23,9 +23,9 @@ const TIPOS_NOTIFICACAO = [
     { id: 'sac_sla_vencido', nome: 'Recebe notificações sobre SLA vencido (SAC)', icone: 'ph-timer', descricao: 'Recebe e-mail e popup quando um chamado SAC tiver o SLA estourado ou o prazo de acompanhamento vencido. O chamado também será marcado automaticamente como Urgente.' },
     { id: 'testes_candidatos', nome: 'Candidatos (RH)', icone: 'ph-clipboard-text', descricao: 'Notificações sobre movimentações e atualizações em testes de candidatos de Logística/RH.' },
     { id: 'rota_sucesso_formulario', nome: 'Notificações Rota para o Sucesso', icone: 'ph-rocket', descricao: 'Popup recebido quando um colaborador preencher o formulário de inscrição no Programa Rota de Sucesso.' },
-    { id: 'solicitacao_manutencao', nome: 'Solicitação de manutenção', icone: 'ph-wrench', descricao: 'Recebe popup e e-mail quando uma nova solicitação de manutenção for aberta pela tela de Sinistro ou pela tela de Frota.' },
+    { id: 'solicitacao_manutencao', nome: 'Solicitação de manutenção', icone: 'ph-wrench', descricao: 'Recebe popup e e-mail quando uma nova solicitação de manutenção for aberta pela tela de Sinistro ou pela tela de Frota, e também quando chegar a data ou a KM do marco de manutenção preventiva (revisão) de um veículo, para realizar o agendamento.' },
     { id: 'crlv_vencidos', nome: 'CRLV Vencidos', icone: 'ph-file-pdf', descricao: 'Recebe um único e-mail e um único popup todos os dias às 08h com todas as placas com CRLV vencido até que o documento atualizado seja anexado no sistema.' },
-    { id: 'atualizacao_km', nome: 'Atualização de KM', icone: 'ph-gauge', descricao: 'Recebe notificação no sistema e um e-mail todos os dias às 08h (a partir de segunda-feira às 08h) com a lista de todos os veículos rodando que estão com a KM vencida/atrasada até que todas sejam atualizadas.' }
+    { id: 'atualizacao_km', nome: 'Atualização de KM', icone: 'ph-gauge', descricao: 'Nenhum veículo pode ficar mais de 7 dias sem atualizar a KM. Quem estiver selecionado recebe um popup quando a KM de um veículo vencer e um e-mail todos os dias às 08h com a lista dos veículos com KM atrasada, até que todas sejam atualizadas. Carretinhas e veículos parados em manutenção não entram.' }
 ];
 
 const TIPOS_NOTIFICACAO_CELULARES = [

@@ -989,6 +989,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 <button onclick="window.mnRevAbrirModalMarco(${m.kmNominal}, ${m.mesesNominal})" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
                     <i class="ph ph-clipboard-text"></i> ${realizada ? 'Ver / Editar Revisão' : 'Registrar / Checklist'}
                 </button>
+                ${(m.vencida && !realizada) ? `<button type="button" onclick="window.mnRevMarcarFeita(${m.kmNominal}, ${m.mesesNominal})" title="Marcar esta revisão vencida como feita" style="flex:0 0 auto;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.8rem;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-check"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -2071,6 +2072,42 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         if (!silencioso) alert('Erro: ' + e.message);
         if (btn && !silencioso) { btn.disabled = false; btn.textContent = 'Salvar Revisão'; }
         return null;
+    }
+};
+
+// Atalho: marca uma revisao VENCIDA como feita (sem checklist/fotos), so para atualizar o historico rapidamente
+window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
+    const ctx = window._mnRevAtual;
+    if (!ctx || !ctx.veiculo) return;
+    const v = ctx.veiculo;
+    const marcoTxt = Number(kmNominal).toLocaleString('pt-BR') + ' km';
+    if (!confirm('Marcar a revisão de ' + marcoTxt + ' do veículo ' + (v.placa || '') + ' como FEITA?\n\nA revisão será registrada como realizada hoje, com a KM atual do veículo (' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km), e o próximo ciclo passará a contar a partir daí.')) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(kmNominal); });
+    const body = {
+        marco_km: Number(kmNominal),
+        marco_meses: Number(mesesNominal) || undefined,
+        status: 'realizada',
+        data_revisao: window._mnHojeISO(),
+        concessionaria: (reg && reg.concessionaria) || null,
+        numero_os: (reg && reg.numero_os) || null,
+        itens: (reg && reg.itens) || {},
+        observacoes: (reg && reg.observacoes) || 'Revisão vencida marcada como feita manualmente (atualização rápida).',
+        marcar_feita_rapido: true
+    };
+    try {
+        const res = await fetch('/api/frota/revisoes/' + v.id + '/salvar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify(body)
+        });
+        const j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao marcar a revisão como feita');
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão de ' + marcoTxt + ' marcada como feita!');
+        if (typeof window._mnPrevAtualizarFrota === 'function') window._mnPrevAtualizarFrota();
+        await window.mnRevisaoAbrirVeiculo(v.id);
+    } catch (e) {
+        alert('Erro: ' + e.message);
     }
 };
 
@@ -3404,6 +3441,86 @@ window.mnCorrEditarInterno = async function(id) {
         pickSel: {}
     };
     window._mnEdMontar();
+};
+
+// Antes de abrir uma nova solicitacao corretiva: se o veiculo ja tem solicitacao aberta, o usuario escolhe entre
+// criar nova ou apenas "reforcar a necessidade" da existente (fica registrado no historico dela).
+// Retorna { acao: 'nova' | 'reforco' | 'cancelar', id }
+window._mnChecarSolicitacaoExistente = async function(veiculoId, descricaoNova) {
+    if (!veiculoId) return { acao: 'nova' };
+    var tok = window._manutTok || window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
+    var abertas = [];
+    try {
+        var lista = await fetch('/api/frota/manutencoes?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok } }).then(function(x) { return x.json(); });
+        abertas = (Array.isArray(lista) ? lista : []).filter(function(m) {
+            return String(m.veiculo_id) === String(veiculoId) && m.tipo === 'corretiva' && m.status !== 'concluida' && m.status !== 'cancelada';
+        });
+    } catch (e) { return { acao: 'nova' }; }
+    if (!abertas.length) return { acao: 'nova' };
+
+    return new Promise(function(resolve) {
+        var esc = function(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+        var stLbl = { agendada: 'Novo', em_andamento: 'Em Manutenção', aguardando: 'Aguardando' };
+        var stCor = { agendada: '#d97706', em_andamento: '#dc2626', aguardando: '#2563eb' };
+        var fmt = function(d) { if (!d) return '—'; var p = String(d).split('T')[0].split(' ')[0].split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; };
+        var old = document.getElementById('mn-pop-existente'); if (old) old.remove();
+        var pop = document.createElement('div');
+        pop.id = 'mn-pop-existente';
+        pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:10080;padding:16px;';
+        var placa = abertas[0].placa || '';
+        var itens = abertas.map(function(m, idx) {
+            var sc = stCor[m.status] || '#64748b';
+            return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;margin-bottom:8px;cursor:pointer;">'
+                + '<input type="radio" name="mn_exist_sel" value="' + m.id + '"' + (idx === 0 ? ' checked' : '') + ' style="margin-top:4px;accent-color:#d97706;">'
+                + '<div style="flex:1;min-width:0;">'
+                +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">'
+                +     '<span style="font-size:0.76rem;font-weight:800;color:#334155;">#' + m.id + '</span>'
+                +     '<span style="background:' + sc + '22;color:' + sc + ';padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">' + esc(stLbl[m.status] || m.status) + '</span>'
+                +     '<span style="font-size:0.74rem;color:#64748b;">Solicitada em <b>' + esc(fmt(m.created_at)) + '</b></span>'
+                +   '</div>'
+                +   '<div style="font-size:0.84rem;color:#1e293b;font-weight:600;word-break:break-word;">' + esc(m.descricao || 'Sem descrição') + '</div>'
+                + '</div></label>';
+        }).join('');
+        pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:540px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+            + '<div style="background:linear-gradient(135deg,#92400e,#d97706);padding:14px 20px;display:flex;align-items:center;gap:10px;">'
+            +   '<div style="background:rgba(255,255,255,0.2);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-warning-circle" style="color:#fff;font-size:1.3rem;"></i></div>'
+            +   '<div style="color:#fff;font-weight:700;font-size:0.98rem;">Já existe solicitação em aberto — ' + esc(placa) + '</div>'
+            + '</div>'
+            + '<div style="padding:18px 20px;overflow-y:auto;">'
+            +   '<p style="margin:0 0 12px;font-size:0.88rem;color:#334155;line-height:1.45;">Este veículo já possui ' + (abertas.length === 1 ? '<b>uma solicitação de manutenção em aberto</b>' : '<b>' + abertas.length + ' solicitações de manutenção em aberto</b>') + '. Verifique se ela já atende a necessidade informada. Se sim, basta <b>reforçar</b> a solicitação existente (fica registrado no histórico) sem abrir uma nova.</p>'
+            +   (descricaoNova ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#92400e;margin-bottom:12px;"><b>Nova necessidade informada:</b> ' + esc(descricaoNova) + '</div>' : '')
+            +   '<div>' + itens + '</div>'
+            + '</div>'
+            + '<div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;background:#f8fafc;">'
+            +   '<button type="button" id="mn-exist-cancelar" style="padding:9px 16px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:700;">Cancelar</button>'
+            +   '<button type="button" id="mn-exist-nova" style="padding:9px 16px;border:1.5px solid #d97706;border-radius:8px;background:#fff;color:#b45309;cursor:pointer;font-weight:700;">Criar nova mesmo assim</button>'
+            +   '<button type="button" id="mn-exist-reforco" style="padding:9px 18px;border:none;border-radius:8px;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrow-fat-lines-up"></i> Reforçar a selecionada</button>'
+            + '</div></div>';
+        document.body.appendChild(pop);
+        var fechar = function(res) { var el = document.getElementById('mn-pop-existente'); if (el) el.remove(); resolve(res); };
+        document.getElementById('mn-exist-cancelar').onclick = function() { fechar({ acao: 'cancelar' }); };
+        document.getElementById('mn-exist-nova').onclick = function() { fechar({ acao: 'nova' }); };
+        document.getElementById('mn-exist-reforco').onclick = async function() {
+            var sel = pop.querySelector('input[name="mn_exist_sel"]:checked');
+            var id = sel ? sel.value : (abertas[0] && abertas[0].id);
+            var btn = this;
+            btn.disabled = true;
+            try {
+                var r = await fetch('/api/frota/manutencoes/' + id + '/reforco', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ descricao: descricaoNova || '' })
+                });
+                var j = await r.json().catch(function() { return {}; });
+                if (!r.ok) throw new Error(j.error || 'Erro ao registrar o reforço');
+                if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Reforço de necessidade registrado na solicitação #' + id + '.');
+                fechar({ acao: 'reforco', id: id });
+            } catch (e) {
+                btn.disabled = false;
+                alert('Erro: ' + e.message);
+            }
+        };
+    });
 };
 
 // Cria o registro quando ainda e novo (necessario para anexar nota, incluir pecas, comentar...)
@@ -6057,6 +6174,20 @@ window.mnCorrSalvarEdicaoInterno = async function() {
     if (msgEl) msgEl.style.display = 'none';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
+        if (!ed.id) {
+            // Ja existe solicitacao aberta para este veiculo? Deixa o usuario decidir entre reforcar a existente ou criar nova
+            var ckVeic = document.getElementById('mned-veic') ? document.getElementById('mned-veic').value : '';
+            var ckDesc = document.getElementById('mned-desc') ? document.getElementById('mned-desc').value.trim() : '';
+            var ck = await window._mnChecarSolicitacaoExistente(ckVeic, ckDesc);
+            if (ck.acao !== 'nova') {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
+                if (ck.acao === 'reforco') {
+                    window._mnEdFechar();
+                    if (typeof window.mnCarregarCorretivas === 'function') window.mnCarregarCorretivas();
+                }
+                return;
+            }
+        }
         await window._mnEdGarantirId();
         await window._mnEdSalvarDetalhe();
         var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };

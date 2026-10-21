@@ -15809,6 +15809,8 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-file-pdf'; titulo = 'CRLV Vencido'; navTarget = 'frota';
                 } else if (notif.tipo === 'atualizacao_km') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-gauge'; titulo = 'Atualização de KM Vencida'; navTarget = 'frota';
+                } else if (notif.tipo === 'revisao_marco') {
+                    bg = '#fffbeb'; color = '#d97706'; icon = 'ph-wrench'; titulo = 'Marco de Revisão'; navTarget = 'frota';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16033,6 +16035,22 @@ async function checkUserNotificacoes() {
                             ${listaPlacasHtml}
                         </div>
                     `;
+                } else if (notif.tipo === 'revisao_marco') {
+                    const veicsRv = Array.isArray(dados.veiculos) ? dados.veiculos : [];
+                    const listaRvHtml = veicsRv.length
+                        ? veicsRv.map(v => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #fde68a;font-size:0.8rem;gap:8px;"><span style="font-weight:800;color:#b45309;">${v.placa}</span><span style="color:#475569;">${v.n || ''}ª revisão • ${Number(v.marco_km || 0).toLocaleString('pt-BR')} km</span></div>`).join('')
+                        : `<div style="font-size:0.82rem;color:#334155;">${notif.mensagem || ''}</div>`;
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.05rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+                            <i class="ph ${icon}"></i> ${titulo} (${veicsRv.length || 1})
+                        </div>
+                        <div style="color:#0f172a;font-size:0.82rem;font-weight:600;margin-bottom:6px;">
+                            Chegou o marco de manutenção preventiva. Realize o agendamento:
+                        </div>
+                        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;max-height:110px;overflow-y:auto;">
+                            ${listaRvHtml}
+                        </div>
+                    `;
                 } else if (notif.tipo === 'atualizacao_km') {
                     const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
                     const listaKmHtml = veics.length
@@ -16089,6 +16107,8 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'solicitacao_manutencao') {
                     const _manId = Number(dados.manutencao_id) || 0;
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
+                } else if (notif.tipo === 'revisao_marco') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('revisao'); }, 250); }, 200);`;
                 } else if (notif.tipo === 'crlv_vencidos' || notif.tipo === 'atualizacao_km') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('gestao'); }, 200);`;
                 }

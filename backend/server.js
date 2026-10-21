@@ -21652,18 +21652,28 @@ function _obterMarcoSegunda8hSPStr(refDateSP) {
     const marco = new Date(d.getFullYear(), d.getMonth(), d.getDate() - diasVoltar, 8, 0, 0, 0);
     return _obterDataHoraSPStr(marco);
 }
+function _obterLimiteKm7dSPStr() {
+    return _obterDataHoraSPStr(new Date(_obterAgoraSP().getTime() - 7 * 24 * 60 * 60 * 1000));
+}
+function _ehCarretinhaTipo(tipo) {
+    return String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('carretinha');
+}
+// Regra: o veiculo nao pode ficar mais de 7 dias (168h) sem atualizar a KM, contados a partir da ultima atualizacao.
+// Carretinhas nao possuem KM e veiculos parados em manutencao ficam isentos ate voltarem a rodar.
 function _isVeiculoKmVencida(v, marcoStr) {
     if (!v) return false;
+    if (_ehCarretinhaTipo(v.tipo_veiculo)) return false;
     const emManut = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
     if (emManut) return false; // Veículos parados em manutenção não precisam de atualização de KM
-    const marco = marcoStr || _obterMarcoSegunda8hSPStr();
+    const limite = marcoStr || _obterDataHoraSPStr(new Date(_obterAgoraSP().getTime() - 7 * 24 * 60 * 60 * 1000));
     const raw = String(v.km_updated_at || v.ultima_data_km || '').trim();
     if (!raw) return true;
     const norm = raw.length === 10 ? (raw + ' 12:00:00') : raw.replace('T', ' ').slice(0, 19);
-    return norm < marco;
+    return norm < limite;
 }
 
 let _ultimoDisparoKmData = null;
+let _kmVencidasAnteriores = new Set();
 
 // Resumo da situacao de revisao do veiculo (mesma regra da aba Revisao do front):
 // em_revisao (parado) > agendada (data futura) > vencida > a_vencer (<=1.000 km ou <=30 dias) > ok
@@ -21681,6 +21691,7 @@ function _fmDiffDiasISO(alvoIso, baseIso) {
     return Math.round((a - b) / 86400000);
 }
 function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
+    if (_ehCarretinhaTipo(v.tipo_veiculo)) return { status: null };
     const lista = Array.isArray(revs) ? revs : [];
     // 1) Em revisao: revisao agendada com data hoje/passada (ou sem data) = veiculo parado
     const emRev = lista.find(r => r.status === 'agendada' && (!r.data_revisao || String(r.data_revisao).trim() === '' || String(r.data_revisao).slice(0, 10) <= hojeIso));
@@ -21735,7 +21746,7 @@ function verificarKmSemanalCron(opts) {
     const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
     if (opcoes.apenasSeNaoEnviouHoje && _ultimoDisparoKmData === hojeStr) return;
 
-    const marcoSegunda8h = _obterMarcoSegunda8hSPStr(agoraSP);
+    const marcoSegunda8h = _obterLimiteKm7dSPStr(); // limite: ultima atualizacao ha mais de 7 dias
     db.all(`
         SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.km_atual, fv.km_updated_at,
                (SELECT MAX(h.data) FROM frota_km_historico h WHERE h.veiculo_id = fv.id) as ultima_data_km,
@@ -21769,6 +21780,11 @@ function verificarKmSemanalCron(opts) {
                 });
             }
         });
+
+        // Modo horario: so gera novo popup quando algum veiculo acabou de passar de 7 dias sem atualizar a KM
+        const novosVencidos = vencidos.filter(v => !_kmVencidasAnteriores.has(v.placa));
+        _kmVencidasAnteriores = new Set(vencidos.map(v => v.placa));
+        if (opcoes.somenteSeNovos && novosVencidos.length === 0) return;
 
         if (vencidos.length === 0) {
             db.run("DELETE FROM notificacoes_usuarios WHERE tipo = 'atualizacao_km' AND lida = 0");
@@ -21808,6 +21824,108 @@ function verificarKmSemanalCron(opts) {
     });
 }
 
+// =====================================================================
+// AVISO DE MARCO DE MANUTENCAO PREVENTIVA (REVISAO) ATINGIDO (data ou KM)
+// Destinatarios: usuarios do quadro 'Solicitacao de manutencao' (popup + e-mail), uma vez por veiculo/marco
+// =====================================================================
+db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_avisos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    veiculo_id INTEGER NOT NULL,
+    marco_km INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(veiculo_id, marco_km)
+)`, (err) => { if (err) console.error('[MIGRATION frota_revisao_avisos]', err.message); });
+
+function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
+    if (_ehCarretinhaTipo(v.tipo_veiculo)) return null;
+    const lista = Array.isArray(revs) ? revs : [];
+    // Ja agendada / em revisao: nao precisa avisar para agendar
+    const temAgendamento = lista.some(r => r.status === 'agendada');
+    if (temAgendamento) return null;
+    const kmAtual = Number(v.km_atual || 0);
+    const uso = Number(v.uso_severo || 0) === 1;
+    const passoKm = uso ? 5000 : 10000;
+    const passoMeses = uso ? 6 : 12;
+    const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
+    const mapa = {};
+    lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
+    let prev = null;
+    for (let n = 1; n <= 400; n++) {
+        const reg = mapa[n * passoKm] || null;
+        const realizada = !!(reg && reg.status === 'realizada');
+        let kmLimite = n * passoKm;
+        let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
+        if (prev) {
+            if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
+            if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
+        }
+        const diffKm = kmLimite - kmAtual;
+        const diffDias = dtLimite ? _fmDiffDiasISO(dtLimite, hojeIso) : null;
+        const porKm = kmAtual > 0 && diffKm <= 0;
+        const porData = diffDias !== null && diffDias <= 0;
+        const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
+        if (!realizada && (porKm || porData)) {
+            return { n, marco_km: n * passoKm, limite_km: kmLimite, limite_data: dtLimite, por_km: porKm, por_data: porData, km_atual: kmAtual };
+        }
+        prev = realizada ? reg : null;
+        if (!realizada && !vencida) break;
+    }
+    return null;
+}
+
+async function verificarMarcoRevisaoCron() {
+    try {
+        const hojeIso = _obterDataHoraSPStr().slice(0, 10);
+        const veics = await _fmAll('SELECT id, placa, marca_modelo_versao, tipo_veiculo, km_atual, uso_severo, data_inicio_garantia FROM frota_veiculos ORDER BY placa ASC');
+        const revs = await _fmAll('SELECT veiculo_id, marco_km, status, data_revisao, km_revisao FROM frota_revisoes');
+        const porVeic = {};
+        revs.forEach(r => { (porVeic[r.veiculo_id] = porVeic[r.veiculo_id] || []).push(r); });
+        const avisados = await _fmAll('SELECT veiculo_id, marco_km FROM frota_revisao_avisos');
+        const jaAvisou = new Set(avisados.map(a => a.veiculo_id + '|' + a.marco_km));
+        const novos = [];
+        veics.forEach(v => {
+            const m = _fmMarcoRevisaoAtingido(v, porVeic[v.id] || [], hojeIso);
+            if (m && !jaAvisou.has(v.id + '|' + m.marco_km)) {
+                novos.push({ id: v.id, placa: v.placa, marca_modelo_versao: v.marca_modelo_versao || '-', marco_km: m.marco_km, n: m.n,
+                    limite_km: m.limite_km, limite_data: m.limite_data, por_km: m.por_km, por_data: m.por_data, km_atual: m.km_atual });
+            }
+        });
+        if (!novos.length) return;
+        const dest = await _fmAll("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'solicitacao_manutencao'");
+        if (!dest.length) { console.log('[CRON REVISAO] ' + novos.length + ' marco(s) atingido(s), mas nenhum usuario no quadro Solicitacao de manutencao.'); return; }
+        const fmtBR = (iso) => iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '-';
+        const motivo = (x) => [x.por_km ? ('KM ' + Number(x.limite_km).toLocaleString('pt-BR') + ' atingida (atual ' + Number(x.km_atual).toLocaleString('pt-BR') + ' km)') : '', x.por_data ? ('data ' + fmtBR(x.limite_data) + ' atingida') : ''].filter(Boolean).join(' e ');
+        const msg = novos.length === 1
+            ? 'Chegou o marco de manutenção preventiva (' + novos[0].n + 'ª revisão) do veículo ' + novos[0].placa + ' — ' + motivo(novos[0]) + '. Realize o agendamento.'
+            : 'Chegou o marco de manutenção preventiva de ' + novos.length + ' veículos (' + novos.map(x => x.placa).join(', ') + '). Realize o agendamento.';
+        const dadosStr = JSON.stringify({ quantidade: novos.length, veiculos: novos.map(x => Object.assign({}, x, { motivo: motivo(x) })) });
+        for (const d of dest) {
+            await _fmRun("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'revisao_marco', ?, ?)", [d.usuario_id, msg, dadosStr]);
+        }
+        const linhas = novos.map(x => '<tr><td style="padding:10px 12px;border:1px solid #fde68a;font-weight:bold;color:#b45309;">' + x.placa + '</td>'
+            + '<td style="padding:10px 12px;border:1px solid #fde68a;color:#334155;">' + x.marca_modelo_versao + '</td>'
+            + '<td style="padding:10px 12px;border:1px solid #fde68a;text-align:center;font-weight:bold;">' + x.n + 'ª revisão (' + Number(x.marco_km).toLocaleString('pt-BR') + ' km)</td>'
+            + '<td style="padding:10px 12px;border:1px solid #fde68a;color:#b91c1c;font-weight:bold;">' + motivo(x) + '</td></tr>').join('');
+        const html = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:680px;margin:0 auto;border:1px solid #eee;border-radius:10px;overflow:hidden;">'
+            + '<div style="text-align:center;padding:20px 20px 10px;"><img src="cid:empresa-logo" style="max-height:80px;"></div>'
+            + '<div style="padding:20px 24px;"><h2 style="color:#b45309;border-bottom:2px solid #f59e0b;padding-bottom:10px;margin-top:0;">🔧 Marco de manutenção preventiva atingido (' + novos.length + ' veículo' + (novos.length > 1 ? 's' : '') + ')</h2>'
+            + '<p>Chegou o <strong>marco de manutenção preventiva (revisão)</strong> dos veículos abaixo. Por favor, <strong>realize o agendamento</strong> no sistema:</p>'
+            + '<table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;"><thead><tr style="background:#fffbeb;color:#92400e;">'
+            + '<th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Placa</th><th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Veículo</th>'
+            + '<th style="padding:10px 12px;border:1px solid #fde68a;text-align:center;">Marco</th><th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Motivo</th></tr></thead><tbody>' + linhas + '</tbody></table>'
+            + '<p style="margin-top:24px;font-size:0.9em;color:#64748b;">Atenciosamente,<br>Sistema América Rental</p></div></div>';
+        sendEmailParaNotificados('solicitacao_manutencao', {
+            subject: novos.length === 1 ? ('🔧 Marco de revisão atingido - Placa ' + novos[0].placa + ' (agendar)') : ('🔧 Marco de revisão atingido (' + novos.length + ' veículos) - agendar'),
+            html
+        });
+        for (const x of novos) {
+            await _fmRun('INSERT OR IGNORE INTO frota_revisao_avisos (veiculo_id, marco_km) VALUES (?, ?)', [x.id, x.marco_km]);
+        }
+    } catch (e) {
+        console.error('[CRON REVISAO] erro:', e.message);
+    }
+}
+
 function enviarEmailAlertaKmVencido(listaVencidos) {
     const vencidos = Array.isArray(listaVencidos) ? listaVencidos : (listaVencidos ? [listaVencidos] : []);
     if (!vencidos.length) return;
@@ -21827,8 +21945,8 @@ function enviarEmailAlertaKmVencido(listaVencidos) {
                 <img src="cid:empresa-logo" style="max-height: 80px;">
             </div>
             <div style="padding: 20px 24px;">
-                <h2 style="color: #dc2626; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0;">⚠️ Atualização Semanal de KM Pendente (${vencidos.length} veículo${vencidos.length > 1 ? 's' : ''})</h2>
-                <p>A quilometragem (<strong>KM</strong>) do(s) veículo(s) em operação listado(s) abaixo está <strong>vencida</strong> (não foi atualizada desde segunda-feira às 08h) e precisa ser atualizada no sistema:</p>
+                <h2 style="color: #dc2626; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0;">⚠️ Atualização de KM Pendente (mais de 7 dias) (${vencidos.length} veículo${vencidos.length > 1 ? 's' : ''})</h2>
+                <p>A quilometragem (<strong>KM</strong>) do(s) veículo(s) em operação listado(s) abaixo está <strong>vencida</strong> (passou mais de <strong>7 dias</strong> sem atualização) e precisa ser atualizada no sistema:</p>
                 
                 <table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;">
                     <thead>
@@ -22193,7 +22311,13 @@ cron.schedule('0 8 * * *', () => {
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
     verificarKmSemanalCron();
+    verificarMarcoRevisaoCron();
     verificarLicencasVencimentoCron();
+}, { timezone: 'America/Sao_Paulo' });
+
+// A cada hora: gera popup quando algum veículo acabou de passar de 7 dias sem atualizar a KM
+cron.schedule('10 * * * *', () => {
+    try { verificarKmSemanalCron({ apenasPopup: true, somenteSeNovos: true }); } catch (e) {}
 }, { timezone: 'America/Sao_Paulo' });
 
 // Roda à 1:00 da manhã para ativar colaboradores com data de admissão
@@ -23665,7 +23789,7 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
         ORDER BY fv.placa ASC
     `, [], async (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        const marcoSegunda8h = _obterMarcoSegunda8hSPStr();
+        const marcoSegunda8h = _obterLimiteKm7dSPStr(); // limite: ultima atualizacao ha mais de 7 dias
         const hojeRevIso = _obterDataHoraSPStr().slice(0, 10);
         let todasRevs = [];
         try { todasRevs = await _fmAll('SELECT veiculo_id, marco_km, status, data_revisao, km_revisao, parado_desde, created_at FROM frota_revisoes'); } catch (eRev) { todasRevs = []; }
@@ -24767,6 +24891,19 @@ function _seedCatalogoCorretivo(tentativa) {
             .catch(err => console.error('[SEED] Catalogo de manutencao:', err.message));
     });
 }
+
+// POST - reforco de necessidade: nova solicitacao analoga foi visualizada pelo usuario e nao foi aberta outra (fica no historico)
+app.post('/api/frota/manutencoes/:id/reforco', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const m = await _fmGet('SELECT fm.id, fm.status, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        const desc = String((req.body && req.body.descricao) || '').trim().substring(0, 500);
+        const texto = 'Reforço de necessidade visualizado: nova solicitação análoga' + (desc ? ' ("' + desc + '")' : '') + ' foi identificada e considerada atendida por esta solicitação (não foi aberta uma nova).';
+        await _fmHist(id, 'evento', texto, _fmUsuario(req));
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // GET - detalhe da manutencao (servicos solicitados/realizados, pecas e notas)
 app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res) => {
@@ -26399,18 +26536,19 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const agoraIso = new Date().toISOString();
         // Contagem de parado: comeca as 08:00 (Brasilia) do dia da revisao agendada
         const minutosParado = (desde) => { const ini = new Date(desde + 'T08:00:00-03:00').getTime(); return isNaN(ini) ? null : Math.max(0, Math.floor((Date.now() - ini) / 60000)); };
+        const rapido = !!b.marcar_feita_rapido; // atalho: marca revisao vencida como feita sem exigir checklist/fotos/video
         if (status === 'realizada') {
-            if (!existing) {
+            if (!existing && !rapido) {
                 return res.status(400).json({ error: 'Anexe as fotos obrigatórias das conferências internas e o vídeo geral do veículo antes de concluir a revisão.' });
             }
-            const midiasRev = await _fmAll('SELECT categoria, servico_id FROM frota_revisao_midias WHERE revisao_id = ?', [existing.id]);
-            const temVideo = midiasRev.some(m => m.categoria === 'video_geral');
+            const midiasRev = existing ? await _fmAll('SELECT categoria, servico_id FROM frota_revisao_midias WHERE revisao_id = ?', [existing.id]) : [];
+            const temVideo = rapido || midiasRev.some(m => m.categoria === 'video_geral');
             if (!temVideo) {
                 return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), é obrigatório anexar o 5. Vídeo geral do veículo.' });
             }
             const confObrigIds = ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor'];
             const fotosSet = new Set(midiasRev.filter(m => m.categoria === 'conferencia_foto' && m.servico_id).map(m => m.servico_id));
-            const confSemFoto = confObrigIds.filter(id => !fotosSet.has(id));
+            const confSemFoto = rapido ? [] : confObrigIds.filter(id => !fotosSet.has(id));
             if (confSemFoto.length > 0) {
                 return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), anexe ao menos uma foto em cada item de Conferências internas OBRIGATÓRIAS.' });
             }
@@ -26427,6 +26565,13 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
                 concluidoEm = (existing && existing.status === 'realizada' && existing.concluido_em) ? existing.concluido_em : agoraIso;
                 minParado = paradoDesde ? minutosParado(paradoDesde) : 0;
                 diasParado = minParado !== null ? Math.floor(minParado / 1440) : 0;
+            }
+            if (rapido) {
+                // Marcada como feita manualmente: nao conta tempo parado
+                paradoDesde = (existing && existing.parado_desde) || null;
+                minParado = 0;
+                diasParado = 0;
+                concluidoEm = concluidoEm || agoraIso;
             }
         } else if (status === 'agendada') {
             // Contagem de dias parado comeca na data da revisao; se a data for alterada, a contagem recomeca
@@ -26815,6 +26960,7 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
             );
         });
         setTimeout(() => { try { verificarKmSemanalCron({ apenasPopup: true }); } catch (e) {} }, 200);
+        setTimeout(() => { try { verificarMarcoRevisaoCron(); } catch (e) {} }, 400);
         res.json({ message: 'Quilometragem atualizada', km_atual: kmNum, km_updated_at: agoraSPStr, data: hoje, km_vencida: 0 });
     });
 });
