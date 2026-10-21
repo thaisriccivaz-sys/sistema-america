@@ -21428,6 +21428,7 @@ function verificarCRLVVencidoCron(opts) {
 
         const hoje = new Date(agoraSP.getFullYear(), agoraSP.getMonth(), agoraSP.getDate(), 0, 0, 0, 0);
         const mapaMesVenc = { '1': 7, '2': 7, '3': 8, '4': 8, '5': 9, '6': 9, '7': 10, '8': 10, '9': 11, '0': 12 };
+        const mapaMesVencCaminhao = { '1': 9, '2': 9, '3': 10, '4': 10, '5': 10, '6': 11, '7': 11, '8': 11, '9': 12, '0': 12 };
         const nomesMeses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
         const vencidos = [];
@@ -21435,7 +21436,9 @@ function verificarCRLVVencidoCron(opts) {
             const p = String(v.placa || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             if (!p) return;
             const last = p[p.length - 1];
-            const mesVenc = mapaMesVenc[last] || null;
+            const tipoNorm = String(v.tipo_veiculo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+            const ehCaminhao = /^caminh[^o]/.test(tipoNorm);
+            const mesVenc = (ehCaminhao ? mapaMesVencCaminhao[last] : mapaMesVenc[last]) || null;
             const exAno = parseInt(v.exercicio, 10);
             if (!mesVenc || !exAno) return;
 
@@ -25093,20 +25096,32 @@ app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
 
 // GET - veiculos com CRLV vencendo em 30 dias (para popup de alerta)
 app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, exercicio FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != \'\'', [], (err, rows) => {
+    db.all('SELECT id, placa, tipo_veiculo, exercicio FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != \'\'', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const mapaMesVenc = { '1': 7, '2': 7, '3': 8, '4': 8, '5': 9, '6': 9, '7': 10, '8': 10, '9': 11, '0': 12 };
+        const mapaMesVencCaminhao = { '1': 9, '2': 9, '3': 10, '4': 10, '5': 10, '6': 11, '7': 11, '8': 11, '9': 12, '0': 12 };
+        const getDtVenc = (v) => {
+            const p = String(v.placa || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const last = p ? p[p.length - 1] : '';
+            const tipoNorm = String(v.tipo_veiculo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+            const ehCaminhao = /^caminh[^o]/.test(tipoNorm);
+            const mes = (ehCaminhao ? mapaMesVencCaminhao[last] : mapaMesVenc[last]) || 12;
+            const ano = parseInt(v.exercicio, 10) + 1;
+            return new Date(ano, mes, 0, 0, 0, 0, 0);
+        };
         const alertas = (rows || []).filter(v => {
-            if (!v.exercicio) return false;
-            // exercicio vem como ano (ex: "2025"). Vencimento à 31/dez desse ano
-            const ano = parseInt(v.exercicio);
-            if (isNaN(ano)) return false;
-            const vencimento = new Date(ano, 11, 31); // 31 de dezembro
-            const diff = (vencimento - hoje) / (1000 * 60 * 60 * 24);
+            if (!v.exercicio || isNaN(parseInt(v.exercicio, 10))) return false;
+            const vencimento = getDtVenc(v);
+            const diff = Math.floor((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
             return diff >= 0 && diff <= 30;
         }).map(v => {
-            const ano = parseInt(v.exercicio);
-            return { ...v, vencimento: `31/12/${ano}`, dias_restantes: Math.ceil((new Date(ano, 11, 31) - hoje) / (1000 * 60 * 60 * 24)) };
+            const dt = getDtVenc(v);
+            const dd = String(dt.getDate()).padStart(2, '0');
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const yyyy = dt.getFullYear();
+            return { ...v, vencimento: `${dd}/${mm}/${yyyy}`, dias_restantes: Math.floor((dt.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) };
         });
         res.json(alertas);
     });

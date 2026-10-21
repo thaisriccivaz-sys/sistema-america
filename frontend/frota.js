@@ -1,5 +1,6 @@
 (function(){
-function getMesVenc(placa){const c=(placa||'').trim().slice(-1).toUpperCase();return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
+function isCaminhaoTipo(tipoVeiculo){const t=String(tipoVeiculo||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();return /^caminh[^o]/.test(t);}
+function getMesVenc(placa,tipoVeiculo){const c=(placa||'').trim().slice(-1).toUpperCase();if(isCaminhaoTipo(tipoVeiculo)){return({'1':9,'2':9,'3':10,'4':10,'5':10,'6':11,'7':11,'8':11,'9':12,'0':12})[c]||null;}return({'1':7,'2':7,'3':8,'4':8,'5':9,'6':9,'7':10,'8':10,'9':11,'0':12})[c]||null;}
 function getRodizio(placa){
     if(!placa) return 'N/D';
     const c=placa.trim().slice(-1);
@@ -10,9 +11,9 @@ function getRodizio(placa){
     if(['9','0'].includes(c)) return 'Sexta-feira';
     return 'N/D';
 }
-function alertaPlaca(placa, exercicio) {
+function alertaPlaca(placa, exercicio, tipoVeiculo) {
     if (!exercicio) return null;
-    const mesVencimento = getMesVenc(placa);
+    const mesVencimento = getMesVenc(placa, tipoVeiculo);
     if (!mesVencimento) return null;
     
     const anoVencimento = parseInt(exercicio) + 1;
@@ -33,9 +34,9 @@ function alertaPlaca(placa, exercicio) {
     }
     return 'ok';
 }
-function getDataVencExercicioFmt(placa, exercicio) {
+function getDataVencExercicioFmt(placa, exercicio, tipoVeiculo) {
     if (!exercicio) return '';
-    const mesVencimento = getMesVenc(placa);
+    const mesVencimento = getMesVenc(placa, tipoVeiculo);
     const exAno = parseInt(exercicio, 10);
     if (!mesVencimento || isNaN(exAno)) return '';
     const anoVencimento = exAno + 1;
@@ -214,7 +215,7 @@ function renderCardsFrota() {
   }
 
     tb.innerHTML = rows.map(v => {
-    const alerta = alertaPlaca(v.placa, v.exercicio);
+    const alerta = alertaPlaca(v.placa, v.exercicio, v.tipo_veiculo);
     const statusManut = (window._frotaStatusManut || {})[v.id] || {};
     const emManutencao = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
     const kPatterns = (window._manutDados || []).filter(m => m.veiculo_id === v.id && m.status === 'agendada' && m.km_proxima_manutencao && v.km_atual && (m.km_proxima_manutencao - v.km_atual) <= 1000);
@@ -298,7 +299,7 @@ function renderCardsFrota() {
             
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
                 <span style="font-weight:600;color:#94a3b8;">Exercício:</span>
-                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${!v.exercicio ? 'N/D' : (alerta === 'vencendo' ? `${v.exercicio} (Vencendo ${getDataVencExercicioFmt(v.placa, v.exercicio)})` : alerta === 'expirado' ? `${v.exercicio} (Vencido ${getDataVencExercicioFmt(v.placa, v.exercicio)})` : `${v.exercicio}${getDataVencExercicioFmt(v.placa, v.exercicio) ? ' (' + getDataVencExercicioFmt(v.placa, v.exercicio) + ')' : ''}`)}</span>
+                <span style="font-weight:700;color:${alerta==='expirado'?'#dc2626':(alerta==='vencendo'?'#d97706':'#1e293b')};">${!v.exercicio ? 'N/D' : (alerta === 'vencendo' ? `${v.exercicio} (Vencendo ${getDataVencExercicioFmt(v.placa, v.exercicio, v.tipo_veiculo)})` : alerta === 'expirado' ? `${v.exercicio} (Vencido ${getDataVencExercicioFmt(v.placa, v.exercicio, v.tipo_veiculo)})` : `${v.exercicio}${getDataVencExercicioFmt(v.placa, v.exercicio, v.tipo_veiculo) ? ' (' + getDataVencExercicioFmt(v.placa, v.exercicio, v.tipo_veiculo) + ')' : ''}`)}</span>
             </div>
 
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
@@ -1281,7 +1282,7 @@ window.abrirModalFrota=async function(id){
   const optT=tipos.map(t=>`<option value="${t}"${(v.tipo_veiculo||'caminhão')===t?' selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
   const inp=(id,val,ph,type)=>`<input id="${id}" value="${val||''}" placeholder="${ph||''}" type="${type||'text'}" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;font-size:0.9rem;outline:none;transition:0.2s;" onfocus="this.style.borderColor='#2d9e5f';this.style.boxShadow='0 0 0 3px rgba(45,158,95,0.1)'" onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='none'">`;
   const lbl=t=>`<label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">${t}</label>`;
-  const alerta=alertaPlaca(v.placa,v.exercicio);
+  const alerta=alertaPlaca(v.placa,v.exercicio,v.tipo_veiculo);
   let alertaHtml = '';
   if (alerta === 'expirado') {
       alertaHtml = `<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:0.75rem 1rem;margin-bottom:1.5rem;color:#b91c1c;font-weight:600;font-size:0.85rem;border-radius:4px;">⚠️ CRLV vencido (passou da data-limite) — atualize o documento para regularizar a situação no sistema.</div>`;
