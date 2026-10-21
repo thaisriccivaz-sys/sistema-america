@@ -955,15 +955,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     if (!det || !ctx || !ctx.veiculo) return;
     const v = ctx.veiculo;
     const revsMap = {};
-    let maxMarcoReal = 0, regMaxReal = null;
-    (ctx.revisoes || []).forEach(r => {
-        const mk = Number(r.marco_km);
-        revsMap[mk] = r;
-        if (r.status === 'realizada' && mk >= maxMarcoReal) {
-            maxMarcoReal = mk;
-            regMaxReal = r;
-        }
-    });
+    (ctx.revisoes || []).forEach(r => { revsMap[Number(r.marco_km)] = r; });
 
     const ehCar = window._mnRevEhCarretinha(v);
     const kmAtual = ehCar ? 0 : Number(v.km_atual || 0);
@@ -982,11 +974,10 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const kmNominal = n * passoKm;
         const mesesNominal = n * passoMeses;
         const reg = revsMap[kmNominal] || null;
-        const superadaPorPosterior = maxMarcoReal > 0 && kmNominal < maxMarcoReal;
-        const realizada = !!(reg && reg.status === 'realizada') || superadaPorPosterior;
+        const realizada = !!(reg && reg.status === 'realizada');
         let kmLimite = kmNominal;
         let dtLimite = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, mesesNominal) : '';
-        if (prevReal && !superadaPorPosterior) {
+        if (prevReal) {
             if (prevReal.km_revisao) kmLimite = Number(prevReal.km_revisao) + passoKm;
             if (prevReal.data_revisao) dtLimite = _mnRevSomarMesesISO(prevReal.data_revisao, passoMeses);
         }
@@ -996,8 +987,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const vencTempo = diffDias !== null && diffDias < 0;
         const vencida = !realizada && (vencKm || vencTempo);
         lista.push({ n: n, kmNominal: kmNominal, mesesNominal: mesesNominal, reg: reg, realizada: realizada, kmLimite: kmLimite, dtLimite: dtLimite, diffKm: diffKm, diffDias: diffDias, vencKm: vencKm, vencTempo: vencTempo, vencida: vencida });
-        if (kmNominal === maxMarcoReal && regMaxReal) prevReal = regMaxReal;
-        else prevReal = (reg && reg.status === 'realizada') ? reg : null;
+        prevReal = realizada ? reg : null;
         if (!realizada && !vencida) break;
     }
     const totalMarcos = lista.length;
@@ -1648,33 +1638,72 @@ window._mnRevAbrirVinculo = function(i, btn) {
     const E = window._mnRevEsc;
     const l = st.lancs[i];
     const marcados = window._mnRevServicosMarcados();
-    const bloco = function(titulo, lista) {
-        if (!lista.length) return '';
-        return '<div style="font-size:0.66rem;font-weight:800;color:#64748b;margin:6px 0 2px;">' + titulo + '</div>' + lista.map(function(s) {
-            return '<label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#1e293b;padding:3px 0;cursor:pointer;"><input type="checkbox" ' + (l.servicos.indexOf(s.id) >= 0 ? 'checked' : '') + ' onchange="window._mnRevStageToggleServ(' + i + ',\'' + s.id + '\',this.checked)" style="accent-color:#7c3aed;"> ' + E(s.nome) + '</label>';
-        }).join('');
-    };
+    window._mnRevVincFiltro = '';
     const pop = document.createElement('div');
     pop.id = 'mn-rev-vinc-pop';
     pop.setAttribute('data-linha', String(i));
     const r = btn.getBoundingClientRect();
-    const largura = 310;
+    const largura = 330;
+    const alturaMax = 340;
     const esq = Math.min(Math.max(8, r.right - largura), window.innerWidth - largura - 8);
-    const abreAcima = (window.innerHeight - r.bottom) < 260 && r.top > 260;
-    pop.style.cssText = 'position:fixed;z-index:10300;width:' + largura + 'px;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.28);padding:8px 12px;left:' + esq + 'px;' + (abreAcima ? 'bottom:' + (window.innerHeight - r.top + 4) + 'px;' : 'top:' + (r.bottom + 4) + 'px;');
-    pop.innerHTML = '<div style="font-size:0.74rem;font-weight:800;color:#075985;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">Serviços marcados no passo 2</div>'
-        + (marcados.length
-            ? bloco('OBRIGATÓRIOS (MECÂNICO)', marcados.filter(function(s) { return s.grupo === 'obrigatorio'; }))
-              + bloco('CONFERÊNCIAS INTERNAS', marcados.filter(function(s) { return s.grupo === 'conferencia'; }))
-              + bloco('OPCIONAIS', marcados.filter(function(s) { return s.grupo === 'opcional'; }))
-            : '<div style="font-size:0.78rem;color:#b45309;padding:8px 0;">Nenhum serviço marcado. Marque no passo 2 os serviços que foram realizados para poder vincular.</div>');
+    const abreAcima = (window.innerHeight - r.bottom) < alturaMax && r.top > alturaMax;
+    pop.style.cssText = 'position:fixed;z-index:10300;width:' + largura + 'px;max-height:' + alturaMax + 'px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.28);padding:0 12px 8px;left:' + esq + 'px;' + (abreAcima ? 'bottom:' + (window.innerHeight - r.top + 4) + 'px;' : 'top:' + (r.bottom + 4) + 'px;');
+    pop.innerHTML = '<div style="position:sticky;top:0;background:#fff;padding:8px 0 6px;border-bottom:1px solid #e2e8f0;z-index:1;">'
+        + '<div style="font-size:0.74rem;font-weight:800;color:#075985;margin-bottom:5px;">Serviços marcados no passo 2</div>'
+        + (marcados.length ? '<input type="text" id="mn-rev-vinc-busca" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." oninput="window._mnRevVincFiltro=this.value;window._mnRevVincDesenhar(' + i + ')" style="width:100%;box-sizing:border-box;padding:0.35rem 0.55rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.78rem;outline:none;">' : '')
+        + '</div><div id="mn-rev-vinc-lista"></div>';
     document.body.appendChild(pop);
+    window._mnRevVincDesenhar(i);
+    const campoBusca = document.getElementById('mn-rev-vinc-busca');
+    if (campoBusca) { try { campoBusca.focus(); } catch (e) {} }
     window._mnRevVincOutside = function(ev) { if (!pop.contains(ev.target) && ev.target !== btn) window._mnRevFecharVinculo(); };
     window._mnRevVincScroll = function(ev) { if (!pop.contains(ev.target)) window._mnRevFecharVinculo(); };
     window._mnRevVincKey = function(ev) { if (ev.key === 'Escape') window._mnRevFecharVinculo(); };
     document.addEventListener('mousedown', window._mnRevVincOutside, true);
     window.addEventListener('scroll', window._mnRevVincScroll, true);
     window.addEventListener('keydown', window._mnRevVincKey, true);
+};
+
+window._mnRevVincPassa = function(s) {
+    const norm = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+    const palavras = norm(window._mnRevVincFiltro || '').split(' ').filter(Boolean);
+    const alvo = norm(s.nome);
+    return palavras.every(function(p) { return alvo.indexOf(p) !== -1; });
+};
+
+// Lista do popup de vinculo: busca por nome + "selecionar todos" por tipo (Obrigatorios / Conferencias / Opcionais)
+window._mnRevVincDesenhar = function(i) {
+    const box = document.getElementById('mn-rev-vinc-lista');
+    const st = window._mnRevNotaStage;
+    if (!box || !st || !st.lancs[i]) return;
+    const E = window._mnRevEsc;
+    const l = st.lancs[i];
+    const marcados = window._mnRevServicosMarcados();
+    if (!marcados.length) {
+        box.innerHTML = '<div style="font-size:0.78rem;color:#b45309;padding:8px 0;">Nenhum serviço marcado. Marque no passo 2 os serviços que foram realizados para poder vincular.</div>';
+        return;
+    }
+    const bloco = function(titulo, grupo) {
+        const lista = marcados.filter(function(s) { return s.grupo === grupo; }).filter(window._mnRevVincPassa);
+        if (!lista.length) return '';
+        const todos = lista.every(function(s) { return l.servicos.indexOf(s.id) >= 0; });
+        return '<label style="display:flex;align-items:center;gap:6px;font-size:0.68rem;font-weight:800;color:#475569;background:#f1f5f9;border-radius:6px;padding:4px 6px;margin:8px 0 2px;cursor:pointer;">'
+            + '<input type="checkbox" ' + (todos ? 'checked' : '') + ' onchange="window._mnRevStageToggleGrupo(' + i + ',\'' + grupo + '\',this.checked)" style="accent-color:#7c3aed;"> ' + titulo + ' <span style="font-weight:600;color:#94a3b8;">(selecionar todos)</span></label>'
+            + lista.map(function(s) {
+                return '<label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#1e293b;padding:3px 0 3px 8px;cursor:pointer;"><input type="checkbox" ' + (l.servicos.indexOf(s.id) >= 0 ? 'checked' : '') + ' onchange="window._mnRevStageToggleServ(' + i + ',\'' + s.id + '\',this.checked);window._mnRevVincDesenhar(' + i + ')" style="accent-color:#7c3aed;"> ' + E(s.nome) + '</label>';
+            }).join('');
+    };
+    box.innerHTML = bloco('OBRIGATÓRIOS (MECÂNICO)', 'obrigatorio') + bloco('CONFERÊNCIAS INTERNAS', 'conferencia') + bloco('OPCIONAIS', 'opcional')
+        || '<div style="font-size:0.78rem;color:#94a3b8;padding:8px 0;">Nenhum serviço encontrado para a pesquisa.</div>';
+};
+
+window._mnRevStageToggleGrupo = function(i, grupo, marcado) {
+    const st = window._mnRevNotaStage;
+    if (!st || !st.lancs[i]) return;
+    window._mnRevServicosMarcados().filter(function(s) { return s.grupo === grupo; }).filter(window._mnRevVincPassa).forEach(function(s) {
+        window._mnRevStageToggleServ(i, s.id, marcado);
+    });
+    window._mnRevVincDesenhar(i);
 };
 
 window._mnRevStageToggleServ = function(i, id, marcado) {
@@ -2231,7 +2260,7 @@ window.mnRevMarcarFeita = async function(kmNominal, mesesNominal) {
     if (!ctx || !ctx.veiculo) return;
     const v = ctx.veiculo;
     const marcoTxt = Number(kmNominal).toLocaleString('pt-BR') + ' km';
-    if (!confirm('Marcar a revisão de ' + marcoTxt + ' do veículo ' + (v.placa || '') + ' como FEITA?\n\nA revisão será registrada como realizada hoje, com a KM atual do veículo (' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km), e o próximo ciclo passará a contar a partir daí.')) return;
+    if (!confirm('Marcar a revisão de ' + marcoTxt + ' do veículo ' + (v.placa || '') + ' como FEITA?\n\nSomente esta revisão será registrada como realizada hoje' + (window._mnRevEhCarretinha(v) ? '' : ', com a KM atual do veículo (' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km)') + '. As demais revisões atrasadas continuam pendentes para você formalizar.')) return;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(kmNominal); });
     const body = {
@@ -5202,6 +5231,7 @@ window._mnVincularPopup = function(linha, cb) {
       +   '</div>'
       +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
       +     '<input type="checkbox" id="mnv-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<input type="text" id="mnv-busca" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;outline:none;margin-bottom:10px;">'
       +   '<div id="mnv-lista"></div>'
       +   '<div id="mnv-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;"></div>'
       + '</div>'
@@ -5213,18 +5243,28 @@ window._mnVincularPopup = function(linha, cb) {
     var fechar = function() { var p = document.getElementById('mnv-pop'); if (p) p.remove(); };
     var chkAll = document.getElementById('mnv-all');
     var lista = document.getElementById('mnv-lista');
+    var filtroTxt = '';
+    var passa = function(sv) {
+        var nz = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+        var alvo = nz(sv.nome);
+        return nz(filtroTxt).split(' ').filter(Boolean).every(function(w) { return alvo.indexOf(w) !== -1; });
+    };
+    var buscaEl = document.getElementById('mnv-busca');
+    buscaEl.oninput = function() { filtroTxt = buscaEl.value; desenhar(); };
     var resumoEl = document.getElementById('mnv-resumo');
     var desenhar = function() {
         var todosMarcados = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
         chkAll.checked = todosMarcados;
         lista.innerHTML = ordem.map(function(k, gi) {
-            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var gruposK = grupos[k].filter(passa);
+            if (!gruposK.length) return '';
+            var todos = gruposK.every(function(s) { return sel[s.id]; });
             var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
             return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
               + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
               +   '<input type="checkbox" data-vcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
               +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
-              + grupos[k].map(function(s) {
+              + gruposK.map(function(s) {
                     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
                       + '<input type="checkbox" data-vid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
                 }).join('')
@@ -5232,7 +5272,7 @@ window._mnVincularPopup = function(linha, cb) {
         }).join('');
         lista.querySelectorAll('[data-vid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-vid')] = c.checked; desenhar(); }; });
         lista.querySelectorAll('[data-vcat]').forEach(function(c) {
-            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-vcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-vcat'))]].filter(passa).forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
         });
         var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
         if (!idsSel.length) {
@@ -5309,6 +5349,7 @@ window._mnoRatearTotalPopup = function() {
       +   '</div>'
       +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
       +     '<input type="checkbox" id="mnrt-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<input type="text" id="mnrt-busca" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;outline:none;margin-bottom:10px;">'
       +   '<div id="mnrt-lista"></div>'
       +   '<div id="mnrt-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;"></div>'
       + '</div>'
@@ -5322,6 +5363,14 @@ window._mnoRatearTotalPopup = function() {
     var valEl = document.getElementById('mnrt-val');
     var chkAll = document.getElementById('mnrt-all');
     var lista = document.getElementById('mnrt-lista');
+    var filtroTxt = '';
+    var passa = function(sv) {
+        var nz = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+        var alvo = nz(sv.nome);
+        return nz(filtroTxt).split(' ').filter(Boolean).every(function(w) { return alvo.indexOf(w) !== -1; });
+    };
+    var buscaEl = document.getElementById('mnrt-busca');
+    buscaEl.oninput = function() { filtroTxt = buscaEl.value; desenhar(); };
     var resumoEl = document.getElementById('mnrt-resumo');
     var atualizarResumo = function() {
         var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
@@ -5346,13 +5395,15 @@ window._mnoRatearTotalPopup = function() {
     var desenhar = function() {
         chkAll.checked = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
         lista.innerHTML = ordem.map(function(k, gi) {
-            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var gruposK = grupos[k].filter(passa);
+            if (!gruposK.length) return '';
+            var todos = gruposK.every(function(s) { return sel[s.id]; });
             var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
             return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
               + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
               +   '<input type="checkbox" data-rtcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
               +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
-              + grupos[k].map(function(s) {
+              + gruposK.map(function(s) {
                     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
                       + '<input type="checkbox" data-rtid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
                 }).join('')
@@ -5360,7 +5411,7 @@ window._mnoRatearTotalPopup = function() {
         }).join('');
         lista.querySelectorAll('[data-rtid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-rtid')] = c.checked; desenhar(); }; });
         lista.querySelectorAll('[data-rtcat]').forEach(function(c) {
-            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-rtcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-rtcat'))]].filter(passa).forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
         });
         atualizarResumo();
     };
@@ -6013,6 +6064,7 @@ window._mnpRatearTotalPopup = function() {
       +   '</div>'
       +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
       +     '<input type="checkbox" id="mnprt-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<input type="text" id="mnprt-busca" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;outline:none;margin-bottom:10px;">'
       +   '<div id="mnprt-lista"></div>'
       +   '<div id="mnprt-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;"></div>'
       + '</div>'
@@ -6026,6 +6078,14 @@ window._mnpRatearTotalPopup = function() {
     var valEl = document.getElementById('mnprt-val');
     var chkAll = document.getElementById('mnprt-all');
     var lista = document.getElementById('mnprt-lista');
+    var filtroTxt = '';
+    var passa = function(sv) {
+        var nz = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+        var alvo = nz(sv.nome);
+        return nz(filtroTxt).split(' ').filter(Boolean).every(function(w) { return alvo.indexOf(w) !== -1; });
+    };
+    var buscaEl = document.getElementById('mnprt-busca');
+    buscaEl.oninput = function() { filtroTxt = buscaEl.value; desenhar(); };
     var resumoEl = document.getElementById('mnprt-resumo');
     var atualizarResumo = function() {
         var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
@@ -6050,13 +6110,15 @@ window._mnpRatearTotalPopup = function() {
     var desenhar = function() {
         chkAll.checked = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
         lista.innerHTML = ordem.map(function(k, gi) {
-            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var gruposK = grupos[k].filter(passa);
+            if (!gruposK.length) return '';
+            var todos = gruposK.every(function(s) { return sel[s.id]; });
             var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
             return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
               + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
               +   '<input type="checkbox" data-prtcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
               +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
-              + grupos[k].map(function(s) {
+              + gruposK.map(function(s) {
                     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
                       + '<input type="checkbox" data-prtid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
                 }).join('')
@@ -6064,7 +6126,7 @@ window._mnpRatearTotalPopup = function() {
         }).join('');
         lista.querySelectorAll('[data-prtid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-prtid')] = c.checked; desenhar(); }; });
         lista.querySelectorAll('[data-prtcat]').forEach(function(c) {
-            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-prtcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-prtcat'))]].filter(passa).forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
         });
         atualizarResumo();
     };
