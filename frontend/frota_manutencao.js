@@ -453,6 +453,41 @@ function mnPrevRenderPlano(c) {
 }
 
 // Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota). modo: 'preventiva' (padrao) ou 'revisao'
+// Badge da situacao da revisao do veiculo (ao lado da placa na aba Revisao)
+window._mnRevBadgeHtml = function(v) {
+    const st = v && v.revisao_status;
+    if (!st) return '';
+    const base = 'padding:2px 8px;border-radius:999px;font-size:0.66rem;font-weight:800;display:inline-flex;align-items:center;gap:4px;letter-spacing:0.3px;white-space:nowrap;';
+    const mapa = {
+        vencida:    { bg: '#fee2e2', cor: '#dc2626', bd: '#fca5a5', ico: 'ph-warning-circle', txt: 'REVISÃO VENCIDA' },
+        a_vencer:   { bg: '#fef9c3', cor: '#a16207', bd: '#fde047', ico: 'ph-clock-countdown', txt: 'REVISÃO A VENCER' },
+        agendada:   { bg: '#dbeafe', cor: '#1d4ed8', bd: '#93c5fd', ico: 'ph-calendar-check', txt: 'REVISÃO AGENDADA' },
+        em_revisao: { bg: '#ffedd5', cor: '#c2410c', bd: '#fdba74', ico: 'ph-wrench', txt: 'EM REVISÃO' },
+        ok:         { bg: '#dcfce7', cor: '#15803d', bd: '#86efac', ico: 'ph-check-circle', txt: 'REVISÃO OK' }
+    };
+    const m = mapa[st];
+    if (!m) return '';
+    let titulo = '';
+    const info = v.revisao_info || {};
+    if (st === 'agendada' && info.data_agendada) titulo = 'Agendada para ' + _mnRevFmtDataBR(info.data_agendada);
+    if (st === 'a_vencer') titulo = [info.falta_km != null ? 'Faltam ' + Number(info.falta_km).toLocaleString('pt-BR') + ' km' : '', info.falta_dias != null ? 'Faltam ' + info.falta_dias + ' dia(s)' : ''].filter(Boolean).join(' • ');
+    return '<span title="' + titulo + '" style="background:' + m.bg + ';color:' + m.cor + ';border:1px solid ' + m.bd + ';' + base + '"><i class="ph-fill ' + m.ico + '"></i> ' + m.txt + '</span>';
+};
+
+// Linha abaixo da placa: dias parado em revisao (EM REVISAO) ou data do agendamento (REVISAO AGENDADA)
+window._mnRevBadgeDiasHtml = function(v) {
+    const st = v && v.revisao_status;
+    const info = (v && v.revisao_info) || {};
+    if (st === 'em_revisao') {
+        const d = Number(info.dias_parado || 0);
+        return '<span style="font-size:0.74rem;font-weight:700;color:#c2410c;"><i class="ph ph-timer"></i> ' + (d === 0 ? 'Parado em revisão desde hoje' : d + (d === 1 ? ' dia' : ' dias') + ' parado em revisão') + '</span>';
+    }
+    if (st === 'agendada' && info.data_agendada) {
+        return '<span style="font-size:0.74rem;font-weight:700;color:#1d4ed8;"><i class="ph ph-calendar-blank"></i> Agendada para ' + _mnRevFmtDataBR(info.data_agendada) + '</span>';
+    }
+    return '';
+};
+
 window._mnPrevCardsHtml = function(modo) {
     const ehRevisao = modo === 'revisao';
     const hojeISO = window._mnHojeISO();
@@ -490,7 +525,11 @@ window._mnPrevCardsHtml = function(modo) {
             <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
                 <div style="display:flex;flex-direction:column;gap:0.1rem;">
                     <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Placa</span>
-                    <span style="font-weight:800;color:${parado ? '#dc2626' : '#1e293b'};font-size:1.2rem;">${v.placa || 'N/D'}</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-weight:800;color:${parado ? '#dc2626' : '#1e293b'};font-size:1.2rem;">${v.placa || 'N/D'}</span>
+                        ${ehRevisao ? window._mnRevBadgeHtml(v) : ''}
+                    </div>
+                    ${ehRevisao ? window._mnRevBadgeDiasHtml(v) : ''}
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:0.6rem;border-radius:8px;">
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
@@ -2925,7 +2964,13 @@ window._mnRenderCorretivaDados = function(listaBase) {
     tbody.innerHTML = lista.map((m, i) => {
         const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
         const sKey = m.status || 'agendada';
-        const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`;
+        const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`
+            + (sKey === 'cancelada' ? '' : (function() {
+                const rodTab = (m.veiculo_rodando_efetivo || m.veiculo_rodando || (sKey === 'em_andamento' ? 'nao' : 'sim')) === 'nao' ? 'nao' : 'sim';
+                return rodTab === 'nao'
+                    ? '<div style="margin-top:4px;"><span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO PARADO</span></div>'
+                    : '<div style="margin-top:4px;"><span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO RODANDO</span></div>';
+            })());
         const tp = getTempos(m);
         const pCor = tp.pedido.dias >= 7 ? '#dc2626' : tp.pedido.dias >= 3 ? '#d97706' : '#0284c7';
         const pedidoBadge = `<span data-cron-pedido="${m.id}" style="background:${pCor}18;color:${pCor};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;white-space:nowrap;"><span class="cron-d">${tp.pedido.diasTxt}</span></span>`;
@@ -3444,7 +3489,7 @@ window._mnEdMontar = function() {
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Defeito / Problema *</label><textarea id="mned-desc" rows="2" placeholder="Descreva o defeito ou problema do veículo..." style="' + inp + 'resize:vertical;">' + esc(m.descricao || '') + '</textarea></div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
       +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">'
-      +           '<div><label style="' + lbl + '">Data da solicitação</label><input type="date" id="mned-dsol" value="' + esc(window._mnDataInput(m.created_at)) + '" readonly tabindex="-1" title="Data em que a manutenção foi solicitada" style="' + inp + 'background:#f1f5f9;color:#475569;cursor:not-allowed;"></div>'
+      +           '<div><label style="' + lbl + '">Data da solicitação</label><input type="date" id="mned-dsol" value="' + esc(window._mnDataInput(m.created_at) || window._mnHojeISO()) + '" title="Data em que a manutenção foi solicitada (pode ser editada)" style="' + inp + '"></div>'
       +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
       +           '<div id="mned-dc-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
       +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
@@ -6031,10 +6076,13 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             throw new Error('A Data de fim não pode ser anterior à Data de início.');
         }
         if (ed.status === 'em_andamento' && !di) { di = window._mnHojeISO(); if (diEl) diEl.value = di; }
+        var dsolEl = document.getElementById('mned-dsol');
+        var dsol = dsolEl ? dsolEl.value : '';
         var corpo = {
             status: ed.status,
             veiculo_id: veic,
             descricao: desc,
+            data_solicitacao: dsol || undefined,
             data_inicio: di || null,
             data_fim: df || null,
             km_na_manutencao: document.getElementById('mned-km').value || null,

@@ -21665,6 +21665,70 @@ function _isVeiculoKmVencida(v, marcoStr) {
 
 let _ultimoDisparoKmData = null;
 
+// Resumo da situacao de revisao do veiculo (mesma regra da aba Revisao do front):
+// em_revisao (parado) > agendada (data futura) > vencida > a_vencer (<=1.000 km ou <=30 dias) > ok
+function _fmSomarMesesISO(dtIso, meses) {
+    const p = String(dtIso || '').slice(0, 10).split('-');
+    if (p.length !== 3) return '';
+    const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + Number(meses || 0), parseInt(p[2], 10));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function _fmDiffDiasISO(alvoIso, baseIso) {
+    if (!alvoIso || !baseIso) return null;
+    const a = new Date(String(alvoIso).slice(0, 10) + 'T00:00:00');
+    const b = new Date(String(baseIso).slice(0, 10) + 'T00:00:00');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((a - b) / 86400000);
+}
+function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
+    const lista = Array.isArray(revs) ? revs : [];
+    // 1) Em revisao: revisao agendada com data hoje/passada (ou sem data) = veiculo parado
+    const emRev = lista.find(r => r.status === 'agendada' && (!r.data_revisao || String(r.data_revisao).trim() === '' || String(r.data_revisao).slice(0, 10) <= hojeIso));
+    if (emRev) {
+        const ini = String(emRev.parado_desde || emRev.data_revisao || emRev.created_at || '').slice(0, 10);
+        const dias = ini ? Math.max(0, _fmDiffDiasISO(hojeIso, ini) || 0) : 0;
+        return { status: 'em_revisao', dias_parado: dias, marco_km: emRev.marco_km };
+    }
+    // 2) Agendada para data futura
+    const ag = lista.filter(r => r.status === 'agendada' && r.data_revisao && String(r.data_revisao).slice(0, 10) > hojeIso)
+        .sort((a, b) => String(a.data_revisao).localeCompare(String(b.data_revisao)))[0];
+    if (ag) return { status: 'agendada', data_agendada: String(ag.data_revisao).slice(0, 10), marco_km: ag.marco_km };
+    // 3) Vencida / a vencer / ok
+    const kmAtual = Number(v.km_atual || 0);
+    const uso = Number(v.uso_severo || 0) === 1;
+    const passoKm = uso ? 5000 : 10000;
+    const passoMeses = uso ? 6 : 12;
+    const dtIni = String(v.data_inicio_garantia || '').slice(0, 10);
+    const mapa = {};
+    lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
+    let prev = null, temVencida = false, ultimo = null;
+    for (let n = 1; n <= 400; n++) {
+        const reg = mapa[n * passoKm] || null;
+        const realizada = !!(reg && reg.status === 'realizada');
+        let kmLimite = n * passoKm;
+        let dtLimite = dtIni ? _fmSomarMesesISO(dtIni, n * passoMeses) : '';
+        if (prev) {
+            if (prev.km_revisao) kmLimite = Number(prev.km_revisao) + passoKm;
+            if (prev.data_revisao) dtLimite = _fmSomarMesesISO(prev.data_revisao, passoMeses);
+        }
+        const diffKm = kmLimite - kmAtual;
+        const diffDias = dtLimite ? _fmDiffDiasISO(dtLimite, hojeIso) : null;
+        const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
+        ultimo = { realizada, vencida, diffKm, diffDias, kmLimite, dtLimite };
+        if (vencida) temVencida = true;
+        prev = realizada ? reg : null;
+        if (!realizada && !vencida) break;
+    }
+    if (temVencida) return { status: 'vencida' };
+    if (ultimo && !ultimo.realizada) {
+        const proxKm = kmAtual > 0 && ultimo.diffKm > 0 && ultimo.diffKm <= 1000;
+        const proxTempo = ultimo.diffDias !== null && ultimo.diffDias >= 0 && ultimo.diffDias <= 30;
+        if (proxKm || proxTempo) return { status: 'a_vencer', falta_km: proxKm ? ultimo.diffKm : null, falta_dias: proxTempo ? ultimo.diffDias : null };
+    }
+    if (kmAtual > 0 || dtIni) return { status: 'ok' };
+    return { status: null };
+}
+
 function verificarKmSemanalCron(opts) {
     const opcoes = opts || {};
     const agoraSP = _obterAgoraSP();
@@ -23599,12 +23663,23 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
                ) as status_manutencao_ativo
         FROM frota_veiculos fv
         ORDER BY fv.placa ASC
-    `, [], (err, rows) => {
+    `, [], async (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const marcoSegunda8h = _obterMarcoSegunda8hSPStr();
-        const lista = (rows || []).map(r => Object.assign({}, r, {
-            km_vencida: _isVeiculoKmVencida(r, marcoSegunda8h) ? 1 : 0
-        }));
+        const hojeRevIso = _obterDataHoraSPStr().slice(0, 10);
+        let todasRevs = [];
+        try { todasRevs = await _fmAll('SELECT veiculo_id, marco_km, status, data_revisao, km_revisao, parado_desde, created_at FROM frota_revisoes'); } catch (eRev) { todasRevs = []; }
+        const revsPorVeic = {};
+        todasRevs.forEach(r => { (revsPorVeic[r.veiculo_id] = revsPorVeic[r.veiculo_id] || []).push(r); });
+        const lista = (rows || []).map(r => {
+            let rv = { status: null };
+            try { rv = _fmResumoRevisaoVeiculo(r, revsPorVeic[r.id] || [], hojeRevIso); } catch (eRv) { rv = { status: null }; }
+            return Object.assign({}, r, {
+                km_vencida: _isVeiculoKmVencida(r, marcoSegunda8h) ? 1 : 0,
+                revisao_status: rv.status,
+                revisao_info: rv
+            });
+        });
         res.json(lista);
     });
 });
@@ -24351,10 +24426,10 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, async (req, res)
 app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_fim, data_conclusao, veiculo_rodando, justificativa_status } = req.body;
+        const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_fim, data_conclusao, veiculo_rodando, justificativa_status, data_solicitacao } = req.body;
         const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
         if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
-        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id FROM frota_manutencoes WHERE id = ?', [id]);
+        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id, created_at FROM frota_manutencoes WHERE id = ?', [id]);
         if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
         if (status === 'concluida') {
@@ -24391,6 +24466,17 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             fields.push('data_conclusao=NULL');
         }
         const novoVeic = veiculo_id ? parseInt(veiculo_id) : null;
+        // Data da solicitacao editavel (mantem o horario original do registro)
+        let dsolAlterada = null;
+        if (data_solicitacao && /^\d{4}-\d{2}-\d{2}$/.test(String(data_solicitacao).trim())) {
+            const dsolNova = String(data_solicitacao).trim();
+            const dsolAnt = String(prev.created_at || '').slice(0, 10);
+            if (dsolNova !== dsolAnt) {
+                fields.push("created_at = ? || COALESCE(substr(created_at, 11), ' 12:00:00')");
+                params.push(dsolNova);
+                dsolAlterada = dsolNova;
+            }
+        }
         if (novoVeic) { fields.push('veiculo_id=?'); params.push(novoVeic); }
         if (descricao !== undefined && String(descricao).trim()) { fields.push('descricao=?'); params.push(String(descricao).trim()); }
         if (km_na_manutencao !== undefined) {
@@ -24417,6 +24503,9 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         await _fmRun('UPDATE frota_manutencoes SET ' + fields.join(',') + ' WHERE id=?', params);
 
         const usuario = _fmUsuario(req);
+        if (dsolAlterada) {
+            await _fmHist(id, 'evento', 'Data da solicitação alterada de ' + (String(prev.created_at || '').slice(0, 10).split('-').reverse().join('/') || '—') + ' para ' + dsolAlterada.split('-').reverse().join('/'), usuario).catch(() => {});
+        }
         // historico: quem mudou a situacao, quando e a justificativa
         if (prev.status !== status) {
             const justTxt = justificativa_status ? String(justificativa_status).trim() : null;
