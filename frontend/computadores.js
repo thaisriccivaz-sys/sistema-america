@@ -60,17 +60,27 @@
         var parts = nome.trim().split(/\s+/);
         return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    function avatarHtml(fotoPath, fotoBase64, nome, size) {
+    function avatarHtml(fotoPath, fotoBase64, nome, size, colabId) {
         size = size || 40;
         var ini = iniciais(nome);
         var colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2'];
         var col = colors[ini.charCodeAt(0) % colors.length];
         var fs2 = Math.round(size * 0.35);
         var dv = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:' + fs2 + 'px;flex-shrink:0;">' + ini + '</div>';
-        if (fotoBase64) return '<img src="' + fotoBase64 + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display=\'none\';">' ;
-        if (!fotoPath) return dv;
+        var dvHidden = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + col + ';color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:' + fs2 + 'px;flex-shrink:0;">' + ini + '</div>';
         var base = (typeof API_URL !== 'undefined') ? API_URL.replace('/api', '') : '';
-        return '<img src="' + base + '/' + fotoPath + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\'' + dv.replace(/'/g, '&#39;') + '\'">';
+        var src = '';
+        if (fotoBase64) {
+            src = fotoBase64.indexOf('data:') === 0 ? fotoBase64 : 'data:image/jpeg;base64,' + fotoBase64;
+        } else if (colabId && fotoPath) {
+            src = base + '/api/colaboradores/foto/' + colabId;
+        } else if (fotoPath) {
+            src = (fotoPath.indexOf('http://') === 0 || fotoPath.indexOf('https://') === 0 || fotoPath.indexOf('data:') === 0)
+                ? fotoPath
+                : base + '/' + fotoPath.replace(/^\/+/, '');
+        }
+        if (!src) return dv;
+        return '<img src="' + src + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' + dvHidden;
     }
     function statusBadge(s) {
         var map = {
@@ -212,7 +222,7 @@
             var temComp = compsDoColab.length > 0;
 
             var colabInfo = '<div style="display:flex;align-items:center;gap:0.75rem;">' +
-                avatarHtml(c.foto_path, c.foto_base64, c.nome_completo, 40) +
+                avatarHtml(c.foto_path, c.foto_base64, c.nome_completo, 40, c.id) +
                 '<div><div style="font-weight:700;font-size:0.9rem;color:#0f172a;">' + (c.nome_completo || '-') + '</div>' +
                 '<div style="font-size:0.75rem;color:#64748b;font-weight:600;"><i class="ph ph-buildings" style="margin-right:3px;"></i>' + (c.departamento || '-') + ' &middot; ' + (c.cargo || '-') + '</div>' +
                 '</div></div>';

@@ -40,7 +40,7 @@
     }
     function avatarHTML(col, size = 36) {
         const initials = (col.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
-        const fotoSrc = col.foto_base64 || (col.foto_path ? `${API_URL.replace('/api', '')}/${col.foto_path}` : null);
+        const fotoSrc = col.foto_base64 || (col.foto_path ? (col.id ? `${API_URL}/colaboradores/foto/${col.id}` : (col.foto_path.startsWith('http') ? col.foto_path : `${API_URL.replace('/api', '')}/${col.foto_path}`)) : null);
         if (fotoSrc) {
             const finalSrc = fotoSrc.startsWith('data:') || fotoSrc.startsWith('http') || fotoSrc.startsWith('/') ? fotoSrc : `data:image/jpeg;base64,${fotoSrc}`;
             return `<img src="${finalSrc}" alt="${initials}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;

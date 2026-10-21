@@ -2201,13 +2201,21 @@ async function uploadDocToR2(docId, bufferOverride) {
 
         const fileName = doc.file_name || `documento_${docId}.pdf`;
         const r2Key = `${r2Dir}/${fileName}`;
-        const mimeType = fileName.toLowerCase().endsWith('.docx')
+        const lowerFn = fileName.toLowerCase();
+        const mimeType = lowerFn.endsWith('.docx')
             ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            : (fileName.toLowerCase().endsWith('.doc') ? 'application/msword' : 'application/pdf');
+            : lowerFn.endsWith('.doc') ? 'application/msword'
+            : (lowerFn.endsWith('.jpg') || lowerFn.endsWith('.jpeg')) ? 'image/jpeg'
+            : lowerFn.endsWith('.png') ? 'image/png'
+            : lowerFn.endsWith('.webp') ? 'image/webp'
+            : 'application/pdf';
 
-        await r2.uploadToR2(r2Key, fileBuffer, mimeType);
+        const r2Url = await r2.uploadToR2(r2Key, fileBuffer, mimeType);
         console.log(`[R2-AUTO] OK: ${r2Key}`);
         await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [r2Key, docId], resolve));
+        if (doc.tab_name === 'Fotos' && /\.(jpg|jpeg|png|webp)$/i.test(fileName)) {
+            db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ?', [r2Url || r2Key, doc.colaborador_id]);
+        }
         return r2Key;
     } catch (e) {
         console.error(`[R2-AUTO ERROR] doc=${docId}:`, e.message);
@@ -6247,10 +6255,12 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const r2 = require('./utils/r2');
         let finalPath = caminhoRelativo;
         let finalBase64 = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
+        let r2KeyUploaded = null;
 
         if (r2.isReady()) {
             const r2Key = `Colaboradores/${safeNome}/FOTOS/${filename}`;
             finalPath = await r2.uploadToR2(r2Key, processedBuffer, 'image/jpeg');
+            r2KeyUploaded = r2Key;
             // Como estamos salvando no R2, nao salvamos o base64 pesado no banco para poupar espaço.
             // Mas de acordo com o pedido para nao quebrar testes, nao vamos apagar os antigos ainda, 
             // e os novos ficarão com foto_base64 = null (o GET usará o foto_path).
@@ -6260,7 +6270,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [finalPath, finalBase64, id]);
 
         // Também registrar na aba "Fotos" do Prontuário Digital
-        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?)`, [id, filename, finalPath]);
+        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, r2_key) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?, ?)`, [id, filename, finalPath, r2KeyUploaded]);
 
         // 4. Upload ass??ncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
@@ -6279,7 +6289,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
             })();
         }
 
-        res.json({ sucesso: true, caminho: caminhoRelativo });
+        res.json({ sucesso: true, caminho: finalPath });
     } catch (erro) {
         console.error('Erro no processamento da foto:', erro);
         res.status(500).json({ error: erro.message });
@@ -6287,7 +6297,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
 });
 
 app.get('/api/colaboradores/foto/:id', (req, res) => {
-    db.get('SELECT foto_base64, foto_path FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT foto_base64, foto_path FROM colaboradores WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) {
             return res.status(404).json({ error: 'Colaborador nao encontrado' });
         }
@@ -6304,14 +6314,74 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             }
         }
 
-        // Prioridade 2: arquivo físico via foto_path ou Cloudflare R2 URL
-        if (!row.foto_path) {
-            return res.status(404).json({ error: 'Foto nao encontrada' });
+        const extractR2Key = (p) => {
+            if (!p || typeof p !== 'string') return null;
+            if (p.startsWith('s3://')) return p.replace(/^s3:\/\/[^/]+\//, '');
+            if (p.startsWith('http://') || p.startsWith('https://')) {
+                try {
+                    const key = decodeURIComponent(new URL(p).pathname.replace(/^\/+/, ''));
+                    return key || null;
+                } catch (_) { return null; }
+            }
+            const norm = p.replace(/\\/g, '/');
+            if (norm.startsWith('files/')) return norm.replace(/^files\/+/, '');
+            if (norm.startsWith('Colaboradores/')) return norm;
+            if (norm.includes('Colaboradores/')) return norm.substring(norm.indexOf('Colaboradores/'));
+            return null;
+        };
+
+        // Prioridade 2: arquivo físico local (se existir no disco)
+        if (row.foto_path && !row.foto_path.startsWith('http://') && !row.foto_path.startsWith('https://') && !row.foto_path.startsWith('s3://')) {
+            let file_path = row.foto_path;
+            if (file_path.startsWith('files/') || file_path.startsWith('files\\')) {
+                file_path = path.join(BASE_PATH, '..', file_path.replace(/^files[\/\\]/, ''));
+            } else if (file_path.startsWith('Colaboradores/') || file_path.startsWith('Colaboradores\\')) {
+                file_path = path.join(BASE_PATH, '..', file_path);
+            }
+            file_path = path.normalize(file_path);
+            if (!path.isAbsolute(file_path)) file_path = path.resolve(file_path);
+            if (fs.existsSync(file_path)) {
+                return res.sendFile(file_path);
+            }
         }
 
-        if (row.foto_path.startsWith('http://') || row.foto_path.startsWith('https://')) {
-            // PROXY: ao inves de redirecionar (causaria bloqueio de CORS no canvas do PDF),
-            // buscamos a imagem do R2 no servidor e a devolvemos diretamente ao cliente.
+        // Prioridade 3: Cloudflare R2 via SDK (suporta s3://, URL R2, caminho relativo ou registro na aba Fotos)
+        const r2 = require('./utils/r2');
+        if (r2.isReady()) {
+            const candidateKeys = [];
+            const keyFromFotoPath = extractR2Key(row.foto_path);
+            if (keyFromFotoPath) candidateKeys.push(keyFromFotoPath);
+
+            try {
+                const docFoto = await new Promise((resolve) => {
+                    db.get(
+                        `SELECT r2_key, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = 'Fotos' ORDER BY id DESC LIMIT 1`,
+                        [req.params.id],
+                        (e, dRow) => resolve(e ? null : dRow)
+                    );
+                });
+                if (docFoto) {
+                    if (docFoto.r2_key && !candidateKeys.includes(docFoto.r2_key)) candidateKeys.push(docFoto.r2_key);
+                    const k2 = extractR2Key(docFoto.file_path);
+                    if (k2 && !candidateKeys.includes(k2)) candidateKeys.push(k2);
+                }
+            } catch (_) {}
+
+            for (const r2Key of candidateKeys) {
+                try {
+                    const { stream, contentType } = await r2.downloadStreamFromR2(r2Key);
+                    res.set('Content-Type', (contentType && contentType.startsWith('image/')) ? contentType : 'image/jpeg');
+                    res.set('Cache-Control', 'public, max-age=86400');
+                    res.set('Access-Control-Allow-Origin', '*');
+                    return stream.pipe(res);
+                } catch (_) {
+                    // Tenta próxima chave candidata
+                }
+            }
+        }
+
+        // Prioridade 4: Proxy HTTP/HTTPS direto caso seja URL externa
+        if (row.foto_path && (row.foto_path.startsWith('http://') || row.foto_path.startsWith('https://'))) {
             const https = require('https');
             const http  = require('http');
             const lib = row.foto_path.startsWith('https://') ? https : http;
@@ -6329,20 +6399,7 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             return;
         }
 
-        let file_path = row.foto_path;
-        if (file_path.startsWith('files/') || file_path.startsWith('files\\')) {
-            file_path = path.join(BASE_PATH, '..', file_path.replace(/^files[\/]/, ''));
-        } else if (file_path.startsWith('Colaboradores/') || file_path.startsWith('Colaboradores\\')) {
-            file_path = path.join(BASE_PATH, '..', file_path);
-        }
-        file_path = path.normalize(file_path);
-        if (!path.isAbsolute(file_path)) file_path = path.resolve(file_path);
-
-        if (!fs.existsSync(file_path)) {
-            return res.status(404).json({ error: 'Arquivo fàsico nao encontrado' });
-        }
-
-        res.sendFile(file_path);
+        return res.status(404).json({ error: 'Foto nao encontrada' });
     });
 });
 

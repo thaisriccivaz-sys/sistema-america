@@ -58,16 +58,18 @@
         renderTela();
     };
 
-    function avatarHtml(foto, nome, size, b64) {
+    function avatarHtml(foto, nome, size, b64, colabId) {
         var base=(typeof API_URL!=='undefined')?API_URL.replace('/api',''):'';
         var initial = (nome||'A').charAt(0).toUpperCase();
         var colors = ['#f87171','#fb923c','#fbbf24','#a3e635','#4ade80','#2dd4bf','#38bdf8','#818cf8','#a78bfa','#e879f9','#f43f5e'];
         var color = colors[(nome||'a').charCodeAt(0) % colors.length];
-        var src = b64 ? b64 : (foto ? (foto.startsWith('http')?foto:base+'/'+foto) : null);
+        var dv = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+(size*0.4)+'px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">'+initial+'</div>';
+        var dvHidden = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:'+(size*0.4)+'px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">'+initial+'</div>';
+        var src = b64 ? b64 : (colabId && foto ? base + '/api/colaboradores/foto/' + colabId : (foto ? (foto.startsWith('http')?foto:base+'/'+foto) : null));
         if (src) {
-            return '<img src="'+src+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">';
+            return '<img src="'+src+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' + dvHidden;
         }
-        return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+(size*0.4)+'px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">'+initial+'</div>';
+        return dv;
     }
 
     function statusBadge(s) {
@@ -112,7 +114,7 @@
             var emailHtml = myE.map(e => '<div style="margin-bottom:4px;"><div style="font-weight:600;color:#2563eb;">'+e.endereco+'</div><div style="font-size:0.72rem;color:#64748b;">'+(e.plataforma||'-')+'</div></div>').join('');
             var devHtml = myE.map(e => '<button onclick="window.emailsOpenModalDevolver('+e.id+',\''+c.nome_completo.replace(/'/g,"\\'")+'\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;margin-bottom:4px;display:block;"><i class="ph ph-arrow-u-up-left"></i> Devolver '+e.endereco+'</button>').join('');
 
-            rows += '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.foto_path, c.nome_completo, 40, c.foto_base64)+'<div><div style="font-weight:700;color:#0f172a;">'+c.nome_completo+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.departamento||'-')+'</div></div></div></td>'+
+            rows += '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.foto_path, c.nome_completo, 40, c.foto_base64, c.id)+'<div><div style="font-weight:700;color:#0f172a;">'+c.nome_completo+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.departamento||'-')+'</div></div></div></td>'+
             '<td style="padding:0.75rem;">'+emailHtml+'</td>'+
             '<td style="padding:0.75rem;">'+devHtml+'</td></tr>';
         });
@@ -123,7 +125,7 @@
         if(cSemF.length > 0) {
             rows += '<tr><td colspan="3" style="padding:0.5rem 0.75rem;background:#fef3c7;border-bottom:1px solid #fde68a;"><span style="font-size:0.75rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;"><i class="ph ph-warning-circle"></i> Sem E-mail ('+cSemF.length+')</span></td></tr>';
             cSemF.forEach(c => {
-                rows += '<tr style="border-bottom:1px solid #fffbeb;background:#fffbeb;"><td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.foto_path, c.nome_completo, 40, c.foto_base64)+'<div><div style="font-weight:700;color:#92400e;">'+c.nome_completo+'</div><div style="font-size:0.72rem;color:#b45309;">'+(c.departamento||'-')+'</div></div></div></td>'+
+                rows += '<tr style="border-bottom:1px solid #fffbeb;background:#fffbeb;"><td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.foto_path, c.nome_completo, 40, c.foto_base64, c.id)+'<div><div style="font-weight:700;color:#92400e;">'+c.nome_completo+'</div><div style="font-size:0.72rem;color:#b45309;">'+(c.departamento||'-')+'</div></div></div></td>'+
                 '<td style="padding:0.75rem;"><span style="font-size:0.8rem;color:#b45309;font-style:italic;">Sem e-mail atribuído</span></td>'+
                 '<td style="padding:0.75rem;"><button onclick="window.emailsOpenModalAtribuir(null,'+c.id+')" style="background:#e67700;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;font-weight:700;"><i class="ph ph-link"></i> Atribuir E-mail</button></td></tr>';
             });

@@ -32,20 +32,27 @@
         var parts = nome.trim().split(/\s+/);
         return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
     }
-    function avatarHtml(fotoPath, nome, size, fotoBase64) {
+    function avatarHtml(fotoPath, nome, size, fotoBase64, colabId) {
         size = size || 44;
         var ini = iniciais(nome);
         var colors = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#0891b2'];
         var col = colors[ini.charCodeAt(0) % colors.length];
         var fs2 = Math.round(size * 0.35);
         var dv = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+col+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+fs2+'px;flex-shrink:0;">'+ini+'</div>';
-        // Preferir base64 (persiste entre deploys no Render)
-        if (fotoBase64) return '<img src="'+fotoBase64+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' + dv.replace('flex-shrink:0;">', 'flex-shrink:0;display:none">');
-        if (!fotoPath) return dv;
+        var dvHidden = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+col+';color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:'+fs2+'px;flex-shrink:0;">'+ini+'</div>';
         var base = (typeof API_URL !== 'undefined') ? API_URL.replace('/api','') : '';
-        // Escapar aspas duplas como &quot; para nÃ£o quebrar o atributo onerror="..."
-        var dvEsc = dv.replace(/"/g, '&quot;');
-        return '<img src="'+base+'/'+fotoPath+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.outerHTML=\''+dvEsc+'\'">';
+        var src = '';
+        if (fotoBase64) {
+            src = fotoBase64.indexOf('data:') === 0 ? fotoBase64 : 'data:image/jpeg;base64,' + fotoBase64;
+        } else if (colabId && fotoPath) {
+            src = base + '/api/colaboradores/foto/' + colabId;
+        } else if (fotoPath) {
+            src = (fotoPath.indexOf('http://') === 0 || fotoPath.indexOf('https://') === 0 || fotoPath.indexOf('data:') === 0)
+                ? fotoPath
+                : base + '/' + fotoPath.replace(/^\/+/, '');
+        }
+        if (!src) return dv;
+        return '<img src="'+src+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' + dvHidden;
     }
     function statusBadge(s) {
         var m = {
@@ -296,7 +303,7 @@
                 var nome = c.nome_completo || '-';
                 rows += '<tr style="border-bottom:1px solid #fef3c7;background:#fffbeb;cursor:pointer;" onclick="window.celularesOpenModalAtribuir(null,null,'+c.id+')" onmouseover="this.style.background=\'#fef9c3\'" onmouseout="this.style.background=\'#fffbeb\'">';
                 rows += '<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">';
-                rows += avatarHtml(c.foto_path, nome, 40, c.foto_base64);
+                rows += avatarHtml(c.foto_path, nome, 40, c.foto_base64, c.id);
                 rows += '<div><div style="font-weight:700;font-size:0.85rem;color:#92400e;">'+nome+'</div>';
                 rows += '<div style="font-size:0.72rem;color:#b45309;"><i class="ph ph-buildings" style="margin-right:3px;"></i>'+(c.departamento || '-')+' &middot; '+(c.cargo || '-')+'</div>';
                 rows += '</div></div></td>';
@@ -328,7 +335,7 @@
             var colabObj = a.colaborador_id ? _colaboradores.find(function(col){ return String(col.id) === String(a.colaborador_id); }) : null;
             var deptCargoHtml = colabObj ? '<div style="font-size:0.72rem;color:#64748b;"><i class="ph ph-buildings" style="margin-right:3px;"></i>'+(colabObj.departamento || '-')+' &middot; '+(colabObj.cargo || '-')+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':deptCargoHtml)+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(a.colab_foto,nome,40,a.colab_foto_base64,a.colaborador_id)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':deptCargoHtml)+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+fotoApThumb+'<div><div style="font-weight:600;display:flex;align-items:center;">'+(a.modelo||'-')+obsIcon(a.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">Pat.: '+(a.patrimonio||'-')+'</div><div style="font-size:0.72rem;color:#64748b;font-family:monospace;">IMEI: '+a.imei1+'</div></div></div></td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;">'+(a.chip_numero
@@ -351,7 +358,7 @@
             var colabObjC = c.colaborador_id ? _colaboradores.find(function(col){ return String(col.id) === String(c.colaborador_id); }) : null;
             var deptCargoHtmlC = colabObjC ? '<div style="font-size:0.72rem;color:#64748b;"><i class="ph ph-buildings" style="margin-right:3px;"></i>'+(colabObjC.departamento || '-')+' &middot; '+(colabObjC.cargo || '-')+'</div>' : '';
             rows+='<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">';
-            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':deptCargoHtmlC)+'</div></div></td>';
+            rows+='<td style="padding:0.75rem;"><div style="display:flex;align-items:center;gap:0.6rem;">'+avatarHtml(c.colab_foto,nome,40,c.colab_foto_base64,c.colaborador_id)+'<div><div style="font-weight:700;font-size:0.85rem;color:'+(isAv?'#7c3aed':'#0f172a')+';">'+nome+'</div>'+(isAv?'<div style="font-size:0.72rem;color:#7c3aed;font-weight:600;">Responsavel Avulso</div>':deptCargoHtmlC)+'</div></div></td>';
             rows+='<td style="padding:0.75rem;">'+situacaoBadge(isAv ? '' : colabSt)+'</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;color:#94a3b8;font-style:italic;">Apenas chip</td>';
             rows+='<td style="padding:0.75rem;font-size:0.83rem;"><div style="font-weight:600;color:#2563eb;display:flex;align-items:center;">'+fmtTel(c.numero)+obsIcon(c.observacao)+'</div><div style="font-size:0.72rem;color:#64748b;">'+(c.operadora||'')+'</div></td>';
@@ -551,7 +558,7 @@
                            (h.chip_numero2?' - Chip 2: '+h.chip_numero2+(h.chip_operadora2?' ('+h.chip_operadora2+')':''):'')+
                            (h.aparelho_modelo?' - Aparelho: '+h.aparelho_modelo:'');
                 var imeis=h.imei1?'<br><span style="font-family:monospace;font-size:0.7rem;">IMEI1: '+h.imei1+(h.imei2?' - IMEI2: '+h.imei2:'')+'</span>':'';
-                html+='<div style="display:flex;align-items:center;gap:0.75rem;background:'+(ativo?'#fff7ed':'#fff')+';border:1px solid '+(ativo?'#fed7aa':'#e2e8f0')+';border-radius:8px;padding:0.5rem 0.75rem;">'+avatarHtml(h.colab_foto,hn,32)+
+                html+='<div style="display:flex;align-items:center;gap:0.75rem;background:'+(ativo?'#fff7ed':'#fff')+';border:1px solid '+(ativo?'#fed7aa':'#e2e8f0')+';border-radius:8px;padding:0.5rem 0.75rem;">'+avatarHtml(h.colab_foto,hn,32,null,h.colaborador_id)+
                       '<div style="flex:1;"><div style="font-weight:600;font-size:0.82rem;">'+hn+'</div>'+
                       '<div style="font-size:0.72rem;color:#64748b;">'+fmtData(h.data_inicio)+' -> '+(h.data_fim?fmtData(h.data_fim):'<strong style="color:#e67700;">Em uso</strong>')+extra+imeis+(h.observacao?'<br><em>'+h.observacao+'</em>':'')+'</div></div>'+
                       (ativo?'<span style="background:#fed7aa;color:#9a3412;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Atual</span>':'')+
