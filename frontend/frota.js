@@ -207,7 +207,9 @@ function renderCardsFrota() {
 
   const ct = document.getElementById('frota-contador');
   if (ct) {
-      ct.innerHTML = `<i class="ph ph-truck" style="font-size:1.1rem;margin-right:6px;"></i>${rows.length} ${rows.length === 1 ? 'veículo listado' : 'veículos listados'}`;
+      const qtdParados = rows.filter(v => v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true).length;
+      const qtdRodando = rows.length - qtdParados;
+      ct.innerHTML = `<i class="ph ph-truck" style="font-size:1.1rem;margin-right:6px;"></i>${rows.length} ${rows.length === 1 ? 'veículo' : 'veículos'} <span style="font-weight:600;color:#15803d;margin-left:4px;">(${qtdRodando} rodando${qtdParados > 0 ? ` • <span style="color:#dc2626;font-weight:800;">${qtdParados} parado${qtdParados > 1 ? 's' : ''}</span>` : ''})</span>`;
   }
 
   if (!rows || !rows.length) {
@@ -217,10 +219,7 @@ function renderCardsFrota() {
 
     tb.innerHTML = rows.map(v => {
     const alerta = alertaPlaca(v.placa, v.exercicio, v.tipo_veiculo);
-    const statusManut = (window._frotaStatusManut || {})[v.id] || {};
     const emManutencao = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
-    const kPatterns = (window._manutDados || []).filter(m => m.veiculo_id === v.id && m.status === 'agendada' && m.km_proxima_manutencao && v.km_atual && (m.km_proxima_manutencao - v.km_atual) <= 1000);
-    const manutPreventivaPendente = kPatterns.length > 0;
     
     let borderColor = '#2d9e5f'; 
     let statusLabel = 'OK';
@@ -231,25 +230,19 @@ function renderCardsFrota() {
         borderColor = '#dc2626';
         statusLabel = '\u2716';
         placaColor = '#dc2626';
-    } else if (manutPreventivaPendente || alerta === 'vencendo' || !v.exercicio) {
+    } else if (alerta === 'vencendo' || !v.exercicio) {
         borderColor = '#f59e0b';
         statusLabel = '!';
         textColor = '#fff';
         placaColor = '#d97706';
     }
 
-    // Status ativo da manutenção: 'agendada', 'em_andamento', ou null
-    const statusManutAtivo = v.status_manutencao_ativo || (emManutencao ? 'agendada' : null);
-    const manutCor = statusManutAtivo === 'em_andamento' ? '#dc2626' : statusManutAtivo === 'agendada' ? '#d97706' : null;
-    const manutRibbonCor = statusManutAtivo === 'em_andamento' ? '#dc2626' : statusManutAtivo === 'agendada' ? '#d97706' : '#64748b';
+    // Status ativo da manutenção: só existe quando o veículo está efetivamente parado (corretiva parado ou revisão em andamento)
+    const statusManutAtivo = emManutencao ? (v.status_manutencao_ativo || 'em_andamento') : null;
+    const manutRibbonCor = '#dc2626';
 
-    const alertaManutStatus = statusManut.alerta_manutencao || 'ok';
-    const cardBg = emManutencao
-        ? (statusManutAtivo === 'em_andamento' ? '#fff5f5' : '#fffdf0')
-        : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '#fffbeb' : '#fff';
-    const cardBorder = emManutencao
-        ? (statusManutAtivo === 'em_andamento' ? '2px solid #fca5a5' : '2px solid #fde68a')
-        : (alertaManutStatus === 'vencida' || alertaManutStatus === 'proxima' || manutPreventivaPendente) ? '2px solid #fcd34d' : '1px solid #e2e8f0';
+    const cardBg = emManutencao ? '#fff5f5' : '#fff';
+    const cardBorder = emManutencao ? '2px solid #fca5a5' : '1px solid #e2e8f0';
 
     const manutRibbon = emManutencao ? `
         <div style="position:absolute;top:0;left:0;width:0;height:0;border-top:60px solid ${manutRibbonCor};border-right:60px solid transparent;z-index:2;"></div>
@@ -277,10 +270,13 @@ function renderCardsFrota() {
         
         <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
             
-            <!-- Placa (Cor dinamica baseada no status) -->
+            <!-- Placa (Cor dinamica baseada no status) + Badge de Veículo Parado -->
             <div style="display:flex;flex-direction:column;gap:0.1rem;margin-bottom:0.1rem;">
                 <span style="font-weight:600;color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;">Placa</span>
-                <span style="font-weight:800;color:${placaColor};font-size:1.2rem;">${v.placa||'N/D'}</span>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-weight:800;color:${placaColor};font-size:1.2rem;">${v.placa||'N/D'}</span>
+                    ${emManutencao ? '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;display:inline-flex;align-items:center;gap:4px;letter-spacing:0.3px;"><i class="ph-fill ph-prohibit"></i> VEÍCULO PARADO</span>' : ''}
+                </div>
             </div>
             
             <!-- Marca/Modelo/Versão sem label e com borda -->
@@ -622,24 +618,24 @@ window._mnCardCorrItemChange = function(cbEl) {
     if (wrap) wrap.style.display = chkOutros ? 'block' : 'none';
 };
 
-// ── Popup de Manutenção no Card do Veículo ─────────────────────────────────
+// ── Popup de Manutenção no Card do Veículo (Corretiva ou Revisão) ──────────
 window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo) {
     const v = (window._frotaDados||[]).find(x => x.id === vid);
     if (!v) return;
 
     const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
 
-    // Buscar serviços preventivos do veículo e categorias de manutenção corretiva
-    let servicosPreventivos = [];
+    // Buscar revisões do veículo e categorias de manutenção corretiva
+    let revisoesVeic = [];
     let gruposCorretiva = window._FROTA_CARD_GRUPOS_PADRAO;
     try {
-        const [rPrev, rCats] = await Promise.all([
-            fetch(`/api/frota/manutencoes/preventivo/${vid}`, { headers: { Authorization: 'Bearer ' + tok } }).catch(() => null),
+        const [rRev, rCats] = await Promise.all([
+            fetch(`/api/frota/revisoes/${vid}`, { headers: { Authorization: 'Bearer ' + tok } }).catch(() => null),
             fetch('/api/frota/categorias', { headers: { Authorization: 'Bearer ' + tok } }).catch(() => null)
         ]);
-        if (rPrev && rPrev.ok) {
-            const d = await rPrev.json();
-            servicosPreventivos = Object.values(d.grupos || {}).flatMap(g => g.itens || []);
+        if (rRev && rRev.ok) {
+            const dRev = await rRev.json();
+            revisoesVeic = Array.isArray(dRev.revisoes) ? dRev.revisoes : [];
         }
         if (rCats && rCats.ok) {
             const cats = await rCats.json();
@@ -647,7 +643,7 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
         }
     } catch(e) {}
 
-    // Montar lista de categorias e subcategorias da manutenção corretiva (igual à tela de sinistro)
+    // Montar lista de categorias e subcategorias da manutenção corretiva
     let categoriasCorretivaHtml = '';
     gruposCorretiva.forEach(function(g) {
         const gIco = g.icone || 'ph-wrench';
@@ -664,24 +660,30 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
         categoriasCorretivaHtml += '</div>';
     });
 
-    // Montar lista de checkboxes preventivos
-    const servicosHtml = servicosPreventivos.length
-        ? servicosPreventivos.map(s => `
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid #e2e8f0;background:#fafafa;margin-bottom:4px;" id="mn-card-svc-lbl-${s.servico_catalogo_id||s.id}">
-                <input type="checkbox" value="${s.servico_catalogo_id||s.id}" data-nome="${(s.nome||s.descricao||'').replace(/"/g,'&quot;')}" class="mn-card-svc-cb"
-                    style="width:15px;height:15px;cursor:pointer;"
-                    onchange="this.closest('label').style.background=this.checked?'#eff6ff':'#fafafa';this.closest('label').style.borderColor=this.checked?'#3b82f6':'#e2e8f0'">
-                <span style="font-size:0.83rem;color:#1e293b;">${s.nome||s.descricao||'—'}</span>
-                <span style="margin-left:auto;font-size:0.72rem;color:${(s.status_item==='vencida')?'#dc2626':(s.status_item==='proxima')?'#d97706':'#10b981'};">
-                    ${s.status_item==='vencida'?'⚠️ Vencida':(s.status_item==='proxima')?'🔶 Próxima':'✅ OK'}
-                </span>
-            </label>`).join('')
-        : '<p style="color:#94a3b8;text-align:center;font-size:0.85rem;margin:8px 0;">Nenhum serviço preventivo cadastrado para este veículo.</p>';
+    // Montar opções de marcos de Revisão do veículo
+    const passoKm = Number(v.uso_severo) === 1 ? 5000 : 10000;
+    const passoMeses = Number(v.uso_severo) === 1 ? 6 : 12;
+    const kmAtual = Number(v.km_atual || 0);
+    const maxMarco = Math.max(100000, Math.ceil((kmAtual + passoKm * 2) / passoKm) * passoKm);
+    const mapRev = {};
+    revisoesVeic.forEach(r => { mapRev[Number(r.marco_km)] = r; });
+    let opcoesMarcosHtml = '';
+    let proximoMarcoSugerido = null;
+    for (let km = passoKm, idx = 1; km <= maxMarco; km += passoKm, idx++) {
+        const reg = mapRev[km];
+        if (reg && reg.status === 'realizada') continue;
+        if (!proximoMarcoSugerido) proximoMarcoSugerido = km;
+        const meses = idx * passoMeses;
+        const stTxt = (reg && reg.status === 'agendada')
+            ? ('Agendada' + (reg.data_revisao ? ' para ' + String(reg.data_revisao).split('T')[0].split('-').reverse().join('/') : ''))
+            : (kmAtual >= km ? 'Vencida por KM' : 'Pendente');
+        opcoesMarcosHtml += `<option value="${km}" data-meses="${meses}" ${km === proximoMarcoSugerido ? 'selected' : ''}>${idx}ª Revisão — ${km.toLocaleString('pt-BR')} km / ${meses} meses (${stTxt})</option>`;
+    }
 
     const bannerEmManut = emManutencao ? `
         <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
             <div style="font-size:0.82rem;color:#9a3412;font-weight:600;">
-                <i class="ph ph-warning-circle" style="margin-right:4px;"></i>Este veículo possui manutenção ativa em andamento/parado.
+                <i class="ph ph-warning-circle" style="margin-right:4px;"></i>Este veículo possui manutenção/revisão ativa com veículo parado.
             </div>
             <button type="button" onclick="document.getElementById('mn-card-popup').remove(); window._abrirFormFinalizacaoManutencaoCard(${vid}, '${statusAtivo||''}');"
                 style="padding:6px 12px;border:none;border-radius:6px;background:#dc2626;color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
@@ -715,21 +717,21 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
         <!-- Body -->
         <div style="padding:20px 22px;">
             ${bannerEmManut}
-            <!-- Tipo de manutenção -->
+            <!-- Tipo de manutenção: Corretiva ou Revisão -->
             <div style="margin-bottom:18px;">
                 <p style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">Tipo de Manutenção</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <button id="mn-card-tipo-prev" onclick="window._mnCardSelecionarTipo('preventiva')"
-                        style="padding:14px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;">
-                        <i class="ph ph-calendar-check" style="font-size:1.8rem;color:#0284c7;"></i>
-                        <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Preventiva</span>
-                        <span style="font-size:0.72rem;color:#64748b;text-align:center;">Serviços planejados</span>
-                    </button>
                     <button id="mn-card-tipo-corr" onclick="window._mnCardSelecionarTipo('corretiva')"
                         style="padding:14px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;">
                         <i class="ph ph-warning" style="font-size:1.8rem;color:#dc2626;"></i>
                         <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Corretiva</span>
                         <span style="font-size:0.72rem;color:#64748b;text-align:center;">Defeito / problema</span>
+                    </button>
+                    <button id="mn-card-tipo-rev" onclick="window._mnCardSelecionarTipo('revisao')"
+                        style="padding:14px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:.15s;">
+                        <i class="ph ph-seal-check" style="font-size:1.8rem;color:#7c3aed;"></i>
+                        <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Revisão</span>
+                        <span style="font-size:0.72rem;color:#64748b;text-align:center;">Plano de revisão por KM</span>
                     </button>
                 </div>
             </div>
@@ -738,12 +740,12 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
                 <div>
                     <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
-                        <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início
+                        <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início / Revisão
                     </label>
                     <input type="date" id="mn-card-data" value="${(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})()}"
                         style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                 </div>
-                <div>
+                <div id="mn-card-wrap-data-fim">
                     <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
                         <i class="ph ph-calendar-check" style="margin-right:4px;color:#059669;"></i>Data de Fim <span style="font-weight:400;text-transform:none;font-size:0.72rem;color:#94a3b8;">(opcional)</span>
                     </label>
@@ -786,24 +788,30 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
                     style="width:100%;padding:10px 12px;border:1.5px solid #fca5a5;border-radius:8px;font-size:0.88rem;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;background:#fff5f5;"></textarea>
             </div>
 
-            <!-- Seção Preventiva: lista de serviços -->
-            <div id="mn-card-sec-preventiva" style="display:none;margin-bottom:18px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">
-                        <i class="ph ph-list-checks" style="margin-right:4px;color:#0284c7;"></i>Serviços a Realizar
+            <!-- Seção Revisão: seleção do marco de KM da revisão -->
+            <div id="mn-card-sec-revisao" style="display:none;margin-bottom:18px;">
+                <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:14px;">
+                    <label style="font-size:0.8rem;font-weight:700;color:#5b21b6;display:block;margin-bottom:6px;">
+                        <i class="ph ph-seal-check" style="margin-right:4px;"></i>Selecione o Marco da Revisão *
                     </label>
-                    <button onclick="document.querySelectorAll('.mn-card-svc-cb').forEach(cb=>{cb.checked=true;cb.closest('label').style.background='#eff6ff';cb.closest('label').style.borderColor='#3b82f6';})"
-                        style="background:none;border:none;color:#0284c7;font-size:0.78rem;cursor:pointer;font-weight:600;">Selecionar todos</button>
-                </div>
-                <div style="max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px;">
-                    ${servicosHtml}
+                    <select id="mn-card-rev-marco" style="width:100%;padding:10px 12px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:0.88rem;font-weight:700;color:#1e293b;background:#fff;margin-bottom:10px;">
+                        ${opcoesMarcosHtml}
+                    </select>
+                    <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações da Revisão (opcional)</label>
+                    <textarea id="mn-card-rev-obs" rows="2" placeholder="Concessionária, detalhes do agendamento..." style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;font-family:inherit;"></textarea>
+                    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <span style="font-size:0.75rem;color:#6d28d9;">Ao agendar para hoje ou data anterior, o veículo fica marcado como Parado até a conclusão da revisão.</span>
+                        <button type="button" onclick="window._mnCardIrParaRevisao(${vid})" style="background:#fff;color:#7c3aed;border:1px solid #c4b5fd;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">
+                            Abrir Painel de Revisões →
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <!-- Aviso: escolha um tipo -->
             <div id="mn-card-aviso-tipo" style="text-align:center;padding:16px;background:#f8fafc;border-radius:10px;color:#94a3b8;font-size:0.85rem;margin-bottom:8px;">
                 <i class="ph ph-arrow-up" style="display:block;font-size:1.5rem;margin-bottom:4px;"></i>
-                Selecione o tipo de manutenção acima
+                Selecione o tipo de manutenção acima (Corretiva ou Revisão)
             </div>
 
             <!-- Botões de ação -->
@@ -824,19 +832,29 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
 };
 window._abrirFormFinalizacaoManutencaoCard = _abrirFormFinalizacaoManutencao;
 
+window._mnCardIrParaRevisao = function(vid) {
+    document.getElementById('mn-card-popup')?.remove();
+    window._mnRevVeicId = vid;
+    window._mnSubAba = 'revisao';
+    window._mnSubAbaInicial = 'revisao';
+    window.trocarAbaFrota('manutencoes');
+};
+
 window._mnCardSelecionarTipo = function(tipo) {
-    const btnPrev = document.getElementById('mn-card-tipo-prev');
+    const btnRev = document.getElementById('mn-card-tipo-rev');
     const btnCorr = document.getElementById('mn-card-tipo-corr');
-    const secPrev = document.getElementById('mn-card-sec-preventiva');
+    const secRev = document.getElementById('mn-card-sec-revisao');
     const secCorr = document.getElementById('mn-card-sec-corretiva');
+    const wrapFim = document.getElementById('mn-card-wrap-data-fim');
     const aviso = document.getElementById('mn-card-aviso-tipo');
     const btnConf = document.getElementById('mn-card-btn-confirmar');
     window._mnCardTipoAtual = tipo;
 
-    if (btnPrev) { btnPrev.style.borderColor = tipo==='preventiva'?'#0284c7':'#e2e8f0'; btnPrev.style.background = tipo==='preventiva'?'#eff6ff':'#f8fafc'; }
+    if (btnRev) { btnRev.style.borderColor = tipo==='revisao'?'#7c3aed':'#e2e8f0'; btnRev.style.background = tipo==='revisao'?'#f5f3ff':'#f8fafc'; }
     if (btnCorr) { btnCorr.style.borderColor = tipo==='corretiva'?'#dc2626':'#e2e8f0'; btnCorr.style.background = tipo==='corretiva'?'#fff5f5':'#f8fafc'; }
-    if (secPrev) secPrev.style.display = tipo==='preventiva'?'block':'none';
+    if (secRev) secRev.style.display = tipo==='revisao'?'block':'none';
     if (secCorr) secCorr.style.display = tipo==='corretiva'?'block':'none';
+    if (wrapFim) wrapFim.style.display = tipo==='revisao'?'none':'block';
     if (aviso) aviso.style.display = 'none';
     if (btnConf) { btnConf.style.opacity='1'; btnConf.style.pointerEvents='auto'; }
 };
@@ -846,7 +864,7 @@ window._mnCardConfirmar = async function(vid) {
     if (!tipo) return;
     const data = document.getElementById('mn-card-data')?.value;
     const dataFim = document.getElementById('mn-card-data-fim')?.value;
-    if (data && dataFim && dataFim < data) {
+    if (tipo === 'corretiva' && data && dataFim && dataFim < data) {
         alert('A Data de Fim não pode ser anterior à Data de Início.');
         return;
     }
@@ -879,9 +897,17 @@ window._mnCardConfirmar = async function(vid) {
         body.itens_solicitados = itensTexto;
         body.observacoes = defeitoObs || null;
         body.descricao_corretiva = itensTexto + (defeitoObs ? ': ' + defeitoObs : '');
-    } else {
-        const cbs = [...document.querySelectorAll('.mn-card-svc-cb:checked')];
-        body.servicos_preventivos = cbs.map(cb => ({ id: parseInt(cb.value), nome: cb.dataset.nome || 'Preventiva' }));
+    } else if (tipo === 'revisao') {
+        const selMarco = document.getElementById('mn-card-rev-marco');
+        const marcoKm = parseInt(selMarco?.value || '0', 10);
+        if (!marcoKm) {
+            alert('Selecione o marco de KM da revisão.');
+            return;
+        }
+        const opt = selMarco.options[selMarco.selectedIndex];
+        body.marco_km = marcoKm;
+        body.marco_meses = parseInt(opt?.getAttribute('data-meses') || '12', 10);
+        body.observacoes = (document.getElementById('mn-card-rev-obs')?.value || '').trim() || null;
     }
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Salvando...'; }
@@ -894,7 +920,7 @@ window._mnCardConfirmar = async function(vid) {
         });
         if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro'); }
         document.getElementById('mn-card-popup')?.remove();
-        mostrarToastAviso(tipo === 'corretiva' ? '✅ Solicitação de manutenção corretiva criada como Novo!' : `✅ Manutenção ${tipo} agendada com sucesso!`);
+        mostrarToastAviso(tipo === 'corretiva' ? '✅ Solicitação de manutenção corretiva criada!' : '✅ Revisão agendada com sucesso!');
         window.initFrotaVeiculos();
         if (typeof window.mnCarregarCorretivas === 'function' && document.getElementById('mn-corr-tbody')) {
             window.mnCarregarCorretivas();

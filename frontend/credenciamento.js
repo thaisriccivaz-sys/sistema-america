@@ -1590,13 +1590,20 @@ window.copiarDadosCredenciamento = function(id) {
 let _solDocState = {
     colaboradores: [],
     veiculos: [],
+    licencas: [],
     colabsSelecionados: new Set(),
     veiculosSelecionados: new Set(),
+    licencasSelecionadas: new Set(),
+    licEmpresaAtiva: 'América Rental',
     step: 1 // 1=form, 2=selecao, 3=resultado
 };
 
 window.abrirModalSolicitarDocumentos = async function() {
-    // Injeta o modal se não existir
+    // Injeta o modal se não existir (ou se for versão anterior sem aba de licenças)
+    const oldModal = document.getElementById('modal-solicitar-docs');
+    if (oldModal && !document.getElementById('sol-tab-lics')) {
+        oldModal.remove();
+    }
     if (!document.getElementById('modal-solicitar-docs')) {
         const div = document.createElement('div');
         div.id = 'modal-solicitar-docs';
@@ -1639,12 +1646,15 @@ window.abrirModalSolicitarDocumentos = async function() {
                 <!-- Step 2: Seleção -->
                 <div id="sol-step-2" style="display:none;">
                     <!-- Abas -->
-                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:-2px;">
+                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:-2px; flex-wrap:wrap;">
                         <button id="sol-tab-colabs" onclick="solDocsSwitchTab('colabs')" style="padding:8px 18px; border:none; border-bottom:3px solid #7c3aed; background:transparent; color:#7c3aed; font-weight:700; cursor:pointer; font-size:0.9rem; margin-bottom:-2px;">
                             <i class="ph ph-users"></i> Colaboradores <span id="sol-badge-colabs" style="background:#ede9fe; color:#7c3aed; border-radius:10px; padding:1px 7px; font-size:0.75rem; margin-left:4px;">0</span>
                         </button>
                         <button id="sol-tab-veics" onclick="solDocsSwitchTab('veics')" style="padding:8px 18px; border:none; border-bottom:3px solid transparent; background:transparent; color:#64748b; font-weight:600; cursor:pointer; font-size:0.9rem; margin-bottom:-2px;">
                             <i class="ph ph-truck"></i> Veículos <span id="sol-badge-veics" style="background:#f1f5f9; color:#64748b; border-radius:10px; padding:1px 7px; font-size:0.75rem; margin-left:4px;">0</span>
+                        </button>
+                        <button id="sol-tab-lics" onclick="solDocsSwitchTab('lics')" style="padding:8px 18px; border:none; border-bottom:3px solid transparent; background:transparent; color:#64748b; font-weight:600; cursor:pointer; font-size:0.9rem; margin-bottom:-2px;">
+                            <i class="ph ph-certificate"></i> Licenças <span id="sol-badge-lics" style="background:#f1f5f9; color:#64748b; border-radius:10px; padding:1px 7px; font-size:0.75rem; margin-left:4px;">0</span>
                         </button>
                     </div>
 
@@ -1661,6 +1671,20 @@ window.abrirModalSolicitarDocumentos = async function() {
                         <input type="text" placeholder="🔍 Buscar placa ou modelo..." oninput="solDocsFiltrar('sol-lista-veics', this.value)" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; margin-bottom:10px; font-size:0.9rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
                         <div id="sol-lista-veics" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
                             <p style="text-align:center; padding:20px; color:#94a3b8;">Carregando...</p>
+                        </div>
+                    </div>
+
+                    <!-- Painel Licenças (América Rental, BRK, Attend Ambiental) -->
+                    <div id="sol-panel-lics" style="display:none;">
+                        <div id="sol-lics-emp-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;"></div>
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                            <input type="text" id="sol-busca-lics" placeholder="🔍 Buscar licença..." oninput="solDocsFiltrar('sol-lista-lics', this.value)" style="flex:1; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
+                            <button type="button" onclick="solDocsToggleTodasLicencasEmpresa()" style="padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; color:#475569; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                                Marcar/Desmarcar empresa
+                            </button>
+                        </div>
+                        <div id="sol-lista-lics" style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                            <p style="text-align:center; padding:20px; color:#94a3b8;">Carregando licenças...</p>
                         </div>
                     </div>
 
@@ -1697,6 +1721,8 @@ window.abrirModalSolicitarDocumentos = async function() {
     // Reset state
     _solDocState.colabsSelecionados = new Set();
     _solDocState.veiculosSelecionados = new Set();
+    _solDocState.licencasSelecionadas = new Set();
+    _solDocState.licEmpresaAtiva = 'América Rental';
     _solDocState.step = 1;
 
     document.getElementById('sol-docs-cliente').value = '';
@@ -1711,6 +1737,15 @@ window.fecharModalSolicitarDocumentos = function() {
     if (m) m.style.display = 'none';
 };
 
+function _solNormalizarEmpresaLicenca(empRaw) {
+    let emp = String(empRaw || 'Outras').trim();
+    const empStr = emp.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+    if (empStr.includes('america')) return 'América Rental';
+    if (empStr.includes('brk')) return 'BRK';
+    if (empStr.includes('attend')) return 'Attend Ambiental';
+    return emp;
+}
+
 window.solDocsProximo = async function() {
     const cliente = document.getElementById('sol-docs-cliente').value.trim();
     const os = document.getElementById('sol-docs-os').value.trim();
@@ -1723,9 +1758,10 @@ window.solDocsProximo = async function() {
     // Carregar dados
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
-        const [rC, rV] = await Promise.all([
+        const [rC, rV, rL] = await Promise.all([
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
+            fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null)
         ]);
         // Mostrar todos os colaboradores não desligados
         let _docsColabs = ((await rC.json()) || []).filter(c => {
@@ -1738,18 +1774,21 @@ window.solDocsProximo = async function() {
         });
         _docsColabs.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
         _solDocState.colaboradores = _docsColabs;
-
-
-
-
         _solDocState.veiculos = (await rV.json()) || [];
+
+        const licsRaw = (rL && rL.ok) ? (await rL.json()) : [];
+        _solDocState.licencas = (Array.isArray(licsRaw) ? licsRaw : []).map(l => Object.assign({}, l, {
+            empresa_norm: _solNormalizarEmpresaLicenca(l.empresa)
+        }));
     } catch(e) {
         _solDocState.colaboradores = [];
         _solDocState.veiculos = [];
+        _solDocState.licencas = [];
     }
 
     solDocsRenderColabs();
     solDocsRenderVeics();
+    solDocsRenderLics();
     solDocsSwitchTab('colabs');
 };
 
@@ -1766,18 +1805,17 @@ function solDocsMostrarStep(n) {
 }
 
 window.solDocsSwitchTab = function(tab) {
-    const isColabs = tab === 'colabs';
-    document.getElementById('sol-panel-colabs').style.display = isColabs ? 'block' : 'none';
-    document.getElementById('sol-panel-veics').style.display = isColabs ? 'none' : 'block';
-
-    const tColabs = document.getElementById('sol-tab-colabs');
-    const tVeics = document.getElementById('sol-tab-veics');
-    tColabs.style.borderBottomColor = isColabs ? '#7c3aed' : 'transparent';
-    tColabs.style.color = isColabs ? '#7c3aed' : '#64748b';
-    tColabs.style.fontWeight = isColabs ? '700' : '600';
-    tVeics.style.borderBottomColor = isColabs ? 'transparent' : '#7c3aed';
-    tVeics.style.color = isColabs ? '#64748b' : '#7c3aed';
-    tVeics.style.fontWeight = isColabs ? '600' : '700';
+    ['colabs', 'veics', 'lics'].forEach(t => {
+        const panel = document.getElementById('sol-panel-' + t);
+        const btn = document.getElementById('sol-tab-' + t);
+        const ativo = t === tab;
+        if (panel) panel.style.display = ativo ? 'block' : 'none';
+        if (btn) {
+            btn.style.borderBottomColor = ativo ? '#7c3aed' : 'transparent';
+            btn.style.color = ativo ? '#7c3aed' : '#64748b';
+            btn.style.fontWeight = ativo ? '700' : '600';
+        }
+    });
 };
 
 function solDocsRenderColabs() {
@@ -1815,6 +1853,83 @@ function solDocsRenderVeics() {
     solDocsAtualizarBadge();
 }
 
+window.solDocsMudarEmpresaLicenca = function(emp) {
+    _solDocState.licEmpresaAtiva = emp;
+    const buscaEl = document.getElementById('sol-busca-lics');
+    if (buscaEl) buscaEl.value = '';
+    solDocsRenderLics();
+};
+
+window.solDocsToggleTodasLicencasEmpresa = function() {
+    const emp = _solDocState.licEmpresaAtiva;
+    const licsEmp = (_solDocState.licencas || []).filter(l => (emp === 'Todas' || l.empresa_norm === emp) && (l.r2_key || l.file_path || l.file_name));
+    if (!licsEmp.length) return;
+    const todasMarcadas = licsEmp.every(l => _solDocState.licencasSelecionadas.has(String(l.id)));
+    licsEmp.forEach(l => {
+        if (todasMarcadas) _solDocState.licencasSelecionadas.delete(String(l.id));
+        else _solDocState.licencasSelecionadas.add(String(l.id));
+    });
+    solDocsRenderLics();
+};
+
+function solDocsRenderLics() {
+    const tabsEl = document.getElementById('sol-lics-emp-tabs');
+    const list = document.getElementById('sol-lista-lics');
+    if (!list) return;
+
+    const empresasFixas = ['América Rental', 'BRK', 'Attend Ambiental'];
+    const extras = [...new Set((_solDocState.licencas || []).map(l => l.empresa_norm).filter(e => e && !empresasFixas.includes(e)))];
+    const empresas = [...empresasFixas, ...extras];
+    const empAtiva = _solDocState.licEmpresaAtiva || 'América Rental';
+
+    if (tabsEl) {
+        tabsEl.innerHTML = empresas.map(emp => {
+            const ativo = emp === empAtiva;
+            const qtdSel = (_solDocState.licencas || []).filter(l => l.empresa_norm === emp && _solDocState.licencasSelecionadas.has(String(l.id))).length;
+            return `<button type="button" onclick="solDocsMudarEmpresaLicenca('${emp}')"
+                style="padding:7px 14px; border-radius:8px; border:1.5px solid ${ativo ? '#7c3aed' : '#e2e8f0'};
+                background:${ativo ? '#7c3aed' : '#f8fafc'}; color:${ativo ? '#fff' : '#475569'};
+                font-weight:${ativo ? '700' : '600'}; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                <i class="ph ph-buildings"></i> ${emp}
+                <span style="background:${ativo ? 'rgba(255,255,255,0.22)' : '#e2e8f0'}; color:${ativo ? '#fff' : '#475569'}; border-radius:999px; padding:1px 7px; font-size:0.72rem; font-weight:700;">${qtdSel}</span>
+            </button>`;
+        }).join('');
+    }
+
+    const licsFiltradas = (_solDocState.licencas || []).filter(l => l.empresa_norm === empAtiva);
+    if (!licsFiltradas.length) {
+        list.innerHTML = `<p style="text-align:center;padding:20px;color:#94a3b8;">Nenhuma licença cadastrada para ${empAtiva}.</p>`;
+        solDocsAtualizarBadge();
+        return;
+    }
+
+    const hj = new Date(); hj.setHours(0, 0, 0, 0);
+    list.innerHTML = licsFiltradas.map(l => {
+        const temAnexo = !!(l.r2_key || l.file_path || l.file_name);
+        const isVencida = l.validade && new Date(l.validade + 'T12:00:00') < hj;
+        const valFmt = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento';
+        const valBadge = isVencida
+            ? `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;font-size:0.7rem;padding:1px 6px;border-radius:6px;font-weight:700;">⚠ Vencida (${valFmt})</span>`
+            : `<span style="font-size:0.74rem;color:#64748b;">Validade: ${valFmt}</span>`;
+        const anexoBadge = temAnexo
+            ? `<span style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:0.7rem;padding:1px 6px;border-radius:6px;font-weight:700;"><i class="ph ph-file-pdf"></i> Anexada</span>`
+            : `<span style="background:#f1f5f9;color:#94a3b8;font-size:0.7rem;padding:1px 6px;border-radius:6px;font-weight:600;">Sem arquivo</span>`;
+
+        return `<label class="sol-item" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f1f5f9;cursor:${temAnexo ? 'pointer' : 'not-allowed'};opacity:${temAnexo ? '1' : '0.6'};" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" value="${l.id}" onchange="solDocsToggleLic(this)" ${_solDocState.licencasSelecionadas.has(String(l.id)) ? 'checked' : ''} ${temAnexo ? '' : 'disabled'} style="accent-color:#7c3aed;width:16px;height:16px;cursor:${temAnexo ? 'pointer' : 'not-allowed'};">
+            <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:700;font-size:0.88rem;color:#1e293b;">${l.nome || 'Licença'}</span>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:0.72rem;font-weight:700;color:#7c3aed;">${l.empresa_norm}</span>
+                    ${valBadge}
+                </div>
+            </div>
+            ${anexoBadge}
+        </label>`;
+    }).join('');
+    solDocsAtualizarBadge();
+}
+
 window.solDocsToggleColab = function(cb) {
     if (cb.checked) _solDocState.colabsSelecionados.add(String(cb.value));
     else _solDocState.colabsSelecionados.delete(String(cb.value));
@@ -1827,11 +1942,19 @@ window.solDocsToggleVeic = function(cb) {
     solDocsAtualizarBadge();
 };
 
+window.solDocsToggleLic = function(cb) {
+    if (cb.checked) _solDocState.licencasSelecionadas.add(String(cb.value));
+    else _solDocState.licencasSelecionadas.delete(String(cb.value));
+    solDocsRenderLics();
+};
+
 function solDocsAtualizarBadge() {
     const bc = document.getElementById('sol-badge-colabs');
     const bv = document.getElementById('sol-badge-veics');
+    const bl = document.getElementById('sol-badge-lics');
     const nc = _solDocState.colabsSelecionados.size;
     const nv = _solDocState.veiculosSelecionados.size;
+    const nl = _solDocState.licencasSelecionadas ? _solDocState.licencasSelecionadas.size : 0;
     if (bc) {
         bc.textContent = nc;
         bc.style.background = nc > 0 ? '#ede9fe' : '#f1f5f9';
@@ -1841,6 +1964,11 @@ function solDocsAtualizarBadge() {
         bv.textContent = nv;
         bv.style.background = nv > 0 ? '#ede9fe' : '#f1f5f9';
         bv.style.color = nv > 0 ? '#7c3aed' : '#64748b';
+    }
+    if (bl) {
+        bl.textContent = nl;
+        bl.style.background = nl > 0 ? '#ede9fe' : '#f1f5f9';
+        bl.style.color = nl > 0 ? '#7c3aed' : '#64748b';
     }
 }
 
@@ -1860,9 +1988,10 @@ window.solDocsGerarResultado = function() {
 
     const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
     const veics = [..._solDocState.veiculosSelecionados].map(id => _solDocState.veiculos.find(v => String(v.id) === id)).filter(Boolean);
+    const lics = [...(_solDocState.licencasSelecionadas || [])].map(id => (_solDocState.licencas || []).find(l => String(l.id) === id)).filter(Boolean);
 
-    if (!colabs.length && !veics.length) {
-        alert('Selecione ao menos um colaborador ou veículo.');
+    if (!colabs.length && !veics.length && !lics.length) {
+        alert('Selecione ao menos um colaborador, veículo ou licença.');
         return;
     }
 
@@ -1894,13 +2023,23 @@ window.solDocsGerarResultado = function() {
         veics.forEach((v, i) => {
             linhas.push(`${i + 1}. Placa: ${v.placa} — ${v.marca_modelo_versao || 'Sem modelo'}`);
         });
+        linhas.push('');
     }
 
-    const texto = linhas.join('\n');
+    if (lics.length) {
+        linhas.push(`📄 LICENÇAS (${lics.length})`);
+        linhas.push(`─────────────────────────────`);
+        lics.forEach((l, i) => {
+            const valFmt = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento';
+            linhas.push(`${i + 1}. [${l.empresa_norm || l.empresa || 'Empresa'}] ${l.nome} (Validade: ${valFmt})`);
+        });
+    }
+
+    const texto = linhas.join('\n').trim();
     document.getElementById('sol-resultado-card').textContent = texto;
     solDocsMostrarStep(3);
     document.getElementById('sol-docs-titulo').textContent = 'Documentos Necessários';
-    document.getElementById('sol-docs-subtitulo').textContent = `${colabs.length} colaborador(es) · ${veics.length} veículo(s)`;
+    document.getElementById('sol-docs-subtitulo').textContent = `${colabs.length} colaborador(es) · ${veics.length} veículo(s) · ${lics.length} licença(s)`;
 };
 
 window.solDocsCopiar = async function() {
@@ -1928,9 +2067,10 @@ window.solDocsCopiar = async function() {
 
 window.solDocsBaixar = function() {
     const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
+    const lics = [...(_solDocState.licencasSelecionadas || [])].map(id => (_solDocState.licencas || []).find(l => String(l.id) === id)).filter(Boolean);
     
-    if (!colabs.length) {
-        alert('Nenhum colaborador selecionado para baixar documentos.');
+    if (!colabs.length && !lics.length) {
+        alert('Nenhum colaborador ou licença selecionado para baixar documentos.');
         return;
     }
 
@@ -1939,11 +2079,25 @@ window.solDocsBaixar = function() {
     let tempo = 0;
     colabs.forEach((c) => {
         const isMotorista = c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
-        const url = isMotorista ? `/api/colaboradores/${c.id}/arquivo/cnh?token=${token}` : `/api/colaboradores/${c.id}/arquivo/cpf_rg?token=${token}`;
+        const url = isMotorista ? `/api/colaboradores/${c.id}/arquivo/cnh?token=${encodeURIComponent(token)}` : `/api/colaboradores/${c.id}/arquivo/cpf_rg?token=${encodeURIComponent(token)}`;
         
         setTimeout(() => {
             window.open(url, '_blank');
         }, tempo);
-        tempo += 500; // intervalo de meio segundo para não ser bloqueado pelo popup blocker do navegador
+        tempo += 500;
+    });
+
+    lics.forEach((l) => {
+        const url = `/api/licencas/${l.id}/view?download=1&token=${encodeURIComponent(token)}`;
+        setTimeout(() => {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }, tempo);
+        tempo += 450;
     });
 };

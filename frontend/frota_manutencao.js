@@ -26,10 +26,6 @@ window.initFrotaManutencoes = async function(containerEl) {
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:#d97706;color:#fff;">
         <i class="ph ph-wrench"></i> Corretiva
     </button>
-    <button id="mn-sub-btn-preventiva" onclick="window.mnMudarSubAba('preventiva')" 
-        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
-        <i class="ph ph-calendar-check"></i> Preventiva
-    </button>
     <button id="mn-sub-btn-revisao" onclick="window.mnMudarSubAba('revisao')" 
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
         <i class="ph ph-seal-check"></i> Revisão
@@ -53,15 +49,18 @@ window.initFrotaManutencoes = async function(containerEl) {
     window._manutFrota = window._mnOrdenarFrota ? window._mnOrdenarFrota(frota || []) : (frota || []);
     window._manutDados = manut || [];
 
-    window.mnMudarSubAba(window._mnSubAba || 'corretiva');
+    const abaInicial = window._mnSubAbaInicial || window._mnSubAba || 'corretiva';
+    window._mnSubAbaInicial = null;
+    window.mnMudarSubAba(abaInicial);
 };
 
 
 
 window.mnMudarSubAba = function(aba) {
     if (aba === 'corretivas') aba = 'corretiva';
+    if (aba === 'preventiva') aba = 'revisao';
     window._mnSubAba = aba;
-    ['corretiva','preventiva','revisao','historico'].forEach(a => {
+    ['corretiva','revisao','historico'].forEach(a => {
         const btn = document.getElementById('mn-sub-btn-' + a);
         if (!btn) return;
         btn.style.background = a === aba ? '#d97706' : 'transparent';
@@ -69,8 +68,7 @@ window.mnMudarSubAba = function(aba) {
     });
     const sub = document.getElementById('mn-sub-conteudo');
     if (!sub) return;
-    if (aba === 'preventiva') mnRenderPreventivaTela(sub);
-    else if (aba === 'corretiva') mnRenderCorretivaTela(sub);
+    if (aba === 'corretiva') mnRenderCorretivaTela(sub);
     else if (aba === 'revisao') window.mnRenderRevisaoTela(sub);
     else mnRenderHistoricoTela(sub);
 };
