@@ -16001,8 +16001,8 @@ async function checkUserNotificacoes() {
                     const modTxt = dados.modelo ? ' - ' + dados.modelo : '';
                     const isParado = dados.veiculo_rodando === 'nao';
                     const rodBadge = isParado
-                        ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🔴 Não, está parado (indisponível)</span>'
-                        : '<span style="display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🟢 Sim, está rodando (agendar)</span>';
+                        ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🔴 VEÍCULO PARADO</span>'
+                        : '<span style="display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🟢 VEÍCULO RODANDO</span>';
                     contentHTML = `
                         <div style="font-weight:800;font-size:0.95rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;">
                             <i class="ph ${icon}"></i> ${titulo}

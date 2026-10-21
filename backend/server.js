@@ -23711,7 +23711,7 @@ async function _fmNotificarSolicitacaoManutencao(opts) {
         const placa = (veic && veic.placa) || opts.placa || 'Veículo';
         const modelo = (veic && veic.marca_modelo_versao) || opts.modelo || '';
         const rodVal = opts.veiculo_rodando === 'nao' ? 'nao' : 'sim';
-        const rodLabel = rodVal === 'nao' ? 'Não, está parado (indisponível)' : 'Sim, está rodando (agendar)';
+        const rodLabel = rodVal === 'nao' ? 'VEÍCULO PARADO' : 'VEÍCULO RODANDO';
         const origem = opts.origem || 'Gestão de Frota';
         const usuarioNome = opts.usuario_nome || 'Sistema';
         const itensTxt = String(opts.itens || opts.descricao || 'Manutenção Corretiva').trim();

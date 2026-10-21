@@ -3591,7 +3591,7 @@ window._mnEdMontar = function() {
     document.querySelectorAll('input[name="mned_veiculo_rodando"]').forEach(function(r) {
         r.onchange = function() {
             if (window._mnEd.status === 'em_andamento' && this.value === 'sim') {
-                alert('Enquanto o status estiver "Em manutenção", o veículo permanece como "Não, está parado (indisponível)".');
+                alert('Enquanto o status estiver "Em manutenção", o veículo permanece como "VEÍCULO PARADO".');
                 window._mnEdRenderRodando();
                 return;
             }
@@ -3693,12 +3693,12 @@ window._mnEdPedirJustificativaStatus = function(statusDe, statusPara, cb) {
         return veicIdAt && String(x.veiculo_id) === String(veicIdAt) && String(x.id) !== String(idAt) && x.status !== 'concluida' && x.status !== 'cancelada';
     });
     if (statusPara === 'em_andamento' && (!window._mnEd || window._mnEd.veiculo_rodando !== 'nao')) {
-        avisoParado = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Em manutenção</b>, o veículo (e as demais solicitações em aberto desta placa) ficará como <b>Não, está parado (indisponível)</b>.</span></div>';
+        avisoParado = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Em manutenção</b>, o veículo (e as demais solicitações em aberto desta placa) ficará como <b>VEÍCULO PARADO</b>.</span></div>';
     } else if (statusPara === 'concluida') {
         if (outrasMesmaPlaca.some(function(x) { return x.veiculo_rodando_efetivo === 'nao' || x.veiculo_rodando === 'nao'; })) {
-            avisoParado = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning" style="font-size:1.1rem;flex-shrink:0;"></i><span>Esta solicitação será concluída, mas o veículo <b>continuará constando como parado</b> enquanto houver outra solicitação em aberto desta placa marcada como "Não, está parado".</span></div>';
+            avisoParado = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-warning" style="font-size:1.1rem;flex-shrink:0;"></i><span>Esta solicitação será concluída, mas o veículo <b>continuará constando como parado</b> enquanto houver outra solicitação em aberto desta placa marcada como "VEÍCULO PARADO".</span></div>';
         } else if (!window._mnEd || window._mnEd.veiculo_rodando === 'nao') {
-            avisoParado = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Concluído</b>, esta solicitação passará para <b>Sim, está rodando</b>.</span></div>';
+            avisoParado = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;border-radius:8px;padding:8px 12px;font-size:0.8rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ph ph-check-circle" style="font-size:1.1rem;flex-shrink:0;"></i><span>Ao mudar para <b>Concluído</b>, esta solicitação passará para <b>VEÍCULO RODANDO</b>.</span></div>';
         }
     }
     var pop = document.createElement('div');
@@ -3764,8 +3764,8 @@ window._mnMostrarPopupConcluirOutras = function(placa, outras) {
         var sTxt = statusLbl[o.status] || o.status || '—';
         var rodNao = (o.veiculo_rodando === 'nao' || o.status === 'em_andamento');
         var rodBadge = rodNao
-            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">Não, está parado</span>'
-            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">Sim, está rodando</span>';
+            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">VEÍCULO PARADO</span>'
+            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;">VEÍCULO RODANDO</span>';
         return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;margin-bottom:8px;cursor:pointer;">'
             + (outras.length > 1 ? '<input type="radio" name="mn_concl_outra_sel" value="' + o.id + '"' + (idx === 0 ? ' checked' : '') + ' style="margin-top:4px;accent-color:#10b981;">' : '')
             + '<div style="flex:1;min-width:0;">'
@@ -3792,7 +3792,7 @@ window._mnMostrarPopupConcluirOutras = function(placa, outras) {
       +   '</p>'
       +   '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.78rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;">'
       +     '<i class="ph ph-info" style="font-size:1.1rem;flex-shrink:0;"></i>'
-      +     '<span>O veículo só volta a ser considerado rodando quando todas as solicitações em aberto desta placa forem alteradas manualmente para <b>Sim, está rodando</b> ou <b>Concluído</b>.</span>'
+      +     '<span>O veículo só volta a ser considerado rodando quando todas as solicitações em aberto desta placa forem alteradas manualmente para <b>VEÍCULO RODANDO</b> ou <b>Concluído</b>.</span>'
       +   '</div>'
       +   '<div style="max-height:220px;overflow-y:auto;margin-bottom:14px;">' + listaHtml + '</div>'
       +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
@@ -3858,8 +3858,8 @@ window._mnMostrarModalListaOutrasAbertas = function(placa, outras) {
         var sTxt = statusLbl[o.status] || o.status || '—';
         var rodNao = (o.veiculo_rodando === 'nao' || o.status === 'em_andamento');
         var rodBadge = rodNao
-            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Não, está parado</span>'
-            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">Sim, está rodando</span>';
+            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">VEÍCULO PARADO</span>'
+            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;">VEÍCULO RODANDO</span>';
         var solicArr = (Array.isArray(o.solicitados) && o.solicitados.length)
             ? o.solicitados
             : (o.itens_solicitados ? String(o.itens_solicitados).split(',').map(function(x) { return x.trim(); }).filter(Boolean) : []);
@@ -4362,8 +4362,8 @@ window._mnEdRenderHist = function() {
         var cor = '#cbd5e1', corpo = '';
         var rotRod = function(v) {
             return v === 'nao'
-                ? { l: 'Não, está parado (indisponível)', c: '#dc2626' }
-                : { l: 'Sim, está rodando (agendar)', c: '#16a34a' };
+                ? { l: 'VEÍCULO PARADO', c: '#dc2626' }
+                : { l: 'VEÍCULO RODANDO', c: '#16a34a' };
         };
         if (h.tipo === 'status') {
             cor = '#d97706';
