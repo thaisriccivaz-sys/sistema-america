@@ -618,6 +618,22 @@ window._mnCardCorrItemChange = function(cbEl) {
     if (wrap) wrap.style.display = chkOutros ? 'block' : 'none';
 };
 
+// Abre/fecha o quadro de serviços de uma categoria (seta para baixo/cima)
+window._mnCardToggleGrupo = function(gi) {
+    var body = document.getElementById('mn-card-grp-body-' + gi);
+    var arrow = document.getElementById('mn-card-grp-arrow-' + gi);
+    if (!body) return;
+    var abrir = body.style.display === 'none';
+    body.style.display = abrir ? 'block' : 'none';
+    if (arrow) arrow.style.transform = abrir ? 'rotate(180deg)' : 'rotate(0deg)';
+};
+
+// Seleção da categoria inteira (sem precisar escolher a subcategoria)
+window._mnCardCorrGrupoChange = function(cbEl) {
+    var box = cbEl && cbEl.parentElement;
+    if (box) box.style.background = cbEl.checked ? '#fff7ed' : '#f8fafc';
+};
+
 // ── Popup de Manutenção no Card do Veículo (Corretiva ou Revisão) ──────────
 window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo) {
     const v = (window._frotaDados||[]).find(x => x.id === vid);
@@ -643,12 +659,20 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
         }
     } catch(e) {}
 
-    // Montar lista de categorias e subcategorias da manutenção corretiva
+    // Montar lista de categorias e subcategorias da manutenção corretiva (grupos recolhíveis, categoria selecionável)
     let categoriasCorretivaHtml = '';
-    gruposCorretiva.forEach(function(g) {
+    gruposCorretiva.forEach(function(g, gi) {
         const gIco = g.icone || 'ph-wrench';
-        categoriasCorretivaHtml += '<p style="margin:14px 0 6px;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;"><i class="ph ' + gIco + '" style="font-size:1.05rem;color:#d97706;"></i><span>' + g.grupo + '</span></p>';
-        categoriasCorretivaHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+        const gSafe = String(g.grupo || '').replace(/"/g, '&quot;');
+        categoriasCorretivaHtml += '<div style="border:1px solid #e2e8f0;border-radius:10px;margin:10px 0;overflow:hidden;">'
+            + '<div onclick="window._mnCardToggleGrupo(' + gi + ')" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f8fafc;cursor:pointer;user-select:none;">'
+            + '<input type="checkbox" name="mn-card-corr-grupo" value="' + gSafe + '" onclick="event.stopPropagation();window._mnCardCorrGrupoChange(this)" title="Selecionar apenas a categoria" style="width:16px;height:16px;accent-color:#d97706;cursor:pointer;flex-shrink:0;">'
+            + '<i class="ph ' + gIco + '" style="font-size:1.05rem;color:#d97706;"></i>'
+            + '<span style="flex:1;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.05em;">' + g.grupo + '</span>'
+            + '<span id="mn-card-grp-cnt-' + gi + '" style="font-size:0.7rem;color:#94a3b8;font-weight:700;">' + g.itens.length + ' serviços</span>'
+            + '<i id="mn-card-grp-arrow-' + gi + '" class="ph ph-caret-down" style="font-size:1rem;color:#64748b;transition:transform .2s;"></i>'
+            + '</div>'
+            + '<div id="mn-card-grp-body-' + gi + '" style="display:none;padding:10px 12px;border-top:1px solid #e2e8f0;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
         g.itens.forEach(function(it) {
             const valSafe = String(it.nome || '').replace(/"/g, '&quot;');
             categoriasCorretivaHtml += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.83rem;cursor:pointer;background:#f8fafc;transition:all .15s;user-select:none;">'
@@ -657,7 +681,7 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
                 + '<span style="color:#1e293b;font-weight:500;">' + (it.rotulo || it.nome) + '</span>'
                 + '</label>';
         });
-        categoriasCorretivaHtml += '</div>';
+        categoriasCorretivaHtml += '</div></div></div>';
     });
 
     // Montar opções de marcos de Revisão do veículo
@@ -740,7 +764,7 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
                 <div>
                     <label style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">
-                        <i class="ph ph-calendar" style="margin-right:4px;"></i>Data de Início / Revisão
+                        <i class="ph ph-calendar" style="margin-right:4px;"></i>Data da Solicitação
                     </label>
                     <input type="date" id="mn-card-data" value="${(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})()}"
                         style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
@@ -760,11 +784,11 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
                     <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #22c55e;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600;">
                         <input type="radio" name="mn-card-corr-rodando" value="sim" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;">
-                        <span>Sim, está rodando <small style="color:#64748b;">(agendar)</small></span>
+                        <span>VEÍCULO RODANDO <small style="color:#64748b;">(agendar)</small></span>
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #ef4444;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fee2e2;color:#b91c1c;font-weight:600;">
                         <input type="radio" name="mn-card-corr-rodando" value="nao" style="width:16px;height:16px;accent-color:#dc2626;cursor:pointer;">
-                        <span>Não, está parado <small style="color:#64748b;">(indisponível)</small></span>
+                        <span>VEÍCULO PARADO <small style="color:#64748b;">(indisponível)</small></span>
                     </label>
                 </div>
 
@@ -878,9 +902,9 @@ window._mnCardConfirmar = async function(vid) {
             alert('Informe se o veículo está rodando ou parado ("O veículo está rodando? *").');
             return;
         }
-        const chks = [...document.querySelectorAll('input[name="mn-card-corr-item"]:checked')];
+        const chks = [...document.querySelectorAll('input[name="mn-card-corr-grupo"]:checked'), ...document.querySelectorAll('input[name="mn-card-corr-item"]:checked')];
         if (!chks.length) {
-            alert('Selecione pelo menos uma categoria/subcategoria de manutenção.');
+            alert('Selecione pelo menos uma categoria ou subcategoria de manutenção.');
             return;
         }
         const itensRaw = chks.map(c => c.value);
