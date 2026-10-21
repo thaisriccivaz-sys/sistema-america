@@ -1365,19 +1365,66 @@ window._mnRevAtualizarCustosPreview = function() {
 };
 
 // ── Veiculo parado durante a revisao (agendada): dias parado ──
+// Contagem de veiculo parado na revisao: comeca as 08:00 (Brasilia) do dia do agendamento
+window._mnRevParadoDur = function(iniDate, fimMs) {
+    const ini = new Date(String(iniDate).split('T')[0] + 'T08:00:00-03:00').getTime();
+    if (isNaN(ini)) return null;
+    const ms = (fimMs || Date.now()) - ini;
+    if (ms < 0) return null;
+    const min = Math.floor(ms / 60000);
+    return { min: min, dias: Math.floor(min / 1440), horas: Math.floor((min % 1440) / 60) };
+};
+
+window._mnRevDurTxt = function(min) {
+    const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60);
+    return '<b>' + d + ' dia' + (d === 1 ? '' : 's') + ' e ' + h + ' hora' + (h === 1 ? '' : 's') + '</b>';
+};
+
+window._mnRevFmtDataHora = function(v) {
+    if (!v) return '';
+    const s = String(v);
+    if (s.length <= 10) return _mnRevFmtDataBR(s);
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return _mnRevFmtDataBR(s);
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+// Trecho que se atualiza sozinho a cada minuto enquanto o veiculo esta parado
+window._mnRevParadoLive = function(ini) {
+    const d = String(ini).split('T')[0];
+    const dur = window._mnRevParadoDur(d);
+    window._mnRevParadoIniciarTick();
+    return '<span class="mn-rev-parado-live" data-ini="' + d + '">' + window._mnRevDurTxt(dur ? dur.min : 0) + '</span>';
+};
+
+window._mnRevParadoTick = function() {
+    const els = document.querySelectorAll('.mn-rev-parado-live');
+    if (!els.length) { clearInterval(window._mnRevParadoTimer); window._mnRevParadoTimer = null; return; }
+    els.forEach(function(el) {
+        const dur = window._mnRevParadoDur(el.getAttribute('data-ini'));
+        el.innerHTML = window._mnRevDurTxt(dur ? dur.min : 0);
+    });
+};
+
+window._mnRevParadoIniciarTick = function() {
+    if (!window._mnRevParadoTimer) window._mnRevParadoTimer = setInterval(window._mnRevParadoTick, 60000);
+};
+
 window._mnRevParadoTxt = function(reg) {
     if (!reg) return '';
     const hoje = window._mnHojeISO();
     if (reg.status === 'agendada') {
         const ini = String(reg.data_revisao || reg.parado_desde || '').split('T')[0];
         if (!ini) return '';
-        if (ini > hoje) return '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — veículo disponível até essa data';
-        const d = _mnRevDiffDias(hoje, ini);
-        return '\uD83D\uDEA7 Veículo <b style="color:#dc2626;">indisponível</b> — parado há <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b> (desde ' + _mnRevFmtDataBR(ini) + ')';
+        if (ini > hoje) return '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — veículo disponível até essa data (a contagem de parado começa às 08:00)';
+        return '\uD83D\uDEA7 Veículo <b style="color:#dc2626;">indisponível</b> — parado há ' + window._mnRevParadoLive(ini) + ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00)';
     }
-    if (reg.status === 'realizada' && reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') {
-        const d = Number(reg.dias_parado);
-        return '\u2705 Ficou parado <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b>' + (reg.parado_desde ? ' (de ' + _mnRevFmtDataBR(reg.parado_desde) + (reg.concluido_em ? ' até ' + _mnRevFmtDataBR(reg.concluido_em) : '') + ')' : '');
+    if (reg.status === 'realizada') {
+        let min = null;
+        if (reg.parado_minutos !== null && reg.parado_minutos !== undefined && reg.parado_minutos !== '') min = Number(reg.parado_minutos);
+        else if (reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') min = Number(reg.dias_parado) * 1440;
+        if (min === null || isNaN(min)) return '';
+        return '\u2705 Ficou parado ' + window._mnRevDurTxt(min) + (reg.parado_desde ? ' (de ' + _mnRevFmtDataBR(reg.parado_desde) + ' 08:00' + (reg.concluido_em ? ' até ' + window._mnRevFmtDataHora(reg.concluido_em) : '') + ')' : '');
     }
     return '';
 };
@@ -1393,15 +1440,15 @@ window._mnRevAtualizarInfoParado = function() {
     if (status === 'agendada') {
         const iniSalvo = (reg && reg.status === 'agendada' && reg.parado_desde) ? String(reg.parado_desde).split('T')[0] : '';
         const ini = dt || iniSalvo || hoje;
-        if (ini > hoje) { html = '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — o veículo continua <b>disponível</b> no resumo da rota até essa data.'; bg = '#fffbeb'; borda = '#fde68a'; cor = '#92400e'; }
-        else { const d = _mnRevDiffDias(hoje, ini); html = '\uD83D\uDEA7 Veículo <b>indisponível</b> no resumo da rota — parado há <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b> (desde ' + _mnRevFmtDataBR(ini) + '). A contagem recomeça se a data da revisão for alterada.'; bg = '#fef2f2'; borda = '#fecaca'; cor = '#991b1b'; }
+        if (ini > hoje) { html = '\uD83D\uDCC5 Agendada para <b>' + _mnRevFmtDataBR(ini) + '</b> — o veículo continua <b>disponível</b> no resumo da rota até essa data. A contagem de parado começa às 08:00 desse dia.'; bg = '#fffbeb'; borda = '#fde68a'; cor = '#92400e'; }
+        else { html = '\uD83D\uDEA7 Veículo <b>indisponível</b> no resumo da rota — parado há ' + window._mnRevParadoLive(ini) + ' (desde ' + _mnRevFmtDataBR(ini) + ' 08:00). A contagem recomeça se a data da revisão for alterada.'; bg = '#fef2f2'; borda = '#fecaca'; cor = '#991b1b'; }
     } else if (status === 'realizada') {
-        if (reg && reg.status === 'realizada' && reg.dias_parado !== null && reg.dias_parado !== undefined && reg.dias_parado !== '') {
+        if (reg && reg.status === 'realizada' && window._mnRevParadoTxt(reg)) {
             html = window._mnRevParadoTxt(reg) + ' — veículo disponível no resumo da rota.';
         } else if (reg && reg.status === 'agendada' && reg.parado_desde) {
             const ini = String(reg.parado_desde).split('T')[0];
-            const d = ini > hoje ? 0 : _mnRevDiffDias(hoje, ini);
-            html = '\u2705 Ao salvar como Realizada o veículo volta a ficar <b>disponível</b> no resumo da rota. Tempo parado: <b>' + d + ' dia' + (d === 1 ? '' : 's') + '</b>.';
+            const dur = ini > hoje ? null : window._mnRevParadoDur(ini);
+            html = '\u2705 Ao salvar como Realizada o veículo volta a ficar <b>disponível</b> no resumo da rota. Tempo parado: ' + window._mnRevDurTxt(dur ? dur.min : 0) + '.';
         } else {
             html = '\u2705 Veículo disponível no resumo da rota.';
         }

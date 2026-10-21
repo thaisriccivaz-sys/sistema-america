@@ -23624,11 +23624,12 @@ app.get('/api/frota/veiculos/em-manutencao', authenticateToken, async (req, res)
             revs.forEach(r => {
                 if (lista.some(x => Number(x.id) === Number(r.veiculo_id))) return;
                 const ini = String(r.parado_desde || r.data_revisao || hoje).trim().split('T')[0];
-                const dias = Math.max(0, Math.round((new Date(hoje + 'T00:00:00Z') - new Date(ini + 'T00:00:00Z')) / 86400000));
+                const minP = Math.max(0, Math.floor((Date.now() - new Date(ini + 'T08:00:00-03:00').getTime()) / 60000));
+                const dias = Math.floor(minP / 1440);
                 lista.push({
                     id: r.veiculo_id, placa: r.placa, marca_modelo_versao: r.marca_modelo_versao, tipo_veiculo: r.tipo_veiculo, em_manutencao: 1,
                     motivo: 'Revisão programada', tipo_manutencao: 'revisao', data_inicio: ini, data_fim: null, status_manutencao: 'agendada',
-                    veiculo_rodando: 'nao', parado_desde: ini, parado_segundos_acum: 0, dias_parado: dias
+                    veiculo_rodando: 'nao', parado_desde: ini, parado_segundos_acum: 0, dias_parado: dias, parado_horas: Math.floor((minP % 1440) / 60)
                 });
             });
             lista.sort((a, b) => (b.dias_parado || 0) - (a.dias_parado || 0) || String(a.placa).localeCompare(String(b.placa)));
@@ -25794,7 +25795,7 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
     UNIQUE(veiculo_id, marco_km)
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisoes]', err.message);
-    ['parado_desde TEXT', 'concluido_em TEXT', 'dias_parado INTEGER'].forEach(col => {
+    ['parado_desde TEXT', 'concluido_em TEXT', 'dias_parado INTEGER', 'parado_minutos INTEGER'].forEach(col => {
         db.run('ALTER TABLE frota_revisoes ADD COLUMN ' + col, (e2) => {
             if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisoes col]', e2.message);
         });
@@ -25943,7 +25944,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const hoje = _fmHojeBR();
         const diffDias = (de, ate) => Math.max(0, Math.round((new Date(ate + 'T00:00:00Z') - new Date(de + 'T00:00:00Z')) / 86400000));
 
-        const existing = await _fmGet('SELECT id, status, km_revisao, parado_desde, concluido_em, dias_parado FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const existing = await _fmGet('SELECT id, status, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
         const veic = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [vid]);
         // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
         if (existing) {
@@ -25954,18 +25955,23 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         }
 
         // KM e sempre o da Gestao de Frota (nao vem da tela de revisao)
-        let kmRev = null, paradoDesde = null, concluidoEm = null, diasParado = null;
+        let kmRev = null, paradoDesde = null, concluidoEm = null, diasParado = null, minParado = null;
+        const agoraIso = new Date().toISOString();
+        // Contagem de parado: comeca as 08:00 (Brasilia) do dia da revisao agendada
+        const minutosParado = (desde) => { const ini = new Date(desde + 'T08:00:00-03:00').getTime(); return isNaN(ini) ? null : Math.max(0, Math.floor((Date.now() - ini) / 60000)); };
         if (status === 'realizada') {
             if (existing && existing.status === 'realizada') {
                 kmRev = existing.km_revisao || (veic && veic.km_atual) || null;
                 paradoDesde = existing.parado_desde || null;
-                concluidoEm = existing.concluido_em || hoje;
+                concluidoEm = existing.concluido_em || agoraIso;
                 diasParado = existing.dias_parado;
+                minParado = existing.parado_minutos;
             } else {
                 kmRev = (veic && veic.km_atual) ? parseInt(veic.km_atual, 10) : null;
                 paradoDesde = (existing && existing.status === 'agendada' && existing.parado_desde) ? existing.parado_desde : null;
-                concluidoEm = hoje;
-                diasParado = paradoDesde ? diffDias(paradoDesde, hoje) : null;
+                concluidoEm = agoraIso;
+                minParado = paradoDesde ? minutosParado(paradoDesde) : null;
+                diasParado = minParado !== null ? Math.floor(minParado / 1440) : null;
             }
         } else if (status === 'agendada') {
             // Contagem de dias parado comeca na data da revisao; se a data for alterada, a contagem recomeca
@@ -25978,16 +25984,16 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
                 `UPDATE frota_revisoes
                  SET marco_meses=?, status=?, data_revisao=?, km_revisao=?, concessionaria=?, numero_os=?,
                      valor_pecas=?, valor_mao_obra=?, valor_total=?, itens_json=?, observacoes=?, usuario_nome=?,
-                     parado_desde=?, concluido_em=?, dias_parado=?, updated_at=CURRENT_TIMESTAMP
+                     parado_desde=?, concluido_em=?, dias_parado=?, parado_minutos=?, updated_at=CURRENT_TIMESTAMP
                  WHERE id=?`,
-                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, existing.id]
+                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado, existing.id]
             );
             revId = existing.id;
         } else {
             const ins = await _fmRun(
-                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome, parado_desde, concluido_em, dias_parado)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado]
+                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome, parado_desde, concluido_em, dias_parado, parado_minutos)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado]
             );
             revId = ins.lastID;
         }
