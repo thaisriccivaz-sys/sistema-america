@@ -369,6 +369,7 @@
     async function salvarCorr(finalizar) {
         const ed = window._mnEd;
         if (!ed || !ed.id) return;
+        if (finalizar && typeof window._mnEdValidarServicosConclusao === 'function' && !window._mnEdValidarServicosConclusao()) return;
         const bS = document.getElementById('cf-save'), bF = document.getElementById('cf-final');
         if (bS) bS.disabled = true;
         if (bF) bF.disabled = true;
@@ -514,10 +515,6 @@
             const veioDaLogistica = isConf || (marcado && !!st.marcado_logistica);
 
             if (tr.querySelector('[id^="mn-rev-lbl-conf-"]') && tr.lastElementChild) tr.lastElementChild.remove();
-            tr.querySelectorAll('span').forEach((sp) => {
-                const t = (sp.textContent || '').trim();
-                if (t === 'OBRIGATÓRIO' || t === 'OPCIONAL') sp.style.display = 'none';
-            });
             tr.querySelectorAll('div').forEach((d) => {
                 if (!d.children.length && (d.textContent || '').indexOf('(anexar foto)') !== -1) d.textContent = 'Conferência interna';
             });
@@ -569,13 +566,37 @@
         if (cont) cont.style.display = 'none';
         if (rodape) {
             rodape.innerHTML =
-                '<span style="margin-right:auto;font-size:0.78rem;color:#64748b;align-self:center;">Nada é obrigatório para finalizar o registro.</span>'
+                '<span id="cf-rev-hint" style="margin-right:auto;font-size:0.78rem;color:#b45309;align-self:center;font-weight:600;"></span>'
                 + '<button type="button" onclick="window.comprasRevFechar()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;">Fechar</button>'
                 + '<button type="button" id="cf-rev-save" onclick="window.comprasRevSalvar(false)" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>'
-                + '<button type="button" id="cf-rev-final" onclick="window.comprasRevSalvar(true)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Finalizar registro</button>';
+                + '<button type="button" id="cf-rev-final" onclick="window.comprasRevSalvar(true)" style="display:none;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:800;cursor:pointer;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Finalizar registro</button>';
         }
         atualizarBadgeRev();
+        atualizarFinalRev();
     }
+
+    // O botão "Finalizar registro" só aparece quando todos os serviços OBRIGATÓRIOS (Mecânico) estão marcados
+    // e a vinculação das peças / serviços lançados foi concluída (nada pendente de anexar e nenhuma linha sem vínculo)
+    function atualizarFinalRev() {
+        const btn = document.getElementById('cf-rev-final');
+        const hint = document.getElementById('cf-rev-hint');
+        if (!btn || !window._cfRev) return;
+        const pend = [];
+        const servs = (window._mnRevServicosModal || []).filter((s) => s.grupo === 'obrigatorio');
+        const faltam = servs.filter((s) => {
+            const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+            return !(cb && cb.checked);
+        });
+        if (faltam.length) pend.push('marque todos os serviços obrigatórios (faltam ' + faltam.length + ')');
+        const st = window._mnRevNotaStage;
+        if (st && st.lancs && st.lancs.length) pend.push('conclua o lançamento das peças / serviços em edição (Lançar valores)');
+        const reg = typeof window._mnRevRegAtual === 'function' ? window._mnRevRegAtual() : null;
+        const semVinc = ((reg && reg.lancamentos) || []).filter((l) => !(Array.isArray(l.servicos) && l.servicos.length));
+        if (semVinc.length) pend.push('vincule as peças / serviços lançados a um serviço (' + semVinc.length + ' sem vínculo)');
+        btn.style.display = pend.length ? 'none' : 'flex';
+        if (hint) hint.textContent = pend.length ? ('Para finalizar o registro: ' + pend.join('; ') + '.') : '';
+    }
+    window._cfAtualizarFinalRev = atualizarFinalRev;
 
     window.comprasRevSalvar = async function (finalizar) {
         const c = window._cfRev;
@@ -630,4 +651,17 @@
         };
         window._mnRevRecarregarDados._cf = true;
     }
+    // Reavalia a exibição do botão "Finalizar registro" sempre que serviços, lançamentos ou linhas em edição mudam
+    ['_mnRevAtualizarContadorObrig', '_mnRevAtualizarModalDados', '_mnRevRenderStage'].forEach((nome) => {
+        const orig = window[nome];
+        if (typeof orig === 'function' && !orig._cfFin) {
+            const w = function () {
+                const r = orig.apply(this, arguments);
+                if (window._mnRevModoCompras && window._cfRev) { try { atualizarFinalRev(); } catch (e) { /* ignora */ } }
+                return r;
+            };
+            w._cfFin = true;
+            window[nome] = w;
+        }
+    });
 })();

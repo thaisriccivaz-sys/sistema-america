@@ -25113,8 +25113,8 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             }
             for (const r of lista) {
                 const gv = parseInt(r.garantia_valor);
-                const gValor = gv > 0 ? gv : null;
-                const gUni = gValor ? (r.garantia_unidade === 'meses' ? 'meses' : 'dias') : null;
+                const gValor = gv >= 0 ? gv : null;
+                const gUni = gValor !== null ? (r.garantia_unidade === 'meses' ? 'meses' : 'dias') : null;
                 const nome = String(r.nome).trim();
                 const catId = parseInt(r.catalogo_id) || null;
                 const itemRef = r.item_ref ? String(r.item_ref) : null;
@@ -25209,7 +25209,7 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
 const multerNfFrota = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 function _fmNumero(v) { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
-function _fmGarantia(v, u) { const gv = parseInt(v); return gv > 0 ? { v: gv, u: (u === 'meses' ? 'meses' : 'dias') } : { v: null, u: null }; }
+function _fmGarantia(v, u) { const gv = parseInt(v); return gv >= 0 ? { v: gv, u: (u === 'meses' ? 'meses' : 'dias') } : { v: null, u: null }; }
 function _fmEhPdf(buf) { return !!buf && buf.length > 5 && buf.slice(0, 5).toString() === '%PDF-'; }
 
 // Insere pecas (digitadas ou vindas da nota). Suporta vinculo unico (100% do valor) ou rateio entre varios servicos selecionados
@@ -26489,6 +26489,11 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_lancamentos (
     db.run("ALTER TABLE frota_revisao_lancamentos ADD COLUMN fornecedor TEXT", (e2) => {
         if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisao_lancamentos fornecedor]', e2.message);
     });
+    ['garantia_valor INTEGER', 'garantia_unidade TEXT'].forEach(col => {
+        db.run('ALTER TABLE frota_revisao_lancamentos ADD COLUMN ' + col, (e3) => {
+            if (e3 && !String(e3.message).includes('duplicate column')) console.error('[MIGRATION frota_revisao_lancamentos garantia]', e3.message);
+        });
+    });
 });
 db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_midias (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26861,9 +26866,10 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
             const svs = Array.isArray(l.servicos) ? l.servicos.map(s => String(s)).filter(Boolean) : [];
             const modo = ['produto', 'mao_obra', 'total'].includes(l.modo_rateio) ? l.modo_rateio : null;
             const fornLanc = String(l.fornecedor || forn || '').trim() || null;
+            const gar = _fmGarantia(l.garantia_valor, l.garantia_unidade);
             await _fmRun(
-                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [revId, rev.veiculo_id, anexo.id, tipoL, String(l.codigo || '').trim() || null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), modo, fornLanc]
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, anexo.id, tipoL, String(l.codigo || '').trim() || null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), modo, fornLanc, gar.v, gar.u]
             );
         }
         await _frRecalcRevisao(revId);
@@ -26890,9 +26896,10 @@ app.post('/api/frota/revisoes/:revisaoId/lancamentos', authenticateToken, async 
             const tipoL = l.tipo === 'mao_obra' ? 'mao_obra' : 'peca';
             const svs = Array.isArray(l.servicos) ? l.servicos.map(x => String(x)).filter(Boolean) : [];
             const fornLanc = String(l.fornecedor || fornBody || '').trim() || null;
+            const gar = _fmGarantia(l.garantia_valor, l.garantia_unidade);
             await _fmRun(
-                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [revId, rev.veiculo_id, null, tipoL, null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), null, fornLanc]
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, null, tipoL, null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), null, fornLanc, gar.v, gar.u]
             );
             n++;
         }
