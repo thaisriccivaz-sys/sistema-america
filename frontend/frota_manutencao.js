@@ -3841,6 +3841,7 @@ window._mnCalcTempos = function(m, statusOverride, rodandoOverride) {
     var hojeStr = window._mnHojeISO ? window._mnHojeISO() : new Date().toISOString().split('T')[0];
     var diStr = m.data_inicio ? String(m.data_inicio).split('T')[0] : '';
     var dfStr = m.data_fim ? String(m.data_fim).split('T')[0] : '';
+    var dcStr = m.data_conclusao ? String(m.data_conclusao).split('T')[0] : '';
     var rod = rodandoOverride || m.veiculo_rodando || m.veiculo_rodando_efetivo || m.sinistro_rodando || (st === 'em_andamento' ? 'nao' : 'sim');
     if (st === 'em_andamento') rod = 'nao';
     if (!encerrada && st !== 'em_andamento') {
@@ -3854,7 +3855,10 @@ window._mnCalcTempos = function(m, statusOverride, rodandoOverride) {
     }
     var paradoAtivo = !encerrada && rod === 'nao';
     var segPar = Number(m.parado_segundos_acum || 0);
-    if (paradoAtivo) {
+    if (st === 'concluida' && diStr && dcStr && dcStr > diStr) {
+        var diasParConcl = Math.max(0, Math.round((new Date(dcStr + 'T00:00:00Z') - new Date(diStr + 'T00:00:00Z')) / 86400000));
+        if (diasParConcl > 0) segPar = diasParConcl * 86400;
+    } else if (paradoAtivo) {
         var tsDi = (diStr && diStr <= hojeStr) ? window._mnParseTS(diStr) : null;
         var tsPd = window._mnParseTS(m.parado_desde);
         var pDesde = (tsDi && (!tsPd || Number(m.parado_segundos_acum || 0) === 0)) ? tsDi : (tsPd || tsDi || window._mnParseTS(m.created_at) || agora);
@@ -4480,7 +4484,14 @@ window._mnEdMontar = function() {
     };
     document.getElementById('mned-di').onchange = syncDatasRodando;
     document.getElementById('mned-df').onchange = syncDatasRodando;
-    document.getElementById('mned-dc').onchange = function() { window._mnEd.m.data_conclusao = this.value; window._mnEdRenderServ(); };
+    document.getElementById('mned-dc').onchange = function() { window._mnEd.m.data_conclusao = this.value; window._mnEdRenderServ(); window._mnEdAtualizarCronModal(); };
+    document.getElementById('mned-dsol').onchange = function() {
+        if (window._mnEd && window._mnEd.m) {
+            var origHora = String(window._mnEd.m.created_at || '').substring(10) || ' 00:00:00';
+            window._mnEd.m.created_at = this.value ? (this.value + origHora) : window._mnEd.m.created_at;
+        }
+        window._mnEdAtualizarCronModal();
+    };
     if (ed.novo && m.veiculo_id) document.getElementById('mned-veic').onchange.call(document.getElementById('mned-veic'));
 
     document.querySelectorAll('input[name="mned_veiculo_rodando"]').forEach(function(r) {
@@ -5173,38 +5184,62 @@ window._mnEdPickRender = function() {
     if (!lista.length) {
         box.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:0.84rem;">Nenhum serviço encontrado' + (texto ? ' para "' + esc(texto) + '"' : '') + '. Você pode adicioná-lo como serviço novo.</div>';
     } else {
-        var html = '', ultimoGrupo = null, ultimoCat = null;
-        var porGrupo = {}, porCat = {};
+        ed._gruposAbertos = ed._gruposAbertos || {};
+        var forcarAberto = palavras.length > 0 || (catSel && catSel !== '__todas__');
+        var html = '', ordemGrupos = [], porGrupo = {}, porCat = {};
         lista.forEach(function(s) {
-            (porGrupo[s._grupoNome] = porGrupo[s._grupoNome] || []).push(s);
+            if (!porGrupo[s._grupoNome]) {
+                porGrupo[s._grupoNome] = [];
+                ordemGrupos.push(s._grupoNome);
+            }
+            porGrupo[s._grupoNome].push(s);
             (porCat[s.categoria_id] = porCat[s.categoria_id] || []).push(s);
         });
-        lista.forEach(function(s) {
-            if (s._grupoNome !== ultimoGrupo) {
-                ultimoGrupo = s._grupoNome;
-                ultimoCat = null;
-                var doGrupo = (porGrupo[s._grupoNome] || []);
-                var todosGrp = doGrupo.length > 0 && doGrupo.every(function(x) { return jaAdd[x.id]; });
-                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.76rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.05em;margin-top:10px;padding:7px 8px;background:#f1f5f9;border-radius:6px;cursor:pointer;">'
-                    + '<input type="checkbox" data-pkmacro="' + esc(s._grupoNome) + '"' + (todosGrp ? ' checked' : '') + (doGrupo.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#d97706;">'
-                    + '<i class="ph ' + esc(s._grupoIcone) + '" style="font-size:1.05rem;color:#d97706;"></i>'
-                    + '<span>' + esc(s._grupoNome) + '</span> <span style="font-weight:600;text-transform:none;color:#64748b;">(selecionar todos da categoria)</span></label>';
-            }
-            if (s.categoria_id !== ultimoCat) {
-                ultimoCat = s.categoria_id;
-                var doCat = (porCat[s.categoria_id] || []);
-                var todosMarc = doCat.length > 0 && doCat.every(function(x) { return jaAdd[x.id]; });
-                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.73rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding:5px 4px 4px 14px;border-top:1px solid #e2e8f0;cursor:pointer;">'
-                    + '<input type="checkbox" data-pkcat="' + s.categoria_id + '"' + (todosMarc ? ' checked' : '') + (doCat.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
-                    + '<i class="ph ' + esc(s._subIcone) + '" style="font-size:1rem;color:#d97706;"></i>'
-                    + '<span>' + esc(s._subNome || s.categoria_nome || 'Outros') + '</span> <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da subcategoria)</span></label>';
-            }
-            var add = !!jaAdd[s.id];
-            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:#1e293b;cursor:pointer;padding:3px 4px 3px 32px;' + (add ? 'font-weight:700;' : '') + '">'
-                + '<input type="checkbox" data-pk="' + s.id + '"' + (add ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
-                + esc(s.nome) + '</label>';
+        ordemGrupos.forEach(function(grp) {
+            var doGrupo = porGrupo[grp] || [];
+            if (!doGrupo.length) return;
+            var s0 = doGrupo[0];
+            var todosGrp = doGrupo.every(function(x) { return jaAdd[x.id]; });
+            var aberto = forcarAberto || !!ed._gruposAbertos[grp];
+            html += '<div data-pktoggle-grp="' + esc(grp) + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.76rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.05em;margin-top:8px;padding:8px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;user-select:none;">'
+                + '<span style="display:inline-flex;align-items:center;gap:8px;">'
+                +   '<i class="ph-bold ' + (aberto ? 'ph-caret-down' : 'ph-caret-right') + '" style="font-size:0.88rem;color:#475569;"></i>'
+                +   '<i class="ph ' + esc(s0._grupoIcone) + '" style="font-size:1.05rem;color:#d97706;"></i>'
+                +   '<span>' + esc(grp) + '</span>'
+                + '</span>'
+                + '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;text-transform:none;color:#64748b;font-size:0.74rem;">'
+                +   '<input type="checkbox" data-pkmacro="' + esc(grp) + '"' + (todosGrp ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#d97706;cursor:pointer;">'
+                +   '<span>(selecionar todos da categoria)</span>'
+                + '</label>'
+                + '</div>'
+                + '<div data-pkgrp-body="' + esc(grp) + '" style="display:' + (aberto ? 'block' : 'none') + ';padding-bottom:4px;">';
+            var ultimoCat = null;
+            doGrupo.forEach(function(s) {
+                if (s.categoria_id !== ultimoCat) {
+                    ultimoCat = s.categoria_id;
+                    var doCat = (porCat[s.categoria_id] || []);
+                    var todosMarc = doCat.length > 0 && doCat.every(function(x) { return jaAdd[x.id]; });
+                    html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.73rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding:5px 4px 4px 14px;border-top:1px solid #e2e8f0;cursor:pointer;">'
+                        + '<input type="checkbox" data-pkcat="' + s.categoria_id + '"' + (todosMarc ? ' checked' : '') + (doCat.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
+                        + '<i class="ph ' + esc(s._subIcone) + '" style="font-size:1rem;color:#d97706;"></i>'
+                        + '<span>' + esc(s._subNome || s.categoria_nome || 'Outros') + '</span> <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da subcategoria)</span></label>';
+                }
+                var add = !!jaAdd[s.id];
+                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:#1e293b;cursor:pointer;padding:3px 4px 3px 32px;' + (add ? 'font-weight:700;' : '') + '">'
+                    + '<input type="checkbox" data-pk="' + s.id + '"' + (add ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
+                    + esc(s.nome) + '</label>';
+            });
+            html += '</div>';
         });
         box.innerHTML = html;
+        box.querySelectorAll('[data-pktoggle-grp]').forEach(function(hdr) {
+            hdr.onclick = function() {
+                var grp = hdr.getAttribute('data-pktoggle-grp');
+                ed._gruposAbertos = ed._gruposAbertos || {};
+                ed._gruposAbertos[grp] = !ed._gruposAbertos[grp];
+                window._mnEdPickRender();
+            };
+        });
         box.querySelectorAll('[data-pk]').forEach(function(c) {
             c.onchange = function() {
                 window._mnEdPickToggleVarios([c.getAttribute('data-pk')], c.checked);

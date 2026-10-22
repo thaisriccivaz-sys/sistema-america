@@ -24308,6 +24308,9 @@ function _fmCalcularEstadoDatas(opts) {
     let dtFim = opts.data_fim !== undefined
         ? (String(opts.data_fim || '').trim().split('T')[0] || null)
         : (prev && prev.data_fim ? String(prev.data_fim).trim().split('T')[0] : null);
+    let dtConcl = opts.data_conclusao !== undefined
+        ? (String(opts.data_conclusao || '').trim().split('T')[0] || null)
+        : (prev && prev.data_conclusao ? String(prev.data_conclusao).trim().split('T')[0] : null);
     if (dtIni && dtFim && dtFim < dtIni) dtFim = dtIni;
 
     const dtIniIso = dtIni ? (dtIni + 'T00:00:00-03:00') : agoraIso;
@@ -24325,7 +24328,17 @@ function _fmCalcularEstadoDatas(opts) {
     if (status === 'concluida' || status === 'cancelada') {
         rodandoNovo = 'sim';
         pararNoInicio = 0;
-        if (pDesde) {
+        const dtFimEfetivo = dtConcl || hoje;
+        if (status === 'concluida' && dtIni && dtFimEfetivo >= dtIni) {
+            const diasDiff = Math.max(0, Math.round((new Date(dtFimEfetivo + 'T00:00:00Z') - new Date(dtIni + 'T00:00:00Z')) / 86400000));
+            if (diasDiff > 0) {
+                pAcum = diasDiff * 86400;
+                pDesde = null;
+            } else if (pDesde) {
+                pAcum += _fmCalcSegundosDesde(pDesde);
+                pDesde = null;
+            }
+        } else if (pDesde) {
             pAcum += _fmCalcSegundosDesde(pDesde);
             pDesde = null;
         }
@@ -24640,6 +24653,8 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, async (req, res)
                CASE
                    WHEN fm.status NOT IN ('concluida','cancelada') AND COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao' THEN
                        MAX(0, CAST((COALESCE(fm.parado_segundos_acum, 0) / 86400.0) + (julianday('now') - julianday(COALESCE(fm.parado_desde, fm.data_inicio, fm.created_at))) AS INTEGER))
+                   WHEN fm.status = 'concluida' AND fm.data_inicio IS NOT NULL AND TRIM(fm.data_inicio) <> '' AND fm.data_conclusao IS NOT NULL AND TRIM(fm.data_conclusao) <> '' THEN
+                       MAX(CAST(COALESCE(fm.parado_segundos_acum, 0) / 86400.0 AS INTEGER), MAX(0, CAST(ROUND(julianday(substr(TRIM(fm.data_conclusao), 1, 10)) - julianday(substr(TRIM(fm.data_inicio), 1, 10))) AS INTEGER)))
                    ELSE
                        MAX(0, CAST(COALESCE(fm.parado_segundos_acum, 0) / 86400.0 AS INTEGER))
                END as dias_parado
@@ -24665,7 +24680,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_fim, data_conclusao, veiculo_rodando, justificativa_status, data_solicitacao } = req.body;
         const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
         if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
-        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id, created_at FROM frota_manutencoes WHERE id = ?', [id]);
+        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, data_conclusao, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id, created_at FROM frota_manutencoes WHERE id = ?', [id]);
         if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
         if (status === 'concluida') {
@@ -24681,11 +24696,13 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
 
         const dtIniParam = data_inicio !== undefined ? (data_inicio || null) : ((status === 'em_andamento' && !prev.data_inicio) ? now : prev.data_inicio);
         const dtFimParam = data_fim !== undefined ? (data_fim || null) : prev.data_fim;
+        const dtConclParam = data_conclusao !== undefined ? (data_conclusao || null) : (status === 'concluida' ? (prev.data_conclusao || now) : prev.data_conclusao);
         const calc = _fmCalcularEstadoDatas({
             status,
             veiculo_rodando_req: veiculo_rodando,
             data_inicio: dtIniParam,
             data_fim: dtFimParam,
+            data_conclusao: dtConclParam,
             prev
         });
         const rodandoAnt = calc.rodandoAnt;
@@ -34976,8 +34993,10 @@ app.listen(PORT, () => {
             db.run("UPDATE frota_manutencoes SET veiculo_rodando = CASE WHEN status = 'em_andamento' THEN 'nao' ELSE 'sim' END WHERE tipo = 'corretiva' AND veiculo_rodando IS NULL", () => {
                 db.run("UPDATE frota_manutencoes SET veiculo_rodando = 'nao' WHERE tipo = 'corretiva' AND status = 'em_andamento' AND COALESCE(veiculo_rodando, '') != 'nao'", () => {
                     db.run("UPDATE frota_manutencoes SET veiculo_rodando = 'sim', parado_desde = NULL WHERE status = 'concluida' AND COALESCE(veiculo_rodando, '') = 'nao'", () => {
-                        db.run("UPDATE frota_manutencoes SET parado_desde = COALESCE(created_at, data_inicio) WHERE tipo = 'corretiva' AND (veiculo_rodando = 'nao' OR status = 'em_andamento') AND parado_desde IS NULL AND COALESCE(parado_segundos_acum, 0) = 0 AND status NOT IN ('concluida', 'cancelada')", () => {
-                            db.run("UPDATE frota_veiculos SET em_manutencao = CASE WHEN EXISTS (SELECT 1 FROM frota_manutencoes fm WHERE fm.veiculo_id = frota_veiculos.id AND fm.tipo = 'corretiva' AND fm.status IN ('agendada','em_andamento','aguardando') AND COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao') OR EXISTS (SELECT 1 FROM frota_revisoes fr WHERE fr.veiculo_id = frota_veiculos.id AND fr.status = 'agendada' AND (fr.data_revisao IS NULL OR TRIM(fr.data_revisao) = '' OR substr(TRIM(fr.data_revisao), 1, 10) <= date('now', '-3 hours'))) THEN 1 ELSE 0 END");
+                        db.run("UPDATE frota_manutencoes SET parado_segundos_acum = CAST(ROUND((julianday(substr(TRIM(data_conclusao), 1, 10)) - julianday(substr(TRIM(data_inicio), 1, 10))) * 86400) AS INTEGER) WHERE tipo = 'corretiva' AND status = 'concluida' AND data_inicio IS NOT NULL AND TRIM(data_inicio) <> '' AND data_conclusao IS NOT NULL AND TRIM(data_conclusao) <> '' AND substr(TRIM(data_conclusao), 1, 10) > substr(TRIM(data_inicio), 1, 10)", () => {
+                            db.run("UPDATE frota_manutencoes SET parado_desde = COALESCE(created_at, data_inicio) WHERE tipo = 'corretiva' AND (veiculo_rodando = 'nao' OR status = 'em_andamento') AND parado_desde IS NULL AND COALESCE(parado_segundos_acum, 0) = 0 AND status NOT IN ('concluida', 'cancelada')", () => {
+                                db.run("UPDATE frota_veiculos SET em_manutencao = CASE WHEN EXISTS (SELECT 1 FROM frota_manutencoes fm WHERE fm.veiculo_id = frota_veiculos.id AND fm.tipo = 'corretiva' AND fm.status IN ('agendada','em_andamento','aguardando') AND COALESCE(fm.veiculo_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao') OR EXISTS (SELECT 1 FROM frota_revisoes fr WHERE fr.veiculo_id = frota_veiculos.id AND fr.status = 'agendada' AND (fr.data_revisao IS NULL OR TRIM(fr.data_revisao) = '' OR substr(TRIM(fr.data_revisao), 1, 10) <= date('now', '-3 hours'))) THEN 1 ELSE 0 END");
+                            });
                         });
                     });
                 });
