@@ -25915,8 +25915,12 @@ app.delete('/api/frota/manutencoes/:id/sem-nota/:tipo', authenticateToken, async
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// DELETE - excluir veiculo
+// DELETE - excluir veiculo (requer senha log123)
 app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
+    const senha = String((req.body && req.body.senha) || req.headers['x-frota-senha'] || (req.query && req.query.senha) || '').trim();
+    if (senha !== 'log123') {
+        return res.status(403).json({ error: 'Senha incorreta para exclusão de veículo.' });
+    }
     db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Veículo excluído com sucesso' });
@@ -27491,9 +27495,20 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
         if (tipo === 'corretiva') {
             const rows = await _fmAll(`
                 SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, r.created_at AS cf_created_at, COALESCE(r.carga_inicial, 0) AS carga_inicial,
-                       fm.id, fm.veiculo_id, fm.descricao, fm.status AS manut_status, fm.data_conclusao, fm.data_inicio, fm.data_agendamento, fm.fornecedor,
+                       fm.id, fm.veiculo_id, fm.descricao, fm.status AS manut_status, fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.fornecedor,
+                       fm.created_at, fm.updated_at, fm.veiculo_rodando, fm.parado_desde, COALESCE(fm.parado_segundos_acum, 0) AS parado_segundos_acum,
                        COALESCE(fm.custo, 0) AS custo, COALESCE(fm.custo_pecas, 0) AS custo_pecas, COALESCE(fm.custo_mao_obra, 0) AS custo_mao_obra,
-                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
+                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url, fv.em_manutencao AS veiculo_em_manutencao,
+                       sin.manutencao_rodando AS sinistro_rodando,
+                       COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) AS veiculo_rodando_efetivo,
+                       CASE WHEN COALESCE(fm.parado_segundos_acum,0) > 0 OR fm.parado_desde IS NOT NULL
+                            THEN CAST((COALESCE(fm.parado_segundos_acum,0) + CASE WHEN fm.parado_desde IS NOT NULL THEN MAX(0, CAST((julianday(CASE WHEN fm.status='concluida' THEN COALESCE(NULLIF(fm.data_fim,''), NULLIF(fm.data_conclusao,''), fm.updated_at, 'now') ELSE 'now' END) - julianday(fm.parado_desde))*86400 AS INTEGER)) ELSE 0 END) / 86400 AS INTEGER)
+                            WHEN fm.status != 'concluida' AND COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) = 'nao'
+                            THEN MAX(0, CAST(julianday('now') - julianday(COALESCE(NULLIF(fm.data_inicio,''), NULLIF(fm.data_agendamento,''), substr(fm.created_at,1,10))) AS INTEGER))
+                            WHEN fm.status = 'concluida' AND COALESCE(fm.veiculo_rodando, sin.manutencao_rodando) = 'nao'
+                            THEN MAX(0, CAST(julianday(COALESCE(NULLIF(fm.data_fim,''), NULLIF(fm.data_conclusao,''), substr(fm.updated_at,1,10), 'now')) - julianday(COALESCE(NULLIF(fm.data_inicio,''), NULLIF(fm.data_agendamento,''), substr(fm.created_at,1,10))) AS INTEGER))
+                            ELSE 0
+                       END AS dias_parado,
                        (CASE WHEN EXISTS (SELECT 1 FROM frota_manutencao_servicos s WHERE s.manutencao_id = fm.id AND s.tipo = 'realizado')
                                OR EXISTS (SELECT 1 FROM frota_manutencao_pecas p WHERE p.manutencao_id = fm.id)
                                OR EXISTS (SELECT 1 FROM frota_manutencao_notas n WHERE n.manutencao_id = fm.id)
@@ -27501,6 +27516,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 FROM compras_frota_registros r
                 JOIN frota_manutencoes fm ON fm.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+                LEFT JOIN frota_sinistros sin ON sin.manutencao_id = fm.id
                 WHERE r.tipo = 'corretiva' AND fm.status IN ('em_andamento', 'aguardando', 'concluida')
                 ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));

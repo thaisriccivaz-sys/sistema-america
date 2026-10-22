@@ -277,13 +277,102 @@ function detectarMimeArquivo(buffer, mimetype, originalname) {
 // ---------------------------------------------------------------------------
 // Plano B: Gemini (com fallback de modelos + retry em 503/429 + suporte a imagem)
 // ---------------------------------------------------------------------------
-const MODELOS_GEMINI = [
+const MODELOS_GEMINI_PRIORIDADE = [
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.7-flash',
+    'gemini-3-flash-preview',
+    'gemini-3.6-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-3.0-flash',
+    'gemini-2.5-pro',
+    'gemini-pro-latest',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
-    'gemini-flash-latest'
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemma-3-27b-it',
+    'gemma-3-12b-it'
 ];
+
+let _modelosGeminiCache = null;
+let _modelosGeminiCacheTs = 0;
+
+async function _obterModelosGemini() {
+    const agora = Date.now();
+    if (_modelosGeminiCache && (agora - _modelosGeminiCacheTs) < 10 * 60 * 1000) {
+        return _modelosGeminiCache;
+    }
+    const apiKey = process.env.GEMINI_API_KEY;
+    const candidatos = [];
+    let listouDaApi = false;
+    if (apiKey && typeof fetch === 'function') {
+        try {
+            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const d = await r.json();
+            if (d && Array.isArray(d.models) && d.models.length > 0) {
+                listouDaApi = true;
+                const suportados = d.models
+                    .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+                    .map(m => String(m.name || '').replace(/^models\//, ''))
+                    .filter(n => n && !/tts|embedding|imagen|veo|aqa|bisheng|robotics|computer-use|audio|live|thinking/i.test(n));
+                for (const pref of MODELOS_GEMINI_PRIORIDADE) {
+                    if (suportados.includes(pref) && !candidatos.includes(pref)) candidatos.push(pref);
+                }
+                const flashExtras = suportados.filter(n => /flash/i.test(n) && !candidatos.includes(n));
+                const proExtras = suportados.filter(n => /pro/i.test(n) && !candidatos.includes(n));
+                const gemmaExtras = suportados.filter(n => /gemma-3-(27|12)b-it/i.test(n) && !candidatos.includes(n));
+                candidatos.push(...flashExtras, ...proExtras, ...gemmaExtras);
+            }
+        } catch (e) {
+            console.warn('[NF] Falha ao listar modelos Gemini:', e.message);
+        }
+    }
+    if (!listouDaApi || candidatos.length === 0) {
+        for (const m of MODELOS_GEMINI_PRIORIDADE) {
+            if (!candidatos.includes(m)) candidatos.push(m);
+        }
+    }
+    _modelosGeminiCache = candidatos;
+    _modelosGeminiCacheTs = agora;
+    return candidatos;
+}
+
+function _extrairJpegDePdfDigitalizado(buf) {
+    try {
+        if (!Buffer.isBuffer(buf) || buf.length < 20000) return null;
+        const s = buf.toString('latin1');
+        const re = /\/DCTDecode[\s\S]{0,400}?stream\r?\n/g;
+        let m, best = null;
+        while ((m = re.exec(s)) !== null) {
+            const start = m.index + m[0].length;
+            const end = s.indexOf('endstream', start);
+            if (end > start) {
+                let len = end - start;
+                while (len > 0 && (buf[start + len - 1] === 0x0A || buf[start + len - 1] === 0x0D || buf[start + len - 1] === 0x20)) len--;
+                const sub = buf.subarray(start, start + len);
+                if (sub.length > 15000 && sub[0] === 0xFF && sub[1] === 0xD8 && (!best || sub.length > best.length)) {
+                    best = sub;
+                }
+            }
+        }
+        if (best && best.length >= buf.length * 0.35) return best;
+    } catch (_) {}
+    return null;
+}
+
+function _extrairJsonTexto(raw) {
+    let txt = String(raw || '').trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+    try { return JSON.parse(txt); } catch (_) {
+        const m = txt.match(/\{[\s\S]*\}/);
+        if (m) return JSON.parse(m[0]);
+        throw new Error('Resposta da IA nao contem JSON valido');
+    }
+}
 
 function _msgErroIaLimpa(err) {
     const m = String((err && err.message) || err || '');
@@ -304,27 +393,67 @@ async function _chamarGeminiJson(buffer, mimeType, prompt) {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const info = detectarMimeArquivo(buffer, mimeType);
-    const mime = info.ok ? info.mime : (mimeType || 'application/pdf');
-    const base64Data = Buffer.from(buffer).toString('base64');
+    let mime = info.ok ? info.mime : (mimeType || 'application/pdf');
+    let payloadBuffer = Buffer.from(buffer);
+
+    if (info.ehPdf) {
+        const jpegEmbutido = _extrairJpegDePdfDigitalizado(payloadBuffer);
+        if (jpegEmbutido) {
+            try {
+                const sharp = require('sharp');
+                const meta = await sharp(jpegEmbutido).metadata();
+                if (meta && meta.width >= 500 && meta.height >= 500) {
+                    payloadBuffer = await sharp(jpegEmbutido)
+                        .rotate()
+                        .resize({ width: 1800, height: 1800, fit: 'inside', withoutEnlargement: true })
+                        .jpeg({ quality: 88 })
+                        .toBuffer();
+                    mime = 'image/jpeg';
+                }
+            } catch (_) {}
+        }
+    } else if (info.ehImagem) {
+        try {
+            const sharp = require('sharp');
+            payloadBuffer = await sharp(payloadBuffer)
+                .rotate()
+                .resize({ width: 1800, height: 1800, fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: 88 })
+                .toBuffer();
+            mime = 'image/jpeg';
+        } catch (e) {
+            // Se sharp falhar, envia o buffer original da imagem
+        }
+    }
+
+    const base64Data = payloadBuffer.toString('base64');
+    const modelos = await _obterModelosGemini();
     let ultimoErro = null;
 
-    for (const nome of MODELOS_GEMINI) {
-        for (let tent = 0; tent < 2; tent++) {
+    for (const nome of modelos) {
+        const ehGemma = /gemma/i.test(nome);
+        if (ehGemma && mime === 'application/pdf') continue; // Gemma aceita imagem, nao PDF bruto
+        const maxTent = ehGemma ? 1 : 2;
+        for (let tent = 0; tent < maxTent; tent++) {
             try {
-                const genCfg = { responseMimeType: 'application/json', temperature: 0 };
+                const usarJsonMime = !ehGemma && tent === 0;
+                const genCfg = usarJsonMime ? { responseMimeType: 'application/json', temperature: 0 } : { temperature: 0 };
                 const model = genAI.getGenerativeModel({ model: nome, generationConfig: genCfg });
                 const result = await model.generateContent([
                     { inlineData: { mimeType: mime, data: base64Data } },
                     { text: prompt }
                 ]);
-                let txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-                return JSON.parse(txt);
+                return _extrairJsonTexto(result.response.text());
             } catch (e) {
                 ultimoErro = e;
                 const msg = String(e.message || '');
                 if (/API_KEY_INVALID/i.test(msg)) throw e;
-                if (/404|not found|400|bad request/i.test(msg)) break; // tenta proximo modelo imediatamente
-                await new Promise(r => setTimeout(r, 800 * (tent + 1)));
+                if (/404|not found/i.test(msg)) break; // modelo inexistente -> tenta proximo imediatamente
+                if (/400|bad request/i.test(msg)) {
+                    if (tent === 0 && !ehGemma) continue; // tenta sem responseMimeType
+                    break;
+                }
+                await new Promise(r => setTimeout(r, 600 * (tent + 1)));
             }
         }
     }

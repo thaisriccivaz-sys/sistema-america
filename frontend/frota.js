@@ -342,7 +342,7 @@ function renderCardsFrota() {
                 <button onclick="window.abrirPopupManutencaoCard(${v.id}, ${emManutencao ? 1 : 0}, '${statusManutAtivo||''}')" style="background:${emManutencao ? (statusManutAtivo==='em_andamento' ? '#dc2626' : '#d97706') : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? (statusManutAtivo==='em_andamento' ? '🔴 Em Manutenção — Finalizar' : '🟡 Manutenção Agendada — Finalizar') : 'Registrar Manutenção'}"><i class="ph ph-wrench"></i></button>
                 ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
-                <button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>
+                ${(window._frotaModoCompras || (document.getElementById('frota-veiculos-container')?.parentElement?.id === 'view-compras-gestao-frota')) ? '' : `<button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>`}
             </div>
         </div>
     </div>
@@ -1517,10 +1517,15 @@ ${alertaHtml}
                 <i class="ph ph-file-pdf" style="font-size:2rem;"></i>
             </div>
             <p style="margin:0 0 1rem;font-size:0.85rem;color:#64748b;padding:0 1rem;">O sistema extrai os dados automaticamente do documento original.</p>
-            <label style="background:#0891b2;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#0e7490'">
-                <i class="ph ph-upload-simple"></i> Selecionar PDF
-                <input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')">
-            </label>
+            <div style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+                <label style="background:#0891b2;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#0e7490'" onmouseout="this.style.background='#0891b2'">
+                    <i class="ph ph-upload-simple"></i> Selecionar PDF
+                    <input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')">
+                </label>
+                ${(id && (v.crlv_filename || v.crlv_r2_key || v.crlv_url || v.crlv_base64))
+                    ? `<button type="button" onclick="window.baixarCRLV(${v.id}, '${String(v.placa||'').replace(/'/g,'')}')" title="Baixar CRLV (${v.crlv_filename || 'PDF'})" style="background:#dc2626;color:#fff;border:none;padding:0.6rem 0.95rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF</button>`
+                    : `<button type="button" disabled title="Nenhum CRLV anexado neste veículo" style="background:#e2e8f0;color:#94a3b8;border:none;padding:0.6rem 0.95rem;border-radius:8px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF</button>`}
+            </div>
             <div id="crlv-status" style="margin-top:0.75rem;font-size:0.8rem;color:#64748b;font-weight:500;"></div>
         </div>
     </div>
@@ -1742,10 +1747,97 @@ window.salvarVeiculoFrota=async function(id){
   }catch(e){alert('Erro: '+e.message);}
 };
 
-window.excluirVeiculoFrota=async function(id,placa){
-  if(!confirm('Excluir o veículo '+placa+'?'))return;
+window.baixarCRLV = async function(id, placa) {
   const tok = window.currentToken || localStorage.getItem('token');
-  await fetch('/api/frota/veiculos/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+tok}});
+  try {
+    const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao baixar CRLV');
+    if (!data.crlv_base64 && !data.crlv_url) throw new Error('Documento CRLV não encontrado para este veículo.');
+    const nomeArq = data.crlv_filename || (`CRLV_${placa || id}.pdf`);
+    if (data.crlv_base64) {
+      let b64 = data.crlv_base64;
+      if (b64.includes(',')) b64 = b64.split(',')[1];
+      const byteCharacters = atob(b64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nomeArq;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      return;
+    }
+    if (data.crlv_url) {
+      window.open(data.crlv_url, '_blank');
+    }
+  } catch (err) {
+    alert('Erro ao baixar CRLV: ' + err.message);
+  }
+};
+
+window.excluirVeiculoFrota=async function(id,placa){
+  const pedirSenha = () => new Promise(resolve => {
+    const ex = document.getElementById('frota-modal-senha-excl');
+    if (ex) ex.remove();
+    const ov = document.createElement('div');
+    ov.id = 'frota-modal-senha-excl';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;width:92vw;max-width:380px;padding:1.4rem;box-shadow:0 20px 50px rgba(0,0,0,0.35);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.6rem;">
+        <div style="width:38px;height:38px;border-radius:10px;background:#fef2f2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="ph ph-lock-key"></i></div>
+        <div>
+          <div style="font-weight:800;color:#1e293b;font-size:0.98rem;">Confirmar Exclusão</div>
+          <div style="font-size:0.78rem;color:#64748b;">Excluir o veículo <b>${placa || ''}</b></div>
+        </div>
+      </div>
+      <label style="display:block;font-size:0.78rem;font-weight:700;color:#475569;margin:0.8rem 0 0.35rem;">Digite a senha da Logística para excluir:</label>
+      <input id="frota-inp-senha-excl" type="password" placeholder="Senha..." style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;">
+      <div id="frota-err-senha-excl" style="color:#dc2626;font-size:0.76rem;font-weight:700;margin-top:6px;display:none;">Senha incorreta.</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.1rem;">
+        <button type="button" id="frota-btn-cancel-excl" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:0.5rem 1rem;border-radius:8px;font-weight:700;font-size:0.84rem;cursor:pointer;">Cancelar</button>
+        <button type="button" id="frota-btn-ok-excl" style="background:#dc2626;color:#fff;border:none;padding:0.5rem 1.1rem;border-radius:8px;font-weight:700;font-size:0.84rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-trash"></i> Excluir</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const inp = document.getElementById('frota-inp-senha-excl');
+    const err = document.getElementById('frota-err-senha-excl');
+    const fechar = (val) => { ov.remove(); resolve(val); };
+    document.getElementById('frota-btn-cancel-excl').onclick = () => fechar(null);
+    const confirmar = () => {
+      const val = (inp.value || '').trim();
+      if (val !== 'log123') {
+        err.style.display = 'block';
+        inp.style.borderColor = '#dc2626';
+        inp.focus();
+        return;
+      }
+      fechar(val);
+    };
+    document.getElementById('frota-btn-ok-excl').onclick = confirmar;
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmar();
+      if (e.key === 'Escape') fechar(null);
+    });
+    setTimeout(() => inp.focus(), 50);
+  });
+
+  const senha = await pedirSenha();
+  if (!senha) return;
+  const tok = window.currentToken || localStorage.getItem('token');
+  const res = await fetch('/api/frota/veiculos/'+id,{
+    method:'DELETE',
+    headers:{'Content-Type':'application/json', Authorization:'Bearer '+tok},
+    body: JSON.stringify({ senha })
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    alert(j.error || 'Erro ao excluir veículo.');
+    return;
+  }
   window.initFrotaVeiculos();
 };
 })();

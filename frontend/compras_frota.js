@@ -136,8 +136,9 @@
         if (!tbl) return;
 
         const th = 'padding:10px 12px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;';
+        const thC = 'padding:10px 12px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;';
         const thR = 'padding:10px 12px;text-align:right;color:#475569;font-weight:700;white-space:nowrap;';
-        const colSpan = 9;
+        const colSpan = tipo === 'corretiva' ? 11 : 9;
         const linhas = lista.map((x, i) => {
             const bg = i % 2 === 0 ? '#fff' : '#fafafa';
             const avatar = x.foto_url
@@ -146,16 +147,25 @@
             const veic = '<div style="display:flex;align-items:center;gap:10px;">' + avatar
                 + '<div><div style="font-weight:800;color:#1e293b;">' + esc(x.placa || '—') + '</div>'
                 + '<div style="font-size:0.72rem;color:#64748b;">' + esc(String(x.marca_modelo_versao || x.tipo_veiculo || '').substring(0, 38)) + '</div></div></div>';
-            let c2, c3, c4, vp, vm, vt;
+            let c2, colsDatasHtml, c4, vp, vm, vt;
             if (tipo === 'corretiva') {
                 c2 = '<span title="' + esc(x.descricao || '') + '" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:300px;">' + esc(x.descricao || '—') + '</span>';
-                c3 = fmtData(x.data_conclusao || x.data_inicio || x.data_agendamento);
+                const dtInicio = fmtData(x.data_inicio || x.data_agendamento || x.created_at);
+                const dtConc = fmtData(x.data_conclusao || x.data_fim);
+                const diasParado = Math.max(0, parseInt(x.dias_parado, 10) || 0);
+                const rodandoEf = x.veiculo_rodando_efetivo || x.veiculo_rodando || (x.manut_status === 'em_andamento' ? 'nao' : 'sim');
+                const estaParado = (x.manut_status !== 'concluida' && rodandoEf === 'nao') || diasParado > 0;
+                const badgeParado = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (estaParado ? '#fef2f2' : '#f1f5f9') + ';color:' + (estaParado ? '#dc2626' : '#64748b') + ';border:1px solid ' + (estaParado ? '#fecaca' : '#e2e8f0') + ';padding:3px 9px;border-radius:999px;font-weight:800;font-size:0.76rem;white-space:nowrap;">'
+                    + diasParado + ' ' + (diasParado === 1 ? 'dia' : 'dias') + '</span>';
+                colsDatasHtml = '<td style="padding:9px 12px;white-space:nowrap;">' + dtInicio + '</td>'
+                    + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;">' + badgeParado + '</td>'
+                    + '<td style="padding:9px 12px;white-space:nowrap;">' + dtConc + '</td>';
                 c4 = esc(x.fornecedor || '—');
                 vp = x.custo_pecas; vm = x.custo_mao_obra; vt = x.custo;
             } else {
                 const ehCar = String(x.tipo_veiculo || '').toLowerCase().indexOf('carretinha') !== -1;
                 c2 = '<span style="font-weight:700;color:#6d28d9;">' + (ehCar ? (x.marco_meses + ' meses') : (Number(x.marco_km).toLocaleString('pt-BR') + ' km / ' + x.marco_meses + ' meses')) + '</span>';
-                c3 = fmtData(x.data_revisao);
+                colsDatasHtml = '<td style="padding:9px 12px;white-space:nowrap;">' + fmtData(x.data_revisao) + '</td>';
                 c4 = esc(x.concessionaria || '—');
                 vp = x.valor_pecas; vm = x.valor_mao_obra; vt = x.valor_total;
             }
@@ -166,7 +176,7 @@
             return '<tr style="background:' + bg + ';border-bottom:1px solid #f1f5f9;">'
                 + '<td style="padding:9px 12px;">' + veic + '</td>'
                 + '<td style="padding:9px 12px;">' + c2 + '</td>'
-                + '<td style="padding:9px 12px;white-space:nowrap;">' + c3 + '</td>'
+                + colsDatasHtml
                 + '<td style="padding:9px 12px;">' + c4 + '</td>'
                 + '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' + brl(vp) + '</td>'
                 + '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' + brl(vm) + '</td>'
@@ -176,11 +186,15 @@
                 + '</tr>';
         }).join('');
 
+        const thDatas = tipo === 'corretiva'
+            ? ('<th style="' + th + '">Data Início</th><th style="' + thC + '">🚫 Dias Parado</th><th style="' + th + '">Data Conclusão</th>')
+            : ('<th style="' + th + '">Data da revisão</th>');
+
         tbl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.84rem;">'
             + '<thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">'
             + '<th style="' + th + '">Veículo</th>'
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Defeito / Problema' : 'Revisão') + '</th>'
-            + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Data / Conclusão' : 'Data da revisão') + '</th>'
+            + thDatas
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Fornecedor' : 'Concessionária') + '</th>'
             + '<th style="' + thR + '">R$ Peças</th><th style="' + thR + '">R$ Mão de obra</th><th style="' + thR + '">R$ Total</th>'
             + '<th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Situação</th>'
