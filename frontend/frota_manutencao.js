@@ -1715,8 +1715,10 @@ window._mnRevMarcarTodosGrupo = function(grupo, marcado) {
 
 window._mnRevAoMudarStatus = function() {
     const st = document.getElementById('mn-rev-f-status')?.value || 'pendente';
-    const dtEl = document.getElementById('mn-rev-f-data');
-    if (st === 'pendente' && dtEl) dtEl.value = '';
+    const dcEl = document.getElementById('mn-rev-f-data-concl');
+    if (st === 'realizada' && dcEl && !dcEl.value) {
+        dcEl.value = window._mnHojeISO();
+    }
     window._mnRevAtualizarInfoParado();
 };
 
@@ -1734,10 +1736,18 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     const v = ctx.veiculo;
     const ehCar = window._mnRevEhCarretinha(v);
     const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(marcoKm); }) || {
-        id: null, veiculo_id: v.id, marco_km: marcoKm, marco_meses: marcoMeses, status: 'pendente', data_revisao: '', km_revisao: '',
+        id: null, veiculo_id: v.id, marco_km: marcoKm, marco_meses: marcoMeses, status: 'pendente', data_solicitacao: '', data_revisao: '', data_conclusao: '', km_revisao: '',
         concessionaria: (function() { const ga = String(v.garantia_fabrica_ate || '').split('T')[0]; return (ga && ga >= window._mnHojeISO()) ? 'Concessionária Autorizada Fiat' : ''; })(), numero_os: '', valor_pecas: 0, valor_mao_obra: 0, valor_total: 0,
         itens: {}, observacoes: '', anexos: [], midias: [], lancamentos: []
     };
+    const avisosMap = (ctx && ctx.avisos) || {};
+    const revInfo = v.revisao_info || {};
+    const mpInfo = revInfo.marco_pendente || revInfo;
+    const emAlertaMarco = mpInfo && Number(mpInfo.marco_km) === Number(marcoKm) && (mpInfo.status === 'a_vencer' || mpInfo.status === 'vencida' || revInfo.status === 'a_vencer' || revInfo.status === 'vencida');
+    const dtSolicPadrao = String(reg.data_solicitacao || avisosMap[Number(marcoKm)] || (emAlertaMarco ? window._mnHojeISO() : '')).split('T')[0];
+    const dtRevPadrao = String(reg.data_revisao || '').split('T')[0];
+    const dtConclPadrao = String(reg.data_conclusao || (reg.status === 'realizada' ? (reg.concluido_em || reg.data_revisao || '') : '')).split('T')[0];
+    const statusModal = (reg.status === 'pendente' && dtRevPadrao && dtRevPadrao <= window._mnHojeISO()) ? 'agendada' : (reg.status || 'pendente');
     const itensSalvos = reg.itens || {};
     window._mnRevMarcoAtual = { km: marcoKm, meses: marcoMeses };
     window._mnRevNotaStage = null;
@@ -1780,22 +1790,27 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
                 <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-wrench" style="color:#7c3aed;"></i> 1. Registro de Execução da Revisão</div>
                 <div id="mn-rev-parado-info" style="margin-bottom:0.75rem;"></div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;">
+                <input type="hidden" id="mn-rev-f-km" value="${(reg.status === 'realizada' && reg.km_revisao) ? reg.km_revisao : (v.km_atual || '')}">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Situação da Revisão *</label>
                         <select id="mn-rev-f-status" onchange="window._mnRevAoMudarStatus()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.85rem;">
-                            <option value="pendente"${reg.status === 'pendente' ? ' selected' : ''}>Pendente</option>
-                            <option value="agendada"${reg.status === 'agendada' ? ' selected' : ''}>Agendada</option>
-                            <option value="realizada"${reg.status === 'realizada' ? ' selected' : ''}>Realizada (Concluída)</option>
+                            <option value="pendente"${statusModal === 'pendente' ? ' selected' : ''}>Pendente</option>
+                            <option value="agendada"${statusModal === 'agendada' ? ' selected' : ''}>Agendada</option>
+                            <option value="realizada"${statusModal === 'realizada' ? ' selected' : ''}>Realizada (Concluída)</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
-                        <input type="date" id="mn-rev-f-data" onchange="window._mnRevAoMudarData()" value="${String(reg.data_revisao || '').split('T')[0]}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da solicitação</label>
+                        <input type="date" id="mn-rev-f-data-solic" value="${dtSolicPadrao}" title="Data em que surgiu o alerta de revisão próxima (pode ser editada)" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
-                    <div${ehCar ? ' style="display:none;"' : ''}>
-                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">KM da revisão (automático)</label>
-                        <input type="number" id="mn-rev-f-km" value="${(reg.status === 'realizada' && reg.km_revisao) ? reg.km_revisao : (v.km_atual || '')}" readonly tabindex="-1" title="Preenchido automaticamente com o KM da Gestão de Frota" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;background:#f1f5f9;color:#475569;cursor:not-allowed;">
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data da Revisão</label>
+                        <input type="date" id="mn-rev-f-data" onchange="window._mnRevAoMudarData()" value="${dtRevPadrao}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Data de conclusão</label>
+                        <input type="date" id="mn-rev-f-data-concl" value="${dtConclPadrao}" title="Data de conclusão da revisão (pode ser editada)" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Concessionária / Autorizada</label>
@@ -2585,12 +2600,18 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     const statusEnvio = (silencioso && status === 'realizada' && (!regExistente || regExistente.status !== 'realizada'))
         ? ((regExistente && regExistente.status) ? regExistente.status : (document.getElementById('mn-rev-f-data')?.value ? 'agendada' : 'pendente'))
         : status;
+    const dcInp = document.getElementById('mn-rev-f-data-concl');
+    if (statusEnvio === 'realizada' && dcInp && !dcInp.value) {
+        dcInp.value = window._mnHojeISO();
+    }
 
     const body = {
         marco_km: marcoKm,
         marco_meses: marcoMeses,
         status: statusEnvio,
+        data_solicitacao: document.getElementById('mn-rev-f-data-solic')?.value || null,
         data_revisao: document.getElementById('mn-rev-f-data')?.value || null,
+        data_conclusao: dcInp ? (dcInp.value || null) : null,
         km_revisao: document.getElementById('mn-rev-f-km')?.value || null,
         concessionaria: document.getElementById('mn-rev-f-conc')?.value || null,
         numero_os: document.getElementById('mn-rev-f-os')?.value || null,
@@ -4305,14 +4326,16 @@ window._mnEdMontar = function() {
       +     '<div>'
       +       '<div style="' + sec + '">'
       +         '<div style="' + secT + 'margin-bottom:12px;"><i class="ph ph-truck" style="color:#d97706;"></i> Dados da manutenção</div>'
-      +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Veículo *</label><select id="mned-veic" style="' + inp + '">' + veicOpts + '</select></div>'
+      +         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;">'
+      +           '<div><label style="' + lbl + '">Veículo *</label><select id="mned-veic" style="' + inp + '">' + veicOpts + '</select></div>'
+      +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +         '</div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Defeito / Problema *</label><textarea id="mned-desc" rows="2" placeholder="Descreva o defeito ou problema do veículo..." style="' + inp + 'resize:vertical;">' + esc(m.descricao || '') + '</textarea></div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
-      +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">'
+      +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">'
       +           '<div><label style="' + lbl + '">Data da solicitação</label><input type="date" id="mned-dsol" value="' + esc(window._mnDataInput(m.created_at) || window._mnHojeISO()) + '" title="Data em que a manutenção foi solicitada (pode ser editada)" style="' + inp + '"></div>'
       +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
-      +           '<div id="mned-dc-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
-      +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +           '<div id="mned-dc-box" style="display:block;"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;margin-top:2px;">'
@@ -4821,7 +4844,7 @@ window._mnEdRenderStatus = function() {
     }).join('');
     var ehConcl = ed.status === 'concluida';
     var dcBox = document.getElementById('mned-dc-box'), kfBox = document.getElementById('mned-km-final-box');
-    if (dcBox) dcBox.style.display = ehConcl ? 'block' : 'none';
+    if (dcBox) dcBox.style.display = 'block';
     if (kfBox) kfBox.style.display = ehConcl ? 'block' : 'none';
     box.querySelectorAll('[data-s]').forEach(function(b) {
         b.onclick = function() {
@@ -4874,7 +4897,7 @@ window._mnEdRenderStatus = function() {
                                 justificativa_status: justTxt,
                                 data_inicio: di ? (di.value || null) : null,
                                 data_fim: document.getElementById('mned-df') ? (document.getElementById('mned-df').value || null) : null,
-                                data_conclusao: (novo === 'concluida' && dc) ? (dc.value || null) : undefined
+                                data_conclusao: dc ? (dc.value || null) : undefined
                             })
                         });
                         var rsJson = await rs.json().catch(function() { return {}; });
@@ -7028,6 +7051,10 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         if (ed.status === 'em_andamento' && !di) { di = window._mnHojeISO(); if (diEl) diEl.value = di; }
         var dsolEl = document.getElementById('mned-dsol');
         var dsol = dsolEl ? dsolEl.value : '';
+        var dcEl = document.getElementById('mned-dc');
+        if (ehConcl && dcEl && !dcEl.value) {
+            dcEl.value = window._mnHojeISO();
+        }
         var corpo = {
             status: ed.status,
             veiculo_id: veic,
@@ -7035,13 +7062,13 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             data_solicitacao: dsol || undefined,
             data_inicio: di || null,
             data_fim: df || null,
+            data_conclusao: dcEl ? (dcEl.value || null) : null,
             km_na_manutencao: document.getElementById('mned-km').value || null,
             km_final_manutencao: ehConcl ? (document.getElementById('mned-km-final').value || null) : null,
             fornecedor: document.getElementById('mned-forn').value.trim() || null,
             veiculo_rodando: ed.veiculo_rodando,
             justificativa_status: ed.justificativa_status || undefined
         };
-        if (ehConcl) corpo.data_conclusao = document.getElementById('mned-dc').value || null;
         var rs = await fetch('/api/frota/manutencoes/' + ed.id + '/status', { method: 'PUT', headers: hdr, body: JSON.stringify(corpo) });
         var rsJson = await rs.json().catch(function() { return {}; });
         if (!rs.ok) { throw new Error(rsJson.error || 'Erro ao salvar a manutenção'); }
@@ -7053,7 +7080,7 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         ed.m.descricao = desc;
         ed.m.status = ed.status;
         ed.m.data_inicio = corpo.data_inicio;
-        ed.m.data_conclusao = ehConcl ? corpo.data_conclusao : ed.m.data_conclusao;
+        ed.m.data_conclusao = corpo.data_conclusao;
         ed.m.km_na_manutencao = corpo.km_na_manutencao;
         ed.m.km_final_manutencao = corpo.km_final_manutencao;
         ed.m.fornecedor = corpo.fornecedor;

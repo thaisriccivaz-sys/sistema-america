@@ -24502,7 +24502,11 @@ async function _fmProcessarTransicoesAutomaticas() {
             if (m.veiculo_id) await _fmAtualizaEmManutencao(m.veiculo_id);
         }
 
-        // 3) Revisoes agendadas: atualiza a disponibilidade (indisponivel quando a data da revisao chega)
+        // 3) Revisoes agendadas: muda automaticamente de pendente para agendada quando chega na data agendada e atualiza disponibilidade
+        await _fmRun(
+            "UPDATE frota_revisoes SET status = 'agendada', parado_desde = COALESCE(parado_desde, substr(TRIM(data_revisao), 1, 10)), updated_at = CURRENT_TIMESTAMP WHERE status = 'pendente' AND data_revisao IS NOT NULL AND TRIM(data_revisao) <> '' AND substr(TRIM(data_revisao), 1, 10) <= ?",
+            [hoje]
+        );
         const veicsRev = await _fmAll("SELECT DISTINCT veiculo_id FROM frota_revisoes WHERE status = 'agendada'");
         for (const rv of veicsRev) {
             if (rv && rv.veiculo_id) await _fmAtualizaEmManutencao(rv.veiculo_id);
@@ -24694,8 +24698,8 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         if (status === 'concluida') {
             if (data_conclusao) { fields.push('data_conclusao=?'); params.push(data_conclusao); }
             else { fields.push('data_conclusao=COALESCE(data_conclusao,?)'); params.push(now); }
-        } else if (status !== 'cancelada') {
-            fields.push('data_conclusao=NULL');
+        } else if (data_conclusao !== undefined) {
+            fields.push('data_conclusao=?'); params.push(data_conclusao || null);
         }
         const novoVeic = veiculo_id ? parseInt(veiculo_id) : null;
         // Data da solicitacao editavel (mantem o horario original do registro)
@@ -26442,11 +26446,12 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
     UNIQUE(veiculo_id, marco_km)
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisoes]', err.message);
-    ['parado_desde TEXT', 'concluido_em TEXT', 'dias_parado INTEGER', 'parado_minutos INTEGER'].forEach(col => {
+    ['parado_desde TEXT', 'concluido_em TEXT', 'dias_parado INTEGER', 'parado_minutos INTEGER', 'data_solicitacao TEXT', 'data_conclusao TEXT'].forEach(col => {
         db.run('ALTER TABLE frota_revisoes ADD COLUMN ' + col, (e2) => {
             if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisoes col]', e2.message);
         });
     });
+    db.run("UPDATE frota_revisoes SET data_conclusao = COALESCE(substr(concluido_em, 1, 10), substr(data_revisao, 1, 10), substr(updated_at, 1, 10)) WHERE status = 'realizada' AND (data_conclusao IS NULL OR TRIM(data_conclusao) = '')", () => {});
     db.run("UPDATE frota_revisoes SET km_revisao = marco_km, parado_minutos = NULL, dias_parado = NULL, parado_desde = NULL WHERE status = 'realizada' AND (observacoes LIKE '%marcada como feita manualmente%' OR (COALESCE(valor_total, 0) = 0 AND COALESCE(numero_os, '') = '' AND COALESCE(concessionaria, '') = '' AND km_revisao > marco_km AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)))", () => {});
     db.run("DELETE FROM frota_revisoes WHERE status = 'agendada' AND COALESCE(itens_json, '{}') = '{}' AND COALESCE(numero_os, '') = '' AND COALESCE(valor_total, 0) = 0 AND data_revisao = '2026-05-20' AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)", () => {});
 });
@@ -26545,6 +26550,7 @@ app.get('/api/frota/revisoes-historico/todas', authenticateToken, async (req, re
 // GET - retorna dados do veículo, revisões registradas e anexos de notas/OS
 app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) => {
     try {
+        await _fmProcessarTransicoesAutomaticas().catch(() => {});
         const vid = parseInt(req.params.veiculoId, 10);
         const veiculo = await _fmGet(
             'SELECT id, placa, marca_modelo_versao, ano_modelo, tipo_veiculo, km_atual, garantia_fabrica, garantia_fabrica_ate, data_inicio_garantia, uso_severo, foto_url, foto_base64, created_at FROM frota_veiculos WHERE id = ?',
@@ -26561,8 +26567,26 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
             'SELECT id, revisao_id, veiculo_id, categoria, servico_id, nome_arquivo, mime_type, r2_key, usuario_nome, created_at FROM frota_revisao_midias WHERE veiculo_id = ? ORDER BY id ASC',
             [vid]
         );
+        const revRes = _fmResumoRevisaoVeiculo(veiculo, revisoes, _fmHojeBR());
+        if (revRes && (revRes.status === 'a_vencer' || revRes.status === 'vencida' || revRes.marco_pendente)) {
+            const mp = revRes.marco_pendente || revRes;
+            if (mp && mp.marco_km) {
+                await _fmRun('INSERT OR IGNORE INTO frota_revisao_avisos (veiculo_id, marco_km) VALUES (?, ?)', [vid, Number(mp.marco_km)]).catch(() => {});
+            }
+        }
+        const avisosRows = await _fmAll('SELECT marco_km, created_at FROM frota_revisao_avisos WHERE veiculo_id = ?', [vid]).catch(() => []);
+        const avisos = {};
+        (avisosRows || []).forEach(a => {
+            if (a && a.marco_km && a.created_at) avisos[Number(a.marco_km)] = String(a.created_at).slice(0, 10);
+        });
         revisoes.forEach(r => {
             try { r.itens = JSON.parse(r.itens_json || '{}'); } catch (e) { r.itens = {}; }
+            if (!r.data_solicitacao) {
+                r.data_solicitacao = avisos[Number(r.marco_km)] || (r.created_at ? String(r.created_at).slice(0, 10) : null);
+            }
+            if (r.status === 'realizada' && !r.data_conclusao) {
+                r.data_conclusao = String(r.concluido_em || r.data_revisao || r.updated_at || '').slice(0, 10) || null;
+            }
             r.anexos = anexos.filter(a => Number(a.revisao_id) === Number(r.id));
             const anxMap = {};
             r.anexos.forEach(a => { anxMap[a.id] = a; });
@@ -26574,10 +26598,9 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
                 return Object.assign({}, l, { fornecedor: forn, servicos: Array.isArray(sv) ? sv : [] });
             });
         });
-        const revRes = _fmResumoRevisaoVeiculo(veiculo, revisoes, _fmHojeBR());
         veiculo.revisao_status = revRes.status || null;
         veiculo.revisao_info = revRes;
-        res.json({ veiculo, revisoes, anexos });
+        res.json({ veiculo, revisoes, anexos, avisos });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -26653,8 +26676,14 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const marcoKm = parseInt(b.marco_km, 10);
         if (!marcoKm || marcoKm <= 0) return res.status(400).json({ error: 'Informe o marco de KM da revisão.' });
         const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
-        const status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
-        const dataRev = status === 'pendente' ? null : (String(b.data_revisao || '').trim().split('T')[0] || null);
+        const hoje = _fmHojeBR();
+        let status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
+        const dataRev = String(b.data_revisao || '').trim().split('T')[0] || null;
+        if (status === 'pendente' && dataRev && dataRev <= hoje) {
+            status = 'agendada';
+        }
+        const dataSolicReq = b.data_solicitacao !== undefined ? (String(b.data_solicitacao || '').trim().split('T')[0] || null) : undefined;
+        const dataConclReq = b.data_conclusao !== undefined ? (String(b.data_conclusao || '').trim().split('T')[0] || null) : undefined;
         const conc = String(b.concessionaria || '').trim() || null;
         const numOs = String(b.numero_os || '').trim() || null;
         let vPecas = 0, vMo = 0, vTot = 0;
@@ -26671,10 +26700,18 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const itensJson = JSON.stringify(itensRaw);
         const obs = String(b.observacoes || '').trim() || null;
         const usuario = _fmUsuario(req);
-        const hoje = _fmHojeBR();
         const diffDias = (de, ate) => Math.max(0, Math.round((new Date(ate + 'T00:00:00Z') - new Date(de + 'T00:00:00Z')) / 86400000));
 
-        const existing = await _fmGet('SELECT id, status, data_revisao, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const existing = await _fmGet('SELECT id, status, data_solicitacao, data_revisao, data_conclusao, km_revisao, parado_desde, concluido_em, dias_parado, parado_minutos FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]);
+        const avisoRow = await _fmGet('SELECT created_at FROM frota_revisao_avisos WHERE veiculo_id = ? AND marco_km = ?', [vid, marcoKm]).catch(() => null);
+        const dataSolic = dataSolicReq !== undefined
+            ? dataSolicReq
+            : ((existing && existing.data_solicitacao) || (avisoRow && avisoRow.created_at ? String(avisoRow.created_at).slice(0, 10) : null));
+        const dataConcl = (dataConclReq !== undefined && dataConclReq !== null)
+            ? dataConclReq
+            : (status === 'realizada'
+                ? ((existing && existing.data_conclusao) ? existing.data_conclusao : hoje)
+                : (dataConclReq !== undefined ? null : (existing ? existing.data_conclusao : null)));
         const veic = await _fmGet('SELECT km_atual, tipo_veiculo FROM frota_veiculos WHERE id = ?', [vid]);
         const ehCarretinhaRev = !!(veic && _ehCarretinhaTipo(veic.tipo_veiculo));
         // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
@@ -26744,18 +26781,18 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         if (existing) {
             await _fmRun(
                 `UPDATE frota_revisoes
-                 SET marco_meses=?, status=?, data_revisao=?, km_revisao=?, concessionaria=?, numero_os=?,
+                 SET marco_meses=?, status=?, data_solicitacao=?, data_revisao=?, data_conclusao=?, km_revisao=?, concessionaria=?, numero_os=?,
                      valor_pecas=?, valor_mao_obra=?, valor_total=?, itens_json=?, observacoes=?, usuario_nome=?,
                      parado_desde=?, concluido_em=?, dias_parado=?, parado_minutos=?, updated_at=CURRENT_TIMESTAMP
                  WHERE id=?`,
-                [marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado, existing.id]
+                [marcoMeses, status, dataSolic, dataRev, dataConcl, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado, existing.id]
             );
             revId = existing.id;
         } else {
             const ins = await _fmRun(
-                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_revisao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome, parado_desde, concluido_em, dias_parado, parado_minutos)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [vid, marcoKm, marcoMeses, status, dataRev, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado]
+                `INSERT INTO frota_revisoes (veiculo_id, marco_km, marco_meses, status, data_solicitacao, data_revisao, data_conclusao, km_revisao, concessionaria, numero_os, valor_pecas, valor_mao_obra, valor_total, itens_json, observacoes, usuario_nome, parado_desde, concluido_em, dias_parado, parado_minutos)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [vid, marcoKm, marcoMeses, status, dataSolic, dataRev, dataConcl, kmRev, conc, numOs, vPecas, vMo, vTot, itensJson, obs, usuario, paradoDesde, concluidoEm, diasParado, minParado]
             );
             revId = ins.lastID;
         }
