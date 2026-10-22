@@ -241,71 +241,142 @@ async function analisarLocal(buffer) {
 }
 
 // ---------------------------------------------------------------------------
-// Plano B: Gemini para PECAS / PRODUTOS (exclui servicos/mao de obra)
+// Deteccao de tipo de arquivo (PDF ou Imagem JPG/PNG/WEBP)
 // ---------------------------------------------------------------------------
-const MODELOS_GEMINI = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+function detectarMimeArquivo(buffer, mimetype, originalname) {
+    const b = Buffer.isBuffer(buffer) ? buffer : (buffer ? Buffer.from(buffer) : Buffer.alloc(0));
+    if (b.length >= 5 && b.slice(0, 5).toString('latin1') === '%PDF-') {
+        return { ok: true, mime: 'application/pdf', ext: '.pdf', ehPdf: true, ehImagem: false };
+    }
+    if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) {
+        return { ok: true, mime: 'image/jpeg', ext: '.jpg', ehPdf: false, ehImagem: true };
+    }
+    if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) {
+        return { ok: true, mime: 'image/png', ext: '.png', ehPdf: false, ehImagem: true };
+    }
+    if (b.length >= 12 && b.slice(0, 4).toString('latin1') === 'RIFF' && b.slice(8, 12).toString('latin1') === 'WEBP') {
+        return { ok: true, mime: 'image/webp', ext: '.webp', ehPdf: false, ehImagem: true };
+    }
+    const mt = String(mimetype || '').toLowerCase();
+    const nm = String(originalname || '').toLowerCase();
+    if (mt === 'application/pdf' || nm.endsWith('.pdf')) {
+        return { ok: true, mime: 'application/pdf', ext: '.pdf', ehPdf: true, ehImagem: false };
+    }
+    if (mt === 'image/jpeg' || mt === 'image/jpg' || nm.endsWith('.jpg') || nm.endsWith('.jpeg')) {
+        return { ok: true, mime: 'image/jpeg', ext: '.jpg', ehPdf: false, ehImagem: true };
+    }
+    if (mt === 'image/png' || nm.endsWith('.png')) {
+        return { ok: true, mime: 'image/png', ext: '.png', ehPdf: false, ehImagem: true };
+    }
+    if (mt === 'image/webp' || nm.endsWith('.webp')) {
+        return { ok: true, mime: 'image/webp', ext: '.webp', ehPdf: false, ehImagem: true };
+    }
+    return { ok: false, mime: mt || 'application/octet-stream', ext: '', ehPdf: false, ehImagem: false };
+}
 
-async function analisarComGemini(buffer) {
+// ---------------------------------------------------------------------------
+// Plano B: Gemini (com fallback de modelos + retry em 503/429 + suporte a imagem)
+// ---------------------------------------------------------------------------
+const MODELOS_GEMINI = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-flash-latest'
+];
+
+function _msgErroIaLimpa(err) {
+    const m = String((err && err.message) || err || '');
+    if (/503|high demand|overloaded|unavailable/i.test(m)) {
+        return 'Serviço de leitura automática temporariamente ocupado (alta demanda). Tente novamente em instantes ou preencha manualmente.';
+    }
+    if (/429|quota|rate limit/i.test(m)) {
+        return 'Limite temporário de leitura automática atingido. Aguarde alguns segundos ou preencha manualmente.';
+    }
+    if (/API_KEY_INVALID|GEMINI_API_KEY/i.test(m)) {
+        return 'Chave da IA não configurada ou inválida.';
+    }
+    return 'Não foi possível concluir a leitura automática neste momento.';
+}
+
+async function _chamarGeminiJson(buffer, mimeType, prompt) {
     if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY nao configurada');
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = 'Voce recebe um PDF de NOTA FISCAL (DANFE), ORDEM DE SERVICO ou ORCAMENTO de manutencao automotiva. '
-        + 'Extraia SOMENTE os itens de PECAS / PRODUTOS / MATERIAIS fisicos e responda SOMENTE com JSON valido, sem markdown, neste formato: '
-        + '{"numero":"","serie":"","emissao":"dd/mm/aaaa","fornecedor":"razao social do emitente","cnpj":"cnpj do emitente","chave_acesso":"44 digitos",'
-        + '"garantia":{"valor":0,"unidade":"dias ou meses"},'
-        + '"itens":[{"codigo":"","descricao":"","unidade":"UN","quantidade":0,"valor_unit":0,"valor_total":0}]}. '
-        + 'REGRAS OBRIGATORIAS: '
-        + '1) Liste APENAS PECAS, PRODUTOS ou MATERIAIS fisicos aplicados. '
-        + '2) NAO inclua servicos, mao de obra, horas de mecanica/oficina (ex.: "MECANICA - CA", "29-ATENDIMENTO", "DIAGNOSTICO", "REVISAR...") nem itens que estejam na tabela "SERVICOS A EXECUTAR" ou "MAO DE OBRA". '
-        + '3) Se o documento tiver apenas servicos/mao de obra e nenhuma peca, retorne "itens": []. '
-        + '4) Na descricao da peca, coloque apenas o nome limpo da peca (sem cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD").';
+    const info = detectarMimeArquivo(buffer, mimeType);
+    const mime = info.ok ? info.mime : (mimeType || 'application/pdf');
+    const base64Data = Buffer.from(buffer).toString('base64');
     let ultimoErro = null;
+
     for (const nome of MODELOS_GEMINI) {
-        try {
-            const model = genAI.getGenerativeModel({ model: nome, generationConfig: { responseMimeType: 'application/json' } });
-            const result = await model.generateContent([
-                { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
-                { text: prompt }
-            ]);
-            let txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-            const j = JSON.parse(txt);
-            const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
-                codigo: String(i.codigo || '').trim(),
-                descricao: limparDescricaoItem(i.descricao),
-                unidade: String(i.unidade || 'UN').trim().toUpperCase(),
-                quantidade: Number(i.quantidade) || 1,
-                valor_unit: Math.round((Number(i.valor_unit) || 0) * 10000) / 10000,
-                valor_total: Math.round((Number(i.valor_total) || 0) * 100) / 100
-            })).filter(i => (i.descricao || i.codigo) && !ehItemDeMaoDeObra(i.descricao));
-            const soma = Math.round(itens.reduce((s, i) => s + i.valor_total, 0) * 100) / 100;
-            const g = j.garantia && Number(j.garantia.valor) > 0
-                ? { valor: parseInt(j.garantia.valor, 10), unidade: /mes/i.test(String(j.garantia.unidade)) ? 'meses' : 'dias' } : null;
-            return {
-                numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''), serie: String(j.serie || ''), emissao: String(j.emissao || ''),
-                fornecedor: String(j.fornecedor || ''), cnpj: String(j.cnpj || ''), chave_acesso: String(j.chave_acesso || '').replace(/\D/g, ''),
-                garantia_sugerida: g, itens: itens, soma_itens: soma, soma_confere: false, fonte: 'ia'
-            };
-        } catch (e) {
-            ultimoErro = e;
-            const msg = String(e.message || '');
-            if (msg.includes('API_KEY_INVALID')) break;
+        for (let tent = 0; tent < 2; tent++) {
+            try {
+                const genCfg = { responseMimeType: 'application/json', temperature: 0 };
+                const model = genAI.getGenerativeModel({ model: nome, generationConfig: genCfg });
+                const result = await model.generateContent([
+                    { inlineData: { mimeType: mime, data: base64Data } },
+                    { text: prompt }
+                ]);
+                let txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+                return JSON.parse(txt);
+            } catch (e) {
+                ultimoErro = e;
+                const msg = String(e.message || '');
+                if (/API_KEY_INVALID/i.test(msg)) throw e;
+                if (/404|not found|400|bad request/i.test(msg)) break; // tenta proximo modelo imediatamente
+                await new Promise(r => setTimeout(r, 800 * (tent + 1)));
+            }
         }
     }
     throw ultimoErro || new Error('Falha ao consultar o Gemini');
 }
 
+async function analisarComGemini(buffer, mimeType) {
+    const prompt = 'Voce recebe um PDF ou IMAGEM (foto/scan) de NOTA FISCAL (DANFE), ORDEM DE SERVICO, RECIBO ou ORCAMENTO de manutencao automotiva. '
+        + 'Extraia SOMENTE os itens de PECAS / PRODUTOS / MATERIAIS fisicos e responda SOMENTE com JSON valido, sem markdown, neste formato: '
+        + '{"numero":"","serie":"","emissao":"dd/mm/aaaa","fornecedor":"razao social ou nome da oficina/loja","cnpj":"cnpj do emitente","chave_acesso":"44 digitos",'
+        + '"garantia":{"valor":0,"unidade":"dias ou meses"},'
+        + '"itens":[{"codigo":"","descricao":"","unidade":"UN","quantidade":0,"valor_unit":0,"valor_total":0}]}. '
+        + 'REGRAS OBRIGATORIAS: '
+        + '1) Liste APENAS PECAS, PRODUTOS ou MATERIAIS fisicos aplicados. '
+        + '2) NAO inclua servicos, mao de obra, horas de mecanica/oficina (ex.: "MECANICA - CA", "29-ATENDIMENTO", "DIAGNOSTICO", "REVISAR...", "M.O", "REMOCAO E INSTALACAO...") nem itens que estejam na tabela "SERVICOS A EXECUTAR" ou "MAO DE OBRA". '
+        + '3) Se o documento tiver apenas servicos/mao de obra e nenhuma peca, retorne "itens": []. '
+        + '4) Na descricao da peca, coloque apenas o nome limpo da peca (sem cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD"). '
+        + '5) Se for um DANFE onde o item possui coluna "V. TOTAL LIQUIDO" (ou onde ha Outras Despesas / Frete / IPI somados ao total da nota, ex.: valor prod 162,91 + outras desp 2,80 = V. TOTAL LIQUIDO 165,71), use o V. TOTAL LIQUIDO como valor_total (e ajuste valor_unit) para que a soma das pecas bata exatamente com o VALOR TOTAL DA NOTA.';
+    const j = await _chamarGeminiJson(buffer, mimeType, prompt);
+    const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
+        codigo: String(i.codigo || '').trim(),
+        descricao: limparDescricaoItem(i.descricao),
+        unidade: String(i.unidade || 'UN').trim().toUpperCase(),
+        quantidade: Number(i.quantidade) || 1,
+        valor_unit: Math.round((Number(i.valor_unit) || 0) * 10000) / 10000,
+        valor_total: Math.round((Number(i.valor_total) || 0) * 100) / 100
+    })).filter(i => (i.descricao || i.codigo) && !ehItemDeMaoDeObra(i.descricao) && i.valor_total > 0);
+    const soma = Math.round(itens.reduce((s, i) => s + i.valor_total, 0) * 100) / 100;
+    const g = j.garantia && Number(j.garantia.valor) > 0
+        ? { valor: parseInt(j.garantia.valor, 10), unidade: /mes/i.test(String(j.garantia.unidade)) ? 'meses' : 'dias' } : null;
+    return {
+        numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''), serie: String(j.serie || ''), emissao: String(j.emissao || ''),
+        fornecedor: String(j.fornecedor || ''), cnpj: String(j.cnpj || ''), chave_acesso: String(j.chave_acesso || '').replace(/\D/g, ''),
+        garantia_sugerida: g, itens: itens, soma_itens: soma, soma_confere: false, fonte: 'ia'
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Orquestrador de PECAS
 // ---------------------------------------------------------------------------
-async function analisarNotaFiscal(buffer) {
+async function analisarNotaFiscal(buffer, mimeType) {
+    const info = detectarMimeArquivo(buffer, mimeType);
     let local = null;
-    try { local = await analisarLocal(buffer); } catch (e) { console.error('[NF] leitor local falhou:', e.message); }
-    if (local && local.itens.length > 0 && local.soma_confere) return Object.assign(local, { avisos: [] });
+    if (info.ehPdf) {
+        try { local = await analisarLocal(buffer); } catch (e) { console.error('[NF] leitor local falhou:', e.message); }
+        if (local && local.itens.length > 0 && local.soma_confere) return Object.assign(local, { avisos: [] });
+    }
 
     let ia = null, erroIa = null;
     if (process.env.GEMINI_API_KEY) {
         try {
-            ia = await analisarComGemini(buffer);
+            ia = await analisarComGemini(buffer, info.mime);
             if (local && local.itens.length) ia.soma_confere = Math.abs(ia.soma_itens - local.soma_itens) <= SOMA_TOL;
         } catch (e) { erroIa = e; console.error('[NF] Gemini falhou:', e.message); }
     }
@@ -316,7 +387,7 @@ async function analisarNotaFiscal(buffer) {
     }
     if (ia && !ia.itens.length && (!local || !local.itens.length)) {
         if (local) ['numero', 'serie', 'emissao', 'fornecedor', 'cnpj', 'chave_acesso'].forEach(k => { if (!ia[k] && local[k]) ia[k] = local[k]; });
-        ia.avisos = ['Nenhuma peça identificada neste PDF (serviços de mão de obra devem ser lançados em "NF de mão de obra"). Você pode digitar as peças abaixo manualmente.'];
+        ia.avisos = ['Nenhuma peça identificada neste documento (serviços de mão de obra devem ser lançados como mão de obra). Você pode digitar as peças abaixo manualmente.'];
         return ia;
     }
     if (local && local.itens.length) {
@@ -325,7 +396,7 @@ async function analisarNotaFiscal(buffer) {
     }
     const base = local || { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', garantia_sugerida: null, itens: [], soma_itens: 0, soma_confere: false, fonte: 'nenhum' };
     base.avisos = ['Não foi possível ler as peças desta nota automaticamente. Digite as peças manualmente.'
-        + (erroIa ? ' (IA: ' + String(erroIa.message).substring(0, 80) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
+        + (erroIa ? ' (' + _msgErroIaLimpa(erroIa) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
     return base;
 }
 
@@ -427,73 +498,47 @@ function dadosServicoLocal(texto, itensServ) {
     return r;
 }
 
-async function analisarServicoGemini(buffer) {
-    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY nao configurada');
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const prompt = 'Voce recebe uma NOTA FISCAL DE SERVICO (NFS-e) ou ORDEM DE SERVICO / ORCAMENTO de MAO DE OBRA de manutencao de veiculos. '
+async function analisarServicoGemini(buffer, mimeType) {
+    const prompt = 'Voce recebe um PDF ou IMAGEM (foto/scan) de NOTA FISCAL DE SERVICO (NFS-e), RECIBO MANUSCRITO ou ORDEM DE SERVICO / ORCAMENTO de MAO DE OBRA de manutencao de veiculos. '
         + 'Extraia os dados e responda SOMENTE com JSON valido, sem markdown, neste formato: '
-        + '{"numero":"","emissao":"dd/mm/aaaa","fornecedor":"razao social do prestador","cnpj":"cnpj do prestador","valor_total":0,'
+        + '{"numero":"","emissao":"dd/mm/aaaa","fornecedor":"razao social ou nome da oficina","cnpj":"cnpj do prestador","valor_total":0,'
         + '"itens":[{"descricao":"servico executado","valor":0}]}. '
-        + 'Regras: liste cada servico discriminado na nota com o seu valor (numero com ponto decimal); se a nota trouxer um unico valor para varios servicos, '
-        + 'retorne UMA linha com a discriminacao resumida e o valor total dos servicos; nao inclua impostos retidos como itens; '
-        + 'limpe a descricao do servico removendo cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD VR. UNIT.".';
-    let ultimoErro = null;
-    const modelosRapidos = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
-    for (const nome of modelosRapidos) {
-        try {
-            const genCfg = { responseMimeType: 'application/json', temperature: 0 };
-            if (/2\.5/.test(nome)) genCfg.thinkingConfig = { thinkingBudget: 0 };
-            const model = genAI.getGenerativeModel({ model: nome, generationConfig: genCfg });
-            let result = null, errTent = null;
-            for (let tent = 0; tent < 2 && !result; tent++) {
-                try {
-                    result = await model.generateContent([
-                        { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
-                        { text: prompt }
-                    ]);
-                } catch (e2) {
-                    errTent = e2;
-                    if (/API_KEY_INVALID|404|not found/i.test(String(e2.message || ''))) break;
-                    await new Promise(r => setTimeout(r, 800));
-                }
-            }
-            if (!result) throw errTent || new Error('Sem resposta do Gemini');
-            const txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-            const j = JSON.parse(txt);
-            const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
-                descricao: limparDescricaoItem(i.descricao),
-                valor: Math.round((Number(i.valor) || 0) * 100) / 100
-            })).filter(i => i.descricao);
-            const soma = Math.round(itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
-            return {
-                numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''), serie: '', emissao: String(j.emissao || ''),
-                fornecedor: String(j.fornecedor || ''), cnpj: String(j.cnpj || ''), chave_acesso: '',
-                valor_total: Math.round((Number(j.valor_total) || soma) * 100) / 100, itens: itens, fonte: 'ia'
-            };
-        } catch (e) {
-            ultimoErro = e;
-            const msg = String(e.message || '');
-            if (msg.includes('API_KEY_INVALID')) break;
-        }
-    }
-    throw ultimoErro || new Error('Falha ao consultar o Gemini');
+        + 'Regras: '
+        + '1) Liste cada servico discriminado na nota/recibo com o seu valor (numero com ponto decimal). '
+        + '2) Se a nota/recibo trouxer a descricao do servico em uma linha sem valor (ex.: "remocao e instalacao rolamento traseiro lado direito") e na linha de baixo "M.O 160,00" ou "TOTAL 160,00", junte em UMA UNICA linha com a descricao completa do servico e o valor (ex.: 160.00). Nao retorne linha zerada separada de "M.O". '
+        + '3) Em recibos/orcamentos manuscritos de oficina, leia o nome da oficina impresso no cabecalho (ex.: "MARCELOS CAR") como fornecedor e a data preenchida como emissao (dd/mm/aaaa). '
+        + '4) Nao inclua impostos retidos nem pecas fisicas como itens de servico; '
+        + '5) Limpe a descricao do servico removendo cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD VR. UNIT.".';
+    const j = await _chamarGeminiJson(buffer, mimeType, prompt);
+    const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
+        descricao: limparDescricaoItem(i.descricao),
+        valor: Math.round((Number(i.valor) || 0) * 100) / 100
+    })).filter(i => i.descricao && i.valor > 0);
+    const soma = Math.round(itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
+    return {
+        numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''), serie: '', emissao: String(j.emissao || ''),
+        fornecedor: String(j.fornecedor || ''), cnpj: String(j.cnpj || ''), chave_acesso: '',
+        valor_total: Math.round((Number(j.valor_total) || soma) * 100) / 100, itens: itens, fonte: 'ia'
+    };
 }
 
-async function analisarNotaServico(buffer) {
+async function analisarNotaServico(buffer, mimeType) {
+    const info = detectarMimeArquivo(buffer, mimeType);
     let local = null, ia = null, erroIa = null, tabelaLida = false;
-    try {
-        const t = await textoDoPdf(buffer);
-        local = dadosServicoLocal(t.texto, t.itensServ);
-        tabelaLida = !!local.tabela;
-    } catch (e) { console.error('[NF-MO] leitor local falhou:', e.message); }
+    if (info.ehPdf) {
+        try {
+            const t = await textoDoPdf(buffer);
+            local = dadosServicoLocal(t.texto, t.itensServ);
+            tabelaLida = !!local.tabela;
+        } catch (e) { console.error('[NF-MO] leitor local falhou:', e.message); }
+    }
     let localConfiavel = false;
     if (local && local.itens.length && local.numero && local.fornecedor && local.valor_total > 0 && tabelaLida) {
         const somaL = Math.round(local.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
         localConfiavel = Math.abs(somaL - local.valor_total) <= 0.05;
     }
     if (process.env.GEMINI_API_KEY && !localConfiavel) {
-        try { ia = await analisarServicoGemini(buffer); } catch (e) { erroIa = e; console.error('[NF-MO] Gemini falhou:', e.message); }
+        try { ia = await analisarServicoGemini(buffer, info.mime); } catch (e) { erroIa = e; console.error('[NF-MO] Gemini falhou:', e.message); }
     }
     const vazio = { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', valor_total: 0, itens: [], fonte: 'nenhum' };
     const base = (ia && ia.itens.length) ? ia : (local && local.itens.length ? local : (ia || local || vazio));
@@ -506,9 +551,181 @@ async function analisarNotaServico(buffer) {
             : (base.fonte === 'ia' ? ['Linhas lidas por IA. Confira descrição e valores antes de salvar.'] : []);
     } else {
         base.avisos = ['Não foi possível ler as linhas desta nota automaticamente. Digite os serviços e valores manualmente.'
-            + (erroIa ? ' (IA: ' + String(erroIa.message).substring(0, 300) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
+            + (erroIa ? ' (' + _msgErroIaLimpa(erroIa) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
     }
     return base;
 }
 
-module.exports = { analisarNotaFiscal, analisarLocal, analisarComGemini, analisarNotaServico, parseBR, limparDescricaoItem, ehItemDeMaoDeObra };
+// ---------------------------------------------------------------------------
+// Leitura Unificada (PDF ou Imagem JPG/PNG/WEBP) -> Pecas + Mao de Obra em 1 unica chamada IA
+// ---------------------------------------------------------------------------
+async function analisarUnificadoComGemini(buffer, mimeType) {
+    const prompt = 'Voce recebe um PDF ou IMAGEM (foto/scan) de uma NOTA FISCAL (DANFE ou NFS-e), ORDEM DE SERVICO (OS), RECIBO ou ORCAMENTO (impresso ou manuscrito) de manutencao automotiva. '
+        + 'Extraia o cabecalho e TODOS os itens cobrados, classificando cada item como "peca" (pecas fisicas, produtos, materiais, rolamentos, cubos de roda, filtros, oleos, etc.) ou "mao_obra" (servicos executados, mao de obra, M.O, instalacao, remocao, alinhamento, socorro, etc.). '
+        + 'Responda SOMENTE com JSON valido, sem markdown, neste formato: '
+        + '{"numero":"","serie":"","emissao":"dd/mm/aaaa","fornecedor":"razao social ou nome fantasia da oficina/loja","cnpj":"","chave_acesso":"44 digitos se houver",'
+        + '"garantia":{"valor":0,"unidade":"dias ou meses"},'
+        + '"valor_total":0,'
+        + '"itens":[{"tipo":"peca ou mao_obra","codigo":"","descricao":"","unidade":"UN","quantidade":1,"valor_unit":0,"valor_total":0}]}. '
+        + 'REGRAS OBRIGATORIAS: '
+        + '1) DANFE COM V. TOTAL LIQUIDO / OUTRAS DESPESAS / FRETE / IPI: Se for uma nota fiscal de produtos (DANFE) onde o item tem coluna "V. TOTAL LIQUIDO" (ou onde ha Outras Despesas Acessoria / Frete / IPI somados ao total da nota, ex.: produto 162,91 + outras despesas 2,80 = V. TOTAL LIQUIDO 165,71), use o V. TOTAL LIQUIDO (165.71) como valor_total do item (e ajuste valor_unit) para que a soma das pecas bata exatamente com o VALOR TOTAL DA NOTA. '
+        + '2) RECIBO / ORCAMENTO MANUSCRITO DE OFICINA (ex.: bloco amarelo "MARCELOS CAR MECANICA EM GERAL"): '
+        + '   a) Leia o nome da oficina no topo do cabecalho (ex.: "MARCELOS CAR") como "fornecedor", e a data preenchida (ex.: "09/10/2026") como "emissao". '
+        + '   b) Se houver uma linha descrevendo o servico sem preco na frente (ex.: "remocao e instalacao rolamento traseiro lado direito") e outra linha abaixo escrita "M.O" / "Mao de obra" com o preco (ex.: 160,00), JUNTE em UM UNICO item com "tipo":"mao_obra", "descricao":"Remocao e instalacao rolamento traseiro lado direito (M.O)" e "valor_total":160.00. NUNCA retorne uma linha com valor 0 separada da linha M.O. '
+        + '3) Se um item estiver na secao de Pecas mas a descricao for claramente mao de obra (ex.: "MECANICA", "M.O", "ATENDIMENTO", "DIAGNOSTICO", "REMOCAO E INSTALACAO"), classifique como "mao_obra". '
+        + '4) Limpe a descricao removendo lixos de cabecalho como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD".';
+    const j = await _chamarGeminiJson(buffer, mimeType, prompt);
+    const pecas = [];
+    const moItens = [];
+    (Array.isArray(j.itens) ? j.itens : []).forEach(i => {
+        const desc = limparDescricaoItem(i.descricao);
+        const cod = String(i.codigo || '').trim();
+        const qtd = Number(i.quantidade) || 1;
+        const vt = Math.round((Number(i.valor_total) || (qtd * (Number(i.valor_unit) || 0)) || 0) * 100) / 100;
+        const vu = Math.round(((Number(i.valor_unit) || (vt / qtd)) || 0) * 10000) / 10000;
+        if (!desc && !cod) return;
+        if (vt <= 0) return;
+        const tipoBruto = String(i.tipo || '').toLowerCase();
+        const ehMo = tipoBruto.includes('mao') || tipoBruto.includes('serv') || ehItemDeMaoDeObra(desc);
+        if (ehMo) {
+            moItens.push({
+                descricao: desc || 'Mão de obra',
+                quantidade: 1,
+                unidade: 'SV',
+                valor_unit: vt,
+                valor_total: vt,
+                valor: vt
+            });
+        } else {
+            pecas.push({
+                codigo: cod,
+                descricao: desc,
+                unidade: String(i.unidade || 'UN').trim().toUpperCase(),
+                quantidade: qtd,
+                valor_unit: vu,
+                valor_total: vt
+            });
+        }
+    });
+    const g = j.garantia && Number(j.garantia.valor) > 0
+        ? { valor: parseInt(j.garantia.valor, 10), unidade: /mes/i.test(String(j.garantia.unidade)) ? 'meses' : 'dias' } : null;
+    return {
+        numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''),
+        serie: String(j.serie || ''),
+        emissao: String(j.emissao || ''),
+        fornecedor: String(j.fornecedor || '').trim(),
+        cnpj: String(j.cnpj || '').trim(),
+        chave_acesso: String(j.chave_acesso || '').replace(/\D/g, ''),
+        garantia_sugerida: g,
+        pecas: pecas,
+        moItens: moItens,
+        valor_total: Math.round((Number(j.valor_total) || 0) * 100) / 100,
+        fonte: 'ia'
+    };
+}
+
+async function analisarDocumentoUnificado(buffer, mimeType) {
+    const info = detectarMimeArquivo(buffer, mimeType);
+    let localPecas = null, localMo = null, tabelaMoLida = false;
+
+    if (info.ehPdf) {
+        try { localPecas = await analisarLocal(buffer); } catch (e) { console.error('[NF-Unif] leitor local pecas falhou:', e.message); }
+        try {
+            const t = await textoDoPdf(buffer);
+            localMo = dadosServicoLocal(t.texto, t.itensServ);
+            tabelaMoLida = !!localMo.tabela;
+        } catch (e) { console.error('[NF-Unif] leitor local MO falhou:', e.message); }
+
+        const pecasLocalConfiavel = !!(localPecas && localPecas.itens && localPecas.itens.length > 0 && localPecas.soma_confere && !tabelaMoLida);
+        if (pecasLocalConfiavel) {
+            return {
+                numero: localPecas.numero || '',
+                serie: localPecas.serie || '',
+                emissao: localPecas.emissao || '',
+                fornecedor: localPecas.fornecedor || '',
+                cnpj: localPecas.cnpj || '',
+                chave_acesso: localPecas.chave_acesso || '',
+                garantia_sugerida: null,
+                pecas: localPecas.itens,
+                moItens: [],
+                avisos: [],
+                fonte: 'local'
+            };
+        }
+
+        const somaMoLocal = localMo && localMo.itens ? Math.round(localMo.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100 : 0;
+        const moLocalConfiavel = !!(localMo && localMo.itens && localMo.itens.length > 0 && localMo.numero && localMo.fornecedor && localMo.valor_total > 0 && tabelaMoLida && Math.abs(somaMoLocal - localMo.valor_total) <= 0.05 && (!localPecas || !localPecas.itens || !localPecas.itens.length));
+        if (moLocalConfiavel) {
+            return {
+                numero: localMo.numero || '',
+                serie: localMo.serie || '',
+                emissao: localMo.emissao || '',
+                fornecedor: localMo.fornecedor || '',
+                cnpj: localMo.cnpj || '',
+                chave_acesso: localMo.chave_acesso || '',
+                garantia_sugerida: null,
+                pecas: [],
+                moItens: localMo.itens.map(i => ({ descricao: i.descricao, quantidade: 1, unidade: 'SV', valor_unit: Number(i.valor) || 0, valor_total: Number(i.valor) || 0, valor: Number(i.valor) || 0 })),
+                avisos: [],
+                fonte: 'local'
+            };
+        }
+    }
+
+    let ia = null, erroIa = null;
+    if (process.env.GEMINI_API_KEY) {
+        try {
+            ia = await analisarUnificadoComGemini(buffer, info.mime);
+        } catch (e) {
+            erroIa = e;
+            console.error('[NF-Unif] Gemini unificado falhou:', e.message);
+        }
+    }
+
+    if (ia && (ia.pecas.length > 0 || ia.moItens.length > 0)) {
+        const cabLocal = localPecas || localMo;
+        if (cabLocal) {
+            ['numero', 'serie', 'emissao', 'fornecedor', 'cnpj', 'chave_acesso'].forEach(k => {
+                if (!ia[k] && cabLocal[k]) ia[k] = cabLocal[k];
+            });
+        }
+        ia.avisos = ['Documento lido por IA. Confira descrição, quantidades e valores antes de confirmar.'];
+        return ia;
+    }
+
+    const pecasFallback = (localPecas && localPecas.itens) ? localPecas.itens : [];
+    const moFallback = (localMo && localMo.itens) ? localMo.itens.map(i => ({ descricao: i.descricao, quantidade: 1, unidade: 'SV', valor_unit: Number(i.valor) || 0, valor_total: Number(i.valor) || 0, valor: Number(i.valor) || 0 })) : [];
+    const cab = localPecas || localMo || ia || {};
+    const avisos = [];
+    if (pecasFallback.length || moFallback.length) {
+        avisos.push('Confira os itens e valores extraídos antes de salvar.');
+    } else {
+        avisos.push('Não foi possível ler os itens automaticamente deste documento. Você pode preencher as peças ou mão de obra manualmente abaixo.'
+            + (erroIa ? ' (' + _msgErroIaLimpa(erroIa) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)')));
+    }
+    return {
+        numero: cab.numero || '',
+        serie: cab.serie || '',
+        emissao: cab.emissao || '',
+        fornecedor: cab.fornecedor || '',
+        cnpj: cab.cnpj || '',
+        chave_acesso: cab.chave_acesso || '',
+        garantia_sugerida: cab.garantia_sugerida || null,
+        pecas: pecasFallback,
+        moItens: moFallback,
+        avisos: avisos,
+        fonte: (pecasFallback.length || moFallback.length) ? 'local' : 'nenhum'
+    };
+}
+
+module.exports = {
+    analisarNotaFiscal,
+    analisarLocal,
+    analisarComGemini,
+    analisarNotaServico,
+    analisarDocumentoUnificado,
+    detectarMimeArquivo,
+    parseBR,
+    limparDescricaoItem,
+    ehItemDeMaoDeObra
+};

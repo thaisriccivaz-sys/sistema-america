@@ -1858,16 +1858,16 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
 
             <!-- 3. Anexar notas / OS -->
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
-                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-receipt" style="color:#0284c7;"></i> 3. Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF)</div>
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-receipt" style="color:#0284c7;"></i> 3. Anexar Nota Fiscal de Serviço, Nota de Peças, Recibo ou Ordem de Serviço (PDF ou Imagem)</div>
                 <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
-                    <div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">Selecione o PDF: o sistema lê a nota e preenche as peças e a mão de obra (valores podem estar separados ou juntos, em uma ou várias notas). Depois vincule cada item a um serviço da revisão.</div>
+                    <div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">Selecione o PDF ou foto (JPG/PNG): o sistema lê a nota/recibo e preenche as peças e a mão de obra (valores podem estar separados ou juntos, em uma ou várias notas). Depois vincule cada item a um serviço da revisão.</div>
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <input type="hidden" id="mn-rev-anx-tipo" value="nota_servico">
                         <label style="display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
-                            <i class="ph ph-paperclip"></i> Anexar documento (PDF)
-                            <input type="file" id="mn-rev-anx-file" accept="application/pdf" onchange="window._mnRevAoEscolherPdf(this)" style="display:none;">
+                            <i class="ph ph-paperclip"></i> Anexar documento (PDF / Foto)
+                            <input type="file" id="mn-rev-anx-file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="window._mnRevAoEscolherPdf(this)" style="display:none;">
                         </label>
-                        <span style="font-size:0.74rem;color:#64748b;">O sistema identifica automaticamente o tipo do documento (nota de peças, nota de serviço ou OS).</span>
+                        <span style="font-size:0.74rem;color:#64748b;">Aceita PDF ou Imagem (JPG, PNG). O sistema identifica automaticamente peças e mão de obra.</span>
                     </div>
                     <div style="margin-top:0.75rem;"><button type="button" onclick="window._mnRevIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;">+ Adicionar peça / serviço manual</button></div>
                     <div id="mn-rev-stage" style="margin-top:0.75rem;"></div>
@@ -4245,6 +4245,85 @@ window._mnEdRenderAlertaRevisao = function() {
       + '</div>';
 };
 
+window._mnEdRenderAlertaAbertas = function(forcarFetch) {
+    var box = document.getElementById('mned-abertas-alerta');
+    if (!box) return;
+    var vid = (document.getElementById('mned-veic') && document.getElementById('mned-veic').value) || (window._mnEd && window._mnEd.m && window._mnEd.m.veiculo_id) || '';
+    if (!vid) { box.innerHTML = ''; return; }
+    if ((forcarFetch || !Array.isArray(window._mnCorrDados)) && !window._mnEdBuscandoCorrAbertas) {
+        window._mnEdBuscandoCorrAbertas = true;
+        var tok = window._mnEdTok ? window._mnEdTok() : (window._manutTok || window.currentToken || localStorage.getItem('token'));
+        fetch('/api/frota/manutencoes?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok } })
+            .then(function(r) { return r.json(); })
+            .then(function(lista) {
+                window._mnEdBuscandoCorrAbertas = false;
+                if (Array.isArray(lista)) {
+                    window._mnCorrDados = lista.filter(function(m) { return !m.tipo || m.tipo === 'corretiva'; });
+                }
+                window._mnEdRenderAlertaAbertas(false);
+            })
+            .catch(function() { window._mnEdBuscandoCorrAbertas = false; });
+    }
+    var idAtual = (window._mnEd && window._mnEd.id) || 0;
+    var abertas = (window._mnCorrDados || []).filter(function(m) {
+        return String(m.veiculo_id) === String(vid)
+            && (!m.tipo || m.tipo === 'corretiva')
+            && m.status !== 'concluida'
+            && m.status !== 'cancelada'
+            && (!idAtual || String(m.id) !== String(idAtual));
+    });
+    if (!abertas.length) { box.innerHTML = ''; return; }
+    var esc = window._mnEdEsc || function(s) { return String(s == null ? '' : s); };
+    var statusLbl = { agendada: 'Novo', em_andamento: 'Em Manutenção', aguardando: 'Aguardando' };
+    var statusCor = { agendada: '#d97706', em_andamento: '#dc2626', aguardando: '#2563eb' };
+    var fmtData = function(d) {
+        if (!d) return '—';
+        var p = String(d).split('T')[0].split(' ')[0].split('-');
+        return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : d;
+    };
+    var vObj = (window._manutFrota || window._frotaDados || []).find(function(x) { return String(x.id) === String(vid); });
+    var placaTxt = (abertas[0] && abertas[0].placa) || (vObj && vObj.placa) || '';
+    var cardsHtml = abertas.map(function(o) {
+        var sCor = statusCor[o.status] || '#64748b';
+        var sTxt = statusLbl[o.status] || o.status || '—';
+        var parado = (o.veiculo_rodando_efetivo === 'nao' || o.veiculo_rodando === 'nao' || o.status === 'em_andamento');
+        var rodBadge = parado
+            ? '<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-prohibit"></i> VEÍCULO PARADO</span>'
+            : '<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:3px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-check-circle"></i> VEÍCULO ANDANDO (RODANDO)</span>';
+        var solicTxt = o.itens_solicitados ? String(o.itens_solicitados).trim() : '';
+        return '<div style="background:#fff;border:1.5px solid #fed7aa;border-left:5px solid ' + sCor + ';border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(15,23,42,0.05);display:flex;flex-direction:column;gap:8px;">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border-bottom:1px solid #f1f5f9;padding-bottom:7px;">'
+            +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            +     '<span style="font-size:0.82rem;font-weight:900;color:#0f172a;">Solicitação #' + esc(o.id) + '</span>'
+            +     '<span style="background:' + sCor + '22;color:' + sCor + ';border:1px solid ' + sCor + '55;padding:2px 10px;border-radius:999px;font-size:0.74rem;font-weight:800;">Status: ' + esc(sTxt) + '</span>'
+            +     rodBadge
+            +   '</div>'
+            +   '<button type="button" onclick="window.mnCorrEditarInterno(' + o.id + ')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:4px 10px;font-size:0.74rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-arrow-square-out"></i> Abrir solicitação</button>'
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+            +   '<div><div style="font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;">Data da solicitação</div><div style="font-size:0.82rem;font-weight:800;color:#1e293b;margin-top:1px;">' + esc(fmtData(o.created_at)) + '</div></div>'
+            +   '<div><div style="font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;">Veículo parado ou andando</div><div style="font-size:0.82rem;font-weight:800;color:' + (parado ? '#b91c1c' : '#15803d') + ';margin-top:1px;">' + (parado ? 'Parado (Indisponível)' : 'Andando (Rodando)') + '</div></div>'
+            +   '<div><div style="font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;">Status da manutenção</div><div style="font-size:0.82rem;font-weight:800;color:' + sCor + ';margin-top:1px;">' + esc(sTxt) + '</div></div>'
+            + '</div>'
+            + '<div style="font-size:0.82rem;color:#1e293b;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:7px 10px;">'
+            +   '<span style="font-weight:800;color:#92400e;">Defeito / Problema:</span> ' + esc(o.descricao || '—')
+            +   (solicTxt && solicTxt !== o.descricao ? '<div style="font-size:0.75rem;color:#78350f;margin-top:3px;"><b>Itens solicitados:</b> ' + esc(solicTxt) + '</div>' : '')
+            + '</div>'
+            + '</div>';
+    }).join('');
+    box.innerHTML =
+        '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #f59e0b;border-left:6px solid #d97706;border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">'
+      +   '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'
+      +     '<div style="background:#d97706;color:#fff;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.25rem;"><i class="ph ph-warning-circle"></i></div>'
+      +     '<div>'
+      +       '<div style="font-size:0.9rem;font-weight:900;color:#92400e;text-transform:uppercase;letter-spacing:0.3px;">Atenção — Este veículo (' + esc(placaTxt) + ') já possui ' + abertas.length + ' manutenção(ões) corretiva(s) em aberto!</div>'
+      +       '<div style="font-size:0.8rem;color:#78350f;font-weight:600;margin-top:1px;">Confira abaixo os quadros com os detalhes das solicitações que já estão em aberto para este veículo:</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:10px;">' + cardsHtml + '</div>'
+      + '</div>';
+};
+
 window._mnEdIniciarRevisaoDoMarco = async function(vid, marcoKm, marcoMeses, dataIni, fornecedor) {
     var di = dataIni || (document.getElementById('mned-di') && document.getElementById('mned-di').value) || '';
     var forn = fornecedor || (document.getElementById('mned-forn') && document.getElementById('mned-forn').value.trim()) || '';
@@ -4339,6 +4418,7 @@ window._mnEdMontar = function() {
       + '</div>'
       + '<div style="flex:1;overflow-y:auto;padding:18px 24px;">'
       +   '<div id="mned-rev-alerta" style="max-width:1900px;margin:0 auto;"></div>'
+      +   '<div id="mned-abertas-alerta" style="max-width:1900px;margin:0 auto;"></div>'
       +   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:18px;align-items:start;max-width:1900px;margin:0 auto;">'
       +     '<div>'
       +       '<div style="' + sec + '">'
@@ -4412,11 +4492,11 @@ window._mnEdMontar = function() {
       +       '</div>'
       +       '<div style="border:1.5px dashed #cbd5e1;border-radius:10px;padding:0.9rem;background:#fff;margin-bottom:16px;">'
       +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
-      +           '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF)</div>'
+      +           '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças, Recibo ou Ordem de Serviço (PDF ou Imagem)</div>'
       +           '<button type="button" onclick="window._mnEdIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar peça / serviço manual</button>'
       +         '</div>'
-      +         '<div style="font-size:0.76rem;color:#64748b;margin-bottom:8px;">Ao selecionar o PDF, o sistema identifica automaticamente se é peça ou mão de obra (ou Ordem de Serviço), lê os itens e valores para você conferir e vincular aos serviços realizados. Se não tiver o PDF agora, use <b>+ Adicionar peça / serviço manual</b>.</div>'
-      +         '<div><label style="font-size:0.72rem;font-weight:700;color:#475569;display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;"><i class="ph ph-upload-simple"></i> Anexar documento (PDF)<input type="file" id="mned-anx-file" accept="application/pdf" onchange="window._mnEdAoEscolherPdf(this)" style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
+      +         '<div style="font-size:0.76rem;color:#64748b;margin-bottom:8px;">Ao selecionar o PDF ou foto (JPG/PNG), o sistema identifica automaticamente se é peça ou mão de obra (ou Ordem de Serviço), lê os itens e valores para você conferir e vincular aos serviços realizados. Se não tiver o documento agora, use <b>+ Adicionar peça / serviço manual</b>.</div>'
+      +         '<div><label style="font-size:0.72rem;font-weight:700;color:#475569;display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;"><i class="ph ph-upload-simple"></i> Anexar documento (PDF / Foto)<input type="file" id="mned-anx-file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="window._mnEdAoEscolherPdf(this)" style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
       +         '<div id="mned-stage" style="margin-top:0.65rem;"></div>'
       +         '<div id="mned-notas" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:6px;"></div>'
       +         '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div></div>'
@@ -4460,6 +4540,7 @@ window._mnEdMontar = function() {
         var v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(this.value); }.bind(this));
         if (window._mnEd.novo && v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
         if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
+        if (typeof window._mnEdRenderAlertaAbertas === 'function') window._mnEdRenderAlertaAbertas(false);
     };
     var syncDatasRodando = function() {
         var ed = window._mnEd;
@@ -4518,6 +4599,7 @@ window._mnEdMontar = function() {
     window._mnEdRenderHist();
     if (typeof window._mnEdRenderVideoGeral === 'function') window._mnEdRenderVideoGeral();
     if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
+    if (typeof window._mnEdRenderAlertaAbertas === 'function') window._mnEdRenderAlertaAbertas(true);
     if (window._mnIniciarCronometros) window._mnIniciarCronometros();
 };
 

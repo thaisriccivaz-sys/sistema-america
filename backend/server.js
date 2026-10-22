@@ -25230,6 +25230,11 @@ const multerNfFrota = require('multer')({ storage: require('multer').memoryStora
 function _fmNumero(v) { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
 function _fmGarantia(v, u) { const gv = parseInt(v); return gv >= 0 ? { v: gv, u: (u === 'meses' ? 'meses' : 'dias') } : { v: null, u: null }; }
 function _fmEhPdf(buf) { return !!buf && buf.length > 5 && buf.slice(0, 5).toString() === '%PDF-'; }
+function _fmInfoArquivoNota(file) {
+    if (!file || !file.buffer) return { ok: false, mime: 'application/octet-stream', ext: '', ehPdf: false, ehImagem: false };
+    const { detectarMimeArquivo } = require('./utils/nfParser');
+    return detectarMimeArquivo(file.buffer, file.mimetype, file.originalname);
+}
 
 // Insere pecas (digitadas ou vindas da nota). Suporta vinculo unico (100% do valor) ou rateio entre varios servicos selecionados
 async function _fmInserirPecas(manId, notaId, pecas, opts) {
@@ -25285,13 +25290,14 @@ async function _fmInserirPecas(manId, notaId, pecas, opts) {
     }
 }
 
-// POST - analisa o PDF da nota (NAO grava nada)
+// POST - analisa o PDF ou imagem da nota (NAO grava nada)
 app.post('/api/frota/manutencoes/:id/notas/analisar', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'Envie o PDF da nota fiscal.' });
-        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+        if (!req.file) return res.status(400).json({ error: 'Envie o PDF ou imagem da nota fiscal.' });
+        const info = _fmInfoArquivoNota(req.file);
+        if (!info.ok) return res.status(400).json({ error: 'O arquivo precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
         const { analisarNotaFiscal } = require('./utils/nfParser');
-        const r = await analisarNotaFiscal(req.file.buffer);
+        const r = await analisarNotaFiscal(req.file.buffer, info.mime);
         res.json(r);
     } catch (e) {
         console.error('[NF] analisar:', e);
@@ -25299,7 +25305,7 @@ app.post('/api/frota/manutencoes/:id/notas/analisar', authenticateToken, multerN
     }
 });
 
-// POST - grava as pecas escolhidas e (se enviado) o PDF da nota no R2
+// POST - grava as pecas escolhidas e (se enviado) o PDF/imagem da nota no R2
 app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     let keyEnviada = null;
     try {
@@ -25313,7 +25319,8 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
 
         let notaId = null;
         if (req.file) {
-            if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+            const info = _fmInfoArquivoNota(req.file);
+            if (!info.ok) return res.status(400).json({ error: 'O arquivo precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
             if (dados.chave_acesso) {
                 const dup = await _fmGet('SELECT id FROM frota_manutencao_notas WHERE manutencao_id = ? AND chave_acesso = ?', [id, String(dados.chave_acesso)]);
                 if (dup) return res.status(409).json({ error: 'Esta nota fiscal já foi anexada a esta manutenção.' });
@@ -25323,8 +25330,8 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
             const safe = (s) => String(s || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
             const agora = new Date();
             const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
-                + String(agora.getDate()).padStart(2, '0') + '_NF_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
-            await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+                + String(agora.getDate()).padStart(2, '0') + '_NF_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + info.ext;
+            await r2.uploadToR2(key, req.file.buffer, info.mime);
             keyEnviada = key;
             const usuario = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
             const somaPecas = Math.round(pecas.reduce((t, p) => {
@@ -25340,7 +25347,7 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
         await _fmInserirPecas(id, notaId, pecas);
         const totais = await _fmRecalcTotais(id);
         const descHistPecas = notaId
-            ? (dados.numero ? 'Nota fiscal de peças anexada (NF ' + dados.numero + ')' : 'PDF/Recibo de peças anexado (' + (req.file.originalname || 'PDF') + ')')
+            ? (dados.numero ? 'Nota fiscal de peças anexada (NF ' + dados.numero + ')' : 'Documento/Recibo de peças anexado (' + (req.file.originalname || 'anexo') + ')')
             : 'Peças incluídas';
         await _fmHist(id, 'evento', descHistPecas + ' — ' + pecas.length + ' item(ns)', _fmUsuario(req));
         res.json({ ok: true, nota_id: notaId, totais: totais });
@@ -25365,20 +25372,21 @@ app.post('/api/frota/manutencoes/:id/comentarios', authenticateToken, async (req
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST - analisa o PDF da nota fiscal de MAO DE OBRA (servico). NAO grava nada
+// POST - analisa o PDF ou imagem da nota fiscal de MAO DE OBRA (servico). NAO grava nada
 app.post('/api/frota/manutencoes/:id/notas-mo/analisar', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'Envie o PDF da nota fiscal.' });
-        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+        if (!req.file) return res.status(400).json({ error: 'Envie o PDF ou imagem da nota fiscal.' });
+        const info = _fmInfoArquivoNota(req.file);
+        if (!info.ok) return res.status(400).json({ error: 'O arquivo precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
         const { analisarNotaServico } = require('./utils/nfParser');
-        res.json(await analisarNotaServico(req.file.buffer));
+        res.json(await analisarNotaServico(req.file.buffer, info.mime));
     } catch (e) {
         console.error('[NF-MO] analisar:', e);
         res.status(500).json({ error: 'Erro ao analisar a nota: ' + e.message });
     }
 });
 
-// POST - grava as linhas de mao de obra e (se enviado) o PDF da nota no R2
+// POST - grava as linhas de mao de obra e (se enviado) o PDF/imagem da nota no R2
 app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     let keyEnviada = null;
     try {
@@ -25392,7 +25400,8 @@ app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota
 
         let notaId = null;
         if (req.file) {
-            if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+            const info = _fmInfoArquivoNota(req.file);
+            if (!info.ok) return res.status(400).json({ error: 'O arquivo precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
             if (dados.numero) {
                 const dup = await _fmGet("SELECT id FROM frota_manutencao_notas WHERE manutencao_id = ? AND COALESCE(tipo,'pecas') = 'mao_obra' AND numero = ? AND COALESCE(cnpj,'') = ?", [id, String(dados.numero), String(dados.cnpj || '')]);
                 if (dup) return res.status(409).json({ error: 'Esta nota fiscal de mão de obra já foi anexada a esta manutenção.' });
@@ -25402,8 +25411,8 @@ app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota
             const safe = (v) => String(v || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
             const agora = new Date();
             const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
-                + String(agora.getDate()).padStart(2, '0') + '_NFMO_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
-            await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+                + String(agora.getDate()).padStart(2, '0') + '_NFMO_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + info.ext;
+            await r2.uploadToR2(key, req.file.buffer, info.mime);
             keyEnviada = key;
             const somaLinhas = Math.round(linhas.reduce((t, l) => t + _fmNumero(l.valor), 0) * 100) / 100;
             const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -25435,7 +25444,7 @@ app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota
             }
         }
         const totais = await _fmRecalcTotais(id);
-        await _fmHist(id, 'evento', (notaId ? (dados.numero ? 'Nota fiscal de mão de obra anexada (NF ' + dados.numero + ')' : 'PDF/Recibo de mão de obra anexado (' + (req.file.originalname || 'PDF') + ')') : 'Mão de obra lançada') + ' — ' + linhas.length + ' linha(s)', _fmUsuario(req));
+        await _fmHist(id, 'evento', (notaId ? (dados.numero ? 'Nota fiscal de mão de obra anexada (NF ' + dados.numero + ')' : 'Documento/Recibo de mão de obra anexado (' + (req.file.originalname || 'anexo') + ')') : 'Mão de obra lançada') + ' — ' + linhas.length + ' linha(s)', _fmUsuario(req));
         res.json({ ok: true, nota_id: notaId, totais: totais });
     } catch (e) {
         console.error('[NF-MO] salvar:', e);
@@ -25458,16 +25467,19 @@ app.post('/api/frota/manutencoes/:id/pecas', authenticateToken, async (req, res)
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET - abre o PDF da nota (stream privado do R2)
+// GET - abre o PDF ou imagem da nota (stream privado do R2)
 app.get('/api/frota/manutencoes/notas/:notaId/pdf', authenticateToken, async (req, res) => {
     try {
-        const n = await _fmGet('SELECT r2_key, numero FROM frota_manutencao_notas WHERE id = ?', [parseInt(req.params.notaId)]);
+        const n = await _fmGet('SELECT r2_key, numero, nome_arquivo FROM frota_manutencao_notas WHERE id = ?', [parseInt(req.params.notaId)]);
         if (!n || !n.r2_key) return res.status(404).json({ error: 'Arquivo da nota não encontrado.' });
         const r2 = require('./utils/r2');
         if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado.' });
         const { stream, contentType } = await r2.downloadStreamFromR2(n.r2_key);
-        res.setHeader('Content-Type', contentType || 'application/pdf');
-        res.setHeader('Content-Disposition', 'inline; filename="NF_' + String(n.numero || 'nota').replace(/[^A-Za-z0-9_\-]/g, '') + '.pdf"');
+        const extMatch = String(n.r2_key || n.nome_arquivo || '').match(/\.(pdf|jpg|jpeg|png|webp)$/i);
+        const ext = extMatch ? extMatch[0].toLowerCase() : '.pdf';
+        const mimeFallback = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'application/pdf';
+        res.setHeader('Content-Type', (contentType && contentType !== 'application/octet-stream') ? contentType : mimeFallback);
+        res.setHeader('Content-Disposition', 'inline; filename="NF_' + String(n.numero || 'nota').replace(/[^A-Za-z0-9_\-]/g, '') + ext + '"');
         stream.pipe(res);
     } catch (e) { res.status(500).json({ error: 'Erro ao abrir a nota: ' + e.message }); }
 });
@@ -25552,15 +25564,16 @@ async function _fmInserirLancamentosUnificados(manId, notaId, lancamentos, fornP
     return { qtdPecas: pecasLanc.length, qtdMo: moLanc.length };
 }
 
-// POST - anexa PDF de Nota Fiscal / OS na manutencao corretiva (identifica pecas e/ou mao de obra automaticamente e vincula aos servicos)
+// POST - anexa PDF ou Imagem de Nota Fiscal / OS / Recibo na manutencao corretiva (identifica pecas e/ou mao de obra automaticamente e vincula aos servicos)
 app.post('/api/frota/manutencoes/:id/anexos', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     let keyEnviada = null;
     try {
         const id = parseInt(req.params.id, 10);
         const m = await _fmGet('SELECT fm.id, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
         if (!m) return res.status(404).json({ error: 'Manutenção não encontrada.' });
-        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF para anexar.' });
-        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF.' });
+        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF ou imagem para anexar.' });
+        const info = _fmInfoArquivoNota(req.file);
+        if (!info.ok) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
 
         const r2 = require('./utils/r2');
         if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
@@ -25582,14 +25595,14 @@ app.post('/api/frota/manutencoes/:id/anexos', authenticateToken, multerNfFrota.s
         const safe = (s) => String(s || 'doc').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
         const agora = new Date();
         const r2Key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
-            + String(agora.getDate()).padStart(2, '0') + '_CORR_' + safe(tipoDoc) + '_' + safe(numNota || 'sn') + '_' + Date.now().toString(36) + '.pdf';
-        await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+            + String(agora.getDate()).padStart(2, '0') + '_CORR_' + safe(tipoDoc) + '_' + safe(numNota || 'sn') + '_' + Date.now().toString(36) + info.ext;
+        await r2.uploadToR2(r2Key, req.file.buffer, info.mime);
         keyEnviada = r2Key;
 
         const usuario = _fmUsuario(req);
         const insNota = await _fmRun(
             'INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-            [id, r2Key, req.file.originalname || 'nota_manutencao.pdf', numNota, null, forn, null, null, val || null, null, usuario, tipoDoc]
+            [id, r2Key, req.file.originalname || ('nota_manutencao' + info.ext), numNota, null, forn, null, null, val || null, null, usuario, tipoDoc]
         );
         const notaId = insNota.lastID;
 
@@ -25598,7 +25611,7 @@ app.post('/api/frota/manutencoes/:id/anexos', authenticateToken, multerNfFrota.s
             await _fmRun("UPDATE frota_manutencoes SET fornecedor = COALESCE(NULLIF(TRIM(fornecedor), ''), ?) WHERE id = ?", [forn, id]);
         }
         const totais = await _fmRecalcTotais(id);
-        await _fmHist(id, 'evento', (numNota ? 'Nota / OS anexada (Nº ' + numNota + ')' : 'PDF anexado (' + (req.file.originalname || 'PDF') + ')') + ' — ' + lancs.length + ' item(ns)', usuario);
+        await _fmHist(id, 'evento', (numNota ? 'Nota / OS anexada (Nº ' + numNota + ')' : 'Documento anexado (' + (req.file.originalname || 'anexo') + ')') + ' — ' + lancs.length + ' item(ns)', usuario);
         res.json({ ok: true, nota_id: notaId, totais: totais });
     } catch (e) {
         if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
@@ -26840,19 +26853,41 @@ app.put('/api/frota/revisoes/:veiculoId/config', authenticateToken, async (req, 
     }
 });
 
-// POST - analisa PDF de nota fiscal / OS para preenchimento rápido na tela de revisão
+// POST - analisa PDF ou Imagem de nota fiscal / OS / recibo para preenchimento rápido na tela de revisão e corretiva
 app.post('/api/frota/revisoes/analisar-nota', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'Envie o PDF da nota fiscal ou OS.' });
-        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
-        const { analisarNotaFiscal, analisarNotaServico } = require('./utils/nfParser');
-        const [nfPecas, nfServ] = await Promise.all([
-            analisarNotaFiscal(req.file.buffer).catch(() => null),
-            analisarNotaServico(req.file.buffer).catch(() => null)
-        ]);
+        if (!req.file) return res.status(400).json({ error: 'Envie o PDF ou imagem da nota fiscal, recibo ou OS.' });
+        const info = _fmInfoArquivoNota(req.file);
+        if (!info.ok) return res.status(400).json({ error: 'O arquivo precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
+        const { analisarDocumentoUnificado } = require('./utils/nfParser');
+        const u = await analisarDocumentoUnificado(req.file.buffer, info.mime);
+        const nfPecas = {
+            numero: u.numero || '',
+            serie: u.serie || '',
+            emissao: u.emissao || '',
+            fornecedor: u.fornecedor || '',
+            cnpj: u.cnpj || '',
+            chave_acesso: u.chave_acesso || '',
+            garantia_sugerida: u.garantia_sugerida || null,
+            itens: u.pecas || [],
+            avisos: u.avisos || [],
+            fonte: u.fonte || 'ia'
+        };
+        const nfServ = {
+            numero: u.numero || '',
+            serie: u.serie || '',
+            emissao: u.emissao || '',
+            fornecedor: u.fornecedor || '',
+            cnpj: u.cnpj || '',
+            chave_acesso: u.chave_acesso || '',
+            valor_total: u.valor_total || 0,
+            itens: u.moItens || [],
+            avisos: [],
+            fonte: u.fonte || 'ia'
+        };
         res.json({ nf_pecas: nfPecas, nf_servico: nfServ });
     } catch (e) {
-        res.status(500).json({ error: 'Erro ao analisar PDF: ' + e.message });
+        res.status(500).json({ error: 'Erro ao analisar documento: ' + e.message });
     }
 });
 
@@ -27000,7 +27035,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
     }
 });
 
-// POST - anexa PDF de Nota Fiscal / Ordem de Serviço da revisão no Cloudflare R2
+// POST - anexa PDF ou Imagem de Nota Fiscal / Ordem de Serviço / Recibo da revisão no Cloudflare R2
 app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
     let keyEnviada = null;
     try {
@@ -27010,8 +27045,9 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
             [revId]
         );
         if (!rev) return res.status(404).json({ error: 'Revisão não encontrada. Salve a revisão primeiro.' });
-        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF para anexar.' });
-        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF.' });
+        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF ou imagem para anexar.' });
+        const info = _fmInfoArquivoNota(req.file);
+        if (!info.ok) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF ou imagem (JPG, PNG, WEBP).' });
 
         const r2 = require('./utils/r2');
         if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
@@ -27026,14 +27062,14 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
         const val = _fmNumero(req.body.valor);
 
         const r2Key = 'Frota/Revisoes/' + safe(rev.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
-            + String(agora.getDate()).padStart(2, '0') + '_REV_' + (rev.marco_km || 0) + 'km_' + safe(tipoDoc) + '_' + Date.now().toString(36) + '.pdf';
-        await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+            + String(agora.getDate()).padStart(2, '0') + '_REV_' + (rev.marco_km || 0) + 'km_' + safe(tipoDoc) + '_' + Date.now().toString(36) + info.ext;
+        await r2.uploadToR2(r2Key, req.file.buffer, info.mime);
         keyEnviada = r2Key;
 
         const usuario = _fmUsuario(req);
         const ins = await _fmRun(
             'INSERT INTO frota_revisao_anexos (revisao_id, veiculo_id, tipo_documento, numero_nota, fornecedor, valor, nome_arquivo, r2_key, usuario_nome) VALUES (?,?,?,?,?,?,?,?,?)',
-            [revId, rev.veiculo_id, tipoDoc, numNota, forn, val, req.file.originalname || 'nota_revisao.pdf', r2Key, usuario]
+            [revId, rev.veiculo_id, tipoDoc, numNota, forn, val, req.file.originalname || ('nota_revisao' + info.ext), r2Key, usuario]
         );
         const anexo = await _fmGet('SELECT * FROM frota_revisao_anexos WHERE id = ?', [ins.lastID]);
 
@@ -27059,7 +27095,7 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
         res.json({ ok: true, anexo });
     } catch (e) {
         if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) {} }
-        res.status(500).json({ error: 'Erro ao anexar PDF: ' + e.message });
+        res.status(500).json({ error: 'Erro ao anexar documento: ' + e.message });
     }
 });
 
@@ -27099,7 +27135,7 @@ app.delete('/api/frota/revisoes/lancamentos/:id', authenticateToken, async (req,
     try {
         const row = await _fmGet('SELECT id, revisao_id, anexo_id FROM frota_revisao_lancamentos WHERE id = ?', [req.params.id]);
         if (!row) return res.status(404).json({ error: 'Lançamento não encontrado.' });
-        if (row.anexo_id) return res.status(400).json({ error: 'Este lançamento veio de um PDF. Exclua o PDF para remover.' });
+        if (row.anexo_id) return res.status(400).json({ error: 'Este lançamento veio de um anexo. Exclua o anexo para remover.' });
         await _fmRun('DELETE FROM frota_revisao_lancamentos WHERE id = ?', [row.id]);
         await _frRecalcRevisao(row.revisao_id);
         res.json({ ok: true });
@@ -27108,7 +27144,7 @@ app.delete('/api/frota/revisoes/lancamentos/:id', authenticateToken, async (req,
     }
 });
 
-// GET - abre/baixa o PDF anexado à revisão via stream do Cloudflare R2
+// GET - abre/baixa o PDF ou Imagem anexado à revisão via stream do Cloudflare R2
 app.get('/api/frota/revisoes/anexos/:anexoId/pdf', authenticateToken, async (req, res) => {
     try {
         const row = await _fmGet('SELECT id, r2_key, nome_arquivo FROM frota_revisao_anexos WHERE id = ?', [req.params.anexoId]);
@@ -27117,11 +27153,14 @@ app.get('/api/frota/revisoes/anexos/:anexoId/pdf', authenticateToken, async (req
         if (!r2.isReady()) return res.status(503).send('R2 não configurado.');
         const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
         const fn = String(row.nome_arquivo || 'nota_revisao.pdf').replace(/["\r\n]/g, '');
-        res.setHeader('Content-Type', contentType || 'application/pdf');
+        const extMatch = String(row.r2_key || fn).match(/\.(pdf|jpg|jpeg|png|webp)$/i);
+        const ext = extMatch ? extMatch[0].toLowerCase() : '.pdf';
+        const mimeFallback = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'application/pdf';
+        res.setHeader('Content-Type', (contentType && contentType !== 'application/octet-stream') ? contentType : mimeFallback);
         res.setHeader('Content-Disposition', `inline; filename="${fn}"`);
         stream.pipe(res);
     } catch (e) {
-        res.status(500).send('Erro ao abrir PDF: ' + e.message);
+        res.status(500).send('Erro ao abrir documento: ' + e.message);
     }
 });
 
