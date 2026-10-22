@@ -874,6 +874,21 @@ window._mnRevPlanosPorModelo = window._mnRevPlanosPorModelo || {};
 window._mnRevEhCarretinha = function(v) {
     return String((v && v.tipo_veiculo) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().indexOf('carretinha') !== -1;
 };
+window._mnRevEhCaminhaoOuCaminhonete = function(v) {
+    const t = String((v && v.tipo_veiculo) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return t.indexOf('caminhao') !== -1 || t.indexOf('caminhonete') !== -1;
+};
+window._mnRevPassoKm = function(v) {
+    const baseKm = window._mnRevEhCaminhaoOuCaminhonete(v) ? 20000 : 10000;
+    const usoSevero = !window._mnRevEhCarretinha(v) && Number((v && v.uso_severo) || 0) === 1;
+    return usoSevero ? Math.round(baseKm / 2) : baseKm;
+};
+window._mnRevPassoMeses = function(v) {
+    if (window._mnRevEhCarretinha(v)) return 12;
+    const baseMeses = window._mnRevEhCaminhaoOuCaminhonete(v) ? 24 : 12;
+    const usoSevero = Number((v && v.uso_severo) || 0) === 1;
+    return usoSevero ? Math.round(baseMeses / 2) : baseMeses;
+};
 window._mnRevPlanoDoVeiculo = function(v) {
     if (window._mnRevEhCarretinha(v)) return window._mnRevPlanoCarretinha;
     const chave = String((v && v.marca_modelo_versao) || '').toUpperCase().trim();
@@ -1174,8 +1189,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     const dtIniGar = ehCar ? (_mnRevInferirInicioGarantia(v) || String(v.created_at || '').split(/[T ]/)[0]) : _mnRevInferirInicioGarantia(v);
     const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
     const usoSevero = !ehCar && Number(v.uso_severo || 0) === 1;
-    const passoKm = usoSevero ? 5000 : 10000;
-    const passoMeses = usoSevero ? 6 : 12;
+    const passoKm = window._mnRevPassoKm(v);
+    const passoMeses = window._mnRevPassoMeses(v);
     const dtPrimeiraRev = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, passoMeses) : '';
 
     // Marcos: cada ciclo respeita +passoKm ou +passoMeses (o que ocorrer primeiro) a partir da ultima revisao realizada.
@@ -1479,8 +1494,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                 ${ehCar ? '' : `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Regime de Uso</label>
                     <select id="mn-rev-cfg-severo" onchange="window._mnRevSalvarConfigVeiculo(${v.id})" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${usoSevero ? '#dc2626' : '#1e293b'};">
-                        <option value="0"${usoSevero ? '' : ' selected'}>Normal (10.000 km / 12m)</option>
-                        <option value="1"${usoSevero ? ' selected' : ''}>Uso Severo (5.000 km / 6m)</option>
+                        <option value="0"${usoSevero ? '' : ' selected'}>Normal (${window._mnRevEhCaminhaoOuCaminhonete(v) ? '20.000 km / 24m' : '10.000 km / 12m'})</option>
+                        <option value="1"${usoSevero ? ' selected' : ''}>Uso Severo (${window._mnRevEhCaminhaoOuCaminhonete(v) ? '10.000 km / 12m' : '5.000 km / 6m'})</option>
                     </select>
                 </div>`}
             </div>
@@ -1510,8 +1525,8 @@ window._mnRevEsc = function(s) {
 window._mnRevServicosDoMarco = function(marcoKm) {
     const ctx = window._mnRevAtual;
     const v = (ctx && ctx.veiculo) || {};
-    const passoKm = Number(v.uso_severo) === 1 ? 5000 : 10000;
-    const passoMeses = Number(v.uso_severo) === 1 ? 6 : 12;
+    const passoKm = window._mnRevPassoKm(v);
+    const passoMeses = window._mnRevPassoMeses(v);
     const n = Math.max(1, Math.round(Number(marcoKm) / passoKm));
     const plano = window._mnRevPlanoDoVeiculo(v);
     // Troca vence quando o marco atinge o intervalo em km OU em meses (o que ocorrer primeiro)
@@ -1780,7 +1795,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
         <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <div>
                 <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${E(v.placa)} • ${E(v.marca_modelo_versao || '')}${ehCar ? ' • Plano por tempo (a cada 12 meses)' : ' • KM Atual: ' + Number(v.km_atual || 0).toLocaleString('pt-BR') + ' km'}</div>
-                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">${ehCar ? (Math.round(Number(marcoKm) / 10000) + 'ª Revisão (' + marcoMeses + ' meses)') : (Math.round(Number(marcoKm) / (Number(v.uso_severo) === 1 ? 5000 : 10000)) + 'ª Revisão (marco ' + Number(marcoKm).toLocaleString('pt-BR') + ' km / ' + marcoMeses + ' meses)')}</h3>
+                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">${ehCar ? (Math.round(Number(marcoKm) / 10000) + 'ª Revisão (' + marcoMeses + ' meses)') : (Math.round(Number(marcoKm) / window._mnRevPassoKm(v)) + 'ª Revisão (marco ' + Number(marcoKm).toLocaleString('pt-BR') + ' km / ' + marcoMeses + ' meses)')}</h3>
             </div>
             <button onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1.2rem;">&times;</button>
         </div>
@@ -2972,6 +2987,7 @@ window._mnPrevAtualizarFrota = async function() {
         if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
         const gridRev = document.getElementById('mn-rev-cards');
         if (gridRev && gridRev.style.display !== 'none') gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
+        if (typeof window.aplicarFiltrosFrota === 'function' && document.getElementById('frota-grid')) window.aplicarFiltrosFrota();
     } catch (e) { /* mantem os dados ja carregados */ }
 };
 
@@ -4173,6 +4189,7 @@ window._mnEdFechar = function() {
     ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop', 'mned-senha-pop', 'mned-rev-pop', 'mned-vinc-pop'].forEach(function(i) {
         var el = document.getElementById(i); if (el) el.remove();
     });
+    if (typeof window._mnPrevAtualizarFrota === 'function' && document.getElementById('frota-grid')) window._mnPrevAtualizarFrota();
 };
 
 window._mnEdMarcoRevisaoTexto = function(v) {
@@ -4182,9 +4199,10 @@ window._mnEdMarcoRevisaoTexto = function(v) {
     var st = (rawInfo.marco_pendente && rawInfo.marco_pendente.status) || v.revisao_status;
     if (st !== 'vencida' && st !== 'a_vencer') return null;
     var ehCar = !!(info.eh_carretinha || (typeof window._mnRevEhCarretinha === 'function' && window._mnRevEhCarretinha(v)));
-    var usoSev = !ehCar && Number(v.uso_severo || 0) === 1;
-    var marcoKm = Number(info.marco_km || (usoSev ? 5000 : 10000));
-    var marcoMeses = Number(info.marco_meses || (usoSev ? 6 : 12));
+    var pKm = typeof window._mnRevPassoKm === 'function' ? window._mnRevPassoKm(v) : (Number(v.uso_severo || 0) === 1 ? 5000 : 10000);
+    var pMeses = typeof window._mnRevPassoMeses === 'function' ? window._mnRevPassoMeses(v) : (Number(v.uso_severo || 0) === 1 ? 6 : 12);
+    var marcoKm = Number(info.marco_km || pKm);
+    var marcoMeses = Number(info.marco_meses || pMeses);
     var limKm = Number(info.limite_km || marcoKm);
     var limData = info.limite_data ? _mnRevFmtDataBR(info.limite_data) : '';
     var marcoTxt = ehCar
@@ -4391,7 +4409,7 @@ window._mnEdMontar = function() {
     var sec = 'border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px;background:#fff;';
     var secT = 'font-size:0.82rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px;';
     var btnSec = 'padding:6px 12px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.78rem;display:inline-flex;align-items:center;gap:5px;';
-    var frota = window._manutFrota || [];
+    var frota = (window._manutFrota && window._manutFrota.length) ? window._manutFrota : (window._frotaDados || []);
     var veicOpts = '<option value="">Selecione o veículo...</option>' + frota.map(function(v) {
         return '<option value="' + v.id + '"' + (String(m.veiculo_id) === String(v.id) ? ' selected' : '') + '>' + esc(v.placa) + ' — ' + esc(String(v.marca_modelo_versao || '').substring(0, 40)) + '</option>';
     }).join('');

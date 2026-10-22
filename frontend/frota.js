@@ -434,56 +434,151 @@ window.baixarFotoVeiculoFrota = async function(vid) {
     }
 };
 
-function _abrirFormFinalizacaoManutencao(vid, statusAtivo) {
-    const v = (window._frotaDados||[]).find(x => x.id === vid) || {};
-    const statusLabel = statusAtivo === 'em_andamento' ? '🔴 Em Andamento' : '🟡 Agendada';
+async function _abrirFormFinalizacaoManutencao(vid, statusAtivo) {
+    const v = (window._frotaDados || []).find(x => String(x.id) === String(vid)) || {};
+    const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
+    window._manutTok = tok;
+    if (!window._manutFrota || !window._manutFrota.length) {
+        window._manutFrota = window._frotaDados || [];
+    }
+
+    let manutsAbertas = [];
+    let dRev = null;
+    let revsAgendadas = [];
+    try {
+        const [rMan, rRev] = await Promise.all([
+            fetch(`/api/frota/manutencoes?veiculo_id=${vid}&_=${Date.now()}`, { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' }).catch(() => null),
+            fetch(`/api/frota/revisoes/${vid}?_=${Date.now()}`, { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' }).catch(() => null)
+        ]);
+        if (rMan && rMan.ok) {
+            const listaM = await rMan.json();
+            if (Array.isArray(listaM)) {
+                manutsAbertas = listaM.filter(m => m.status !== 'concluida' && m.status !== 'cancelada' && (m.tipo || 'corretiva') === 'corretiva');
+            }
+        }
+        if (rRev && rRev.ok) {
+            dRev = await rRev.json();
+            const revs = Array.isArray(dRev.revisoes) ? dRev.revisoes : [];
+            revsAgendadas = revs.filter(r => r.status === 'agendada');
+        }
+    } catch (e) { /* fallback abaixo */ }
+
+    const abrirCorretiva = (id) => {
+        document.getElementById('mn-finalizar-card-modal')?.remove();
+        if (typeof window.mnCorrEditarInterno === 'function') {
+            window.mnCorrEditarInterno(id);
+        }
+    };
+    const abrirRevisao = (marcoKm, marcoMeses) => {
+        document.getElementById('mn-finalizar-card-modal')?.remove();
+        if (dRev) window._mnRevAtual = dRev;
+        if (typeof window.mnRevAbrirModalMarco === 'function') {
+            const pKm = typeof window._mnRevPassoKm === 'function' ? window._mnRevPassoKm(v) : (Number(v.uso_severo) === 1 ? 5000 : 10000);
+            const pMeses = typeof window._mnRevPassoMeses === 'function' ? window._mnRevPassoMeses(v) : (Number(v.uso_severo) === 1 ? 6 : 12);
+            const mesesCalc = Number(marcoMeses) || (Math.max(1, Math.round(Number(marcoKm) / pKm)) * pMeses);
+            window.mnRevAbrirModalMarco(Number(marcoKm), mesesCalc);
+        }
+    };
+
+    const totalAbertas = manutsAbertas.length + revsAgendadas.length;
+    if (totalAbertas === 1) {
+        if (manutsAbertas.length === 1) {
+            abrirCorretiva(manutsAbertas[0].id);
+        } else {
+            abrirRevisao(revsAgendadas[0].marco_km, revsAgendadas[0].marco_meses);
+        }
+        return;
+    }
+
+    if (totalAbertas === 0) {
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('⚠️ Nenhuma manutenção ativa encontrada para este veículo.');
+        else alert('Nenhuma manutenção ativa encontrada para este veículo.');
+        return;
+    }
+
+    // Se houver mais de uma solicitação aberta/ativa para o veículo, exibe seletor para abrir a manutenção desejada
+    const fmtData = (s) => {
+        const iso = String(s || '').split('T')[0].split(' ')[0];
+        const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '—');
+    };
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const cardsHtml = [
+        ...manutsAbertas.map(m => {
+            const parado = m.veiculo_rodando === 'nao';
+            const stMap = {
+                agendada: { l: 'Solicitada / Agendada', c: '#1d4ed8', bg: '#dbeafe', bd: '#93c5fd' },
+                programada: { l: 'Programada', c: '#6d28d9', bg: '#ede9fe', bd: '#c4b5fd' },
+                em_andamento: { l: 'Em Andamento', c: '#b45309', bg: '#fef3c7', bd: '#fcd34d' }
+            };
+            const st = stMap[m.status] || { l: m.status || 'Aberta', c: '#334155', bg: '#f1f5f9', bd: '#cbd5e1' };
+            const dt = fmtData(m.data_solicitacao || m.data_inicio || m.created_at);
+            return `<div onclick="window._mnSelecionarManutAtivaCard('corretiva', ${Number(m.id)}, 0)"
+                style="border:1.5px solid ${parado ? '#fca5a5' : '#e2e8f0'};background:${parado ? '#fff5f5' : '#f8fafc'};border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px;"
+                onmouseover="this.style.borderColor='#d97706';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='${parado ? '#fca5a5' : '#e2e8f0'}';this.style.transform='none'">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-size:0.75rem;font-weight:800;color:#9a3412;background:#ffedd5;border:1px solid #fed7aa;padding:2px 8px;border-radius:999px;"><i class="ph ph-wrench"></i> Corretiva #${m.id}</span>
+                        <span style="font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:999px;background:${parado ? '#fee2e2' : '#dcfce7'};color:${parado ? '#b91c1c' : '#15803d'};border:1px solid ${parado ? '#fca5a5' : '#86efac'};">${parado ? '🛑 Veículo Parado' : '🟢 Veículo Andando'}</span>
+                        <span style="font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:999px;background:${st.bg};color:${st.c};border:1px solid ${st.bd};">${esc(st.l)}</span>
+                    </div>
+                    <span style="font-size:0.75rem;color:#64748b;font-weight:700;"><i class="ph ph-calendar-blank"></i> ${esc(dt)}</span>
+                </div>
+                <div style="font-size:0.85rem;font-weight:700;color:#1e293b;line-height:1.35;">${esc(m.descricao || m.itens_solicitados || 'Sem descrição')}</div>
+                <div style="font-size:0.76rem;font-weight:700;color:#d97706;display:flex;align-items:center;gap:4px;margin-top:2px;">
+                    <i class="ph ph-arrow-square-out"></i> Abrir detalhes da manutenção para preencher e concluir →
+                </div>
+            </div>`;
+        }),
+        ...revsAgendadas.map(r => {
+            const pKm = typeof window._mnRevPassoKm === 'function' ? window._mnRevPassoKm(v) : (Number(v.uso_severo) === 1 ? 5000 : 10000);
+            const pMeses = typeof window._mnRevPassoMeses === 'function' ? window._mnRevPassoMeses(v) : (Number(v.uso_severo) === 1 ? 6 : 12);
+            const n = Math.max(1, Math.round(Number(r.marco_km) / pKm));
+            const meses = Number(r.marco_meses) || (n * pMeses);
+            const dt = fmtData(r.data_revisao || r.data_solicitacao);
+            return `<div onclick="window._mnSelecionarManutAtivaCard('revisao', ${Number(r.marco_km)}, ${Number(meses)})"
+                style="border:1.5px solid #c4b5fd;background:#f5f3ff;border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px;"
+                onmouseover="this.style.borderColor='#7c3aed';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#c4b5fd';this.style.transform='none'">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-size:0.75rem;font-weight:800;color:#5b21b6;background:#ede9fe;border:1px solid #c4b5fd;padding:2px 8px;border-radius:999px;"><i class="ph ph-seal-check"></i> ${n}ª Revisão</span>
+                        <span style="font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;">Agendada</span>
+                    </div>
+                    <span style="font-size:0.75rem;color:#64748b;font-weight:700;"><i class="ph ph-calendar-blank"></i> ${esc(dt)}</span>
+                </div>
+                <div style="font-size:0.85rem;font-weight:700;color:#1e293b;">Marco ${Number(r.marco_km).toLocaleString('pt-BR')} km / ${meses} meses${r.observacoes ? ' — ' + esc(r.observacoes) : ''}</div>
+                <div style="font-size:0.76rem;font-weight:700;color:#7c3aed;display:flex;align-items:center;gap:4px;margin-top:2px;">
+                    <i class="ph ph-arrow-square-out"></i> Abrir detalhes da revisão para preencher e concluir →
+                </div>
+            </div>`;
+        })
+    ].join('');
+
+    window._mnSelecionarManutAtivaCard = function(tipo, idOuKm, meses) {
+        if (tipo === 'corretiva') abrirCorretiva(idOuKm);
+        else abrirRevisao(idOuKm, meses);
+    };
 
     let modal = document.getElementById('mn-finalizar-card-modal');
     if (modal) modal.remove();
     modal = document.createElement('div');
     modal.id = 'mn-finalizar-card-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:10050;padding:16px;';
     modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;box-shadow:0 25px 60px rgba(0,0,0,0.25);">
-        <div style="background:linear-gradient(135deg,#7f1d1d,#dc2626);padding:18px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;">
-            <div style="background:rgba(255,255,255,0.15);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <i class="ph ph-check-circle" style="color:#fff;font-size:1.3rem;"></i>
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;display:flex;align-items:center;gap:12px;">
+            <div style="background:#dc2626;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="ph ph-wrench" style="color:#fff;font-size:1.25rem;"></i>
             </div>
             <div>
-                <div style="color:#fff;font-weight:700;font-size:1rem;">Finalizar Manutenção</div>
-                <div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">${v.placa||'Veículo'} — ${statusLabel}</div>
+                <div style="color:#fff;font-weight:700;font-size:0.98rem;">Selecione a Manutenção para Preencher / Finalizar</div>
+                <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;">${esc(v.placa || 'Veículo')} — ${totalAbertas} solicitações em aberto</div>
             </div>
             <button onclick="document.getElementById('mn-finalizar-card-modal').remove()" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
         </div>
-        <div style="padding:20px 22px;">
-            <div style="background:#fff3f3;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.82rem;color:#7f1d1d;">
-                <i class="ph ph-info" style="margin-right:6px;"></i>
-                Ao confirmar, todas as manutenções ativas deste veículo serão marcadas como <strong>concluídas</strong>.
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                <div>
-                    <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-gauge" style="margin-right:3px;"></i>KM Final</label>
-                    <input type="number" id="mn-fin-km" placeholder="Ex: 45000" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
-                </div>
-                <div>
-                    <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-currency-dollar-simple" style="margin-right:3px;"></i>Custo (R$)</label>
-                    <input type="number" step="0.01" id="mn-fin-custo" placeholder="Ex: 350,00" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
-                </div>
-            </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-buildings" style="margin-right:3px;"></i>Fornecedor / Oficina</label>
-                <input type="text" id="mn-fin-forn" placeholder="Ex: Oficina Central" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;">
-            </div>
-            <div style="margin-bottom:18px;">
-                <label style="font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;"><i class="ph ph-note-pencil" style="margin-right:3px;"></i>O que foi feito</label>
-                <textarea id="mn-fin-obs" rows="2" placeholder="Descreva o serviço realizado..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button onclick="document.getElementById('mn-finalizar-card-modal').remove()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>
-                <button id="mn-fin-btn" onclick="window._confirmarFinalizacaoManutencao(${vid})" style="padding:10px 22px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-check-circle"></i> Finalizar Manutenção
-                </button>
-            </div>
+        <div style="padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+            ${cardsHtml}
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -689,8 +784,8 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
     });
 
     // Montar opções de marcos de Revisão do veículo
-    const passoKm = Number(v.uso_severo) === 1 ? 5000 : 10000;
-    const passoMeses = Number(v.uso_severo) === 1 ? 6 : 12;
+    const passoKm = typeof window._mnRevPassoKm === 'function' ? window._mnRevPassoKm(v) : (Number(v.uso_severo) === 1 ? 5000 : 10000);
+    const passoMeses = typeof window._mnRevPassoMeses === 'function' ? window._mnRevPassoMeses(v) : (Number(v.uso_severo) === 1 ? 6 : 12);
     const kmAtual = Number(v.km_atual || 0);
     const maxMarco = Math.max(100000, Math.ceil((kmAtual + passoKm * 2) / passoKm) * passoKm);
     const mapRev = {};

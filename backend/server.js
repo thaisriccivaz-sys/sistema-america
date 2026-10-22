@@ -21662,6 +21662,9 @@ function _obterLimiteKm7dSPStr() {
 function _ehCarretinhaTipo(tipo) {
     return String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('carretinha');
 }
+function _ehCaminhaoOuCaminhoneteTipo(tipo) {
+    return String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('caminh');
+}
 // Regra: o veiculo nao pode ficar mais de 7 dias (168h) sem atualizar a KM, contados a partir da ultima atualizacao.
 // Carretinhas nao possuem KM e veiculos parados em manutencao ficam isentos ate voltarem a rodar.
 function _isVeiculoKmVencida(v, marcoStr) {
@@ -21699,15 +21702,18 @@ function _fmDiffDiasISO(alvoIso, baseIso) {
     if (isNaN(a) || isNaN(b)) return null;
     return Math.round((a - b) / 86400000);
 }
-// Parametros do plano de revisao: veiculos comuns = km OU tempo (o que ocorrer primeiro); carretinhas = somente tempo (12 meses)
+// Parametros do plano de revisao: caminhao/caminhonete = 20.000 km ou 24 meses; utilitario = 10.000 km ou 12 meses; carretinhas = somente tempo (12 meses)
 function _fmParamsRevisao(v) {
-    const ehCar = _ehCarretinhaTipo(v.tipo_veiculo);
+    const ehCar = _ehCarretinhaTipo(v && v.tipo_veiculo);
     if (ehCar) {
-        const base = String(v.data_inicio_garantia || '').slice(0, 10) || String(v.created_at || '').slice(0, 10);
-        return { ehCar: true, kmAtual: 0, passoKm: 10000, passoMeses: 12, dtIni: base };
+        const base = String((v && v.data_inicio_garantia) || '').slice(0, 10) || String((v && v.created_at) || '').slice(0, 10);
+        return { ehCar: true, ehCam: false, kmAtual: 0, passoKm: 10000, passoMeses: 12, dtIni: base };
     }
-    const uso = Number(v.uso_severo || 0) === 1;
-    return { ehCar: false, kmAtual: Number(v.km_atual || 0), passoKm: uso ? 5000 : 10000, passoMeses: uso ? 6 : 12, dtIni: String(v.data_inicio_garantia || '').slice(0, 10) };
+    const ehCam = _ehCaminhaoOuCaminhoneteTipo(v && v.tipo_veiculo);
+    const baseKm = ehCam ? 20000 : 10000;
+    const baseMeses = ehCam ? 24 : 12;
+    const uso = Number((v && v.uso_severo) || 0) === 1;
+    return { ehCar: false, ehCam, kmAtual: Number((v && v.km_atual) || 0), passoKm: uso ? (baseKm / 2) : baseKm, passoMeses: uso ? (baseMeses / 2) : baseMeses, dtIni: String((v && v.data_inicio_garantia) || '').slice(0, 10) };
 }
 function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
     const lista = Array.isArray(revs) ? revs : [];
@@ -24586,8 +24592,10 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
                 origem: 'Gestão de Frota'
             }).catch(errN => console.error('[NOTIF MANUT CARD]', errN.message));
         } else if (tipo === 'revisao') {
-            const marcoKm = parseInt(req.body.marco_km, 10) || 10000;
-            const marcoMeses = parseInt(req.body.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
+            const veicRevRow = await _fmGet('SELECT tipo_veiculo, uso_severo FROM frota_veiculos WHERE id = ?', [veiculo_id]);
+            const paramsRevCard = _fmParamsRevisao(veicRevRow || {});
+            const marcoKm = parseInt(req.body.marco_km, 10) || paramsRevCard.passoKm;
+            const marcoMeses = parseInt(req.body.marco_meses, 10) || Math.round(marcoKm / paramsRevCard.passoKm) * paramsRevCard.passoMeses;
             const dtRev = (data_inicio && String(data_inicio).trim().split('T')[0]) || hojeData;
             const obsRev = observacoes ? String(observacoes).trim() : null;
             const existingRev = await _fmGet('SELECT id FROM frota_revisoes WHERE veiculo_id = ? AND marco_km = ?', [veiculo_id, marcoKm]);
@@ -26898,7 +26906,9 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const b = req.body || {};
         const marcoKm = parseInt(b.marco_km, 10);
         if (!marcoKm || marcoKm <= 0) return res.status(400).json({ error: 'Informe o marco de KM da revisão.' });
-        const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / 10000) * 12;
+        const veic = await _fmGet('SELECT km_atual, tipo_veiculo, uso_severo FROM frota_veiculos WHERE id = ?', [vid]);
+        const paramsRevSal = _fmParamsRevisao(veic || {});
+        const marcoMeses = parseInt(b.marco_meses, 10) || Math.round(marcoKm / paramsRevSal.passoKm) * paramsRevSal.passoMeses;
         const hoje = _fmHojeBR();
         let status = ['pendente', 'agendada', 'realizada'].includes(b.status) ? b.status : 'pendente';
         const dataRev = String(b.data_revisao || '').trim().split('T')[0] || null;
@@ -26935,7 +26945,6 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
             : (status === 'realizada'
                 ? ((existing && existing.data_conclusao) ? existing.data_conclusao : hoje)
                 : (dataConclReq !== undefined ? null : (existing ? existing.data_conclusao : null)));
-        const veic = await _fmGet('SELECT km_atual, tipo_veiculo FROM frota_veiculos WHERE id = ?', [vid]);
         const ehCarretinhaRev = !!(veic && _ehCarretinhaTipo(veic.tipo_veiculo));
         // Valores da revisao sao calculados a partir das notas anexadas e das linhas manuais (nao sao editaveis)
         if (existing) {
@@ -27742,10 +27751,11 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
         `, [], (errRev, revRows) => {
             const listaManut = Array.isArray(rows) ? rows : [];
             const listaRev = (!errRev && Array.isArray(revRows)) ? revRows.map(r => {
+                const paramsRevHist = _fmParamsRevisao(r);
+                const passoKm = paramsRevHist.passoKm;
                 const mk = Number(r.marco_km || 0);
-                const mm = Number(r.marco_meses || Math.round(mk / 10000) * 12);
+                const mm = Number(r.marco_meses || Math.round(mk / passoKm) * paramsRevHist.passoMeses);
                 const kmFeita = Number(r.km_revisao || mk) || mk;
-                const passoKm = Number(r.uso_severo || 0) === 1 ? 5000 : 10000;
                 return {
                     id: 'rev_' + r.id,
                     revisao_id: r.id,
