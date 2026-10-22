@@ -27104,16 +27104,23 @@ db.run(`CREATE TABLE IF NOT EXISTS compras_frota_registros (
     registrado_por TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    carga_inicial INTEGER DEFAULT 0,
     UNIQUE(tipo, origem_id)
 )`, (err) => {
     if (err) { console.error('[MIGRATION compras_frota_registros]', err.message); return; }
+    // Adiciona coluna carga_inicial para tabelas ja criadas e marca apenas as revisoes existentes hoje como carga_inicial = 1
+    db.run("ALTER TABLE compras_frota_registros ADD COLUMN carga_inicial INTEGER DEFAULT 0", (alterErr) => {
+        if (!alterErr) {
+            db.run("UPDATE compras_frota_registros SET carga_inicial = 1 WHERE tipo = 'revisao'");
+        }
+    });
     // Carga inicial (uma unica vez, sem notificacoes): corretivas ja concluidas e revisoes ja realizadas entram como "novo"
     setTimeout(async () => {
         try {
             const n = await _fmGet('SELECT COUNT(*) AS n FROM compras_frota_registros');
             if (n && Number(n.n) === 0) {
                 await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'corretiva', id, veiculo_id, 'novo' FROM frota_manutencoes WHERE tipo = 'corretiva' AND status = 'concluida'");
-                await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'revisao', id, veiculo_id, 'novo' FROM frota_revisoes WHERE status = 'realizada'");
+                await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status, carga_inicial) SELECT 'revisao', id, veiculo_id, 'novo', 1 FROM frota_revisoes WHERE status = 'realizada'");
                 console.log('[COMPRAS FROTA] Carga inicial dos registros antigos concluida.');
             }
         } catch (e) { console.error('[COMPRAS FROTA] carga inicial:', e.message); }
@@ -27202,7 +27209,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
         }
         if (tipo === 'revisao') {
             const rows = await _fmAll(`
-                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por,
+                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, COALESCE(r.carga_inicial, 0) AS carga_inicial,
                        fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao, fr.concessionaria, fr.itens_json,
                        COALESCE(fr.valor_pecas, 0) AS valor_pecas, COALESCE(fr.valor_mao_obra, 0) AS valor_mao_obra, COALESCE(fr.valor_total, 0) AS valor_total,
                        fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,

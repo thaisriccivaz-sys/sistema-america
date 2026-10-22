@@ -160,7 +160,7 @@
                 vp = x.valor_pecas; vm = x.valor_mao_obra; vt = x.valor_total;
             }
             const tituloSit = x.situacao === 'registrado' && x.registrado_em ? ('Registrado' + (x.registrado_por ? ' por ' + x.registrado_por : '') + ' em ' + fmtData(x.registrado_em)) : '';
-            const btnCheck = x.situacao !== 'registrado'
+            const btnCheck = (tipo === 'revisao' && Number(x.carga_inicial) === 1 && x.situacao !== 'registrado')
                 ? '<button type="button" title="Marcar como Registrado sem preencher nada" onclick="window.comprasFrotaMarcarRegistrado(\'' + tipo + '\', ' + x.id + ', this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.65rem;font-size:0.85rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" onmouseenter="this.style.background=\'#15803d\'" onmouseleave="this.style.background=\'#16a34a\'"><i class="ph-bold ph-check"></i></button>'
                 : '';
             return '<tr style="background:' + bg + ';border-bottom:1px solid #f1f5f9;">'
