@@ -328,16 +328,18 @@
             +     '</div>'
             +     '<div id="mned-serv"></div>'
             +   '</div>'
-            +   '<div style="' + sec + '">'
-            +     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><div style="' + secT + '"><i class="ph ph-receipt" style="color:#2563eb;"></i> Peças e notas fiscais</div>'
-            +       '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">'
-            +         '<button type="button" id="mned-pecas-geral" style="' + btnSec + '"><i class="ph ph-plus"></i> Incluir peças</button>'
-            +         '<button type="button" id="mned-mo-nf" style="' + btnSec + 'border-color:#fcd34d;color:#b45309;"><i class="ph ph-paperclip"></i> NF de mão de obra</button>'
-            +       '</div></div>'
-            +     '<div id="mned-notas"></div>'
+            +   '<div style="border:1.5px dashed #cbd5e1;border-radius:10px;padding:0.9rem;background:#fff;margin-bottom:16px;">'
+            +     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
+            +       '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF)</div>'
+            +       '<button type="button" onclick="window._mnEdIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar peça / serviço manual</button>'
+            +     '</div>'
+            +     '<div style="font-size:0.76rem;color:#64748b;margin-bottom:8px;">Ao selecionar o PDF, o sistema identifica automaticamente se é peça ou mão de obra (ou Ordem de Serviço), lê os itens e valores para você conferir e vincular aos serviços realizados. Se não tiver o PDF agora, use <b>+ Adicionar peça / serviço manual</b>.</div>'
+            +     '<div><label style="font-size:0.72rem;font-weight:700;color:#475569;display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;"><i class="ph ph-upload-simple"></i> Anexar documento (PDF)<input type="file" id="mned-anx-file" accept="application/pdf" onchange="window._mnEdAoEscolherPdf(this)" style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
+            +     '<div id="mned-stage" style="margin-top:0.65rem;"></div>'
+            +     '<div id="mned-notas" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:6px;"></div>'
             +     '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div><div id="mned-hist"></div></div>'
             +   '</div>'
-            +   '<div id="mned-total" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>'
+            +   '<div id="mned-total" style="margin-bottom:16px;"></div>'
             + '</div></div>'
             + '<div style="padding:12px 24px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;justify-content:flex-end;background:#fff;flex-shrink:0;">'
             +   '<span style="margin-right:auto;font-size:0.78rem;color:#64748b;">Nada é obrigatório: serviços, peças e valores são opcionais para finalizar o registro.</span>'
@@ -356,8 +358,6 @@
         $('mned-pick-busca').oninput = window._mnEdPickRender;
         $('mned-pick-novo').onclick = window._mnEdPickNovo;
         $('mned-pick-all').onchange = function () { window._mnEdPickToggleVarios((window._mnEd.pickVisiveis || []), this.checked); };
-        $('mned-pecas-geral').onclick = () => window._mnEdAbrirPecas(null, null);
-        $('mned-mo-nf').onclick = () => window._mnEdAbrirMoNf(null);
 
         atualizarBadgeCorr();
         window._mnEdPickRender();

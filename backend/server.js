@@ -24901,18 +24901,18 @@ async function _fmRecalcMo(manId) {
 async function _fmRecalcTotais(manutencaoId) {
     let mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
     const mol = await _fmGet('SELECT COALESCE(SUM(valor), 0) AS t, COUNT(*) AS n FROM frota_manutencao_mo WHERE manutencao_id = ?', [manutencaoId]);
-    if ((mo.n || 0) > 0 && (mo.t || 0) === 0 && (mol.t || 0) > 0) {
+    if ((mol.n || 0) > 0) {
         await _fmRecalcMo(manutencaoId);
         const alocs = await _fmAll('SELECT ms.servico_id, COALESCE(SUM(ms.valor), 0) AS t FROM frota_manutencao_mo_servicos ms JOIN frota_manutencao_mo mo ON mo.id = ms.mo_id WHERE mo.manutencao_id = ? GROUP BY ms.servico_id', [manutencaoId]);
         for (const a of alocs) {
-            if (a.servico_id && a.t > 0) {
-                await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ? WHERE id = ? AND manutencao_id = ?', [Math.round(a.t * 100) / 100, a.servico_id, manutencaoId]);
+            if (a.servico_id && a.t >= 0) {
+                await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ?, mao_obra_informado = CASE WHEN ? > 0 THEN 1 ELSE mao_obra_informado END WHERE id = ? AND manutencao_id = ?', [Math.round(a.t * 100) / 100, a.t, a.servico_id, manutencaoId]);
             }
         }
         mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
     }
     const pc = await _fmGet('SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS n FROM frota_manutencao_pecas WHERE manutencao_id = ?', [manutencaoId]);
-    const totMo = Math.round(((mo.n || 0) > 0 ? (mo.t || 0) : (mol.t || 0)) * 100) / 100;
+    const totMo = Math.max(Math.round((mo.t || 0) * 100) / 100, Math.round((mol.t || 0) * 100) / 100);
     const totPc = Math.round((pc.t || 0) * 100) / 100;
     if ((mo.n || 0) + (mol.n || 0) + (pc.n || 0) > 0) {
         await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = ?, custo_pecas = ?, custo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [totMo, totPc, Math.round((totMo + totPc) * 100) / 100, manutencaoId]);
@@ -25218,7 +25218,7 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
         const totais = await _fmRecalcTotais(id);
         const realizados = await _fmRealizadosComMo(id);
         const pecasOut = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
-        res.json({ ok: true, totais: totais, realizados: realizados, pecas: pecasOut, mo: await _fmMoLinhas(id) });
+        res.json({ ok: true, totais: totais, realizados: realizados, pecas: pecasOut, mo: await _fmMoLinhas(id), tmp_map: tmpMap });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -25230,22 +25230,25 @@ function _fmGarantia(v, u) { const gv = parseInt(v); return gv >= 0 ? { v: gv, u
 function _fmEhPdf(buf) { return !!buf && buf.length > 5 && buf.slice(0, 5).toString() === '%PDF-'; }
 
 // Insere pecas (digitadas ou vindas da nota). Suporta vinculo unico (100% do valor) ou rateio entre varios servicos selecionados
-async function _fmInserirPecas(manId, notaId, pecas) {
+async function _fmInserirPecas(manId, notaId, pecas, opts) {
+    opts = opts || {};
     const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [manId])).map(r => r.id);
     let rotOffset = 0;
     const { limparDescricaoItem, ehItemDeMaoDeObra } = require('./utils/nfParser');
     for (const p of pecas) {
         const descBruta = String(p.descricao || '').trim();
-        if (!descBruta || ehItemDeMaoDeObra(descBruta)) continue;
-        const desc = limparDescricaoItem(descBruta);
-        if (!desc || ehItemDeMaoDeObra(desc)) continue;
+        if (!descBruta || (!opts.permitirQualquerDescricao && ehItemDeMaoDeObra(descBruta))) continue;
+        const desc = limparDescricaoItem(descBruta) || descBruta;
+        if (!desc || (!opts.permitirQualquerDescricao && ehItemDeMaoDeObra(desc))) continue;
         const qtd = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
-        const vu = _fmNumero(p.valor_unit);
+        let vu = _fmNumero(p.valor_unit);
         let vt = _fmNumero(p.valor_total);
         if (!vt) vt = Math.round(qtd * vu * 100) / 100;
+        if (!vu && vt > 0) vu = Math.round((vt / qtd) * 100) / 100;
         const g = _fmGarantia(p.garantia_valor, p.garantia_unidade);
         const cod = String(p.codigo || '').trim() || null;
-        const unid = String(p.unidade || '').trim() || null;
+        const unid = String(p.unidade || '').trim() || 'UN';
+        const forn = String(p.fornecedor || opts.fornecedorPadrao || '').trim() || null;
 
         let alvo = [];
         if (Array.isArray(p.servicos) && p.servicos.length > 0) {
@@ -25259,8 +25262,8 @@ async function _fmInserirPecas(manId, notaId, pecas) {
 
         if (alvo.length <= 1) {
             const sidUnico = alvo.length === 1 ? alvo[0] : null;
-            await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [manId, sidUnico, notaId || null, cod, desc.substring(0, 300), unid, qtd, vu, vt, g.v, g.u]);
+            await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                [manId, sidUnico, notaId || null, cod, desc.substring(0, 300), unid, qtd, vu, vt, g.v, g.u, forn]);
         } else {
             const nAlvo = alvo.length;
             const cents = Math.round(vt * 100);
@@ -25272,8 +25275,8 @@ async function _fmInserirPecas(manId, notaId, pecas) {
                 const valParcela = (base + (ganhaResto ? 1 : 0)) / 100;
                 const sufixoRateio = ' (rateio ' + (idx + 1) + '/' + nAlvo + ')';
                 const descRateada = (desc.length + sufixoRateio.length > 300 ? desc.substring(0, 300 - sufixoRateio.length) : desc) + sufixoRateio;
-                await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                    [manId, sid, notaId || null, cod, descRateada, unid, 1, valParcela, valParcela, g.v, g.u]);
+                await _fmRun('INSERT INTO frota_manutencao_pecas (manutencao_id, servico_id, nota_id, codigo, descricao, unidade, quantidade, valor_unit, valor_total, garantia_valor, garantia_unidade, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [manId, sid, notaId || null, cod, descRateada, unid, 1, valParcela, valParcela, g.v, g.u, forn]);
             }
             rotOffset = (rotOffset + resto) % nAlvo;
         }
@@ -25493,6 +25496,164 @@ app.delete('/api/frota/manutencoes/notas/:notaId', authenticateToken, async (req
         const totais = await _fmRecalcTotais(n.manutencao_id);
         res.json({ ok: true, totais: totais });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Helper: insere pecas e mao de obra unificadas (como na Revisao) vinculando aos servicos da manutencao corretiva
+async function _fmInserirLancamentosUnificados(manId, notaId, lancamentos, fornPadrao) {
+    const lista = Array.isArray(lancamentos) ? lancamentos : [];
+    const pecasLanc = [];
+    const moLanc = [];
+    for (const l of lista) {
+        if (!l) continue;
+        const desc = String(l.descricao || '').trim();
+        const vt = _fmNumero(l.valor_total !== undefined ? l.valor_total : l.valor);
+        if (!desc || !(vt > 0)) continue;
+        if (l.tipo === 'mao_obra') moLanc.push(Object.assign({}, l, { descricao: desc, valor_total: vt }));
+        else pecasLanc.push(Object.assign({}, l, { descricao: desc, valor_total: vt }));
+    }
+    if (pecasLanc.length > 0) {
+        await _fmInserirPecas(manId, notaId || null, pecasLanc, { permitirQualquerDescricao: true, fornecedorPadrao: fornPadrao });
+    }
+    if (moLanc.length > 0) {
+        const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [manId])).map(r => r.id);
+        for (const l of moLanc) {
+            const valLinha = Math.max(0, _fmNumero(l.valor_total));
+            const g = _fmGarantia(l.garantia_valor, l.garantia_unidade);
+            const forn = String(l.fornecedor || fornPadrao || '').trim() || null;
+            const ratear = l.ratear ? 1 : 0;
+            const ins = await _fmRun(
+                'INSERT INTO frota_manutencao_mo (manutencao_id, nota_id, descricao, valor, ratear, fornecedor, garantia_valor, garantia_unidade) VALUES (?,?,?,?,?,?,?,?)',
+                [manId, notaId || null, String(l.descricao).trim().substring(0, 300), valLinha, ratear, forn, g.v, g.u]
+            );
+            let alvo = [];
+            if (!ratear && Array.isArray(l.servicos)) {
+                alvo = l.servicos.map(s => parseInt(s, 10)).filter(sid => servValidos.includes(sid));
+            }
+            if (!alvo.length && ratear) alvo = servValidos.slice();
+            if (alvo.length > 0 && valLinha > 0) {
+                const cents = Math.round(valLinha * 100);
+                const base = Math.floor(cents / alvo.length);
+                let resto = cents - base * alvo.length;
+                for (const sid of alvo) {
+                    const c = base + (resto > 0 ? 1 : 0);
+                    if (resto > 0) resto--;
+                    const valParcela = c / 100;
+                    await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,?)', [ins.lastID, sid, valParcela]);
+                    await _fmRun(
+                        'UPDATE frota_manutencao_servicos SET mao_obra = ROUND(COALESCE(mao_obra, 0) + ?, 2), mao_obra_informado = 1, garantia_valor = COALESCE(?, garantia_valor), garantia_unidade = COALESCE(?, garantia_unidade) WHERE id = ? AND manutencao_id = ?',
+                        [valParcela, g.v, g.u, sid, manId]
+                    );
+                }
+            }
+        }
+    }
+    return { qtdPecas: pecasLanc.length, qtdMo: moLanc.length };
+}
+
+// POST - anexa PDF de Nota Fiscal / OS na manutencao corretiva (identifica pecas e/ou mao de obra automaticamente e vincula aos servicos)
+app.post('/api/frota/manutencoes/:id/anexos', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const id = parseInt(req.params.id, 10);
+        const m = await _fmGet('SELECT fm.id, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada.' });
+        if (!req.file) return res.status(400).json({ error: 'Selecione um arquivo PDF para anexar.' });
+        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo anexado precisa ser um PDF.' });
+
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento Cloudflare R2 não está configurado.' });
+
+        let dadosNota = {};
+        try { dadosNota = JSON.parse(req.body.dados || '{}'); } catch (e) { dadosNota = {}; }
+        const lancs = Array.isArray(dadosNota.lancamentos) ? dadosNota.lancamentos : [];
+        const temP = lancs.some(l => l && l.tipo !== 'mao_obra' && _fmNumero(l.valor_total) > 0);
+        const temM = lancs.some(l => l && l.tipo === 'mao_obra' && _fmNumero(l.valor_total) > 0);
+        let tipoDoc = req.body.tipo_documento || 'nota_servico';
+        if (temP && temM) tipoDoc = 'ordem_servico';
+        else if (temP) tipoDoc = 'pecas';
+        else if (temM) tipoDoc = 'mao_obra';
+
+        const numNota = String(req.body.numero_nota || '').trim() || null;
+        const forn = String(req.body.fornecedor || '').trim() || null;
+        const val = _fmNumero(req.body.valor);
+
+        const safe = (s) => String(s || 'doc').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+        const agora = new Date();
+        const r2Key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+            + String(agora.getDate()).padStart(2, '0') + '_CORR_' + safe(tipoDoc) + '_' + safe(numNota || 'sn') + '_' + Date.now().toString(36) + '.pdf';
+        await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+        keyEnviada = r2Key;
+
+        const usuario = _fmUsuario(req);
+        const insNota = await _fmRun(
+            'INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            [id, r2Key, req.file.originalname || 'nota_manutencao.pdf', numNota, null, forn, null, null, val || null, null, usuario, tipoDoc]
+        );
+        const notaId = insNota.lastID;
+
+        await _fmInserirLancamentosUnificados(id, notaId, lancs, forn);
+        if (forn) {
+            await _fmRun("UPDATE frota_manutencoes SET fornecedor = COALESCE(NULLIF(TRIM(fornecedor), ''), ?) WHERE id = ?", [forn, id]);
+        }
+        const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', (numNota ? 'Nota / OS anexada (Nº ' + numNota + ')' : 'PDF anexado (' + (req.file.originalname || 'PDF') + ')') + ' — ' + lancs.length + ' item(ns)', usuario);
+        res.json({ ok: true, nota_id: notaId, totais: totais });
+    } catch (e) {
+        if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
+        res.status(500).json({ error: 'Erro ao anexar documento: ' + e.message });
+    }
+});
+
+// POST - lancamento manual de pecas / servicos (sem PDF) na manutencao corretiva
+app.post('/api/frota/manutencoes/:id/lancamentos', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const m = await _fmGet('SELECT id FROM frota_manutencoes WHERE id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada.' });
+        const body = req.body || {};
+        const forn = String(body.fornecedor || '').trim() || null;
+        const lancs = Array.isArray(body.lancamentos) ? body.lancamentos : [];
+        if (!lancs.length) return res.status(400).json({ error: 'Adicione ao menos uma linha com valor.' });
+        await _fmInserirLancamentosUnificados(id, null, lancs, forn);
+        if (forn) {
+            await _fmRun("UPDATE frota_manutencoes SET fornecedor = COALESCE(NULLIF(TRIM(fornecedor), ''), ?) WHERE id = ?", [forn, id]);
+        }
+        const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', 'Lançamento manual incluído — ' + lancs.length + ' item(ns)', _fmUsuario(req));
+        res.json({ ok: true, totais: totais });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// DELETE - exclui um lancamento manual individual (peca ou mao de obra sem PDF) na manutencao corretiva
+app.delete('/api/frota/manutencoes/:id/lancamento-manual', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const body = req.body || {};
+        const tipo = body.tipo;
+        if (tipo === 'mao_obra') {
+            const moId = parseInt(body.id, 10);
+            if (!moId) return res.status(400).json({ error: 'ID inválido.' });
+            const alocs = await _fmAll('SELECT servico_id, valor FROM frota_manutencao_mo_servicos WHERE mo_id = ?', [moId]);
+            for (const a of alocs) {
+                if (a.servico_id && a.valor > 0) {
+                    await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = MAX(0, ROUND(COALESCE(mao_obra, 0) - ?, 2)) WHERE id = ? AND manutencao_id = ?', [a.valor, a.servico_id, id]);
+                }
+            }
+            await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id = ?', [moId]);
+            await _fmRun('DELETE FROM frota_manutencao_mo WHERE id = ? AND manutencao_id = ?', [moId, id]);
+        } else {
+            const ids = (Array.isArray(body.ids) ? body.ids : [body.id]).map(x => parseInt(x, 10)).filter(Boolean);
+            for (const pid of ids) {
+                await _fmRun('DELETE FROM frota_manutencao_pecas WHERE id = ? AND manutencao_id = ?', [pid, id]);
+            }
+        }
+        const totais = await _fmRecalcTotais(id);
+        res.json({ ok: true, totais: totais });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // PUT - edita pecas e vinculacao aos servicos de uma nota/recibo de pecas (ou pecas sem nota)
@@ -34952,12 +35113,16 @@ app.listen(PORT, () => {
     db.run('ALTER TABLE frota_manutencao_servicos ADD COLUMN observacao TEXT', (e) => { /* coluna ja existe: ignorar */ });
     db.run('ALTER TABLE frota_manutencao_servicos ADD COLUMN mao_obra_informado INTEGER DEFAULT 0', (e) => { /* coluna ja existe: ignorar */ });
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_notas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, r2_key TEXT, nome_arquivo TEXT, numero TEXT, serie TEXT, fornecedor TEXT, cnpj TEXT, data_emissao TEXT, valor_total REAL, chave_acesso TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
-    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, fornecedor TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('ALTER TABLE frota_manutencao_pecas ADD COLUMN fornecedor TEXT', (e) => { /* coluna ja existe: ignorar */ });
     // Historico (comentarios, mudancas de situacao, eventos) e mao de obra por nota fiscal
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_historico (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'comentario\', texto TEXT, status_de TEXT, status_para TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('CREATE INDEX IF NOT EXISTS idx_frota_man_hist ON frota_manutencao_historico (manutencao_id)');
     db.run('ALTER TABLE frota_manutencao_notas ADD COLUMN tipo TEXT DEFAULT \'pecas\'', (e) => { /* coluna ja existe: ignorar */ });
-    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_mo (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, nota_id INTEGER, descricao TEXT NOT NULL, valor REAL DEFAULT 0, ratear INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_mo (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, nota_id INTEGER, descricao TEXT NOT NULL, valor REAL DEFAULT 0, ratear INTEGER DEFAULT 0, fornecedor TEXT, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('ALTER TABLE frota_manutencao_mo ADD COLUMN fornecedor TEXT', (e) => { /* coluna ja existe: ignorar */ });
+    db.run('ALTER TABLE frota_manutencao_mo ADD COLUMN garantia_valor INTEGER', (e) => { /* coluna ja existe: ignorar */ });
+    db.run('ALTER TABLE frota_manutencao_mo ADD COLUMN garantia_unidade TEXT', (e) => { /* coluna ja existe: ignorar */ });
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_mo_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, mo_id INTEGER NOT NULL, servico_id INTEGER NOT NULL, valor REAL DEFAULT 0)');
     setTimeout(() => _seedCatalogoCorretivo(0), 4000);
     setTimeout(() => {

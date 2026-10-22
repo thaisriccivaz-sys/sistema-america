@@ -3995,7 +3995,7 @@ window._mnEdMapRealizado = function(s) {
     return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', mao_obra_informado: (Number(s.mao_obra_informado) === 1 || Number(s.mao_obra) > 0) ? 1 : 0, garantia_valor: (s.garantia_valor === 0 || s.garantia_valor === '0' || s.garantia_valor) ? s.garantia_valor : '', garantia_unidade: s.garantia_unidade || 'dias', observacao: s.observacao || '', mo_alocado: s.mo_alocado || 0 };
 };
 window._mnEdMapMo = function(l) {
-    return { id: l.id, nota_id: l.nota_id || null, descricao: l.descricao || '', valor: l.valor || 0, ratear: l.ratear ? 1 : 0, servicos: Array.isArray(l.servicos) ? l.servicos.slice() : [] };
+    return { id: l.id, nota_id: l.nota_id || null, descricao: l.descricao || '', valor: l.valor || 0, ratear: l.ratear ? 1 : 0, servicos: Array.isArray(l.servicos) ? l.servicos.slice() : [], fornecedor: l.fornecedor || null, garantia_valor: (l.garantia_valor === 0 || l.garantia_valor === '0' || l.garantia_valor) ? l.garantia_valor : '', garantia_unidade: l.garantia_unidade || 'dias' };
 };
 
 window._mnEdCarregarCatalogo = async function() {
@@ -4167,7 +4167,9 @@ window._mnEdGarantirId = async function() {
 };
 
 window._mnEdFechar = function() {
-    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop', 'mned-senha-pop', 'mned-rev-pop'].forEach(function(i) {
+    window._mnEdNotaStage = null;
+    if (typeof window._mnEdFecharVinculo === 'function') window._mnEdFecharVinculo();
+    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop', 'mned-just-pop', 'mned-senha-pop', 'mned-rev-pop', 'mned-vinc-pop'].forEach(function(i) {
         var el = document.getElementById(i); if (el) el.remove();
     });
 };
@@ -4407,16 +4409,18 @@ window._mnEdMontar = function() {
       +         '</div>'
       +         '<div id="mned-serv"></div>'
       +       '</div>'
-      +       '<div style="' + sec + '">'
-      +         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><div style="' + secT + '"><i class="ph ph-receipt" style="color:#2563eb;"></i> Peças e notas fiscais</div>'
-      +           '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">'
-      +             '<button type="button" id="mned-pecas-geral" style="' + btnSec + '"><i class="ph ph-plus"></i> Incluir peças</button>'
-      +             '<button type="button" id="mned-mo-nf" style="' + btnSec + 'border-color:#fcd34d;color:#b45309;"><i class="ph ph-paperclip"></i> NF de mão de obra</button>'
-      +           '</div></div>'
-      +         '<div id="mned-notas"></div>'
-      +         '<div style="display:none;"><div style="' + secT + '"><i class="ph ph-hammer" style="color:#d97706;"></i> Mão de obra (notas e lançamentos)</div><button type="button" id="mned-mo-add" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Linha de mão de obra</button><div id="mned-mo"></div></div>'
+      +       '<div style="border:1.5px dashed #cbd5e1;border-radius:10px;padding:0.9rem;background:#fff;margin-bottom:16px;">'
+      +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
+      +           '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF)</div>'
+      +           '<button type="button" onclick="window._mnEdIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar peça / serviço manual</button>'
+      +         '</div>'
+      +         '<div style="font-size:0.76rem;color:#64748b;margin-bottom:8px;">Ao selecionar o PDF, o sistema identifica automaticamente se é peça ou mão de obra (ou Ordem de Serviço), lê os itens e valores para você conferir e vincular aos serviços realizados. Se não tiver o PDF agora, use <b>+ Adicionar peça / serviço manual</b>.</div>'
+      +         '<div><label style="font-size:0.72rem;font-weight:700;color:#475569;display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;"><i class="ph ph-upload-simple"></i> Anexar documento (PDF)<input type="file" id="mned-anx-file" accept="application/pdf" onchange="window._mnEdAoEscolherPdf(this)" style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
+      +         '<div id="mned-stage" style="margin-top:0.65rem;"></div>'
+      +         '<div id="mned-notas" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:6px;"></div>'
+      +         '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div></div>'
       +       '</div>'
-      +       '<div id="mned-total" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>'
+      +       '<div id="mned-total" style="margin-bottom:16px;"></div>'
       +       '<div id="mned-sec-video" style="' + sec + '">'
       +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
       +           '<div style="' + secT + '"><i class="ph ph-video-camera" style="color:#7c3aed;"></i> Vídeo geral do veículo <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;text-transform:none;">Obrigatório para concluir</span></div>'
@@ -4443,14 +4447,6 @@ window._mnEdMontar = function() {
     document.getElementById('mned-cancel').onclick = window._mnEdFechar;
     document.getElementById('mned-alt-lista').onclick = window._mnEdAbrirLista;
     document.getElementById('mned-save').onclick = function() { window.mnCorrSalvarEdicaoInterno(); };
-    document.getElementById('mned-pecas-geral').onclick = function() { window._mnEdAbrirPecas(null, null); };
-    document.getElementById('mned-mo-nf').onclick = function() { window._mnEdAbrirMoNf(null); };
-    document.getElementById('mned-mo-add').onclick = function() {
-        window._mnEd.mo.push({ id: null, nota_id: null, descricao: '', valor: 0, ratear: 0, servicos: [] });
-        window._mnEdRenderMo();
-        var ins = document.querySelectorAll('#mned-mo [data-mof="descricao"]');
-        if (ins.length) ins[ins.length - 1].focus();
-    };
     document.getElementById('mned-coment-btn').onclick = window._mnEdComentar;
     document.getElementById('mned-pick-cat').onchange = window._mnEdPickRender;
     document.getElementById('mned-pick-busca').oninput = window._mnEdPickRender;
@@ -4954,10 +4950,16 @@ window._mnEdGarantiasFaltando = function() {
     if (!ed) return [];
     var vazio = function(v) { return v === undefined || v === null || String(v).trim() === ''; };
     var faltas = [];
-    (ed.realizados || []).forEach(function(s) {
-        var temMo = (s.mao_obra_informado === 1 || s.mao_obra_informado === '1' || s.mao_obra_informado === true) || window._mnNum(s.mao_obra) > 0;
-        if (temMo && vazio(s.garantia_valor)) faltas.push('Mão de obra — ' + s.nome);
-    });
+    if ((ed.mo || []).length > 0) {
+        (ed.mo || []).forEach(function(l) {
+            if (vazio(l.garantia_valor)) faltas.push('Mão de obra — ' + (l.descricao || 'Serviço'));
+        });
+    } else {
+        (ed.realizados || []).forEach(function(s) {
+            var temMo = (s.mao_obra_informado === 1 || s.mao_obra_informado === '1' || s.mao_obra_informado === true) || window._mnNum(s.mao_obra) > 0;
+            if (temMo && vazio(s.garantia_valor)) faltas.push('Mão de obra — ' + s.nome);
+        });
+    }
     (ed.pecas || []).forEach(function(p) {
         if (vazio(p.garantia_valor)) faltas.push('Peça — ' + (p.descricao || ''));
     });
@@ -5285,6 +5287,7 @@ window._mnEdPickToggleVarios = function(ids, marcar) {
             ed.realizados.splice(idx, 1);
         }
     });
+    if (typeof window._mnEdPodarVinculos === 'function') window._mnEdPodarVinculos();
     window._mnEdRenderServ();
     window._mnEdPickRender();
 };
@@ -5425,35 +5428,26 @@ window._mnEdPecaHtml = function(p, i) {
       + '</div>';
 };
 
+window._mnEdGetSvcKey = function(s, idx) {
+    if (!s.id && !s._tmpId) {
+        window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
+        s._tmpId = 'tmp_' + window._mnSvcSeq + '_' + (idx || 0);
+    }
+    return String(s.id || s._tmpId);
+};
+
 window._mnEdRenderServ = function() {
-    var ed = window._mnEd, box = document.getElementById('mned-serv'), esc = window._mnEdEsc, fm = window._mnMoneyFmt;
+    var ed = window._mnEd, box = document.getElementById('mned-serv'), esc = window._mnEdEsc;
     if (!box) return;
     window._mnGarantirDatalist();
-    var getSvcKey = function(s, idx) {
-        if (!s.id && !s._tmpId) {
-            window._mnSvcSeq = (window._mnSvcSeq || 0) + 1;
-            s._tmpId = 'tmp_' + window._mnSvcSeq + '_' + (idx || 0);
-        }
-        return s.id || s._tmpId;
-    };
-    var temServico = function(sid) { return sid && ed.realizados.some(function(s, idx) { return String(getSvcKey(s, idx)) === String(sid); }); };
-    var orfas = [];
-    ed.pecas.forEach(function(p, i) { if (!p.servico_id || !temServico(p.servico_id)) orfas.push(i); });
-    if (!ed.realizados.length && !orfas.length) {
+    if (!ed.realizados.length) {
         box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado ainda. Marque os serviços na lista acima e eles serão adicionados automaticamente.</div>';
         window._mnEdRenderTotais();
         return;
     }
-    var lbl = 'font-size:0.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:2px;';
     var ipt = 'padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;font-family:inherit;';
-    var btnPeca = 'padding:5px 12px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;';
     var html = ed.realizados.map(function(s, i) {
-        var g = window._mnGarantiaAte(ed.m.data_conclusao, s.garantia_valor, s.garantia_unidade, ed.status);
-        var sKey = getSvcKey(s, i);
-        var pecasHtml = '';
-        if (sKey) {
-            ed.pecas.forEach(function(p, pi) { if (String(p.servico_id) === String(sKey)) pecasHtml += window._mnEdPecaHtml(p, pi); });
-        }
+        window._mnEdGetSvcKey(s, i);
         var catRef = s.item_ref;
         if (!catRef && s.catalogo_id && window._manutCatalogo) {
             var cObj = window._manutCatalogo.find(function(x) { return String(x.id) === String(s.catalogo_id); });
@@ -5461,49 +5455,23 @@ window._mnEdRenderServ = function() {
         }
         var subMeta = catRef && window._mnCatMeta ? window._mnCatMeta(catRef) : null;
         return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
-          + '<div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">'
+          + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
           +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>'
           +   (subMeta ? '<div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-top:2px;"><i class="ph ' + esc(subMeta.icone) + '" style="color:#d97706;font-size:0.92rem;"></i><span>' + esc(subMeta.nome) + '</span></div>' : '')
-          +   '<div style="margin-top:8px;">' + (s.id
-                ? '<button type="button" data-ip="' + s.id + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>'
-                : '<button type="button" data-ipn="' + i + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>') + '</div>'
           +   '</div>'
-          +   '<div style="display:flex;flex-direction:column;gap:6px;">'
-          +     '<div style="display:flex;align-items:flex-end;gap:10px;">'
-          +       '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? fm(window._mnNum(s.mao_obra)) : '') + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;"></div>'
-          +       '<div><label style="' + lbl + '">Garantia do serviço *</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="Gar. *" title="Obrigatório quando há mão de obra — informe 0 se não houver garantia" style="' + ipt + 'width:70px;background:#fff;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
-          +       '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
-          +     '</div>'
-          +     '<input type="text" data-i="' + i + '" data-f="observacao" value="' + esc(s.observacao || '') + '" placeholder="Observação do serviço..." style="' + ipt + 'width:100%;background:#fff;">'
+          +   '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px;justify-content:flex-end;">'
+          +     '<input type="text" data-i="' + i + '" data-f="observacao" value="' + esc(s.observacao || '') + '" placeholder="Observação do serviço..." style="' + ipt + 'flex:1;max-width:340px;background:#fff;">'
+          +     '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
           +   '</div>'
           + '</div>'
-          + (g ? '<div style="margin-top:6px;font-size:0.74rem;font-weight:600;color:' + g.cor + ';"><i class="ph ph-shield-check"></i> ' + g.txt + '</div>' : '')
-          + pecasHtml
           + '</div>';
     }).join('');
-    if (orfas.length) {
-        html += '<div style="border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;">'
-          + '<div style="font-weight:700;color:#475569;font-size:0.82rem;"><i class="ph ph-gear-six" style="color:#2563eb;"></i> Peças sem serviço vinculado</div>'
-          + orfas.map(function(pi) { return window._mnEdPecaHtml(ed.pecas[pi], pi); }).join('') + '</div>';
-    }
     box.innerHTML = html;
 
     box.querySelectorAll('[data-f]').forEach(function(el) {
         var i = parseInt(el.getAttribute('data-i')), f = el.getAttribute('data-f');
-        if (f === 'mao_obra') {
-            window._mnMask(el, function(n) {
-                window._mnEd.realizados[i].mao_obra = n;
-                window._mnEd.realizados[i].mao_obra_informado = 1;
-                el.style.borderColor = '#e2e8f0';
-                window._mnEdRenderTotais();
-            });
-            return;
-        }
         el.oninput = function() { window._mnEd.realizados[i][f] = el.value; };
-        el.onchange = function() {
-            window._mnEd.realizados[i][f] = el.value;
-            if (f !== 'observacao') window._mnEdRenderServ();
-        };
+        el.onchange = function() { window._mnEd.realizados[i][f] = el.value; };
     });
     box.querySelectorAll('[data-rm]').forEach(function(b) {
         b.onclick = function() {
@@ -5513,54 +5481,9 @@ window._mnEdRenderServ = function() {
             if (remKey) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(remKey)) p.servico_id = null; });
             if (rem && rem.id) (window._mnEd.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
             window._mnEd.realizados.splice(i, 1);
+            if (typeof window._mnEdPodarVinculos === 'function') window._mnEdPodarVinculos();
             window._mnEdRenderServ();
-        };
-    });
-    box.querySelectorAll('[data-ip]').forEach(function(b) {
-        b.onclick = function() { window._mnEdAbrirPecas(parseInt(b.getAttribute('data-ip'))); };
-    });
-    box.querySelectorAll('[data-ipn]').forEach(function(b) {
-        b.onclick = async function() {
-            var i = parseInt(b.getAttribute('data-ipn'));
-            try { await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
-            var s2 = window._mnEd.realizados[i];
-            window._mnEdAbrirPecas(s2 ? s2.id : null);
-        };
-    });
-    box.querySelectorAll('[data-pf]').forEach(function(el) {
-        var i = parseInt(el.getAttribute('data-pi')), f = el.getAttribute('data-pf');
-        var dinheiro = el.hasAttribute('data-money');
-        var aplicar = function() {
-            var p = window._mnEd.pecas[i];
-            if (!p) return;
-            if (f === 'servico_id') p[f] = el.value ? (/^\d+$/.test(el.value) ? parseInt(el.value) : el.value) : null;
-            else if (dinheiro) p[f] = window._mnNum(el.value);
-            else if (f === 'unidade') p[f] = el.value.toUpperCase();
-            else p[f] = el.value;
-            if (f === 'quantidade' || f === 'valor_unit' || f === 'valor_total') {
-                window._mnCalcPeca(p, f);
-                var u = box.querySelector('[data-pi="' + i + '"][data-pf="valor_unit"]');
-                var t = box.querySelector('[data-pi="' + i + '"][data-pf="valor_total"]');
-                if (f !== 'valor_unit' && u) u.value = fm(p.valor_unit);
-                if (f !== 'valor_total' && t) t.value = fm(p.valor_total);
-                window._mnEdRenderTotais();
-            }
-        };
-        if (dinheiro) { window._mnMask(el, aplicar); return; }
-        el.oninput = aplicar;
-        if (f === 'garantia_valor' || f === 'garantia_unidade' || f === 'servico_id') el.onchange = function() { aplicar(); window._mnEdRenderServ(); };
-    });
-    box.querySelectorAll('[data-pedit]').forEach(function(b) {
-        b.onclick = function() {
-            var p = window._mnEd.pecas[parseInt(b.getAttribute('data-pedit'))];
-            if (!p) return;
-            window._mnEdAbrirPecas(null, p.nota_id ? p.nota_id : 'sem_nota');
-        };
-    });
-    box.querySelectorAll('[data-prm]').forEach(function(b) {
-        b.onclick = function() {
-            window._mnEd.pecas.splice(parseInt(b.getAttribute('data-prm')), 1);
-            window._mnEdRenderServ();
+            window._mnEdPickRender();
         };
     });
     window._mnEdRenderTotais();
@@ -5577,10 +5500,14 @@ window._mnAgruparPecasParaEdicao = function(lista) {
             var baseDesc = m[1].trim();
             var idx = parseInt(m[2], 10);
             var totalPartes = parseInt(m[3], 10);
-            var chave = baseDesc + '__' + totalPartes + '__' + (p.codigo || '') + '__' + (p.unidade || '') + '__' + (p.garantia_valor || '') + '__' + (p.garantia_unidade || '');
+            var chave = (p.nota_id || '') + '__' + baseDesc + '__' + totalPartes + '__' + (p.codigo || '') + '__' + (p.unidade || '') + '__' + (p.garantia_valor || '') + '__' + (p.garantia_unidade || '') + '__' + (p.fornecedor || '');
             var grp = gruposRateio[chave];
             if (!grp || grp.partes.length >= totalPartes) {
                 grp = {
+                    id: p.id,
+                    ids: [],
+                    nota_id: p.nota_id || null,
+                    fornecedor: p.fornecedor || null,
                     codigo: p.codigo || '',
                     descricao: baseDesc,
                     unidade: p.unidade || 'UN',
@@ -5598,10 +5525,15 @@ window._mnAgruparPecasParaEdicao = function(lista) {
             var vt = Number(p.valor_total) || 0;
             grp.valor_total = Math.round((grp.valor_total + vt) * 100) / 100;
             grp.valor_unit = grp.valor_total;
+            if (p.id && grp.ids.indexOf(p.id) === -1) grp.ids.push(p.id);
             if (p.servico_id && grp.servicos.indexOf(p.servico_id) === -1) grp.servicos.push(p.servico_id);
             grp.partes.push(idx);
         } else {
             resultado.push({
+                id: p.id,
+                ids: p.id ? [p.id] : [],
+                nota_id: p.nota_id || null,
+                fornecedor: p.fornecedor || null,
                 codigo: p.codigo || '',
                 descricao: desc,
                 unidade: p.unidade || 'UN',
@@ -5634,108 +5566,585 @@ window._mnEdExcluirSemNota = async function(tipo) {
 };
 
 window._mnEdRenderNotas = function() {
-    var ed = window._mnEd, box = document.getElementById('mned-notas'), esc = window._mnEdEsc;
+    var ed = window._mnEd, box = document.getElementById('mned-notas'), E = window._mnEdEsc;
     if (!box) return;
-    var pecasSemNota = (ed.pecas || []).filter(function(p) { return !p.nota_id; });
+    var pecasAgrup = window._mnAgruparPecasParaEdicao(ed.pecas || []);
+    var pecasSemNota = pecasAgrup.filter(function(p) { return !p.nota_id; });
     var moSemNota = (ed.mo || []).filter(function(l) { return !l.nota_id; });
-    if (!ed.notas.length && !pecasSemNota.length && !moSemNota.length) {
-        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma peça ou nota fiscal lançada. Use "Incluir peças" ou "NF de mão de obra".</div>';
+    if (!(ed.notas || []).length && !pecasSemNota.length && !moSemNota.length) {
+        box.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;padding:4px 0;">Nenhuma nota ou OS anexada ainda nesta manutenção.</div>';
         return;
     }
-    var nomeServico = function(sid) {
-        var s = (ed.realizados || []).find(function(x) { return String(x.id) === String(sid); });
-        return s ? s.nome : null;
+    var nomes = {};
+    (ed.realizados || []).forEach(function(s, idx) {
+        var k = window._mnEdGetSvcKey(s, idx);
+        nomes[String(k)] = s.nome;
+        if (s.id) nomes[String(s.id)] = s.nome;
+    });
+    var fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    var garTxt = function(l) {
+        var g = l.garantia_valor;
+        if (g === undefined || g === null || g === '') return '';
+        var n = Number(g);
+        if (!(n > 0)) return 'sem garantia';
+        return 'garantia ' + n + ' ' + (l.garantia_unidade === 'meses' ? (n === 1 ? 'mês' : 'meses') : (n === 1 ? 'dia' : 'dias'));
     };
-    var resumoServicosIds = function(sids) {
-        var nomes = [];
-        (sids || []).forEach(function(id) {
-            var nm = nomeServico(id);
-            if (nm && nomes.indexOf(nm) === -1) nomes.push(nm);
+    var docs = (ed.notas || []).map(function(a) {
+        var pecasDoc = pecasAgrup.filter(function(p) { return String(p.nota_id) === String(a.id); });
+        var moDoc = (ed.mo || []).filter(function(l) { return String(l.nota_id) === String(a.id); });
+        var temP = pecasDoc.length > 0, temM = moDoc.length > 0;
+        var tipoTitulo = (temP && temM) ? 'Ordem de Serviço (OS)' : (a.tipo === 'mao_obra' || (temM && !temP) ? 'NF Serviço (Mão de Obra)' : 'NF Peças (DANFE)');
+        var linhasDoc = [];
+        pecasDoc.forEach(function(p) {
+            var gt = garTxt(p);
+            var sv = (p.servicos || []).map(function(id) { return E(nomes[String(id)] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
+            linhasDoc.push('<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.74rem;color:#475569;padding:1px 0;"><span><b>Peça:</b> ' + E(p.descricao) + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span><b>' + fmt(p.valor_total) + '</b></div>');
         });
-        if (!nomes.length) return '<div style="font-size:0.73rem;color:#d97706;font-weight:600;margin-top:2px;"><i class="ph ph-warning"></i> Sem serviço vinculado — clique em <b>Editar</b> para vincular</div>';
-        return '<div style="font-size:0.73rem;color:#2563eb;font-weight:600;margin-top:2px;"><i class="ph ph-link"></i> Vinculado a: <b>' + esc(nomes.join(', ')) + '</b></div>';
-    };
-    var btn = 'padding:6px 10px;border-radius:8px;cursor:pointer;';
-    var btnEdit = btn + 'border:1px solid #cbd5e1;background:#fff;color:#2563eb;';
-    var cardsHtml = ed.notas.map(function(n) {
-        var mo = n.tipo === 'mao_obra';
-        var emi = n.data_emissao ? ' · emissão ' + esc(n.data_emissao) : '';
-        var tag = mo
-            ? '<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span>'
-            : '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span>';
-        var tituloDoc = n.numero ? ('NF ' + esc(n.numero)) : ('Recibo / PDF' + (n.nome_arquivo ? ' (' + esc(n.nome_arquivo) + ')' : ''));
-        var fornTxt = n.fornecedor ? (' · ' + esc(n.fornecedor)) : (n.numero ? ' · Fornecedor não identificado' : '');
-        var sidsVinc = [];
-        if (mo) {
-            (ed.mo || []).filter(function(l) { return String(l.nota_id) === String(n.id); }).forEach(function(l) {
-                if (l.ratear) (ed.realizados || []).forEach(function(s) { if (s.id) sidsVinc.push(s.id); });
-                else (l.servicos || []).forEach(function(sid) { sidsVinc.push(sid); });
-            });
-        } else {
-            (ed.pecas || []).filter(function(p) { return String(p.nota_id) === String(n.id); }).forEach(function(p) {
-                if (p.servico_id) sidsVinc.push(p.servico_id);
-            });
-        }
-        var vincHtml = resumoServicosIds(sidsVinc);
-        var anexo = '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-paperclip"></i> Anexado em ' + esc(window._mnFmtDH(n.created_at)) + (n.usuario_nome ? ' por <b>' + esc(n.usuario_nome) + '</b>' : '') + '</div>';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;flex-wrap:wrap;">'
-          + '<i class="ph ph-receipt" style="color:' + (mo ? '#d97706' : '#2563eb') + ';font-size:1.2rem;"></i>'
-          + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>' + tituloDoc + '</b> ' + tag + fornTxt + emi
-          +   (n.valor_total ? ' · <b style="color:#059669;">' + window._mnFmtMoeda(n.valor_total) + '</b>' : '') + vincHtml + anexo + '</div>'
-          + '<button type="button" data-nv="' + n.id + '" title="Ver PDF (nota fiscal ou recibo)" style="' + btn + 'border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;"><i class="ph ph-eye"></i></button>'
-          + '<button type="button" data-ne="' + n.id + '" data-netipo="' + (mo ? 'mao_obra' : 'pecas') + '" title="Editar itens e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
-          + '<button type="button" data-nd="' + n.id + '" title="Excluir anexo e itens vinculados" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
+        moDoc.forEach(function(l) {
+            var gt = garTxt(l);
+            var svIds = l.ratear ? (ed.realizados || []).map(function(s) { return s.id; }).filter(Boolean) : (l.servicos || []);
+            var sv = svIds.map(function(id) { return E(nomes[String(id)] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
+            linhasDoc.push('<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.74rem;color:#475569;padding:1px 0;"><span><b>Serviço:</b> ' + E(l.descricao) + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span><b>' + fmt(l.valor) + '</b></div>');
+        });
+        var linhasHtml = linhasDoc.length ? '<div style="margin-top:4px;border-top:1px dashed #e2e8f0;padding-top:4px;">' + linhasDoc.join('') + '</div>' : '';
+        return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">'
+          +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+          +     '<i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>'
+          +     '<span style="font-weight:700;color:#1e293b;">' + tipoTitulo + '</span>'
+          +     (a.numero ? '<span style="color:#475569;">Nº <b>' + E(a.numero) + '</b></span>' : '')
+          +     (a.fornecedor ? '<span style="color:#0369a1;font-weight:700;">• ' + E(a.fornecedor) + '</span>' : '')
+          +     (Number(a.valor_total || 0) > 0 ? '<span style="color:#15803d;font-weight:700;">' + fmt(a.valor_total) + '</span>' : '')
+          +     '<span style="color:#94a3b8;">(' + E(a.nome_arquivo || 'PDF') + ')</span>'
+          +   '</div>'
+          +   '<div style="display:flex;align-items:center;gap:6px;">'
+          +     '<button type="button" onclick="window._mnEdVerNota(' + a.id + ')" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;font-weight:700;cursor:pointer;">Abrir PDF</button>'
+          +     '<button type="button" onclick="window._mnEdExcluirNota(' + a.id + ')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>'
+          +   '</div>'
+          + '</div>'
+          + linhasHtml
           + '</div>';
-    });
+    }).join('');
 
-    if (pecasSemNota.length) {
-        var pecasAgrup = window._mnAgruparPecasParaEdicao(pecasSemNota);
-        var somaPcSem = pecasSemNota.reduce(function(t, p) { return t + (Number(p.valor_total) || 0); }, 0);
-        var sidsPc = pecasSemNota.map(function(p) { return p.servico_id; }).filter(Boolean);
-        cardsHtml.push('<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;flex-wrap:wrap;">'
-          + '<i class="ph ph-gear-six" style="color:#2563eb;font-size:1.2rem;"></i>'
-          + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>Peças lançadas manualmente</b> <span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span> · ' + pecasAgrup.length + ' item(ns) · <b style="color:#059669;">' + window._mnFmtMoeda(somaPcSem) + '</b>'
-          + resumoServicosIds(sidsPc) + '</div>'
-          + '<button type="button" data-ne-sem="pecas" title="Editar peças e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
-          + '<button type="button" data-nd-sem="pecas" title="Excluir peças sem anexo" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
+    var manItens = [];
+    pecasSemNota.forEach(function(p) {
+        var sv = (p.servicos || []).map(function(id) { return E(nomes[String(id)] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
+        var gt = garTxt(p);
+        var idsJson = E(JSON.stringify(p.ids || (p.id ? [p.id] : [])));
+        manItens.push('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;border-top:1px dashed #e2e8f0;">'
+          + '<span style="color:#475569;"><b>Peça:</b> ' + E(p.descricao) + (p.fornecedor ? ' <span style="color:#0369a1;font-weight:600;">(' + E(p.fornecedor) + ')</span>' : '') + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span>'
+          + '<span style="display:flex;align-items:center;gap:8px;"><b>' + fmt(p.valor_total) + '</b>'
+          + '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("peca",' + idsJson + ')\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button></span>'
           + '</div>');
+    });
+    moSemNota.forEach(function(l) {
+        var svIds = l.ratear ? (ed.realizados || []).map(function(s) { return s.id; }).filter(Boolean) : (l.servicos || []);
+        var sv = svIds.map(function(id) { return E(nomes[String(id)] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
+        var gt = garTxt(l);
+        manItens.push('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;border-top:1px dashed #e2e8f0;">'
+          + '<span style="color:#475569;"><b>Serviço:</b> ' + E(l.descricao) + (l.fornecedor ? ' <span style="color:#0369a1;font-weight:600;">(' + E(l.fornecedor) + ')</span>' : '') + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span>'
+          + '<span style="display:flex;align-items:center;gap:8px;"><b>' + fmt(l.valor) + '</b>'
+          + '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("mao_obra",[' + l.id + '])\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button></span>'
+          + '</div>');
+    });
+    var man = manItens.length ? '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;">'
+      + '<div style="font-weight:700;color:#1e293b;margin-bottom:4px;"><i class="ph ph-pencil-simple" style="color:#0284c7;"></i> Lançamentos manuais</div>'
+      + manItens.join('')
+      + '</div>' : '';
+    box.innerHTML = docs + man;
+};
+
+// ── Anexo unificado (PDF ou manual) + Vinculo com servicos na mesma tela (igual Revisao) ──
+window._mnEdServicosMarcados = function() {
+    var ed = window._mnEd;
+    if (!ed || !Array.isArray(ed.realizados)) return [];
+    return ed.realizados.map(function(s, idx) {
+        return { key: window._mnEdGetSvcKey(s, idx), nome: s.nome };
+    });
+};
+
+window._mnEdVincLabel = function(servicos) {
+    var arr = servicos || [];
+    if (!arr.length) return 'Vincular serviço... \u25BE';
+    if (arr.length === 1) {
+        var s = window._mnEdServicosMarcados().find(function(x) { return String(x.key) === String(arr[0]); });
+        return (s ? s.nome : arr[0]) + ' \u25BE';
+    }
+    return arr.length + ' serviços \u25BE';
+};
+
+window._mnEdFecharVinculo = function() {
+    var el = document.getElementById('mned-vinc-pop');
+    if (el) el.remove();
+    if (window._mnEdVincOutside) {
+        document.removeEventListener('mousedown', window._mnEdVincOutside, true);
+        window.removeEventListener('scroll', window._mnEdVincScroll, true);
+        window.removeEventListener('keydown', window._mnEdVincKey, true);
+        window._mnEdVincOutside = null;
+    }
+};
+
+window._mnEdAbrirVinculo = function(i, btn) {
+    var st = window._mnEdNotaStage;
+    if (!st || !st.lancs[i] || !btn) return;
+    var jaAberto = document.getElementById('mned-vinc-pop');
+    var mesmo = jaAberto && jaAberto.getAttribute('data-linha') === String(i);
+    window._mnEdFecharVinculo();
+    if (mesmo) return;
+    var marcados = window._mnEdServicosMarcados();
+    window._mnEdVincFiltro = '';
+    var pop = document.createElement('div');
+    pop.id = 'mned-vinc-pop';
+    pop.setAttribute('data-linha', String(i));
+    var r = btn.getBoundingClientRect();
+    var largura = 330;
+    var alturaMax = 340;
+    var esq = Math.min(Math.max(8, r.right - largura), window.innerWidth - largura - 8);
+    var abreAcima = (window.innerHeight - r.bottom) < alturaMax && r.top > alturaMax;
+    pop.style.cssText = 'position:fixed;z-index:10300;width:' + largura + 'px;max-height:' + alturaMax + 'px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.28);padding:0 12px 8px;left:' + esq + 'px;' + (abreAcima ? 'bottom:' + (window.innerHeight - r.top + 4) + 'px;' : 'top:' + (r.bottom + 4) + 'px;');
+    pop.innerHTML = '<div style="position:sticky;top:0;background:#fff;padding:8px 0 6px;border-bottom:1px solid #e2e8f0;z-index:1;">'
+        + '<div style="font-size:0.74rem;font-weight:800;color:#075985;margin-bottom:5px;">Serviços realizados marcados</div>'
+        + (marcados.length ? '<input type="text" id="mned-vinc-busca" autocomplete="off" placeholder="Pesquisar serviço pelo nome..." oninput="window._mnEdVincFiltro=this.value;window._mnEdVincDesenhar(' + i + ')" style="width:100%;box-sizing:border-box;padding:0.35rem 0.55rem;border:1px solid #cbd5e1;border-radius:7px;font-size:0.78rem;outline:none;">' : '')
+        + '</div><div id="mned-vinc-lista"></div>';
+    document.body.appendChild(pop);
+    window._mnEdVincDesenhar(i);
+    var campoBusca = document.getElementById('mned-vinc-busca');
+    if (campoBusca) { try { campoBusca.focus(); } catch (e) {} }
+    window._mnEdVincOutside = function(ev) { if (!pop.contains(ev.target) && ev.target !== btn) window._mnEdFecharVinculo(); };
+    window._mnEdVincScroll = function(ev) { if (!pop.contains(ev.target)) window._mnEdFecharVinculo(); };
+    window._mnEdVincKey = function(ev) { if (ev.key === 'Escape') window._mnEdFecharVinculo(); };
+    document.addEventListener('mousedown', window._mnEdVincOutside, true);
+    window.addEventListener('scroll', window._mnEdVincScroll, true);
+    window.addEventListener('keydown', window._mnEdVincKey, true);
+};
+
+window._mnEdVincPassa = function(s) {
+    var norm = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+    var palavras = norm(window._mnEdVincFiltro || '').split(' ').filter(Boolean);
+    var alvo = norm(s.nome);
+    return palavras.every(function(p) { return alvo.indexOf(p) !== -1; });
+};
+
+window._mnEdVincDesenhar = function(i) {
+    var box = document.getElementById('mned-vinc-lista');
+    var st = window._mnEdNotaStage;
+    if (!box || !st || !st.lancs[i]) return;
+    var E = window._mnEdEsc;
+    var l = st.lancs[i];
+    var marcados = window._mnEdServicosMarcados();
+    if (!marcados.length) {
+        box.innerHTML = '<div style="font-size:0.78rem;color:#b45309;padding:8px 0;">Nenhum serviço realizado marcado. Marque em "Serviços realizados" acima os serviços que foram feitos para poder vincular.</div>';
+        return;
+    }
+    var lista = marcados.filter(window._mnEdVincPassa);
+    if (!lista.length) {
+        box.innerHTML = '<div style="font-size:0.78rem;color:#94a3b8;padding:8px 0;">Nenhum serviço encontrado para a pesquisa.</div>';
+        return;
+    }
+    var todos = lista.every(function(s) { return l.servicos.indexOf(String(s.key)) >= 0; });
+    box.innerHTML = '<label style="display:flex;align-items:center;gap:6px;font-size:0.68rem;font-weight:800;color:#475569;background:#f1f5f9;border-radius:6px;padding:4px 6px;margin:8px 0 2px;cursor:pointer;">'
+        + '<input type="checkbox" ' + (todos ? 'checked' : '') + ' onchange="window._mnEdStageToggleTodos(' + i + ',this.checked)" style="accent-color:#7c3aed;"> SERVIÇOS REALIZADOS <span style="font-weight:600;color:#94a3b8;">(selecionar todos)</span></label>'
+        + lista.map(function(s) {
+            var ck = l.servicos.indexOf(String(s.key)) >= 0;
+            return '<label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#1e293b;padding:3px 0 3px 8px;cursor:pointer;"><input type="checkbox" ' + (ck ? 'checked' : '') + ' onchange="window._mnEdStageToggleServ(' + i + ',\'' + E(s.key) + '\',this.checked);window._mnEdVincDesenhar(' + i + ')" style="accent-color:#7c3aed;"> ' + E(s.nome) + '</label>';
+        }).join('');
+};
+
+window._mnEdStageToggleTodos = function(i, marcado) {
+    var st = window._mnEdNotaStage;
+    if (!st || !st.lancs[i]) return;
+    window._mnEdServicosMarcados().filter(window._mnEdVincPassa).forEach(function(s) {
+        window._mnEdStageToggleServ(i, String(s.key), marcado);
+    });
+    window._mnEdVincDesenhar(i);
+};
+
+window._mnEdStageToggleServ = function(i, key, marcado) {
+    var st = window._mnEdNotaStage;
+    if (!st || !st.lancs[i]) return;
+    var arr = st.lancs[i].servicos;
+    var k = String(key);
+    var pos = arr.indexOf(k);
+    if (marcado && pos < 0) arr.push(k);
+    if (!marcado && pos >= 0) arr.splice(pos, 1);
+    var btn = document.getElementById('mned-stg-btn-' + i);
+    if (btn) { btn.textContent = window._mnEdVincLabel(arr); btn.style.color = arr.length ? '#15803d' : '#b45309'; }
+    window._mnEdAtualizarCustosPreview();
+};
+
+window._mnEdPodarVinculos = function() {
+    var st = window._mnEdNotaStage;
+    if (!st) return;
+    var validos = {};
+    window._mnEdServicosMarcados().forEach(function(s) { validos[String(s.key)] = true; });
+    var mudou = false;
+    st.lancs.forEach(function(l) {
+        var antes = (l.servicos || []).length;
+        l.servicos = (l.servicos || []).filter(function(k) { return !!validos[String(k)]; });
+        if (l.servicos.length !== antes) mudou = true;
+    });
+    if (mudou) { window._mnEdFecharVinculo(); window._mnEdRenderStage(); }
+};
+
+window._mnEdIniciarManual = function() {
+    if (!window._mnEdNotaStage || window._mnEdNotaStage.file) {
+        var fornPadrao = (document.getElementById('mned-forn') && document.getElementById('mned-forn').value.trim()) || '';
+        window._mnEdNotaStage = { file: null, numero: '', fornecedor: fornPadrao, lancs: [], avisos: [] };
+    }
+    window._mnEdStageAdd();
+    var el = document.getElementById('mned-stage');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+
+window._mnEdAoEscolherPdf = async function(inp) {
+    var file = inp && inp.files && inp.files[0];
+    var stageEl = document.getElementById('mned-stage');
+    if (!file) { window._mnEdNotaStage = null; if (stageEl) stageEl.innerHTML = ''; window._mnEdAtualizarCustosPreview(); return; }
+    if (stageEl) stageEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#64748b;font-size:0.82rem;"><i class="ph ph-circle-notch ph-spin" style="color:#0284c7;"></i> Lendo a nota fiscal... (pode levar alguns segundos)</div>';
+    var tok = window._mnEdTok();
+    var j = {};
+    try {
+        var fd = new FormData();
+        fd.append('arquivo', file);
+        var r = await fetch('/api/frota/revisoes/analisar-nota', { method: 'POST', headers: { Authorization: 'Bearer ' + tok }, body: fd });
+        j = await r.json().catch(function() { return {}; });
+        if (!r.ok) j = {};
+    } catch (e) { j = {}; }
+
+    var nfP = j.nf_pecas || {}, nfS = j.nf_servico || {};
+    var lancs = [];
+    var chave = function(s) { return String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '').substring(0, 14); };
+    (nfP.itens || []).forEach(function(it) {
+        if (Number(it.valor_total) > 0) lancs.push({ tipo: 'peca', codigo: it.codigo || '', descricao: it.descricao || '', quantidade: Number(it.quantidade) || 1, valor_total: Number(it.valor_total), servicos: [], incluir: true });
+    });
+    (nfS.itens || []).forEach(function(it) {
+        var val = Number(it.valor) || 0;
+        if (!(val > 0)) return;
+        var dup = lancs.some(function(l) { return Math.abs(l.valor_total - val) < 0.005 && chave(l.descricao) === chave(it.descricao); });
+        if (!dup) lancs.push({ tipo: 'mao_obra', codigo: '', descricao: it.descricao || '', quantidade: 1, valor_total: val, servicos: [], incluir: true });
+    });
+    var tipoSel = document.getElementById('mned-anx-tipo');
+    if (tipoSel) {
+        var temP = lancs.some(function(l) { return l.tipo === 'peca'; }), temM = lancs.some(function(l) { return l.tipo === 'mao_obra'; });
+        if (temP && temM) tipoSel.value = 'ordem_servico'; else if (temP) tipoSel.value = 'nota_pecas'; else if (temM) tipoSel.value = 'nota_servico'; else tipoSel.value = 'outro';
+    }
+    var fornLido = nfS.fornecedor || nfP.fornecedor || (document.getElementById('mned-forn') && document.getElementById('mned-forn').value.trim()) || '';
+    window._mnEdNotaStage = {
+        file: file,
+        numero: nfS.numero || nfP.numero || '',
+        fornecedor: fornLido,
+        lancs: lancs,
+        avisos: [].concat(nfP.avisos || [], nfS.avisos || []).filter(function(a, i, arr) { return a && arr.indexOf(a) === i; })
+    };
+    var fornEl = document.getElementById('mned-forn');
+    if (fornEl && window._mnEdNotaStage.fornecedor && !fornEl.value.trim()) fornEl.value = window._mnEdNotaStage.fornecedor;
+    window._mnEdRenderStage();
+};
+
+window._mnEdRenderStage = function() {
+    var el = document.getElementById('mned-stage');
+    var st = window._mnEdNotaStage;
+    if (!el) return;
+    if (!st) { el.innerHTML = ''; return; }
+    var E = window._mnEdEsc;
+    var linhas = st.lancs.map(function(l, i) {
+        var ehPeca = l.tipo === 'peca';
+        var ehEstoque = ehPeca && !!l.estoque;
+        var colEstoque = ehPeca
+            ? '<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.74rem;font-weight:700;color:' + (ehEstoque ? '#7c3aed' : '#475569') + ';cursor:pointer;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da manutenção e não aparece na lista salva)"><input type="checkbox" ' + (ehEstoque ? 'checked' : '') + ' onchange="window._mnEdStageSet(' + i + ',\'estoque\',this.checked)" style="accent-color:#7c3aed;"> Estoque</label>'
+            : '<span style="color:#cbd5e1;font-size:0.72rem;" title="Disponível apenas para peças">—</span>';
+        var colVinculo = ehEstoque
+            ? '<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>'
+            : '<button type="button" id="mned-stg-btn-' + i + '" onclick="window._mnEdAbrirVinculo(' + i + ', this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:' + (l.servicos.length ? '#15803d' : '#b45309') + ';border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + window._mnEdVincLabel(l.servicos) + '</button>';
+        return '<tr style="border-bottom:1px solid #e2e8f0;' + (ehEstoque ? 'background:#faf5ff;' : '') + '">'
+            + '<td style="padding:5px 6px;text-align:center;"><input type="checkbox" ' + (l.incluir ? 'checked' : '') + ' onchange="window._mnEdStageSet(' + i + ',\'incluir\',this.checked)" style="accent-color:#0284c7;"></td>'
+            + '<td style="padding:5px 6px;"><select onchange="window._mnEdStageSet(' + i + ',\'tipo\',this.value)" style="padding:3px 4px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;"><option value="peca"' + (l.tipo === 'peca' ? ' selected' : '') + '>Peça</option><option value="mao_obra"' + (l.tipo === 'mao_obra' ? ' selected' : '') + '>Mão de obra</option></select></td>'
+            + '<td style="padding:5px 6px;"><input type="text" value="' + E(l.descricao) + '" onchange="window._mnEdStageSet(' + i + ',\'descricao\',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;box-sizing:border-box;"></td>'
+            + '<td style="padding:5px 6px;width:110px;"><input type="number" step="0.01" value="' + Number(l.valor_total || 0).toFixed(2) + '" onchange="window._mnEdStageSet(' + i + ',\'valor_total\',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;text-align:right;box-sizing:border-box;"></td>'
+            + '<td style="padding:5px 6px;width:160px;">' + (ehEstoque ? '<span style="color:#cbd5e1;font-size:0.72rem;" title="Peças de estoque não precisam de garantia">—</span>' : '<div style="display:flex;gap:4px;align-items:center;"><input type="number" min="0" step="1" value="' + (l.garantia_valor === undefined || l.garantia_valor === null ? '' : E(l.garantia_valor)) + '" placeholder="Garantia *" title="' + (ehPeca ? 'Garantia da peça' : 'Garantia da mão de obra / serviço') + ' (obrigatório — informe 0 se não houver)" onchange="window._mnEdStageSet(' + i + ',\'garantia_valor\',this.value)" style="width:78px;padding:3px 6px;border:1px solid ' + ((l.garantia_valor === undefined || l.garantia_valor === null || l.garantia_valor === '') ? '#fca5a5' : '#cbd5e1') + ';border-radius:6px;font-size:0.76rem;text-align:right;box-sizing:border-box;"><select onchange="window._mnEdStageSet(' + i + ',\'garantia_unidade\',this.value)" style="padding:3px 4px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.74rem;"><option value="dias"' + (l.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (l.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div>') + '</td>'
+            + '<td style="padding:5px 6px;width:82px;text-align:center;">' + colEstoque + '</td>'
+            + '<td style="padding:5px 6px;width:190px;">' + colVinculo + '</td>'
+            + '<td style="padding:5px 6px;width:30px;text-align:center;"><button type="button" onclick="window._mnEdStageRemove(' + i + ')" title="Remover linha" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;">&times;</button></td>'
+            + '</tr>';
+    }).join('');
+    el.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;padding:0.8rem;">'
+        + '<div style="font-weight:800;color:#075985;font-size:0.85rem;margin-bottom:6px;"><i class="ph ph-file-pdf"></i> ' + (st.file ? E(st.file.name) + ' — confira o que foi lido e vincule aos serviços' : 'Lançamento manual — informe o fornecedor, as peças/serviços, os valores e vincule aos serviços') + '</div>'
+        + (st.avisos || []).map(function(a) { return '<div style="font-size:0.74rem;color:#b45309;margin-bottom:3px;">\u26A0\uFE0F ' + E(a) + '</div>'; }).join('')
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:6px 0 10px;">'
+        +   (st.file ? '<div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label><input type="text" value="' + E(st.numero) + '" oninput="window._mnEdNotaStage.numero=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;background:#fff;"></div>' : '')
+        +   '<div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Fornecedor' + (st.file ? '' : ' (peças / serviços adicionados manualmente)') + '</label><input type="text" value="' + E(st.fornecedor) + '" placeholder="Informe o fornecedor..." oninput="window._mnEdNotaStage.fornecedor=this.value;window._mnEdAtualizarCustosPreview()" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;background:#fff;"></div>'
+        + '</div>'
+        + '<div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">'
+        +   '<table style="width:100%;border-collapse:collapse;font-size:0.78rem;">'
+        +     '<thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 6px;width:34px;text-align:center;">Usar</th><th style="padding:5px 6px;width:110px;">Tipo</th><th style="padding:5px 6px;">Descrição (peça / serviço)</th><th style="padding:5px 6px;">Valor (R$)</th><th style="padding:5px 6px;width:160px;">Garantia *</th><th style="padding:5px 6px;width:82px;text-align:center;">Estoque</th><th style="padding:5px 6px;">Serviço vinculado *</th><th></th></tr></thead>'
+        +     '<tbody>' + (linhas || '<tr><td colspan="8" style="padding:10px;text-align:center;color:#94a3b8;">Nenhuma linha foi lida automaticamente. Adicione as linhas manualmente.</td></tr>') + '</tbody>'
+        +   '</table>'
+        + '</div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">'
+        +   '<button type="button" onclick="window._mnEdStageAdd()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:6px;padding:3px 10px;font-size:0.76rem;font-weight:700;cursor:pointer;">+ Adicionar linha manual</button>'
+        +   '<div id="mned-stage-tot" style="font-size:0.8rem;font-weight:800;color:#0f172a;"></div>'
+        + '</div>'
+        + '<div id="mned-stage-custos" style="margin-top:8px;"></div>'
+        + '<div style="margin-top:10px;text-align:right;">'
+        +   '<button type="button" id="mned-anx-btn" onclick="window._mnEdAnexarPdf()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 1.1rem;font-size:0.82rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-upload-simple"></i> ' + (st.file ? 'Anexar PDF e lançar valores' : 'Lançar valores') + '</button>'
+        + '</div>'
+        + '</div>';
+    window._mnEdStageTotais();
+};
+
+window._mnEdStageTotais = function() {
+    var st = window._mnEdNotaStage;
+    var el = document.getElementById('mned-stage-tot');
+    if (!st || !el) return;
+    var p = 0, m = 0, est = 0;
+    st.lancs.forEach(function(l) {
+        if (!l.incluir) return;
+        if (l.tipo === 'mao_obra') m += Number(l.valor_total) || 0;
+        else if (l.estoque) est += Number(l.valor_total) || 0;
+        else p += Number(l.valor_total) || 0;
+    });
+    var f = function(n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    el.textContent = 'Peças: ' + f(p) + '  •  Mão de obra: ' + f(m) + (est > 0 ? '  •  Estoque abatido: -' + f(est) : '') + '  •  Total da nota: ' + f(p + m);
+    window._mnEdAtualizarCustosPreview();
+};
+
+window._mnEdStageSet = function(i, campo, valor) {
+    var st = window._mnEdNotaStage;
+    if (!st || !st.lancs[i]) return;
+    if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
+    else if (campo === 'garantia_valor') st.lancs[i].garantia_valor = String(valor).trim() === '' ? '' : Math.max(0, parseInt(valor, 10) || 0);
+    else if (campo === 'estoque') st.lancs[i].estoque = !!valor;
+    else st.lancs[i][campo] = valor;
+    if (campo === 'tipo' && valor === 'mao_obra') st.lancs[i].estoque = false;
+    if (campo === 'tipo' || campo === 'estoque' || campo === 'garantia_valor') {
+        window._mnEdFecharVinculo();
+        window._mnEdRenderStage();
+        return;
+    }
+    window._mnEdStageTotais();
+};
+
+window._mnEdStageAdd = function() {
+    var st = window._mnEdNotaStage;
+    if (!st) return;
+    var tipoDoc = document.getElementById('mned-anx-tipo') && document.getElementById('mned-anx-tipo').value;
+    st.lancs.push({ tipo: (!st.file || tipoDoc === 'nota_pecas') ? 'peca' : 'mao_obra', codigo: '', descricao: '', quantidade: 1, valor_total: 0, servicos: [], incluir: true });
+    window._mnEdRenderStage();
+};
+
+window._mnEdStageRemove = function(i) {
+    var st = window._mnEdNotaStage;
+    if (!st) return;
+    st.lancs.splice(i, 1);
+    window._mnEdRenderStage();
+};
+
+window._mnEdAnexarPdf = async function() {
+    var st = window._mnEdNotaStage;
+    if (!st) return alert('Selecione um arquivo PDF ou adicione uma linha manual.');
+    var usadas = st.lancs.filter(function(l) { return l.incluir && !(l.tipo === 'peca' && l.estoque) && (Number(l.valor_total) > 0); });
+    var temEstoque = st.lancs.some(function(l) { return l.incluir && l.tipo === 'peca' && l.estoque && (Number(l.valor_total) > 0); });
+    if (!usadas.length && !temEstoque) return alert('Informe ao menos uma linha com valor.');
+    var semDesc = usadas.filter(function(l) { return !String(l.descricao || '').trim(); });
+    if (semDesc.length) return alert('Preencha a descrição de todas as linhas utilizadas.');
+    var semVinculo = usadas.filter(function(l) { return !l.servicos.length; });
+    if (semVinculo.length) return alert('Vincule cada peça / serviço a pelo menos um serviço marcado em "Serviços realizados".\n\nSem vínculo (' + semVinculo.length + '):\n- ' + semVinculo.map(function(l) { return l.descricao; }).join('\n- '));
+    var semGarantia = usadas.filter(function(l) { return l.garantia_valor === undefined || l.garantia_valor === null || l.garantia_valor === ''; });
+    if (semGarantia.length) return alert('Informe a garantia de cada peça / mão de obra (preencha 0 se não houver garantia).\n\nSem garantia preenchida (' + semGarantia.length + '):\n- ' + semGarantia.map(function(l) { return l.descricao; }).join('\n- '));
+
+    if (!usadas.length && temEstoque && !st.file) {
+        window._mnEdNotaStage = null;
+        window._mnEdFecharVinculo();
+        window._mnEdRenderStage();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Peças de estoque abatidas (não lançadas na manutenção)!');
+        return;
     }
 
-    if (moSemNota.length) {
-        var somaMoSem = moSemNota.reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
-        var sidsMo = [];
-        moSemNota.forEach(function(l) {
-            if (l.ratear) (ed.realizados || []).forEach(function(s) { if (s.id) sidsMo.push(s.id); });
-            else (l.servicos || []).forEach(function(sid) { sidsMo.push(sid); });
+    var rotulo = st.file ? 'Anexar PDF e lançar valores' : 'Lançar valores';
+    var btn = document.getElementById('mned-anx-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+    try {
+        var fornStage = String(st.fornecedor || '').trim();
+        var fornEl = document.getElementById('mned-forn');
+        if (fornEl && fornStage && !fornEl.value.trim()) fornEl.value = fornStage;
+        await window._mnEdGarantirId();
+        var detSalvo = await window._mnEdSalvarDetalhe();
+        var tmpMap = (detSalvo && detSalvo.tmp_map) || {};
+        var ed = window._mnEd;
+        var tok = window._mnEdTok();
+        var payload = usadas.map(function(l) {
+            var svIds = (l.servicos || []).map(function(k) {
+                if (tmpMap[k]) return tmpMap[k];
+                var n = parseInt(k, 10);
+                return isNaN(n) ? null : n;
+            }).filter(Boolean);
+            return {
+                tipo: l.tipo,
+                codigo: l.codigo,
+                descricao: l.descricao,
+                quantidade: l.quantidade,
+                valor_total: l.valor_total,
+                servicos: svIds,
+                garantia_valor: l.garantia_valor,
+                garantia_unidade: l.garantia_unidade === 'meses' ? 'meses' : 'dias',
+                fornecedor: fornStage || l.fornecedor || null
+            };
         });
-        cardsHtml.push('<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;flex-wrap:wrap;">'
-          + '<i class="ph ph-hammer" style="color:#d97706;font-size:1.2rem;"></i>'
-          + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>Mão de obra lançada manualmente</b> <span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span> · ' + moSemNota.length + ' linha(s) · <b style="color:#059669;">' + window._mnFmtMoeda(somaMoSem) + '</b>'
-          + resumoServicosIds(sidsMo) + '</div>'
-          + '<button type="button" data-ne-sem="mao_obra" title="Editar mão de obra e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
-          + '<button type="button" data-nd-sem="mao_obra" title="Excluir mão de obra sem anexo" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
-          + '</div>');
-    }
+        var res;
+        if (st.file) {
+            var total = usadas.reduce(function(t, l) { return t + (Number(l.valor_total) || 0); }, 0);
+            var fd = new FormData();
+            fd.append('arquivo', st.file);
+            fd.append('tipo_documento', (document.getElementById('mned-anx-tipo') && document.getElementById('mned-anx-tipo').value) || 'nota_servico');
+            fd.append('numero_nota', st.numero || '');
+            fd.append('valor', String(Math.round(total * 100) / 100));
+            fd.append('fornecedor', fornStage);
+            fd.append('dados', JSON.stringify({ lancamentos: payload }));
+            res = await fetch('/api/frota/manutencoes/' + ed.id + '/anexos', { method: 'POST', headers: { Authorization: 'Bearer ' + tok }, body: fd });
+        } else {
+            res = await fetch('/api/frota/manutencoes/' + ed.id + '/lancamentos', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ fornecedor: fornStage || null, lancamentos: payload }) });
+        }
+        var j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar');
 
-    box.innerHTML = cardsHtml.join('');
-    box.querySelectorAll('[data-nv]').forEach(function(b) { b.onclick = function() { window._mnEdVerNota(parseInt(b.getAttribute('data-nv'))); }; });
-    box.querySelectorAll('[data-ne]').forEach(function(b) {
-        b.onclick = function() {
-            var nid = parseInt(b.getAttribute('data-ne'));
-            var tipo = b.getAttribute('data-netipo');
-            if (tipo === 'mao_obra') window._mnEdAbrirMoNf(nid);
-            else window._mnEdAbrirPecas(null, nid);
-        };
+        await window._mnEdRecarregarDetalhe();
+        window._mnEdNotaStage = null;
+        window._mnEdFecharVinculo();
+        var fileInp = document.getElementById('mned-anx-file');
+        if (fileInp) fileInp.value = '';
+        window._mnEdRenderStage();
+        window._mnEdRenderServ();
+        window._mnEdRenderNotas();
+        window._mnEdRenderMo();
+        window._mnEdRenderHist();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso(st.file ? '\u2705 Nota / OS anexada e valores lançados!' : '\u2705 Lançamento manual salvo!');
+    } catch (e) {
+        alert('Erro ao salvar: ' + e.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-upload-simple"></i> ' + rotulo; }
+    }
+};
+
+window._mnEdExcluirLancamentoManual = async function(tipo, ids) {
+    if (!confirm('Deseja excluir este lançamento manual?')) return;
+    try {
+        await window._mnEdSalvarDetalhe();
+        var r = await fetch('/api/frota/manutencoes/' + window._mnEd.id + '/lancamento-manual', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
+            body: JSON.stringify({ tipo: tipo, ids: ids })
+        });
+        var j = await r.json().catch(function() { return {}; });
+        if (!r.ok) throw new Error(j.error || 'Erro ao excluir lançamento');
+        await window._mnEdRecarregarDetalhe();
+        window._mnEdRenderServ();
+        window._mnEdRenderNotas();
+        window._mnEdRenderMo();
+        window._mnEdRenderHist();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Lançamento manual excluído!');
+    } catch (e) { alert(e.message); }
+};
+
+window._mnEdCustosPorServicoHtml = function(lancs) {
+    if (!lancs || !lancs.length) return '<div style="font-size:0.78rem;color:#94a3b8;">Os custos por serviço aparecem aqui conforme você vincula as linhas da nota aos serviços realizados.</div>';
+    var ed = window._mnEd || {};
+    var nomes = {};
+    (ed.realizados || []).forEach(function(s, idx) {
+        var k = window._mnEdGetSvcKey(s, idx);
+        nomes[String(k)] = s;
+        if (s.id) nomes[String(s.id)] = s;
     });
-    box.querySelectorAll('[data-ne-sem]').forEach(function(b) {
-        b.onclick = function() {
-            var tipo = b.getAttribute('data-ne-sem');
-            if (tipo === 'mao_obra') window._mnEdAbrirMoNf('sem_nota');
-            else window._mnEdAbrirPecas(null, 'sem_nota');
-        };
+    var notaForns = {};
+    (ed.notas || []).forEach(function(n) { if (n && n.id && n.fornecedor) notaForns[String(n.id)] = n.fornecedor; });
+    var acc = {};
+    var semVinculo = 0;
+    lancs.forEach(function(l) {
+        var sv = Array.isArray(l.servicos) ? l.servicos : [];
+        var val = Number(l.valor_total || 0);
+        if (!sv.length) { semVinculo += val; return; }
+        var forn = String(l.fornecedor || (l.nota_id && notaForns[String(l.nota_id)]) || '').trim();
+        var parte = val / sv.length;
+        sv.forEach(function(id) {
+            var k = String(id);
+            if (!acc[k]) acc[k] = { pecas: 0, mo: 0, fornecedores: [] };
+            if (l.tipo === 'mao_obra') acc[k].mo += parte; else acc[k].pecas += parte;
+            if (forn && acc[k].fornecedores.indexOf(forn) === -1) acc[k].fornecedores.push(forn);
+        });
     });
-    box.querySelectorAll('[data-nd]').forEach(function(b) { b.onclick = function() { window._mnEdExcluirNota(parseInt(b.getAttribute('data-nd'))); }; });
-    box.querySelectorAll('[data-nd-sem]').forEach(function(b) { b.onclick = function() { window._mnEdExcluirSemNota(b.getAttribute('data-nd-sem')); }; });
+    var fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    var E = window._mnEdEsc;
+    var linhas = Object.keys(acc).map(function(id) {
+        var s = nomes[id];
+        var a = acc[id];
+        var fornTxt = a.fornecedores.length ? a.fornecedores.map(E).join(' / ') : '<span style="color:#94a3b8;">—</span>';
+        return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">' + E(s ? s.nome : id) + '</td><td style="padding:5px 8px;color:#334155;font-weight:600;">' + fornTxt + '</td><td style="padding:5px 8px;text-align:right;">' + fmt(a.pecas) + '</td><td style="padding:5px 8px;text-align:right;">' + fmt(a.mo) + '</td><td style="padding:5px 8px;text-align:right;font-weight:800;">' + fmt(a.pecas + a.mo) + '</td></tr>';
+    }).join('');
+    return '<div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:4px;">Custo por serviço (rateado entre os serviços vinculados)</div>'
+        + '<div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">'
+        + '<thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 8px;">Serviço</th><th style="padding:5px 8px;">Fornecedor</th><th style="padding:5px 8px;text-align:right;">Peças</th><th style="padding:5px 8px;text-align:right;">Mão de obra</th><th style="padding:5px 8px;text-align:right;">Total</th></tr></thead>'
+        + '<tbody>' + linhas + '</tbody></table></div>'
+        + (semVinculo > 0 ? '<div style="font-size:0.74rem;color:#b45309;margin-top:4px;">Valor sem vínculo a serviço: ' + fmt(semVinculo) + '</div>' : '');
+};
+
+window._mnEdMontarLancamentosSalvos = function() {
+    var ed = window._mnEd || {};
+    var lancs = [];
+    (ed.pecas || []).forEach(function(p) {
+        lancs.push({
+            tipo: 'peca',
+            valor_total: Number(p.valor_total) || 0,
+            servicos: p.servico_id ? [String(p.servico_id)] : [],
+            nota_id: p.nota_id || null,
+            fornecedor: p.fornecedor || ''
+        });
+    });
+    if ((ed.mo || []).length > 0) {
+        (ed.mo || []).forEach(function(l) {
+            var svIds = l.ratear ? (ed.realizados || []).map(function(s, idx) { return window._mnEdGetSvcKey(s, idx); }) : (l.servicos || []).map(String);
+            lancs.push({
+                tipo: 'mao_obra',
+                valor_total: Number(l.valor) || 0,
+                servicos: svIds,
+                nota_id: l.nota_id || null,
+                fornecedor: l.fornecedor || ''
+            });
+        });
+    } else {
+        (ed.realizados || []).forEach(function(s, idx) {
+            var vMo = window._mnNum(s.mao_obra);
+            if (vMo > 0) {
+                lancs.push({
+                    tipo: 'mao_obra',
+                    valor_total: vMo,
+                    servicos: [window._mnEdGetSvcKey(s, idx)],
+                    nota_id: null,
+                    fornecedor: (ed.m && ed.m.fornecedor) || ''
+                });
+            }
+        });
+    }
+    return lancs;
+};
+
+window._mnEdAtualizarCustosPreview = function() {
+    var el = document.getElementById('mned-custos-serv');
+    var lancs = window._mnEdMontarLancamentosSalvos();
+    var st = window._mnEdNotaStage;
+    if (st) st.lancs.forEach(function(l) {
+        if (l.incluir && !(l.tipo === 'peca' && l.estoque) && Number(l.valor_total) > 0) {
+            lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' });
+        }
+    });
+    if (el) el.innerHTML = window._mnEdCustosPorServicoHtml(lancs);
+    var boxStage = document.getElementById('mned-stage-custos');
+    if (boxStage) {
+        var soStage = [];
+        if (st) st.lancs.forEach(function(l) {
+            if (l.incluir && !(l.tipo === 'peca' && l.estoque) && Number(l.valor_total) > 0) {
+                soStage.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' });
+            }
+        });
+        boxStage.innerHTML = st ? window._mnEdCustosPorServicoHtml(soStage) : '';
+    }
 };
 
 // Linhas de mao de obra (da nota fiscal de servico ou lancadas a mao): valor + vinculo com servicos
@@ -6262,20 +6671,25 @@ window._mnEdRenderTotais = function() {
     var ed = window._mnEd, box = document.getElementById('mned-total');
     if (!box) return;
     var mo = 0, pc = 0;
-    ed.realizados.forEach(function(s) { mo += window._mnNum(s.mao_obra); });
-    if (!ed.realizados.length) {
+    if ((ed.mo || []).length > 0) {
         (ed.mo || []).forEach(function(l) { mo += Number(l.valor) || 0; });
+    } else {
+        (ed.realizados || []).forEach(function(s) { mo += window._mnNum(s.mao_obra); });
     }
     (ed.pecas || []).forEach(function(p) { pc += Number(p.valor_total) || 0; });
     var legado = (!ed.realizados.length && !(ed.pecas || []).length && !(ed.mo || []).length && Number(ed.m.custo) > 0);
     var total = legado ? Number(ed.m.custo) : (mo + pc);
-    var card = function(titulo, valor, cor, fundo) {
-        return '<div style="background:' + fundo + ';border:1px solid ' + cor + '40;border-radius:12px;padding:12px 14px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;">' + titulo + '</div><div style="font-size:1.25rem;font-weight:800;color:' + cor + ';">' + window._mnFmtMoeda(valor) + '</div></div>';
-    };
-    box.innerHTML = card('R$ Peças', pc, '#2563eb', '#eff6ff')
-        + card('R$ Mão de obra', mo, '#d97706', '#fffbeb')
-        + card('R$ Total', total, '#059669', '#ecfdf5')
-        + (legado ? '<div style="grid-column:1/-1;font-size:0.74rem;color:#94a3b8;">Total lançado antes do detalhamento por serviço. Ao informar serviços e mão de obra, o total passa a ser calculado automaticamente.</div>' : '');
+    box.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem;">'
+        + '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;margin-bottom:8px;">Valores da Manutenção (somente visualização — vêm das notas anexadas e das linhas manuais)</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">'
+        +   '<div style="background:#dbeafe;border:1.5px solid #60a5fa;border-radius:10px;padding:10px 12px;"><label style="font-size:0.72rem;font-weight:800;color:#1e40af;display:block;margin-bottom:4px;">Valor de Peças (R$)</label><input type="number" step="0.01" readonly tabindex="-1" value="' + Number(pc || 0).toFixed(2) + '" style="width:100%;padding:0.45rem;border:1px solid #93c5fd;border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:#eff6ff;font-weight:800;color:#1d4ed8;cursor:default;"></div>'
+        +   '<div style="background:#e0f2fe;border:1.5px solid #38bdf8;border-radius:10px;padding:10px 12px;"><label style="font-size:0.72rem;font-weight:800;color:#075985;display:block;margin-bottom:4px;">Valor Mão de Obra / Serviço (R$)</label><input type="number" step="0.01" readonly tabindex="-1" value="' + Number(mo || 0).toFixed(2) + '" style="width:100%;padding:0.45rem;border:1px solid #7dd3fc;border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:#f0f9ff;font-weight:800;color:#0369a1;cursor:default;"></div>'
+        +   '<div style="background:#dcfce7;border:1.5px solid #4ade80;border-radius:10px;padding:10px 12px;"><label style="font-size:0.72rem;font-weight:800;color:#166534;display:block;margin-bottom:4px;">Valor Total da Manutenção (R$)</label><input type="number" step="0.01" readonly tabindex="-1" value="' + Number(total || 0).toFixed(2) + '" style="width:100%;padding:0.45rem;border:1px solid #86efac;border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:#f0fdf4;font-weight:900;color:#15803d;cursor:default;"></div>'
+        + '</div>'
+        + (legado ? '<div style="margin-top:8px;font-size:0.74rem;color:#94a3b8;">Total lançado antes do detalhamento por serviço. Ao informar serviços e notas, o total passa a ser calculado automaticamente.</div>' : '')
+        + '<div id="mned-custos-serv" style="margin-top:10px;"></div>'
+        + '</div>';
+    if (typeof window._mnEdAtualizarCustosPreview === 'function') window._mnEdAtualizarCustosPreview();
 };
 
 window._mnEdAbrirLista = function() {
@@ -6490,9 +6904,7 @@ window._mnEdVerNota = async function(id) {
 };
 
 window._mnEdExcluirNota = async function(id) {
-    var nota = (window._mnEd.notas || []).find(function(n) { return n.id === id; });
-    var mo = nota && nota.tipo === 'mao_obra';
-    if (!confirm('Excluir este anexo/nota fiscal?\n\n' + (mo ? 'As linhas de mão de obra lançadas por ele também serão excluídas.' : 'As peças lançadas por ele também serão excluídas.') + ' Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Deseja realmente excluir este PDF anexado e os valores lançados por ele?')) return;
     try {
         await window._mnEdSalvarDetalhe();
         var r = await fetch('/api/frota/manutencoes/notas/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + window._mnEdTok() } });
