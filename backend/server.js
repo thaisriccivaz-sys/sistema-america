@@ -24667,14 +24667,6 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             if (!vidRow) {
                 return res.status(400).json({ error: 'Para mudar a situação para Concluído, é obrigatório anexar o vídeo geral do veículo.' });
             }
-            const svcsConcl = await _fmAll("SELECT nome, mao_obra, mao_obra_informado FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id]);
-            if (!svcsConcl.length) {
-                return res.status(400).json({ error: 'Para mudar a situação para Concluído, informe os serviços realizados e o valor de cada um (mesmo que seja R$ 0,00).' });
-            }
-            const svcsSemValor = svcsConcl.filter(s => !(Number(s.mao_obra_informado) === 1 || Number(s.mao_obra) > 0));
-            if (svcsSemValor.length) {
-                return res.status(400).json({ error: 'Para mudar a situação para Concluído, preencha o valor (mesmo que seja R$ 0,00) dos serviços realizados:\n- ' + svcsSemValor.map(s => s.nome).join('\n- ') });
-            }
         }
 
         const now = _fmHojeBR();

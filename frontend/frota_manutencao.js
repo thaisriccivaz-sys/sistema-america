@@ -4836,26 +4836,8 @@ window._mnEdRenderStatus = function() {
     });
 };
 
-// Para concluir: precisa ter servicos realizados e o valor de cada um preenchido (mesmo que seja 0,00)
+// Valores de servicos ou pecas sao opcionais para concluir
 window._mnEdValidarServicosConclusao = function() {
-    var ed = window._mnEd || {};
-    var lista = ed.realizados || [];
-    var N = window._mnNum;
-    if (!lista.length) {
-        alert('Para mudar a situação para Concluído, informe os serviços realizados e o valor de cada um (mesmo que seja R$ 0,00).');
-        return false;
-    }
-    var pend = lista.filter(function(s) { return !(s.mao_obra_informado || N(s.mao_obra) > 0); });
-    if (pend.length) {
-        var primeiro = document.querySelector('#mned-serv [data-f="mao_obra"][data-i="' + lista.indexOf(pend[0]) + '"]');
-        if (primeiro) {
-            primeiro.style.borderColor = '#dc2626';
-            if (primeiro.scrollIntoView) primeiro.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            try { primeiro.focus(); } catch (e) {}
-        }
-        alert('Para mudar a situação para Concluído, preencha o valor de mão de obra (mesmo que seja 0,00) dos serviços realizados:\n- ' + pend.map(function(s) { return s.nome; }).join('\n- '));
-        return false;
-    }
     return true;
 };
 
@@ -5332,7 +5314,7 @@ window._mnEdRenderServ = function() {
           +   '</div>'
           +   '<div style="display:flex;flex-direction:column;gap:6px;">'
           +     '<div style="display:flex;align-items:flex-end;gap:10px;">'
-          +       '<div><label style="' + lbl + '">Mão de obra (R$) <span style="color:#dc2626;">*</span></label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? fm(window._mnNum(s.mao_obra)) : '') + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? '' : 'border-color:#fca5a5;') + '"></div>'
+          +       '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + ((s.mao_obra_informado || window._mnNum(s.mao_obra) > 0) ? fm(window._mnNum(s.mao_obra)) : '') + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;"></div>'
           +       '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;background:#fff;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
           +       '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
           +     '</div>'
