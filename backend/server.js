@@ -24131,6 +24131,7 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
     const now = new Date().toISOString().split('T')[0];
     try {
         // Finalizar todas as manutenções ativas do veiculo
+        const idsFinalizadas = await _fmAll("SELECT id FROM frota_manutencoes WHERE veiculo_id = ? AND tipo = 'corretiva' AND status IN ('agendada','em_andamento','aguardando')", [vid]).catch(() => []);
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE frota_manutencoes
@@ -24147,6 +24148,7 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
             );
         });
         await _fmAtualizaEmManutencao(vid);
+        for (const f of idsFinalizadas) { await _cfRegistrar('corretiva', f.id, parseInt(vid, 10), true).catch(() => {}); }
         res.json({ ok: true, message: 'Manutenção finalizada com sucesso' });
     } catch(e) {
         res.status(500).json({ error: e.message });
@@ -24768,6 +24770,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             const row = await _fmGet('SELECT km_final_manutencao, km_na_manutencao FROM frota_manutencoes WHERE id = ?', [id]);
             const kmF = row ? (row.km_final_manutencao || row.km_na_manutencao) : null;
             if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
+            await _cfRegistrar('corretiva', id, vidAtual, true).catch(() => {});
         }
         const outrasAbertas = await _fmBuscarOutrasAbertas(vidAtual, id);
         res.json({ ok: true, veiculo_rodando: rodandoNovo, parado_desde: pDesde, parado_segundos_acum: pAcum, outras_abertas: outrasAbertas });
@@ -26186,6 +26189,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                     if (status === 'concluida' && km_na_manutencao) {
                         db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_na_manutencao, row.veiculo_id]);
                     }
+                    if (status === 'concluida') _cfRegistrar('corretiva', parseInt(mId, 10), row.veiculo_id, true).catch(() => {});
                 }
                 res.json({ message: 'Manutenção atualizada' });
             }
@@ -26735,6 +26739,7 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
             revId = ins.lastID;
         }
         await _fmAtualizaEmManutencao(vid);
+        if (status === 'realizada') await _cfRegistrar('revisao', revId, vid, true).catch(() => {});
         const saved = await _fmGet('SELECT * FROM frota_revisoes WHERE id = ?', [revId]);
         let revRes = { status: null };
         try {
@@ -27081,6 +27086,167 @@ app.delete('/api/frota/manutencoes/midias/:midiaId', authenticateToken, async (r
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// =====================================================================
+// FINANCEIRO > COMPRAS > FROTA (Corretiva / Revisao)
+// Situacao do Compras por registro concluido: novo -> iniciada -> registrado
+// Os dados (servicos, pecas, notas, valores) ficam nas MESMAS tabelas da logistica; aqui so a situacao do Compras.
+// =====================================================================
+db.run(`CREATE TABLE IF NOT EXISTS compras_frota_registros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo TEXT NOT NULL,
+    origem_id INTEGER NOT NULL,
+    veiculo_id INTEGER,
+    status TEXT DEFAULT 'novo',
+    iniciada_em DATETIME,
+    registrado_em DATETIME,
+    registrado_por TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tipo, origem_id)
+)`, (err) => {
+    if (err) { console.error('[MIGRATION compras_frota_registros]', err.message); return; }
+    // Carga inicial (uma unica vez, sem notificacoes): corretivas ja concluidas e revisoes ja realizadas entram como "novo"
+    setTimeout(async () => {
+        try {
+            const n = await _fmGet('SELECT COUNT(*) AS n FROM compras_frota_registros');
+            if (n && Number(n.n) === 0) {
+                await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'corretiva', id, veiculo_id, 'novo' FROM frota_manutencoes WHERE tipo = 'corretiva' AND status = 'concluida'");
+                await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'revisao', id, veiculo_id, 'novo' FROM frota_revisoes WHERE status = 'realizada'");
+                console.log('[COMPRAS FROTA] Carga inicial dos registros antigos concluida.');
+            }
+        } catch (e) { console.error('[COMPRAS FROTA] carga inicial:', e.message); }
+    }, 6000);
+});
+
+// Aviso (popup + e-mail) do quadro "Custos de frota" quando um novo veiculo aparece no Compras
+async function _cfNotificarNovo(tipo, origemId, veiculoId) {
+    try {
+        const veic = await _fmGet('SELECT placa, marca_modelo_versao FROM frota_veiculos WHERE id = ?', [veiculoId]);
+        const placa = (veic && veic.placa) || 'Veículo';
+        const modelo = (veic && veic.marca_modelo_versao) || '';
+        let detalhe = '';
+        if (tipo === 'corretiva') {
+            const m = await _fmGet('SELECT descricao FROM frota_manutencoes WHERE id = ?', [origemId]);
+            detalhe = (m && m.descricao) || 'Manutenção corretiva concluída';
+        } else {
+            const r = await _fmGet('SELECT marco_km, marco_meses FROM frota_revisoes WHERE id = ?', [origemId]);
+            detalhe = r ? ('Revisão realizada (marco ' + Number(r.marco_km).toLocaleString('pt-BR') + ' km / ' + r.marco_meses + ' meses)') : 'Revisão realizada';
+        }
+        const tipoTxt = tipo === 'corretiva' ? 'Corretiva' : 'Revisão';
+        const msg = 'Novo veículo no Compras (' + tipoTxt + '): ' + placa + (modelo ? ' — ' + modelo : '') + '. Registre serviços, peças, notas e valores.';
+        const dadosStr = JSON.stringify({ tipo, origem_id: origemId, veiculo_id: veiculoId, placa, modelo, detalhe });
+        const dest = await _fmAll("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'custos_frota'");
+        for (const d of dest) {
+            await _fmRun("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'custos_frota', ?, ?)", [d.usuario_id, msg, dadosStr]);
+        }
+        const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const html = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">'
+            + '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" /></div>'
+            + '<h2 style="color:#1971c2;text-align:center;">💲 Custos de Frota — Novo registro para o Compras</h2>'
+            + '<p>Um veículo acabou de ficar disponível na tela <b>Financeiro › Compras › Frota › ' + tipoTxt + '</b> para o registro de serviços, peças, notas fiscais e valores:</p>'
+            + '<table style="width:100%;border-collapse:collapse;margin:15px 0;">'
+            + '<tr><th style="text-align:left;padding:8px;background:#eff6ff;border:1px solid #bfdbfe;width:35%;">Veículo / Placa</th><td style="padding:8px;border:1px solid #bfdbfe;font-weight:bold;">' + esc(placa) + (modelo ? ' — ' + esc(modelo) : '') + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#eff6ff;border:1px solid #bfdbfe;">Tipo</th><td style="padding:8px;border:1px solid #bfdbfe;">' + tipoTxt + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#eff6ff;border:1px solid #bfdbfe;">Detalhe</th><td style="padding:8px;border:1px solid #bfdbfe;">' + esc(detalhe) + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#eff6ff;border:1px solid #bfdbfe;">Situação</th><td style="padding:8px;border:1px solid #bfdbfe;font-weight:bold;color:#d97706;">Novo</td></tr>'
+            + '</table><p style="font-size:12px;color:#64748b;">Atenciosamente,<br>Sistema América Rental</p></div>';
+        sendEmailParaNotificados('custos_frota', { subject: '💲 Custos de Frota — Novo (' + tipoTxt + ') ' + placa, html });
+    } catch (e) {
+        console.error('[_cfNotificarNovo]', e.message);
+    }
+}
+
+// Cria o registro "novo" do Compras (uma vez por origem). Notifica apenas quando o registro e realmente novo.
+async function _cfRegistrar(tipo, origemId, veiculoId, notificar) {
+    const r = await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) VALUES (?, ?, ?, 'novo')", [tipo, origemId, veiculoId || null]);
+    if (r && r.changes > 0 && notificar) await _cfNotificarNovo(tipo, origemId, veiculoId);
+    return r;
+}
+
+// Muda a situacao do Compras: 'iniciar' (novo/registrado -> iniciada) e 'registrar' (-> registrado)
+async function _cfMudarSituacao(tipo, origemId, acao, usuario) {
+    let veic = null;
+    if (tipo === 'corretiva') veic = await _fmGet('SELECT veiculo_id FROM frota_manutencoes WHERE id = ?', [origemId]);
+    else veic = await _fmGet('SELECT veiculo_id FROM frota_revisoes WHERE id = ?', [origemId]);
+    await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) VALUES (?, ?, ?, 'novo')", [tipo, origemId, veic ? veic.veiculo_id : null]);
+    if (acao === 'registrar') {
+        await _fmRun("UPDATE compras_frota_registros SET status = 'registrado', registrado_em = CURRENT_TIMESTAMP, registrado_por = ?, updated_at = CURRENT_TIMESTAMP WHERE tipo = ? AND origem_id = ?", [usuario || null, tipo, origemId]);
+    } else {
+        await _fmRun("UPDATE compras_frota_registros SET status = 'iniciada', iniciada_em = COALESCE(iniciada_em, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE tipo = ? AND origem_id = ? AND status <> 'iniciada'", [tipo, origemId]);
+    }
+    return _fmGet('SELECT status, registrado_em, registrado_por FROM compras_frota_registros WHERE tipo = ? AND origem_id = ?', [tipo, origemId]);
+}
+
+// GET - lista do Compras (corretivas concluidas ou revisoes realizadas) com a situacao do Compras
+app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
+    try {
+        const tipo = req.params.tipo;
+        if (tipo === 'corretiva') {
+            const rows = await _fmAll(`
+                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por,
+                       fm.id, fm.veiculo_id, fm.descricao, fm.data_conclusao, fm.fornecedor,
+                       COALESCE(fm.custo, 0) AS custo, COALESCE(fm.custo_pecas, 0) AS custo_pecas, COALESCE(fm.custo_mao_obra, 0) AS custo_mao_obra,
+                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
+                       (CASE WHEN EXISTS (SELECT 1 FROM frota_manutencao_servicos s WHERE s.manutencao_id = fm.id AND s.tipo = 'realizado')
+                               OR EXISTS (SELECT 1 FROM frota_manutencao_pecas p WHERE p.manutencao_id = fm.id)
+                               OR EXISTS (SELECT 1 FROM frota_manutencao_notas n WHERE n.manutencao_id = fm.id)
+                               OR EXISTS (SELECT 1 FROM frota_manutencao_mo mo WHERE mo.manutencao_id = fm.id) THEN 1 ELSE 0 END) AS tem_dados
+                FROM compras_frota_registros r
+                JOIN frota_manutencoes fm ON fm.id = r.origem_id
+                LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+                WHERE r.tipo = 'corretiva' AND fm.status = 'concluida'
+                ORDER BY COALESCE(fm.data_conclusao, fm.updated_at) DESC, fm.id DESC`);
+            return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
+        }
+        if (tipo === 'revisao') {
+            const rows = await _fmAll(`
+                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por,
+                       fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao, fr.concessionaria, fr.itens_json,
+                       COALESCE(fr.valor_pecas, 0) AS valor_pecas, COALESCE(fr.valor_mao_obra, 0) AS valor_mao_obra, COALESCE(fr.valor_total, 0) AS valor_total,
+                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
+                       (CASE WHEN EXISTS (SELECT 1 FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id)
+                               OR EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id) THEN 1 ELSE 0 END) AS tem_lanc
+                FROM compras_frota_registros r
+                JOIN frota_revisoes fr ON fr.id = r.origem_id
+                LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
+                WHERE r.tipo = 'revisao' AND fr.status = 'realizada'
+                ORDER BY COALESCE(fr.data_revisao, fr.updated_at) DESC, fr.id DESC`);
+            return res.json(rows.map(x => {
+                let itens = {};
+                try { itens = JSON.parse(x.itens_json || '{}'); } catch (e) { itens = {}; }
+                const temItens = Object.keys(itens).some(k => itens[k] && (itens[k].realizado === true || itens[k].realizado === 'true'));
+                const temDados = Number(x.tem_lanc) === 1 || temItens;
+                delete x.itens_json;
+                return Object.assign({}, x, { tem_dados: temDados ? 1 : 0, situacao: (x.cf_status === 'novo' && temDados) ? 'iniciada' : x.cf_status });
+            }));
+        }
+        res.status(400).json({ error: 'Tipo inválido.' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST - muda a situacao do Compras: { acao: 'iniciar' | 'registrar' }
+app.post('/api/compras-frota/:tipo/:origemId/situacao', authenticateToken, async (req, res) => {
+    try {
+        const tipo = req.params.tipo;
+        if (tipo !== 'corretiva' && tipo !== 'revisao') return res.status(400).json({ error: 'Tipo inválido.' });
+        const acao = (req.body && req.body.acao) === 'registrar' ? 'registrar' : 'iniciar';
+        const r = await _cfMudarSituacao(tipo, parseInt(req.params.origemId, 10), acao, _fmUsuario(req));
+        res.json({ ok: true, situacao: r ? r.status : null, registrado_em: r ? r.registrado_em : null, registrado_por: r ? r.registrado_por : null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT - Compras salva apenas os servicos marcados como realizados da revisao (nao altera status/fotos/video da logistica)
+app.put('/api/compras-frota/revisao/:revId/itens', authenticateToken, async (req, res) => {
+    try {
+        const revId = parseInt(req.params.revId, 10);
+        const rev = await _fmGet('SELECT id FROM frota_revisoes WHERE id = ?', [revId]);
+        if (!rev) return res.status(404).json({ error: 'Revisão não encontrada.' });
+        const itens = (req.body && req.body.itens && typeof req.body.itens === 'object') ? req.body.itens : {};
+        await _fmRun('UPDATE frota_revisoes SET itens_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [JSON.stringify(itens), revId]);
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // PUT - atualizar km do veiculo (permite salvar a mesma KM para confirmar atualizacao semanal)

@@ -784,6 +784,10 @@ const BREADCRUMB_MAP = {
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
+    // Financeiro → Compras → Frota
+    'compras-gestao-frota': { path: 'Financeiro → Compras → Frota → Gestão de Frota', code: 'FIN001' },
+    'compras-corretivas': { path: 'Financeiro → Compras → Frota → Corretiva', code: 'FIN002' },
+    'compras-revisao': { path: 'Financeiro → Compras → Frota → Revisão', code: 'FIN003' },
     // Comercial
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
@@ -1089,7 +1093,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'comercial-comissao' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'comercial-comissao' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento' || key === 'compras-gestao-frota' || key === 'compras-corretivas' || key === 'compras-revisao';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1176,6 +1180,9 @@ const TAB_META = {
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
+    'compras-gestao-frota': { color: '#1971c2', icon: 'ph-truck', title: 'Gestão de Frota' },
+    'compras-corretivas': { color: '#1971c2', icon: 'ph-wrench', title: 'Corretiva' },
+    'compras-revisao': { color: '#1971c2', icon: 'ph-seal-check', title: 'Revisão' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
@@ -1305,7 +1312,17 @@ window.navigateToTab = function (tabId) {
         setTimeout(() => renderPipelinePage(), 80);
     }
     if (tab.target === 'logistica-frota' && typeof window.initFrotaVeiculos === 'function') {
+        if (typeof window._frotaMontarContexto === 'function') window._frotaMontarContexto('logistica');
         setTimeout(() => window.initFrotaVeiculos(), 80);
+    }
+    if (tab.target === 'compras-gestao-frota' && typeof window.initComprasGestaoFrota === 'function') {
+        setTimeout(() => window.initComprasGestaoFrota(), 80);
+    }
+    if (tab.target === 'compras-corretivas' && typeof window.initComprasFrota === 'function') {
+        setTimeout(() => window.initComprasFrota('corretiva'), 80);
+    }
+    if (tab.target === 'compras-revisao' && typeof window.initComprasFrota === 'function') {
+        setTimeout(() => window.initComprasFrota('revisao'), 80);
     }
     if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
         setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
@@ -1482,7 +1499,14 @@ function navigateTo(target) {
     } else if (target === 'logistica-equipes') {
         if (typeof window.initEquipes === 'function') setTimeout(() => window.initEquipes(), 80);
     } else if (target === 'logistica-frota') {
+        if (typeof window._frotaMontarContexto === 'function') window._frotaMontarContexto('logistica');
         if (typeof window.initFrotaVeiculos === 'function') setTimeout(() => window.initFrotaVeiculos(), 80);
+    } else if (target === 'compras-gestao-frota') {
+        if (typeof window.initComprasGestaoFrota === 'function') setTimeout(() => window.initComprasGestaoFrota(), 80);
+    } else if (target === 'compras-corretivas') {
+        if (typeof window.initComprasFrota === 'function') setTimeout(() => window.initComprasFrota('corretiva'), 80);
+    } else if (target === 'compras-revisao') {
+        if (typeof window.initComprasFrota === 'function') setTimeout(() => window.initComprasFrota('revisao'), 80);
     } else if (target === 'logistica-credenciamento') {
         if (typeof window.carregarHistoricoCredenciamento === 'function') setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
     } else if (target === 'logistica-itinerantes') {
@@ -15811,6 +15835,8 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-gauge'; titulo = 'Atualização de KM Vencida'; navTarget = 'frota';
                 } else if (notif.tipo === 'revisao_marco') {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-calendar-plus'; titulo = 'Agendar Revisão'; navTarget = 'frota';
+                } else if (notif.tipo === 'custos_frota') {
+                    bg = '#eff6ff'; color = '#1971c2'; icon = 'ph-currency-dollar'; titulo = 'Custos de Frota'; navTarget = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16051,6 +16077,18 @@ async function checkUserNotificacoes() {
                             ${listaRvHtml}
                         </div>
                     `;
+                } else if (notif.tipo === 'custos_frota') {
+                    const cfTipoTxt = dados.tipo === 'revisao' ? 'Revisão' : 'Corretiva';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.05rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:0.98rem;margin-bottom:6px;">
+                            <i class="ph ph-truck" style="color:#1971c2;"></i> ${dados.placa || 'Veículo'}${dados.modelo ? ' - ' + dados.modelo : ''}
+                        </div>
+                        <div style="color:#475569;font-size:0.82rem;margin-bottom:4px;"><b>Compras › Frota › ${cfTipoTxt}:</b> novo registro aguardando serviços, peças, notas e valores.</div>
+                        ${dados.detalhe ? `<div style="color:#64748b;font-size:0.8rem;">${dados.detalhe}</div>` : ''}
+                    `;
                 } else if (notif.tipo === 'atualizacao_km') {
                     const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
                     const listaKmHtml = veics.length
@@ -16109,6 +16147,9 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
                 } else if (notif.tipo === 'revisao_marco') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('revisao'); }, 250); }, 200);`;
+                } else if (notif.tipo === 'custos_frota') {
+                    const _cfTgt = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_cfTgt}');`;
                 } else if (notif.tipo === 'crlv_vencidos' || notif.tipo === 'atualizacao_km') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('gestao'); }, 200);`;
                 }
@@ -18403,7 +18444,7 @@ window.renderBookmarks = function () {
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja exceções
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm' && key !== 'satisfacao-rh' && key !== 'fechamento') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm' && key !== 'satisfacao-rh' && key !== 'fechamento' && key !== 'compras-gestao-frota' && key !== 'compras-corretivas' && key !== 'compras-revisao') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];

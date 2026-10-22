@@ -389,6 +389,13 @@ body {
     border-left: 3px solid transparent;
 }
 
+/* ── Grupos aninhados (Financeiro > Compras > Frota): o grupo interno so abre quando ele proprio estiver .open ── */
+.nav-group .nav-group:not(.open) > .nav-group-items { max-height: 0; opacity: 0; }
+.nav-group.open > .nav-group-items.nav-group-items-aninhado { max-height: 420px; }
+.nav-group.open .nav-group.open > .nav-group-items { max-height: 260px; opacity: 1; }
+.dept-submenu .nav-group-label.nav-group-label-sub { padding-left: 2.1rem; font-size: 0.84rem; }
+.dept-submenu .nav-item.nav-item-sub.nav-item-sub2 { padding-left: 3.1rem; }
+
 /* Keep old sidebar references inert */
 
 .sidebar { display: none; }

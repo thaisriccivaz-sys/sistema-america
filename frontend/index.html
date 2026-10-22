@@ -20,13 +20,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="style.css?v=1791584907538">
+    <link rel="stylesheet" href="style.css?v=1792630000001">
     <script src="experiencia.js?v=1778869020176" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=1792102900000" defer></script>
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
-    <script src="notificacoes.js?v=20261021v2" defer></script>
+    <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
     <script src="estoque.js?v=20260805v1" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
@@ -319,8 +319,40 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#1971c2;"><i class="ph ph-currency-dollar"></i>
                         Financeiro</div>
-                    <a href="#" class="nav-item" data-target="financeiro-em-breve"
-                        style="color:#94a3b8;pointer-events:none;"><i class="ph ph-hourglass"></i> Em breve...</a>
+                    <!-- ▸ Compras (acordeão) › Frota (acordeão) › Gestão de Frota / Corretiva / Revisão -->
+                    <div class="nav-group" id="nav-group-compras">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-compras')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-shopping-cart"></i>
+                                Compras
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items nav-group-items-aninhado" id="nav-group-items-compras">
+                            <div class="nav-group nav-group-sub" id="nav-group-compras-frota">
+                                <button class="nav-group-label nav-group-toggle nav-group-label-sub"
+                                        onclick="toggleNavGroup('nav-group-compras-frota')">
+                                    <span style="display:flex;align-items:center;gap:0.55rem;">
+                                        <i class="ph ph-truck"></i>
+                                        Frota
+                                    </span>
+                                    <i class="ph ph-caret-right nav-group-chevron"></i>
+                                </button>
+                                <div class="nav-group-items" id="nav-group-items-compras-frota">
+                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-gestao-frota"
+                                        onclick="navigateTo('compras-gestao-frota'); return false;"><i class="ph ph-truck"></i>
+                                        Gestão de Frota</a>
+                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-corretivas"
+                                        onclick="navigateTo('compras-corretivas'); return false;"><i class="ph ph-wrench"></i>
+                                        Corretiva</a>
+                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-revisao"
+                                        onclick="navigateTo('compras-revisao'); return false;"><i class="ph ph-seal-check"></i>
+                                        Revisão</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -4808,6 +4840,14 @@
                 <section id="view-logistica-frota" class="content-view" style="padding:0;">
                     <div id="frota-veiculos-container"></div>
                 </section>
+                <!-- VIEWS: FINANCEIRO > COMPRAS > FROTA (a tela de Gestão de Frota é reaproveitada: o container é movido para cá ao abrir) -->
+                <section id="view-compras-gestao-frota" class="content-view" style="padding:0;"></section>
+                <section id="view-compras-corretivas" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div id="compras-corretivas-container"></div>
+                </section>
+                <section id="view-compras-revisao" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
+                    <div id="compras-revisao-container"></div>
+                </section>
                 <!-- VIEW: TRILHA DE AUDITORIA -->
                 <section id="view-auditoria" class="content-view" style="padding:1.5rem; background:#f1f5f9;">
                     <div class="page-header flex-between">
@@ -6428,7 +6468,7 @@
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1791925000000"></script>
-    <script src="usuarios.js?v=1792441203023"></script>
+    <script src="usuarios.js?v=1792630000002"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -6438,7 +6478,7 @@
     <script src="multas_logistica.js?v=1791930000000"></script>
     <script src="multas_monaco.js?v=1778869020176"></script>
     <script src="equipes.js?v=1787064033000"></script>
-    <script src="frota.js?v=20261021v6"></script>
+    <script src="frota.js?v=20261021v7"></script>
     <script src="sac.js?v=1792100500000"></script>
     <script src="logistica_senhas.js?v=20260801v1"></script>
     <script src="administrativo_senhas.js?v=20260731v10"></script>
@@ -6458,7 +6498,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1791550714718"></script>
-    <script src="app.js?v=20261021v4"></script>
+    <script src="app.js?v=20261021v5"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->
@@ -6710,7 +6750,8 @@
     <script src="logistica_agenda.js?v=1778869020176"></script>
     <script src="logistica_epi.js?v=202606240125"></script>
     <script src="config-sigor.js"></script>
-    <script src="/frota_manutencao.js?v=20261021v27"></script>
+    <script src="/frota_manutencao.js?v=20261021v28"></script>
+    <script src="/compras_frota.js?v=20261021v1"></script>
     <script src="/sort_table.js?v=1"></script>
 
     <script>

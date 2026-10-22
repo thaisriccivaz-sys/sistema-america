@@ -1193,6 +1193,18 @@ function popularFiltros() {
 
 window._frotaAbaAtiva = 'veiculos';
 
+// Contexto de exibicao da tela de Gestao de Frota: 'logistica' (padrao, com abas) ou 'compras' (Financeiro > Compras > Frota, sem a aba Manutencoes)
+window._frotaModoCompras = false;
+window._frotaMontarContexto = function(modo) {
+    const cont = document.getElementById('frota-veiculos-container');
+    if (!cont) return;
+    const alvo = document.getElementById(modo === 'compras' ? 'view-compras-gestao-frota' : 'view-logistica-frota');
+    if (alvo && cont.parentElement !== alvo) alvo.appendChild(cont);
+    window._frotaModoCompras = (modo === 'compras');
+    const btn = cont.querySelector('.frota-aba-btn');
+    if (btn && btn.parentElement) btn.parentElement.style.display = window._frotaModoCompras ? 'none' : 'flex';
+};
+
 window.trocarAbaFrota = function(aba) {
     const _fpt = window.frotaPerms || { gestao: true, manutencao: true };
     if ((aba === 'manutencoes' && !_fpt.manutencao) || (aba === 'veiculos' && !_fpt.gestao)) return;
@@ -1249,7 +1261,10 @@ window.initFrotaVeiculos = async function() {
   if (!c) return;
 
   // Abas visiveis conforme as liberacoes Frota (Gestao) e Frota (Manutencao)
-  const _fp = window.frotaPerms || { gestao: true, manutencao: true };
+  // No Financeiro > Compras > Frota > Gestao de Frota a MESMA tela e exibida, sem a aba Manutencoes
+  const _fp = window._frotaModoCompras ? { gestao: true, manutencao: false } : (window.frotaPerms || { gestao: true, manutencao: true });
+  const _tabBarCtx = outerC.querySelector('.frota-aba-btn');
+  if (_tabBarCtx && _tabBarCtx.parentElement) _tabBarCtx.parentElement.style.display = window._frotaModoCompras ? 'none' : 'flex';
   document.querySelectorAll('.frota-aba-btn').forEach(b => {
       const ok = (b.dataset.aba === 'veiculos' && _fp.gestao) || (b.dataset.aba === 'manutencoes' && _fp.manutencao);
       b.style.display = ok ? 'flex' : 'none';

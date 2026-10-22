@@ -2486,18 +2486,14 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     const status = document.getElementById('mn-rev-f-status')?.value || 'pendente';
     const itens = window._mnRevColetarItensModal();
 
-    // Para concluir a revisao, todos os servicos obrigatorios (mecanico + conferencia interna), fotos de conferencia e video geral sao obrigatorios
+    // No Compras o registro ja existe (revisao concluida): anexos/lancamentos nao regravam o status da logistica
+    if (silencioso && window._mnRevModoCompras) {
+        const regCompras = window._mnRevRegAtual();
+        if (regCompras && regCompras.id) return regCompras;
+    }
+
+    // Para concluir a revisao, as fotos das conferencias e o video geral sao obrigatorios (a selecao dos servicos realizados e feita pelo Compras e nao bloqueia a conclusao)
     if (!silencioso && status === 'realizada') {
-        const faltando = (window._mnRevServicosModal || []).filter(function(s) {
-            return (s.grupo === 'obrigatorio' || s.grupo === 'conferencia') && !(itens[s.id] && itens[s.id].realizado);
-        });
-        if (faltando.length) {
-            faltando.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
-            const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + faltando[0].id + '"]');
-            if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            alert('Para salvar a revisão como Realizada, marque como realizados todos os serviços obrigatórios (Mecânico) e todas as conferências internas obrigatórias.\n\nFaltam (' + faltando.length + '):\n- ' + faltando.map(function(s) { return s.nome; }).join('\n- '));
-            return null;
-        }
         const semFoto = (window._mnRevServicosModal || []).filter(function(s) {
             return s.grupo === 'conferencia' && window._mnRevFotosConfDoItem(s.id).length === 0;
         });

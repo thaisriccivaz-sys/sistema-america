@@ -58,7 +58,9 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-epi',            pagina_nome: 'Entrega de EPI',   icone: 'ph-shield-check' },
     { modulo: 'Logística', pagina_id: 'logistica-equipes',        pagina_nome: 'Equipes',       icone: 'ph-users-three' },
     // Módulo Financeiro
-    { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
+    { modulo: 'Financeiro', pagina_id: 'compras-gestao-frota', pagina_nome: 'Gestão de Frota', icone: 'ph-truck' },
+    { modulo: 'Financeiro', pagina_id: 'compras-corretivas', pagina_nome: 'Corretiva', icone: 'ph-wrench' },
+    { modulo: 'Financeiro', pagina_id: 'compras-revisao', pagina_nome: 'Revisão', icone: 'ph-seal-check' },
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
@@ -642,7 +644,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
-        grupos: [{ titulo: 'Telas', telas: ['financeiro-em-breve'] }]
+        grupos: [{ titulo: 'Compras › Frota', telas: ['compras-gestao-frota', 'compras-corretivas', 'compras-revisao'] }]
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
