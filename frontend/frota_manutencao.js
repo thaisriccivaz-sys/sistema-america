@@ -2605,8 +2605,8 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     if (btn && !silencioso) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
     const regExistente = window._mnRevRegAtual();
-    const statusEnvio = (silencioso && status === 'realizada' && (!regExistente || regExistente.status !== 'realizada'))
-        ? ((regExistente && regExistente.status) ? regExistente.status : (document.getElementById('mn-rev-f-data')?.value ? 'agendada' : 'pendente'))
+    const statusEnvio = silencioso
+        ? ((regExistente && regExistente.status) ? regExistente.status : 'pendente')
         : status;
     const dcInp = document.getElementById('mn-rev-f-data-concl');
     if (statusEnvio === 'realizada' && dcInp && !dcInp.value) {
@@ -2617,6 +2617,7 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         marco_km: marcoKm,
         marco_meses: marcoMeses,
         status: statusEnvio,
+        silencioso: !!silencioso,
         data_solicitacao: document.getElementById('mn-rev-f-data-solic')?.value || null,
         data_revisao: document.getElementById('mn-rev-f-data')?.value || null,
         data_conclusao: dcInp ? (dcInp.value || null) : null,

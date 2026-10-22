@@ -81,7 +81,7 @@
             '<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;">'
             + '<div style="background:#1971c2;color:#fff;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 4px 10px rgba(25,113,194,0.3);"><i class="ph ' + icone + '"></i></div>'
             + '<div><h2 style="margin:0;color:#1e293b;font-size:1.4rem;">Compras — Frota › ' + TITULO[tipo] + '</h2>'
-            + '<div style="font-size:0.8rem;color:#64748b;">' + (tipo === 'corretiva' ? 'Manutenções corretivas concluídas aguardando o registro de serviços, peças, notas e valores.' : 'Revisões realizadas aguardando o registro de serviços, peças, notas e valores.') + '</div></div>'
+            + '<div style="font-size:0.8rem;color:#64748b;">' + (tipo === 'corretiva' ? 'Manutenções corretivas em manutenção ou concluídas aguardando o registro de serviços, peças, notas e valores.' : 'Revisões agendadas ou realizadas aguardando o registro de serviços, peças, notas e valores.') + '</div></div>'
             + '</div>'
             + '<div id="cf-kpi-' + tipo + '" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;"></div>'
             + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
@@ -149,7 +149,7 @@
             let c2, c3, c4, vp, vm, vt;
             if (tipo === 'corretiva') {
                 c2 = '<span title="' + esc(x.descricao || '') + '" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:300px;">' + esc(x.descricao || '—') + '</span>';
-                c3 = fmtData(x.data_conclusao);
+                c3 = fmtData(x.data_conclusao || x.data_inicio || x.data_agendamento);
                 c4 = esc(x.fornecedor || '—');
                 vp = x.custo_pecas; vm = x.custo_mao_obra; vt = x.custo;
             } else {
@@ -180,7 +180,7 @@
             + '<thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">'
             + '<th style="' + th + '">Veículo</th>'
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Defeito / Problema' : 'Revisão') + '</th>'
-            + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Concluída em' : 'Data da revisão') + '</th>'
+            + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Data / Conclusão' : 'Data da revisão') + '</th>'
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Fornecedor' : 'Concessionária') + '</th>'
             + '<th style="' + thR + '">R$ Peças</th><th style="' + thR + '">R$ Mão de obra</th><th style="' + thR + '">R$ Total</th>'
             + '<th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Situação</th>'

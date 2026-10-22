@@ -720,7 +720,9 @@ const BREADCRUMB_MAP = {
     'assinaturas-adm': { path: 'Administrativo → Assinaturas', code: 'ADMIN01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
+    'feedback-gestor': { path: 'Gestão → Feedback', code: 'GES001' },
     'satisfacao-rh': { path: 'RH → Avaliações → Satisfação', code: 'RHSAT01' },
+    'experiencia': { path: 'RH → Experiência', code: 'RHEXP01' },
     'experiencia-rh': { path: 'RH → Avaliações → Experiência', code: 'RHEXP01' },
     'desempenho-rh': { path: 'RH → Avaliações → Desempenho', code: 'RHDES01' },
     'terapias-rh': { path: 'RH → Avaliações → Terapias', code: 'RHTER01' },
@@ -730,7 +732,12 @@ const BREADCRUMB_MAP = {
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
     'auditoria': { path: 'Diretoria → Trilha de Auditoria', code: 'DIR006' },
+    'notificacoes': { path: 'Diretoria → Notificações', code: 'DIR008' },
+    'end-produto': { path: 'Diretoria → End. Prod.', code: 'DIR009' },
+    'config-sigor': { path: 'Diretoria → Desenvolvedor → Credenciais SIGOR', code: 'DIR010' },
     'dir-webhooks': { path: 'Diretoria → Desenvolvedor → Webhooks', code: 'DIR007' },
+    'homologacao': { path: 'Diretoria → Desenvolvedor → Homologação', code: 'DIR011' },
+    'controlid': { path: 'Diretoria → Desenvolvedor → Control iD', code: 'DIR012' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
     'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
@@ -773,14 +780,15 @@ const BREADCRUMB_MAP = {
     'logistica-pipeline': { path: 'Logística → Rota Redonda → Pipeline OS', code: 'LOG003' },
     'logistica-resumo-rota': { path: 'Logística → Rota Redonda → Resumo da Rota', code: 'LOG003B' },
     'logistica-videos-os': { path: 'Logística → Rota Redonda → Observações OS', code: 'LOG003V' },
+    'logistica-entregas': { path: 'Logística → Entregas', code: 'LOG014' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
-    'logistica-multas-monaco': { path: 'Multas Mônaco', code: 'LOG012' },
+    'logistica-multas-monaco': { path: 'Diretoria → Multas Mônaco', code: 'LOG012' },
     'logistica-equipes': { path: 'Equipes', code: 'LOG013' },
-    'logistica-frota': { path: 'Frota', code: 'LOG005' },
+    'logistica-frota': { path: 'Frota — Gestão de Frota', code: 'LOG005' },
     'logistica-credenciamento': { path: 'Credenciamento', code: 'LOG006' },
     'logistica-senhas': { path: 'Cofre de Senhas', code: 'LOG007' },
-    'logistica-resumo-rota': { path: 'Resumo de Rota', code: 'LOG008' },
     'logistica-itinerantes': { path: 'Clientes Itinerantes', code: 'LOG009' },
+    'logistica-mtrs': { path: 'Logística → Gestão de MTRs', code: 'LOG015' },
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
@@ -1126,11 +1134,11 @@ const TAB_META = {
     'prontuario': { color: '#f503c5', icon: 'ph-folder-open', title: 'Prontuário Digital' },
     'admissao': { color: '#f503c5', icon: 'ph-list-checks', title: 'Admissão' },
     'integracao': { color: '#f503c5', icon: 'ph-users-three', title: 'Integração' },
-    'departamentos': { color: '#f503c5', icon: 'ph-buildings', title: 'Departamentos' },
+    'departamentos': { color: '#d9480f', icon: 'ph-buildings', title: 'Departamentos' },
     'faculdade': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
-    'geradores': { color: '#f503c5', icon: 'ph-file-text', title: 'Geradores' },
-    'assinaturas-adm': { color: '#e67700', icon: 'ph-signature', title: 'Administrativo > Assinaturas' },
-    'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
+    'geradores': { color: '#d9480f', icon: 'ph-file-text', title: 'Geradores' },
+    'assinaturas-adm': { color: '#e67700', icon: 'ph-signature', title: 'Assinaturas' },
+    'ficha-epi': { color: '#d9480f', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
     'satisfacao-rh': { color: '#f503c5', icon: 'ph-smiley', title: 'Satisfação' },
     'experiencia-rh': { color: '#7c3aed', icon: 'ph-user-check', title: 'Experiência' },
@@ -1140,7 +1148,7 @@ const TAB_META = {
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     'assinaturas-digitais': { color: '#f503c5', icon: 'ph-signature', title: 'Assinaturas' },
     'pagamentos-massa': { color: '#f503c5', icon: 'ph-currency-dollar', title: 'Docs. em Massa' },
-    'dissidio': { color: '#f503c5', icon: 'ph-trend-up', title: 'Dissídio' },
+    'dissidio': { color: '#d9480f', icon: 'ph-trend-up', title: 'Dissídio' },
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
@@ -1152,16 +1160,22 @@ const TAB_META = {
     'treinamento-presenca-terapia': { color: '#0e7490', icon: 'ph-list-numbers', title: 'Presença Palestras' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
+    'auditoria': { color: '#d9480f', icon: 'ph-shield-check', title: 'Trilha de Auditoria' },
+    'notificacoes': { color: '#d9480f', icon: 'ph-bell-ringing', title: 'Notificações' },
     'cargos': { color: '#d9480f', icon: 'ph-briefcase', title: 'Cargos' },
     'certificado-digital': { color: '#d9480f', icon: 'ph-certificate', title: 'Certificado Digital' },
     'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
+    'end-produto': { color: '#d9480f', icon: 'ph-map-pin', title: 'End. Prod.' },
+    'conf-integracao': { color: '#d9480f', icon: 'ph-sliders-horizontal', title: 'Conf. Integração' },
     'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },
     'config-sigor': { color: '#d9480f', icon: 'ph-key', title: 'Credenciais SIGOR' },
     'dir-webhooks': { color: '#d9480f', icon: 'ph-plugs-connected', title: 'Webhooks' },
+    'homologacao': { color: '#d9480f', icon: 'ph-database', title: 'Homologação' },
+    'controlid': { color: '#d9480f', icon: 'ph-fingerprint', title: 'Control iD' },
     // Logística - Verde
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
-    'logistica-sinistros': { color: '#059669', icon: 'ph-warning', title: 'Sinistros' },
+    'logistica-sinistros': { color: '#2d9e5f', icon: 'ph-warning', title: 'Sinistros' },
     'logistica-rota-redonda': { color: '#2d9e5f', icon: 'ph-clipboard-text', title: 'OS' },
     'logistica-resumo-rota': { color: '#2d9e5f', icon: 'ph-list-bullets', title: 'Resumo de Rota' },
     'logistica-frota-resumo': { color: '#1e3a5f', icon: 'ph-truck', title: 'Resumo de Frota' },
@@ -1169,20 +1183,23 @@ const TAB_META = {
     'logistica-videos-os': { color: '#2d9e5f', icon: 'ph-video-camera', title: 'Observações OS' },
     'logistica-entregas': { color: '#2d9e5f', icon: 'ph-package', title: 'Entregas' },
     'logistica-multas': { color: '#2d9e5f', icon: 'ph-receipt', title: 'Multas' },
-    'logistica-multas-monaco': { color: '#dc2626', icon: 'ph-car', title: 'Multas Mônaco' },
+    'logistica-multas-monaco': { color: '#d9480f', icon: 'ph-police-car', title: 'Multas Mônaco' },
     'logistica-equipes': { color: '#2d9e5f', icon: 'ph-users-three', title: 'Equipes' },
-    'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Frota' },
+    'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Frota — Gestão de Frota' },
+    'logistica-frota:corretiva': { color: '#2d9e5f', icon: 'ph-wrench', title: 'Frota — Corretiva' },
+    'logistica-frota:revisao': { color: '#2d9e5f', icon: 'ph-seal-check', title: 'Frota — Revisão' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     'logistica-itinerantes': { color: '#2d9e5f', icon: 'ph-map-pin-line', title: 'Clientes Itinerantes' },
+    'logistica-mtrs': { color: '#2d9e5f', icon: 'ph-leaf', title: 'Gestão de MTRs' },
     'logistica-agenda': { color: '#2d9e5f', icon: 'ph-calendar-check', title: 'Agenda' },
-    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Logística > Entrega de EPI' },
+    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Entrega de EPI' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
-    'compras-gestao-frota': { color: '#1971c2', icon: 'ph-truck', title: 'Gestão de Frota' },
-    'compras-corretivas': { color: '#1971c2', icon: 'ph-wrench', title: 'Corretiva' },
-    'compras-revisao': { color: '#1971c2', icon: 'ph-seal-check', title: 'Revisão' },
+    'compras-gestao-frota': { color: '#1971c2', icon: 'ph-truck', title: 'Frota — Gestão de Frota' },
+    'compras-corretivas': { color: '#1971c2', icon: 'ph-wrench', title: 'Frota — Corretiva' },
+    'compras-revisao': { color: '#1971c2', icon: 'ph-seal-check', title: 'Frota — Revisão' },
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
@@ -1199,13 +1216,13 @@ const TAB_META = {
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
-    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
-    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' },
+    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Logística — Sinistros' },
+    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Logística — Multas' },
     'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
     'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
-    'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'Ajudantes' },
-    'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'Motoristas' },
+    'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'Rota de Sucesso — Ajudantes' },
+    'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'Rota de Sucesso — Motoristas' },
 };
 
 
@@ -18293,9 +18310,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window._pageBookmarks = JSON.parse(localStorage.getItem('pageBookmarks') || '[]');
 
+function _normSearchStr(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
 function getNormalizedPageSearchData() {
+    const EXCLUDED_SEARCH_KEYS = new Set([
+        'form-colaborador', 'form-usuario', 'integracao', 'avaliacoes',
+        'experiencia-rh', 'terapias-rh', 'palestras-rh', 'logistica-frota-resumo',
+        'gestao-departamentos'
+    ]);
     const pages = [];
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {
+        if (EXCLUDED_SEARCH_KEYS.has(key)) continue;
         const parts = obj.path.split('→').map(p => p.trim());
         const rootPath = parts[0];
 
@@ -18336,14 +18363,39 @@ function getNormalizedPageSearchData() {
                 permId = 'usuarios-permissoes';
             } else if (targetKey === 'conf-integracao') {
                 permId = 'integracao';
+            } else if (targetKey === 'feedback-gestor') {
+                const isMgr = window._myManagedDeptsGlob && window._myManagedDeptsGlob.length > 0;
+                if (!isMgr && window.activeUserPerms && !window.activeUserPerms['feedback-gestor']) {
+                    continue;
+                }
+                pages.push({ key: targetKey, name: obj.path, code: rootCode });
+                continue;
             }
             
             if (window.activeUserPerms && !window.activeUserPerms[permId]) {
+                // Caso especial: usuário tem apenas logistica-frota-manutencao
+                if (targetKey === 'logistica-frota' && window.activeUserPerms['logistica-frota-manutencao']) {
+                    pages.push({ key: 'logistica-frota:corretiva', name: 'Logística → Frota →Manutenção Corretiva', code: 'LOG005C' });
+                    pages.push({ key: 'logistica-frota:revisao', name: 'Logística → Frota → Revisão', code: 'LOG005R' });
+                }
                 continue; // Usuário não tem permissão
             }
         }
 
         pages.push({ key: targetKey, name: obj.path, code: rootCode });
+
+        // Adicionar sub-abas de Frota (Corretiva e Revisão) na pesquisa quando tiver permissão de manutenção
+        if (targetKey === 'logistica-frota') {
+            const canManut = window.isTopAdmin
+                || !window.activeUserPerms
+                || window.activeUserPerms['logistica-frota']
+                || window.activeUserPerms['logistica-frota-manutencao']
+                || (window.frotaPerms && window.frotaPerms.manutencao);
+            if (canManut) {
+                pages.push({ key: 'logistica-frota:corretiva', name: 'Logística → Frota → Manutenção Corretiva', code: 'LOG005C' });
+                pages.push({ key: 'logistica-frota:revisao', name: 'Logística → Frota → Revisão', code: 'LOG005R' });
+            }
+        }
     }
     return pages;
 }
@@ -18351,11 +18403,18 @@ function getNormalizedPageSearchData() {
 window.handlePageSearch = function (q) {
     const resDiv = document.getElementById('page-search-results');
     if (!resDiv) return;
-    q = (q || '').toLowerCase().trim();
-    if (!q) { resDiv.style.display = 'none'; return; }
+    const qNorm = _normSearchStr(q);
+    if (!qNorm) { resDiv.style.display = 'none'; return; }
 
     const all = getNormalizedPageSearchData();
-    const filtered = all.filter(p => !p.key.startsWith('tab:') && (p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q))));
+    const filtered = all.filter(p => {
+        if (p.key.startsWith('tab:')) return false;
+        const tMeta = getTabMeta(p.key) || {};
+        const nameNorm = _normSearchStr(p.name);
+        const titleNorm = _normSearchStr(tMeta.title);
+        const codeNorm = _normSearchStr(p.code);
+        return nameNorm.includes(qNorm) || titleNorm.includes(qNorm) || codeNorm.includes(qNorm);
+    });
 
     if (filtered.length === 0) {
         resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
@@ -18367,12 +18426,13 @@ window.handlePageSearch = function (q) {
             let menuName = 'RH';
             let menuIcon = 'ph-users';
             if (color === '#d9480f') { menuName = 'Diretoria'; menuIcon = 'ph-crown'; }
-            else if (color === '#2d9e5f' || color === '#1e3a5f') { menuName = 'Logística'; menuIcon = 'ph-truck'; }
+            else if (color === '#2d9e5f' || color === '#1e3a5f' || color === '#059669') { menuName = 'Logística'; menuIcon = 'ph-truck'; }
             else if (color === '#1971c2') { menuName = 'Financeiro'; menuIcon = 'ph-currency-dollar'; }
             else if (color === '#7048e8') { menuName = 'Comercial'; menuIcon = 'ph-handshake'; }
             else if (color === '#e67700') { menuName = 'Administrativo'; menuIcon = 'ph-gear'; }
             else if (color === '#0e7490') { menuName = 'Treinamentos'; menuIcon = 'ph-graduation-cap'; }
             else if (color === '#ef4444') { menuName = 'Processos'; menuIcon = 'ph-headset'; }
+            else if (color === '#4b5563') { menuName = 'Gestão'; menuIcon = 'ph-users-three'; }
 
             let screenName = tMeta.title || p.name;
 
@@ -18399,6 +18459,14 @@ window.abrirAbaOuNavegar = function (key) {
             // Mas vamos assumir que o usuário só favorita as abas quando está num colaborador
             renderTabContent(tabName, li.textContent.trim());
         }
+    } else if (key === 'logistica-frota:corretiva' || key === 'logistica-frota:revisao') {
+        const subAba = key.split(':')[1];
+        window._mnSubAbaInicial = subAba;
+        navigateTo('logistica-frota');
+        setTimeout(() => {
+            if (typeof window.trocarAbaFrota === 'function') window.trocarAbaFrota('manutencoes');
+            if (typeof window.mnMudarSubAba === 'function') window.mnMudarSubAba(subAba);
+        }, 160);
     } else {
         navigateTo(key);
     }
