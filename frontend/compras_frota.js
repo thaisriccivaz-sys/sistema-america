@@ -160,6 +160,9 @@
                 vp = x.valor_pecas; vm = x.valor_mao_obra; vt = x.valor_total;
             }
             const tituloSit = x.situacao === 'registrado' && x.registrado_em ? ('Registrado' + (x.registrado_por ? ' por ' + x.registrado_por : '') + ' em ' + fmtData(x.registrado_em)) : '';
+            const btnCheck = x.situacao !== 'registrado'
+                ? '<button type="button" title="Marcar como Registrado sem preencher nada" onclick="window.comprasFrotaMarcarRegistrado(\'' + tipo + '\', ' + x.id + ', this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.65rem;font-size:0.85rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" onmouseenter="this.style.background=\'#15803d\'" onmouseleave="this.style.background=\'#16a34a\'"><i class="ph-bold ph-check"></i></button>'
+                : '';
             return '<tr style="background:' + bg + ';border-bottom:1px solid #f1f5f9;">'
                 + '<td style="padding:9px 12px;">' + veic + '</td>'
                 + '<td style="padding:9px 12px;">' + c2 + '</td>'
@@ -169,7 +172,7 @@
                 + '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' + brl(vm) + '</td>'
                 + '<td style="padding:9px 12px;text-align:right;font-weight:800;white-space:nowrap;">' + brl(vt) + '</td>'
                 + '<td style="padding:9px 12px;text-align:center;">' + sitBadge(x.situacao, tituloSit) + '</td>'
-                + '<td style="padding:9px 12px;text-align:center;"><button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:#1971c2;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button></td>'
+                + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;"><div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;"><button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:#1971c2;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button>' + btnCheck + '</div></td>'
                 + '</tr>';
         }).join('');
 
@@ -196,6 +199,36 @@
     window.comprasFrotaAbrir = function (tipo, id) {
         if (tipo === 'corretiva') return window.comprasCorrAbrir(id);
         return window.comprasRevAbrir(id);
+    };
+    window.comprasFrotaMarcarRegistrado = async function (tipo, id, btnEl) {
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i>';
+        }
+        try {
+            const r = await fetch('/api/compras-frota/' + tipo + '/' + id + '/situacao', {
+                method: 'POST',
+                headers: hdrJson(),
+                body: JSON.stringify({ acao: 'registrar' })
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || 'Erro ao marcar como Registrado');
+            const item = ((state[tipo] && state[tipo].dados) || []).find((x) => Number(x.id) === Number(id));
+            if (item) {
+                item.cf_status = 'registrado';
+                item.situacao = 'registrado';
+                item.registrado_em = j.registrado_em || new Date().toISOString();
+                item.registrado_por = j.registrado_por || item.registrado_por || null;
+            }
+            atualizarLista(tipo);
+            toast('✅ Marcado como Registrado!');
+        } catch (e) {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = '<i class="ph-bold ph-check"></i>';
+            }
+            alert(e.message || 'Erro ao atualizar a situação do Compras');
+        }
     };
 
     // ───────────────────────── Corretiva: tela simples (serviços, peças, notas, garantias e totais) ─────────────────────────
