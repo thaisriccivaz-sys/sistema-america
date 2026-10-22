@@ -548,8 +548,9 @@
         });
         ov.querySelectorAll('th').forEach((th) => { if ((th.textContent || '').indexOf('Fotos obrigatórias') !== -1) th.remove(); });
         ov.querySelectorAll('span').forEach((sp) => {
+            if (sp.children && sp.children.length) return;
             const t = (sp.textContent || '').trim();
-            if (t.indexOf('Conferências internas OBRIGATÓRIAS') === 0) sp.textContent = 'Conferências internas (Manutenção / troca realizada)';
+            if (t.indexOf('Conferências internas OBRIGATÓRIAS') === 0 || t.indexOf('Conferências OBRIGATÓRIAS (Interno)') === 0) sp.textContent = 'Conferências internas (Manutenção / troca realizada)';
             else if (t === 'Serviços OBRIGATÓRIOS (Mecânico)') sp.textContent = 'Serviços (Mecânico)';
         });
         const cbAllConf = document.getElementById('mn-rev-cb-all-conf');

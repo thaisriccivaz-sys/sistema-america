@@ -1615,6 +1615,15 @@ window._mnRevLinhaServicoHtml = function(s, st) {
     </tr>`;
 };
 
+window._mnRevToggleGrupo = function(grupo, forcarAberto) {
+    const body = document.getElementById('mn-rev-grp-body-' + grupo);
+    const ico = document.getElementById('mn-rev-grp-ico-' + grupo);
+    if (!body) return;
+    const abrir = forcarAberto !== undefined ? !!forcarAberto : (body.style.display === 'none');
+    body.style.display = abrir ? 'block' : 'none';
+    if (ico) ico.className = abrir ? 'ph-bold ph-caret-down' : 'ph-bold ph-caret-right';
+};
+
 // Pesquisa de servicos no modal da revisao (filtra as linhas pelo nome/descricao)
 window._mnRevFiltrarServicos = function(txt) {
     const norm = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
@@ -1622,7 +1631,13 @@ window._mnRevFiltrarServicos = function(txt) {
     document.querySelectorAll('#mn-rev-modal-ov tr[data-rev-row]').forEach(function(tr) {
         if (tr.getAttribute('data-cf-oculto') === '1') { tr.style.display = 'none'; return; }
         const alvo = norm(tr.textContent);
-        tr.style.display = palavras.every(function(p) { return alvo.indexOf(p) !== -1; }) ? '' : 'none';
+        const visivel = palavras.every(function(p) { return alvo.indexOf(p) !== -1; });
+        tr.style.display = visivel ? '' : 'none';
+        if (visivel && palavras.length) {
+            const cb = tr.querySelector('input[data-rev-grupo]');
+            const grp = cb && cb.getAttribute('data-rev-grupo');
+            if (grp) window._mnRevToggleGrupo(grp, true);
+        }
     });
 };
 
@@ -1803,27 +1818,27 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </div>
                     <span id="mn-rev-cont-obrig" style="font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;"></span>
                 </div>
-                ${obrig.length ? `                <div style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>Serviços OBRIGATÓRIOS (Mecânico)</span>
-                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #fca5a5;color:#991b1b;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                ${obrig.length ? `                <div onclick="window._mnRevToggleGrupo('obrigatorio')" style="padding:7px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none;">
+                    <span style="display:inline-flex;align-items:center;gap:6px;"><i id="mn-rev-grp-ico-obrigatorio" class="ph-bold ${window._mnRevModoCompras ? 'ph-caret-down' : 'ph-caret-right'}"></i> <span>Serviços OBRIGATÓRIOS (Mecânico)</span></span>
+                    <label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #fca5a5;color:#991b1b;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-obrig" onchange="window._mnRevMarcarTodosGrupo('obrigatorio', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os obrigatórios
                     </label>
                 </div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
-                <div style="padding:7px 12px;background:#eff6ff;color:#1e40af;font-size:0.78rem;font-weight:800;border-top:1px solid #bfdbfe;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>Conferências internas OBRIGATÓRIAS (obrigatório anexar foto de cada item)</span>
-                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                <div id="mn-rev-grp-body-obrigatorio" style="overflow-x:auto;display:${window._mnRevModoCompras ? 'block' : 'none'};"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
+                <div onclick="window._mnRevToggleGrupo('conferencia')" style="padding:7px 12px;background:#eff6ff;color:#1e40af;font-size:0.78rem;font-weight:800;border-top:1px solid #bfdbfe;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none;">
+                    <span style="display:inline-flex;align-items:center;gap:6px;"><i id="mn-rev-grp-ico-conferencia" class="ph-bold ph-caret-down"></i> <span>Conferências OBRIGATÓRIAS (Interno)</span></span>
+                    <label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-conf" onchange="window._mnRevMarcarTodosGrupo('conferencia', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todas as conferências
                     </label>
                 </div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thConf}<tbody>${conf.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
-                ${opcio.length ? `                <div style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>OPCIONAIS</span>
-                    <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #cbd5e1;color:#334155;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
+                <div id="mn-rev-grp-body-conferencia" style="overflow-x:auto;display:block;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thConf}<tbody>${conf.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+                ${opcio.length ? `                <div onclick="window._mnRevToggleGrupo('opcional')" style="padding:7px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none;">
+                    <span style="display:inline-flex;align-items:center;gap:6px;"><i id="mn-rev-grp-ico-opcional" class="ph-bold ${window._mnRevModoCompras ? 'ph-caret-down' : 'ph-caret-right'}"></i> <span>OPCIONAIS</span></span>
+                    <label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1px solid #cbd5e1;color:#334155;padding:3px 10px;border-radius:6px;font-size:0.76rem;font-weight:800;">
                         <input type="checkbox" id="mn-rev-cb-all-opcio" onchange="window._mnRevMarcarTodosGrupo('opcional', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os opcionais
                     </label>
                 </div>
-                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
+                <div id="mn-rev-grp-body-opcional" style="overflow-x:auto;display:${window._mnRevModoCompras ? 'block' : 'none'};"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
             </div>
 
             <!-- 3. Anexar notas / OS -->
@@ -2511,20 +2526,22 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
             return s.grupo === 'conferencia' && !(itens[s.id] && (itens[s.id].realizado === true || itens[s.id].realizado === 'true'));
         });
         if (semCheckConf.length) {
+            window._mnRevToggleGrupo('conferencia', true);
             semCheckConf.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
             const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + semCheckConf[0].id + '"]');
             if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            alert('Para salvar a revisão como Realizada, é obrigatório selecionar (marcar como feito) todos os itens de Conferências internas OBRIGATÓRIAS.\n\nItens não marcados (' + semCheckConf.length + '):\n- ' + semCheckConf.map(function(s) { return s.nome; }).join('\n- '));
+            alert('Para salvar a revisão como Realizada, é obrigatório selecionar (marcar como feito) todos os itens de Conferências OBRIGATÓRIAS (Interno).\n\nItens não marcados (' + semCheckConf.length + '):\n- ' + semCheckConf.map(function(s) { return s.nome; }).join('\n- '));
             return null;
         }
         const semFoto = (window._mnRevServicosModal || []).filter(function(s) {
             return s.grupo === 'conferencia' && window._mnRevFotosConfDoItem(s.id).length === 0;
         });
         if (semFoto.length) {
+            window._mnRevToggleGrupo('conferencia', true);
             semFoto.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
             const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + semFoto[0].id + '"]');
             if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            alert('Para salvar a revisão como Realizada, é obrigatório anexar ao menos uma foto em cada item de Conferências internas OBRIGATÓRIAS.\n\nItens sem foto anexada (' + semFoto.length + '):\n- ' + semFoto.map(function(s) { return s.nome; }).join('\n- '));
+            alert('Para salvar a revisão como Realizada, é obrigatório anexar ao menos uma foto em cada item de Conferências OBRIGATÓRIAS (Interno).\n\nItens sem foto anexada (' + semFoto.length + '):\n- ' + semFoto.map(function(s) { return s.nome; }).join('\n- '));
             return null;
         }
         const regAtual = window._mnRevRegAtual();
