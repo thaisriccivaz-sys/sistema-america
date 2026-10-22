@@ -425,8 +425,16 @@
         const c = window._cfRev;
         if (!c || c.sit === 'iniciada') return;
         const itens = itensOpcional || window._mnRevColetarItensModal();
-        const temItens = Object.keys(itens).some((k) => itens[k] && (itens[k].realizado === true || itens[k].realizado === 'true'));
         const reg = window._mnRevRegAtual ? window._mnRevRegAtual() : null;
+        const salvos = (reg && reg.itens) || {};
+        const servMap = {};
+        (window._mnRevServicosModal || []).forEach((s) => { servMap[s.id] = s; });
+        const temItens = Object.keys(itens).some((k) => {
+            const s = servMap[k] || {};
+            const ant = salvos[k] || {};
+            if (s.grupo === 'conferencia' || ant.marcado_logistica) return String((itens[k] && itens[k].obs) || '').trim() !== String(ant.obs || '').trim();
+            return itens[k] && (itens[k].realizado === true || itens[k].realizado === 'true');
+        });
         const temLanc = !!(reg && ((reg.lancamentos || []).length || (reg.anexos || []).length));
         if (!temItens && !temLanc && c.sit !== 'registrado') return;
         try { c.sit = await postSit('revisao', c.revId, 'iniciar'); atualizarBadgeRev(); } catch (e) { /* nao bloqueia */ }
@@ -488,8 +496,23 @@
                 if (t.indexOf('1. Registro de Execução') !== -1 || t.indexOf('5. Vídeo geral') !== -1 || t.indexOf('Observações Gerais da Revisão') !== -1) ch.style.display = 'none';
             });
         }
-        // fotos das conferências: nao fazem parte do Compras
+        const reg = typeof window._mnRevRegAtual === 'function' ? window._mnRevRegAtual() : null;
+        const itensSalvos = (reg && reg.itens) || {};
+        const servMap = {};
+        (window._mnRevServicosModal || []).forEach((s) => { servMap[s.id] = s; });
+
+        // fotos das conferências: nao fazem parte do Compras; e itens de conferencia / preenchidos pela logistica seguem a regra:
+        // - "troca_manutencao": aparecem em Compras bloqueados (checkbox e select travados, observacao editavel)
+        // - "vistoriado": nao aparecem em Compras
         ov.querySelectorAll('tr[data-rev-row]').forEach((tr) => {
+            const id = tr.getAttribute('data-rev-row');
+            const s = servMap[id] || {};
+            const st = itensSalvos[id] || {};
+            const marcado = st.realizado === true || st.realizado === 'true';
+            const isConf = s.grupo === 'conferencia';
+            const tipo = (s.grupo === 'opcional' && !marcado) ? 'vistoriado' : (st.tipo || s.tipoPadrao);
+            const veioDaLogistica = isConf || (marcado && !!st.marcado_logistica);
+
             if (tr.querySelector('[id^="mn-rev-lbl-conf-"]') && tr.lastElementChild) tr.lastElementChild.remove();
             tr.querySelectorAll('span').forEach((sp) => {
                 const t = (sp.textContent || '').trim();
@@ -498,12 +521,48 @@
             tr.querySelectorAll('div').forEach((d) => {
                 if (!d.children.length && (d.textContent || '').indexOf('(anexar foto)') !== -1) d.textContent = 'Conferência interna';
             });
+
+            if (veioDaLogistica) {
+                if (marcado && tipo === 'troca_manutencao') {
+                    const cb = tr.querySelector('input[data-rev-field="realizado"]');
+                    const sel = tr.querySelector('select[data-rev-field="tipo"]');
+                    if (cb) {
+                        cb.checked = true;
+                        cb.disabled = true;
+                        cb.style.cursor = 'not-allowed';
+                        cb.title = 'Selecionado pela Logística (não pode ser desmarcado)';
+                    }
+                    if (sel) {
+                        sel.value = 'troca_manutencao';
+                        sel.disabled = true;
+                        sel.style.background = '#f1f5f9';
+                        sel.style.color = '#334155';
+                        sel.style.cursor = 'not-allowed';
+                        sel.title = 'Preenchido pela Logística (não pode ser alterado)';
+                    }
+                } else {
+                    tr.setAttribute('data-cf-oculto', '1');
+                    tr.style.display = 'none';
+                }
+            }
         });
         ov.querySelectorAll('th').forEach((th) => { if ((th.textContent || '').indexOf('Fotos obrigatórias') !== -1) th.remove(); });
         ov.querySelectorAll('span').forEach((sp) => {
             const t = (sp.textContent || '').trim();
-            if (t.indexOf('Conferências internas OBRIGATÓRIAS') === 0) sp.textContent = 'Conferências internas';
+            if (t.indexOf('Conferências internas OBRIGATÓRIAS') === 0) sp.textContent = 'Conferências internas (Manutenção / troca realizada)';
             else if (t === 'Serviços OBRIGATÓRIOS (Mecânico)') sp.textContent = 'Serviços (Mecânico)';
+        });
+        const cbAllConf = document.getElementById('mn-rev-cb-all-conf');
+        if (cbAllConf && cbAllConf.parentElement) cbAllConf.parentElement.style.display = 'none';
+        // Se todas as linhas de um bloco (ex.: Conferências internas todas como Vistoriado) ficarem ocultas, esconde o cabeçalho e a tabela vazia
+        ov.querySelectorAll('table').forEach((tbl) => {
+            const rows = Array.from(tbl.querySelectorAll('tr[data-rev-row]'));
+            if (!rows.length) return;
+            const algumVisivel = rows.some((r) => r.getAttribute('data-cf-oculto') !== '1');
+            if (!algumVisivel && tbl.parentElement) {
+                tbl.parentElement.style.display = 'none';
+                if (tbl.parentElement.previousElementSibling) tbl.parentElement.previousElementSibling.style.display = 'none';
+            }
         });
         const cont = document.getElementById('mn-rev-cont-obrig');
         if (cont) cont.style.display = 'none';

@@ -26477,9 +26477,13 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_lancamentos (
     valor_total REAL DEFAULT 0,
     servicos_json TEXT,
     modo_rateio TEXT,
+    fornecedor TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisao_lancamentos]', err.message);
+    db.run("ALTER TABLE frota_revisao_lancamentos ADD COLUMN fornecedor TEXT", (e2) => {
+        if (e2 && !String(e2.message).includes('duplicate column')) console.error('[MIGRATION frota_revisao_lancamentos fornecedor]', e2.message);
+    });
 });
 db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_midias (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26560,11 +26564,14 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
         revisoes.forEach(r => {
             try { r.itens = JSON.parse(r.itens_json || '{}'); } catch (e) { r.itens = {}; }
             r.anexos = anexos.filter(a => Number(a.revisao_id) === Number(r.id));
+            const anxMap = {};
+            r.anexos.forEach(a => { anxMap[a.id] = a; });
             r.midias = midias.filter(m => Number(m.revisao_id) === Number(r.id)).map(m => Object.assign({}, m, { url: '/api/frota/revisoes/midias/' + m.id + '/arquivo' }));
             r.lancamentos = lancs.filter(l => Number(l.revisao_id) === Number(r.id)).map(l => {
                 let sv = [];
                 try { sv = JSON.parse(l.servicos_json || '[]'); } catch (e) { sv = []; }
-                return Object.assign({}, l, { servicos: Array.isArray(sv) ? sv : [] });
+                const forn = l.fornecedor || (l.anexo_id && anxMap[l.anexo_id] ? anxMap[l.anexo_id].fornecedor : null) || null;
+                return Object.assign({}, l, { fornecedor: forn, servicos: Array.isArray(sv) ? sv : [] });
             });
         });
         const revRes = _fmResumoRevisaoVeiculo(veiculo, revisoes, _fmHojeBR());
@@ -26651,7 +26658,17 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const conc = String(b.concessionaria || '').trim() || null;
         const numOs = String(b.numero_os || '').trim() || null;
         let vPecas = 0, vMo = 0, vTot = 0;
-        const itensJson = JSON.stringify(b.itens && typeof b.itens === 'object' ? b.itens : {});
+        const itensRaw = (b.itens && typeof b.itens === 'object') ? b.itens : {};
+        Object.keys(itensRaw).forEach(k => {
+            if (itensRaw[k] && typeof itensRaw[k] === 'object') {
+                if (itensRaw[k].realizado === true || itensRaw[k].realizado === 'true') {
+                    itensRaw[k].marcado_logistica = true;
+                } else {
+                    delete itensRaw[k].marcado_logistica;
+                }
+            }
+        });
+        const itensJson = JSON.stringify(itensRaw);
         const obs = String(b.observacoes || '').trim() || null;
         const usuario = _fmUsuario(req);
         const hoje = _fmHojeBR();
@@ -26686,6 +26703,10 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
             const confObrigIds = ehCarretinhaRev
                 ? ['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios']
                 : ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao'];
+            const confSemCheck = rapido ? [] : confObrigIds.filter(id => !(itensRaw[id] && (itensRaw[id].realizado === true || itensRaw[id].realizado === 'true')));
+            if (confSemCheck.length > 0) {
+                return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), selecione (marque como feito) todos os itens de Conferências internas OBRIGATÓRIAS.' });
+            }
             const fotosSet = new Set(midiasRev.filter(m => m.categoria === 'conferencia_foto' && m.servico_id).map(m => m.servico_id));
             const confSemFoto = rapido ? [] : confObrigIds.filter(id => !fotosSet.has(id));
             if (confSemFoto.length > 0) {
@@ -26802,9 +26823,10 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
             const tipoL = l.tipo === 'mao_obra' ? 'mao_obra' : 'peca';
             const svs = Array.isArray(l.servicos) ? l.servicos.map(s => String(s)).filter(Boolean) : [];
             const modo = ['produto', 'mao_obra', 'total'].includes(l.modo_rateio) ? l.modo_rateio : null;
+            const fornLanc = String(l.fornecedor || forn || '').trim() || null;
             await _fmRun(
-                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                [revId, rev.veiculo_id, anexo.id, tipoL, String(l.codigo || '').trim() || null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), modo]
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, anexo.id, tipoL, String(l.codigo || '').trim() || null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), modo, fornLanc]
             );
         }
         await _frRecalcRevisao(revId);
@@ -26822,6 +26844,7 @@ app.post('/api/frota/revisoes/:revisaoId/lancamentos', authenticateToken, async 
         const rev = await _fmGet('SELECT id, veiculo_id FROM frota_revisoes WHERE id = ?', [revId]);
         if (!rev) return res.status(404).json({ error: 'Revisão não encontrada. Salve a revisão primeiro.' });
         const lancs = Array.isArray(req.body && req.body.lancamentos) ? req.body.lancamentos : [];
+        const fornBody = String((req.body && req.body.fornecedor) || '').trim() || null;
         let n = 0;
         for (const l of lancs) {
             const desc = String(l.descricao || '').trim();
@@ -26829,9 +26852,10 @@ app.post('/api/frota/revisoes/:revisaoId/lancamentos', authenticateToken, async 
             if (!desc || !(vt > 0)) continue;
             const tipoL = l.tipo === 'mao_obra' ? 'mao_obra' : 'peca';
             const svs = Array.isArray(l.servicos) ? l.servicos.map(x => String(x)).filter(Boolean) : [];
+            const fornLanc = String(l.fornecedor || fornBody || '').trim() || null;
             await _fmRun(
-                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                [revId, rev.veiculo_id, null, tipoL, null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), null]
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio, fornecedor) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, null, tipoL, null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), null, fornLanc]
             );
             n++;
         }
@@ -27208,9 +27232,12 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
         }
         if (tipo === 'revisao') {
+            const confIds = new Set(['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios', 'verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao']);
             const rows = await _fmAll(`
                 SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, COALESCE(r.carga_inicial, 0) AS carga_inicial,
-                       fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao, fr.concessionaria, fr.itens_json,
+                       fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao,
+                       COALESCE(NULLIF(TRIM(fr.concessionaria), ''), (SELECT a.fornecedor FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id AND COALESCE(TRIM(a.fornecedor), '') <> '' ORDER BY a.id DESC LIMIT 1), (SELECT l.fornecedor FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id AND COALESCE(TRIM(l.fornecedor), '') <> '' ORDER BY l.id DESC LIMIT 1)) AS concessionaria,
+                       fr.itens_json,
                        COALESCE(fr.valor_pecas, 0) AS valor_pecas, COALESCE(fr.valor_mao_obra, 0) AS valor_mao_obra, COALESCE(fr.valor_total, 0) AS valor_total,
                        fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
                        (CASE WHEN EXISTS (SELECT 1 FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id)
@@ -27223,7 +27250,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
             return res.json(rows.map(x => {
                 let itens = {};
                 try { itens = JSON.parse(x.itens_json || '{}'); } catch (e) { itens = {}; }
-                const temItens = Object.keys(itens).some(k => itens[k] && (itens[k].realizado === true || itens[k].realizado === 'true'));
+                const temItens = Object.keys(itens).some(k => !confIds.has(k) && itens[k] && !itens[k].marcado_logistica && (itens[k].realizado === true || itens[k].realizado === 'true'));
                 const temDados = Number(x.tem_lanc) === 1 || temItens;
                 delete x.itens_json;
                 return Object.assign({}, x, { tem_dados: temDados ? 1 : 0, situacao: (x.cf_status === 'novo' && temDados) ? 'iniciada' : x.cf_status });
@@ -27244,14 +27271,31 @@ app.post('/api/compras-frota/:tipo/:origemId/situacao', authenticateToken, async
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// PUT - Compras salva apenas os servicos marcados como realizados da revisao (nao altera status/fotos/video da logistica)
+// PUT - Compras salva apenas os servicos marcados como realizados da revisao (nao altera status/fotos/video da logistica nem desmarca itens preenchidos pela logistica)
 app.put('/api/compras-frota/revisao/:revId/itens', authenticateToken, async (req, res) => {
     try {
         const revId = parseInt(req.params.revId, 10);
-        const rev = await _fmGet('SELECT id FROM frota_revisoes WHERE id = ?', [revId]);
+        const rev = await _fmGet('SELECT id, itens_json FROM frota_revisoes WHERE id = ?', [revId]);
         if (!rev) return res.status(404).json({ error: 'Revisão não encontrada.' });
-        const itens = (req.body && req.body.itens && typeof req.body.itens === 'object') ? req.body.itens : {};
-        await _fmRun('UPDATE frota_revisoes SET itens_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [JSON.stringify(itens), revId]);
+        const confIds = new Set(['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios', 'verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao']);
+        let atuais = {};
+        try { atuais = JSON.parse(rev.itens_json || '{}'); } catch (e) { atuais = {}; }
+        const novos = (req.body && req.body.itens && typeof req.body.itens === 'object') ? req.body.itens : {};
+        const finalItens = Object.assign({}, atuais, novos);
+        Object.keys(atuais).forEach(k => {
+            const ant = atuais[k];
+            if (!ant || typeof ant !== 'object') return;
+            const eraMarcadoLogistica = confIds.has(k) || !!ant.marcado_logistica;
+            if (eraMarcadoLogistica) {
+                const env = (novos[k] && typeof novos[k] === 'object') ? novos[k] : {};
+                finalItens[k] = Object.assign({}, ant, {
+                    realizado: ant.realizado,
+                    tipo: ant.tipo,
+                    obs: env.obs !== undefined ? env.obs : (ant.obs || '')
+                });
+            }
+        });
+        await _fmRun('UPDATE frota_revisoes SET itens_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [JSON.stringify(finalItens), revId]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

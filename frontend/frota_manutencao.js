@@ -1620,6 +1620,7 @@ window._mnRevFiltrarServicos = function(txt) {
     const norm = function(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
     const palavras = norm(txt).split(' ').filter(Boolean);
     document.querySelectorAll('#mn-rev-modal-ov tr[data-rev-row]').forEach(function(tr) {
+        if (tr.getAttribute('data-cf-oculto') === '1') { tr.style.display = 'none'; return; }
         const alvo = norm(tr.textContent);
         tr.style.display = palavras.every(function(p) { return alvo.indexOf(p) !== -1; }) ? '' : 'none';
     });
@@ -1683,6 +1684,7 @@ window._mnRevMarcarTodosGrupo = function(grupo, marcado) {
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
         const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + s.id + '"][data-rev-field="tipo"]');
         const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]');
+        if ((row && row.getAttribute('data-cf-oculto') === '1') || (cb && cb.disabled)) return;
         if (cb) cb.checked = !!marcado;
         if (sel) {
             if (marcado && grupo === 'opcional') sel.value = 'vistoriado';
@@ -1914,6 +1916,8 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
 // ── Vinculo de linhas da nota a servicos: lista suspensa (na frente de tudo) apenas com os servicos marcados no passo 2 ──
 window._mnRevServicosMarcados = function() {
     return (window._mnRevServicosModal || []).filter(function(s) {
+        const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]');
+        if (row && row.getAttribute('data-cf-oculto') === '1') return false;
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
         return cb && cb.checked;
     });
@@ -2046,13 +2050,13 @@ window._mnRevAtualizarCustosPreview = function() {
     const lancs = reg ? (reg.lancamentos || []).slice() : [];
     const st = window._mnRevNotaStage;
     if (st) st.lancs.forEach(function(l) {
-        if (l.incluir && Number(l.valor_total) > 0) lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [] });
+        if (l.incluir && Number(l.valor_total) > 0) lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' });
     });
     if (el) el.innerHTML = window._mnRevCustosPorServicoHtml(lancs);
     const boxStage = document.getElementById('mn-rev-stage-custos');
     if (boxStage) {
         const soStage = [];
-        if (st) st.lancs.forEach(function(l) { if (l.incluir && Number(l.valor_total) > 0) soStage.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [] }); });
+        if (st) st.lancs.forEach(function(l) { if (l.incluir && Number(l.valor_total) > 0) soStage.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' }); });
         boxStage.innerHTML = st ? window._mnRevCustosPorServicoHtml(soStage) : '';
     }
 };
@@ -2228,16 +2232,21 @@ window._mnRevCustosPorServicoHtml = function(lancs) {
     if (!lancs || !lancs.length) return '<div style="font-size:0.78rem;color:#94a3b8;">Os custos por serviço aparecem aqui conforme você vincula as linhas da nota aos serviços.</div>';
     const nomes = {};
     (window._mnRevServicosModal || []).forEach(function(s) { nomes[s.id] = s; });
+    const reg = typeof window._mnRevRegAtual === 'function' ? window._mnRevRegAtual() : null;
+    const anxForns = {};
+    ((reg && reg.anexos) || []).forEach(function(a) { if (a && a.id && a.fornecedor) anxForns[a.id] = a.fornecedor; });
     const acc = {};
     let semVinculo = 0;
     lancs.forEach(function(l) {
         const sv = Array.isArray(l.servicos) ? l.servicos : [];
         const val = Number(l.valor_total || 0);
         if (!sv.length) { semVinculo += val; return; }
+        const forn = String(l.fornecedor || (l.anexo_id && anxForns[l.anexo_id]) || '').trim();
         const parte = val / sv.length;
         sv.forEach(function(id) {
-            if (!acc[id]) acc[id] = { pecas: 0, mo: 0 };
+            if (!acc[id]) acc[id] = { pecas: 0, mo: 0, fornecedores: [] };
             if (l.tipo === 'mao_obra') acc[id].mo += parte; else acc[id].pecas += parte;
+            if (forn && acc[id].fornecedores.indexOf(forn) === -1) acc[id].fornecedores.push(forn);
         });
     });
     const fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
@@ -2246,12 +2255,13 @@ window._mnRevCustosPorServicoHtml = function(lancs) {
         const s = nomes[id];
         const a = acc[id];
         const grpCor = s ? (s.grupo === 'obrigatorio' ? '#dc2626' : (s.grupo === 'conferencia' ? '#1d4ed8' : '#64748b')) : '#64748b';
-        const grpTxt = s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : (s.grupo === 'conferencia' ? 'OBRIGATÓRIO' : 'OPCIONAL')) : '';
-        return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)} <span style="font-size:0.66rem;font-weight:800;color:${grpCor};">${grpTxt}</span></td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
+        const grpTxt = (!window._mnRevModoCompras && s) ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : (s.grupo === 'conferencia' ? 'OBRIGATÓRIO' : 'OPCIONAL')) : '';
+        const fornTxt = a.fornecedores.length ? a.fornecedores.map(E).join(' / ') : '<span style="color:#94a3b8;">—</span>';
+        return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)}${grpTxt ? ` <span style="font-size:0.66rem;font-weight:800;color:${grpCor};">${grpTxt}</span>` : ''}</td><td style="padding:5px 8px;color:#334155;font-weight:600;">${fornTxt}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
     }).join('');
     return `<div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:4px;">Custo por serviço (rateado entre os serviços vinculados)</div>
     <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
-    <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 8px;">Serviço</th><th style="padding:5px 8px;text-align:right;">Peças</th><th style="padding:5px 8px;text-align:right;">Mão de obra</th><th style="padding:5px 8px;text-align:right;">Total</th></tr></thead>
+    <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 8px;">Serviço</th><th style="padding:5px 8px;">Fornecedor</th><th style="padding:5px 8px;text-align:right;">Peças</th><th style="padding:5px 8px;text-align:right;">Mão de obra</th><th style="padding:5px 8px;text-align:right;">Total</th></tr></thead>
     <tbody>${linhas}</tbody></table></div>
     ${semVinculo > 0 ? `<div style="font-size:0.74rem;color:#b45309;margin-top:4px;">Valor sem vínculo a serviço: ${fmt(semVinculo)}</div>` : ''}`;
 };
@@ -2282,6 +2292,7 @@ window._mnRevRenderListaAnexos = function(anexos, lancs) {
                     <i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>
                     <span style="font-weight:700;color:#1e293b;">${tipoLbl[a.tipo_documento] || E(a.tipo_documento)}</span>
                     ${a.numero_nota ? `<span style="color:#475569;">Nº <b>${E(a.numero_nota)}</b></span>` : ''}
+                    ${a.fornecedor ? `<span style="color:#0369a1;font-weight:700;">• ${E(a.fornecedor)}</span>` : ''}
                     ${Number(a.valor || 0) > 0 ? `<span style="color:#15803d;font-weight:700;">${fmt(a.valor)}</span>` : ''}
                     <span style="color:#94a3b8;">(${E(a.nome_arquivo || 'PDF')})</span>
                 </div>
@@ -2299,7 +2310,7 @@ window._mnRevRenderListaAnexos = function(anexos, lancs) {
             ${manuais.map(function(l) {
                 const sv = (l.servicos || []).map(function(id) { return E(nomes[id] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
                 return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;border-top:1px dashed #e2e8f0;">
-                    <span style="color:#475569;"><b>${l.tipo === 'mao_obra' ? 'Serviço' : 'Peça'}:</b> ${E(l.descricao)} <span style="color:#94a3b8;">→ ${sv}</span></span>
+                    <span style="color:#475569;"><b>${l.tipo === 'mao_obra' ? 'Serviço' : 'Peça'}:</b> ${E(l.descricao)}${l.fornecedor ? ` <span style="color:#0369a1;font-weight:600;">(${E(l.fornecedor)})</span>` : ''} <span style="color:#94a3b8;">→ ${sv}</span></span>
                     <span style="display:flex;align-items:center;gap:8px;"><b>${fmt(l.valor_total)}</b>
                     <button type="button" onclick="window._mnRevExcluirLancamento(${l.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button></span>
                 </div>`;
@@ -2308,9 +2319,11 @@ window._mnRevRenderListaAnexos = function(anexos, lancs) {
     return docs + man;
 };
 
-// Lancamento manual de peca/servico (sem PDF)
+// Lancamento manual de peca/servico (sem PDF) — permite adicionar varias linhas com o mesmo fornecedor ate lancar valores
 window._mnRevIniciarManual = function() {
-    if (!window._mnRevNotaStage) window._mnRevNotaStage = { file: null, numero: '', fornecedor: '', lancs: [], avisos: [] };
+    if (!window._mnRevNotaStage || window._mnRevNotaStage.file) {
+        window._mnRevNotaStage = { file: null, numero: '', fornecedor: '', lancs: [], avisos: [] };
+    }
     window._mnRevStageAdd();
     const el = document.getElementById('mn-rev-stage');
     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -2407,11 +2420,11 @@ window._mnRevRenderStage = function() {
     }).join('');
     el.innerHTML = `
     <div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;padding:0.8rem;">
-        <div style="font-weight:800;color:#075985;font-size:0.85rem;margin-bottom:6px;"><i class="ph ph-file-pdf"></i> ${st.file ? E(st.file.name) + ' — confira o que foi lido e vincule aos serviços' : 'Lançamento manual — informe a peça/serviço, o valor e vincule aos serviços'}</div>
+        <div style="font-weight:800;color:#075985;font-size:0.85rem;margin-bottom:6px;"><i class="ph ph-file-pdf"></i> ${st.file ? E(st.file.name) + ' — confira o que foi lido e vincule aos serviços' : 'Lançamento manual — informe o fornecedor, as peças/serviços, os valores e vincule aos serviços'}</div>
         ${(st.avisos || []).map(function(a) { return `<div style="font-size:0.74rem;color:#b45309;margin-bottom:3px;">\u26A0\uFE0F ${E(a)}</div>`; }).join('')}
-        <div style="display:${st.file ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:6px 0 10px;">
-            <div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label><input type="text" value="${E(st.numero)}" onchange="window._mnRevNotaStage.numero=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;"></div>
-            <div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Fornecedor</label><input type="text" value="${E(st.fornecedor)}" onchange="window._mnRevNotaStage.fornecedor=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:6px 0 10px;">
+            ${st.file ? `<div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label><input type="text" value="${E(st.numero)}" oninput="window._mnRevNotaStage.numero=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;background:#fff;"></div>` : ''}
+            <div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Fornecedor${st.file ? '' : ' (peças / serviços adicionados manualmente)'}</label><input type="text" value="${E(st.fornecedor)}" placeholder="Informe o fornecedor..." oninput="window._mnRevNotaStage.fornecedor=this.value;window._mnRevAtualizarCustosPreview()" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;background:#fff;"></div>
         </div>
         <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
             <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
@@ -2492,8 +2505,18 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         if (regCompras && regCompras.id) return regCompras;
     }
 
-    // Para concluir a revisao, as fotos das conferencias e o video geral sao obrigatorios (a selecao dos servicos realizados e feita pelo Compras e nao bloqueia a conclusao)
+    // Para concluir a revisao, todos os itens de Conferencias internas devem estar marcados como feitos, com foto anexada, alem do video geral
     if (!silencioso && status === 'realizada') {
+        const semCheckConf = (window._mnRevServicosModal || []).filter(function(s) {
+            return s.grupo === 'conferencia' && !(itens[s.id] && (itens[s.id].realizado === true || itens[s.id].realizado === 'true'));
+        });
+        if (semCheckConf.length) {
+            semCheckConf.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
+            const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + semCheckConf[0].id + '"]');
+            if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert('Para salvar a revisão como Realizada, é obrigatório selecionar (marcar como feito) todos os itens de Conferências internas OBRIGATÓRIAS.\n\nItens não marcados (' + semCheckConf.length + '):\n- ' + semCheckConf.map(function(s) { return s.nome; }).join('\n- '));
+            return null;
+        }
         const semFoto = (window._mnRevServicosModal || []).filter(function(s) {
             return s.grupo === 'conferencia' && window._mnRevFotosConfDoItem(s.id).length === 0;
         });
@@ -2629,10 +2652,13 @@ window._mnRevAnexarPdf = async function() {
     const btn = document.getElementById('mn-rev-anx-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
     try {
+        const fornStage = String(st.fornecedor || '').trim();
+        const concEl = document.getElementById('mn-rev-f-conc');
+        if (concEl && fornStage && (!concEl.value || concEl.value === 'Concessionária Autorizada Fiat')) concEl.value = fornStage;
         const savedRev = await window.mnRevSalvarMarco(m.km, m.meses, true);
         if (!savedRev || !savedRev.id) throw new Error('Não foi possível criar o registro da revisão.');
         const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
-        const payload = usadas.map(function(l) { return { tipo: l.tipo, codigo: l.codigo, descricao: l.descricao, quantidade: l.quantidade, valor_total: l.valor_total, servicos: l.servicos, modo_rateio: l.modo_rateio || null }; });
+        const payload = usadas.map(function(l) { return { tipo: l.tipo, codigo: l.codigo, descricao: l.descricao, quantidade: l.quantidade, valor_total: l.valor_total, servicos: l.servicos, modo_rateio: l.modo_rateio || null, fornecedor: fornStage || l.fornecedor || null }; });
         let res;
         if (st.file) {
             const total = usadas.reduce(function(t, l) { return t + (Number(l.valor_total) || 0); }, 0);
@@ -2641,11 +2667,11 @@ window._mnRevAnexarPdf = async function() {
             fd.append('tipo_documento', document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico');
             fd.append('numero_nota', st.numero || '');
             fd.append('valor', String(Math.round(total * 100) / 100));
-            fd.append('fornecedor', st.fornecedor || '');
+            fd.append('fornecedor', fornStage);
             fd.append('dados', JSON.stringify({ lancamentos: payload }));
             res = await fetch('/api/frota/revisoes/' + savedRev.id + '/anexos', { method: 'POST', headers: { Authorization: 'Bearer ' + tok }, body: fd });
         } else {
-            res = await fetch('/api/frota/revisoes/' + savedRev.id + '/lancamentos', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ lancamentos: payload }) });
+            res = await fetch('/api/frota/revisoes/' + savedRev.id + '/lancamentos', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ fornecedor: fornStage || null, lancamentos: payload }) });
         }
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar');
