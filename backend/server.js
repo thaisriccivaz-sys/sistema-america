@@ -25283,7 +25283,7 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
         let dados = {};
         try { dados = JSON.parse(req.body.dados || '{}'); } catch (e) { return res.status(400).json({ error: 'Dados da nota inválidos.' }); }
         const pecas = Array.isArray(dados.pecas) ? dados.pecas : [];
-        if (!pecas.length) return res.status(400).json({ error: 'Selecione ao menos uma peça.' });
+        if (!pecas.length && !dados.tem_estoque) return res.status(400).json({ error: 'Selecione ao menos uma peça.' });
 
         let notaId = null;
         if (req.file) {
@@ -25485,7 +25485,7 @@ app.put('/api/frota/manutencoes/:id/notas/:notaId', authenticateToken, multerNfF
         let dados = {};
         try { dados = JSON.parse(req.body.dados || '{}'); } catch (e) { return res.status(400).json({ error: 'Dados da nota inválidos.' }); }
         const pecas = Array.isArray(dados.pecas) ? dados.pecas : [];
-        if (!pecas.length) return res.status(400).json({ error: 'Informe ao menos uma peça.' });
+        if (!pecas.length && !dados.tem_estoque) return res.status(400).json({ error: 'Informe ao menos uma peça.' });
 
         const somaPecas = Math.round(pecas.reduce((t, p) => {
             const q = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
@@ -27216,7 +27216,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
         const tipo = req.params.tipo;
         if (tipo === 'corretiva') {
             const rows = await _fmAll(`
-                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por,
+                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, r.created_at AS cf_created_at, COALESCE(r.carga_inicial, 0) AS carga_inicial,
                        fm.id, fm.veiculo_id, fm.descricao, fm.data_conclusao, fm.fornecedor,
                        COALESCE(fm.custo, 0) AS custo, COALESCE(fm.custo_pecas, 0) AS custo_pecas, COALESCE(fm.custo_mao_obra, 0) AS custo_mao_obra,
                        fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
@@ -27228,13 +27228,13 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 JOIN frota_manutencoes fm ON fm.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
                 WHERE r.tipo = 'corretiva' AND fm.status = 'concluida'
-                ORDER BY COALESCE(fm.data_conclusao, fm.updated_at) DESC, fm.id DESC`);
+                ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
         }
         if (tipo === 'revisao') {
             const confIds = new Set(['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios', 'verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao']);
             const rows = await _fmAll(`
-                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, COALESCE(r.carga_inicial, 0) AS carga_inicial,
+                SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, r.created_at AS cf_created_at, COALESCE(r.carga_inicial, 0) AS carga_inicial,
                        fr.id, fr.veiculo_id, fr.marco_km, fr.marco_meses, fr.data_revisao,
                        COALESCE(NULLIF(TRIM(fr.concessionaria), ''), (SELECT a.fornecedor FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id AND COALESCE(TRIM(a.fornecedor), '') <> '' ORDER BY a.id DESC LIMIT 1), (SELECT l.fornecedor FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id AND COALESCE(TRIM(l.fornecedor), '') <> '' ORDER BY l.id DESC LIMIT 1)) AS concessionaria,
                        fr.itens_json,
@@ -27246,7 +27246,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 JOIN frota_revisoes fr ON fr.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
                 WHERE r.tipo = 'revisao' AND fr.status = 'realizada'
-                ORDER BY COALESCE(fr.data_revisao, fr.updated_at) DESC, fr.id DESC`);
+                ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => {
                 let itens = {};
                 try { itens = JSON.parse(x.itens_json || '{}'); } catch (e) { itens = {}; }

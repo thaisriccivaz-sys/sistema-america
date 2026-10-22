@@ -2065,13 +2065,13 @@ window._mnRevAtualizarCustosPreview = function() {
     const lancs = reg ? (reg.lancamentos || []).slice() : [];
     const st = window._mnRevNotaStage;
     if (st) st.lancs.forEach(function(l) {
-        if (l.incluir && Number(l.valor_total) > 0) lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' });
+        if (l.incluir && !(l.tipo === 'peca' && l.estoque) && Number(l.valor_total) > 0) lancs.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' });
     });
     if (el) el.innerHTML = window._mnRevCustosPorServicoHtml(lancs);
     const boxStage = document.getElementById('mn-rev-stage-custos');
     if (boxStage) {
         const soStage = [];
-        if (st) st.lancs.forEach(function(l) { if (l.incluir && Number(l.valor_total) > 0) soStage.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' }); });
+        if (st) st.lancs.forEach(function(l) { if (l.incluir && !(l.tipo === 'peca' && l.estoque) && Number(l.valor_total) > 0) soStage.push({ tipo: l.tipo, valor_total: Number(l.valor_total), servicos: l.servicos || [], fornecedor: st.fornecedor || l.fornecedor || '' }); });
         boxStage.innerHTML = st ? window._mnRevCustosPorServicoHtml(soStage) : '';
     }
 };
@@ -2423,13 +2423,21 @@ window._mnRevRenderStage = function() {
     const E = window._mnRevEsc;
     const sel = window._mnRevRateioSel || [];
     const linhas = st.lancs.map(function(l, i) {
-        const resumo = l.servicos.length ? (l.servicos.length + ' serviço(s)') : 'Vincular serviço...';
-        return `<tr style="border-bottom:1px solid #e2e8f0;">
+        const ehPeca = l.tipo === 'peca';
+        const ehEstoque = ehPeca && !!l.estoque;
+        const colEstoque = ehPeca
+            ? `<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.74rem;font-weight:700;color:${ehEstoque ? '#7c3aed' : '#475569'};cursor:pointer;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da revisão e não aparece na lista salva)"><input type="checkbox" ${ehEstoque ? 'checked' : ''} onchange="window._mnRevStageSet(${i},'estoque',this.checked)" style="accent-color:#7c3aed;"> Estoque</label>`
+            : `<span style="color:#cbd5e1;font-size:0.72rem;" title="Disponível apenas para peças">—</span>`;
+        const colVinculo = ehEstoque
+            ? `<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>`
+            : `<button type="button" id="mn-stg-btn-${i}" onclick="window._mnRevAbrirVinculo(${i}, this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window._mnRevVincLabel(l.servicos)}</button>`;
+        return `<tr style="border-bottom:1px solid #e2e8f0;${ehEstoque ? 'background:#faf5ff;' : ''}">
             <td style="padding:5px 6px;text-align:center;"><input type="checkbox" ${l.incluir ? 'checked' : ''} onchange="window._mnRevStageSet(${i},'incluir',this.checked)" style="accent-color:#0284c7;"></td>
             <td style="padding:5px 6px;"><select onchange="window._mnRevStageSet(${i},'tipo',this.value)" style="padding:3px 4px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;"><option value="peca"${l.tipo === 'peca' ? ' selected' : ''}>Peça</option><option value="mao_obra"${l.tipo === 'mao_obra' ? ' selected' : ''}>Mão de obra</option></select></td>
             <td style="padding:5px 6px;"><input type="text" value="${E(l.descricao)}" onchange="window._mnRevStageSet(${i},'descricao',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;box-sizing:border-box;"></td>
             <td style="padding:5px 6px;width:110px;"><input type="number" step="0.01" value="${Number(l.valor_total || 0).toFixed(2)}" onchange="window._mnRevStageSet(${i},'valor_total',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;text-align:right;box-sizing:border-box;"></td>
-            <td style="padding:5px 6px;width:190px;"><button type="button" id="mn-stg-btn-${i}" onclick="window._mnRevAbrirVinculo(${i}, this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window._mnRevVincLabel(l.servicos)}</button></td>
+            <td style="padding:5px 6px;width:82px;text-align:center;">${colEstoque}</td>
+            <td style="padding:5px 6px;width:190px;">${colVinculo}</td>
             <td style="padding:5px 6px;width:30px;text-align:center;"><button type="button" onclick="window._mnRevStageRemove(${i})" title="Remover linha" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;">&times;</button></td>
         </tr>`;
     }).join('');
@@ -2443,8 +2451,8 @@ window._mnRevRenderStage = function() {
         </div>
         <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
             <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
-                <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 6px;width:34px;text-align:center;">Usar</th><th style="padding:5px 6px;width:110px;">Tipo</th><th style="padding:5px 6px;">Descrição (peça / serviço)</th><th style="padding:5px 6px;">Valor (R$)</th><th style="padding:5px 6px;">Serviço vinculado *</th><th></th></tr></thead>
-                <tbody>${linhas || '<tr><td colspan="6" style="padding:10px;text-align:center;color:#94a3b8;">Nenhuma linha foi lida automaticamente. Adicione as linhas manualmente.</td></tr>'}</tbody>
+                <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 6px;width:34px;text-align:center;">Usar</th><th style="padding:5px 6px;width:110px;">Tipo</th><th style="padding:5px 6px;">Descrição (peça / serviço)</th><th style="padding:5px 6px;">Valor (R$)</th><th style="padding:5px 6px;width:82px;text-align:center;">Estoque</th><th style="padding:5px 6px;">Serviço vinculado *</th><th></th></tr></thead>
+                <tbody>${linhas || '<tr><td colspan="7" style="padding:10px;text-align:center;color:#94a3b8;">Nenhuma linha foi lida automaticamente. Adicione as linhas manualmente.</td></tr>'}</tbody>
             </table>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">
@@ -2464,10 +2472,15 @@ window._mnRevStageTotais = function() {
     const st = window._mnRevNotaStage;
     const el = document.getElementById('mn-rev-stage-tot');
     if (!st || !el) return;
-    let p = 0, m = 0;
-    st.lancs.forEach(function(l) { if (!l.incluir) return; if (l.tipo === 'mao_obra') m += Number(l.valor_total) || 0; else p += Number(l.valor_total) || 0; });
+    let p = 0, m = 0, est = 0;
+    st.lancs.forEach(function(l) {
+        if (!l.incluir) return;
+        if (l.tipo === 'mao_obra') m += Number(l.valor_total) || 0;
+        else if (l.estoque) est += Number(l.valor_total) || 0;
+        else p += Number(l.valor_total) || 0;
+    });
     const f = function(n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
-    el.textContent = 'Peças: ' + f(p) + '  •  Mão de obra: ' + f(m) + '  •  Total da nota: ' + f(p + m);
+    el.textContent = 'Peças: ' + f(p) + '  •  Mão de obra: ' + f(m) + (est > 0 ? '  •  Estoque abatido: -' + f(est) : '') + '  •  Total da revisão: ' + f(p + m);
     window._mnRevAtualizarCustosPreview();
 };
 
@@ -2475,7 +2488,14 @@ window._mnRevStageSet = function(i, campo, valor) {
     const st = window._mnRevNotaStage;
     if (!st || !st.lancs[i]) return;
     if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
+    else if (campo === 'estoque') st.lancs[i].estoque = !!valor;
     else st.lancs[i][campo] = valor;
+    if (campo === 'tipo' && valor === 'mao_obra') st.lancs[i].estoque = false;
+    if (campo === 'tipo' || campo === 'estoque') {
+        window._mnRevFecharVinculo();
+        window._mnRevRenderStage();
+        return;
+    }
     window._mnRevStageTotais();
 };
 
@@ -2658,12 +2678,21 @@ window._mnRevAnexarPdf = async function() {
     const st = window._mnRevNotaStage;
     const m = window._mnRevMarcoAtual;
     if (!st || !m) return alert('Selecione um arquivo PDF ou adicione uma linha manual.');
-    const usadas = st.lancs.filter(function(l) { return l.incluir && (Number(l.valor_total) > 0); });
-    if (!usadas.length) return alert('Informe ao menos uma linha com valor.');
+    const usadas = st.lancs.filter(function(l) { return l.incluir && !(l.tipo === 'peca' && l.estoque) && (Number(l.valor_total) > 0); });
+    const temEstoque = st.lancs.some(function(l) { return l.incluir && l.tipo === 'peca' && l.estoque && (Number(l.valor_total) > 0); });
+    if (!usadas.length && !temEstoque) return alert('Informe ao menos uma linha com valor.');
     const semDesc = usadas.filter(function(l) { return !String(l.descricao || '').trim(); });
     if (semDesc.length) return alert('Preencha a descrição de todas as linhas utilizadas.');
     const semVinculo = usadas.filter(function(l) { return !l.servicos.length; });
     if (semVinculo.length) return alert('Vincule cada peça / serviço a pelo menos um serviço marcado no passo 2.\n\nSem vínculo (' + semVinculo.length + '):\n- ' + semVinculo.map(function(l) { return l.descricao; }).join('\n- '));
+
+    if (!usadas.length && temEstoque && !st.file) {
+        window._mnRevNotaStage = null;
+        window._mnRevFecharVinculo();
+        window._mnRevRenderStage();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Peças de estoque abatidas (não lançadas na revisão)!');
+        return;
+    }
 
     const rotulo = st.file ? 'Anexar PDF e lançar valores' : 'Lançar valores';
     const btn = document.getElementById('mn-rev-anx-btn');
@@ -6407,24 +6436,45 @@ window._mnpAtualizarTotal = function() {
     var el = document.getElementById('mnp-total');
     if (!el) return;
     var N = window._mnNum;
-    var soma = 0, qtdItens = 0;
+    var soma = 0, somaEstoque = 0, qtdItens = 0;
     document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
         var descEl = r.querySelector('[data-k="descricao"]');
         var o = r._obj || {};
+        var estEl = r.querySelector('[data-k="estoque"]');
+        var ehEstoque = (estEl && estEl.checked) || !!o.estoque;
         var qEl = r.querySelector('[data-k="quantidade"]');
         var qtd = N(qEl ? qEl.value : 1) || 1;
         var vu = N(o.valor_unit);
         var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
-        if ((descEl && descEl.value.trim()) || vt > 0) qtdItens++;
-        soma += vt;
+        if (ehEstoque) {
+            somaEstoque += vt;
+        } else {
+            if ((descEl && descEl.value.trim()) || vt > 0) qtdItens++;
+            soma += vt;
+        }
     });
-    el.innerHTML = 'Total das peças' + (qtdItens ? ' (' + qtdItens + ')' : '') + ': <b style="color:#2563eb;">' + window._mnFmtMoeda(soma) + '</b>';
+    el.innerHTML = 'Total das peças' + (qtdItens ? ' (' + qtdItens + ')' : '') + ': <b style="color:#2563eb;">' + window._mnFmtMoeda(soma) + '</b>'
+        + (somaEstoque > 0 ? ' <span style="font-size:0.8rem;color:#7c3aed;font-weight:700;margin-left:8px;">(Estoque abatido: -' + window._mnFmtMoeda(somaEstoque) + ')</span>' : '');
 };
 
 window._mnpAtualizarBtnVinculo = function(row) {
     if (!row || !row._obj) return;
     var btn = row.querySelector('[data-pvinc]');
     if (!btn) return;
+    if (row._obj.estoque) {
+        btn.disabled = true;
+        btn.style.opacity = '0.75';
+        btn.style.cursor = 'default';
+        btn.style.borderColor = '#ddd6fe';
+        btn.style.background = '#f5f3ff';
+        btn.style.color = '#7c3aed';
+        btn.innerHTML = '<i class="ph ph-package"></i> Estoque (sem vínculo)';
+        return;
+    }
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = 'pointer';
+    btn.style.background = '#fff';
     var rv = window._mnEdResumoVinculo(row._obj);
     btn.style.borderColor = rv.cor;
     btn.style.color = rv.cor;
@@ -6457,6 +6507,7 @@ window._mnpAddLinha = function(init) {
         valor_unit: vuIni,
         valor_total: vtIni,
         ratear: 0,
+        estoque: !!d.estoque,
         servicos: servicosIni
     };
     var rv = window._mnEdResumoVinculo(obj);
@@ -6474,12 +6525,14 @@ window._mnpAddLinha = function(init) {
       + '<input type="text" data-k="valor_total" value="' + fm(vtIni) + '" title="Total" style="' + ipt + 'width:106px;text-align:right;font-weight:700;color:#2563eb;">'
       + '<input type="number" data-k="garantia_valor" min="0" step="1" value="' + esc(garVal) + '" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:80px;">'
       + '<select data-k="garantia_unidade" style="' + ipt + '"><option value="dias"' + (garUni !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (garUni === 'meses' ? ' selected' : '') + '>meses</option></select>'
+      + '<label data-lbl-estoque="1" style="display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1.5px solid ' + (obj.estoque ? '#7c3aed' : '#cbd5e1') + ';border-radius:8px;background:' + (obj.estoque ? '#f5f3ff' : '#fff') + ';color:' + (obj.estoque ? '#7c3aed' : '#475569') + ';cursor:pointer;font-weight:700;font-size:0.76rem;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da manutenção e não salva na lista)"><input type="checkbox" data-k="estoque"' + (obj.estoque ? ' checked' : '') + ' style="accent-color:#7c3aed;margin:0;"> Estoque</label>'
       + '<button type="button" data-pvinc="1" style="padding:6px 10px;border:1.5px solid ' + rv.cor + ';border-radius:8px;background:#fff;color:' + rv.cor + ';cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-link"></i> ' + esc(rv.txt) + '</button>'
       + '<button type="button" data-x="1" title="Remover linha" style="padding:6px 9px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>';
     box.appendChild(row);
     row._obj = obj;
     var descEl = row.querySelector('[data-k="descricao"]');
     var q = row.querySelector('[data-k="quantidade"]'), un = row.querySelector('[data-k="valor_unit"]'), tt = row.querySelector('[data-k="valor_total"]');
+    var estChk = row.querySelector('[data-k="estoque"]'), estLbl = row.querySelector('[data-lbl-estoque]');
     var sync = function(campo) {
         window._mnCalcPeca(obj, campo);
         if (campo !== 'valor_unit') un.value = fm(obj.valor_unit);
@@ -6490,11 +6543,26 @@ window._mnpAddLinha = function(init) {
     q.addEventListener('input', function() { obj.quantidade = q.value; sync('quantidade'); });
     window._mnMask(un, function(n) { obj.valor_unit = n; sync('valor_unit'); });
     window._mnMask(tt, function(n) { obj.valor_total = n; sync('valor_total'); });
+    if (estChk) {
+        estChk.addEventListener('change', function() {
+            obj.estoque = estChk.checked;
+            if (estLbl) {
+                estLbl.style.borderColor = obj.estoque ? '#7c3aed' : '#cbd5e1';
+                estLbl.style.background = obj.estoque ? '#f5f3ff' : '#fff';
+                estLbl.style.color = obj.estoque ? '#7c3aed' : '#475569';
+            }
+            row.style.background = obj.estoque ? '#faf5ff' : '#f8fafc';
+            window._mnpAtualizarBtnVinculo(row);
+            window._mnpAtualizarTotal();
+        });
+    }
     row.querySelector('[data-pvinc]').onclick = function() {
+        if (obj.estoque) return;
         obj.descricao = descEl ? (descEl.value.trim() || 'Peça da manutenção') : 'Peça da manutenção';
         window._mnVincularPopup(obj, function() { window._mnpAtualizarBtnVinculo(row); });
     };
     row.querySelector('[data-x]').onclick = function() { row.remove(); window._mnpAtualizarTotal(); };
+    window._mnpAtualizarBtnVinculo(row);
     window._mnpAtualizarTotal();
 };
 
@@ -6507,6 +6575,8 @@ window._mnpRatearTotalPopup = function() {
     var somaAtual = 0;
     document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
         var o = r._obj || {};
+        var estEl = r.querySelector('[data-k="estoque"]');
+        if ((estEl && estEl.checked) || o.estoque) return;
         var qEl = r.querySelector('[data-k="quantidade"]');
         var qtd = N(qEl ? qEl.value : 1) || 1;
         var vu = N(o.valor_unit);
@@ -6644,6 +6714,7 @@ window._mnpRatearTotalPopup = function() {
         } else {
             rows.forEach(function(r) {
                 if (!r._obj) r._obj = {};
+                if (r._obj.estoque) return;
                 r._obj.ratear = 0;
                 r._obj.servicos = escolhidos.slice();
                 window._mnpAtualizarBtnVinculo(r);
@@ -6720,13 +6791,20 @@ window._mnpSalvar = async function() {
     var arq = (window._mnp && window._mnp.arquivo) || (fileEl && fileEl.files && fileEl.files[0]) || null;
     var servsValidos = (ed.realizados || []).filter(function(s) { return s.id; });
     var pecas = [];
+    var qtdEstoque = 0;
     document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
         var g = function(k) { var el = r.querySelector('[data-k="' + k + '"]'); return el ? el.value : ''; };
         var desc = g('descricao').trim();
         var o = r._obj || {};
+        var estEl = r.querySelector('[data-k="estoque"]');
+        var ehEstoque = (estEl && estEl.checked) || !!o.estoque;
         var qtd = N(g('quantidade')) || 1;
         var vu = N(o.valor_unit);
         var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
+        if (ehEstoque) {
+            if (desc || vt > 0) qtdEstoque++;
+            return;
+        }
         if (!desc && vt > 0 && arq) desc = 'Peças conforme anexo';
         if (!desc) return;
         var svcs = Array.isArray(o.servicos) ? o.servicos.slice() : [];
@@ -6746,10 +6824,15 @@ window._mnpSalvar = async function() {
             servicos: svcs
         });
     });
-    if (!pecas.length) { alert('Informe ao menos uma peça (descrição).'); return; }
+    if (!pecas.length && !qtdEstoque) { alert('Informe ao menos uma peça (descrição).'); return; }
     var semVinculo = pecas.some(function(p) { return !(p.servicos || []).length; });
     if (semVinculo) {
         alert('Vincule as peças aos serviços realizados clicando em "Vincular a serviços" na linha da peça ou no botão "Ratear total da nota".');
+        return;
+    }
+    var editId = window._mnp && window._mnp.editNotaId;
+    if (!pecas.length && qtdEstoque > 0 && !arq && !editId) {
+        await window._mnpAposSalvar('✅ Peças de estoque abatidas (não lançadas na manutenção)!');
         return;
     }
     var btn = document.getElementById('mnp-salvar');
@@ -6770,9 +6853,9 @@ window._mnpSalvar = async function() {
             data_emissao: emiTxt || null,
             valor_total: somaPecas,
             chave_acesso: nfDados.chave_acesso || null,
+            tem_estoque: qtdEstoque > 0,
             pecas: pecas
         }));
-        var editId = window._mnp && window._mnp.editNotaId;
         var urlPecas = editId
             ? ('/api/frota/manutencoes/' + ed.id + '/notas/' + editId)
             : ('/api/frota/manutencoes/' + ed.id + '/notas');
