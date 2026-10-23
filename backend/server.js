@@ -31414,6 +31414,8 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque (
 db.run("ALTER TABLE estoque ADD COLUMN foto_url TEXT", (err) => { /* ignorar se ja existe */ });
 // Migration: adicionar coluna placas_vinculadas se nao existir
 db.run("ALTER TABLE estoque ADD COLUMN placas_vinculadas TEXT", (err) => { /* ignorar se ja existe */ });
+// Migration: adicionar coluna subcategoria se nao existir
+db.run("ALTER TABLE estoque ADD COLUMN subcategoria TEXT", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31609,7 +31611,7 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -31638,8 +31640,8 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
         }
 
         db.run(
-            'INSERT INTO estoque (nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nome, departamento, categoria, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
+            'INSERT INTO estoque (nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, departamento, categoria, subcategoria || null, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newItemId = this.lastID;
@@ -31665,7 +31667,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        let { nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -31674,6 +31676,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
         if (!oldRow) return res.status(404).json({ error: 'Item nao encontrado' });
+        const subcatSalvar = (subcategoria !== undefined) ? (subcategoria || null) : (oldRow.subcategoria || null);
 
         let foto_url = oldRow.foto_url || null;
         let foto_b64_salvar = oldRow.foto_base64 || null;
@@ -31702,8 +31705,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
 
         await new Promise((resolve, reject) => {
             db.run(
-                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-                [nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
+                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, subcategoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                [nome, departamento, categoria, subcatSalvar, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
                 function(err) { if (err) reject(err); else resolve(this); }
             );
         });

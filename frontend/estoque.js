@@ -179,8 +179,79 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         window._estoqueCache = {};
         data.forEach(item => { window._estoqueCache[item.id] = item; });
 
-        let rows = '';
-        data.forEach(item => {
+        // ── Helpers de Subcategoria e Ordenação por Tamanho ──
+        if (typeof window.obterSubcategoriaEstoque !== 'function') {
+            window.obterSubcategoriaEstoque = function(item) {
+                if (!item) return '';
+                if (item.subcategoria && String(item.subcategoria).trim()) {
+                    return String(item.subcategoria).trim();
+                }
+                const n = String(item.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const cat = String(item.categoria || '').trim().toLowerCase();
+                // Botas (EPI / Uniforme)
+                if (n.includes('bota') && n.includes('pvc')) return 'Bota de PVC';
+                if ((n.includes('bota') || n.includes('botina')) && (n.includes('bico') || n.includes('aco') || n.includes('seguranca') || n.includes('couro') || n.includes('composite'))) return 'Bota Bico de Aço';
+                // Uniformes
+                if (cat === 'uniforme' || n.includes('camiseta') || /\bpolo\b/.test(n) || /\bcalca\b/.test(n)) {
+                    if (/\bpolo\b/.test(n)) return 'Polo';
+                    if (n.includes('manga longa')) return 'Camiseta Manga Longa';
+                    if (n.includes('manga curta') || (n.includes('camiseta') && !n.includes('longa'))) return 'Camiseta Manga Curta';
+                    if (/\bcalca\b/.test(n)) return 'Calça';
+                }
+                return '';
+            };
+        }
+
+        if (typeof window._extrairInfoTamanhoEstoque !== 'function') {
+            window._extrairInfoTamanhoEstoque = function(nome) {
+                const raw = String(nome || '').trim();
+                const sizeOrderMap = {
+                    'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5,
+                    'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'EGG': 11,
+                    'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15
+                };
+                const tokens = raw.split(/(\s+|\-|\(|\)|\/)/);
+                let foundSize = '';
+                let foundOrder = 999;
+                const baseParts = [];
+                for (let i = 0; i < tokens.length; i++) {
+                    const tk = tokens[i];
+                    const cleanTk = tk.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                    if (!foundSize && sizeOrderMap[cleanTk] !== undefined) {
+                        foundSize = cleanTk;
+                        foundOrder = sizeOrderMap[cleanTk];
+                    } else if (!foundSize && /^(3[3-9]|4[0-9]|5[0-6])$/.test(cleanTk)) {
+                        foundSize = cleanTk;
+                        foundOrder = 100 + parseInt(cleanTk, 10);
+                    } else {
+                        baseParts.push(tk);
+                    }
+                }
+                const baseNome = baseParts.join('').replace(/\s+/g, ' ').replace(/\-\s*$/, '').trim().toLowerCase();
+                return { tamanho: foundSize, ordem: foundOrder, baseNome: baseNome || raw.toLowerCase() };
+            };
+        }
+
+        if (typeof window.toggleSubcategoriaEstoque !== 'function') {
+            window.toggleSubcategoriaEstoque = function(subcatKey) {
+                window._estoqueSubcatAbertas = window._estoqueSubcatAbertas || {};
+                window._estoqueSubcatAbertas[subcatKey] = !window._estoqueSubcatAbertas[subcatKey];
+                const isOpen = !!window._estoqueSubcatAbertas[subcatKey];
+                document.querySelectorAll('tr[data-subcat-child="' + subcatKey + '"]').forEach(function(tr) {
+                    tr.style.display = isOpen ? '' : 'none';
+                });
+                const icon = document.getElementById('estoque-subcat-arrow-' + subcatKey);
+                if (icon) {
+                    icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
+            };
+        }
+
+        window._estoqueSubcatAbertas = window._estoqueSubcatAbertas || {};
+
+        // Função interna que gera as linhas HTML de um item individual
+        function _renderItemRows(item, subcatKey, isSubcatOpen) {
+            let itemRows = '';
             let saldos = saldosMap[item.id] || [];
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
                 const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
@@ -188,7 +259,6 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                     saldos = saldos.filter(s => window.activeUserPerms['estoque-endereco:' + s.endereco_id]);
                 }
             }
-            const multiEnd = saldos.length > 1;
 
             // ── Verificar se está no mínimo (usa min/max por endereço) ──
             let isLow = false;
@@ -201,7 +271,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 isLow = (parseInt(item.quantidade_minima) > 0) && (parseInt(item.quantidade_atual)||0) < parseInt(item.quantidade_minima);
             }
 
-            const rowBorderLeft = isLow ? '3px solid #ef4444' : '3px solid transparent';
+            const rowBorderLeft = isLow ? '3px solid #ef4444' : (subcatKey ? '3px solid #93c5fd' : '3px solid transparent');
 
             // ── Foto ──
             const fotoSrc = item.foto_url || item.foto_base64 || "";
@@ -210,10 +280,13 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
+            const infoTam = subcatKey ? window._extrairInfoTamanhoEstoque(item.nome) : { tamanho: '' };
+            const badgeTam = infoTam.tamanho
+                ? '<span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:700;background:#e0e7ff;color:#1e40af;border:1px solid #c7d2fe;vertical-align:middle;">Tam. ' + infoTam.tamanho + '</span>'
+                : '';
 
             // ── Botões de ação (apenas na primeira linha do produto) ──
             const acoesBtns =
-                
                 '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
 
@@ -237,9 +310,10 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 if (filtroAtivo.length > 0) linhasParaRenderizar = filtroAtivo;
             }
 
+            const totalQtdItem = linhasParaRenderizar.reduce((acc, s) => acc + (s ? (parseInt(s.quantidade) || 0) : (parseInt(item.quantidade_atual) || 0)), 0);
+
             linhasParaRenderizar.forEach(function(s, idx) {
                 const primeiraLinha = idx === 0;
-                const ultimaLinha  = idx === linhasParaRenderizar.length - 1;
 
                 // Cor/estado deste endereço
                 let lowEnd = false;
@@ -293,41 +367,144 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
                 // Separador entre linhas do mesmo produto
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
-                const bgRow = lowEnd ? 'background:#fff5f5;' : '';
+                const bgRow = lowEnd ? 'background:#fff5f5;' : (subcatKey ? 'background:#fafcff;' : '');
+                const displayStyle = (subcatKey && !isSubcatOpen) ? 'display:none;' : '';
+                const subcatAttr = subcatKey ? ' data-subcat-child="' + subcatKey + '"' : '';
 
                 const rowSpanAttr = linhasParaRenderizar.length > 1 && primeiraLinha ? ' rowspan="' + linhasParaRenderizar.length + '"' : '';
 
-                rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
+                itemRows += '<tr' + subcatAttr + ' style="' + displayStyle + 'border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
                 
                 // Nome + foto
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>' +
+                    const padLeft = subcatKey ? 'padding-left:30px;' : '';
+                    itemRows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + padLeft + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + badgeTam + '</div></div>' +
                             '</td>';
                             
                     // Categoria
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    itemRows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
                             '</td>';
                 }
                 
                 // Qtd. Atual
-                rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
+                itemRows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
                 // Min/Máx
-                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
+                itemRows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
                 // Endereço
-                rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
+                itemRows += '<td style="vertical-align:middle;">' + endCell + '</td>';
                 // Tipo
-                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
+                itemRows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
                 
                 // Ações
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    itemRows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 acoesBtns +
                             '</td>';
                 }
-                rows += '</tr>';
+                itemRows += '</tr>';
             });
+
+            return { html: itemRows, isLow: isLow, totalQtd: totalQtdItem };
+        }
+
+        // Agrupar itens por subcategoria
+        const gruposSubcat = {};
+        data.forEach(item => {
+            const subcat = window.obterSubcategoriaEstoque(item);
+            if (subcat) {
+                const key = ((item.categoria || 'Geral') + '__' + subcat).replace(/[^a-zA-Z0-9_-]/g, '_');
+                if (!gruposSubcat[key]) {
+                    gruposSubcat[key] = {
+                        key: key,
+                        nome: subcat,
+                        categoria: item.categoria || '-',
+                        items: []
+                    };
+                }
+                gruposSubcat[key].items.push(item);
+            }
+        });
+
+        // Ordenar itens dentro de cada subcategoria por nome base + tamanho (PP, P, M, G, GG, EXG / 34..48)
+        Object.values(gruposSubcat).forEach(grupo => {
+            grupo.items.sort((a, b) => {
+                const ia = window._extrairInfoTamanhoEstoque(a.nome);
+                const ib = window._extrairInfoTamanhoEstoque(b.nome);
+                if (ia.baseNome !== ib.baseNome) return ia.baseNome.localeCompare(ib.baseNome);
+                if (ia.ordem !== ib.ordem) return ia.ordem - ib.ordem;
+                return (a.nome || '').localeCompare(b.nome || '');
+            });
+        });
+
+        let rows = '';
+        const gruposRenderizados = {};
+
+        data.forEach(item => {
+            const subcat = window.obterSubcategoriaEstoque(item);
+            if (!subcat) {
+                rows += _renderItemRows(item, '', true).html;
+                return;
+            }
+            const key = ((item.categoria || 'Geral') + '__' + subcat).replace(/[^a-zA-Z0-9_-]/g, '_');
+            if (gruposRenderizados[key]) return;
+            gruposRenderizados[key] = true;
+
+            const grupo = gruposSubcat[key];
+            const isOpen = !!search || !!window._estoqueSubcatAbertas[key];
+
+            let childrenHtml = '';
+            let totalQtdGrupo = 0;
+            let lowCountGrupo = 0;
+            let fotoGrupo = '';
+
+            grupo.items.forEach(gItem => {
+                if (!fotoGrupo && (gItem.foto_url || gItem.foto_base64)) {
+                    fotoGrupo = gItem.foto_url || gItem.foto_base64;
+                }
+                const res = _renderItemRows(gItem, key, isOpen);
+                childrenHtml += res.html;
+                totalQtdGrupo += res.totalQtd;
+                if (res.isLow) lowCountGrupo++;
+            });
+
+            const fotoGrupoHtml = fotoGrupo
+                ? '<img src="' + fotoGrupo + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;">'
+                : '<div style="width:40px;height:40px;border-radius:8px;background:#dbeafe;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;"><i class="ph ph-folders" style="color:#1d4ed8;font-size:1.25rem;"></i></div>';
+
+            const borderLeftGrupo = lowCountGrupo > 0 ? '4px solid #ef4444' : '4px solid #2563eb';
+            const badgeLowGrupo = lowCountGrupo > 0
+                ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;"><i class="ph ph-warning-circle"></i> ' + lowCountGrupo + ' em estoque mín.</span>'
+                : '';
+
+            rows += '<tr data-subcat-parent="' + key + '" onclick="window.toggleSubcategoriaEstoque(\'' + key + '\')" style="cursor:pointer;background:#f1f5f9;border-left:' + borderLeftGrupo + ';border-top:1px solid #e2e8f0;border-bottom:1px solid #cbd5e1;transition:background 0.15s;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f1f5f9\'">' +
+                '<td style="vertical-align:middle;font-weight:700;color:#0f172a;">' +
+                    '<div style="display:flex;align-items:center;gap:10px;">' +
+                        '<span style="width:26px;height:26px;border-radius:6px;background:#fff;border:1px solid #cbd5e1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);flex-shrink:0;">' +
+                            '<i id="estoque-subcat-arrow-' + key + '" class="ph-bold ph-caret-right" style="display:inline-block;transition:transform 0.2s;transform:' + (isOpen ? 'rotate(90deg)' : 'rotate(0deg)') + ';color:#1e40af;font-size:0.95rem;"></i>' +
+                        '</span>' +
+                        fotoGrupoHtml +
+                        '<div>' +
+                            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">' +
+                                '<span style="font-size:0.95rem;font-weight:800;color:#1e293b;">' + grupo.nome + '</span>' +
+                                '<span style="background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:4px;">' + grupo.items.length + (grupo.items.length === 1 ? ' tamanho/item' : ' tamanhos/itens') + '</span>' +
+                                badgeLowGrupo +
+                            '</div>' +
+                            '<div style="font-size:0.74rem;color:#64748b;font-weight:500;margin-top:2px;">Clique na seta para abrir/fechar os tamanhos desta subcategoria</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</td>' +
+                '<td style="vertical-align:middle;font-weight:600;color:#334155;">' + grupo.categoria + '</td>' +
+                '<td style="vertical-align:middle;">' +
+                    '<span style="font-weight:800;font-size:1.02rem;color:' + (lowCountGrupo > 0 ? '#ef4444' : '#0f172a') + ';">' + totalQtdGrupo + '</span>' +
+                    '<span style="font-size:0.72rem;color:#64748b;margin-left:4px;">total</span>' +
+                '</td>' +
+                '<td colspan="4" style="vertical-align:middle;text-align:right;padding-right:16px;color:#475569;font-size:0.78rem;font-weight:600;">' +
+                    '<span style="display:inline-flex;align-items:center;gap:4px;color:#1d4ed8;"><i class="ph ph-arrows-out-line-vertical"></i> Ver tamanhos (' + grupo.items.length + ')</span>' +
+                '</td>' +
+            '</tr>' +
+            childrenHtml;
         });
 
         table.innerHTML = rows;
@@ -495,6 +672,7 @@ window.abrirModalEstoque = async function() {
     await _carregarEnderecos();
     document.getElementById("form-estoque").reset();
     document.getElementById("estoque-id").value = "";
+    if (document.getElementById("estoque-subcat")) document.getElementById("estoque-subcat").value = "";
     const fi = document.getElementById("estoque-foto");
     if (fi) fi.value = "";
     document.getElementById("estoque-foto-base64").value = "";
@@ -526,6 +704,7 @@ window.editarEstoque = async function(item) {
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
     document.getElementById("estoque-cat").value  = item.categoria || '';
+    if (document.getElementById("estoque-subcat")) document.getElementById("estoque-subcat").value = item.subcategoria || (window.obterSubcategoriaEstoque ? window.obterSubcategoriaEstoque(item) : '') || '';
     window.togglePlacasEstoque(item.categoria);
     if (window._veiculosParaEstoque) {
         _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
@@ -611,6 +790,7 @@ window.salvarEstoque = async function(e) {
         nome:              document.getElementById("estoque-nome").value,
         departamento:      '',
         categoria:         document.getElementById("estoque-cat").value,
+        subcategoria:      (document.getElementById("estoque-subcat")?.value || '').trim(),
         quantidade_atual:  qtdAtual,
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
         quantidade_maxima: parseInt(document.getElementById("estoque-max").value) || 0,

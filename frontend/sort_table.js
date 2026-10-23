@@ -3,10 +3,11 @@
 window.sortTable = function(th) {
     const table = th.closest('table');
     const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const rows = allRows.filter(r => !r.dataset.subcatChild);
     
     // Ignore if table is empty or loading
-    if (rows.length === 0 || rows[0].querySelector('td[colspan]')) return;
+    if (rows.length === 0 || (rows.length === 1 && !rows[0].dataset.subcatParent && rows[0].querySelector('td[colspan]'))) return;
     
     // Ignore "Ações" column
     if (th.innerText.toLowerCase().includes('aç')) return;
@@ -79,5 +80,10 @@ window.sortTable = function(th) {
     });
     
     // Re-append sorted rows
-    rows.forEach(row => tbody.appendChild(row));
+    rows.forEach(row => {
+        tbody.appendChild(row);
+        if (row.dataset && row.dataset.subcatParent) {
+            allRows.filter(c => c.dataset && c.dataset.subcatChild === row.dataset.subcatParent).forEach(c => tbody.appendChild(c));
+        }
+    });
 };
