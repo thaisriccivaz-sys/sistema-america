@@ -1098,7 +1098,9 @@ window.editarEstoque = async function(item, tamanhoFoco) {
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
-    const catNorm = item.categoria === 'Peças Automotivas' ? 'Automotivo' : (item.categoria || '');
+    const catNorm = item.categoria === 'Peças Automotivas'
+        ? 'Automotivo'
+        : (item.categoria === 'Peças para Sanitários' ? 'Peças para Sanitários/Equipamentos' : (item.categoria || ''));
     document.getElementById("estoque-cat").value  = catNorm;
     window.togglePlacasEstoque(catNorm);
     if (window._veiculosParaEstoque) {
