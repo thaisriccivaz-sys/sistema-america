@@ -27586,12 +27586,227 @@ app.get('/api/frota/revisoes-resumo-veiculos', authenticateToken, async (req, re
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET - garantias ativas (pecas e mao de obra) de um veiculo (manutencoes corretivas + revisoes)
+app.get('/api/frota/veiculos/:veiculoId/garantias', authenticateToken, async (req, res) => {
+    try {
+        const veiculoId = parseInt(req.params.veiculoId, 10);
+        if (!veiculoId) return res.status(400).json({ error: 'Veículo inválido.' });
+        const veiculo = await _fmGet('SELECT id, placa, marca_modelo_versao, tipo_veiculo FROM frota_veiculos WHERE id = ?', [veiculoId]);
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const calcGar = (dataBaseStr, valor, unidade, status) => {
+            const v = parseInt(valor, 10);
+            if (!(v > 0)) return null;
+            const uni = unidade === 'meses' ? 'meses' : 'dias';
+            const prazoTxt = v + ' ' + (uni === 'meses' ? (v === 1 ? 'mês' : 'meses') : (v === 1 ? 'dia' : 'dias'));
+            const emAberto = status && status !== 'concluida' && status !== 'realizada';
+            const dtIso = String(dataBaseStr || '').split('T')[0].split(' ')[0];
+            if (!dtIso || !/^\d{4}-\d{2}-\d{2}$/.test(dtIso)) {
+                return { ativa: true, prazo_txt: prazoTxt, data_base: null, data_vencimento: null, dias_restantes: null, em_aberto: !!emAberto };
+            }
+            const d = new Date(dtIso + 'T00:00:00');
+            if (isNaN(d.getTime())) return null;
+            if (uni === 'meses') d.setMonth(d.getMonth() + v);
+            else d.setDate(d.getDate() + v);
+            const vencIso = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+            const diasRest = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+            const ativa = diasRest >= 0 || !!emAberto;
+            return { ativa, prazo_txt: prazoTxt, data_base: dtIso, data_vencimento: vencIso, dias_restantes: diasRest, em_aberto: !!emAberto };
+        };
+
+        const pecasOut = [];
+        const moOut = [];
+
+        // 1. Pecas de manutencoes corretivas (agrupando rateios da mesma peca)
+        const pecasRows = await _fmAll(`
+            SELECT p.*, fm.descricao AS manut_descricao, fm.status AS manut_status,
+                   fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.created_at AS manut_created_at,
+                   fm.fornecedor AS manut_fornecedor, n.fornecedor AS nota_fornecedor, n.numero AS nota_numero,
+                   s.nome AS servico_nome
+            FROM frota_manutencao_pecas p
+            JOIN frota_manutencoes fm ON fm.id = p.manutencao_id
+            LEFT JOIN frota_manutencao_notas n ON n.id = p.nota_id
+            LEFT JOIN frota_manutencao_servicos s ON s.id = p.servico_id
+            WHERE fm.veiculo_id = ? AND fm.tipo = 'corretiva' AND COALESCE(fm.status, '') <> 'cancelada'
+              AND COALESCE(p.garantia_valor, 0) > 0
+            ORDER BY COALESCE(fm.data_conclusao, fm.data_inicio, fm.created_at) DESC, p.id DESC`, [veiculoId]);
+
+        const grpPecas = {};
+        const listaPecasAgrup = [];
+        for (const p of pecasRows) {
+            const descRaw = String(p.descricao || '');
+            const mRat = descRaw.match(/^(.*)\s+\(rateio\s+(\d+)\/(\d+)\)$/i);
+            const baseDesc = mRat ? mRat[1].trim() : descRaw.trim();
+            const totalPartes = mRat ? parseInt(mRat[3], 10) : 1;
+            const chave = mRat ? `${p.manutencao_id}__${p.nota_id || ''}__${baseDesc}__${totalPartes}__${p.garantia_valor}__${p.garantia_unidade || ''}` : null;
+            if (chave) {
+                let g = grpPecas[chave];
+                if (!g || g._cnt >= totalPartes) {
+                    g = Object.assign({}, p, { descricao: baseDesc, quantidade: 1, valor_total: 0, servicos: [], _cnt: 0 });
+                    grpPecas[chave] = g;
+                    listaPecasAgrup.push(g);
+                }
+                g._cnt++;
+                g.valor_total = Math.round((g.valor_total + (Number(p.valor_total) || 0)) * 100) / 100;
+                if (p.servico_nome && !g.servicos.includes(p.servico_nome)) g.servicos.push(p.servico_nome);
+            } else {
+                listaPecasAgrup.push(Object.assign({}, p, { descricao: baseDesc, servicos: p.servico_nome ? [p.servico_nome] : [] }));
+            }
+        }
+        for (const p of listaPecasAgrup) {
+            const dtBase = p.data_conclusao || p.data_fim || p.data_inicio || p.data_agendamento || p.manut_created_at;
+            const info = calcGar(dtBase, p.garantia_valor, p.garantia_unidade, p.manut_status);
+            if (!info || !info.ativa) continue;
+            pecasOut.push({
+                origem: 'Corretiva',
+                manutencao_id: p.manutencao_id,
+                referencia: p.manut_descricao || ('Manutenção #' + p.manutencao_id),
+                descricao: p.descricao,
+                codigo: p.codigo || '',
+                quantidade: Number(p.quantidade) || 1,
+                unidade: p.unidade || 'UN',
+                valor_total: Number(p.valor_total) || 0,
+                servico_nome: (p.servicos || []).join(', ') || '—',
+                fornecedor: p.fornecedor || p.nota_fornecedor || p.manut_fornecedor || '—',
+                nota_numero: p.nota_numero || '',
+                garantia_valor: p.garantia_valor,
+                garantia_unidade: p.garantia_unidade === 'meses' ? 'meses' : 'dias',
+                prazo_txt: info.prazo_txt,
+                data_base: info.data_base,
+                data_vencimento: info.data_vencimento,
+                dias_restantes: info.dias_restantes,
+                em_aberto: info.em_aberto
+            });
+        }
+
+        // 2. Mao de obra de manutencoes corretivas (frota_manutencao_mo)
+        const moRows = await _fmAll(`
+            SELECT mo.*, fm.descricao AS manut_descricao, fm.status AS manut_status,
+                   fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.created_at AS manut_created_at,
+                   fm.fornecedor AS manut_fornecedor, n.fornecedor AS nota_fornecedor, n.numero AS nota_numero
+            FROM frota_manutencao_mo mo
+            JOIN frota_manutencoes fm ON fm.id = mo.manutencao_id
+            LEFT JOIN frota_manutencao_notas n ON n.id = mo.nota_id
+            WHERE fm.veiculo_id = ? AND fm.tipo = 'corretiva' AND COALESCE(fm.status, '') <> 'cancelada'
+              AND COALESCE(mo.garantia_valor, 0) > 0
+            ORDER BY COALESCE(fm.data_conclusao, fm.data_inicio, fm.created_at) DESC, mo.id DESC`, [veiculoId]);
+        const manIdsComMo = new Set();
+        for (const mo of moRows) {
+            manIdsComMo.add(Number(mo.manutencao_id));
+            const dtBase = mo.data_conclusao || mo.data_fim || mo.data_inicio || mo.data_agendamento || mo.manut_created_at;
+            const info = calcGar(dtBase, mo.garantia_valor, mo.garantia_unidade, mo.manut_status);
+            if (!info || !info.ativa) continue;
+            let svRows = [];
+            if (mo.ratear) {
+                svRows = await _fmAll("SELECT nome FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [mo.manutencao_id]);
+            } else {
+                svRows = await _fmAll('SELECT s.nome FROM frota_manutencao_mo_servicos ms JOIN frota_manutencao_servicos s ON s.id = ms.servico_id WHERE ms.mo_id = ? ORDER BY ms.id', [mo.id]);
+            }
+            moOut.push({
+                origem: 'Corretiva',
+                manutencao_id: mo.manutencao_id,
+                referencia: mo.manut_descricao || ('Manutenção #' + mo.manutencao_id),
+                descricao: mo.descricao,
+                servico_nome: svRows.map(s => s.nome).join(', ') || '—',
+                valor_total: Number(mo.valor) || 0,
+                fornecedor: mo.fornecedor || mo.nota_fornecedor || mo.manut_fornecedor || '—',
+                nota_numero: mo.nota_numero || '',
+                garantia_valor: mo.garantia_valor,
+                garantia_unidade: mo.garantia_unidade === 'meses' ? 'meses' : 'dias',
+                prazo_txt: info.prazo_txt,
+                data_base: info.data_base,
+                data_vencimento: info.data_vencimento,
+                dias_restantes: info.dias_restantes,
+                em_aberto: info.em_aberto
+            });
+        }
+
+        // 3. Servicos realizados com garantia direta (quando nao veio de frota_manutencao_mo)
+        const svDirRows = await _fmAll(`
+            SELECT s.*, fm.descricao AS manut_descricao, fm.status AS manut_status,
+                   fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.created_at AS manut_created_at,
+                   fm.fornecedor AS manut_fornecedor
+            FROM frota_manutencao_servicos s
+            JOIN frota_manutencoes fm ON fm.id = s.manutencao_id
+            WHERE fm.veiculo_id = ? AND fm.tipo = 'corretiva' AND COALESCE(fm.status, '') <> 'cancelada'
+              AND s.tipo = 'realizado' AND COALESCE(s.garantia_valor, 0) > 0
+            ORDER BY COALESCE(fm.data_conclusao, fm.data_inicio, fm.created_at) DESC, s.id DESC`, [veiculoId]);
+        for (const s of svDirRows) {
+            if (manIdsComMo.has(Number(s.manutencao_id))) continue;
+            const dtBase = s.data_conclusao || s.data_fim || s.data_inicio || s.data_agendamento || s.manut_created_at;
+            const info = calcGar(dtBase, s.garantia_valor, s.garantia_unidade, s.manut_status);
+            if (!info || !info.ativa) continue;
+            moOut.push({
+                origem: 'Corretiva',
+                manutencao_id: s.manutencao_id,
+                referencia: s.manut_descricao || ('Manutenção #' + s.manutencao_id),
+                descricao: s.nome,
+                servico_nome: s.nome,
+                valor_total: Number(s.mao_obra) || 0,
+                fornecedor: s.manut_fornecedor || '—',
+                nota_numero: '',
+                garantia_valor: s.garantia_valor,
+                garantia_unidade: s.garantia_unidade === 'meses' ? 'meses' : 'dias',
+                prazo_txt: info.prazo_txt,
+                data_base: info.data_base,
+                data_vencimento: info.data_vencimento,
+                dias_restantes: info.dias_restantes,
+                em_aberto: info.em_aberto
+            });
+        }
+
+        // 4. Lancamentos de revisao (pecas e mao de obra com garantia ativa do mesmo veiculo)
+        const revRows = await _fmAll(`
+            SELECT l.*, fr.marco_km, fr.marco_meses, fr.status AS rev_status,
+                   fr.data_conclusao, fr.data_revisao, fr.created_at AS rev_created_at,
+                   fr.concessionaria, a.fornecedor AS anexo_fornecedor, a.numero_nota
+            FROM frota_revisao_lancamentos l
+            JOIN frota_revisoes fr ON fr.id = l.revisao_id
+            LEFT JOIN frota_revisao_anexos a ON a.id = l.anexo_id
+            WHERE fr.veiculo_id = ? AND COALESCE(l.garantia_valor, 0) > 0
+            ORDER BY COALESCE(fr.data_conclusao, fr.data_revisao, fr.created_at) DESC, l.id DESC`, [veiculoId]).catch(() => []);
+        for (const l of revRows) {
+            const dtBase = l.data_conclusao || l.data_revisao || l.rev_created_at;
+            const info = calcGar(dtBase, l.garantia_valor, l.garantia_unidade, l.rev_status);
+            if (!info || !info.ativa) continue;
+            let svNomes = [];
+            try { svNomes = JSON.parse(l.servicos_json || '[]'); } catch (e) { svNomes = []; }
+            const refTxt = 'Revisão ' + (Number(l.marco_km) > 0 ? (Number(l.marco_km).toLocaleString('pt-BR') + ' km') : (l.marco_meses + ' meses'));
+            const itemObj = {
+                origem: 'Revisão',
+                manutencao_id: l.revisao_id,
+                referencia: refTxt,
+                descricao: l.descricao,
+                codigo: l.codigo || '',
+                quantidade: Number(l.quantidade) || 1,
+                unidade: 'UN',
+                valor_total: Number(l.valor_total) || 0,
+                servico_nome: Array.isArray(svNomes) && svNomes.length ? svNomes.join(', ') : '—',
+                fornecedor: l.fornecedor || l.anexo_fornecedor || l.concessionaria || '—',
+                nota_numero: l.numero_nota || '',
+                garantia_valor: l.garantia_valor,
+                garantia_unidade: l.garantia_unidade === 'meses' ? 'meses' : 'dias',
+                prazo_txt: info.prazo_txt,
+                data_base: info.data_base,
+                data_vencimento: info.data_vencimento,
+                dias_restantes: info.dias_restantes,
+                em_aberto: info.em_aberto
+            };
+            if (l.tipo === 'mao_obra') moOut.push(itemObj);
+            else pecasOut.push(itemObj);
+        }
+
+        res.json({ veiculo: veiculo || { id: veiculoId }, pecas: pecasOut, mao_obra: moOut });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET - lista do Compras (corretivas em manutencao/finalizacao pendente/concluidas ou revisoes agendadas/realizadas) com a situacao do Compras
 app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
     try {
         const tipo = req.params.tipo;
         if (tipo === 'corretiva') {
-            await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'corretiva', id, veiculo_id, 'novo' FROM frota_manutencoes WHERE tipo = 'corretiva' AND status IN ('em_andamento', 'concluida', 'finalizacao_pendente')").catch(() => {});
+            await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'corretiva', id, veiculo_id, 'novo' FROM frota_manutencoes WHERE tipo = 'corretiva' AND status IN ('agendada', 'em_andamento', 'aguardando', 'concluida', 'finalizacao_pendente')").catch(() => {});
             const rows = await _fmAll(`
                 SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, r.created_at AS cf_created_at, COALESCE(r.carga_inicial, 0) AS carga_inicial,
                        fm.id, fm.veiculo_id, fm.descricao, fm.status AS manut_status, fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.fornecedor,
@@ -27617,7 +27832,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 JOIN frota_manutencoes fm ON fm.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
                 LEFT JOIN sinistros sin ON sin.id = fm.sinistro_id
-                WHERE r.tipo = 'corretiva' AND fm.status IN ('em_andamento', 'aguardando', 'concluida', 'finalizacao_pendente')
+                WHERE r.tipo = 'corretiva' AND fm.status IN ('agendada', 'em_andamento', 'aguardando', 'concluida', 'finalizacao_pendente')
                 ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
         }

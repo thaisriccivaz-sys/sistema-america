@@ -51,10 +51,15 @@
     };
 
     window._fcDiasHtml = function (itens) {
-        return '<div style="display:flex;gap:6px;margin-top:6px;">' + itens.map((i) => {
-            return '<div style="flex:1;min-width:0;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:5px 8px;text-align:center;">'
-                + '<div style="font-size:1rem;font-weight:800;color:#dc2626;line-height:1.1;">' + i.val + ' <span style="font-size:0.66rem;font-weight:700;">' + (Number(i.val) === 1 ? 'dia' : 'dias') + '</span></div>'
-                + '<div style="font-size:0.6rem;font-weight:700;color:#7f1d1d;margin-top:1px;">' + esc(i.label) + '</div></div>';
+        return '<div style="display:flex;gap:6px;margin-top:6px;">' + itens.map((i, idx) => {
+            const laranja = i.cor === 'laranja' || idx === 1;
+            const bg = laranja ? '#fff7ed' : '#fef2f2';
+            const bd = laranja ? '#fed7aa' : '#fecaca';
+            const cVal = laranja ? '#ea580c' : '#dc2626';
+            const cLbl = laranja ? '#9a3412' : '#7f1d1d';
+            return '<div style="flex:1;min-width:0;background:' + bg + ';border:1px solid ' + bd + ';border-radius:8px;padding:5px 8px;text-align:center;">'
+                + '<div style="font-size:1rem;font-weight:800;color:' + cVal + ';line-height:1.1;">' + i.val + ' <span style="font-size:0.66rem;font-weight:700;">' + (Number(i.val) === 1 ? 'dia' : 'dias') + '</span></div>'
+                + '<div style="font-size:0.6rem;font-weight:700;color:' + cLbl + ';margin-top:1px;">' + esc(i.label) + '</div></div>';
         }).join('') + '</div>';
     };
 
@@ -137,6 +142,7 @@
             if (i.parado) s.parado = true;
             if (!s.destaque || prio(i) < prio(s.destaque) || (prio(i) === prio(s.destaque) && Number(i.id) > Number(s.destaque.id))) s.destaque = i;
         });
+        s.em_aberto = s.em_andamento + s.agendada + s.aguardando + s.finPend;
         return s;
     };
 
@@ -172,7 +178,7 @@
             return window._fcCardShell({
                 vid: g.vid, placa: g.placa, modelo: g.modelo, tipo: g.tipo, foto: g.foto, parado: st.parado, onclickFn: onclickFn,
                 chips: [
-                    { label: 'Manutenções', val: st.n, cor: '#7c3aed' },
+                    { label: 'Em aberto', val: st.em_aberto, cor: '#e11d48' },
                     { label: 'Em manutenção', val: st.em_andamento, cor: '#dc2626' },
                     { label: 'Novos', val: st.agendada, cor: '#d97706' },
                     { label: 'Aguardando', val: st.aguardando, cor: '#2563eb' },

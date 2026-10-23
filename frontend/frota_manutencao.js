@@ -3413,8 +3413,9 @@ function mnRenderCorretivaTela(sub) {
             </select>
             <select id="mn-corr-status" onchange="window._mnCorrCardFiltro=this.value||'';window._mnRenderCorretivaDados(window._mnCorrDados||[])" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
                 <option value="">Todos Status</option>
-                <option value="agendada" style="color:#d97706;font-weight:700;">Novo</option>
+                <option value="em_aberto" style="color:#e11d48;font-weight:700;">Em Aberto</option>
                 <option value="em_andamento" style="color:#dc2626;font-weight:700;">Em Manutenção</option>
+                <option value="agendada" style="color:#d97706;font-weight:700;">Novo</option>
                 <option value="aguardando" style="color:#2563eb;font-weight:700;">Aguardando</option>
                 <option value="finalizacao_pendente" style="color:#ea580c;font-weight:700;">Finalização Pendente</option>
                 <option value="concluida" style="color:#10b981;font-weight:700;">Concluído</option>
@@ -3507,7 +3508,7 @@ window.mnCorrFiltrarCard = function(chave) {
     }
     var sel = document.getElementById('mn-corr-status');
     if (sel) {
-        if (['agendada', 'em_andamento', 'aguardando', 'finalizacao_pendente', 'concluida', 'cancelada'].indexOf(window._mnCorrCardFiltro) !== -1) {
+        if (['em_aberto', 'agendada', 'em_andamento', 'aguardando', 'finalizacao_pendente', 'concluida', 'cancelada'].indexOf(window._mnCorrCardFiltro) !== -1) {
             sel.value = window._mnCorrCardFiltro;
         } else {
             sel.value = '';
@@ -3607,10 +3608,12 @@ window._mnRenderCorretivaDados = function(listaBase) {
         const agendadas   = todas.filter(m => m.status === 'agendada').length;
         const aguardando  = todas.filter(m => m.status === 'aguardando').length;
         const finPendente = todas.filter(m => m.status === 'concluida' && !(Number(m.tem_video_geral) > 0)).length;
+        const emAberto    = emAndamento + agendadas + aguardando + finPendente;
         const concluidasMes = todas.filter(m => m.status === 'concluida' && Number(m.tem_video_geral) > 0 && (m.data_conclusao || '').startsWith(mesAtual)).length;
         const totalTodos  = todas.length;
         const stAtivo = fCard || 'todos';
         cardsEl.innerHTML = [
+            { key: 'em_aberto',           cor: '#e11d48', bg: '#fff1f2', icone: 'ph-folder-open',   label: 'Em Aberto',            val: emAberto },
             { key: 'em_andamento',        cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
             { key: 'agendada',            cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                val: agendadas },
             { key: 'aguardando',          cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',           val: aguardando },
@@ -3633,10 +3636,14 @@ window._mnRenderCorretivaDados = function(listaBase) {
 
     // Aplica filtro de card / dropdown
     let lista = todas.slice();
-    if (fCard === 'finalizacao_pendente') {
+    if (fCard === 'em_aberto') {
+        lista = lista.filter(m => m.status === 'em_andamento' || m.status === 'agendada' || m.status === 'aguardando' || (m.status === 'concluida' && !(Number(m.tem_video_geral) > 0)));
+    } else if (fCard === 'finalizacao_pendente') {
         lista = lista.filter(m => m.status === 'concluida' && !(Number(m.tem_video_geral) > 0));
     } else if (fCard === 'concluidas_mes') {
         lista = lista.filter(m => m.status === 'concluida' && Number(m.tem_video_geral) > 0 && (m.data_conclusao || '').startsWith(mesAtual));
+    } else if (fCard === 'concluida') {
+        lista = lista.filter(m => m.status === 'concluida' && Number(m.tem_video_geral) > 0);
     } else if (fCard && fCard !== 'todos') {
         lista = lista.filter(m => m.status === fCard);
     }

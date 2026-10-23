@@ -25,7 +25,7 @@
     const CONT = { corretiva: 'compras-corretivas-container', revisao: 'compras-revisao-container' };
     const TITULO = { corretiva: 'Corretiva', revisao: 'Revisão' };
     const state = {
-        corretiva: { dados: [], filtro: '', busca: '', view: 'tabela', veic: null },
+        corretiva: { dados: [], filtro: '', filtroManut: '', busca: '', view: 'tabela', veic: null },
         revisao: { dados: [], filtro: '', busca: '', view: 'tabela', veic: null }
     };
 
@@ -85,6 +85,7 @@
             + '<div><h2 style="margin:0;color:#1e293b;font-size:1.4rem;">Compras — Frota › ' + TITULO[tipo] + '</h2>'
             + '<div style="font-size:0.8rem;color:#64748b;">' + (tipo === 'corretiva' ? 'Manutenções corretivas em manutenção, finalização pendente ou concluídas aguardando o registro de serviços, peças, notas e valores.' : 'Revisões agendadas ou realizadas aguardando o registro de serviços, peças, notas e valores.') + '</div></div>'
             + '</div>'
+            + (tipo === 'corretiva' ? '<div id="cf-kpi-manut-corretiva" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:12px;"></div>' : '')
             + '<div id="cf-kpi-' + tipo + '" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;"></div>'
             + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
             + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
@@ -102,8 +103,23 @@
         const st = state[tipo];
         const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const palavras = norm(st.busca).split(' ').filter(Boolean);
+        const mesAtual = new Date().toISOString().slice(0, 7);
         return st.dados.filter((x) => {
             if (st.filtro && x.situacao !== st.filtro) return false;
+            if (tipo === 'corretiva' && st.filtroManut) {
+                const ms = x.manut_status || 'agendada';
+                const temVid = Number(x.tem_video_geral) > 0;
+                const finPend = ms === 'concluida' && !temVid;
+                if (st.filtroManut === 'em_aberto') {
+                    if (!(ms === 'em_andamento' || ms === 'agendada' || ms === 'aguardando' || ms === 'finalizacao_pendente' || finPend)) return false;
+                } else if (st.filtroManut === 'finalizacao_pendente') {
+                    if (!finPend && ms !== 'finalizacao_pendente') return false;
+                } else if (st.filtroManut === 'concluidas_mes') {
+                    if (!(ms === 'concluida' && temVid && String(x.data_conclusao || '').startsWith(mesAtual))) return false;
+                } else if (ms !== st.filtroManut) {
+                    return false;
+                }
+            }
             if (st.veic && String(x.veiculo_id) !== String(st.veic)) return false;
             if (!palavras.length) return true;
             const alvo = norm([x.placa, x.marca_modelo_versao, x.descricao, x.concessionaria, x.fornecedor].join(' '));
@@ -113,6 +129,36 @@
 
     function atualizarLista(tipo) {
         const st = state[tipo];
+        if (tipo === 'corretiva') {
+            const kpiManut = document.getElementById('cf-kpi-manut-corretiva');
+            if (kpiManut) {
+                const mesAtual = new Date().toISOString().slice(0, 7);
+                const emAndamento = st.dados.filter((m) => m.manut_status === 'em_andamento').length;
+                const agendadas = st.dados.filter((m) => m.manut_status === 'agendada').length;
+                const aguardando = st.dados.filter((m) => m.manut_status === 'aguardando').length;
+                const finPendente = st.dados.filter((m) => (m.manut_status === 'concluida' && !(Number(m.tem_video_geral) > 0)) || m.manut_status === 'finalizacao_pendente').length;
+                const emAberto = emAndamento + agendadas + aguardando + finPendente;
+                const concluidasMes = st.dados.filter((m) => m.manut_status === 'concluida' && Number(m.tem_video_geral) > 0 && String(m.data_conclusao || '').startsWith(mesAtual)).length;
+                const ativoM = st.filtroManut || 'todos';
+                const cardsM = [
+                    { key: 'em_aberto',            cor: '#e11d48', bg: '#fff1f2', icone: 'ph-folder-open',   label: 'Em Aberto',            val: emAberto },
+                    { key: 'em_andamento',         cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
+                    { key: 'agendada',             cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                val: agendadas },
+                    { key: 'aguardando',           cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',           val: aguardando },
+                    { key: 'finalizacao_pendente', cor: '#ea580c', bg: '#fff7ed', icone: 'ph-video-camera',  label: 'Finalização Pendente', val: finPendente },
+                    { key: 'concluidas_mes',       cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',  val: concluidasMes },
+                    { key: 'todos',                cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',                val: st.dados.length }
+                ];
+                kpiManut.innerHTML = cardsM.map((k) => {
+                    const ativo = ativoM === k.key;
+                    return '<div onclick="window.comprasFrotaFiltrarManut(\'' + k.key + '\')" title="Filtrar por status da manutenção: ' + k.label + '"'
+                        + ' style="background:' + (ativo ? k.bg : '#fff') + ';border:' + (ativo ? '2px solid ' + k.cor : '1px solid #e2e8f0') + ';border-left:4px solid ' + k.cor + ';border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px;box-shadow:' + (ativo ? '0 4px 12px ' + k.cor + '22' : '0 2px 6px rgba(0,0,0,0.04)') + ';cursor:pointer;transition:all 0.15s;user-select:none;">'
+                        + '<div style="width:42px;height:42px;border-radius:10px;background:' + k.cor + '18;color:' + k.cor + ';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;"><i class="ph ' + k.icone + '"></i></div>'
+                        + '<div><div style="font-size:1.5rem;font-weight:800;color:#1e293b;line-height:1;">' + k.val + '</div>'
+                        + '<div style="font-size:0.75rem;color:' + (ativo ? k.cor : '#64748b') + ';font-weight:' + (ativo ? '700' : '600') + ';margin-top:2px;">' + k.label + '</div></div></div>';
+                }).join('');
+            }
+        }
         // KPI (mesmo estilo dos botões de filtro da Revisão da logística)
         const cont = { novo: 0, iniciada: 0, registrado: 0 };
         st.dados.forEach((x) => { if (cont[x.situacao] !== undefined) cont[x.situacao]++; });
@@ -181,6 +227,9 @@
                 vp = x.valor_pecas; vm = x.valor_mao_obra; vt = x.valor_total;
             }
             const tituloSit = x.situacao === 'registrado' && x.registrado_em ? ('Registrado' + (x.registrado_por ? ' por ' + x.registrado_por : '') + ' em ' + fmtData(x.registrado_em)) : '';
+            const btnGarantias = tipo === 'corretiva'
+                ? '<button type="button" title="Ver mão de obra e peças deste veículo que ainda estão na garantia" onclick="window.comprasFrotaVerGarantias(' + x.veiculo_id + ', ' + JSON.stringify(String(x.placa || '')).replace(/"/g, '&quot;') + ')" style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.85rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-shield-check"></i> Garantias</button>'
+                : '';
             const btnCheck = (tipo === 'revisao' && (Number(x.carga_inicial) === 1 || x.rev_status === 'realizada') && x.situacao !== 'registrado')
                 ? '<button type="button" title="Marcar como Registrado sem preencher nada (exige senha)" onclick="window.comprasFrotaMarcarRegistrado(\'' + tipo + '\', ' + x.id + ', this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.65rem;font-size:0.85rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" onmouseenter="this.style.background=\'#15803d\'" onmouseleave="this.style.background=\'#16a34a\'"><i class="ph-bold ph-check"></i></button>'
                 : '';
@@ -193,7 +242,7 @@
                 + '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' + brl(vm) + '</td>'
                 + '<td style="padding:9px 12px;text-align:right;font-weight:800;white-space:nowrap;">' + brl(vt) + '</td>'
                 + '<td style="padding:9px 12px;text-align:center;">' + sitBadge(x.situacao, tituloSit) + '</td>'
-                + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;"><div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;"><button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:' + (x.situacao === 'registrado' ? '#1971c2' : '#eab308') + ';color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button>' + btnCheck + '</div></td>'
+                + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;"><div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;">' + btnGarantias + '<button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:' + (x.situacao === 'registrado' ? '#1971c2' : '#eab308') + ';color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button>' + btnCheck + '</div></td>'
                 + '</tr>';
         }).join('');
 
@@ -303,11 +352,139 @@
         st.filtro = (key === 'todos' || st.filtro === key) ? '' : key;
         atualizarLista(tipo);
     };
+    window.comprasFrotaFiltrarManut = function (key) {
+        const st = state.corretiva;
+        st.filtroManut = (key === 'todos' || st.filtroManut === key) ? '' : key;
+        atualizarLista('corretiva');
+    };
     window.comprasFrotaBuscar = function (tipo, val) { state[tipo].busca = val; atualizarLista(tipo); };
-    window.comprasFrotaLimpar = function (tipo) { state[tipo].filtro = ''; state[tipo].busca = ''; renderPagina(tipo); };
+    window.comprasFrotaLimpar = function (tipo) { state[tipo].filtro = ''; if (state[tipo].filtroManut !== undefined) state[tipo].filtroManut = ''; state[tipo].busca = ''; renderPagina(tipo); };
     window.comprasFrotaAbrir = function (tipo, id) {
         if (tipo === 'corretiva') return window.comprasCorrAbrir(id);
         return window.comprasRevAbrir(id);
+    };
+
+    window.comprasFrotaVerGarantias = async function (veiculoId, placaFallback) {
+        const antigo = document.getElementById('cf-garantias-modal');
+        if (antigo) antigo.remove();
+        const modal = document.createElement('div');
+        modal.id = 'cf-garantias-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:10100;padding:16px;';
+        modal.innerHTML =
+            '<div style="background:#fff;border-radius:14px;width:100%;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.28);overflow:hidden;">'
+            + '<div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:14px 20px;display:flex;align-items:center;gap:12px;color:#fff;">'
+            +   '<div style="background:rgba(255,255,255,0.2);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="ph ph-shield-check"></i></div>'
+            +   '<div style="flex:1;"><div style="font-weight:800;font-size:1.05rem;">Garantias Ativas do Veículo — <span id="cf-gar-titulo">' + esc(placaFallback || '') + '</span></div>'
+            +   '<div style="font-size:0.78rem;opacity:0.9;">Mão de obra e peças deste veículo que ainda estão dentro do prazo de garantia</div></div>'
+            +   '<button type="button" id="cf-gar-fechar-x" style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:34px;height:34px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.05rem;"><i class="ph ph-x"></i></button>'
+            + '</div>'
+            + '<div id="cf-gar-body" style="padding:18px 20px;overflow-y:auto;flex:1;background:#f8fafc;">'
+            +   '<div style="padding:2.5rem;text-align:center;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:1.8rem;color:#0d9488;"></i><div style="margin-top:8px;font-weight:600;">Consultando garantias ativas...</div></div>'
+            + '</div>'
+            + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;background:#fff;display:flex;justify-content:flex-end;">'
+            +   '<button type="button" id="cf-gar-fechar-btn" style="padding:8px 20px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;cursor:pointer;">Fechar</button>'
+            + '</div></div>';
+        document.body.appendChild(modal);
+        const fechar = () => modal.remove();
+        document.getElementById('cf-gar-fechar-x').onclick = fechar;
+        document.getElementById('cf-gar-fechar-btn').onclick = fechar;
+        modal.onclick = (ev) => { if (ev.target === modal) fechar(); };
+
+        const bodyEl = document.getElementById('cf-gar-body');
+        try {
+            const r = await fetch('/api/frota/veiculos/' + encodeURIComponent(veiculoId) + '/garantias?_=' + Date.now(), {
+                headers: { Authorization: 'Bearer ' + tok() },
+                cache: 'no-store'
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || 'Erro ao carregar garantias');
+            const v = j.veiculo || {};
+            const titEl = document.getElementById('cf-gar-titulo');
+            if (titEl && (v.placa || placaFallback)) {
+                titEl.textContent = (v.placa || placaFallback) + (v.marca_modelo_versao ? ' — ' + v.marca_modelo_versao : '');
+            }
+            const mo = Array.isArray(j.mao_obra) ? j.mao_obra : [];
+            const pecas = Array.isArray(j.pecas) ? j.pecas : [];
+            if (!mo.length && !pecas.length) {
+                bodyEl.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:3rem 1.5rem;text-align:center;color:#64748b;">'
+                    + '<i class="ph ph-shield-slash" style="font-size:2.4rem;color:#94a3b8;display:block;margin-bottom:8px;"></i>'
+                    + '<div style="font-weight:800;color:#334155;font-size:0.95rem;">Nenhuma garantia ativa encontrada para este veículo</div>'
+                    + '<div style="font-size:0.8rem;margin-top:4px;">Não há mão de obra nem peças dentro do prazo de garantia no momento.</div></div>';
+                return;
+            }
+            const badgeVenc = (it) => {
+                if (it.em_aberto && !it.data_vencimento) {
+                    return '<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;padding:2px 9px;border-radius:999px;font-size:0.72rem;font-weight:800;">Em manutenção</span>';
+                }
+                const d = Number(it.dias_restantes);
+                const alerta = isFinite(d) && d <= 15;
+                const cor = alerta ? '#d97706' : '#059669';
+                const bg = alerta ? '#fffbeb' : '#ecfdf5';
+                const bd = alerta ? '#fde68a' : '#a7f3d0';
+                const restTxt = isFinite(d) ? (' (' + (d === 0 ? 'vence hoje' : d + (d === 1 ? ' dia restante' : ' dias restantes')) + ')') : '';
+                return '<span style="background:' + bg + ';color:' + cor + ';border:1px solid ' + bd + ';padding:3px 9px;border-radius:999px;font-size:0.73rem;font-weight:800;white-space:nowrap;">Até ' + fmtData(it.data_vencimento) + restTxt + '</span>';
+            };
+            const thS = 'padding:9px 10px;text-align:left;color:#475569;font-weight:700;font-size:0.76rem;white-space:nowrap;border-bottom:1.5px solid #e2e8f0;background:#f1f5f9;';
+            const tdS = 'padding:8px 10px;font-size:0.8rem;color:#334155;border-bottom:1px solid #f1f5f9;';
+
+            const secaoMo = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">'
+                + '<div style="padding:10px 14px;background:#f0fdfa;border-bottom:1px solid #ccfbf1;display:flex;align-items:center;justify-content:space-between;">'
+                +   '<div style="font-weight:800;color:#0f766e;font-size:0.86rem;display:flex;align-items:center;gap:6px;"><i class="ph ph-wrench"></i> Mão de Obra / Serviços na Garantia (' + mo.length + ')</div>'
+                + '</div>'
+                + (mo.length ? ('<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'
+                    + '<th style="' + thS + '">Mão de Obra / Serviço</th>'
+                    + '<th style="' + thS + '">Serviço Vinculado</th>'
+                    + '<th style="' + thS + '">Manutenção / Origem</th>'
+                    + '<th style="' + thS + '">Fornecedor / NF</th>'
+                    + '<th style="' + thS + '">Data Base</th>'
+                    + '<th style="' + thS + '">Garantia</th>'
+                    + '<th style="' + thS + '">Validade</th>'
+                    + '<th style="' + thS + 'text-align:right;">Valor</th>'
+                    + '</tr></thead><tbody>' + mo.map((it) => '<tr>'
+                        + '<td style="' + tdS + 'font-weight:700;color:#1e293b;">' + esc(it.descricao || '—') + '</td>'
+                        + '<td style="' + tdS + '">' + esc(it.servico_nome || '—') + '</td>'
+                        + '<td style="' + tdS + '"><span style="font-size:0.7rem;font-weight:800;color:#0284c7;background:#e0f2fe;padding:1px 6px;border-radius:6px;margin-right:4px;">' + esc(it.origem || 'Corretiva') + '</span>' + esc(String(it.referencia || '').substring(0, 65)) + '</td>'
+                        + '<td style="' + tdS + '">' + esc(it.fornecedor || '—') + (it.nota_numero ? ' <span style="color:#64748b;font-size:0.72rem;">(NF ' + esc(it.nota_numero) + ')</span>' : '') + '</td>'
+                        + '<td style="' + tdS + 'white-space:nowrap;">' + fmtData(it.data_base) + '</td>'
+                        + '<td style="' + tdS + 'font-weight:700;color:#0f766e;white-space:nowrap;">' + esc(it.prazo_txt) + '</td>'
+                        + '<td style="' + tdS + '">' + badgeVenc(it) + '</td>'
+                        + '<td style="' + tdS + 'text-align:right;font-weight:700;white-space:nowrap;">' + brl(it.valor_total) + '</td>'
+                        + '</tr>').join('') + '</tbody></table></div>')
+                    : '<div style="padding:1rem 14px;color:#94a3b8;font-size:0.8rem;">Nenhuma mão de obra em garantia para este veículo.</div>')
+                + '</div>';
+
+            const secaoPecas = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">'
+                + '<div style="padding:10px 14px;background:#eff6ff;border-bottom:1px solid #dbeafe;display:flex;align-items:center;justify-content:space-between;">'
+                +   '<div style="font-weight:800;color:#1d4ed8;font-size:0.86rem;display:flex;align-items:center;gap:6px;"><i class="ph ph-gear-six"></i> Peças na Garantia (' + pecas.length + ')</div>'
+                + '</div>'
+                + (pecas.length ? ('<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'
+                    + '<th style="' + thS + '">Peça</th>'
+                    + '<th style="' + thS + '">Qtd</th>'
+                    + '<th style="' + thS + '">Serviço Vinculado</th>'
+                    + '<th style="' + thS + '">Manutenção / Origem</th>'
+                    + '<th style="' + thS + '">Fornecedor / NF</th>'
+                    + '<th style="' + thS + '">Data Base</th>'
+                    + '<th style="' + thS + '">Garantia</th>'
+                    + '<th style="' + thS + '">Validade</th>'
+                    + '<th style="' + thS + 'text-align:right;">Valor</th>'
+                    + '</tr></thead><tbody>' + pecas.map((it) => '<tr>'
+                        + '<td style="' + tdS + 'font-weight:700;color:#1e293b;">' + esc(it.descricao || '—') + (it.codigo ? ' <span style="color:#64748b;font-weight:400;font-size:0.74rem;">(' + esc(it.codigo) + ')</span>' : '') + '</td>'
+                        + '<td style="' + tdS + 'white-space:nowrap;">' + esc(it.quantidade) + ' ' + esc(it.unidade || 'UN') + '</td>'
+                        + '<td style="' + tdS + '">' + esc(it.servico_nome || '—') + '</td>'
+                        + '<td style="' + tdS + '"><span style="font-size:0.7rem;font-weight:800;color:#0284c7;background:#e0f2fe;padding:1px 6px;border-radius:6px;margin-right:4px;">' + esc(it.origem || 'Corretiva') + '</span>' + esc(String(it.referencia || '').substring(0, 65)) + '</td>'
+                        + '<td style="' + tdS + '">' + esc(it.fornecedor || '—') + (it.nota_numero ? ' <span style="color:#64748b;font-size:0.72rem;">(NF ' + esc(it.nota_numero) + ')</span>' : '') + '</td>'
+                        + '<td style="' + tdS + 'white-space:nowrap;">' + fmtData(it.data_base) + '</td>'
+                        + '<td style="' + tdS + 'font-weight:700;color:#1d4ed8;white-space:nowrap;">' + esc(it.prazo_txt) + '</td>'
+                        + '<td style="' + tdS + '">' + badgeVenc(it) + '</td>'
+                        + '<td style="' + tdS + 'text-align:right;font-weight:700;white-space:nowrap;">' + brl(it.valor_total) + '</td>'
+                        + '</tr>').join('') + '</tbody></table></div>')
+                    : '<div style="padding:1rem 14px;color:#94a3b8;font-size:0.8rem;">Nenhuma peça em garantia para este veículo.</div>')
+                + '</div>';
+
+            bodyEl.innerHTML = secaoMo + secaoPecas;
+        } catch (e) {
+            bodyEl.innerHTML = '<div style="padding:2rem;text-align:center;color:#dc2626;font-weight:700;">Erro ao carregar garantias: ' + esc(e.message) + '</div>';
+        }
     };
     window.comprasFrotaMarcarRegistrado = async function (tipo, id, btnEl) {
         const senhaCf = window.prompt('Digite a senha para marcar como Registrado:');
