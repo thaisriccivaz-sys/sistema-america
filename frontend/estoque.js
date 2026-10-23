@@ -210,8 +210,42 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             };
         }
 
+        // Ordenar por Categoria (ordem alfabética) e, dentro de cada categoria, por Nome do produto (ordem alfabética)
+        data.sort(function(a, b) {
+            const catA = String(a.categoria || 'Sem Categoria').trim();
+            const catB = String(b.categoria || 'Sem Categoria').trim();
+            const cmpCat = catA.localeCompare(catB, 'pt-BR', { sensitivity: 'base' });
+            if (cmpCat !== 0) return cmpCat;
+            return String(a.nome || '').trim().localeCompare(String(b.nome || '').trim(), 'pt-BR', { sensitivity: 'base', numeric: true });
+        });
+
+        // Contar itens por categoria para exibir no cabeçalho separador
+        const contagemPorCategoria = {};
+        data.forEach(function(item) {
+            const cat = String(item.categoria || 'Sem Categoria').trim();
+            contagemPorCategoria[cat] = (contagemPorCategoria[cat] || 0) + 1;
+        });
+
         let rows = '';
+        let ultimaCategoria = null;
         data.forEach(item => {
+            const catAtual = String(item.categoria || 'Sem Categoria').trim();
+            if (catAtual !== ultimaCategoria) {
+                ultimaCategoria = catAtual;
+                const qtdItensCat = contagemPorCategoria[catAtual] || 0;
+                rows += '<tr style="background:#f1f5f9;border-top:2px solid #cbd5e1;border-bottom:1px solid #cbd5e1;">' +
+                    '<td colspan="7" style="padding:8px 14px;font-weight:700;font-size:0.85rem;color:#1e293b;letter-spacing:0.02em;text-transform:uppercase;">' +
+                        '<div style="display:flex;align-items:center;gap:8px;">' +
+                            '<i class="ph ph-folders" style="color:#2563eb;font-size:1.05rem;"></i>' +
+                            '<span>' + catAtual + '</span>' +
+                            '<span style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 8px;font-size:0.72rem;font-weight:700;text-transform:none;">' +
+                                qtdItensCat + (qtdItensCat === 1 ? ' produto' : ' produtos') +
+                            '</span>' +
+                        '</div>' +
+                    '</td>' +
+                '</tr>';
+            }
+
             let saldos = saldosMap[item.id] || [];
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
                 const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
