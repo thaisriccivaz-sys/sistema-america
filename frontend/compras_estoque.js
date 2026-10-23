@@ -815,7 +815,13 @@
         if (!S.veiculos) {
             try {
                 const res = await api('/frota/veiculos');
-                S.veiculos = [{ placa: 'Outros' }].concat((res || []).slice().sort((a, b) => String(a.placa || '').localeCompare(String(b.placa || ''))));
+                S.veiculos = [{ placa: 'Outros' }].concat((res || []).slice().sort((a, b) => {
+                    const ta = String(a.tipo_veiculo || '\uffff').trim();
+                    const tb = String(b.tipo_veiculo || '\uffff').trim();
+                    const ct = ta.localeCompare(tb, 'pt-BR', { sensitivity: 'base' });
+                    if (ct !== 0) return ct;
+                    return String(a.placa || '').localeCompare(String(b.placa || ''), 'pt-BR', { sensitivity: 'base' });
+                }));
             } catch (_) {
                 cont.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Erro ao carregar veículos.</div>';
                 return;
@@ -860,7 +866,7 @@
             html += '<label class="ce-ed-placa-row" data-search="' + esc(textoBusca) + '" data-tipo="' + esc(tipoKey) + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;padding:3px 4px;border-radius:6px;">' +
                 '<span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">' +
                     '<input type="checkbox" class="ce-ed-placa-chk" value="' + esc(v.placa) + '" ' + chk + ' onchange="ceEdPlacaChange(this)">' +
-                    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc((v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : '') + v.placa) + '</span>' +
+                    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><b>' + esc(v.placa) + '</b>' + (v.marca_modelo_versao ? ' - ' + esc(v.marca_modelo_versao) : '') + '</span>' +
                 '</span>' +
                 (v.tipo_veiculo ? '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;flex-shrink:0;">' + esc(v.tipo_veiculo) + '</span>' : '') +
             '</label>';
