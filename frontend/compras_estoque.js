@@ -233,6 +233,8 @@
             const dd = $('ce-ms-' + key + '-dd');
             if (box && dd && !box.contains(e.target)) dd.style.display = 'none';
         });
+        const edCatWrap = $('ce-ed-cat-wrap'), edCatDd = $('ce-ed-cat-dd');
+        if (edCatWrap && edCatDd && !edCatWrap.contains(e.target)) edCatDd.style.display = 'none';
     });
 
     // ── Carga de dados ───────────────────────────────────────────────────────
@@ -288,15 +290,29 @@
                             '<option value="sem_pdf">Sem PDF</option><option value="garantia_vencida">Garantia vencida</option><option value="garantia_vencendo">Garantia vencendo (60 dias)</option>' +
                         '</select></div>' +
                 '</div>' +
-                '<div id="ce-resumo" style="font-size:0.8rem;color:#64748b;margin-bottom:0.5rem;"></div>' +
-                '<div class="table-responsive" style="height:calc(100vh - 185px);max-height:calc(100vh - 185px);min-height:480px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
-                    '<table class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;">' +
+                '<div id="ce-resumo" style="font-size:0.8rem;color:#64748b;margin-bottom:0.4rem;"></div>' +
+                '<div id="ce-top-scroll" onscroll="if(window._ceSyncScroll)return;window._ceSyncScroll=true;var w=document.getElementById(\'ce-table-wrap\');if(w)w.scrollLeft=this.scrollLeft;window._ceSyncScroll=false;" style="overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:4px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">' +
+                    '<div id="ce-top-scroll-inner" style="width:1550px;height:1px;"></div>' +
+                '</div>' +
+                '<div id="ce-table-wrap" class="table-responsive" onscroll="if(window._ceSyncScroll)return;window._ceSyncScroll=true;var t=document.getElementById(\'ce-top-scroll\');if(t)t.scrollLeft=this.scrollLeft;window._ceSyncScroll=false;" style="height:calc(100vh - 200px);max-height:calc(100vh - 200px);min-height:480px;overflow-x:auto;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
+                    '<table id="ce-table" class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;min-width:1550px;">' +
                         '<thead id="ce-thead" style="position:sticky;top:0;z-index:12;background:#f8fafc;"></thead>' +
                         '<tbody id="ce-tbody"></tbody>' +
                     '</table>' +
                 '</div>' +
             '</div>';
     }
+
+    function syncTopScroll() {
+        const wrap = $('ce-table-wrap'), tbl = $('ce-table'), inner = $('ce-top-scroll-inner'), top = $('ce-top-scroll');
+        if (!wrap || !tbl || !inner) return;
+        const minW = Math.max(1550, (wrap.clientWidth || 1200) + 260);
+        tbl.style.minWidth = minW + 'px';
+        const sw = Math.max(minW, tbl.scrollWidth || minW);
+        inner.style.width = sw + 'px';
+        if (top) top.scrollLeft = wrap.scrollLeft;
+    }
+    window.addEventListener('resize', () => { setTimeout(syncTopScroll, 50); });
 
     const COLUNAS = [
         { col: 'nome', txt: 'Produto' }, { col: 'categoria', txt: 'Catg.' }, { col: 'qtd', txt: 'Qt. Atual' },
@@ -327,6 +343,7 @@
         document.querySelectorAll('.ce-det-' + id).forEach(r => { r.style.display = aberto ? '' : 'none'; });
         const ic = $('ce-arrow-' + id);
         if (ic) ic.style.transform = aberto ? 'rotate(90deg)' : 'rotate(0deg)';
+        syncTopScroll();
     };
 
     function filtrar() {
@@ -387,13 +404,14 @@
             const venc = lista.filter(i => { const g = (S.resumo[i.id] || {}).garantia_ate; return g && g < hojeISO(); }).length;
             resumoEl.innerHTML = '<b>' + lista.length + '</b> produtos &middot; <b>' + comForn + '</b> com fornecedor &middot; <b>' + comPdf + '</b> com PDF &middot; <b style="color:' + (venc ? '#b91c1c' : 'inherit') + ';">' + venc + '</b> com garantia vencida';
         }
-        if (!lista.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; return; }
+        if (!lista.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; syncTopScroll(); return; }
 
         const contCat = {};
         lista.forEach(i => { const c = String(i.categoria || 'Sem Categoria').trim(); contCat[c] = (contCat[c] || 0) + 1; });
         let rows = '', ultima = null;
         lista.forEach(item => { rows += linhaProduto(item, contCat, () => { const u = ultima; return u; }, c => { ultima = c; }, ultima); });
         tb.innerHTML = rows;
+        syncTopScroll();
     }
 
     function linhaProduto(item, contCat, _g, setUltima, ultimaCat) {
@@ -599,9 +617,8 @@
         const pane = $('ce-pane-esquerda');
         if (!pm || !pm.edit || !pane) return;
         const ed = pm.edit;
-        const catsList = CATEGORIAS_PRODUTO.slice();
+        const catsList = CATEGORIAS_PRODUTO.slice().sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
         if (ed.categoria && !catsList.includes(ed.categoria)) catsList.unshift(ed.categoria);
-        const optsCat = catsList.map(c => '<option value="' + esc(c) + '"' + (c === ed.categoria ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
         const temFoto = !!ed.foto_src;
 
         pane.innerHTML =
@@ -625,9 +642,14 @@
                         '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>' +
                         '<input type="text" id="ce-ed-nome" class="form-control" style="width:100%;" value="' + esc(ed.nome) + '" oninput="window._ceState.prodModal.edit.nome=this.value" placeholder="Ex: Capacete">' +
                     '</div>' +
-                    '<div style="margin-bottom:12px;">' +
+                    '<div id="ce-ed-cat-wrap" style="margin-bottom:12px;position:relative;">' +
                         '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>' +
-                        '<select id="ce-ed-cat" class="form-control" style="width:100%;" onchange="ceEdChangeCat(this.value)">' + optsCat + '</select>' +
+                        '<input type="hidden" id="ce-ed-cat" value="' + esc(ed.categoria || 'EPI') + '">' +
+                        '<div style="position:relative;">' +
+                            '<input type="text" id="ce-ed-cat-input" class="form-control" style="width:100%;padding-right:30px;" value="' + esc(ed.categoria || 'EPI') + '" placeholder="Digite ou selecione a categoria..." autocomplete="off" onfocus="ceEdAbrirCatDd(true)" onclick="ceEdAbrirCatDd(true)" oninput="ceEdFiltrarCatDd(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();ceEdEnterCatDd();}">' +
+                            '<i class="ph ph-caret-down" onclick="ceEdToggleCatDd()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;cursor:pointer;"></i>' +
+                        '</div>' +
+                        '<div id="ce-ed-cat-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;box-shadow:0 10px 20px rgba(15,23,42,0.14);z-index:200;max-height:220px;overflow-y:auto;margin-top:3px;padding:4px;"></div>' +
                     '</div>' +
                     '<div style="margin-bottom:12px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;">' +
                         '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;font-size:0.88rem;color:#1e3a8a;margin:0;user-select:none;">' +
@@ -710,6 +732,67 @@
             if (ic) ic.style.display = 'none';
         };
         r.readAsDataURL(file);
+    };
+
+    function renderOpcoesCatEd(filtro) {
+        const dd = $('ce-ed-cat-dd');
+        if (!dd) return;
+        const pm = S.prodModal;
+        const atual = (pm && pm.edit && pm.edit.categoria) || ($('ce-ed-cat') ? $('ce-ed-cat').value : '');
+        const catsList = CATEGORIAS_PRODUTO.slice().sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+        if (atual && !catsList.includes(atual)) catsList.unshift(atual);
+        const f = norm(filtro || '').trim();
+        const filtradas = f ? catsList.filter(c => norm(c).includes(f)) : catsList;
+        if (!filtradas.length) {
+            dd.innerHTML = '<div style="padding:8px 10px;color:#94a3b8;font-size:0.82rem;text-align:center;">Nenhuma categoria encontrada</div>';
+            return;
+        }
+        dd.innerHTML = filtradas.map(c => {
+            const sel = c === atual;
+            return '<div class="ce-ed-cat-opt" data-cat="' + esc(c) + '" onclick="ceEdSelectCat(this.dataset.cat)" ' +
+                'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'' + (sel ? '#f1f5f9' : 'transparent') + '\'" ' +
+                'style="padding:7px 10px;cursor:pointer;font-size:0.85rem;color:' + (sel ? '#1d4ed8' : '#334155') + ';font-weight:' + (sel ? '700' : '500') + ';background:' + (sel ? '#f1f5f9' : 'transparent') + ';border-radius:6px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<span>' + esc(c) + '</span>' + (sel ? '<i class="ph ph-check" style="color:#1d4ed8;"></i>' : '') + '</div>';
+        }).join('');
+    }
+    window.ceEdAbrirCatDd = function (mostrarTodas) {
+        const dd = $('ce-ed-cat-dd'), inp = $('ce-ed-cat-input');
+        if (!dd) return;
+        renderOpcoesCatEd(mostrarTodas ? '' : (inp ? inp.value : ''));
+        dd.style.display = 'block';
+    };
+    window.ceEdToggleCatDd = function () {
+        const dd = $('ce-ed-cat-dd');
+        if (!dd) return;
+        if (dd.style.display === 'block') dd.style.display = 'none';
+        else { window.ceEdAbrirCatDd(true); const inp = $('ce-ed-cat-input'); if (inp) inp.focus(); }
+    };
+    window.ceEdFiltrarCatDd = function (val) {
+        renderOpcoesCatEd(val);
+        const dd = $('ce-ed-cat-dd');
+        if (dd) dd.style.display = 'block';
+        const vTrim = String(val || '').trim();
+        const matchExato = CATEGORIAS_PRODUTO.find(c => norm(c) === norm(vTrim));
+        if (matchExato) {
+            const h = $('ce-ed-cat');
+            if (h) h.value = matchExato;
+            window.ceEdChangeCat(matchExato);
+        } else if (vTrim) {
+            const h = $('ce-ed-cat');
+            if (h) h.value = vTrim;
+            window.ceEdChangeCat(vTrim);
+        }
+    };
+    window.ceEdSelectCat = function (cat) {
+        const inp = $('ce-ed-cat-input'), h = $('ce-ed-cat'), dd = $('ce-ed-cat-dd');
+        if (inp) inp.value = cat;
+        if (h) h.value = cat;
+        if (dd) dd.style.display = 'none';
+        window.ceEdChangeCat(cat);
+    };
+    window.ceEdEnterCatDd = function () {
+        const first = document.querySelector('#ce-ed-cat-dd .ce-ed-cat-opt');
+        if (first && first.dataset.cat) window.ceEdSelectCat(first.dataset.cat);
     };
 
     window.ceEdChangeCat = function (cat) {

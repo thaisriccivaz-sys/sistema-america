@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261023v14" defer></script>
+    <script src="estoque.js?v=20261023v15" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3863,31 +3863,14 @@
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>
                                         <input type="text" id="estoque-nome" required class="form-control" style="width: 100%; min-width: 300px;" placeholder="Ex: Capacete">
                                     </div>
-                                    <div style="margin-bottom:1rem;">
+                                    <div style="margin-bottom:1rem;position:relative;" id="estoque-cat-modal-wrap">
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>
-                                        <select id="estoque-cat" required class="form-control" style="width: 100%;" onchange="window.togglePlacasEstoque(this.value)">
-                                        <option value="EPI">EPI</option>
-                                        <option value="Uniforme">Uniforme</option>
-                                        <option value="Copa">Copa</option>
-                                        <option value="Pets">Pets</option>
-                                        <option value="Itens de Escritório">Itens de Escritório</option>
-                                        <option value="Peças para Sanitários/Equipamentos">Peças para Sanitários/Equipamentos</option>
-                                        <option value="Produtos Químicos">Produtos Químicos</option>
-                                        <option value="Limpeza e Higiene">Limpeza e Higiene</option>
-                                        <option value="Ferramentas">Ferramentas</option>
-                                        <option value="Elétrica">Elétrica</option>
-                                        <option value="Hidráulica">Hidráulica</option>
-                                        <option value="Ferragens e Fixadores">Ferragens e Fixadores</option>
-                                        <option value="Pintura e Acabamento">Pintura e Acabamento</option>
-                                        <option value="Lubrificantes e Fluidos">Lubrificantes e Fluidos</option>
-                                        <option value="Automotivo">Automotivo</option>
-                                        <option value="Pneus e Borracharia">Pneus e Borracharia</option>
-                                        <option value="Informática e Eletrônicos">Informática e Eletrônicos</option>
-                                        <option value="Descartáveis">Descartáveis</option>
-                                        <option value="Embalagens">Embalagens</option>
-                                        <option value="Utilidades Gerais">Utilidades Gerais</option>
-                                        <option value="Outros">Outros</option>
-                                        </select>
+                                        <input type="hidden" id="estoque-cat" value="EPI">
+                                        <div style="position:relative;">
+                                            <input type="text" id="estoque-cat-input" required class="form-control" style="width:100%;padding-right:32px;" value="EPI" placeholder="Digite ou selecione a categoria..." autocomplete="off" onfocus="window.abrirDropdownCatModalEstoque(true)" onclick="window.abrirDropdownCatModalEstoque(true)" oninput="window.filtrarDropdownCatModalEstoque(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();window.enterDropdownCatModalEstoque();}">
+                                            <i class="ph ph-caret-down" onclick="window.toggleDropdownCatModalEstoque()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;cursor:pointer;"></i>
+                                        </div>
+                                        <div id="estoque-cat-modal-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;box-shadow:0 10px 20px rgba(15,23,42,0.14);z-index:250;max-height:220px;overflow-y:auto;margin-top:3px;padding:4px;"></div>
                                     </div>
                                     <div style="margin-bottom:1rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;">
                                         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;font-size:0.9rem;color:#1e3a8a;margin:0;user-select:none;">
@@ -6768,7 +6751,7 @@
     <script src="/estoque_nf_vinculo.js?v=20261023v2"></script>
 <script src="/frota_manutencao.js?v=20261023v41"></script>
     <script src="/compras_frota.js?v=20261022v11"></script>
-<script src="/compras_estoque.js?v=20261023v7"></script>
+<script src="/compras_estoque.js?v=20261023v8"></script>
     <script src="/sort_table.js?v=20261023v1"></script>
 
     <script>

@@ -257,7 +257,82 @@ document.addEventListener('click', (e) => {
             catDropdown.style.display = 'none';
         }
     }
+    const modalCatWrap = document.getElementById("estoque-cat-modal-wrap");
+    const modalCatDd = document.getElementById("estoque-cat-modal-dd");
+    if (modalCatWrap && modalCatDd && !modalCatWrap.contains(e.target)) {
+        modalCatDd.style.display = 'none';
+    }
 });
+
+// ── Seletor pesquisável de Categoria dentro do Modal Adicionar/Editar Estoque ──
+function _normCatModalEstoque(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+function _escCatModalEstoque(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _renderOpcoesCatModalEstoque(filtro) {
+    const dd = document.getElementById('estoque-cat-modal-dd');
+    if (!dd) return;
+    const h = document.getElementById('estoque-cat');
+    const atual = (h && h.value) || 'EPI';
+    const catsList = _CATEGORIAS_ESTOQUE_LISTA.slice().sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+    if (atual && !catsList.includes(atual)) catsList.unshift(atual);
+    const f = _normCatModalEstoque(filtro);
+    const filtradas = f ? catsList.filter(c => _normCatModalEstoque(c).includes(f)) : catsList;
+    if (!filtradas.length) {
+        dd.innerHTML = '<div style="padding:8px 10px;color:#94a3b8;font-size:0.82rem;text-align:center;">Nenhuma categoria encontrada</div>';
+        return;
+    }
+    dd.innerHTML = filtradas.map(c => {
+        const sel = c === atual;
+        return '<div class="estoque-cat-modal-opt" data-cat="' + _escCatModalEstoque(c) + '" onclick="window.selecionarCatModalEstoque(this.dataset.cat)" ' +
+            'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'' + (sel ? '#f1f5f9' : 'transparent') + '\'" ' +
+            'style="padding:7px 10px;cursor:pointer;font-size:0.85rem;color:' + (sel ? '#1d4ed8' : '#334155') + ';font-weight:' + (sel ? '700' : '500') + ';background:' + (sel ? '#f1f5f9' : 'transparent') + ';border-radius:6px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span>' + _escCatModalEstoque(c) + '</span>' + (sel ? '<i class="ph ph-check" style="color:#1d4ed8;"></i>' : '') + '</div>';
+    }).join('');
+}
+window.abrirDropdownCatModalEstoque = function(mostrarTodas) {
+    const dd = document.getElementById('estoque-cat-modal-dd');
+    const inp = document.getElementById('estoque-cat-input');
+    if (!dd) return;
+    _renderOpcoesCatModalEstoque(mostrarTodas ? '' : (inp ? inp.value : ''));
+    dd.style.display = 'block';
+};
+window.toggleDropdownCatModalEstoque = function() {
+    const dd = document.getElementById('estoque-cat-modal-dd');
+    if (!dd) return;
+    if (dd.style.display === 'block') dd.style.display = 'none';
+    else { window.abrirDropdownCatModalEstoque(true); const inp = document.getElementById('estoque-cat-input'); if (inp) inp.focus(); }
+};
+window.filtrarDropdownCatModalEstoque = function(val) {
+    _renderOpcoesCatModalEstoque(val);
+    const dd = document.getElementById('estoque-cat-modal-dd');
+    if (dd) dd.style.display = 'block';
+    const vTrim = String(val || '').trim();
+    const matchExato = _CATEGORIAS_ESTOQUE_LISTA.find(c => _normCatModalEstoque(c) === _normCatModalEstoque(vTrim));
+    const h = document.getElementById('estoque-cat');
+    if (matchExato) {
+        if (h) h.value = matchExato;
+        window.togglePlacasEstoque(matchExato);
+    } else if (vTrim) {
+        if (h) h.value = vTrim;
+        window.togglePlacasEstoque(vTrim);
+    }
+};
+window.selecionarCatModalEstoque = function(cat) {
+    const inp = document.getElementById('estoque-cat-input');
+    const h = document.getElementById('estoque-cat');
+    const dd = document.getElementById('estoque-cat-modal-dd');
+    if (inp) inp.value = cat;
+    if (h) h.value = cat;
+    if (dd) dd.style.display = 'none';
+    window.togglePlacasEstoque(cat);
+};
+window.enterDropdownCatModalEstoque = function() {
+    const first = document.querySelector('#estoque-cat-modal-dd .estoque-cat-modal-opt');
+    if (first && first.dataset.cat) window.selecionarCatModalEstoque(first.dataset.cat);
+};
 window.renderEstoqueTable = async function(preserveScroll = false) {
     const table = document.getElementById("table-estoque");
     if (!table) return;
@@ -1339,6 +1414,11 @@ window.abrirModalEstoque = async function() {
     document.getElementById("modal-estoque").style.display = "flex";
     
     // Esconder/limpar placas ao abrir para novo item
+    document.getElementById("estoque-cat").value = "EPI";
+    const catInpNovo = document.getElementById("estoque-cat-input");
+    if (catInpNovo) catInpNovo.value = "EPI";
+    const catDdNovo = document.getElementById("estoque-cat-modal-dd");
+    if (catDdNovo) catDdNovo.style.display = "none";
     window.togglePlacasEstoque(document.getElementById("estoque-cat").value);
     document.querySelectorAll('.estoque-placa-chk').forEach(el => el.checked = false);
     if(document.getElementById('estoque-placas-todas')) document.getElementById('estoque-placas-todas').checked = false;
@@ -1361,6 +1441,10 @@ window.editarEstoque = async function(item, tamanhoFoco) {
         ? 'Automotivo'
         : (item.categoria === 'Peças para Sanitários' ? 'Peças para Sanitários/Equipamentos' : (item.categoria || ''));
     document.getElementById("estoque-cat").value  = catNorm;
+    const catInpEd = document.getElementById("estoque-cat-input");
+    if (catInpEd) catInpEd.value = catNorm;
+    const catDdEd = document.getElementById("estoque-cat-modal-dd");
+    if (catDdEd) catDdEd.style.display = "none";
     window.togglePlacasEstoque(catNorm);
     if (window._veiculosParaEstoque) {
         _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
