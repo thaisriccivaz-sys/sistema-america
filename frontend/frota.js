@@ -320,7 +320,16 @@ function renderCardsFrota() {
         <!-- KM semanal -->
         ${(() => {
             if (/carretinha/i.test(String(v.tipo_veiculo || ''))) return '';
+            const isComprasMode = Boolean(window._frotaModoCompras || (document.getElementById('frota-veiculos-container')?.parentElement?.id === 'view-compras-gestao-frota'));
             const kmVencida = !emManutencao && (v.km_vencida == 1 || v.km_vencida === true);
+            if (isComprasMode) {
+                const kmFormatado = (v.km_atual != null && v.km_atual !== '') ? Number(v.km_atual).toLocaleString('pt-BR') + ' km' : 'N/D';
+                return `<div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;" title="KM atual (editável somente pela Gestão de Frota da Logística)">
+                    <i class="ph ph-gauge" style="color:#64748b;font-size:1rem;"></i>
+                    <span style="font-size:0.78rem;color:#64748b;font-weight:600;white-space:nowrap;">KM atual:</span>
+                    <span style="font-size:0.85rem;color:#1e293b;font-weight:700;">${kmFormatado}</span>
+                </div>`;
+            }
             return `<div style="background:${kmVencida ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${kmVencida ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;gap:8px;" title="${kmVencida ? 'KM vencida — mais de 7 dias sem atualizar. Atualize (ou salve a mesma KM).' : 'A KM deve ser atualizada no máximo a cada 7 dias'}">
                 <i class="ph ph-gauge" style="color:${kmVencida ? '#dc2626' : '#d97706'};font-size:1rem;"></i>
                 <span style="font-size:0.78rem;color:${kmVencida ? '#dc2626' : '#64748b'};font-weight:${kmVencida ? '800' : '600'};white-space:nowrap;">KM atual:</span>

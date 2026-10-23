@@ -3630,14 +3630,12 @@ window._mnRenderCorretivaDados = function(listaBase) {
         const ehFinPend = (sKey === 'concluida' && !(Number(m.tem_video_geral) > 0));
         const corSt = ehFinPend ? '#ea580c' : (statusCor[sKey]||'#94a3b8');
         const lblSt = ehFinPend ? '⏳ Finalização Pendente' : (statusLbl[sKey]||sKey);
-        const kmParadoVal = Number(m.km_na_manutencao || m.km_parado_momento || 0);
         const statusBadge = `<span style="background:${corSt}22;color:${corSt};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;" title="${ehFinPend ? 'Veículo liberado — aguardando anexo do vídeo geral' : ''}">${lblSt}</span>`
             + (sKey === 'cancelada' ? '' : (function() {
                 const rodTab = (m.veiculo_rodando_efetivo || m.veiculo_rodando || (sKey === 'em_andamento' ? 'nao' : 'sim')) === 'nao' ? 'nao' : 'sim';
-                const kmTag = kmParadoVal > 0 ? `<div style="margin-top:3px;font-size:0.66rem;color:#475569;font-weight:700;white-space:nowrap;" title="KM no momento em que o veículo foi registrado como parado">KM parado: ${kmParadoVal.toLocaleString('pt-BR')} km</div>` : '';
                 return (rodTab === 'nao'
                     ? '<div style="margin-top:4px;"><span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO PARADO</span></div>'
-                    : '<div style="margin-top:4px;"><span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO RODANDO</span></div>') + kmTag;
+                    : '<div style="margin-top:4px;"><span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO RODANDO</span></div>');
             })());
         const tp = getTempos(m);
         const pCor = tp.pedido.dias >= 7 ? '#dc2626' : tp.pedido.dias >= 3 ? '#d97706' : '#0284c7';
@@ -3657,7 +3655,7 @@ window._mnRenderCorretivaDados = function(listaBase) {
             <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_inicio)}</td>
             <td style="padding:10px 12px;text-align:center;">${pedidoBadge}</td>
             <td style="padding:10px 12px;text-align:center;">${paradoBadge}</td>
-            <td style="padding:10px 12px;text-align:center;">${fmtD(m.data_conclusao)}</td>
+            <td style="padding:10px 12px;text-align:center;">${fmtD(sKey === 'concluida' ? m.data_conclusao : null)}</td>
             <td style="padding:10px 12px;text-align:center;color:#64748b;">${m.fornecedor||'—'}</td>
             <td style="padding:10px 12px;text-align:right;color:#2563eb;font-weight:600;white-space:nowrap;">${window._mnFmtR(m.custo_pecas)}</td>
             <td style="padding:10px 12px;text-align:right;color:#d97706;font-weight:600;white-space:nowrap;">${window._mnFmtR(m.custo_mao_obra)}</td>
@@ -4453,14 +4451,14 @@ window._mnEdMontar = function() {
       +         '<div style="' + secT + 'margin-bottom:12px;"><i class="ph ph-truck" style="color:#d97706;"></i> Dados da manutenção</div>'
       +         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;">'
       +           '<div><label style="' + lbl + '">Veículo *</label><select id="mned-veic" style="' + inp + '">' + veicOpts + '</select></div>'
-      +           '<div><label style="' + lbl + '">KM no momento parado / antes</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || m.km_parado_momento || '') + '" style="' + inp + '"></div>'
+      +           '<div><label style="' + lbl + '">KM no momento parado / antes</label><input type="number" id="mned-km" readonly tabindex="-1" title="Atualizado automaticamente pela tela de Gestão de Frota da Logística" placeholder="Automático (Gestão de Frota)" value="' + esc(m.km_na_manutencao || m.km_parado_momento || '') + '" style="' + inp + 'background:#f1f5f9;color:#334155;font-weight:700;cursor:default;"></div>'
       +         '</div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Defeito / Problema *</label><textarea id="mned-desc" rows="2" placeholder="Descreva o defeito ou problema do veículo..." style="' + inp + 'resize:vertical;">' + esc(m.descricao || '') + '</textarea></div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
       +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">'
       +           '<div><label style="' + lbl + '">Data da solicitação</label><input type="date" id="mned-dsol" value="' + esc(window._mnDataInput(m.created_at) || window._mnHojeISO()) + '" title="Data em que a manutenção foi solicitada (pode ser editada)" style="' + inp + '"></div>'
-      +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
-      +           '<div id="mned-dc-box" style="display:block;"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
+      +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(ehConcl ? window._mnDataInput(m.data_fim) : '') + '"></div>'
+      +           '<div id="mned-dc-box" style="display:block;"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(ehConcl ? window._mnDataInput(m.data_conclusao) : '') + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina <span style="color:#dc2626;font-weight:700;font-size:0.72rem;">* (obrigatório para Em manutenção)</span></label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" oninput="this.style.borderColor=\'#e2e8f0\'" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;margin-top:2px;">'
@@ -4513,6 +4511,7 @@ window._mnEdMontar = function() {
       +         '<div style="font-size:0.78rem;color:#64748b;margin-bottom:8px;">Ao mudar para <b>Concluído</b>, o veículo é liberado para rodar automaticamente. Se o vídeo ainda não tiver sido anexado, a manutenção ficará como <b>Finalização Pendente</b> até que o vídeo seja anexado.</div>'
       +         '<div id="mned-video-lista"></div>'
       +       '</div>'
+      +       '<div id="mned-total" style="margin-bottom:16px;"></div>'
       +       '<div style="background:#cbd5e1;border:2px solid #94a3b8;border-radius:12px;padding:12px 14px;margin-bottom:16px;">'
       +         '<div style="background:#475569;color:#fff;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:0.8rem;font-weight:700;">'
       +           '<i class="ph ph-lock-key" style="font-size:1.25rem;flex-shrink:0;color:#f8fafc;"></i>'
@@ -4546,7 +4545,6 @@ window._mnEdMontar = function() {
       +           '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div></div>'
       +         '</div>'
       +       '</div>'
-      +       '<div id="mned-total" style="margin-bottom:16px;"></div>'
       +     '</div>'
       +   '</div>'
       + '</div>'
@@ -5016,10 +5014,17 @@ window._mnEdRenderStatus = function() {
             window._mnEdPedirJustificativaStatus(statusAnterior, novo, async function(justTxt) {
                 window._mnEd.status = novo;
                 window._mnEd.justificativa_status = justTxt;
-                var di = document.getElementById('mned-di'), dc = document.getElementById('mned-dc');
+                var di = document.getElementById('mned-di'), dc = document.getElementById('mned-dc'), df = document.getElementById('mned-df');
                 if (novo === 'em_andamento' && di && !di.value) { di.value = window._mnHojeISO(); window._mnEd.m.data_inicio = di.value; }
-                if (novo === 'concluida' && dc && !dc.value) { dc.value = window._mnHojeISO(); }
-                if (dc) window._mnEd.m.data_conclusao = dc.value;
+                if (novo === 'concluida') {
+                    if (dc && !dc.value) { dc.value = window._mnHojeISO(); }
+                    if (dc) window._mnEd.m.data_conclusao = dc.value;
+                } else {
+                    if (dc) dc.value = '';
+                    if (df) df.value = '';
+                    window._mnEd.m.data_conclusao = null;
+                    window._mnEd.m.data_fim = null;
+                }
                 if (novo === 'em_andamento') {
                     window._mnEd.veiculo_rodando = 'nao';
                     window._mnEd.m.veiculo_rodando = 'nao';
@@ -5053,8 +5058,8 @@ window._mnEdRenderStatus = function() {
                                 fornecedor: fornAt,
                                 km_na_manutencao: kmAt,
                                 data_inicio: di ? (di.value || null) : null,
-                                data_fim: document.getElementById('mned-df') ? (document.getElementById('mned-df').value || null) : null,
-                                data_conclusao: dc ? (dc.value || null) : undefined
+                                data_fim: novo === 'concluida' && df ? (df.value || null) : null,
+                                data_conclusao: novo === 'concluida' && dc ? (dc.value || null) : null
                             })
                         });
                         var rsJson = await rs.json().catch(function() { return {}; });
@@ -7705,8 +7710,12 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         var dsolEl = document.getElementById('mned-dsol');
         var dsol = dsolEl ? dsolEl.value : '';
         var dcEl = document.getElementById('mned-dc');
-        if (ehConcl && dcEl && !dcEl.value) {
-            dcEl.value = window._mnHojeISO();
+        if (ehConcl) {
+            if (dcEl && !dcEl.value) dcEl.value = window._mnHojeISO();
+        } else {
+            if (dcEl) dcEl.value = '';
+            if (dfEl) dfEl.value = '';
+            df = '';
         }
         var corpo = {
             status: ed.status,
@@ -7714,8 +7723,8 @@ window.mnCorrSalvarEdicaoInterno = async function() {
             descricao: desc,
             data_solicitacao: dsol || undefined,
             data_inicio: di || null,
-            data_fim: df || null,
-            data_conclusao: dcEl ? (dcEl.value || null) : null,
+            data_fim: ehConcl ? (df || null) : null,
+            data_conclusao: ehConcl && dcEl ? (dcEl.value || null) : null,
             km_na_manutencao: document.getElementById('mned-km').value || null,
             km_final_manutencao: ehConcl ? (document.getElementById('mned-km-final').value || null) : null,
             fornecedor: document.getElementById('mned-forn').value.trim() || null,

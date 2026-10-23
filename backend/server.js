@@ -24721,8 +24721,8 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         const params = [status];
 
         const dtIniParam = data_inicio !== undefined ? (data_inicio || null) : ((status === 'em_andamento' && !prev.data_inicio) ? now : prev.data_inicio);
-        const dtFimParam = data_fim !== undefined ? (data_fim || null) : prev.data_fim;
-        const dtConclParam = data_conclusao !== undefined ? (data_conclusao || null) : (status === 'concluida' ? (prev.data_conclusao || now) : prev.data_conclusao);
+        const dtFimParam = status === 'concluida' ? (data_fim !== undefined ? (data_fim || null) : prev.data_fim) : null;
+        const dtConclParam = status === 'concluida' ? (data_conclusao !== undefined ? (data_conclusao || null) : (prev.data_conclusao || now)) : null;
         const calc = _fmCalcularEstadoDatas({
             status,
             veiculo_rodando_req: veiculo_rodando,
@@ -24741,8 +24741,8 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         if (status === 'concluida') {
             if (data_conclusao) { fields.push('data_conclusao=?'); params.push(data_conclusao); }
             else { fields.push('data_conclusao=COALESCE(data_conclusao,?)'); params.push(now); }
-        } else if (data_conclusao !== undefined) {
-            fields.push('data_conclusao=?'); params.push(data_conclusao || null);
+        } else {
+            fields.push('data_conclusao=NULL');
         }
         const novoVeic = veiculo_id ? parseInt(veiculo_id) : null;
         // Data da solicitacao editavel (mantem o horario original do registro)
@@ -26693,6 +26693,7 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
     db.run("UPDATE frota_revisoes SET data_conclusao = COALESCE(substr(concluido_em, 1, 10), substr(data_revisao, 1, 10), substr(updated_at, 1, 10)) WHERE status = 'realizada' AND (data_conclusao IS NULL OR TRIM(data_conclusao) = '')", () => {});
     db.run("UPDATE frota_revisoes SET km_revisao = marco_km, parado_minutos = NULL, dias_parado = NULL, parado_desde = NULL WHERE status = 'realizada' AND (observacoes LIKE '%marcada como feita manualmente%' OR (COALESCE(valor_total, 0) = 0 AND COALESCE(numero_os, '') = '' AND COALESCE(concessionaria, '') = '' AND km_revisao > marco_km AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)))", () => {});
     db.run("DELETE FROM frota_revisoes WHERE status = 'agendada' AND COALESCE(itens_json, '{}') = '{}' AND COALESCE(numero_os, '') = '' AND COALESCE(valor_total, 0) = 0 AND data_revisao = '2026-05-20' AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)", () => {});
+    db.run("UPDATE frota_manutencoes SET data_conclusao = NULL, data_fim = NULL WHERE tipo = 'corretiva' AND status IN ('agendada', 'em_andamento', 'aguardando') AND (data_conclusao IS NOT NULL OR data_fim IS NOT NULL)", () => {});
     // Garantir que caminhonetes/caminhoes (como STU9C20) em regime normal tenham apenas revisoes de 20.000 em 20.000 km (24 em 24 meses)
     db.run("UPDATE frota_veiculos SET tipo_veiculo = 'Caminhonete' WHERE UPPER(placa) LIKE 'STU%' AND COALESCE(LOWER(tipo_veiculo), '') NOT LIKE '%caminh%'", () => {
         db.run(`DELETE FROM compras_frota_registros
@@ -27673,6 +27674,7 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
                 (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
             );
         });
+        db.run("UPDATE frota_manutencoes SET km_na_manutencao=? WHERE veiculo_id=? AND tipo='corretiva' AND status IN ('agendada','em_andamento','aguardando')", [kmNum, vid], () => {});
         setTimeout(() => { try { sincronizarPopupKmAbertoSilencioso(); } catch (e) {} }, 200);
         setTimeout(() => { try { verificarMarcoRevisaoCron(); } catch (e) {} }, 400);
         res.json({ message: 'Quilometragem atualizada', km_atual: kmNum, km_updated_at: agoraSPStr, data: hoje, km_vencida: 0 });
