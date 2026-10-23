@@ -1,13 +1,23 @@
 // frontend/compras_estoque.js
-// Financeiro > Compras > Estoque (peças): réplica da tela de estoque com dados de compra
-// (fornecedor, valor, garantia, PDF por produto), nota fiscal única vinculável a vários
-// produtos e histórico de valores pagos / datas de compra.
-// Esta tela é de consulta do estoque: entradas, baixas e edição de produtos continuam na tela Estoque.
+// Financeiro > Estoque (peças): tela de estoque do Financeiro com edição completa do produto
+// (lado esquerdo do modal 100% tela) + dados de compra (fornecedor, valor, garantia, PDF por produto,
+// nota fiscal única vinculável a vários produtos e histórico de valores pagos / datas de compra no lado direito).
 (function () {
     'use strict';
 
+    const CATEGORIAS_PRODUTO = [
+        'EPI', 'Uniforme', 'Copa', 'Pets', 'Itens de Escritório',
+        'Peças para Sanitários/Equipamentos', 'Produtos Químicos', 'Limpeza e Higiene',
+        'Ferramentas', 'Elétrica', 'Hidráulica', 'Ferragens e Fixadores',
+        'Pintura e Acabamento', 'Lubrificantes e Fluidos', 'Automotivo',
+        'Pneus e Borracharia', 'Informática e Eletrônicos', 'Descartáveis',
+        'Embalagens', 'Utilidades Gerais', 'Outros'
+    ];
+    const SUGESTOES_TAM_ROUPA = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EXG', 'XGG'];
+    const SUGESTOES_TAM_NUM = ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
+
     const S = window._ceState = {
-        data: [], saldos: {}, resumo: {}, notas: [], enderecos: [],
+        data: [], saldos: {}, resumo: {}, notas: [], enderecos: [], veiculos: null,
         sel: { cat: new Set(), end: new Set() },
         sort: { col: 'nome', asc: true },
         expanded: {},
@@ -55,20 +65,21 @@
 
     let _zBase = 9000;
     function abrirModal(cfg) {
+        const full = !!cfg.telaCheia;
         const ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.55);z-index:' + (++_zBase) + ';display:flex;align-items:center;justify-content:center;padding:16px;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.6);z-index:' + (++_zBase) + ';display:flex;align-items:' + (full ? 'stretch' : 'center') + ';justify-content:' + (full ? 'stretch' : 'center') + ';padding:' + (full ? '0' : '16px') + ';';
         ov.innerHTML =
-            '<div style="background:#fff;border-radius:14px;width:' + (cfg.largura || '860px') + ';max-width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.25);">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-bottom:1px solid #e2e8f0;">' +
-                    '<h3 style="margin:0;font-size:1.05rem;color:#1e293b;display:flex;align-items:center;gap:8px;">' + cfg.titulo + '</h3>' +
-                    '<button type="button" class="ce-close" style="background:none;border:none;font-size:1.6rem;line-height:1;color:#64748b;cursor:pointer;">&times;</button>' +
+            '<div style="background:' + (full ? '#f1f5f9' : '#fff') + ';border-radius:' + (full ? '0' : '14px') + ';width:' + (full ? '100vw' : (cfg.largura || '860px')) + ';height:' + (full ? '100vh' : 'auto') + ';max-width:' + (full ? '100vw' : '100%') + ';max-height:' + (full ? '100vh' : '92vh') + ';display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.25);overflow:hidden;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid #e2e8f0;background:#fff;flex-shrink:0;">' +
+                    '<h3 class="ce-modal-title" style="margin:0;font-size:1.08rem;color:#1e293b;display:flex;align-items:center;gap:8px;">' + cfg.titulo + '</h3>' +
+                    '<button type="button" class="ce-close" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:4px 12px;font-size:0.9rem;font-weight:700;color:#475569;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">Fechar <span style="font-size:1.3rem;line-height:1;">&times;</span></button>' +
                 '</div>' +
-                '<div class="ce-modal-body" style="padding:18px 22px;overflow-y:auto;">' + (cfg.corpo || '') + '</div>' +
+                '<div class="ce-modal-body" style="' + (full ? 'flex:1;overflow:hidden;padding:0;' : 'padding:18px 22px;overflow-y:auto;') + '">' + (cfg.corpo || '') + '</div>' +
             '</div>';
         const fechar = () => { ov.remove(); if (cfg.onClose) cfg.onClose(); };
         ov.querySelector('.ce-close').onclick = fechar;
         document.body.appendChild(ov);
-        return { el: ov, body: ov.querySelector('.ce-modal-body'), fechar: fechar };
+        return { el: ov, body: ov.querySelector('.ce-modal-body'), titleEl: ov.querySelector('.ce-modal-title'), fechar: fechar };
     }
 
     const inputCss = 'width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;';
@@ -109,6 +120,11 @@
     const qtdTotal = (item, saldos) => saldos.length ? saldos.reduce((a, s) => a + qtdDe(s), 0) : (parseInt(item.quantidade_atual) || 0);
     const temTamanho = (item, saldos) => !!(item.tem_tamanho || saldos.some(s => s.tamanho && String(s.tamanho).trim() !== ''));
 
+    function ehAlmoxarifado(endId) {
+        const e = (S.enderecos || []).find(x => String(x.id) === String(endId));
+        return !!e && norm(e.nome).includes('almoxarifado');
+    }
+
     function badgeEnd(nome, low) {
         const n = norm(nome);
         let c = { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
@@ -120,7 +136,7 @@
         return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
             esc(nome) + (low ? ' <i class="ph ph-warning" style="font-size:0.78rem;"></i>' : '') + '</span>';
     }
-    // Rua do almoxarifado (apenas nos detalhes; edição é feita em Controle de Estoque)
+    // Rua do almoxarifado (apenas nos detalhes)
     const ruaBadge = s => {
         const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
         return r ? ' <span title="Rua do almoxarifado" style="display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-signpost"></i> Rua ' + r + '</span>' : '';
@@ -265,7 +281,12 @@
                         '</select></div>' +
                 '</div>' +
                 '<div id="ce-resumo" style="font-size:0.82rem;color:#64748b;margin-bottom:0.75rem;"></div>' +
-                '<div class="table-responsive"><table class="table"><thead id="ce-thead"></thead><tbody id="ce-tbody"></tbody></table></div>' +
+                '<div class="table-responsive" style="max-height:calc(100vh - 280px);overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
+                    '<table class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;">' +
+                        '<thead id="ce-thead" style="position:sticky;top:0;z-index:12;background:#f8fafc;"></thead>' +
+                        '<tbody id="ce-tbody"></tbody>' +
+                    '</table>' +
+                '</div>' +
             '</div>';
     }
 
@@ -273,16 +294,17 @@
         { col: 'nome', txt: 'Produto' }, { col: 'categoria', txt: 'Catg.' }, { col: 'qtd', txt: 'Qt. Atual' },
         { col: null, txt: 'Min/Máx' }, { col: null, txt: 'Endereços' }, { col: null, txt: 'Tipo' },
         { col: 'fornecedor', txt: 'Fornecedor' }, { col: 'valor', txt: 'Valor Atual' }, { col: 'garantia', txt: 'Garantia' },
-        { col: 'ultima', txt: 'Últ. Compra' }, { col: null, txt: 'Ações', right: true }
+        { col: 'ultima', txt: 'Últ. Compra' }
     ];
     function renderThead() {
         const th = $('ce-thead');
         if (!th) return;
+        const thBase = 'position:sticky;top:0;z-index:12;background:#f8fafc;border-bottom:2px solid #cbd5e1;box-shadow:0 1px 2px rgba(15,23,42,0.06);white-space:nowrap;';
         th.innerHTML = '<tr style="font-size:0.78rem;">' + COLUNAS.map(c => {
-            if (!c.col) return '<th style="white-space:nowrap;' + (c.right ? 'text-align:right;' : '') + '">' + c.txt + '</th>';
+            if (!c.col) return '<th style="' + thBase + (c.right ? 'text-align:right;' : '') + '">' + c.txt + '</th>';
             const ativo = S.sort.col === c.col;
             const ic = ativo ? (S.sort.asc ? 'ph-arrow-up' : 'ph-arrow-down') : 'ph-arrows-down-up';
-            return '<th onclick="ceOrdenar(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar">' + c.txt +
+            return '<th onclick="ceOrdenar(\'' + c.col + '\')" style="' + thBase + 'cursor:pointer;user-select:none;" title="Ordenar">' + c.txt +
                 ' <i class="ph ' + ic + '" style="font-size:0.8em;color:' + (ativo ? '#1d4ed8' : '#94a3b8') + ';margin-left:2px;"></i></th>';
         }).join('') + '</tr>';
     }
@@ -357,7 +379,7 @@
             const venc = lista.filter(i => { const g = (S.resumo[i.id] || {}).garantia_ate; return g && g < hojeISO(); }).length;
             resumoEl.innerHTML = '<b>' + lista.length + '</b> produtos &middot; <b>' + comForn + '</b> com fornecedor &middot; <b>' + comPdf + '</b> com PDF &middot; <b style="color:' + (venc ? '#b91c1c' : 'inherit') + ';">' + venc + '</b> com garantia vencida';
         }
-        if (!lista.length) { tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; return; }
+        if (!lista.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; return; }
 
         const contCat = {};
         lista.forEach(i => { const c = String(i.categoria || 'Sem Categoria').trim(); contCat[c] = (contCat[c] || 0) + 1; });
@@ -371,7 +393,7 @@
         const cat = String(item.categoria || 'Sem Categoria').trim();
         if (cat !== ultimaCat) {
             setUltima(cat);
-            out += '<tr style="background:#f1f5f9;border-top:2px solid #cbd5e1;border-bottom:1px solid #cbd5e1;"><td colspan="11" style="padding:8px 14px;font-weight:700;font-size:0.85rem;color:#1e293b;text-transform:uppercase;">' +
+            out += '<tr style="background:#f1f5f9;border-top:2px solid #cbd5e1;border-bottom:1px solid #cbd5e1;"><td colspan="10" style="padding:8px 14px;font-weight:700;font-size:0.85rem;color:#1e293b;text-transform:uppercase;">' +
                 '<div style="display:flex;align-items:center;gap:8px;"><i class="ph ph-folders" style="color:#1971c2;font-size:1.05rem;"></i><span>' + esc(cat) + '</span>' +
                 '<span style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 8px;font-size:0.72rem;font-weight:700;text-transform:none;">' + contCat[cat] + (contCat[cat] === 1 ? ' produto' : ' produtos') + '</span></div></td></tr>';
         }
@@ -388,15 +410,17 @@
             : '<div style="width:40px;height:40px;min-width:40px;flex-shrink:0;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
         const warn = low ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : '';
 
-        // Colunas de compra (iguais para todos os tipos de linha)
+        // Botão carrinho (apenas ícone, em frente ao nome do produto) + botão PDF se houver
+        const cartBtn = '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + item.id + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:30px;height:30px;padding:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:1rem;"></i></button>';
+        const pdfBtn = r.tem_pdf ? '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceVerPdf(' + item.id + ')" title="Abrir PDF do produto" style="background:#fee2e2;color:#b91c1c;border:none;width:30px;height:30px;padding:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-file-pdf" style="font-size:1rem;"></i></button>' : '';
+
+        // Colunas de compra
         const fornCell = r.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(r.fornecedor) + '</span>' : dash;
         const valorCell = r.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;">' + money(r.valor_atual) + '</span>' : dash;
         const ultCell = r.ultima_compra
             ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(r.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + r.total_compras + (r.total_compras === 1 ? ' compra' : ' compras') + (r.total_notas ? ' &middot; ' + r.total_notas + ' NF' : '') + '</span></div>'
             : dash;
-        const pdfBtn = r.tem_pdf ? '<button class="btn btn-sm" onclick="event.stopPropagation();ceVerPdf(' + item.id + ')" title="Abrir PDF do produto" style="background:#fee2e2;color:#b91c1c;border:none;margin-left:4px;"><i class="ph ph-file-pdf"></i></button>' : '';
-        const acoes = '<button class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + item.id + ')" title="Fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-shopping-cart"></i> Compras</button>' + pdfBtn;
-        const celCompra = '<td style="vertical-align:middle;">' + fornCell + '</td><td style="vertical-align:middle;">' + valorCell + '</td><td style="vertical-align:middle;">' + garantiaHtml(r.garantia_ate) + '</td><td style="vertical-align:middle;">' + ultCell + '</td><td style="text-align:right;white-space:nowrap;vertical-align:middle;">' + acoes + '</td>';
+        const celCompra = '<td style="vertical-align:middle;">' + fornCell + '</td><td style="vertical-align:middle;">' + valorCell + '</td><td style="vertical-align:middle;">' + garantiaHtml(r.garantia_ate) + '</td><td style="vertical-align:middle;">' + ultCell + '</td>';
 
         if (sizes) {
             const aberto = !!S.expanded[item.id];
@@ -411,7 +435,7 @@
             out += '<tr onclick="ceToggleTam(' + item.id + ')" style="cursor:pointer;border-left:' + borda + ';' + bg + '">' +
                 '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:10px;">' +
                     '<span title="Ver tamanhos, endereços e quantidades" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform .2s;' + (aberto ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
-                    foto + '<div style="display:flex;align-items:center;gap:6px;"><span>' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
+                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + cartBtn + pdfBtn + '<span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
                 '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
                 '<td style="vertical-align:middle;">' + qtdHtml(qtdTotal(item, saldos), low) + '</td>' +
                 '<td style="vertical-align:middle;white-space:nowrap;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
@@ -425,7 +449,7 @@
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
                     '<td>' + stack(s => badgeEnd(s.nome, lowSaldo(s, item)) + ruaBadge(s)) + '</td>' +
-                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td><td colspan="5"></td></tr>';
+                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td><td colspan="4"></td></tr>';
             });
             return out;
         }
@@ -433,7 +457,7 @@
         const sl = saldos;
         const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
         out += '<tr style="border-left:' + borda + ';' + bg + '">' +
-            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;"></span>' + foto + '<div>' + warn + esc(item.nome) + '</div></div></td>' +
+            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;"></span>' + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + cartBtn + pdfBtn + '</div></div></td>' +
             '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
@@ -442,42 +466,639 @@
         return out;
     }
 
-    // ── Modal do produto ─────────────────────────────────────────────────────
+    // ── Modal 100% Tela do Produto (Esquerda: Editar Produto | Direita: Nota/Compras) ─
+    function normalizarCategoria(cat) {
+        if (cat === 'Peças Automotivas') return 'Automotivo';
+        if (cat === 'Peças para Sanitários') return 'Peças para Sanitários/Equipamentos';
+        return cat || 'EPI';
+    }
+    function ehCatVeiculos(cat) {
+        return cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia';
+    }
+
     window.ceAbrirProduto = async function (id) {
         const item = S.data.find(i => i.id === id);
         const m = abrirModal({
-            titulo: '<i class="ph ph-shopping-cart" style="color:#1971c2;"></i> ' + esc(item ? item.nome : 'Produto'),
-            largura: '980px',
-            corpo: '<div style="text-align:center;padding:30px;color:#64748b;">Carregando...</div>',
+            titulo: '<i class="ph ph-shopping-cart" style="color:#1971c2;"></i> <span>' + esc(item ? item.nome : 'Produto') + '</span>',
+            telaCheia: true,
+            corpo: '<div style="text-align:center;padding:40px;color:#64748b;">Carregando dados do produto e notas...</div>',
             onClose: () => { S.prodModal = null; }
         });
-        S.prodModal = { id: id, modal: m, dados: null };
-        await recarregarProduto();
+        S.prodModal = { id: id, modal: m, dados: null, edit: null };
+        await carregarDadosModalProduto();
     };
+
+    async function carregarDadosModalProduto() {
+        const pm = S.prodModal;
+        if (!pm) return;
+        try {
+            const [dadosCompra, saldosEnd] = await Promise.all([
+                api('/compras-estoque/' + pm.id),
+                api('/estoque/' + pm.id + '/saldo-enderecos').catch(() => [])
+            ]);
+            pm.dados = dadosCompra;
+            const prod = S.data.find(i => i.id === pm.id) || dadosCompra.produto || {};
+            const tams = [];
+            try {
+                const sv = JSON.parse(prod.tamanhos_lista || '[]');
+                if (Array.isArray(sv)) sv.forEach(t => { const tk = String(t || '').trim().toUpperCase(); if (tk && !tams.includes(tk)) tams.push(tk); });
+            } catch (_) {}
+
+            let permitidos = saldosEnd || [];
+            let ocultos = [];
+            if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
+                const any = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
+                if (any) {
+                    permitidos = (saldosEnd || []).filter(s => S.enderecos.some(e => String(e.id) === String(s.endereco_id)));
+                    ocultos = (saldosEnd || []).filter(s => !S.enderecos.some(e => String(e.id) === String(s.endereco_id))).map(s => ({
+                        endereco_id: s.endereco_id,
+                        tamanho: String(s.tamanho || '').trim().toUpperCase(),
+                        quantidade: s.quantidade,
+                        quantidade_minima: s.quantidade_minima || 0,
+                        quantidade_maxima: s.quantidade_maxima || 0,
+                        tipo_estoque: s.tipo_estoque || 'matriz',
+                        rua: s.rua || ''
+                    }));
+                }
+            }
+            const linhas = permitidos.map(s => {
+                const tk = String(s.tamanho || '').trim().toUpperCase();
+                if (tk && !tams.includes(tk)) tams.push(tk);
+                return {
+                    endereco_id: s.endereco_id,
+                    tamanho: tk,
+                    quantidade: parseInt(s.quantidade, 10) || 0,
+                    quantidade_minima: parseInt(s.quantidade_minima, 10) || 0,
+                    quantidade_maxima: parseInt(s.quantidade_maxima, 10) || 0,
+                    tipo_estoque: s.tipo_estoque || 'matriz',
+                    rua: s.rua || ''
+                };
+            });
+            tams.sort((a, b) => ordemTam(a) - ordemTam(b));
+            const catNorm = normalizarCategoria(prod.categoria);
+            pm.edit = {
+                nome: prod.nome || '',
+                categoria: catNorm,
+                foto_src: prod.foto_url || prod.foto_base64 || '',
+                foto_base64: '',
+                tem_tamanho: !!(prod.tem_tamanho || tams.length > 0),
+                tamanhos: tams,
+                tamExpandidos: {},
+                linhas: linhas,
+                hiddenLinhas: ocultos,
+                placas: new Set(String(prod.placas_vinculadas || '').split(',').map(s => s.trim()).filter(Boolean)),
+                quantidade_minima: parseInt(prod.quantidade_minima, 10) || 0,
+                quantidade_maxima: parseInt(prod.quantidade_maxima, 10) || 0
+            };
+            renderModalCompleto();
+            if (ehCatVeiculos(catNorm)) garantirVeiculosERenderizarPlacas();
+        } catch (e) {
+            pm.modal.body.innerHTML = '<div style="color:#b91c1c;padding:24px;">' + esc(e.message) + '</div>';
+        }
+    }
+
     async function recarregarProduto() {
         const pm = S.prodModal;
         if (!pm) return;
         try {
             pm.dados = await api('/compras-estoque/' + pm.id);
-            renderProduto();
+            renderDireitaProduto();
         } catch (e) {
-            pm.modal.body.innerHTML = '<div style="color:#b91c1c;padding:20px;">' + esc(e.message) + '</div>';
+            const dir = $('ce-pane-direita');
+            if (dir) dir.innerHTML = '<div style="color:#b91c1c;padding:20px;">' + esc(e.message) + '</div>';
         }
     }
+
+    function renderModalCompleto() {
+        const pm = S.prodModal;
+        if (!pm || !pm.dados || !pm.edit) return;
+        pm.modal.body.innerHTML =
+            '<div style="display:grid;grid-template-columns:1fr 1fr;height:100%;width:100%;overflow:hidden;">' +
+                '<div id="ce-pane-esquerda" style="height:100%;overflow-y:auto;padding:20px 24px;border-right:2px solid #cbd5e1;box-sizing:border-box;background:#fff;"></div>' +
+                '<div id="ce-pane-direita" style="height:100%;overflow-y:auto;padding:20px 24px;box-sizing:border-box;background:#f8fafc;"></div>' +
+            '</div>';
+        renderEsquerdaProduto();
+        renderDireitaProduto();
+    }
+
+    // ── LADO ESQUERDO: Editar Item de Estoque (idêntico ao Administrativo > Estoque) ──
+    function renderEsquerdaProduto() {
+        const pm = S.prodModal;
+        const pane = $('ce-pane-esquerda');
+        if (!pm || !pm.edit || !pane) return;
+        const ed = pm.edit;
+        const catsList = CATEGORIAS_PRODUTO.slice();
+        if (ed.categoria && !catsList.includes(ed.categoria)) catsList.unshift(ed.categoria);
+        const optsCat = catsList.map(c => '<option value="' + esc(c) + '"' + (c === ed.categoria ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+        const temFoto = !!ed.foto_src;
+
+        pane.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1.5px solid #e2e8f0;">' +
+                '<div style="font-weight:800;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-pencil-simple" style="color:#e67700;font-size:1.2rem;"></i> Editar Item de Estoque</div>' +
+                '<button type="button" id="ce-ed-btn-salvar-topo" onclick="ceEdSalvarProduto()" class="btn" style="background:#e67700;color:#fff;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:700;"><i class="ph ph-floppy-disk"></i> Salvar Item</button>' +
+            '</div>' +
+            '<div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;">' +
+                '<div style="width:140px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;">' +
+                    '<div style="width:140px;height:140px;border-radius:10px;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden;position:relative;">' +
+                        '<img id="ce-ed-foto-preview" src="' + esc(ed.foto_src) + '" onclick="if(this.src&&window.ampliarFotoEstoque)window.ampliarFotoEstoque(this.src,document.getElementById(\'ce-ed-nome\')?.value||\'Foto do Produto\')" title="Clique para ampliar" style="width:100%;height:100%;object-fit:cover;display:' + (temFoto ? 'block' : 'none') + ';cursor:zoom-in;">' +
+                        '<i id="ce-ed-foto-icon" class="ph ph-camera" style="font-size:2.4rem;color:#94a3b8;display:' + (temFoto ? 'none' : 'block') + ';"></i>' +
+                    '</div>' +
+                    '<label class="btn btn-sm" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;cursor:pointer;width:100%;text-align:center;box-sizing:border-box;">' +
+                        '<i class="ph ph-upload-simple"></i> Escolher Foto' +
+                        '<input type="file" id="ce-ed-foto" accept="image/*" style="display:none;" onchange="ceEdPreviewFoto(this)">' +
+                    '</label>' +
+                '</div>' +
+                '<div style="flex:1;min-width:240px;">' +
+                    '<div style="margin-bottom:12px;">' +
+                        '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Nome do Item *</label>' +
+                        '<input type="text" id="ce-ed-nome" class="form-control" style="width:100%;" value="' + esc(ed.nome) + '" oninput="window._ceState.prodModal.edit.nome=this.value" placeholder="Ex: Capacete">' +
+                    '</div>' +
+                    '<div style="margin-bottom:12px;">' +
+                        '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Categoria *</label>' +
+                        '<select id="ce-ed-cat" class="form-control" style="width:100%;" onchange="ceEdChangeCat(this.value)">' + optsCat + '</select>' +
+                    '</div>' +
+                    '<div style="margin-bottom:12px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;">' +
+                        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;font-size:0.88rem;color:#1e3a8a;margin:0;user-select:none;">' +
+                            '<input type="checkbox" id="ce-ed-tem-tam" ' + (ed.tem_tamanho ? 'checked' : '') + ' onchange="ceEdToggleTemTam(this.checked)" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;">' +
+                            '<span>Este produto possui tamanho? <span style="font-weight:500;color:#475569;font-size:0.78rem;">(Marque para gerenciar tamanhos, entradas/baixas e endereços por tamanho)</span></span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<div id="ce-ed-placas-wrap" style="display:' + (ehCatVeiculos(ed.categoria) ? 'block' : 'none') + ';margin-bottom:12px;">' +
+                        '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Placas Vinculadas</label>' +
+                        '<div id="ce-ed-placas-list" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:6px;">' +
+                            '<div style="color:#64748b;font-size:0.85rem;">Carregando veículos...</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="ce-ed-sec-com-tam" style="display:' + (ed.tem_tamanho ? 'block' : 'none') + ';margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+                    '<label style="font-weight:700;font-size:0.9rem;color:#1e3a8a;display:flex;align-items:center;gap:6px;"><i class="ph ph-ruler" style="color:#1d4ed8;font-size:1.1rem;"></i> Tamanhos, Entradas/Baixas e Endereços por Tamanho</label>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        '<input type="text" id="ce-ed-novo-tam" placeholder="Ex: P, M, G, 40..." style="width:140px;padding:4px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;text-transform:uppercase;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();ceEdIncluirTamInput();}">' +
+                        '<button type="button" onclick="ceEdIncluirTamInput()" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Incluir Tamanho</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:10px;">' +
+                    '<div style="font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:6px;">Clique nos tamanhos abaixo para incluir neste produto:</div>' +
+                    '<div id="ce-ed-tam-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>' +
+                '</div>' +
+                '<div id="ce-ed-tam-lista" style="display:flex;flex-direction:column;gap:8px;"></div>' +
+            '</div>' +
+            '<div id="ce-ed-sec-sem-tam" style="display:' + (ed.tem_tamanho ? 'none' : 'block') + ';margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+                    '<label style="font-weight:700;font-size:0.88rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços do Produto</label>' +
+                    '<button type="button" onclick="ceEdAddEndereco(\'\')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:4px 12px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar Endereço</button>' +
+                '</div>' +
+                '<div id="ce-ed-end-lista" style="display:flex;flex-direction:column;gap:8px;"></div>' +
+                '<p id="ce-ed-end-vazio" style="font-size:0.8rem;color:#94a3b8;font-style:italic;margin:6px 0 0;display:none;">Nenhum endereço vinculado. Use o botão acima para adicionar.</p>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;">' +
+                '<button type="button" id="ce-ed-btn-salvar" onclick="ceEdSalvarProduto()" class="btn" style="background:#e67700;color:#fff;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:8px 18px;"><i class="ph ph-floppy-disk"></i> Salvar Item</button>' +
+            '</div>';
+
+        if (ed.tem_tamanho) renderEdTamanhos();
+        else renderEdEnderecosSemTam();
+    }
+
+    function ruaSelectEdHtml(idx, linha, prefixo) {
+        const alm = ehAlmoxarifado(linha.endereco_id);
+        let opts = '<option value="">Rua</option>';
+        for (let i = 1; i <= 50; i++) opts += '<option value="' + i + '"' + (String(linha.rua) === String(i) ? ' selected' : '') + '>Rua ' + i + '</option>';
+        return '<select id="ce-ed-rua-' + prefixo + idx + '" title="Rua do almoxarifado" onchange="window._ceState.prodModal.edit.linhas[' + idx + '].rua=this.value" ' +
+            'style="width:96px;flex-shrink:0;border:1.5px solid #fed7aa;border-radius:6px;padding:6px 8px;font-size:0.84rem;background:#fff7ed;color:#9a3412;font-weight:700;display:' + (alm ? 'block' : 'none') + ';">' + opts + '</select>';
+    }
+
+    window.ceEdOnEndChange = function (idx, val, prefixo) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit || !pm.edit.linhas[idx]) return;
+        const l = pm.edit.linhas[idx];
+        l.endereco_id = parseInt(val, 10) || null;
+        const alm = ehAlmoxarifado(l.endereco_id);
+        if (!alm) l.rua = '';
+        const sel = $('ce-ed-rua-' + prefixo + idx);
+        if (sel) { sel.style.display = alm ? 'block' : 'none'; sel.value = alm ? (l.rua || '') : ''; }
+    };
+
+    window.ceEdPreviewFoto = function (input) {
+        const pm = S.prodModal;
+        const file = input.files && input.files[0];
+        if (!pm || !pm.edit || !file) return;
+        const r = new FileReader();
+        r.onload = e => {
+            pm.edit.foto_base64 = e.target.result;
+            pm.edit.foto_src = e.target.result;
+            const img = $('ce-ed-foto-preview'), ic = $('ce-ed-foto-icon');
+            if (img) { img.src = e.target.result; img.style.display = 'block'; }
+            if (ic) ic.style.display = 'none';
+        };
+        r.readAsDataURL(file);
+    };
+
+    window.ceEdChangeCat = function (cat) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        pm.edit.categoria = cat;
+        const wrap = $('ce-ed-placas-wrap');
+        if (wrap) wrap.style.display = ehCatVeiculos(cat) ? 'block' : 'none';
+        if (ehCatVeiculos(cat)) garantirVeiculosERenderizarPlacas();
+    };
+
+    async function garantirVeiculosERenderizarPlacas() {
+        const pm = S.prodModal;
+        const cont = $('ce-ed-placas-list');
+        if (!pm || !pm.edit || !cont) return;
+        if (!S.veiculos) {
+            try {
+                const res = await api('/frota/veiculos');
+                S.veiculos = [{ placa: 'Outros' }].concat((res || []).slice().sort((a, b) => String(a.placa || '').localeCompare(String(b.placa || ''))));
+            } catch (_) {
+                cont.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Erro ao carregar veículos.</div>';
+                return;
+            }
+        }
+        const sel = pm.edit.placas;
+        const todosMarcados = S.veiculos.every(v => !v.placa || sel.has(v.placa));
+        let html = '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;border-bottom:1px solid #f1f5f9;margin-bottom:4px;">' +
+            '<input type="checkbox" id="ce-ed-placas-todas" ' + (todosMarcados ? 'checked' : '') + ' onchange="ceEdToggleTodasPlacas(this.checked)">' +
+            '<span style="font-weight:600;">Selecionar Todos</span></label>';
+        S.veiculos.forEach(v => {
+            if (!v.placa) return;
+            const chk = sel.has(v.placa) ? 'checked' : '';
+            html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">' +
+                '<input type="checkbox" class="ce-ed-placa-chk" value="' + esc(v.placa) + '" ' + chk + ' onchange="ceEdPlacaChange(this)">' +
+                '<span>' + esc((v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : '') + v.placa) + '</span></label>';
+        });
+        cont.innerHTML = html;
+    }
+    window.ceEdToggleTodasPlacas = function (checked) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        pm.edit.placas.clear();
+        document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-chk').forEach(cb => {
+            cb.checked = checked;
+            if (checked) pm.edit.placas.add(cb.value);
+        });
+    };
+    window.ceEdPlacaChange = function (cb) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        if (cb.checked) pm.edit.placas.add(cb.value); else pm.edit.placas.delete(cb.value);
+        const all = Array.from(document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-chk'));
+        const todas = $('ce-ed-placas-todas');
+        if (todas && all.length) todas.checked = all.every(x => x.checked);
+    };
+
+    window.ceEdToggleTemTam = function (checked) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        pm.edit.tem_tamanho = !!checked;
+        const secCom = $('ce-ed-sec-com-tam'), secSem = $('ce-ed-sec-sem-tam');
+        if (secCom) secCom.style.display = checked ? 'block' : 'none';
+        if (secSem) secSem.style.display = checked ? 'none' : 'block';
+        if (checked) renderEdTamanhos(); else renderEdEnderecosSemTam();
+    };
+
+    window.ceEdToggleTamCard = function (tamRaw) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const tam = String(tamRaw || '').trim().toUpperCase();
+        const abrir = !pm.edit.tamExpandidos[tam];
+        pm.edit.tamExpandidos[tam] = abrir;
+        const body = $('ce-ed-tam-body-' + tam), arrow = $('ce-ed-tam-arrow-' + tam);
+        if (body) body.style.display = abrir ? 'block' : 'none';
+        if (arrow) arrow.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+
+    window.ceEdToggleTodosTam = function () {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const algumFechado = pm.edit.tamanhos.some(t => !pm.edit.tamExpandidos[t]);
+        pm.edit.tamanhos.forEach(t => { pm.edit.tamExpandidos[t] = algumFechado; });
+        renderEdTamanhos();
+    };
+
+    window.ceEdIncluirTam = function (tamRaw) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const tam = String(tamRaw || '').trim().toUpperCase();
+        if (!tam) return;
+        const ed = pm.edit;
+        if (!ed.tamanhos.includes(tam)) {
+            ed.tamanhos.push(tam);
+            ed.tamExpandidos[tam] = true;
+        } else {
+            ed.tamExpandidos[tam] = !ed.tamExpandidos[tam];
+        }
+        const jaTem = ed.linhas.some(l => String(l.tamanho || '').trim().toUpperCase() === tam);
+        if (!jaTem) {
+            const semTam = ed.linhas.find(l => !l.tamanho || String(l.tamanho).trim() === '');
+            if (semTam && ed.tamanhos.length === 1) {
+                semTam.tamanho = tam;
+            } else {
+                const defEndId = S.enderecos.length === 1 ? S.enderecos[0].id : null;
+                ed.linhas.push({ endereco_id: defEndId, tamanho: tam, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0, tipo_estoque: 'matriz', rua: '' });
+            }
+        }
+        ed.tamanhos.sort((a, b) => ordemTam(a) - ordemTam(b));
+        renderEdTamanhos();
+    };
+
+    window.ceEdIncluirTamInput = function () {
+        const inp = $('ce-ed-novo-tam');
+        if (!inp) return;
+        const val = inp.value.trim().toUpperCase();
+        if (!val) return;
+        inp.value = '';
+        window.ceEdIncluirTam(val);
+    };
+
+    window.ceEdRemoverTam = function (tamRaw) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const t = String(tamRaw || '').trim().toUpperCase();
+        pm.edit.tamanhos = pm.edit.tamanhos.filter(x => x !== t);
+        pm.edit.linhas = pm.edit.linhas.filter(l => String(l.tamanho || '').trim().toUpperCase() !== t);
+        renderEdTamanhos();
+    };
+
+    window.ceEdAddEndereco = function (tamOpcional) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const tam = tamOpcional ? String(tamOpcional).trim().toUpperCase() : '';
+        if (tam) pm.edit.tamExpandidos[tam] = true;
+        pm.edit.linhas.push({ endereco_id: null, tamanho: tam, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0, tipo_estoque: 'matriz', rua: '' });
+        if (pm.edit.tem_tamanho) renderEdTamanhos(); else renderEdEnderecosSemTam();
+    };
+
+    window.ceEdRemoverEndereco = function (idx) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        pm.edit.linhas.splice(idx, 1);
+        if (pm.edit.tem_tamanho) renderEdTamanhos(); else renderEdEnderecosSemTam();
+    };
+
+    window.ceEdMovimentarTam = async function (tamRaw, tipo) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const t = String(tamRaw || '').trim().toUpperCase();
+        const isEntrada = tipo === 'entrada';
+        const linhasTam = pm.edit.linhas.map((l, i) => ({ l: l, i: i })).filter(x => String(x.l.tamanho || '').trim().toUpperCase() === t && x.l.endereco_id);
+        if (!linhasTam.length) {
+            return swal({ icon: 'warning', title: 'Selecione um endereço', text: 'Primeiro escolha o endereço do Tamanho ' + t + ' antes de registrar ' + (isEntrada ? 'entrada' : 'baixa') + '.' });
+        }
+        const optsEnd = linhasTam.map(x => {
+            const eObj = S.enderecos.find(e => String(e.id) === String(x.l.endereco_id));
+            return '<option value="' + x.i + '">' + esc(eObj ? eObj.nome : ('Endereço ' + x.l.endereco_id)) + ' (Saldo atual: ' + (x.l.quantidade || 0) + ')</option>';
+        }).join('');
+        const cor = isEntrada ? '#16a34a' : '#ef4444';
+        const { value: vals, isConfirmed } = await swal({
+            title: isEntrada ? '<i class="ph ph-arrow-down-left" style="color:#16a34a"></i> Entrada — Tamanho ' + esc(t) : '<i class="ph ph-arrow-up-right" style="color:#ef4444"></i> Baixa — Tamanho ' + esc(t),
+            html: '<div style="text-align:left;">' +
+                '<div style="margin-bottom:10px;"><label style="' + labelCss + '">Endereço do Tamanho ' + esc(t) + ' *</label><select id="ce-swal-tam-idx" style="' + inputCss + '">' + optsEnd + '</select></div>' +
+                '<div style="margin-bottom:10px;"><label style="' + labelCss + '">Quantidade a ' + (isEntrada ? 'adicionar (Entrada)' : 'retirar (Baixa)') + ' *</label><input type="number" id="ce-swal-tam-qtd" min="1" value="1" style="' + inputCss + '"></div>' +
+                (!isEntrada ? '<div><label style="' + labelCss + '">Motivo da Baixa</label><input type="text" id="ce-swal-tam-mot" placeholder="Ex: Entrega / ajuste..." style="' + inputCss + '"></div>' : '') +
+            '</div>',
+            showCancelButton: true,
+            confirmButtonText: isEntrada ? 'Confirmar Entrada' : 'Confirmar Baixa',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: cor,
+            preConfirm: () => {
+                const idx = parseInt($('ce-swal-tam-idx').value, 10);
+                const qtd = parseInt($('ce-swal-tam-qtd').value, 10);
+                const motivo = ($('ce-swal-tam-mot') || {}).value ? $('ce-swal-tam-mot').value.trim() : '';
+                if (isNaN(idx) || !pm.edit.linhas[idx]) { Swal.showValidationMessage('Selecione o endereço'); return false; }
+                if (!qtd || qtd <= 0) { Swal.showValidationMessage('Informe uma quantidade válida'); return false; }
+                const atual = parseInt(pm.edit.linhas[idx].quantidade, 10) || 0;
+                if (!isEntrada && qtd > atual) { Swal.showValidationMessage('Saldo insuficiente neste endereço (Atual: ' + atual + ')'); return false; }
+                return { idx: idx, qtd: qtd, motivo: motivo };
+            }
+        });
+        if (!isConfirmed || !vals) return;
+        const target = pm.edit.linhas[vals.idx];
+        const delta = isEntrada ? vals.qtd : -vals.qtd;
+        target.quantidade = Math.max(0, (parseInt(target.quantidade, 10) || 0) + delta);
+        renderEdTamanhos();
+        try {
+            await api('/estoque/' + pm.id + '/movimentar', {
+                method: 'POST',
+                body: { quantidade: delta, endereco_id: parseInt(target.endereco_id, 10), tamanho: t, motivo: vals.motivo || (isEntrada ? 'Entrada por tamanho' : 'Baixa por tamanho') }
+            });
+            await carregarTudo();
+            renderTabela();
+        } catch (e) { console.warn('[ceEdMovimentarTam]', e.message); }
+    };
+
+    function renderEdTamanhos() {
+        const pm = S.prodModal;
+        const chipsEl = $('ce-ed-tam-chips'), listaEl = $('ce-ed-tam-lista');
+        if (!pm || !pm.edit || !listaEl) return;
+        const ed = pm.edit;
+        const tamsAtivos = ed.tamanhos || [];
+        if (chipsEl) {
+            const todosChips = SUGESTOES_TAM_ROUPA.concat(SUGESTOES_TAM_NUM);
+            chipsEl.innerHTML = todosChips.map(c => {
+                const ativo = tamsAtivos.includes(c);
+                return '<button type="button" onclick="ceEdIncluirTam(\'' + c + '\')" style="background:' + (ativo ? '#1d4ed8' : '#fff') + ';color:' + (ativo ? '#fff' : '#334155') + ';border:1px solid ' + (ativo ? '#1d4ed8' : '#cbd5e1') + ';border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;">' + (ativo ? '✓ ' : '+ ') + c + '</button>';
+            }).join('');
+        }
+        if (!tamsAtivos.length) {
+            listaEl.innerHTML = '<div style="text-align:center;padding:18px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;color:#64748b;font-size:0.84rem;">Nenhum tamanho incluído ainda. Clique em um dos tamanhos acima (ex: <b>P, M, G, GG</b> ou <b>38, 40, 42</b>) para vincular tamanhos, endereços e saldos a este produto.</div>';
+            return;
+        }
+        const algumFechado = tamsAtivos.some(t => !ed.tamExpandidos[t]);
+        const barraTopo = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">' +
+            '<span style="font-size:0.78rem;color:#64748b;font-weight:600;"><i class="ph ph-hand-pointing"></i> Clique na seta de cada tamanho para abrir/editar endereço e quantidades:</span>' +
+            '<button type="button" onclick="ceEdToggleTodosTam()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">' +
+                '<i class="ph ' + (algumFechado ? 'ph-arrows-out-line-vertical' : 'ph-arrows-in-line-vertical') + '"></i> ' + (algumFechado ? 'Expandir todos os tamanhos' : 'Recolher todos os tamanhos') +
+            '</button></div>';
+
+        listaEl.innerHTML = barraTopo + tamsAtivos.map(tam => {
+            const isOpen = !!ed.tamExpandidos[tam];
+            const linhasDoTam = ed.linhas.map((linha, idxGlobal) => ({ linha: linha, idxGlobal: idxGlobal })).filter(x => String(x.linha.tamanho || '').trim().toUpperCase() === tam);
+            const totalTam = linhasDoTam.reduce((acc, x) => acc + (parseInt(x.linha.quantidade, 10) || 0), 0);
+            const resumoEnds = linhasDoTam.map(x => {
+                const eObj = S.enderecos.find(e => String(e.id) === String(x.linha.endereco_id));
+                const nomeEnd = eObj ? eObj.nome : 'Sem endereço';
+                const minV = parseInt(x.linha.quantidade_minima, 10) || 0;
+                const maxV = parseInt(x.linha.quantidade_maxima, 10) || 0;
+                const qtdV = parseInt(x.linha.quantidade, 10) || 0;
+                const isLow = minV > 0 && qtdV < minV;
+                const mmTxt = (minV > 0 || maxV > 0) ? ' (min ' + minV + ' | max ' + maxV + ')' : '';
+                return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + (isLow ? '#fef2f2' : '#fff') + ';color:' + (isLow ? '#dc2626' : '#475569') + ';border:1px solid ' + (isLow ? '#fecaca' : '#cbd5e1') + ';border-radius:6px;padding:2px 7px;font-size:0.72rem;font-weight:600;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> ' + esc(nomeEnd) + ': <b>' + qtdV + '</b>' + mmTxt + '</span>';
+            }).join('');
+
+            const enderecosHtml = linhasDoTam.map(x => {
+                const l = x.linha, idx = x.idxGlobal;
+                const opcoesEnd = S.enderecos.map(e => '<option value="' + e.id + '"' + (String(e.id) === String(l.endereco_id) ? ' selected' : '') + '>' + esc(e.nome) + '</option>').join('');
+                const tipoAtual = l.tipo_estoque || 'matriz';
+                return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;margin-top:8px;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                        '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
+                        '<select onchange="ceEdOnEndChange(' + idx + ',this.value,\'t\')" style="flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:0.86rem;background:#fff;">' +
+                            '<option value="">-- Selecione o endereço do Tam. ' + esc(tam) + ' --</option>' + opcoesEnd +
+                        '</select>' +
+                        ruaSelectEdHtml(idx, l, 't') +
+                        '<select onchange="window._ceState.prodModal.edit.linhas[' + idx + '].tipo_estoque=this.value" style="width:180px;border:1.5px solid #ddd6fe;border-radius:6px;padding:6px 8px;font-size:0.8rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                            '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz (Compra)</option>' +
+                            '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição</option>' +
+                        '</select>' +
+                        '<button type="button" onclick="ceEdRemoverEndereco(' + idx + ')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:6px 9px;cursor:pointer;flex-shrink:0;" title="Remover endereço"><i class="ph ph-trash"></i></button>' +
+                    '</div>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
+                        '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#475569;margin-bottom:3px;">Qtd. Atual (Tam. ' + esc(tam) + ')</label>' +
+                            '<input type="number" min="0" value="' + (l.quantidade || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade=parseInt(this.value,10)||0" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;box-sizing:border-box;font-weight:700;"></div>' +
+                        '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#f59e0b;margin-bottom:3px;">Qtd. Mínima</label>' +
+                            '<input type="number" min="0" value="' + (l.quantidade_minima || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade_minima=parseInt(this.value,10)||0" style="width:100%;border:1.5px solid #fde68a;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;background:#fffbeb;box-sizing:border-box;"></div>' +
+                        '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#10b981;margin-bottom:3px;">Qtd. Máxima</label>' +
+                            '<input type="number" min="0" value="' + (l.quantidade_maxima || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade_maxima=parseInt(this.value,10)||0" style="width:100%;border:1.5px solid #a7f3d0;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;background:#f0fdf4;box-sizing:border-box;"></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            return '<div style="background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:4px solid #1d4ed8;border-radius:10px;padding:9px 12px;">' +
+                '<div onclick="ceEdToggleTamCard(\'' + tam + '\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;user-select:none;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                        '<span style="width:24px;height:24px;border-radius:6px;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-ed-tam-arrow-' + tam + '" class="ph ph-caret-right" style="font-size:0.9rem;transition:transform .2s;' + (isOpen ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
+                        '<span style="background:#1d4ed8;color:#fff;border-radius:6px;padding:3px 10px;font-size:0.84rem;font-weight:800;">Tamanho ' + esc(tam) + '</span>' +
+                        '<span style="font-size:0.8rem;color:#334155;font-weight:700;">Saldo: ' + totalTam + ' unid.</span>' +
+                        resumoEnds +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation();">' +
+                        '<button type="button" onclick="ceEdMovimentarTam(\'' + tam + '\',\'entrada\')" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><i class="ph-bold ph-plus"></i> Entrada</button>' +
+                        '<button type="button" onclick="ceEdMovimentarTam(\'' + tam + '\',\'saida\')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><i class="ph-bold ph-minus"></i> Baixa</button>' +
+                        '<button type="button" onclick="ceEdAddEndereco(\'' + tam + '\')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-map-pin"></i> + Endereço</button>' +
+                        '<button type="button" onclick="ceEdRemoverTam(\'' + tam + '\')" style="background:#fff;color:#64748b;border:1px solid #cbd5e1;border-radius:6px;padding:3px 7px;font-size:0.75rem;cursor:pointer;" title="Remover Tamanho ' + esc(tam) + '"><i class="ph ph-trash"></i></button>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="ce-ed-tam-body-' + tam + '" style="display:' + (isOpen ? 'block' : 'none') + ';">' + enderecosHtml + '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderEdEnderecosSemTam() {
+        const pm = S.prodModal;
+        const lista = $('ce-ed-end-lista'), vazio = $('ce-ed-end-vazio');
+        if (!pm || !pm.edit || !lista) return;
+        const linhas = pm.edit.linhas;
+        if (!linhas.length) {
+            lista.innerHTML = '';
+            if (vazio) vazio.style.display = 'block';
+            return;
+        }
+        if (vazio) vazio.style.display = 'none';
+        lista.innerHTML = linhas.map((l, idx) => {
+            const opcoesEnd = S.enderecos.map(e => '<option value="' + e.id + '"' + (String(e.id) === String(l.endereco_id) ? ' selected' : '') + '>' + esc(e.nome) + '</option>').join('');
+            const tipoAtual = l.tipo_estoque || 'matriz';
+            return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+                    '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
+                    '<select onchange="ceEdOnEndChange(' + idx + ',this.value,\'n\')" style="flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#fff;">' +
+                        '<option value="">-- Selecione o endereço --</option>' + opcoesEnd +
+                    '</select>' +
+                    ruaSelectEdHtml(idx, l, 'n') +
+                    '<button type="button" onclick="ceEdRemoverEndereco(' + idx + ')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover"><i class="ph ph-trash"></i></button>' +
+                '</div>' +
+                '<div style="margin-bottom:6px;">' +
+                    '<label style="display:block;font-size:0.72rem;font-weight:600;color:#7c3aed;margin-bottom:2px;">Tipo de Estoque</label>' +
+                    '<select onchange="window._ceState.prodModal.edit.linhas[' + idx + '].tipo_estoque=this.value" style="width:100%;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                        '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Estoque Matriz (Pedido de Compra)</option>' +
+                        '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Estoque de Reposição (Pedido de Reposição)</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
+                    '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#475569;margin-bottom:2px;">Qtd. Atual</label>' +
+                        '<input type="number" min="0" value="' + (l.quantidade || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade=parseInt(this.value,10)||0" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;box-sizing:border-box;"></div>' +
+                    '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#f59e0b;margin-bottom:2px;">Qtd. Mínima</label>' +
+                        '<input type="number" min="0" value="' + (l.quantidade_minima || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade_minima=parseInt(this.value,10)||0" style="width:100%;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#fffbeb;box-sizing:border-box;"></div>' +
+                    '<div><label style="display:block;font-size:0.72rem;font-weight:600;color:#10b981;margin-bottom:2px;">Qtd. Máxima</label>' +
+                        '<input type="number" min="0" value="' + (l.quantidade_maxima || 0) + '" oninput="window._ceState.prodModal.edit.linhas[' + idx + '].quantidade_maxima=parseInt(this.value,10)||0" style="width:100%;border:1.5px solid #a7f3d0;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#f0fdf4;box-sizing:border-box;"></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    window.ceEdSalvarProduto = async function () {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit) return;
+        const ed = pm.edit;
+        const nome = ($('ce-ed-nome') ? $('ce-ed-nome').value : ed.nome).trim();
+        const cat = $('ce-ed-cat') ? $('ce-ed-cat').value : ed.categoria;
+        if (!nome) return swal({ icon: 'warning', title: 'Informe o nome do item' });
+        if (ed.tem_tamanho && (!ed.tamanhos || !ed.tamanhos.length)) {
+            return swal({ icon: 'warning', title: 'Tamanhos obrigatórios', text: 'Inclua pelo menos um tamanho para o produto.' });
+        }
+        let linhasValidas = (ed.linhas || []).filter(l => l.endereco_id && (!ed.tem_tamanho || (l.tamanho && String(l.tamanho).trim() !== '')));
+        if (ed.hiddenLinhas && ed.hiddenLinhas.length) linhasValidas = linhasValidas.concat(ed.hiddenLinhas);
+        const qtdAtual = linhasValidas.reduce((acc, l) => acc + (parseInt(l.quantidade, 10) || 0), 0);
+
+        const btn1 = $('ce-ed-btn-salvar'), btn2 = $('ce-ed-btn-salvar-topo');
+        try {
+            if (btn1) { btn1.disabled = true; btn1.textContent = 'Salvando...'; }
+            if (btn2) { btn2.disabled = true; btn2.textContent = 'Salvando...'; }
+            await api('/estoque/' + pm.id, {
+                method: 'PUT',
+                body: {
+                    nome: nome,
+                    departamento: '',
+                    categoria: cat,
+                    tem_tamanho: ed.tem_tamanho ? 1 : 0,
+                    tamanhos_lista: ed.tem_tamanho ? ed.tamanhos : [],
+                    quantidade_atual: qtdAtual,
+                    quantidade_minima: ed.quantidade_minima || 0,
+                    quantidade_maxima: ed.quantidade_maxima || 0,
+                    foto_base64: ed.foto_base64 || '',
+                    placas_vinculadas: ehCatVeiculos(cat) ? Array.from(ed.placas).join(',') : '',
+                    skip_history: linhasValidas.length > 0
+                }
+            });
+            await api('/estoque/' + pm.id + '/sync-enderecos', {
+                method: 'POST',
+                body: {
+                    enderecos: linhasValidas.map(l => ({
+                        endereco_id: l.endereco_id,
+                        tamanho: ed.tem_tamanho ? String(l.tamanho || '').trim().toUpperCase() : '',
+                        quantidade: parseInt(l.quantidade, 10) || 0,
+                        quantidade_minima: parseInt(l.quantidade_minima, 10) || 0,
+                        quantidade_maxima: parseInt(l.quantidade_maxima, 10) || 0,
+                        tipo_estoque: l.tipo_estoque || 'matriz',
+                        rua: ehAlmoxarifado(l.endereco_id) ? String(l.rua || '') : ''
+                    }))
+                }
+            });
+            ed.nome = nome;
+            ed.categoria = cat;
+            ed.foto_base64 = '';
+            if (pm.modal && pm.modal.titleEl) {
+                pm.modal.titleEl.innerHTML = '<i class="ph ph-shopping-cart" style="color:#1971c2;"></i> <span>' + esc(nome) + '</span>';
+            }
+            await carregarTudo();
+            renderTabela();
+            toast('Item salvo com sucesso!');
+        } catch (e) {
+            swal({ icon: 'error', title: 'Erro ao salvar item', text: e.message });
+        } finally {
+            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Item'; }
+            if (btn2) { btn2.disabled = false; btn2.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Item'; }
+        }
+    };
+
+    // ── LADO DIREITO: Dados de Compra, PDF, Notas Fiscais e Histórico ────────
     function variacao(atual, anterior) {
         if (!anterior || anterior <= 0) return '';
         const pct = ((atual - anterior) / anterior) * 100;
         if (Math.abs(pct) < 0.05) return '<span style="color:#64748b;font-size:0.72rem;">= </span>';
         return '<span style="color:' + (pct > 0 ? '#b91c1c' : '#15803d') + ';font-size:0.72rem;font-weight:700;">' + (pct > 0 ? '▲ +' : '▼ ') + pct.toFixed(1).replace('.', ',') + '%</span>';
     }
-    function renderProduto() {
+    function renderDireitaProduto() {
         const pm = S.prodModal;
-        if (!pm || !pm.dados) return;
+        const pane = $('ce-pane-direita');
+        if (!pm || !pm.dados || !pane) return;
         const d = pm.dados, info = d.info, hist = d.historico;
         const valores = hist.map(h => h.valor_unitario || 0).filter(v => v > 0);
         const total = hist.reduce((a, h) => a + (h.quantidade || 0) * (h.valor_unitario || 0), 0);
         const media = valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : 0;
-        const card = (t, v, cor) => '<div style="flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;"><div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">' + t + '</div><div style="font-size:1rem;font-weight:800;color:' + (cor || '#1e293b') + ';">' + v + '</div></div>';
+        const card = (t, v, cor) => '<div style="flex:1;min-width:120px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;"><div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">' + t + '</div><div style="font-size:1rem;font-weight:800;color:' + (cor || '#1e293b') + ';">' + v + '</div></div>';
         const optNotas = '<option value="">— Sem nota fiscal —</option>' + S.notas.map(n => '<option value="' + n.id + '">NF ' + esc(n.numero) + (n.fornecedor ? ' — ' + esc(n.fornecedor) : '') + (n.data_emissao ? ' — ' + fmtData(n.data_emissao) : '') + '</option>').join('');
 
         const linhasHist = hist.map((h, i) => {
@@ -492,7 +1113,7 @@
                 '<td style="text-align:right;"><button class="btn btn-sm" onclick="ceExcluirCompra(' + h.id + ')" title="Excluir registro" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button></td></tr>';
         }).join('');
 
-        pm.modal.body.innerHTML =
+        pane.innerHTML =
             '<div style="' + cardCss + '">' + h4('ph-identification-card', 'Dados de compra do produto') +
                 '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;">' +
                     '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-p-forn" style="' + inputCss + '" value="' + esc(info.fornecedor) + '" placeholder="Nome do fornecedor"></div>' +
@@ -663,6 +1284,7 @@
             const r = await api('/compras-estoque-notas', { method: 'POST', body: { numero: num, fornecedor: $('ce-n-forn').value, data_emissao: $('ce-n-data').value, valor_total: $('ce-n-valor').value, observacoes: $('ce-n-obs').value, arquivo_base64: b64, nome_arquivo: file.name } });
             await recarregarResumoENotas();
             renderNotas();
+            if (S.prodModal) await recarregarProduto();
             const q = await swal({ icon: 'success', title: 'Nota fiscal salva!', text: 'Deseja vincular produtos a esta nota agora?', showCancelButton: true, confirmButtonText: 'Vincular produtos', cancelButtonText: 'Depois' });
             if (q.isConfirmed) window.ceAbrirVincular(r.id);
         } catch (e) { swal({ icon: 'error', title: 'Erro ao salvar nota', text: e.message }); }

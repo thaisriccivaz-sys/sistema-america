@@ -792,11 +792,11 @@ const BREADCRUMB_MAP = {
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
-    // Financeiro → Compras → Frota
-    'compras-gestao-frota': { path: 'Financeiro → Compras → Frota → Gestão de Frota', code: 'FIN001' },
-    'compras-corretivas': { path: 'Financeiro → Compras → Frota → Corretiva', code: 'FIN002' },
-    'compras-revisao': { path: 'Financeiro → Compras → Frota → Revisão', code: 'FIN003' },
-    'compras-estoque': { path: 'Financeiro › Compras › Estoque', code: 'FIN004' },
+    // Financeiro → Frota / Estoque
+    'compras-gestao-frota': { path: 'Financeiro → Frota → Gestão de Frota', code: 'FIN001' },
+    'compras-corretivas': { path: 'Financeiro → Frota → Corretiva', code: 'FIN002' },
+    'compras-revisao': { path: 'Financeiro → Frota → Revisão', code: 'FIN003' },
+    'compras-estoque': { path: 'Financeiro → Estoque', code: 'FIN004' },
     // Comercial
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },

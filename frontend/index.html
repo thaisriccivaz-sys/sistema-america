@@ -319,43 +319,31 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#1971c2;"><i class="ph ph-currency-dollar"></i>
                         Financeiro</div>
-                    <!-- ▸ Compras (acordeão) › Frota (acordeão) › Gestão de Frota / Corretiva / Revisão -->
-                    <div class="nav-group" id="nav-group-compras">
+                    <!-- ▸ Frota (acordeão) › Gestão de Frota / Corretiva / Revisão + Estoque -->
+                    <div class="nav-group" id="nav-group-compras-frota">
                         <button class="nav-group-label nav-group-toggle"
-                                onclick="toggleNavGroup('nav-group-compras')">
+                                onclick="toggleNavGroup('nav-group-compras-frota')">
                             <span style="display:flex;align-items:center;gap:0.55rem;">
-                                <i class="ph ph-shopping-cart"></i>
-                                Compras
+                                <i class="ph ph-truck"></i>
+                                Frota
                             </span>
                             <i class="ph ph-caret-right nav-group-chevron"></i>
                         </button>
-                        <div class="nav-group-items nav-group-items-aninhado" id="nav-group-items-compras">
-                            <div class="nav-group nav-group-sub" id="nav-group-compras-frota">
-                                <button class="nav-group-label nav-group-toggle nav-group-label-sub"
-                                        onclick="toggleNavGroup('nav-group-compras-frota')">
-                                    <span style="display:flex;align-items:center;gap:0.55rem;">
-                                        <i class="ph ph-truck"></i>
-                                        Frota
-                                    </span>
-                                    <i class="ph ph-caret-right nav-group-chevron"></i>
-                                </button>
-                                <div class="nav-group-items" id="nav-group-items-compras-frota">
-                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-gestao-frota"
-                                        onclick="navigateTo('compras-gestao-frota'); return false;"><i class="ph ph-truck"></i>
-                                        Gestão de Frota</a>
-                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-corretivas"
-                                        onclick="navigateTo('compras-corretivas'); return false;"><i class="ph ph-wrench"></i>
-                                        Corretiva</a>
-                                    <a href="#" class="nav-item nav-item-sub nav-item-sub2" data-target="compras-revisao"
-                                        onclick="navigateTo('compras-revisao'); return false;"><i class="ph ph-seal-check"></i>
-                                        Revisão</a>
-                                </div>
-                            </div>
-                            <a href="#" class="nav-item nav-item-sub" data-target="compras-estoque"
-                                onclick="navigateTo('compras-estoque'); return false;"><i class="ph ph-package"></i>
-                                Estoque</a>
+                        <div class="nav-group-items" id="nav-group-items-compras-frota">
+                            <a href="#" class="nav-item nav-item-sub" data-target="compras-gestao-frota"
+                                onclick="navigateTo('compras-gestao-frota'); return false;"><i class="ph ph-truck"></i>
+                                Gestão de Frota</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="compras-corretivas"
+                                onclick="navigateTo('compras-corretivas'); return false;"><i class="ph ph-wrench"></i>
+                                Corretiva</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="compras-revisao"
+                                onclick="navigateTo('compras-revisao'); return false;"><i class="ph ph-seal-check"></i>
+                                Revisão</a>
                         </div>
                     </div>
+                    <a href="#" class="nav-item" data-target="compras-estoque"
+                        onclick="navigateTo('compras-estoque'); return false;"><i class="ph ph-package"></i>
+                        Estoque</a>
                 </div>
             </div>
 
@@ -6494,7 +6482,7 @@
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1791925000000"></script>
-    <script src="usuarios.js?v=1792630000003"></script>
+    <script src="usuarios.js?v=1792630000004"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -6524,7 +6512,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1791550714718"></script>
-    <script src="app.js?v=20261023v1"></script>
+    <script src="app.js?v=20261023v2"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->
@@ -6780,7 +6768,7 @@
     <script src="/estoque_nf_vinculo.js?v=20261023v1"></script>
 <script src="/frota_manutencao.js?v=20261023v41"></script>
     <script src="/compras_frota.js?v=20261022v11"></script>
-<script src="/compras_estoque.js?v=20261023v2"></script>
+<script src="/compras_estoque.js?v=20261023v3"></script>
     <script src="/sort_table.js?v=20261023v1"></script>
 
     <script>
