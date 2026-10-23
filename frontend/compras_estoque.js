@@ -422,13 +422,16 @@
         // O PDF da nota fiscal fica apenas nos detalhes do botão de compras (modal)
         const cartBtnFn = (id, tam) => '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:26px;height:26px;padding:0;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:0.95rem;"></i></button>';
 
-        // Colunas de compra
-        const fornCell = r.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(r.fornecedor) + '</span>' : dash;
-        const valorCell = r.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;">' + money(r.valor_atual) + '</span>' : dash;
-        const ultCell = r.ultima_compra
-            ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(r.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + r.total_compras + (r.total_compras === 1 ? ' compra' : ' compras') + (r.total_notas ? ' &middot; ' + r.total_notas + ' NF' : '') + '</span></div>'
-            : dash;
-        const celCompra = '<td style="vertical-align:middle;">' + fornCell + '</td><td style="vertical-align:middle;">' + valorCell + '</td><td style="vertical-align:middle;">' + garantiaHtml(r.garantia_ate) + '</td><td style="vertical-align:middle;">' + ultCell + '</td>';
+        // Colunas de compra (produto geral ou por tamanho)
+        const montarCelCompra = (rc) => {
+            const fc = rc.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(rc.fornecedor) + '</span>' : dash;
+            const vc = rc.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;">' + money(rc.valor_atual) + '</span>' : dash;
+            const uc = rc.ultima_compra
+                ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(rc.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + rc.total_compras + (rc.total_compras === 1 ? ' compra' : ' compras') + (rc.total_notas ? ' &middot; ' + rc.total_notas + ' NF' : '') + '</span></div>'
+                : dash;
+            return '<td style="vertical-align:middle;">' + fc + '</td><td style="vertical-align:middle;">' + vc + '</td><td style="vertical-align:middle;">' + garantiaHtml(rc.garantia_ate) + '</td><td style="vertical-align:middle;">' + uc + '</td>';
+        };
+        const celCompra = montarCelCompra(r);
 
         if (sizes) {
             const aberto = !!S.expanded[item.id];
@@ -452,12 +455,13 @@
                 const sl = mapTam[tam];
                 const tl = sl.some(s => lowSaldo(s, item));
                 const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
+                const rt = (r.por_tamanho && r.por_tamanho[tam]) ? r.por_tamanho[tam] : {};
                 out += '<tr class="ce-det-' + item.id + '" style="display:' + (aberto ? '' : 'none') + ';background:' + (tl ? '#fff1f2' : '#f8fafc') + ';border-left:3px solid ' + (tl ? '#ef4444' : '#3b82f6') + ';">' +
                     '<td style="padding-left:48px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:8px;"><span style="color:#94a3b8;">↳</span>' + cartBtnFn(item.id, tam) + '<span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></div></td><td></td>' +
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
                     '<td>' + stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) + '</td>' +
-                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td><td colspan="4"></td></tr>';
+                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td>' + montarCelCompra(rt) + '</tr>';
             });
             return out;
         }
@@ -1103,11 +1107,32 @@
         if (Math.abs(pct) < 0.05) return '<span style="color:#64748b;font-size:0.72rem;">= </span>';
         return '<span style="color:' + (pct > 0 ? '#b91c1c' : '#15803d') + ';font-size:0.72rem;font-weight:700;">' + (pct > 0 ? '▲ +' : '▼ ') + pct.toFixed(1).replace('.', ',') + '%</span>';
     }
+    function obterTamanhosProduto(p) {
+        if (!p) return [];
+        const saldos = S.saldos[p.id] || [];
+        if (!temTamanho(p, saldos)) return [];
+        const mapTam = {};
+        try {
+            (JSON.parse(p.tamanhos_lista || '[]') || []).forEach(t => {
+                const k = String(t || '').trim().toUpperCase();
+                if (k) mapTam[k] = true;
+            });
+        } catch (_) {}
+        saldos.forEach(s => {
+            const k = String(s.tamanho || '').trim().toUpperCase();
+            if (k) mapTam[k] = true;
+        });
+        return Object.keys(mapTam).sort((a, b) => ordemTam(a) - ordemTam(b));
+    }
+
     function renderDireitaProduto() {
         const pm = S.prodModal;
         const pane = $('ce-pane-direita');
         if (!pm || !pm.dados || !pane) return;
         const d = pm.dados, info = d.info, hist = d.historico;
+        const tamsProd = (pm.edit && pm.edit.tem_tamanho && Array.isArray(pm.edit.tamanhos) && pm.edit.tamanhos.length) ? pm.edit.tamanhos : obterTamanhosProduto(S.data.find(i => i.id === pm.id) || d.produto);
+        const tamSel = pm.tamFoco || (tamsProd.length ? tamsProd[0] : '');
+        const infoTam = (tamSel && info.por_tamanho && info.por_tamanho[tamSel]) ? info.por_tamanho[tamSel] : info;
         const valores = hist.map(h => h.valor_unitario || 0).filter(v => v > 0);
         const total = hist.reduce((a, h) => a + (h.quantidade || 0) * (h.valor_unitario || 0), 0);
         const media = valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : 0;
@@ -1119,12 +1144,19 @@
             const nf = h.nota_fiscal_id
                 ? (h.nota_tem_arquivo ? '<a href="#" onclick="ceVerNota(' + h.nota_fiscal_id + ');return false;" style="color:#1971c2;font-weight:700;text-decoration:none;" title="Abrir arquivo da nota"><i class="ph ph-receipt"></i> NF ' + esc(h.nota_numero) + '</a>' : '<span style="font-weight:700;">NF ' + esc(h.nota_numero) + '</span>')
                 : (info.tem_pdf ? '<a href="#" onclick="ceVerPdf(' + pm.id + ');return false;" style="color:#b91c1c;font-weight:700;text-decoration:none;" title="Abrir PDF da nota anexada"><i class="ph ph-file-pdf"></i> ' + esc(info.pdf_nome || 'Ver PDF') + '</a>' : '<span style="color:#94a3b8;">—</span>');
-            return '<tr><td style="white-space:nowrap;">' + fmtData(h.data_compra) + '</td><td>' + nf + '</td><td>' + (esc(h.fornecedor) || dash) + '</td>' +
+            const badgeTamHist = h.tamanho ? ' <span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:5px;padding:1px 6px;font-size:0.7rem;font-weight:800;">Tam. ' + esc(h.tamanho) + '</span>' : '';
+            return '<tr><td style="white-space:nowrap;">' + fmtData(h.data_compra) + badgeTamHist + '</td><td>' + nf + '</td><td>' + (esc(h.fornecedor) || dash) + '</td>' +
                 '<td style="text-align:center;">' + h.quantidade + '</td><td style="white-space:nowrap;"><b>' + money(h.valor_unitario) + '</b> ' + variacao(h.valor_unitario, anterior) + '</td>' +
                 '<td style="white-space:nowrap;">' + money(h.quantidade * h.valor_unitario) + '</td><td style="white-space:nowrap;">' + (h.garantia_ate ? fmtData(h.garantia_ate) + ' <span style="color:#94a3b8;font-size:0.72rem;">(' + h.garantia_meses + 'm)</span>' : dash) + '</td>' +
                 '<td style="font-size:0.75rem;color:#64748b;">' + esc(h.criado_por) + (h.observacao ? '<div title="' + esc(h.observacao) + '" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(h.observacao) + '</div>' : '') + '</td>' +
                 '<td style="text-align:right;"><button class="btn btn-sm" onclick="ceExcluirCompra(' + h.id + ')" title="Excluir registro" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button></td></tr>';
         }).join('');
+
+        const campoTamManual = tamsProd.length
+            ? '<div><label style="' + labelCss + '">Tamanho *</label><select id="ce-c-tam" style="' + inputCss + '">' +
+                tamsProd.map(t => '<option value="' + esc(t) + '"' + (t === tamSel ? ' selected' : '') + '>Tamanho ' + esc(t) + '</option>').join('') +
+              '</select></div>'
+            : '';
 
         pane.innerHTML =
             '<div style="' + cardCss + '">' + h4('ph-file-pdf', 'PDF do produto', '#b91c1c') +
@@ -1139,21 +1171,22 @@
             '</div>' +
 
             '<div style="display:none;">' +
-                '<input id="ce-p-forn" value="' + esc(info.fornecedor) + '">' +
-                '<input id="ce-p-valor" type="number" value="' + (info.valor_atual || '') + '">' +
-                '<input id="ce-p-gm" type="number" value="' + (info.garantia_meses || '') + '">' +
-                '<input id="ce-p-ga" type="date" value="' + esc(info.garantia_ate) + '">' +
+                '<input id="ce-p-forn" value="' + esc(infoTam.fornecedor || info.fornecedor) + '">' +
+                '<input id="ce-p-valor" type="number" value="' + (infoTam.valor_atual || info.valor_atual || '') + '">' +
+                '<input id="ce-p-gm" type="number" value="' + (infoTam.garantia_meses || info.garantia_meses || '') + '">' +
+                '<input id="ce-p-ga" type="date" value="' + esc(infoTam.garantia_ate || info.garantia_ate) + '">' +
                 '<textarea id="ce-p-obs">' + esc(info.observacoes) + '</textarea>' +
             '</div>' +
 
             '<div id="ce-card-manual" style="' + cardCss + 'transition:box-shadow .25s,border-color .25s;">' + h4('ph-pencil-simple-line', 'Registrar manualmente') +
                 '<div id="ce-aviso-manual" style="display:none;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:8px 12px;font-size:0.8rem;font-weight:600;margin-bottom:10px;"></div>' +
-                '<div style="display:grid;grid-template-columns:1fr 0.6fr 1fr 1.4fr 0.8fr;gap:10px;margin-bottom:10px;">' +
+                '<div style="display:grid;grid-template-columns:' + (tamsProd.length ? '0.9fr ' : '') + '1fr 0.6fr 1fr 1.4fr 0.8fr;gap:10px;margin-bottom:10px;">' +
+                    campoTamManual +
                     '<div><label style="' + labelCss + '">Data da compra *</label><input id="ce-c-data" type="date" style="' + inputCss + '" value="' + hojeISO() + '"></div>' +
                     '<div><label style="' + labelCss + '">Qtd.</label><input id="ce-c-qtd" type="number" min="1" step="1" style="' + inputCss + '" value="1"></div>' +
                     '<div><label style="' + labelCss + '">Valor unit. (R$) *</label><input id="ce-c-valor" type="number" min="0" step="0.01" style="' + inputCss + '" placeholder="0,00"></div>' +
-                    '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-c-forn" style="' + inputCss + '" value="' + esc(info.fornecedor) + '"></div>' +
-                    '<div><label style="' + labelCss + '">Garantia (meses)</label><input id="ce-c-gm" type="number" min="0" step="1" style="' + inputCss + '" value="' + (info.garantia_meses || '') + '"></div>' +
+                    '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-c-forn" style="' + inputCss + '" value="' + esc(infoTam.fornecedor || info.fornecedor) + '"></div>' +
+                    '<div><label style="' + labelCss + '">Garantia (meses)</label><input id="ce-c-gm" type="number" min="0" step="1" style="' + inputCss + '" value="' + (infoTam.garantia_meses || info.garantia_meses || '') + '"></div>' +
                 '</div>' +
                 '<div style="display:grid;grid-template-columns:2fr 1.4fr auto;gap:10px;align-items:end;">' +
                     '<div><label style="' + labelCss + '">Nota fiscal (já cadastrada)</label><select id="ce-c-nf" style="' + inputCss + '" onchange="ceNotaSelecionada(this.value)">' + optNotas + '</select></div>' +
@@ -1179,7 +1212,7 @@
         const n = S.notas.find(x => String(x.id) === String(nid));
         if (!n) return;
         if (n.data_emissao && $('ce-c-data')) $('ce-c-data').value = String(n.data_emissao).slice(0, 10);
-        if (n.fornecedor && $('ce-c-forn') && !$('ce-c-forn').value.trim()) $('ce-c-forn').value = n.fornecedor;
+        if (n.fornecedor && $('ce-c-forn')) $('ce-c-forn').value = n.fornecedor;
     };
     window.ceVerPdf = id => abrirArquivo('/compras-estoque/' + id + '/pdf');
     window.ceVerNota = nid => abrirArquivo('/compras-estoque-notas/' + nid + '/arquivo');
@@ -1189,7 +1222,7 @@
         try {
             await api('/compras-estoque/' + pm.id + '/info', {
                 method: 'PUT',
-                body: { fornecedor: $('ce-p-forn').value, valor_atual: $('ce-p-valor').value, garantia_meses: $('ce-p-gm').value, garantia_ate: $('ce-p-ga').value, observacoes: $('ce-p-obs').value }
+                body: { fornecedor: $('ce-p-forn').value, valor_atual: $('ce-p-valor').value, garantia_meses: $('ce-p-gm').value, garantia_ate: $('ce-p-ga').value, observacoes: $('ce-p-obs').value, tamanho: pm.tamFoco || '' }
             });
             await recarregarResumoENotas();
             renderTabela();
@@ -1197,7 +1230,7 @@
             toast('Dados salvos!');
         } catch (e) { swal({ icon: 'error', title: 'Erro', text: e.message }); }
     };
-    // ── Similaridade de nomes para pré-selecionar produtos da nota fiscal ────
+    // ── Similaridade de nomes ────────────────────────────────────────────────
     function tokensNome(str) {
         return norm(str).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length >= 2 && !['de', 'da', 'do', 'das', 'dos', 'para', 'com', 'sem', 'un', 'pc', 'jg', 'kit'].includes(w));
     }
@@ -1211,14 +1244,6 @@
         let comuns = 0;
         ta.forEach(w => { if (tb.some(x => x === w || (w.length >= 4 && x.length >= 4 && (x.startsWith(w) || w.startsWith(x))))) comuns++; });
         return Math.round((comuns * 70) / Math.max(ta.length, tb.length));
-    }
-    function sugerirEstoqueParaDescricao(desc) {
-        let melhorId = '', melhorScore = 0;
-        (S.data || []).forEach(p => {
-            const sc = scoreSimilaridade(desc, p.nome);
-            if (sc > melhorScore) { melhorScore = sc; melhorId = String(p.id); }
-        });
-        return melhorScore >= 25 ? melhorId : '';
     }
     function addMesesIsoFront(iso, meses) {
         const p = String(iso || '').slice(0, 10).split('-').map(Number);
@@ -1280,7 +1305,8 @@
                     }
                 }
                 if (dataAuto && $('ce-c-data')) $('ce-c-data').value = dataAuto;
-                if (fornAuto && $('ce-c-forn') && !$('ce-c-forn').value.trim()) $('ce-c-forn').value = fornAuto;
+                if (fornAuto && $('ce-c-forn')) $('ce-c-forn').value = fornAuto;
+                if (extraido && extraido.valor_total > 0 && $('ce-c-valor')) $('ce-c-valor').value = Number(extraido.valor_total).toFixed(2);
                 if (notaIdCriada && $('ce-c-nf')) $('ce-c-nf').value = String(notaIdCriada);
                 const avisoEl = $('ce-aviso-manual');
                 if (avisoEl) {
@@ -1306,14 +1332,26 @@
     };
 
     function cePerguntarItemNotaProduto(estoqueId, extraido, b64, nomeArquivo) {
-        const prod = S.data.find(i => i.id === estoqueId) || (S.prodModal && S.prodModal.dados && S.prodModal.dados.produto) || { id: estoqueId, nome: 'Produto' };
-        const infoAtual = (S.prodModal && S.prodModal.dados && S.prodModal.dados.info) || {};
+        const pm = S.prodModal;
+        const prod = S.data.find(i => i.id === estoqueId) || (pm && pm.dados && pm.dados.produto) || { id: estoqueId, nome: 'Produto' };
+        const infoAtual = (pm && pm.dados && pm.dados.info) || {};
+        const tamsProd = (pm && pm.edit && pm.edit.tem_tamanho && Array.isArray(pm.edit.tamanhos) && pm.edit.tamanhos.length) ? pm.edit.tamanhos : obterTamanhosProduto(prod);
+        const tamSel = (pm && pm.tamFoco) || (tamsProd.length ? tamsProd[0] : '');
         const itens = extraido.itens || [];
         const dataNota = extraido.data_emissao || hojeISO();
         const fornNota = extraido.fornecedor || infoAtual.fornecedor || '';
         const numNota = extraido.numero || '';
 
         const linhasHtml = itens.map((it, idx) => {
+            if (it.ja_vinculado) {
+                return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1.5px solid #86efac;background:#f0fdf4;border-radius:10px;margin-bottom:6px;">' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-weight:700;font-size:0.86rem;color:#1e293b;">' + esc(it.descricao) + (it.codigo ? ' <span style="font-size:0.74rem;color:#64748b;font-weight:600;">(Cód: ' + esc(it.codigo) + ')</span>' : '') + '</div>' +
+                        '<div style="font-size:0.78rem;color:#475569;margin-top:2px;">Qtd: <b>' + it.quantidade + ' ' + esc(it.unidade || 'UN') + '</b> &middot; Valor unit.: <b style="color:#0f766e;">' + money(it.valor_unitario) + '</b> &middot; Total: <b>' + money(it.valor_total) + '</b></div>' +
+                    '</div>' +
+                    '<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:8px;padding:4px 10px;font-size:0.76rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check-circle"></i> Já vinculado: ' + esc(it.estoque_nome) + (it.tamanho ? ' (Tam. ' + esc(it.tamanho) + ')' : '') + '</span>' +
+                '</div>';
+            }
             return '<label id="ce-sel-nf-lbl-' + idx + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;cursor:pointer;margin-bottom:6px;transition:all .15s;">' +
                 '<input type="radio" name="ce-sel-nf-item" value="' + idx + '" onchange="ceDestacarItemNotaModal(' + idx + ',' + itens.length + ')" style="accent-color:#1971c2;width:17px;height:17px;flex-shrink:0;">' +
                 '<div style="flex:1;min-width:0;">' +
@@ -1322,6 +1360,13 @@
                 '</div>' +
             '</label>';
         }).join('');
+
+        const temDisponivel = itens.some(it => !it.ja_vinculado);
+        const campoTamModal = tamsProd.length
+            ? '<div><label style="' + labelCss + '">Tamanho *</label><select id="ce-vinc-pdf-tam" style="' + inputCss + '">' +
+                tamsProd.map(t => '<option value="' + esc(t) + '"' + (t === tamSel ? ' selected' : '') + '>Tamanho ' + esc(t) + '</option>').join('') +
+              '</select></div>'
+            : '';
 
         const m = abrirModal({
             titulo: '<i class="ph ph-file-pdf" style="color:#b91c1c;"></i> Selecionar Produto da Nota Fiscal',
@@ -1337,7 +1382,8 @@
                     '</div>' +
                 '</div>' +
                 '<div style="max-height:42vh;overflow-y:auto;padding-right:2px;margin-bottom:12px;">' + linhasHtml + '</div>' +
-                '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+                '<div style="display:grid;grid-template-columns:' + (tamsProd.length ? '0.9fr ' : '') + '1.5fr 1fr 1fr;gap:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+                    campoTamModal +
                     '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-vinc-pdf-forn" style="' + inputCss + '" value="' + esc(fornNota) + '"></div>' +
                     '<div><label style="' + labelCss + '">Data da compra</label><input id="ce-vinc-pdf-data" type="date" style="' + inputCss + '" value="' + esc(dataNota) + '"></div>' +
                     '<div><label style="' + labelCss + '">Garantia (meses)</label><input id="ce-vinc-pdf-gm" type="number" min="0" step="1" style="' + inputCss + '" value="' + (infoAtual.garantia_meses || 0) + '"></div>' +
@@ -1347,8 +1393,8 @@
                     '<span>Registrar também esta compra no histórico de valores pagos e vincular a nota fiscal</span>' +
                 '</label>' +
                 '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
-                    '<button type="button" class="btn btn-secondary" id="ce-vinc-pdf-pular">Registrar manualmente</button>' +
-                    '<button type="button" class="btn" id="ce-vinc-pdf-confirmar" style="background:#16a34a;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Vincular produto selecionado</button>' +
+                    '<button type="button" class="btn btn-secondary" id="ce-vinc-pdf-pular">' + (temDisponivel ? 'Registrar manualmente' : 'Fechar') + '</button>' +
+                    (temDisponivel ? '<button type="button" class="btn" id="ce-vinc-pdf-confirmar" style="background:#16a34a;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Vincular produto selecionado</button>' : '') +
                 '</div>'
         });
 
@@ -1365,7 +1411,8 @@
             m.fechar();
             if ($('ce-c-valor')) setTimeout(() => $('ce-c-valor').focus(), 80);
         };
-        $('ce-vinc-pdf-confirmar').onclick = async () => {
+        const btnConf = $('ce-vinc-pdf-confirmar');
+        if (btnConf) btnConf.onclick = async () => {
             const rad = m.el.querySelector('input[name="ce-sel-nf-item"]:checked');
             if (!rad) {
                 return swal({ icon: 'warning', title: 'Selecione um produto', text: 'Clique em um dos produtos da nota fiscal acima para vincular.' });
@@ -1377,6 +1424,7 @@
             const dt = $('ce-vinc-pdf-data').value || hojeISO();
             const gm = Math.max(0, parseInt($('ce-vinc-pdf-gm').value, 10) || 0);
             const ga = gm > 0 ? addMesesIsoFront(dt, gm) : (infoAtual.garantia_ate || '');
+            const tamEscolhido = $('ce-vinc-pdf-tam') ? $('ce-vinc-pdf-tam').value : '';
             const gravarHist = $('ce-vinc-pdf-hist').checked;
             const btn = $('ce-vinc-pdf-confirmar');
             try {
@@ -1389,7 +1437,8 @@
                         valor_atual: itemEscolhido.valor_unitario,
                         garantia_meses: gm,
                         garantia_ate: ga,
-                        observacoes: infoAtual.observacoes || ''
+                        observacoes: infoAtual.observacoes || '',
+                        tamanho: tamEscolhido
                     }
                 });
                 if (gravarHist && itemEscolhido.valor_unitario > 0) {
@@ -1426,7 +1475,8 @@
                             fornecedor: forn,
                             garantia_meses: gm,
                             nota_fiscal_id: notaId,
-                            observacao: 'Item da NF: ' + itemEscolhido.descricao
+                            observacao: 'Item da NF: ' + itemEscolhido.descricao,
+                            tamanho: tamEscolhido
                         }
                     });
                 }
@@ -1457,10 +1507,11 @@
         const valor = parseFloat($('ce-c-valor').value);
         if (!(valor > 0)) return swal({ icon: 'warning', title: 'Informe o valor pago', text: 'O valor unitário deve ser maior que zero.' });
         if (!$('ce-c-data').value) return swal({ icon: 'warning', title: 'Informe a data da compra' });
+        const tam = $('ce-c-tam') ? $('ce-c-tam').value : (pm.tamFoco || '');
         try {
             await api('/compras-estoque/' + pm.id + '/historico', {
                 method: 'POST',
-                body: { data_compra: $('ce-c-data').value, quantidade: $('ce-c-qtd').value, valor_unitario: valor, fornecedor: $('ce-c-forn').value, garantia_meses: $('ce-c-gm').value, nota_fiscal_id: $('ce-c-nf').value || null, observacao: $('ce-c-obs').value }
+                body: { data_compra: $('ce-c-data').value, quantidade: $('ce-c-qtd').value, valor_unitario: valor, fornecedor: $('ce-c-forn').value, garantia_meses: $('ce-c-gm').value, nota_fiscal_id: $('ce-c-nf').value || null, observacao: $('ce-c-obs').value, tamanho: tam }
             });
             await recarregarResumoENotas(); renderTabela(); await recarregarProduto();
             toast('Compra registrada!');
@@ -1479,13 +1530,15 @@
     // ── Notas fiscais ────────────────────────────────────────────────────────
     let notasModal = null;
     window.ceAbrirNotas = async function () {
+        fecharPortalDropdownNf();
         if (notasModal) { notasModal.fechar(); notasModal = null; }
-        notasModal = abrirModal({ titulo: '<i class="ph ph-receipt" style="color:#1971c2;"></i> Notas Fiscais de Compra', largura: '980px', corpo: '<div style="text-align:center;padding:30px;color:#64748b;">Carregando...</div>', onClose: () => { notasModal = null; } });
+        notasModal = abrirModal({ titulo: '<i class="ph ph-receipt" style="color:#1971c2;"></i> Notas Fiscais de Compra', largura: '1020px', corpo: '<div style="text-align:center;padding:30px;color:#64748b;">Carregando...</div>', onClose: () => { fecharPortalDropdownNf(); notasModal = null; } });
         try { await recarregarResumoENotas(); renderNotas(); } catch (e) { notasModal.body.innerHTML = '<div style="color:#b91c1c;">' + esc(e.message) + '</div>'; }
     };
     let notaExtraidaStage = null;
     function renderNotas() {
         if (!notasModal) return;
+        fecharPortalDropdownNf();
         notaExtraidaStage = null;
         const linhas = S.notas.map(n =>
             '<tr><td style="font-weight:700;">NF ' + esc(n.numero) + '</td><td>' + (esc(n.fornecedor) || dash) + '</td><td>' + fmtData(n.data_emissao) + '</td>' +
@@ -1493,11 +1546,11 @@
             '<td style="text-align:center;"><span style="background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:1px 10px;font-weight:700;font-size:0.78rem;">' + n.total_produtos + '</span></td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 (n.tem_arquivo ? '<button class="btn btn-sm btn-secondary" onclick="ceVerNota(' + n.id + ')" title="Abrir arquivo"><i class="ph ph-eye"></i></button> ' : '') +
-                '<button class="btn btn-sm" onclick="ceAbrirVincular(' + n.id + ')" style="background:#1971c2;color:#fff;border:none;"><i class="ph ph-link"></i> Vincular produtos</button> ' +
+                (!(n.total_produtos > 0) ? '<button class="btn btn-sm" onclick="ceAbrirVincular(' + n.id + ')" style="background:#1971c2;color:#fff;border:none;"><i class="ph ph-link"></i> Vincular produtos</button> ' : '') +
                 '<button class="btn btn-sm" onclick="ceExcluirNota(' + n.id + ')" title="Excluir nota" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i></button></td></tr>'
         ).join('');
         notasModal.body.innerHTML =
-            '<div style="' + cardCss + '">' + h4('ph-plus-circle', 'Cadastrar nota fiscal (arquivo único)') +
+            '<div style="' + cardCss + 'margin-bottom:0;">' + h4('ph-plus-circle', 'Cadastrar nota fiscal (arquivo único)') +
                 '<div style="display:grid;grid-template-columns:1fr 1.6fr 1fr 1fr;gap:10px;margin-bottom:10px;">' +
                     '<div><label style="' + labelCss + '">Nº da nota *</label><input id="ce-n-num" style="' + inputCss + '"></div>' +
                     '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-n-forn" style="' + inputCss + '"></div>' +
@@ -1511,7 +1564,7 @@
                 '</div>' +
                 '<div id="ce-n-itens-extraidos"></div>' +
             '</div>' +
-            '<div style="' + cardCss + 'margin-bottom:0;">' + h4('ph-list-bullets', 'Notas cadastradas (' + S.notas.length + ')') +
+            '<div style="display:none;' + cardCss + 'margin-bottom:0;">' + h4('ph-list-bullets', 'Notas cadastradas (' + S.notas.length + ')') +
                 (S.notas.length
                     ? '<div class="table-responsive"><table class="table" style="font-size:0.84rem;"><thead><tr style="font-size:0.76rem;"><th>Nota</th><th>Fornecedor</th><th>Emissão</th><th>Valor total</th><th style="text-align:center;">Produtos</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table></div>'
                     : '<div style="text-align:center;padding:16px;color:#94a3b8;">Nenhuma nota fiscal cadastrada.</div>') + '</div>';
@@ -1520,6 +1573,7 @@
     window.ceAoEscolherArquivoNota = async function (input) {
         const file = input && input.files && input.files[0];
         const stageEl = $('ce-n-itens-extraidos');
+        fecharPortalDropdownNf();
         if (!file) { notaExtraidaStage = null; if (stageEl) stageEl.innerHTML = ''; return; }
         if (file.size > 15 * 1024 * 1024) { input.value = ''; return swal({ icon: 'warning', title: 'O arquivo deve ter no máximo 15 MB.' }); }
         if (stageEl) {
@@ -1529,10 +1583,10 @@
             const b64 = await lerArquivo(file);
             const ext = await api('/compras-estoque/extrair-nota', { method: 'POST', body: { arquivo_base64: b64, nome_arquivo: file.name } }).catch(() => ({}));
             const numSug = (ext && ext.numero) ? String(ext.numero).trim() : file.name.replace(/\.[a-z0-9]+$/i, '').trim().slice(0, 60);
-            if (numSug && $('ce-n-num') && !$('ce-n-num').value.trim()) $('ce-n-num').value = numSug;
-            if (ext && ext.fornecedor && $('ce-n-forn') && !$('ce-n-forn').value.trim()) $('ce-n-forn').value = ext.fornecedor;
+            if (numSug && $('ce-n-num')) $('ce-n-num').value = numSug;
+            if (ext && ext.fornecedor && $('ce-n-forn')) $('ce-n-forn').value = ext.fornecedor;
             if (ext && ext.data_emissao && $('ce-n-data')) $('ce-n-data').value = ext.data_emissao;
-            if (ext && ext.valor_total > 0 && $('ce-n-valor') && !$('ce-n-valor').value) $('ce-n-valor').value = Number(ext.valor_total).toFixed(2);
+            if (ext && ext.valor_total > 0 && $('ce-n-valor')) $('ce-n-valor').value = Number(ext.valor_total).toFixed(2);
             const itensLidos = (ext && Array.isArray(ext.itens)) ? ext.itens : [];
             notaExtraidaStage = {
                 b64: b64,
@@ -1545,8 +1599,12 @@
                         codigo: it.codigo || '',
                         quantidade: Math.max(1, Math.round(Number(it.quantidade) || 1)),
                         valor_unitario: Number(it.valor_unitario) || 0,
-                        garantia_meses: 0,
-                        estoque_id: ''
+                        garantia_meses: Number(it.garantia_meses) || 0,
+                        estoque_id: it.estoque_id ? String(it.estoque_id) : '',
+                        estoque_nome: it.estoque_nome || '',
+                        estoque_categoria: it.estoque_categoria || '',
+                        tamanho: it.tamanho || '',
+                        ja_vinculado: !!it.ja_vinculado
                     }))
                     : [{
                         incluir: true,
@@ -1555,7 +1613,11 @@
                         quantidade: 1,
                         valor_unitario: (ext && ext.valor_total > 0) ? Number(ext.valor_total) : 0,
                         garantia_meses: 0,
-                        estoque_id: ''
+                        estoque_id: '',
+                        estoque_nome: '',
+                        estoque_categoria: '',
+                        tamanho: '',
+                        ja_vinculado: false
                     }]
             };
             renderItensExtraidosNota();
@@ -1565,19 +1627,234 @@
         }
     };
 
+    // ── Seletor pesquisável de produtos separado por categorias + tamanhos ────
+    let _ddPortalEl = null;
+    let _ddPortalIdx = -1;
+    function fecharPortalDropdownNf() {
+        if (_ddPortalEl) { _ddPortalEl.remove(); _ddPortalEl = null; }
+        _ddPortalIdx = -1;
+    }
+    document.addEventListener('mousedown', e => {
+        if (!_ddPortalEl) return;
+        if (_ddPortalEl.contains(e.target)) return;
+        if (e.target && e.target.closest && e.target.closest('.ce-nf-prod-picker')) return;
+        fecharPortalDropdownNf();
+    });
+
+    function rotuloItemSelecionadoNf(it) {
+        if (!it || !it.estoque_id) return '';
+        const p = (S.data || []).find(x => String(x.id) === String(it.estoque_id));
+        const nome = (p && p.nome) || it.estoque_nome || '';
+        const cat = (p && p.categoria) || it.estoque_categoria || '';
+        const tam = it.tamanho ? (' — Tam. ' + it.tamanho) : '';
+        return nome ? (nome + tam + (cat ? ' (' + cat + ')' : '')) : '';
+    }
+
+    function htmlSeletorProdutoNf(it, idx) {
+        if (it.ja_vinculado) {
+            return '<div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:8px;padding:6px 10px;font-size:0.8rem;font-weight:700;width:100%;box-sizing:border-box;" title="Este item da nota fiscal já está vinculado a este produto do estoque">' +
+                '<i class="ph ph-check-circle" style="font-size:1rem;flex-shrink:0;"></i>' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Já vinculado: ' + esc(it.estoque_nome || 'Produto') + (it.tamanho ? ' (Tam. ' + esc(it.tamanho) + ')' : '') + (it.estoque_categoria ? ' · ' + esc(it.estoque_categoria) : '') + '</span>' +
+            '</div>';
+        }
+        const rot = rotuloItemSelecionadoNf(it);
+        const p = it.estoque_id ? (S.data || []).find(x => String(x.id) === String(it.estoque_id)) : null;
+        const tams = obterTamanhosProduto(p);
+        const btnAddTam = (p && tams.length > 1)
+            ? '<button type="button" onclick="ceNfExpandirTamanhos(' + idx + ')" title="Adicionar linhas para os outros tamanhos deste produto (cada tamanho pode ter valor e garantia diferentes)" style="margin-top:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 8px;font-size:0.71rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-ArrowsOutSimple"></i> + Incluir todos os tamanhos (' + tams.join(', ') + ')</button>'
+            : '';
+        return '<div class="ce-nf-prod-picker" style="position:relative;">' +
+            '<div style="display:flex;align-items:center;gap:4px;">' +
+                '<input type="text" id="ce-nf-inp-' + idx + '" value="' + esc(rot) + '" autocomplete="off" ' +
+                    'placeholder="Digite o nome do produto para buscar..." ' +
+                    'onfocus="ceAbrirDropdownProdNf(' + idx + ',this)" ' +
+                    'oninput="ceFiltrarDropdownProdNf(' + idx + ',this.value,this)" ' +
+                    'style="' + inputCss + 'padding:5px 28px 5px 8px;font-size:0.8rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;background:#f0fdf4;' : 'border-color:#f59e0b;background:#fff;') + '">' +
+                (it.estoque_id
+                    ? '<button type="button" onclick="ceNfLimparProd(' + idx + ')" title="Trocar produto selecionado" style="position:absolute;right:6px;top:6px;background:none;border:none;color:#64748b;cursor:pointer;padding:2px;font-size:0.9rem;line-height:1;"><i class="ph ph-x-circle"></i></button>'
+                    : '<i class="ph ph-caret-down" onclick="var el=document.getElementById(\'ce-nf-inp-' + idx + '\');if(el)el.focus();" style="position:absolute;right:8px;top:9px;color:#64748b;cursor:pointer;font-size:0.85rem;"></i>') +
+            '</div>' +
+            btnAddTam +
+        '</div>';
+    }
+
+    window.ceAbrirDropdownProdNf = function (idx, inpEl) {
+        if (!inpEl) return;
+        _ddPortalIdx = idx;
+        if (!_ddPortalEl) {
+            _ddPortalEl = document.createElement('div');
+            _ddPortalEl.id = 'ce-nf-dd-portal';
+            document.body.appendChild(_ddPortalEl);
+        }
+        const rect = inpEl.getBoundingClientRect();
+        const espacoAbaixo = window.innerHeight - rect.bottom - 14;
+        const alturaMax = Math.max(220, Math.min(340, espacoAbaixo >= 220 ? espacoAbaixo : rect.top - 14));
+        const topPos = espacoAbaixo >= 220 ? (rect.bottom + 4) : Math.max(8, rect.top - alturaMax - 4);
+        const larg = Math.max(rect.width, 360);
+        const leftPos = Math.min(rect.left, window.innerWidth - larg - 12);
+        _ddPortalEl.style.cssText = 'position:fixed;top:' + topPos + 'px;left:' + Math.max(8, leftPos) + 'px;width:' + larg + 'px;max-height:' + alturaMax + 'px;overflow-y:auto;background:#fff;border:1.5px solid #94a3b8;border-radius:10px;box-shadow:0 16px 32px rgba(15,23,42,.24);z-index:25000;padding:4px 0;';
+        const it = notaExtraidaStage && notaExtraidaStage.itens ? notaExtraidaStage.itens[idx] : null;
+        const rotAtual = rotuloItemSelecionadoNf(it);
+        const termo = (inpEl.value && inpEl.value !== rotAtual) ? inpEl.value : '';
+        popularOpcoesPortalNf(idx, termo);
+    };
+
+    window.ceFiltrarDropdownProdNf = function (idx, txt, inpEl) {
+        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
+        if (notaExtraidaStage.itens[idx].estoque_id) {
+            notaExtraidaStage.itens[idx].estoque_id = '';
+            notaExtraidaStage.itens[idx].tamanho = '';
+            notaExtraidaStage.itens[idx].estoque_nome = '';
+            notaExtraidaStage.itens[idx].estoque_categoria = '';
+        }
+        if (!_ddPortalEl || _ddPortalIdx !== idx) {
+            window.ceAbrirDropdownProdNf(idx, inpEl);
+        } else {
+            popularOpcoesPortalNf(idx, txt);
+        }
+    };
+
+    function popularOpcoesPortalNf(idx, filtroTxt) {
+        if (!_ddPortalEl) return;
+        const q = norm(filtroTxt || '').trim();
+        const ordenados = (S.data || []).slice().sort((a, b) => {
+            const c = String(a.categoria || 'Sem Categoria').localeCompare(String(b.categoria || 'Sem Categoria'), 'pt-BR', { sensitivity: 'base' });
+            return c !== 0 ? c : String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base', numeric: true });
+        });
+        let html = '';
+        let catAtual = null;
+        let totalAchados = 0;
+
+        ordenados.forEach(p => {
+            const cat = String(p.categoria || 'Sem Categoria').trim();
+            const tams = obterTamanhosProduto(p);
+            const baseBusca = norm(p.nome + ' ' + cat + ' ' + tams.join(' '));
+            if (q && !baseBusca.includes(q)) return;
+
+            if (cat !== catAtual) {
+                catAtual = cat;
+                html += '<div style="position:sticky;top:0;background:#f1f5f9;padding:5px 12px;font-size:0.72rem;font-weight:800;color:#1e3a8a;text-transform:uppercase;border-top:1px solid #e2e8f0;border-bottom:1px solid #cbd5e1;display:flex;align-items:center;gap:6px;z-index:1;">' +
+                    '<i class="ph ph-folders" style="color:#1971c2;"></i> ' + esc(cat) +
+                '</div>';
+            }
+
+            if (tams.length > 0) {
+                html += '<div style="padding:6px 12px 3px;background:#f8fafc;border-bottom:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:6px;">' +
+                    '<span style="font-size:0.8rem;font-weight:800;color:#334155;">' + esc(p.nome) + ' <span style="font-size:0.7rem;color:#64748b;font-weight:600;">(' + tams.length + ' tamanhos)</span></span>' +
+                    '<button type="button" onclick="ceNfSelecionarTodosTamanhos(' + idx + ',' + p.id + ')" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:6px;padding:2px 7px;font-size:0.7rem;font-weight:700;cursor:pointer;white-space:nowrap;">+ Todos os tamanhos</button>' +
+                '</div>';
+                tams.forEach(tam => {
+                    totalAchados++;
+                    html += '<div onclick="ceNfEscolherProd(' + idx + ',' + p.id + ',\'' + esc(tam) + '\')" ' +
+                        'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'#fff\'" ' +
+                        'style="padding:6px 12px 6px 24px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.81rem;color:#1e293b;border-bottom:1px solid #f1f5f9;background:#fff;">' +
+                        '<span><span style="color:#94a3b8;margin-right:4px;">↳</span>' + esc(p.nome) + '</span>' +
+                        '<span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:6px;padding:1px 8px;font-size:0.74rem;font-weight:800;white-space:nowrap;">Tamanho ' + esc(tam) + '</span>' +
+                    '</div>';
+                });
+            } else {
+                totalAchados++;
+                html += '<div onclick="ceNfEscolherProd(' + idx + ',' + p.id + ',\'\')" ' +
+                    'onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'#fff\'" ' +
+                    'style="padding:7px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.82rem;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;background:#fff;">' +
+                    '<span>' + esc(p.nome) + '</span>' +
+                '</div>';
+            }
+        });
+
+        if (!totalAchados) {
+            html = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.8rem;">Nenhum produto encontrado para "' + esc(filtroTxt) + '".</div>';
+        }
+        _ddPortalEl.innerHTML = html;
+    }
+
+    window.ceNfEscolherProd = function (idx, prodId, tam) {
+        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
+        const p = (S.data || []).find(x => String(x.id) === String(prodId));
+        const it = notaExtraidaStage.itens[idx];
+        it.estoque_id = String(prodId);
+        it.tamanho = tam ? String(tam).trim().toUpperCase() : '';
+        it.estoque_nome = p ? p.nome : '';
+        it.estoque_categoria = p ? (p.categoria || '') : '';
+        it.incluir = true;
+        fecharPortalDropdownNf();
+        renderItensExtraidosNota();
+    };
+
+    window.ceNfSelecionarTodosTamanhos = function (idx, prodId) {
+        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
+        const p = (S.data || []).find(x => String(x.id) === String(prodId));
+        if (!p) return;
+        const tams = obterTamanhosProduto(p);
+        if (!tams.length) return window.ceNfEscolherProd(idx, prodId, '');
+        const base = notaExtraidaStage.itens[idx];
+        const novasLinhas = tams.map(tam => ({
+            incluir: true,
+            descricao: base.descricao + ' (Tam. ' + tam + ')',
+            codigo: base.codigo || '',
+            quantidade: 1,
+            valor_unitario: base.valor_unitario || 0,
+            garantia_meses: base.garantia_meses || 0,
+            estoque_id: String(p.id),
+            estoque_nome: p.nome,
+            estoque_categoria: p.categoria || '',
+            tamanho: tam,
+            ja_vinculado: false
+        }));
+        notaExtraidaStage.itens.splice.apply(notaExtraidaStage.itens, [idx, 1].concat(novasLinhas));
+        fecharPortalDropdownNf();
+        renderItensExtraidosNota();
+    };
+
+    window.ceNfExpandirTamanhos = function (idx) {
+        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
+        const it = notaExtraidaStage.itens[idx];
+        if (!it.estoque_id) return;
+        window.ceNfSelecionarTodosTamanhos(idx, it.estoque_id);
+    };
+
+    window.ceNfLimparProd = function (idx) {
+        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
+        const it = notaExtraidaStage.itens[idx];
+        it.estoque_id = '';
+        it.tamanho = '';
+        it.estoque_nome = '';
+        it.estoque_categoria = '';
+        renderItensExtraidosNota();
+        setTimeout(() => {
+            const inp = $('ce-nf-inp-' + idx);
+            if (inp) { inp.value = ''; inp.focus(); }
+        }, 30);
+    };
+
+    window.ceNfRemoverItem = function (idx) {
+        if (!notaExtraidaStage || !Array.isArray(notaExtraidaStage.itens)) return;
+        fecharPortalDropdownNf();
+        notaExtraidaStage.itens.splice(idx, 1);
+        renderItensExtraidosNota();
+    };
+
     function renderItensExtraidosNota() {
         const stageEl = $('ce-n-itens-extraidos');
         if (!stageEl || !notaExtraidaStage) return;
-        const prodsOrd = (S.data || []).slice().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' }));
+        if (!notaExtraidaStage.itens.length) {
+            stageEl.innerHTML =
+                '<div style="margin-top:12px;border:1.5px dashed #cbd5e1;background:#f8fafc;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+                    '<span style="font-size:0.82rem;color:#64748b;">Todos os itens da nota foram removidos da lista de vínculo.</span>' +
+                    '<button type="button" class="btn btn-sm btn-secondary" onclick="ceNfAddLinhaManual()" style="font-size:0.75rem;padding:4px 10px;">+ Adicionar produto manualmente</button>' +
+                '</div>';
+            return;
+        }
         if (notaExtraidaStage.modoManual) {
             const linhasMan = notaExtraidaStage.itens.map((it, idx) => {
-                const optsProd = '<option value="">— Selecione um produto do estoque * —</option>' +
-                    prodsOrd.map(p => '<option value="' + p.id + '"' + (String(p.id) === String(it.estoque_id) ? ' selected' : '') + '>' + esc(p.nome) + ' (' + esc(p.categoria || 'Sem Cat.') + ')</option>').join('');
-                return '<tr style="border-bottom:1px solid #e2e8f0;">' +
-                    '<td style="vertical-align:middle;"><select onchange="ceNfStageProd(' + idx + ',this.value)" style="' + inputCss + 'padding:6px 8px;font-size:0.82rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;' : 'border-color:#f59e0b;') + '">' + optsProd + '</select></td>' +
-                    '<td style="width:90px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
-                    '<td style="width:140px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + (it.valor_unitario || '') + '" placeholder="0,00" oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:6px;"></td>' +
-                    '<td style="width:110px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
+                return '<tr style="border-bottom:1px solid #e2e8f0;' + (it.estoque_id ? 'background:#f0fdf4;' : '') + '">' +
+                    '<td style="vertical-align:middle;">' + htmlSeletorProdutoNf(it, idx) + '</td>' +
+                    '<td style="width:86px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
+                    '<td style="width:130px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + (it.valor_unitario || '') + '" placeholder="0,00" oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:6px;"></td>' +
+                    '<td style="width:100px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
+                    '<td style="width:38px;text-align:center;vertical-align:middle;">' +
+                        '<button type="button" onclick="ceNfRemoverItem(' + idx + ')" title="Excluir este produto (não vincular)" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;width:26px;height:26px;font-weight:800;font-size:0.95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;">&times;</button>' +
+                    '</td>' +
                 '</tr>';
             }).join('');
             stageEl.innerHTML =
@@ -1588,7 +1865,7 @@
                     '</div>' +
                     '<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;overflow:hidden;">' +
                         '<table class="table" style="margin:0;font-size:0.8rem;">' +
-                            '<thead style="background:#fef3c7;"><tr style="font-size:0.73rem;"><th>Produto no Estoque *</th><th>Qtd. *</th><th>Valor unit. (R$) *</th><th>Garantia (meses)</th></tr></thead>' +
+                            '<thead style="background:#fef3c7;"><tr style="font-size:0.73rem;"><th>Produto no Estoque (digite para buscar por categoria / tamanho) *</th><th>Qtd. *</th><th>Valor unit. (R$) *</th><th>Garantia (meses)</th><th style="width:38px;text-align:center;" title="Excluir linha"></th></tr></thead>' +
                             '<tbody>' + linhasMan + '</tbody>' +
                         '</table>' +
                     '</div>' +
@@ -1597,15 +1874,18 @@
         }
 
         const linhas = notaExtraidaStage.itens.map((it, idx) => {
-            const optsProd = '<option value="">— Selecione o produto do estoque * —</option>' +
-                prodsOrd.map(p => '<option value="' + p.id + '"' + (String(p.id) === String(it.estoque_id) ? ' selected' : '') + '>' + esc(p.nome) + ' (' + esc(p.categoria || 'Sem Cat.') + ')</option>').join('');
-            return '<tr style="border-bottom:1px solid #e2e8f0;' + (it.estoque_id ? 'background:#f0fdf4;' : '') + '">' +
-                '<td style="width:34px;text-align:center;vertical-align:middle;"><input type="checkbox" ' + (it.incluir ? 'checked' : '') + ' onchange="ceNfStageToggle(' + idx + ',this.checked)" style="accent-color:#16a34a;width:16px;height:16px;"></td>' +
+            const vincOk = !!(it.ja_vinculado || it.estoque_id);
+            return '<tr style="border-bottom:1px solid #e2e8f0;' + (vincOk ? 'background:#f0fdf4;' : '') + '">' +
                 '<td style="vertical-align:middle;"><div style="font-weight:700;font-size:0.82rem;color:#1e293b;">' + esc(it.descricao) + '</div>' + (it.codigo ? '<div style="font-size:0.72rem;color:#64748b;">Cód: ' + esc(it.codigo) + '</div>' : '') + '</td>' +
-                '<td style="width:280px;vertical-align:middle;"><select onchange="ceNfStageProd(' + idx + ',this.value)" style="' + inputCss + 'padding:5px 8px;font-size:0.8rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;' : 'border-color:#f59e0b;') + '">' + optsProd + '</select></td>' +
-                '<td style="width:78px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
-                '<td style="width:115px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + it.valor_unitario + '" oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:5px 6px;"></td>' +
-                '<td style="width:85px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
+                '<td style="width:340px;vertical-align:middle;">' + htmlSeletorProdutoNf(it, idx) + '</td>' +
+                '<td style="width:76px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" ' + (it.ja_vinculado ? 'disabled' : '') + ' oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
+                '<td style="width:115px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + it.valor_unitario + '" ' + (it.ja_vinculado ? 'disabled' : '') + ' oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:5px 6px;"></td>' +
+                '<td style="width:85px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" ' + (it.ja_vinculado ? 'disabled' : '') + ' oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
+                '<td style="width:38px;text-align:center;vertical-align:middle;">' +
+                    (it.ja_vinculado
+                        ? '<span title="Já vinculado" style="color:#16a34a;font-size:1rem;"><i class="ph ph-lock-key"></i></span>'
+                        : '<button type="button" onclick="ceNfRemoverItem(' + idx + ')" title="Excluir este item (não será vinculado a nenhum produto do sistema)" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;width:26px;height:26px;font-weight:800;font-size:0.95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;">&times;</button>') +
+                '</td>' +
             '</tr>';
         }).join('');
 
@@ -1613,11 +1893,11 @@
             '<div style="margin-top:12px;border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;padding:10px 12px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
                     '<div style="font-weight:800;font-size:0.84rem;color:#075985;"><i class="ph ph-hand-pointing"></i> Produtos encontrados na nota fiscal (' + notaExtraidaStage.itens.length + ') &mdash; selecione o produto do estoque para vincular:</div>' +
-                    '<span style="font-size:0.75rem;color:#0369a1;">Selecione o produto correspondente no estoque e clique em <b>Salvar nota</b>.</span>' +
+                    '<span style="font-size:0.75rem;color:#0369a1;">Todos os produtos listados devem ser vinculados (ou clique no <b>&times;</b> para remover o item que não será vinculado).</span>' +
                 '</div>' +
-                '<div style="max-height:34vh;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">' +
+                '<div style="max-height:38vh;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">' +
                     '<table class="table" style="margin:0;font-size:0.8rem;">' +
-                        '<thead style="position:sticky;top:0;background:#f8fafc;z-index:2;"><tr style="font-size:0.73rem;"><th>Vinc.</th><th>Produto na Nota Fiscal</th><th>Selecione o Produto no Estoque *</th><th>Qtd.</th><th>Valor unit. (R$)</th><th>Garantia (m)</th></tr></thead>' +
+                        '<thead style="position:sticky;top:0;background:#f8fafc;z-index:2;"><tr style="font-size:0.73rem;"><th>Produto na Nota Fiscal</th><th>Selecione o Produto no Estoque *</th><th>Qtd.</th><th>Valor unit. (R$)</th><th>Garantia (m)</th><th style="width:38px;text-align:center;" title="Excluir item não vinculado"></th></tr></thead>' +
                         '<tbody>' + linhas + '</tbody>' +
                     '</table>' +
                 '</div>' +
@@ -1625,17 +1905,7 @@
     }
     window.ceNfAddLinhaManual = function () {
         if (!notaExtraidaStage) return;
-        notaExtraidaStage.itens.push({ incluir: true, descricao: 'Registro manual', codigo: '', quantidade: 1, valor_unitario: 0, garantia_meses: 0, estoque_id: '' });
-        renderItensExtraidosNota();
-    };
-    window.ceNfStageToggle = function (idx, checked) {
-        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
-        notaExtraidaStage.itens[idx].incluir = !!checked;
-    };
-    window.ceNfStageProd = function (idx, val) {
-        if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
-        notaExtraidaStage.itens[idx].estoque_id = val || '';
-        notaExtraidaStage.itens[idx].incluir = !!val;
+        notaExtraidaStage.itens.push({ incluir: true, descricao: 'Registro manual', codigo: '', quantidade: 1, valor_unitario: 0, garantia_meses: 0, estoque_id: '', estoque_nome: '', estoque_categoria: '', tamanho: '', ja_vinculado: false });
         renderItensExtraidosNota();
     };
     window.ceNfStageSet = function (idx, campo, val) {
@@ -1644,17 +1914,22 @@
     };
 
     window.ceSalvarNota = async function () {
+        fecharPortalDropdownNf();
         const num = $('ce-n-num').value.trim();
         const file = $('ce-n-arq').files && $('ce-n-arq').files[0];
         if (!num) return swal({ icon: 'warning', title: 'Informe o número da nota fiscal' });
         if (!file) return swal({ icon: 'warning', title: 'Anexe o arquivo da nota fiscal' });
         if (file.size > 15 * 1024 * 1024) return swal({ icon: 'warning', title: 'O arquivo deve ter no máximo 15 MB.' });
         if (notaExtraidaStage && Array.isArray(notaExtraidaStage.itens) && notaExtraidaStage.itens.length > 0) {
-            const algumComProduto = notaExtraidaStage.itens.some(it => it.incluir && it.estoque_id);
-            if (!algumComProduto) {
-                return swal({ icon: 'warning', title: 'Selecione um produto', text: 'Selecione qual produto do estoque deve ser vinculado a esta nota fiscal.' });
+            const semProduto = notaExtraidaStage.itens.find(it => !it.ja_vinculado && !it.estoque_id);
+            if (semProduto) {
+                return swal({
+                    icon: 'warning',
+                    title: 'Vincule todos os produtos da nota',
+                    text: 'Todos os produtos da nota devem estar vinculados a algum produto do sistema. Se algum item não for vinculado, clique no X ao lado da linha do produto para excluí-lo.'
+                });
             }
-            const semValor = notaExtraidaStage.itens.find(it => it.incluir && it.estoque_id && !(it.valor_unitario > 0));
+            const semValor = notaExtraidaStage.itens.find(it => !it.ja_vinculado && it.estoque_id && !(it.valor_unitario > 0));
             if (semValor) {
                 return swal({ icon: 'warning', title: 'Informe o valor unitário', text: 'Digite o valor unitário (maior que zero) para registrar o produto selecionado.' });
             }
@@ -1665,15 +1940,17 @@
             const dtEmissao = $('ce-n-data').value || hojeISO();
             const r = await api('/compras-estoque-notas', { method: 'POST', body: { numero: num, fornecedor: $('ce-n-forn').value, data_emissao: dtEmissao, valor_total: $('ce-n-valor').value, observacoes: $('ce-n-obs').value, arquivo_base64: b64, nome_arquivo: file.name } });
             const itensVincular = (notaExtraidaStage && Array.isArray(notaExtraidaStage.itens))
-                ? notaExtraidaStage.itens.filter(it => it.incluir && it.estoque_id && it.valor_unitario > 0).map(it => ({
+                ? notaExtraidaStage.itens.filter(it => (it.ja_vinculado || it.estoque_id) && it.valor_unitario > 0).map(it => ({
                     estoque_id: parseInt(it.estoque_id, 10),
+                    tamanho: it.tamanho || '',
                     quantidade: Math.max(1, parseInt(it.quantidade, 10) || 1),
                     valor_unitario: it.valor_unitario,
-                    garantia_meses: Math.max(0, parseInt(it.garantia_meses, 10) || 0)
+                    garantia_meses: Math.max(0, parseInt(it.garantia_meses, 10) || 0),
+                    observacao: it.descricao && it.descricao !== 'Registro manual' ? ('Item da NF: ' + it.descricao) : ''
                 }))
                 : [];
             if (itensVincular.length > 0 && r && r.id) {
-                await api('/compras-estoque-notas/' + r.id + '/vincular', { method: 'POST', body: { itens: itensVincular, data_compra: dtEmissao } });
+                await api('/compras-estoque-notas/' + r.id + '/vincular', { method: 'POST', body: { itens: itensVincular, data_compra: dtEmissao, manter_existentes: true } });
                 if (/\.pdf$/i.test(file.name)) {
                     for (const iv of itensVincular) {
                         const resAtual = S.resumo[iv.estoque_id] || {};
@@ -1687,12 +1964,7 @@
             renderNotas();
             renderTabela();
             if (S.prodModal) await recarregarProduto();
-            if (itensVincular.length > 0) {
-                swal({ icon: 'success', title: 'Nota fiscal salva e vinculada!', text: itensVincular.length + ' produto(s) do estoque foram vinculados a esta nota.' });
-            } else {
-                const q = await swal({ icon: 'success', title: 'Nota fiscal salva!', text: 'Deseja vincular produtos a esta nota agora?', showCancelButton: true, confirmButtonText: 'Vincular produtos', cancelButtonText: 'Depois' });
-                if (q.isConfirmed) window.ceAbrirVincular(r.id);
-            }
+            swal({ icon: 'success', title: 'Nota fiscal salva e vinculada!', text: itensVincular.length ? (itensVincular.length + ' item(ns) vinculados a esta nota fiscal.') : 'Nota fiscal registrada com sucesso.' });
         } catch (e) { swal({ icon: 'error', title: 'Erro ao salvar nota', text: e.message }); }
     };
     window.ceExcluirNota = async function (nid) {

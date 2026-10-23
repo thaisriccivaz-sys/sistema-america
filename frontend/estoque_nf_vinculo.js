@@ -110,13 +110,21 @@
             const total = Number(it.valor_total) || 0;
             if (!id || !(total > 0)) return;
             const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
-            if (!mapa[id]) mapa[id] = { estoque_id: id, quantidade: 0, total: 0 };
+            const desc = String(it.descricao || '').trim();
+            if (!mapa[id]) mapa[id] = { estoque_id: id, quantidade: 0, total: 0, descricoes: [] };
             mapa[id].quantidade += qtd;
             mapa[id].total += total;
+            if (desc && !mapa[id].descricoes.includes(desc)) mapa[id].descricoes.push(desc);
         });
         return Object.keys(mapa).map(function (k) {
             const g = mapa[k];
-            return { estoque_id: g.estoque_id, quantidade: g.quantidade, valor_unitario: Math.round((g.total / g.quantidade) * 100) / 100, total: g.total };
+            return {
+                estoque_id: g.estoque_id,
+                quantidade: g.quantidade,
+                valor_unitario: Math.round((g.total / g.quantidade) * 100) / 100,
+                total: g.total,
+                descricao: g.descricoes.join('; ')
+            };
         });
     }
 
@@ -147,8 +155,25 @@
                 });
                 await api('/compras-estoque-notas/' + nota.id + '/vincular', 'POST', {
                     data_compra: dataISO,
-                    itens: grupos.map(function (g) { return { estoque_id: g.estoque_id, quantidade: g.quantidade, valor_unitario: g.valor_unitario, garantia_meses: 0 }; })
+                    manter_existentes: true,
+                    itens: grupos.map(function (g) {
+                        return {
+                            estoque_id: g.estoque_id,
+                            quantidade: g.quantidade,
+                            valor_unitario: g.valor_unitario,
+                            garantia_meses: 0,
+                            observacao: g.descricao ? ('Item da NF: ' + g.descricao) : ('Origem: ' + origem)
+                        };
+                    })
                 });
+                if (/\.pdf$/i.test(arq.name || '')) {
+                    for (const g of grupos) {
+                        await api('/compras-estoque/' + g.estoque_id + '/pdf', 'POST', {
+                            arquivo_base64: b64,
+                            nome_arquivo: arq.name
+                        }).catch(function () {});
+                    }
+                }
             } else {
                 for (const g of grupos) {
                     await api('/compras-estoque/' + g.estoque_id + '/historico', 'POST', {

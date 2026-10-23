@@ -183,6 +183,14 @@ function itensDaPagina(linhas) {
     if (ini === -1) {
         const idxPecas = linhas.findIndex(l => /\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|TABELA\s+DE\s+PECAS|DADOS\s+DOS?\s+PRODUTOS?)\b/.test(l.norm));
         if (idxPecas >= 0) ini = idxPecas;
+    }
+    if (ini === -1) {
+        const idxTabProd = linhas.findIndex(l =>
+            !/\b(?:SERVICOS?\s+A\s+EXECUTAR|DISCRIMINACAO\s+DOS\s+SERVICOS)\b/.test(l.norm) &&
+            /\b(?:DESCRICAO|PRODUTO)\b/.test(l.norm) &&
+            /\b(?:QTD|QUANT|UNID|UNIT|VLR|VALOR)\b/.test(l.norm)
+        );
+        if (idxTabProd >= 0) ini = idxTabProd;
         else return [];
     }
     return extrairLinhasTabela(linhas, ini, FIM_TABELA).filter(it => it.descricao && !ehItemDeMaoDeObra(it.descricao));
@@ -212,13 +220,26 @@ function dadosCabecalho(textoCompleto) {
         r.cnpj = c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
     }
     if (!r.numero) {
-        const mNum = textoCompleto.match(/\bN[º°o.]\s*([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{4,9})\b/i);
+        const mNum = textoCompleto.match(/\bN[º°o.]\s*:?\s*([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{3,10})\b/i)
+            || textoCompleto.match(/N[úu]mero\s+da\s+Nota[^\d]{0,30}(\d{1,12})/i);
         if (mNum) r.numero = String(parseInt(mNum[1].replace(/\D/g, ''), 10));
     }
-    const mForn = textoCompleto.match(/RECEBEMOS DE,?\s+(.+?)[,\s]+OS PRODUTOS/i);
-    if (mForn) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
+    const mForn = textoCompleto.match(/RECEBEMOS\s+DE,?\s+([\s\S]{3,120}?)[,\s]+OS\s+PRODUTOS/i);
+    if (mForn) {
+        r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
+    }
+    if (!r.fornecedor) {
+        const mForn2 = textoCompleto.match(/(?:Raz[ãa]o\s+Social|Fornecedor|Emitente)[^\n:]*:\s*([^\n]{4,80})/i);
+        if (mForn2) r.fornecedor = mForn2[1].replace(/\s+/g, ' ').trim();
+    }
+    if (!r.fornecedor) {
+        const topo = textoCompleto.slice(0, 1500).split('\n').map(s => s.trim()).filter(Boolean);
+        const emp = topo.find(l => /\b(?:LTDA|EIRELI|S\/A|S\.A\.|EPP|COMERCIO\s+DE\s+PECAS|AUTO\s+PECAS)\b/i.test(l) && !/DESTINAT[AÁ]RIO|RECEBEMOS|AMERICA\s+RENTAL/i.test(l));
+        if (emp) r.fornecedor = emp.replace(/\s+/g, ' ').trim().slice(0, 120);
+    }
     const iEm = textoCompleto.search(/EMISS[ÃA]O/i);
-    const mData = (iEm >= 0 ? textoCompleto.substring(iEm) : textoCompleto).match(/(\d{2}\/\d{2}\/\d{4})/);
+    const trechoData = iEm >= 0 ? textoCompleto.substring(Math.max(0, iEm - 80), iEm + 250) : textoCompleto;
+    const mData = trechoData.match(/(\d{2}\/\d{2}\/\d{4})/) || textoCompleto.match(/(\d{2}\/\d{2}\/\d{4})/);
     if (mData) r.emissao = mData[1];
     const mG = textoCompleto.match(/garantia\s+(?:de\s+)?(\d{1,3})\s*(dias?|meses|m[eê]s)/i);
     if (mG) r.garantia_sugerida = { valor: parseInt(mG[1], 10), unidade: /^d/i.test(mG[2]) ? 'dias' : 'meses' };
@@ -288,22 +309,15 @@ function detectarMimeArquivo(buffer, mimetype, originalname) {
 // Plano B: Gemini (com fallback de modelos + retry em 503/429 + suporte a imagem)
 // ---------------------------------------------------------------------------
 const MODELOS_GEMINI_PRIORIDADE = [
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
-    'gemini-3.7-flash',
-    'gemini-3-flash-preview',
-    'gemini-3.6-flash-lite',
-    'gemini-3.5-flash-lite',
-    'gemini-3.0-flash',
-    'gemini-2.5-pro',
-    'gemini-pro-latest',
     'gemini-2.5-flash',
+    'gemini-2.0-flash',
     'gemini-2.5-flash-lite',
+    'gemini-2.0-flash-lite',
     'gemini-flash-latest',
     'gemini-flash-lite-latest',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
     'gemini-1.5-flash',
+    'gemini-2.5-pro',
+    'gemini-pro-latest',
     'gemini-1.5-pro',
     'gemma-3-27b-it',
     'gemma-3-12b-it'
@@ -765,26 +779,28 @@ async function analisarUnificadoComGemini(buffer, mimeType) {
 
 async function analisarDocumentoUnificado(buffer, mimeType) {
     const info = detectarMimeArquivo(buffer, mimeType);
-    let localPecas = null, localMo = null, tabelaMoLida = false;
+    let localPecas = null, localMo = null, tabelaMoLida = false, temCabecalhoServicoExplicito = false;
 
     if (info.ehPdf) {
         try { localPecas = await analisarLocal(buffer); } catch (e) { console.error('[NF-Unif] leitor local pecas falhou:', e.message); }
         try {
             const t = await textoDoPdf(buffer);
+            temCabecalhoServicoExplicito = /\b(?:SERVI[CÇ]OS?\s+A\s+EXECUTAR|SERVI[CÇ]OS?\s+EXECUTADOS?|DISCRIMINA[CÇ][AÃ]O\s+DOS\s+SERVI[CÇ]OS|DANFSe|N[ÚU]MERO\s+DA\s+NFS-?E)\b/i.test(t.texto || '');
             localMo = dadosServicoLocal(t.texto, t.itensServ);
             tabelaMoLida = !!localMo.tabela;
         } catch (e) { console.error('[NF-Unif] leitor local MO falhou:', e.message); }
 
-        const pecasLocalConfiavel = !!(localPecas && localPecas.itens && localPecas.itens.length > 0 && localPecas.soma_confere && !tabelaMoLida);
+        const pecasLocalConfiavel = !!(localPecas && localPecas.itens && localPecas.itens.length > 0 && localPecas.soma_confere && !temCabecalhoServicoExplicito);
         if (pecasLocalConfiavel) {
             return {
-                numero: localPecas.numero || '',
-                serie: localPecas.serie || '',
-                emissao: localPecas.emissao || '',
-                fornecedor: localPecas.fornecedor || '',
-                cnpj: localPecas.cnpj || '',
-                chave_acesso: localPecas.chave_acesso || '',
-                garantia_sugerida: null,
+                numero: localPecas.numero || (localMo && localMo.numero) || '',
+                serie: localPecas.serie || (localMo && localMo.serie) || '',
+                emissao: localPecas.emissao || (localMo && localMo.emissao) || '',
+                fornecedor: localPecas.fornecedor || (localMo && localMo.fornecedor) || '',
+                cnpj: localPecas.cnpj || (localMo && localMo.cnpj) || '',
+                chave_acesso: localPecas.chave_acesso || (localMo && localMo.chave_acesso) || '',
+                garantia_sugerida: localPecas.garantia_sugerida || null,
+                valor_total: (localMo && localMo.valor_total > 0) ? localMo.valor_total : (localPecas.soma_itens || 0),
                 pecas: localPecas.itens,
                 moItens: [],
                 avisos: [],
