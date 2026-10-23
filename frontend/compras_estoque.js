@@ -239,8 +239,8 @@
 
     // ── Carga de dados ───────────────────────────────────────────────────────
     async function carregarTudo() {
-        const [produtos, saldos, resumo, notas, ends] = await Promise.all([
-            api('/estoque'), api('/estoque-saldos'), api('/compras-estoque/resumo'), api('/compras-estoque-notas'), api('/estoque-enderecos').catch(() => [])
+        const [produtos, saldos, resumo, notas, ends, veics] = await Promise.all([
+            api('/estoque'), api('/estoque-saldos'), api('/compras-estoque/resumo'), api('/compras-estoque-notas'), api('/estoque-enderecos').catch(() => []), api('/frota/veiculos').catch(() => [])
         ]);
         S.data = produtos || [];
         S.saldos = saldos || {};
@@ -252,6 +252,18 @@
             if (any) listaEnd = listaEnd.filter(e => window.activeUserPerms['estoque-endereco:' + e.id]);
         }
         S.enderecos = listaEnd;
+        S.veiculos = [{ placa: 'Outros' }].concat((veics || []).slice().sort((a, b) => {
+            const ta = String(a.tipo_veiculo || '\uffff').trim();
+            const tb = String(b.tipo_veiculo || '\uffff').trim();
+            const ct = ta.localeCompare(tb, 'pt-BR', { sensitivity: 'base' });
+            if (ct !== 0) return ct;
+            return String(a.placa || '').localeCompare(String(b.placa || ''), 'pt-BR', { sensitivity: 'base' });
+        }));
+        S.veicMap = { outros: 'outros' };
+        (veics || []).forEach(v => {
+            if (!v || !v.placa) return;
+            S.veicMap[norm(v.placa).trim()] = norm(v.placa + ' ' + (v.marca_modelo_versao || '') + ' ' + (v.tipo_veiculo || '')).trim();
+        });
     }
     async function recarregarResumoENotas() {
         const [resumo, notas] = await Promise.all([api('/compras-estoque/resumo'), api('/compras-estoque-notas')]);
@@ -281,11 +293,12 @@
             '</div>' +
             '<div class="card" style="padding:0.9rem 1.1rem;border-radius:12px;">' +
                 '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.65rem;align-items:flex-end;">' +
-                    '<div style="flex:1;min-width:190px;"><label style="' + labelCss + '">Buscar por nome</label><input type="text" id="ce-f-nome" class="form-control" style="width:100%;" placeholder="Buscar..." oninput="ceRender()"></div>' +
+                    '<div style="flex:1;min-width:170px;"><label style="' + labelCss + '">Buscar por nome</label><input type="text" id="ce-f-nome" class="form-control" style="width:100%;" placeholder="Buscar..." oninput="ceRender()"></div>' +
                     msBuild('end', 'Endereço', S.enderecos.map(e => ({ value: e.id, label: e.nome })), 'Todos') +
                     msBuild('cat', 'Categoria', cats.map(c => ({ value: c, label: c })), 'Todas') +
-                    '<div style="flex:1;min-width:190px;"><label style="' + labelCss + '">Fornecedor</label><input type="text" id="ce-f-forn" class="form-control" style="width:100%;" placeholder="Buscar fornecedor..." oninput="ceRender()"></div>' +
-                    '<div style="flex:1;min-width:180px;"><label style="' + labelCss + '">Status</label>' +
+                    '<div style="flex:1;min-width:200px;"><label style="' + labelCss + '">Veículo (placa, modelo ou tipo)</label><input type="text" id="ce-f-veic" class="form-control" style="width:100%;" placeholder="Placa, modelo ou tipo..." oninput="ceRender()"></div>' +
+                    '<div style="flex:1;min-width:170px;"><label style="' + labelCss + '">Fornecedor</label><input type="text" id="ce-f-forn" class="form-control" style="width:100%;" placeholder="Buscar fornecedor..." oninput="ceRender()"></div>' +
+                    '<div style="flex:1;min-width:170px;"><label style="' + labelCss + '">Status</label>' +
                         '<select id="ce-f-status" class="form-control" style="width:100%;" onchange="ceRender()">' +
                             '<option value="">Todos</option><option value="minimo">Estoque Mínimo</option><option value="sem_cadastro">Sem fornecedor/valor</option>' +
                             '<option value="sem_pdf">Sem PDF</option><option value="garantia_vencida">Garantia vencida</option><option value="garantia_vencendo">Garantia vencendo (60 dias)</option>' +
@@ -349,12 +362,23 @@
 
     function filtrar() {
         const nome = norm(($('ce-f-nome') || {}).value);
+        const veic = norm(($('ce-f-veic') || {}).value).trim();
+        const veicTermos = veic ? veic.split(/\s+/).filter(Boolean) : [];
         const forn = norm(($('ce-f-forn') || {}).value);
         const status = ($('ce-f-status') || {}).value || '';
         const hoje = hojeISO();
         return S.data.filter(item => {
             if (restritoSemEndereco(item)) return false;
             if (nome && !norm(item.nome).includes(nome)) return false;
+            if (veicTermos.length) {
+                const placas = String(item.placas_vinculadas || '').split(',').map(s => norm(s).trim()).filter(Boolean);
+                if (!placas.length) return false;
+                const matchVeic = placas.some(p => {
+                    const infoV = (S.veicMap && S.veicMap[p]) || p;
+                    return veicTermos.every(t => infoV.includes(t));
+                });
+                if (!matchVeic) return false;
+            }
             const cat = String(item.categoria || 'Sem Categoria').trim();
             if (S.sel.cat.size && !S.sel.cat.has(cat)) return false;
             const saldos = saldosPermitidos(item);

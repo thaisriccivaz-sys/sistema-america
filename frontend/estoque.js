@@ -396,6 +396,40 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             data = data.filter(i => selectedCategorias.includes(String(i.categoria || '').trim()));
         }
         if (nome) data = data.filter(i => i.nome.toLowerCase().includes(nome));
+        const veicEl = document.getElementById("filtro-estoque-placa");
+        const veicFiltro = veicEl ? String(veicEl.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '';
+        if (veicFiltro) {
+            if (!window._veiculosParaEstoque) {
+                try {
+                    const rVeic = await fetch(API_URL + "/frota/veiculos", { headers });
+                    if (rVeic.ok) {
+                        const listV = await rVeic.json();
+                        window._veiculosParaEstoque = [{ placa: 'Outros' }].concat((listV || []).slice().sort((a, b) => {
+                            const ta = String(a.tipo_veiculo || '\uffff').trim();
+                            const tb = String(b.tipo_veiculo || '\uffff').trim();
+                            const ct = ta.localeCompare(tb, 'pt-BR', { sensitivity: 'base' });
+                            if (ct !== 0) return ct;
+                            return String(a.placa || '').localeCompare(String(b.placa || ''), 'pt-BR', { sensitivity: 'base' });
+                        }));
+                    }
+                } catch (_) {}
+            }
+            const veicMap = { outros: 'outros' };
+            (window._veiculosParaEstoque || []).forEach(v => {
+                if (!v || !v.placa) return;
+                const pk = String(v.placa).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                veicMap[pk] = (v.placa + ' ' + (v.marca_modelo_versao || '') + ' ' + (v.tipo_veiculo || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            });
+            const termosVeic = veicFiltro.split(/\s+/).filter(Boolean);
+            data = data.filter(i => {
+                const placas = String(i.placas_vinculadas || '').split(',').map(s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()).filter(Boolean);
+                if (!placas.length) return false;
+                return placas.some(p => {
+                    const infoV = veicMap[p] || p;
+                    return termosVeic.every(t => infoV.includes(t));
+                });
+            });
+        }
         if (selectedEnderecos.length > 0) {
             data = data.filter(i => {
                 const saldos = saldosMap[i.id] || [];

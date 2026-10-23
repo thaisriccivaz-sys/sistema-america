@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261023v17" defer></script>
+    <script src="estoque.js?v=20261023v18" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3778,8 +3778,8 @@
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
-                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Placa</label>
-                                <input type="text" id="filtro-estoque-placa" class="form-control" style="width: 100%;" onkeyup="window.renderEstoqueTable()" placeholder="Buscar placa...">
+                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Veículo (placa, modelo ou tipo)</label>
+                                <input type="text" id="filtro-estoque-placa" class="form-control" style="width: 100%;" oninput="window.renderEstoqueTable(true)" placeholder="Placa, modelo ou tipo...">
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Tipo</label>
@@ -6751,7 +6751,7 @@
     <script src="/estoque_nf_vinculo.js?v=20261023v2"></script>
 <script src="/frota_manutencao.js?v=20261023v41"></script>
     <script src="/compras_frota.js?v=20261022v11"></script>
-<script src="/compras_estoque.js?v=20261023v11"></script>
+<script src="/compras_estoque.js?v=20261023v12"></script>
     <script src="/sort_table.js?v=20261023v1"></script>
 
     <script>
