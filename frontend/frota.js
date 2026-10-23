@@ -611,6 +611,10 @@ window._confirmarFinalizacaoManutencao = async function(vid) {
         if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro ao finalizar'); }
         document.getElementById('mn-finalizar-card-modal')?.remove();
         mostrarToastAviso('✅ Manutenção finalizada com sucesso!');
+        if (typeof window.checkUserNotificacoes === 'function') {
+            window.checkUserNotificacoes();
+            setTimeout(window.checkUserNotificacoes, 800);
+        }
         window.initFrotaVeiculos();
     } catch(e) {
         mostrarToastAviso('❌ ' + e.message);

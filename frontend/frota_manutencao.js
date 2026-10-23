@@ -3370,6 +3370,7 @@ function mnRenderCorretivaTela(sub) {
                 <option value="agendada" style="color:#d97706;font-weight:700;">Novo</option>
                 <option value="em_andamento" style="color:#dc2626;font-weight:700;">Em Manutenção</option>
                 <option value="aguardando" style="color:#2563eb;font-weight:700;">Aguardando</option>
+                <option value="finalizacao_pendente" style="color:#ea580c;font-weight:700;">Finalização Pendente</option>
                 <option value="concluida" style="color:#10b981;font-weight:700;">Concluído</option>
                 <option value="cancelada">Cancelada</option>
             </select>
@@ -3453,7 +3454,7 @@ window.mnCorrFiltrarCard = function(chave) {
     }
     var sel = document.getElementById('mn-corr-status');
     if (sel) {
-        if (['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'].indexOf(window._mnCorrCardFiltro) !== -1) {
+        if (['agendada', 'em_andamento', 'aguardando', 'finalizacao_pendente', 'concluida', 'cancelada'].indexOf(window._mnCorrCardFiltro) !== -1) {
             sel.value = window._mnCorrCardFiltro;
         } else {
             sel.value = '';
@@ -3681,6 +3682,10 @@ window.mnCorrAcaoInterno = function(id, status) {
             const rj = await r.json().catch(function() { return {}; });
             if (!r.ok) throw new Error(rj.error || 'Erro');
             if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Status atualizado!');
+            if (typeof window.checkUserNotificacoes === 'function') {
+                window.checkUserNotificacoes();
+                setTimeout(window.checkUserNotificacoes, 800);
+            }
             await window.mnCarregarCorretivas();
             if (typeof window._mnTratarOutrasAbertasPosStatus === 'function') {
                 window._mnTratarOutrasAbertasPosStatus(status, rj, m ? m.placa : '');
@@ -5072,6 +5077,10 @@ window._mnEdRenderStatus = function() {
                             window._mnEdRenderHist();
                             window._mnEdAtualizarCronModal();
                             window.mnCarregarCorretivas();
+                            if (typeof window.checkUserNotificacoes === 'function') {
+                                window.checkUserNotificacoes();
+                                setTimeout(window.checkUserNotificacoes, 800);
+                            }
                             try {
                                 var frotaAt = await fetch('/api/frota/veiculos?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + window._mnEdTok() } }).then(function(x) { return x.json(); });
                                 if (Array.isArray(frotaAt)) { window._manutFrota = frotaAt; window._frotaDados = frotaAt; }

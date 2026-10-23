@@ -24155,7 +24155,7 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
             );
         });
         await _fmAtualizaEmManutencao(vid);
-        for (const f of idsFinalizadas) { await _cfRegistrar('corretiva', f.id, parseInt(vid, 10), true).catch(() => {}); }
+        for (const f of idsFinalizadas) { await _cfRegistrar('corretiva', f.id, parseInt(vid, 10), true, true).catch(() => {}); }
         res.json({ ok: true, message: 'Manutenção finalizada com sucesso' });
     } catch(e) {
         res.status(500).json({ error: e.message });
@@ -24825,7 +24825,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
             if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
         }
         if (status === 'em_andamento' || status === 'concluida') {
-            await _cfRegistrar('corretiva', id, vidAtual, true).catch(() => {});
+            await _cfRegistrar('corretiva', id, vidAtual, true, prev.status !== status).catch(() => {});
         }
         const outrasAbertas = await _fmBuscarOutrasAbertas(vidAtual, id);
         res.json({ ok: true, veiculo_rodando: rodandoNovo, parado_desde: pDesde, parado_segundos_acum: pAcum, outras_abertas: outrasAbertas });
@@ -26432,7 +26432,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                     if (status === 'concluida' && km_na_manutencao) {
                         db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_na_manutencao, row.veiculo_id]);
                     }
-                    if (status === 'em_andamento' || status === 'concluida') _cfRegistrar('corretiva', parseInt(mId, 10), row.veiculo_id, true).catch(() => {});
+                    if (status === 'em_andamento' || status === 'concluida') _cfRegistrar('corretiva', parseInt(mId, 10), row.veiculo_id, true, row.status !== status).catch(() => {});
                 }
                 res.json({ message: 'Manutenção atualizada' });
             }
@@ -27408,6 +27408,9 @@ app.post('/api/frota/manutencoes/:id/midias', authenticateToken, multerMidiaRevi
         const row = await _fmGet('SELECT * FROM frota_manutencao_midias WHERE id = ?', [ins.lastID]);
         if (row) row.url = '/api/frota/manutencoes/midias/' + row.id + '/arquivo';
         await _fmHist(manId, 'evento', 'Vídeo geral do veículo anexado (' + (f.originalname || 'vídeo') + ')', usuario);
+        if (man.status === 'em_andamento' || man.status === 'concluida') {
+            await _cfRegistrar('corretiva', manId, man.veiculo_id, false, false).catch(() => {});
+        }
 
         res.json({ ok: true, midia: row });
     } catch (e) {
@@ -27498,8 +27501,14 @@ async function _cfNotificarNovo(tipo, origemId, veiculoId) {
         const modelo = (veic && veic.marca_modelo_versao) || '';
         let detalhe = '';
         if (tipo === 'corretiva') {
-            const m = await _fmGet('SELECT descricao, status FROM frota_manutencoes WHERE id = ?', [origemId]);
-            const sitLbl = (m && m.status === 'em_andamento') ? 'Em manutenção' : 'Concluída';
+            const m = await _fmGet(`
+                SELECT fm.descricao, fm.status,
+                       (SELECT COUNT(1) FROM frota_manutencao_midias fmm WHERE fmm.manutencao_id = fm.id AND fmm.categoria = 'video_geral') AS tem_video_geral
+                FROM frota_manutencoes fm WHERE fm.id = ?
+            `, [origemId]);
+            let sitLbl = 'Concluída';
+            if (m && m.status === 'em_andamento') sitLbl = 'Em manutenção';
+            else if (m && m.status === 'concluida' && !(Number(m.tem_video_geral) > 0)) sitLbl = 'Finalização Pendente';
             detalhe = (m && m.descricao) ? (m.descricao + ' (' + sitLbl + ')') : ('Manutenção corretiva — ' + sitLbl);
         } else {
             const r = await _fmGet('SELECT marco_km, marco_meses, status FROM frota_revisoes WHERE id = ?', [origemId]);
@@ -27530,10 +27539,10 @@ async function _cfNotificarNovo(tipo, origemId, veiculoId) {
     }
 }
 
-// Cria o registro "novo" do Compras (uma vez por origem). Notifica apenas quando o registro e realmente novo.
-async function _cfRegistrar(tipo, origemId, veiculoId, notificar) {
+// Cria o registro "novo" do Compras (uma vez por origem). Notifica quando o registro e novo ou quando muda a situacao (ex.: Finalizacao Pendente / Concluida / Em manutencao).
+async function _cfRegistrar(tipo, origemId, veiculoId, notificar, forcarNotificar) {
     const r = await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) VALUES (?, ?, ?, 'novo')", [tipo, origemId, veiculoId || null]);
-    if (r && r.changes > 0 && notificar) await _cfNotificarNovo(tipo, origemId, veiculoId);
+    if (notificar && ((r && r.changes > 0) || forcarNotificar)) await _cfNotificarNovo(tipo, origemId, veiculoId);
     return r;
 }
 
@@ -27551,11 +27560,12 @@ async function _cfMudarSituacao(tipo, origemId, acao, usuario) {
     return _fmGet('SELECT status, registrado_em, registrado_por FROM compras_frota_registros WHERE tipo = ? AND origem_id = ?', [tipo, origemId]);
 }
 
-// GET - lista do Compras (corretivas em manutencao/concluidas ou revisoes agendadas/realizadas) com a situacao do Compras
+// GET - lista do Compras (corretivas em manutencao/finalizacao pendente/concluidas ou revisoes agendadas/realizadas) com a situacao do Compras
 app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
     try {
         const tipo = req.params.tipo;
         if (tipo === 'corretiva') {
+            await _fmRun("INSERT OR IGNORE INTO compras_frota_registros (tipo, origem_id, veiculo_id, status) SELECT 'corretiva', id, veiculo_id, 'novo' FROM frota_manutencoes WHERE tipo = 'corretiva' AND status IN ('em_andamento', 'concluida', 'finalizacao_pendente')").catch(() => {});
             const rows = await _fmAll(`
                 SELECT r.status AS cf_status, r.registrado_em, r.registrado_por, r.created_at AS cf_created_at, COALESCE(r.carga_inicial, 0) AS carga_inicial,
                        fm.id, fm.veiculo_id, fm.descricao, fm.status AS manut_status, fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.fornecedor,
@@ -27580,7 +27590,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 JOIN frota_manutencoes fm ON fm.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
                 LEFT JOIN sinistros sin ON sin.id = fm.sinistro_id
-                WHERE r.tipo = 'corretiva' AND fm.status IN ('em_andamento', 'aguardando', 'concluida')
+                WHERE r.tipo = 'corretiva' AND fm.status IN ('em_andamento', 'aguardando', 'concluida', 'finalizacao_pendente')
                 ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
         }
