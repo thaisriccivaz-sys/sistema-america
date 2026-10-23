@@ -133,7 +133,7 @@
         else if (n.includes('almoxarifado')) c = { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
         else if (n.includes('loja')) c = { bg: '#fefce8', color: '#a16207', border: '#fef08a' };
         else if (n.includes('galpao')) c = { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' };
-        return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
+        return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 6px;font-size:0.7rem;font-weight:600;white-space:normal;line-height:1.2;">' +
             esc(nome) + (low ? ' <i class="ph ph-warning" style="font-size:0.78rem;"></i>' : '') + '</span>';
     }
     // Letra da rua do almoxarifado (A a Z, ex.: "Almoxarifado - A")
@@ -150,8 +150,8 @@
         return nome + (r ? ' - ' + r : '');
     };
     const badgeTipo = t => t === 'reposicao'
-        ? '<span style="display:inline-flex;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
-        : '<span style="display:inline-flex;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
+        ? '<span style="display:inline-flex;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 6px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
+        : '<span style="display:inline-flex;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 6px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
     const linha = html => '<div style="min-height:28px;display:flex;align-items:center;">' + html + '</div>';
     const dash = '<span style="color:#94a3b8;">—</span>';
 
@@ -161,7 +161,15 @@
         const p = [];
         if (mn) p.push('<span style="color:#64748b;font-size:0.8rem;">min ' + mn + '</span>');
         if (mx) p.push('<span style="color:#64748b;font-size:0.8rem;">max ' + mx + '</span>');
-        return '<span style="white-space:nowrap;">' + p.join(' <span style="color:#cbd5e1;">|</span> ') + '</span>';
+        return '<span style="display:flex;flex-direction:column;line-height:1.3;white-space:nowrap;">' + p.join('') + '</span>';
+    }
+    // Categoria em duas linhas quando tiver mais de uma palavra (ex.: "Ferragens e" / "Fixadores")
+    function catDuasLinhas(cat) {
+        const t = String(cat || '').trim();
+        const i = t.lastIndexOf(' ');
+        const q = x => esc(x).replace(/\//g, '/<wbr>');
+        if (i <= 0) return q(t);
+        return q(t.slice(0, i)).replace(/ /g, '&nbsp;') + '<br>' + q(t.slice(i + 1));
     }
     const qtdHtml = (q, low) => '<span style="font-weight:700;font-size:1rem;color:' + (low ? '#ef4444' : '#10b981') + ';">' + q + '</span>';
 
@@ -171,7 +179,7 @@
         let cor = '#15803d', bg = '#f0fdf4', bd = '#bbf7d0', txt = 'Vigente';
         if (dias < 0) { cor = '#b91c1c'; bg = '#fef2f2'; bd = '#fecaca'; txt = 'Vencida'; }
         else if (dias <= 60) { cor = '#a16207'; bg = '#fefce8'; bd = '#fef08a'; txt = 'Vence em ' + dias + 'd'; }
-        return '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(ate) + '</div>' +
+        return '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;white-space:nowrap;">' + fmtData(ate) + '</div>' +
             '<span style="background:' + bg + ';color:' + cor + ';border:1px solid ' + bd + ';border-radius:6px;padding:0 6px;font-size:0.68rem;font-weight:700;">' + txt + '</span></div>';
     }
 
@@ -305,11 +313,10 @@
                         '</select></div>' +
                 '</div>' +
                 '<div id="ce-resumo" style="font-size:0.8rem;color:#64748b;margin-bottom:0.4rem;"></div>' +
-                '<div id="ce-top-scroll" onscroll="if(window._ceSyncScroll)return;window._ceSyncScroll=true;var w=document.getElementById(\'ce-table-wrap\');if(w)w.scrollLeft=this.scrollLeft;window._ceSyncScroll=false;" style="overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:4px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">' +
-                    '<div id="ce-top-scroll-inner" style="width:1550px;height:1px;"></div>' +
-                '</div>' +
-                '<div id="ce-table-wrap" class="table-responsive" onscroll="if(window._ceSyncScroll)return;window._ceSyncScroll=true;var t=document.getElementById(\'ce-top-scroll\');if(t)t.scrollLeft=this.scrollLeft;window._ceSyncScroll=false;" style="height:calc(100vh - 200px);max-height:calc(100vh - 200px);min-height:480px;overflow-x:auto;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
-                    '<table id="ce-table" class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;min-width:1550px;">' +
+                '<style>#ce-table th,#ce-table td{padding:8px 6px;overflow-wrap:break-word;}@media (max-width:1200px){#ce-table{font-size:0.78rem;}#ce-table th{font-size:0.7rem !important;}}@media (max-width:1100px){#ce-table th,#ce-table td{padding:8px 4px;}#ce-table td img{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td div[style*="dashed"]{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td .btn{width:22px !important;height:22px !important;}}</style>' +
+                '<div id="ce-table-wrap" class="table-responsive" style="height:calc(100vh - 185px);max-height:calc(100vh - 185px);min-height:480px;overflow-x:hidden;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
+                    '<table id="ce-table" class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;">' +
+                        '<colgroup><col style="width:18%"><col style="width:11%"><col style="width:6%"><col style="width:7%"><col style="width:11%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:10%"></colgroup>' +
                         '<thead id="ce-thead" style="position:sticky;top:0;z-index:12;background:#f8fafc;"></thead>' +
                         '<tbody id="ce-tbody"></tbody>' +
                     '</table>' +
@@ -317,27 +324,17 @@
             '</div>';
     }
 
-    function syncTopScroll() {
-        const wrap = $('ce-table-wrap'), tbl = $('ce-table'), inner = $('ce-top-scroll-inner'), top = $('ce-top-scroll');
-        if (!wrap || !tbl || !inner) return;
-        const minW = Math.max(1550, (wrap.clientWidth || 1200) + 260);
-        tbl.style.minWidth = minW + 'px';
-        const sw = Math.max(minW, tbl.scrollWidth || minW);
-        inner.style.width = sw + 'px';
-        if (top) top.scrollLeft = wrap.scrollLeft;
-    }
-    window.addEventListener('resize', () => { setTimeout(syncTopScroll, 50); });
 
     const COLUNAS = [
         { col: 'nome', txt: 'Produto' }, { col: 'categoria', txt: 'Catg.' }, { col: 'qtd', txt: 'Qt. Atual' },
-        { col: null, txt: 'Min/Máx' }, { col: null, txt: 'Endereços' }, { col: null, txt: 'Tipo' },
+        { col: null, txt: 'Min/<wbr>Máx' }, { col: null, txt: 'Endereços' }, { col: null, txt: 'Tipo' },
         { col: 'fornecedor', txt: 'Fornecedor' }, { col: 'valor', txt: 'Valor Atual' }, { col: 'garantia', txt: 'Garantia' },
         { col: 'ultima', txt: 'Últ. Compra' }
     ];
     function renderThead() {
         const th = $('ce-thead');
         if (!th) return;
-        const thBase = 'position:sticky;top:0;z-index:12;background:#f8fafc;border-bottom:2px solid #cbd5e1;box-shadow:0 1px 2px rgba(15,23,42,0.06);white-space:nowrap;';
+        const thBase = 'position:sticky;top:0;z-index:12;background:#f8fafc;border-bottom:2px solid #cbd5e1;box-shadow:0 1px 2px rgba(15,23,42,0.06);white-space:normal;line-height:1.2;';
         th.innerHTML = '<tr style="font-size:0.78rem;">' + COLUNAS.map(c => {
             if (!c.col) return '<th style="' + thBase + (c.right ? 'text-align:right;' : '') + '">' + c.txt + '</th>';
             const ativo = S.sort.col === c.col;
@@ -357,7 +354,6 @@
         document.querySelectorAll('.ce-det-' + id).forEach(r => { r.style.display = aberto ? '' : 'none'; });
         const ic = $('ce-arrow-' + id);
         if (ic) ic.style.transform = aberto ? 'rotate(90deg)' : 'rotate(0deg)';
-        syncTopScroll();
     };
 
     function filtrar() {
@@ -429,14 +425,13 @@
             const venc = lista.filter(i => { const g = (S.resumo[i.id] || {}).garantia_ate; return g && g < hojeISO(); }).length;
             resumoEl.innerHTML = '<b>' + lista.length + '</b> produtos &middot; <b>' + comForn + '</b> com fornecedor &middot; <b>' + comPdf + '</b> com PDF &middot; <b style="color:' + (venc ? '#b91c1c' : 'inherit') + ';">' + venc + '</b> com garantia vencida';
         }
-        if (!lista.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; syncTopScroll(); return; }
+        if (!lista.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>'; return; }
 
         const contCat = {};
         lista.forEach(i => { const c = String(i.categoria || 'Sem Categoria').trim(); contCat[c] = (contCat[c] || 0) + 1; });
         let rows = '', ultima = null;
         lista.forEach(item => { rows += linhaProduto(item, contCat, () => { const u = ultima; return u; }, c => { ultima = c; }, ultima); });
         tb.innerHTML = rows;
-        syncTopScroll();
     }
 
     function linhaProduto(item, contCat, _g, setUltima, ultimaCat) {
@@ -472,11 +467,11 @@
                 ? '<button type="button" onclick="event.stopPropagation();ceLimparVinculoCompra(' + item.id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Excluir vinculação de fornecedor, garantia e último valor" style="background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:3px 7px;font-size:0.78rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-trash"></i></button>'
                 : '';
             const fc = rc.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(rc.fornecedor) + '</span>' : dash;
-            const vc = rc.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;">' + money(rc.valor_atual) + '</span>' : dash;
+            const vc = rc.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;white-space:nowrap;">' + money(rc.valor_atual) + '</span>' : dash;
             const uc = rc.ultima_compra
-                ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(rc.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + rc.total_compras + (rc.total_compras === 1 ? ' compra' : ' compras') + (rc.total_notas ? ' &middot; ' + rc.total_notas + ' NF' : '') + '</span></div>'
+                ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;white-space:nowrap;">' + fmtData(rc.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + rc.total_compras + (rc.total_compras === 1 ? ' compra' : ' compras') + (rc.total_notas ? ' &middot; ' + rc.total_notas + ' NF' : '') + '</span></div>'
                 : dash;
-            return '<td style="vertical-align:middle;">' + fc + '</td><td style="vertical-align:middle;">' + vc + '</td><td style="vertical-align:middle;">' + garantiaHtml(rc.garantia_ate) + '</td><td style="vertical-align:middle;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><div>' + uc + '</div>' + btnLimpar + '</div></td>';
+            return '<td style="vertical-align:middle;">' + fc + '</td><td style="vertical-align:middle;">' + vc + '</td><td style="vertical-align:middle;">' + garantiaHtml(rc.garantia_ate) + '</td><td style="vertical-align:middle;"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;"><div>' + uc + '</div>' + btnLimpar + '</div></td>';
         };
         const celCompra = montarCelCompra(r, '');
 
@@ -491,20 +486,20 @@
             const endHtml = Object.keys(ends).length ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + Object.keys(ends).map(n => badgeEnd(n, ends[n])).join('') + '</div>' : '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
             const tipoHtml = tipos.size ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + Array.from(tipos).map(badgeTipo).join('') + '</div>' : dash;
             out += '<tr onclick="ceToggleTam(' + item.id + ')" style="cursor:pointer;border-left:' + borda + ';' + bg + '">' +
-                '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:10px;">' +
+                '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
                     '<span title="Ver tamanhos, endereços e quantidades" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform .2s;' + (aberto ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
-                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
-                '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
+                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span>' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
+                '<td style="vertical-align:middle;line-height:1.25;">' + catDuasLinhas(cat) + '</td>' +
                 '<td style="vertical-align:middle;">' + qtdHtml(qtdTotal(item, saldos), low) + '</td>' +
-                '<td style="vertical-align:middle;white-space:nowrap;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
-                '<td style="vertical-align:middle;">' + endHtml + '</td><td style="vertical-align:middle;white-space:nowrap;">' + tipoHtml + '</td>' + celCompra + '</tr>';
+                '<td style="vertical-align:middle;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
+                '<td style="vertical-align:middle;">' + endHtml + '</td><td style="vertical-align:middle;">' + tipoHtml + '</td>' + celCompra + '</tr>';
             tams.forEach(tam => {
                 const sl = mapTam[tam];
                 const tl = sl.some(s => lowSaldo(s, item));
                 const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
                 const rt = (r.por_tamanho && r.por_tamanho[tam]) ? r.por_tamanho[tam] : {};
                 out += '<tr class="ce-det-' + item.id + '" style="display:' + (aberto ? '' : 'none') + ';background:' + (tl ? '#fff1f2' : '#f8fafc') + ';border-left:3px solid ' + (tl ? '#ef4444' : '#3b82f6') + ';">' +
-                    '<td style="padding-left:48px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:8px;"><span style="color:#94a3b8;">↳</span>' + cartBtnFn(item.id, tam) + '<span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></div></td><td></td>' +
+                    '<td style="padding-left:20px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span style="color:#94a3b8;">↳</span>' + cartBtnFn(item.id, tam) + '<span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></div></td><td></td>' +
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
                     '<td>' + stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) + '</td>' +
@@ -516,8 +511,8 @@
         const sl = saldos;
         const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
         out += '<tr style="border-left:' + borda + ';' + bg + '">' +
-            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span></div></div></td>' +
-            '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
+            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:8px;min-width:0;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span>' + warn + esc(item.nome) + '</span></div></div></td>' +
+            '<td style="vertical-align:middle;line-height:1.25;">' + catDuasLinhas(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
             '<td>' + (sl.length ? stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) : linha('<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>')) + '</td>' +
