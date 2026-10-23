@@ -1410,6 +1410,8 @@ window.abrirModalEstoque = async function() {
     document.getElementById("estoque-foto-preview").src = "";
     document.getElementById("estoque-foto-preview").style.display = "none";
     document.getElementById("estoque-foto-icon").style.display = "block";
+    const modalEl = document.getElementById("modal-estoque");
+    if (modalEl && modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
     
@@ -1420,8 +1422,7 @@ window.abrirModalEstoque = async function() {
     const catDdNovo = document.getElementById("estoque-cat-modal-dd");
     if (catDdNovo) catDdNovo.style.display = "none";
     window.togglePlacasEstoque(document.getElementById("estoque-cat").value);
-    document.querySelectorAll('.estoque-placa-chk').forEach(el => el.checked = false);
-    if(document.getElementById('estoque-placas-todas')) document.getElementById('estoque-placas-todas').checked = false;
+    if (window._veiculosParaEstoque) _renderPlacasCheckboxes([]);
 
     // Foco no campo nome
     setTimeout(() => { const n = document.getElementById("estoque-nome"); if(n) n.focus(); }, 200);
@@ -1445,10 +1446,12 @@ window.editarEstoque = async function(item, tamanhoFoco) {
     if (catInpEd) catInpEd.value = catNorm;
     const catDdEd = document.getElementById("estoque-cat-modal-dd");
     if (catDdEd) catDdEd.style.display = "none";
+    const modalElEd = document.getElementById("modal-estoque");
+    if (modalElEd && modalElEd.parentElement !== document.body) document.body.appendChild(modalElEd);
     window.togglePlacasEstoque(catNorm);
     if (window._veiculosParaEstoque) {
         _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
-    } else if (catNorm === 'Automotivo' || catNorm === 'Peças Automotivas' || catNorm === 'Pneus e Borracharia') {
+    } else if (_ehCategoriaVeiculoEstoque(catNorm)) {
         const origCb = _renderPlacasCheckboxes;
         _renderPlacasCheckboxes = function() {
             origCb((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
@@ -1625,6 +1628,9 @@ window.salvarEstoque = async function(e) {
         Swal.fire({ icon: "success", title: "Sucesso", text: "Item salvo com sucesso", timer: 1500, showConfirmButton: false });
         window.fecharModalEstoque();
         window.renderEstoqueTable(true);
+        if (typeof window.initComprasEstoque === 'function' && document.getElementById('compras-estoque-container')) {
+            window.initComprasEstoque();
+        }
     } catch (err) {
         Swal.fire("Erro", err.message, "error");
     } finally {
@@ -2174,12 +2180,25 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
         return list.map(p => `<span style="color:#94a3b8;font-size:0.85rem;margin-right:4px;border:1px solid #e2e8f0;padding:2px 4px;border-radius:4px;">${p}</span>`).join('');
     };
 
+    function _ehCategoriaVeiculoEstoque(cat) {
+        return cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia' || cat === 'Lubrificantes e Fluidos';
+    }
+    function _normVeicEstoque(s) {
+        return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    }
+    function _escVeicEstoque(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     window.togglePlacasEstoque = function(cat) {
         const c = document.getElementById('estoque-placas-container');
-        if (cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia') {
+        if (!c) return;
+        if (_ehCategoriaVeiculoEstoque(cat)) {
             c.style.display = 'block';
             if (!window._veiculosParaEstoque) {
                 _fetchVeiculosEstoque();
+            } else if (!document.querySelector('#estoque-placas-list .estoque-placa-chk')) {
+                _renderPlacasCheckboxes([]);
             }
         } else {
             c.style.display = 'none';
@@ -2189,47 +2208,114 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
     window._veiculosParaEstoque = null;
     function _fetchVeiculosEstoque() {
         const cont = document.getElementById('estoque-placas-list');
-        cont.innerHTML = '<div style="color:#64748b;font-size:0.9rem;">Carregando veículos...</div>';
+        if (cont) cont.innerHTML = '<div style="color:#64748b;font-size:0.9rem;">Carregando veículos...</div>';
         apiGet('/frota/veiculos').then(res => {
-            window._veiculosParaEstoque = [{ placa: 'Outros' }].concat(res.sort((a,b) => (a.placa||'').localeCompare(b.placa||'')));
+            window._veiculosParaEstoque = [{ placa: 'Outros' }].concat((res || []).sort((a,b) => (a.placa||'').localeCompare(b.placa||'')));
             _renderPlacasCheckboxes();
         }).catch(e => {
-            cont.innerHTML = '<div style="color:#ef4444;font-size:0.9rem;">Erro ao carregar veículos.</div>';
+            if (cont) cont.innerHTML = '<div style="color:#ef4444;font-size:0.9rem;">Erro ao carregar veículos.</div>';
         });
     }
 
     function _renderPlacasCheckboxes(selectedPlacas = []) {
         const cont = document.getElementById('estoque-placas-list');
-        if (!window._veiculosParaEstoque) return;
-        
-        let html = `
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;border-bottom:1px solid #f1f5f9;margin-bottom:4px;">
-                <input type="checkbox" id="estoque-placas-todas" onchange="window.toggleTodasPlacasEstoque(this.checked)" ${window._veiculosParaEstoque.every(v => selectedPlacas.includes(v.placa)) ? 'checked' : ''}>
-                <span style="font-weight:600;">Selecionar Todos</span>
-            </label>
-        `;
-        
+        if (!cont || !window._veiculosParaEstoque) return;
+        const selSet = new Set(selectedPlacas);
+        const tiposMap = {};
+        window._veiculosParaEstoque.forEach(v => {
+            const tp = String(v.tipo_veiculo || '').trim();
+            if (tp) tiposMap[tp] = (tiposMap[tp] || 0) + 1;
+        });
+        const tiposList = Object.keys(tiposMap).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+
+        let html = '<div style="position:sticky;top:-10px;background:#fff;z-index:4;padding-bottom:6px;border-bottom:1px solid #e2e8f0;margin-bottom:2px;">' +
+            '<input type="text" id="estoque-placas-busca" placeholder="Digite o modelo, tipo de veículo ou placa..." oninput="window.filtrarPlacasEstoqueModal(this.value)" ' +
+                'style="width:100%;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.84rem;box-sizing:border-box;margin-bottom:6px;">';
+
+        if (tiposList.length) {
+            html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;align-items:center;">' +
+                '<span style="font-size:0.74rem;font-weight:700;color:#64748b;">Por tipo:</span>' +
+                tiposList.map(tp => {
+                    const tpKey = _normVeicEstoque(tp);
+                    const veicsDoTipo = window._veiculosParaEstoque.filter(v => _normVeicEstoque(v.tipo_veiculo) === tpKey);
+                    const chkTp = veicsDoTipo.length > 0 && veicsDoTipo.every(v => selSet.has(v.placa));
+                    return '<label style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;border:1px solid ' + (chkTp ? '#93c5fd' : '#cbd5e1') + ';background:' + (chkTp ? '#eff6ff' : '#f8fafc') + ';color:' + (chkTp ? '#1d4ed8' : '#334155') + ';font-size:0.75rem;font-weight:700;cursor:pointer;user-select:none;">' +
+                        '<input type="checkbox" class="estoque-tipo-veic-chk" data-tipo="' + _escVeicEstoque(tpKey) + '" ' + (chkTp ? 'checked' : '') + ' onchange="window.toggleTipoVeiculoEstoqueModal(this.dataset.tipo,this.checked)" style="accent-color:#1d4ed8;cursor:pointer;">' +
+                        '<span>' + _escVeicEstoque(tp) + ' (' + tiposMap[tp] + ')</span></label>';
+                }).join('') +
+            '</div>';
+        }
+
+        const allChecked = window._veiculosParaEstoque.every(v => !v.placa || selSet.has(v.placa));
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">' +
+            '<input type="checkbox" id="estoque-placas-todas" onchange="window.toggleTodasPlacasEstoque(this.checked)" ' + (allChecked ? 'checked' : '') + '>' +
+            '<span id="estoque-placas-todas-txt" style="font-weight:700;font-size:0.84rem;color:#1e293b;">Selecionar Todos</span>' +
+        '</label></div>';
+
         window._veiculosParaEstoque.forEach(v => {
             if (!v.placa) return;
-            const chk = selectedPlacas.includes(v.placa) ? 'checked' : '';
-            html += `
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">
-                    <input type="checkbox" class="estoque-placa-chk" value="${v.placa}" ${chk} onchange="window.verificarTodasPlacasEstoque()">
-                    <span>${v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : ''}${v.placa}</span>
-                </label>
-            `;
+            const chk = selSet.has(v.placa) ? 'checked' : '';
+            const textoBusca = _normVeicEstoque((v.marca_modelo_versao || '') + ' ' + (v.tipo_veiculo || '') + ' ' + v.placa);
+            const tipoKey = _normVeicEstoque(v.tipo_veiculo || '');
+            html += '<label class="estoque-placa-row" data-search="' + _escVeicEstoque(textoBusca) + '" data-tipo="' + _escVeicEstoque(tipoKey) + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;padding:3px 4px;border-radius:6px;">' +
+                '<span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">' +
+                    '<input type="checkbox" class="estoque-placa-chk" value="' + _escVeicEstoque(v.placa) + '" ' + chk + ' onchange="window.verificarTodasPlacasEstoque()">' +
+                    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _escVeicEstoque((v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : '') + v.placa) + '</span>' +
+                '</span>' +
+                (v.tipo_veiculo ? '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;flex-shrink:0;">' + _escVeicEstoque(v.tipo_veiculo) + '</span>' : '') +
+            '</label>';
         });
         cont.innerHTML = html;
     }
 
+    window.filtrarPlacasEstoqueModal = function(txt) {
+        const f = _normVeicEstoque(txt);
+        document.querySelectorAll('#estoque-placas-list .estoque-placa-row').forEach(row => {
+            const match = !f || (row.dataset.search || '').includes(f);
+            row.style.display = match ? 'flex' : 'none';
+        });
+        const lblTodas = document.getElementById('estoque-placas-todas-txt');
+        if (lblTodas) lblTodas.textContent = f ? 'Selecionar Todos (filtrados)' : 'Selecionar Todos';
+        window.verificarTodasPlacasEstoque();
+    };
+
+    window.toggleTipoVeiculoEstoqueModal = function(tipoKey, checked) {
+        document.querySelectorAll('#estoque-placas-list .estoque-placa-row').forEach(row => {
+            if (row.dataset.tipo === tipoKey) {
+                const cb = row.querySelector('.estoque-placa-chk');
+                if (cb) cb.checked = checked;
+            }
+        });
+        window.verificarTodasPlacasEstoque();
+    };
+
     window.toggleTodasPlacasEstoque = function(checked) {
-        document.querySelectorAll('.estoque-placa-chk').forEach(el => el.checked = checked);
+        document.querySelectorAll('#estoque-placas-list .estoque-placa-row').forEach(row => {
+            if (row.style.display === 'none') return;
+            const cb = row.querySelector('.estoque-placa-chk');
+            if (cb) cb.checked = checked;
+        });
+        window.verificarTodasPlacasEstoque();
     };
     
     window.verificarTodasPlacasEstoque = function() {
-        const all = Array.from(document.querySelectorAll('.estoque-placa-chk'));
+        const rowsVisiveis = Array.from(document.querySelectorAll('#estoque-placas-list .estoque-placa-row')).filter(r => r.style.display !== 'none');
+        const cbsVisiveis = rowsVisiveis.map(r => r.querySelector('.estoque-placa-chk')).filter(Boolean);
         const todas = document.getElementById('estoque-placas-todas');
-        if (todas && all.length > 0) {
-            todas.checked = all.every(el => el.checked);
+        if (todas) {
+            todas.checked = cbsVisiveis.length > 0 && cbsVisiveis.every(el => el.checked);
         }
+        const checkedPlacas = new Set(Array.from(document.querySelectorAll('#estoque-placas-list .estoque-placa-chk:checked')).map(el => el.value));
+        document.querySelectorAll('#estoque-placas-list .estoque-tipo-veic-chk').forEach(tc => {
+            const tk = tc.dataset.tipo;
+            const veics = (window._veiculosParaEstoque || []).filter(v => _normVeicEstoque(v.tipo_veiculo) === tk);
+            const allChk = veics.length > 0 && veics.every(v => checkedPlacas.has(v.placa));
+            tc.checked = allChk;
+            const lbl = tc.parentElement;
+            if (lbl) {
+                lbl.style.borderColor = allChk ? '#93c5fd' : '#cbd5e1';
+                lbl.style.background = allChk ? '#eff6ff' : '#f8fafc';
+                lbl.style.color = allChk ? '#1d4ed8' : '#334155';
+            }
+        });
     };

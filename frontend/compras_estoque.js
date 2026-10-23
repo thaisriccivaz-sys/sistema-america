@@ -274,6 +274,7 @@
                     '<p style="margin:2px 0 0;color:#64748b;font-size:0.82rem;">Fornecedor, valor, garantia, PDF, notas fiscais e histórico de compras de cada produto.</p></div>' +
                 '</div>' +
                 '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    '<button class="btn" onclick="ceAbrirNovoItem()" style="background:#e67700;color:#fff;border:none;display:flex;align-items:center;gap:6px;font-weight:700;"><i class="ph ph-plus"></i> Adicionar Item</button>' +
                     '<button class="btn" onclick="ceAbrirNotas()" style="background:#1971c2;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-receipt"></i> Notas Fiscais</button>' +
                     '<button class="btn btn-secondary" onclick="initComprasEstoque()" style="display:flex;align-items:center;gap:6px;"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>' +
                 '</div>' +
@@ -503,8 +504,11 @@
         return cat || 'EPI';
     }
     function ehCatVeiculos(cat) {
-        return cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia';
+        return cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia' || cat === 'Lubrificantes e Fluidos';
     }
+    window.ceAbrirNovoItem = function () {
+        if (typeof window.abrirModalEstoque === 'function') window.abrirModalEstoque();
+    };
 
     window.ceAbrirProduto = async function (id, tamFoco) {
         const item = S.data.find(i => i.id === id);
@@ -659,7 +663,7 @@
                     '</div>' +
                     '<div id="ce-ed-placas-wrap" style="display:' + (ehCatVeiculos(ed.categoria) ? 'block' : 'none') + ';margin-bottom:12px;">' +
                         '<label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Placas Vinculadas</label>' +
-                        '<div id="ce-ed-placas-list" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:6px;">' +
+                        '<div id="ce-ed-placas-list" style="width:100%;max-height:250px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.88rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:6px;">' +
                             '<div style="color:#64748b;font-size:0.85rem;">Carregando veículos...</div>' +
                         '</div>' +
                     '</div>' +
@@ -818,35 +822,116 @@
             }
         }
         const sel = pm.edit.placas;
+        const tiposMap = {};
+        S.veiculos.forEach(v => {
+            const tp = String(v.tipo_veiculo || '').trim();
+            if (tp) tiposMap[tp] = (tiposMap[tp] || 0) + 1;
+        });
+        const tiposList = Object.keys(tiposMap).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+
+        let html =
+            '<div style="position:sticky;top:-10px;background:#fff;z-index:4;padding-bottom:6px;border-bottom:1px solid #e2e8f0;margin-bottom:2px;">' +
+                '<input type="text" id="ce-ed-placas-busca" placeholder="Digite o modelo, tipo de veículo ou placa..." oninput="ceEdFiltrarPlacas(this.value)" ' +
+                    'style="width:100%;padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;box-sizing:border-box;margin-bottom:6px;">';
+        if (tiposList.length) {
+            html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;align-items:center;">' +
+                '<span style="font-size:0.72rem;font-weight:700;color:#64748b;">Por tipo:</span>' +
+                tiposList.map(tp => {
+                    const tpKey = norm(tp);
+                    const veicsDoTipo = S.veiculos.filter(v => norm(v.tipo_veiculo) === tpKey);
+                    const chkTp = veicsDoTipo.length > 0 && veicsDoTipo.every(v => sel.has(v.placa));
+                    return '<label style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;border:1px solid ' + (chkTp ? '#93c5fd' : '#cbd5e1') + ';background:' + (chkTp ? '#eff6ff' : '#f8fafc') + ';color:' + (chkTp ? '#1d4ed8' : '#334155') + ';font-size:0.74rem;font-weight:700;cursor:pointer;user-select:none;">' +
+                        '<input type="checkbox" class="ce-ed-tipo-veic-chk" data-tipo="' + esc(tpKey) + '" ' + (chkTp ? 'checked' : '') + ' onchange="ceEdToggleTipoVeiculo(this.dataset.tipo,this.checked)" style="accent-color:#1d4ed8;cursor:pointer;">' +
+                        '<span>' + esc(tp) + ' (' + tiposMap[tp] + ')</span></label>';
+                }).join('') +
+            '</div>';
+        }
         const todosMarcados = S.veiculos.every(v => !v.placa || sel.has(v.placa));
-        let html = '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;border-bottom:1px solid #f1f5f9;margin-bottom:4px;">' +
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">' +
             '<input type="checkbox" id="ce-ed-placas-todas" ' + (todosMarcados ? 'checked' : '') + ' onchange="ceEdToggleTodasPlacas(this.checked)">' +
-            '<span style="font-weight:600;">Selecionar Todos</span></label>';
+            '<span id="ce-ed-placas-todas-txt" style="font-weight:700;font-size:0.82rem;color:#1e293b;">Selecionar Todos</span></label>' +
+            '</div>';
+
         S.veiculos.forEach(v => {
             if (!v.placa) return;
             const chk = sel.has(v.placa) ? 'checked' : '';
-            html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">' +
-                '<input type="checkbox" class="ce-ed-placa-chk" value="' + esc(v.placa) + '" ' + chk + ' onchange="ceEdPlacaChange(this)">' +
-                '<span>' + esc((v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : '') + v.placa) + '</span></label>';
+            const textoBusca = norm((v.marca_modelo_versao || '') + ' ' + (v.tipo_veiculo || '') + ' ' + v.placa);
+            const tipoKey = norm(v.tipo_veiculo || '');
+            html += '<label class="ce-ed-placa-row" data-search="' + esc(textoBusca) + '" data-tipo="' + esc(tipoKey) + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;padding:3px 4px;border-radius:6px;">' +
+                '<span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">' +
+                    '<input type="checkbox" class="ce-ed-placa-chk" value="' + esc(v.placa) + '" ' + chk + ' onchange="ceEdPlacaChange(this)">' +
+                    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc((v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : '') + v.placa) + '</span>' +
+                '</span>' +
+                (v.tipo_veiculo ? '<span style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;flex-shrink:0;">' + esc(v.tipo_veiculo) + '</span>' : '') +
+            '</label>';
         });
         cont.innerHTML = html;
     }
+    function ceEdSyncPlacasUI() {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit || !S.veiculos) return;
+        const sel = pm.edit.placas;
+        const rowsVisiveis = Array.from(document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-row')).filter(r => r.style.display !== 'none');
+        const cbsVisiveis = rowsVisiveis.map(r => r.querySelector('.ce-ed-placa-chk')).filter(Boolean);
+        const todas = $('ce-ed-placas-todas');
+        if (todas) todas.checked = cbsVisiveis.length > 0 && cbsVisiveis.every(x => x.checked);
+        document.querySelectorAll('#ce-ed-placas-list .ce-ed-tipo-veic-chk').forEach(tc => {
+            const tk = tc.dataset.tipo;
+            const veics = S.veiculos.filter(v => norm(v.tipo_veiculo) === tk);
+            const allChk = veics.length > 0 && veics.every(v => sel.has(v.placa));
+            tc.checked = allChk;
+            const lbl = tc.parentElement;
+            if (lbl) {
+                lbl.style.borderColor = allChk ? '#93c5fd' : '#cbd5e1';
+                lbl.style.background = allChk ? '#eff6ff' : '#f8fafc';
+                lbl.style.color = allChk ? '#1d4ed8' : '#334155';
+            }
+        });
+    }
+    window.ceEdFiltrarPlacas = function (txt) {
+        const f = norm(txt || '').trim();
+        document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-row').forEach(row => {
+            const match = !f || (row.dataset.search || '').includes(f);
+            row.style.display = match ? 'flex' : 'none';
+        });
+        const lblTodas = $('ce-ed-placas-todas-txt');
+        if (lblTodas) lblTodas.textContent = f ? 'Selecionar Todos (filtrados)' : 'Selecionar Todos';
+        ceEdSyncPlacasUI();
+    };
+    window.ceEdToggleTipoVeiculo = function (tipoKey, checked) {
+        const pm = S.prodModal;
+        if (!pm || !pm.edit || !S.veiculos) return;
+        document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-row').forEach(row => {
+            if (row.dataset.tipo === tipoKey) {
+                const cb = row.querySelector('.ce-ed-placa-chk');
+                if (cb) {
+                    cb.checked = checked;
+                    if (checked) pm.edit.placas.add(cb.value);
+                    else pm.edit.placas.delete(cb.value);
+                }
+            }
+        });
+        ceEdSyncPlacasUI();
+    };
     window.ceEdToggleTodasPlacas = function (checked) {
         const pm = S.prodModal;
         if (!pm || !pm.edit) return;
-        pm.edit.placas.clear();
-        document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-chk').forEach(cb => {
-            cb.checked = checked;
-            if (checked) pm.edit.placas.add(cb.value);
+        document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-row').forEach(row => {
+            if (row.style.display === 'none') return;
+            const cb = row.querySelector('.ce-ed-placa-chk');
+            if (cb) {
+                cb.checked = checked;
+                if (checked) pm.edit.placas.add(cb.value);
+                else pm.edit.placas.delete(cb.value);
+            }
         });
+        ceEdSyncPlacasUI();
     };
     window.ceEdPlacaChange = function (cb) {
         const pm = S.prodModal;
         if (!pm || !pm.edit) return;
         if (cb.checked) pm.edit.placas.add(cb.value); else pm.edit.placas.delete(cb.value);
-        const all = Array.from(document.querySelectorAll('#ce-ed-placas-list .ce-ed-placa-chk'));
-        const todas = $('ce-ed-placas-todas');
-        if (todas && all.length) todas.checked = all.every(x => x.checked);
+        ceEdSyncPlacasUI();
     };
 
     window.ceEdToggleTemTam = function (checked) {
