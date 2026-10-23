@@ -3398,6 +3398,7 @@ window.mnSalvarKmPreventivo = async function() {
 function mnRenderCorretivaTela(sub) {
     window._mnCorrView = 'cards';
     window._mnCorrVeicSel = null;
+    window._mnCorrCardFiltro = 'em_aberto';
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
     sub.innerHTML = `
@@ -3413,7 +3414,7 @@ function mnRenderCorretivaTela(sub) {
             </select>
             <select id="mn-corr-status" onchange="window._mnCorrCardFiltro=this.value||'';window._mnRenderCorretivaDados(window._mnCorrDados||[])" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
                 <option value="">Todos Status</option>
-                <option value="em_aberto" style="color:#7c3aed;font-weight:700;">Em Aberto</option>
+                <option value="em_aberto" selected style="color:#7c3aed;font-weight:700;">Em Aberto</option>
                 <option value="em_andamento" style="color:#dc2626;font-weight:700;">Em Manutenção</option>
                 <option value="agendada" style="color:#d97706;font-weight:700;">Novo</option>
                 <option value="aguardando" style="color:#2563eb;font-weight:700;">Aguardando</option>
@@ -3455,7 +3456,7 @@ function mnRenderCorretivaTela(sub) {
 }
 
 window._mnCorrSort = window._mnCorrSort || { col: '', dir: 'asc' };
-window._mnCorrCardFiltro = window._mnCorrCardFiltro || '';
+window._mnCorrCardFiltro = window._mnCorrCardFiltro || 'em_aberto';
 
 window._mnRenderCorrThead = function() {
     var thead = document.getElementById('mn-corr-thead');

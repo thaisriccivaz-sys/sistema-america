@@ -25,7 +25,7 @@
     const CONT = { corretiva: 'compras-corretivas-container', revisao: 'compras-revisao-container' };
     const TITULO = { corretiva: 'Corretiva', revisao: 'Revisão' };
     const state = {
-        corretiva: { dados: [], filtro: '', filtroManut: '', busca: '', view: 'tabela', veic: null },
+        corretiva: { dados: [], filtro: 'em_aberto', busca: '', view: 'tabela', veic: null },
         revisao: { dados: [], filtro: '', busca: '', view: 'tabela', veic: null }
     };
 
@@ -60,7 +60,11 @@
     window.initComprasFrota = async function (tipo, manterVisao) {
         const cont = document.getElementById(CONT[tipo]);
         if (!cont) return;
-        if (!manterVisao) { state[tipo].view = 'tabela'; state[tipo].veic = null; }
+        if (!manterVisao) {
+            state[tipo].view = 'tabela';
+            state[tipo].veic = null;
+            if (tipo === 'corretiva') state[tipo].filtro = 'em_aberto';
+        }
         cont.innerHTML = '<div style="padding:3rem;text-align:center;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;color:#1971c2;"></i><div style="margin-top:8px;font-weight:600;">Carregando registros do Compras...</div></div>';
         try {
             const r = await fetch('/api/compras-frota/' + tipo + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok() }, cache: 'no-store' });
@@ -85,7 +89,6 @@
             + '<div><h2 style="margin:0;color:#1e293b;font-size:1.4rem;">Compras — Frota › ' + TITULO[tipo] + '</h2>'
             + '<div style="font-size:0.8rem;color:#64748b;">' + (tipo === 'corretiva' ? 'Manutenções corretivas em manutenção, finalização pendente ou concluídas aguardando o registro de serviços, peças, notas e valores.' : 'Revisões agendadas ou realizadas aguardando o registro de serviços, peças, notas e valores.') + '</div></div>'
             + '</div>'
-            + (tipo === 'corretiva' ? '<div id="cf-kpi-manut-corretiva" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:12px;"></div>' : '')
             + '<div id="cf-kpi-' + tipo + '" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:12px;"></div>'
             + '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
             + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
@@ -103,24 +106,11 @@
         const st = state[tipo];
         const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const palavras = norm(st.busca).split(' ').filter(Boolean);
-        const mesAtual = new Date().toISOString().slice(0, 7);
         return st.dados.filter((x) => {
-            if (st.filtro && x.situacao !== st.filtro) return false;
-            if (tipo === 'corretiva' && st.filtroManut) {
-                const ms = x.manut_status || 'agendada';
-                const temVid = Number(x.tem_video_geral) > 0;
-                const finPend = ms === 'concluida' && !temVid;
-                if (st.filtroManut === 'em_aberto') {
-                    if (!(ms === 'em_andamento' || ms === 'agendada' || ms === 'aguardando' || ms === 'finalizacao_pendente' || finPend)) return false;
-                } else if (st.filtroManut === 'finalizacao_pendente') {
-                    if (!finPend && ms !== 'finalizacao_pendente') return false;
-                } else if (st.filtroManut === 'concluida') {
-                    if (!(ms === 'concluida' && temVid)) return false;
-                } else if (st.filtroManut === 'concluidas_mes') {
-                    if (!(ms === 'concluida' && temVid && String(x.data_conclusao || '').startsWith(mesAtual))) return false;
-                } else if (ms !== st.filtroManut) {
-                    return false;
-                }
+            if (st.filtro === 'em_aberto') {
+                if (x.situacao !== 'novo' && x.situacao !== 'iniciada') return false;
+            } else if (st.filtro && x.situacao !== st.filtro) {
+                return false;
             }
             if (st.veic && String(x.veiculo_id) !== String(st.veic)) return false;
             if (!palavras.length) return true;
@@ -131,46 +121,18 @@
 
     function atualizarLista(tipo) {
         const st = state[tipo];
-        if (tipo === 'corretiva') {
-            const kpiManut = document.getElementById('cf-kpi-manut-corretiva');
-            if (kpiManut) {
-                const mesAtual = new Date().toISOString().slice(0, 7);
-                const emAndamento = st.dados.filter((m) => m.manut_status === 'em_andamento').length;
-                const agendadas = st.dados.filter((m) => m.manut_status === 'agendada').length;
-                const aguardando = st.dados.filter((m) => m.manut_status === 'aguardando').length;
-                const finPendente = st.dados.filter((m) => (m.manut_status === 'concluida' && !(Number(m.tem_video_geral) > 0)) || m.manut_status === 'finalizacao_pendente').length;
-                const emAberto = emAndamento + agendadas + aguardando + finPendente;
-                const concluidas = st.dados.filter((m) => m.manut_status === 'concluida' && Number(m.tem_video_geral) > 0).length;
-                const ativoM = st.filtroManut || 'todos';
-                const cardsM = [
-                    { key: 'em_aberto',            cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-folder-open',   label: 'Em Aberto',            val: emAberto },
-                    { key: 'em_andamento',         cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
-                    { key: 'agendada',             cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                val: agendadas },
-                    { key: 'aguardando',           cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',           val: aguardando },
-                    { key: 'finalizacao_pendente', cor: '#ea580c', bg: '#fff7ed', icone: 'ph-video-camera',  label: 'Finalização Pendente', val: finPendente },
-                    { key: 'concluida',            cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas',           val: concluidas },
-                    { key: 'todos',                cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',                val: st.dados.length }
-                ];
-                kpiManut.innerHTML = cardsM.map((k) => {
-                    const ativo = ativoM === k.key;
-                    return '<div onclick="window.comprasFrotaFiltrarManut(\'' + k.key + '\')" title="Filtrar por status da manutenção: ' + k.label + '"'
-                        + ' style="background:' + (ativo ? k.bg : '#fff') + ';border:' + (ativo ? '2px solid ' + k.cor : '1px solid #e2e8f0') + ';border-left:4px solid ' + k.cor + ';border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px;box-shadow:' + (ativo ? '0 4px 12px ' + k.cor + '22' : '0 2px 6px rgba(0,0,0,0.04)') + ';cursor:pointer;transition:all 0.15s;user-select:none;">'
-                        + '<div style="width:42px;height:42px;border-radius:10px;background:' + k.cor + '18;color:' + k.cor + ';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;"><i class="ph ' + k.icone + '"></i></div>'
-                        + '<div><div style="font-size:1.5rem;font-weight:800;color:#1e293b;line-height:1;">' + k.val + '</div>'
-                        + '<div style="font-size:0.75rem;color:' + (ativo ? k.cor : '#64748b') + ';font-weight:' + (ativo ? '700' : '600') + ';margin-top:2px;">' + k.label + '</div></div></div>';
-                }).join('');
-            }
-        }
         // KPI (mesmo estilo dos botões de filtro da Revisão da logística)
         const cont = { novo: 0, iniciada: 0, registrado: 0 };
         st.dados.forEach((x) => { if (cont[x.situacao] !== undefined) cont[x.situacao]++; });
         const ativoKey = st.filtro || 'todos';
-        const cards = [
+        const cards = (tipo === 'corretiva' ? [
+            { key: 'em_aberto', cor: '#dc2626', bg: '#fef2f2', icone: 'ph-folder-open', label: 'Em Aberto', val: cont.novo + cont.iniciada }
+        ] : []).concat([
             { key: 'novo', cor: '#d97706', bg: '#fff7ed', icone: 'ph-sparkle', label: 'Novo', val: cont.novo },
             { key: 'iniciada', cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass-medium', label: 'Iniciada', val: cont.iniciada },
             { key: 'registrado', cor: '#16a34a', bg: '#f0fdf4', icone: 'ph-check-circle', label: 'Registrado', val: cont.registrado },
             { key: 'todos', cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets', label: 'Todos', val: st.dados.length }
-        ];
+        ]);
         const kpi = document.getElementById('cf-kpi-' + tipo);
         if (kpi) kpi.innerHTML = cards.map((k) => {
             const ativo = ativoKey === k.key;
@@ -191,7 +153,7 @@
         if (st.view === 'cards' && !st.veic) {
             tbl.innerHTML = cardsHtml(tipo, lista);
             const nVeic = tipo === 'corretiva'
-                ? window._fcAgruparCorretivas(st.dados, lista, st.filtroManut).length
+                ? window._fcAgruparCorretivas(st.dados, lista).length
                 : new Set(lista.map((x) => String(x.veiculo_id))).size;
             if (cnt) cnt.textContent = nVeic + ' veículo(s)';
             return;
@@ -261,7 +223,7 @@
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Defeito / Problema' : 'Revisão') + '</th>'
             + thDatas
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Fornecedor' : 'Concessionária') + '</th>'
-            + '<th style="' + thR + '">R$ Peças</th><th style="' + thR + '">R$ Mão de obra</th><th style="' + thR + '">R$ Total</th>'
+            + '<th style="' + thR + '">R$ Peças</th><th style="' + thR + 'line-height:1.15;">R$ Mão<br>de obra</th><th style="' + thR + '">R$ Total</th>'
             + '<th style="padding:10px 12px;text-align:center;color:#475569;font-weight:700;">Situação</th>'
             + '<th style="padding:10px 12px;"></th></tr></thead>'
             + '<tbody>' + (linhas || '<tr><td colspan="' + colSpan + '" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-tray" style="font-size:2rem;display:block;margin-bottom:6px;"></i>Nenhum registro encontrado.</td></tr>') + '</tbody>'
@@ -289,7 +251,7 @@
     function cardsHtml(tipo, lista) {
         const st = state[tipo];
         if (tipo === 'corretiva') {
-            const grupos = window._fcAgruparCorretivas(st.dados, lista, st.filtroManut);
+            const grupos = window._fcAgruparCorretivas(st.dados, lista);
             return '<div style="padding:1rem;background:#f8fafc;">' + window._fcCorrCardsHtml(grupos, 'window.comprasCorrAbrirVeiculo') + '</div>';
         }
         // revisão: agrupa por veículo; contagem por situação do Compras e valores / dias parado vindos do resumo de revisões realizadas
@@ -357,13 +319,8 @@
         st.filtro = (key === 'todos' || st.filtro === key) ? '' : key;
         atualizarLista(tipo);
     };
-    window.comprasFrotaFiltrarManut = function (key) {
-        const st = state.corretiva;
-        st.filtroManut = (key === 'todos' || st.filtroManut === key) ? '' : key;
-        atualizarLista('corretiva');
-    };
     window.comprasFrotaBuscar = function (tipo, val) { state[tipo].busca = val; atualizarLista(tipo); };
-    window.comprasFrotaLimpar = function (tipo) { state[tipo].filtro = ''; if (state[tipo].filtroManut !== undefined) state[tipo].filtroManut = ''; state[tipo].busca = ''; renderPagina(tipo); };
+    window.comprasFrotaLimpar = function (tipo) { state[tipo].filtro = ''; state[tipo].busca = ''; renderPagina(tipo); };
     window.comprasFrotaAbrir = function (tipo, id) {
         if (tipo === 'corretiva') return window.comprasCorrAbrir(id);
         return window.comprasRevAbrir(id);
