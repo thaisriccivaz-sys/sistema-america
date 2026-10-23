@@ -136,10 +136,11 @@
         return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
             esc(nome) + (low ? ' <i class="ph ph-warning" style="font-size:0.78rem;"></i>' : '') + '</span>';
     }
-    // Rua do almoxarifado (apenas nos detalhes)
-    const ruaBadge = s => {
+    // Nome do endereço com número da rua do almoxarifado (ex.: "Almoxarifado - 1")
+    const nomeEndComRua = s => {
         const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
-        return r ? ' <span title="Rua do almoxarifado" style="display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-signpost"></i> Rua ' + r + '</span>' : '';
+        const nome = s && s.nome ? s.nome : '';
+        return nome + (r ? ' - ' + r : '');
     };
     const badgeTipo = t => t === 'reposicao'
         ? '<span style="display:inline-flex;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
@@ -410,8 +411,8 @@
             : '<div style="width:40px;height:40px;min-width:40px;flex-shrink:0;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
         const warn = low ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : '';
 
-        // Botão carrinho (apenas ícone, em frente ao nome do produto) + botão PDF se houver
-        const cartBtn = '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + item.id + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:30px;height:30px;padding:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:1rem;"></i></button>';
+        // Botão carrinho (26x26: ao lado esquerdo da foto nos produtos sem seta, ou ao lado esquerdo do tamanho nos com seta) + botão PDF se houver
+        const cartBtnFn = (id, tam) => '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:26px;height:26px;padding:0;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:0.95rem;"></i></button>';
         const pdfBtn = r.tem_pdf ? '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceVerPdf(' + item.id + ')" title="Abrir PDF do produto" style="background:#fee2e2;color:#b91c1c;border:none;width:30px;height:30px;padding:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-file-pdf" style="font-size:1rem;"></i></button>' : '';
 
         // Colunas de compra
@@ -435,7 +436,7 @@
             out += '<tr onclick="ceToggleTam(' + item.id + ')" style="cursor:pointer;border-left:' + borda + ';' + bg + '">' +
                 '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:10px;">' +
                     '<span title="Ver tamanhos, endereços e quantidades" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform .2s;' + (aberto ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
-                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + cartBtn + pdfBtn + '<span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
+                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + pdfBtn + '<span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
                 '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
                 '<td style="vertical-align:middle;">' + qtdHtml(qtdTotal(item, saldos), low) + '</td>' +
                 '<td style="vertical-align:middle;white-space:nowrap;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
@@ -445,10 +446,10 @@
                 const tl = sl.some(s => lowSaldo(s, item));
                 const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
                 out += '<tr class="ce-det-' + item.id + '" style="display:' + (aberto ? '' : 'none') + ';background:' + (tl ? '#fff1f2' : '#f8fafc') + ';border-left:3px solid ' + (tl ? '#ef4444' : '#3b82f6') + ';">' +
-                    '<td style="padding-left:56px;vertical-align:middle;"><span style="color:#94a3b8;">↳</span> <span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></td><td></td>' +
+                    '<td style="padding-left:48px;vertical-align:middle;"><div style="display:flex;align-items:center;gap:8px;"><span style="color:#94a3b8;">↳</span>' + cartBtnFn(item.id, tam) + '<span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></div></td><td></td>' +
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
-                    '<td>' + stack(s => badgeEnd(s.nome, lowSaldo(s, item)) + ruaBadge(s)) + '</td>' +
+                    '<td>' + stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td><td colspan="4"></td></tr>';
             });
             return out;
@@ -457,11 +458,11 @@
         const sl = saldos;
         const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
         out += '<tr style="border-left:' + borda + ';' + bg + '">' +
-            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;"></span>' + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + cartBtn + pdfBtn + '</div></div></td>' +
+            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + pdfBtn + '</div></div></td>' +
             '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
-            '<td>' + (sl.length ? stack(s => badgeEnd(s.nome, lowSaldo(s, item)) + ruaBadge(s)) : linha('<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>')) + '</td>' +
+            '<td>' + (sl.length ? stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) : linha('<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>')) + '</td>' +
             '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td>' + celCompra + '</tr>';
         return out;
     }
@@ -476,7 +477,7 @@
         return cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia';
     }
 
-    window.ceAbrirProduto = async function (id) {
+    window.ceAbrirProduto = async function (id, tamFoco) {
         const item = S.data.find(i => i.id === id);
         const m = abrirModal({
             titulo: '<i class="ph ph-shopping-cart" style="color:#1971c2;"></i> <span>' + esc(item ? item.nome : 'Produto') + '</span>',
@@ -484,7 +485,7 @@
             corpo: '<div style="text-align:center;padding:40px;color:#64748b;">Carregando dados do produto e notas...</div>',
             onClose: () => { S.prodModal = null; }
         });
-        S.prodModal = { id: id, modal: m, dados: null, edit: null };
+        S.prodModal = { id: id, modal: m, dados: null, edit: null, tamFoco: tamFoco ? String(tamFoco).trim().toUpperCase() : '' };
         await carregarDadosModalProduto();
     };
 
@@ -543,7 +544,7 @@
                 foto_base64: '',
                 tem_tamanho: !!(prod.tem_tamanho || tams.length > 0),
                 tamanhos: tams,
-                tamExpandidos: {},
+                tamExpandidos: pm.tamFoco ? { [pm.tamFoco]: true } : {},
                 linhas: linhas,
                 hiddenLinhas: ocultos,
                 placas: new Set(String(prod.placas_vinculadas || '').split(',').map(s => s.trim()).filter(Boolean)),

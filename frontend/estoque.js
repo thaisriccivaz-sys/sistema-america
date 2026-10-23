@@ -61,11 +61,42 @@ window._onEnderecoChange = function(idx, val, prefixo) {
     const sel = document.getElementById('estoque-rua-' + prefixo + idx);
     if (sel) { sel.style.display = alm ? 'block' : 'none'; sel.value = alm ? (l.rua || '') : ''; }
 };
-// Badge "Rua N" mostrado somente nos detalhes (linhas de tamanho/endereço)
-window._ruaBadgeHtml = function(s) {
+// Nome do endereço com número da rua do almoxarifado (ex.: "Almoxarifado - 1")
+window._nomeEnderecoComRua = function(s) {
     const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
-    if (!r) return '';
-    return ' <span title="Rua do almoxarifado" style="display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-signpost"></i> Rua ' + r + '</span>';
+    const nome = s && s.nome ? s.nome : '';
+    return nome + (r ? ' - ' + r : '');
+};
+window._ruaBadgeHtml = function() { return ''; };
+
+window.abrirDropdownEnderecoEstoque = function() {
+    const dropdown = document.getElementById('filtro-estoque-endereco-dropdown');
+    if (!dropdown) return;
+    const willOpen = dropdown.style.display !== 'block';
+    dropdown.style.display = willOpen ? 'block' : 'none';
+    if (willOpen) {
+        const inp = document.getElementById('filtro-estoque-end-busca');
+        if (inp) {
+            inp.value = '';
+            window.filtrarOpcoesEnderecoEstoque('');
+            setTimeout(() => inp.focus(), 30);
+        }
+    }
+};
+
+window.filtrarOpcoesEnderecoEstoque = function(texto) {
+    const t = String(texto || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const items = document.querySelectorAll('#filtro-estoque-endereco-dropdown .filtro-estoque-end-item');
+    const todosLbl = document.getElementById('filtro-estoque-end-todos-label');
+    const vazioEl = document.getElementById('filtro-estoque-end-vazio');
+    if (todosLbl) todosLbl.style.display = t ? 'none' : 'flex';
+    let visiveis = 0;
+    items.forEach(lbl => {
+        const match = !t || (lbl.dataset.end || '').includes(t);
+        lbl.style.display = match ? 'flex' : 'none';
+        if (match) visiveis++;
+    });
+    if (vazioEl) vazioEl.style.display = visiveis === 0 ? 'block' : 'none';
 };
 
 // ── TABELA PRINCIPAL ──────────────────────────────────────────────────────────
@@ -250,14 +281,21 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         const endContainer = document.getElementById("filtro-estoque-endereco-dropdown");
         if (endContainer && !endContainer.dataset.populated && window._estoqueEnderecos.length > 0) {
             endContainer.dataset.populated = "true";
-            let html = `<label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            let html = `<div style="position: sticky; top: -0.5rem; background: #fff; padding: 4px 0 6px 0; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px; z-index: 2;">
+                <input type="text" id="filtro-estoque-end-busca" placeholder="Digite para pesquisar endereço..." autocomplete="off"
+                    oninput="window.filtrarOpcoesEnderecoEstoque(this.value)"
+                    style="width: 100%; padding: 6px 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.83rem; box-sizing: border-box; outline: none;">
+            </div>
+            <label id="filtro-estoque-end-todos-label" style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                 <input type="checkbox" value="" checked onchange="window.toggleTodosEnderecosFiltro(this)"> Todos
             </label>`;
             window._estoqueEnderecos.forEach(end => {
-                html += `<label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                    <input type="checkbox" value="${end.id}" class="filtro-estoque-end-cb" onchange="window.updateEnderecoFiltroText(); window.renderEstoqueTable()"> ${end.nome}
+                const endNorm = String(end.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                html += `<label class="filtro-estoque-end-item" data-end="${endNorm}" style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" value="${end.id}" class="filtro-estoque-end-cb" onchange="window.updateEnderecoFiltroText(); window.renderEstoqueTable()"> <span>${end.nome}</span>
                 </label>`;
             });
+            html += `<div id="filtro-estoque-end-vazio" style="display:none;padding:8px;color:#94a3b8;font-size:0.82rem;text-align:center;">Nenhum endereço encontrado</div>`;
             endContainer.innerHTML = html;
         }
 
@@ -634,8 +672,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                                 : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
                             const endColors = getBadgeColors(s.nome, lowEnd);
                             endCellTam = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
-                                s.nome + (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                            '</span>' + window._ruaBadgeHtml(s);
+                                window._nomeEnderecoComRua(s) + (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
+                            '</span>';
                         }
 
                         const bgTamRow = lowEnd ? 'background:#fff1f2;' : 'background:#f8fafc;';
@@ -734,9 +772,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                         : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
                     const endColors = getBadgeColors(s.nome, lowEnd);
                     endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
-                        s.nome +
+                        window._nomeEnderecoComRua(s) +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                        '</span>' + window._ruaBadgeHtml(s);
+                        '</span>';
                 }
 
                 // Separador entre linhas do mesmo produto
