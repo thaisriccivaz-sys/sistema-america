@@ -342,13 +342,76 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             };
         }
 
-        // Ordenar por Categoria (ordem alfabética) e, dentro de cada categoria, por Nome do produto (ordem alfabética)
+        if (typeof window.ordenarTabelaEstoque !== 'function') {
+            window._estoqueSortState = { col: 'nome', asc: true };
+            window.ordenarTabelaEstoque = function(col, thEl) {
+                if (!window._estoqueSortState) window._estoqueSortState = { col: 'nome', asc: true };
+                if (window._estoqueSortState.col === col) {
+                    window._estoqueSortState.asc = !window._estoqueSortState.asc;
+                } else {
+                    window._estoqueSortState.col = col;
+                    window._estoqueSortState.asc = true;
+                }
+                document.querySelectorAll('#thead-estoque-row .sort-icon-estoque').forEach(function(ic) {
+                    ic.className = 'ph ph-arrows-down-up sort-icon-estoque';
+                    ic.style.color = '#94a3b8';
+                });
+                if (thEl) {
+                    const ic = thEl.querySelector('.sort-icon-estoque');
+                    if (ic) {
+                        ic.className = 'ph ' + (window._estoqueSortState.asc ? 'ph-arrow-up' : 'ph-arrow-down') + ' sort-icon-estoque';
+                        ic.style.color = '#1d4ed8';
+                    }
+                }
+                window.renderEstoqueTable(true);
+            };
+        }
+
+        const sortState = window._estoqueSortState || { col: 'nome', asc: true };
+        const dir = sortState.asc ? 1 : -1;
+
+        function _getQtdTotalItem(it) {
+            const sList = saldosMap[it.id] || [];
+            if (sList.length > 0) return sList.reduce((acc, s) => acc + (parseInt(s.quantidade) || 0), 0);
+            return parseInt(it.quantidade_atual) || 0;
+        }
+        function _getMinItem(it) {
+            const sList = saldosMap[it.id] || [];
+            if (sList.length > 0) return Math.min.apply(null, sList.map(s => parseInt(s.quantidade_minima) || 0));
+            return parseInt(it.quantidade_minima) || 0;
+        }
+        function _getEndNomeItem(it) {
+            const sList = saldosMap[it.id] || [];
+            return sList.length > 0 ? String(sList[0].nome || '') : '';
+        }
+        function _getTipoItem(it) {
+            const sList = saldosMap[it.id] || [];
+            return sList.length > 0 ? String(sList[0].tipo_estoque || 'matriz') : 'matriz';
+        }
+
+        // Ordenar mantendo o agrupamento por Categoria e aplicando a coluna clicada dentro de cada categoria
         data.sort(function(a, b) {
             const catA = String(a.categoria || 'Sem Categoria').trim();
             const catB = String(b.categoria || 'Sem Categoria').trim();
             const cmpCat = catA.localeCompare(catB, 'pt-BR', { sensitivity: 'base' });
-            if (cmpCat !== 0) return cmpCat;
-            return String(a.nome || '').trim().localeCompare(String(b.nome || '').trim(), 'pt-BR', { sensitivity: 'base', numeric: true });
+            if (cmpCat !== 0) {
+                return sortState.col === 'categoria' ? (cmpCat * dir) : cmpCat;
+            }
+            if (sortState.col === 'qtd') {
+                const diff = _getQtdTotalItem(a) - _getQtdTotalItem(b);
+                if (diff !== 0) return diff * dir;
+            } else if (sortState.col === 'minmax') {
+                const diff = _getMinItem(a) - _getMinItem(b);
+                if (diff !== 0) return diff * dir;
+            } else if (sortState.col === 'endereco') {
+                const cmpE = _getEndNomeItem(a).localeCompare(_getEndNomeItem(b), 'pt-BR', { sensitivity: 'base' });
+                if (cmpE !== 0) return cmpE * dir;
+            } else if (sortState.col === 'tipo') {
+                const cmpT = _getTipoItem(a).localeCompare(_getTipoItem(b), 'pt-BR', { sensitivity: 'base' });
+                if (cmpT !== 0) return cmpT * dir;
+            }
+            const cmpNome = String(a.nome || '').trim().localeCompare(String(b.nome || '').trim(), 'pt-BR', { sensitivity: 'base', numeric: true });
+            return sortState.col === 'nome' ? (cmpNome * dir) : cmpNome;
         });
 
         // Contar itens por categoria para exibir no cabeçalho separador

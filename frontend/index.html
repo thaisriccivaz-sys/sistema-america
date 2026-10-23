@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261023v10" defer></script>
+    <script src="estoque.js?v=20261023v11" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3804,13 +3804,13 @@
                         <div class="table-responsive">
                             <table class="table">
                                 <thead>
-                                    <tr style="font-size:0.78rem;">
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Catg. <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Qt. Atual <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th style="white-space:nowrap;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th style="white-space:nowrap;">Tipo</th>
+                                    <tr id="thead-estoque-row" style="font-size:0.78rem;">
+                                        <th onclick="window.ordenarTabelaEstoque('nome', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Nome">Nome <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.ordenarTabelaEstoque('categoria', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Categoria">Catg. <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.ordenarTabelaEstoque('qtd', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Quantidade Atual">Qt. Atual <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.ordenarTabelaEstoque('minmax', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Mín/Máx">Min/Máx <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.ordenarTabelaEstoque('endereco', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Endereço"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th onclick="window.ordenarTabelaEstoque('tipo', this)" style="cursor:pointer;white-space:nowrap;user-select:none;" title="Ordenar por Tipo">Tipo <i class="ph ph-arrows-down-up sort-icon-estoque" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
