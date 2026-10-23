@@ -1098,11 +1098,12 @@ window.editarEstoque = async function(item, tamanhoFoco) {
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
-    document.getElementById("estoque-cat").value  = item.categoria || '';
-    window.togglePlacasEstoque(item.categoria);
+    const catNorm = item.categoria === 'Peças Automotivas' ? 'Automotivo' : (item.categoria || '');
+    document.getElementById("estoque-cat").value  = catNorm;
+    window.togglePlacasEstoque(catNorm);
     if (window._veiculosParaEstoque) {
         _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
-    } else if (item.categoria === 'Peças Automotivas' || item.categoria === 'Pneus e Borracharia') {
+    } else if (catNorm === 'Automotivo' || catNorm === 'Peças Automotivas' || catNorm === 'Pneus e Borracharia') {
         const origCb = _renderPlacasCheckboxes;
         _renderPlacasCheckboxes = function() {
             origCb((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
@@ -1827,7 +1828,7 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
 
     window.togglePlacasEstoque = function(cat) {
         const c = document.getElementById('estoque-placas-container');
-        if (cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia') {
+        if (cat === 'Automotivo' || cat === 'Peças Automotivas' || cat === 'Pneus e Borracharia') {
             c.style.display = 'block';
             if (!window._veiculosParaEstoque) {
                 _fetchVeiculosEstoque();

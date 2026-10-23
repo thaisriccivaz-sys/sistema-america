@@ -31453,6 +31453,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
+    db.run("UPDATE estoque SET categoria = 'Automotivo' WHERE categoria = 'Peças Automotivas'", () => {});
 });
 
 // Helper: Consolidar automaticamente produtos existentes que foram cadastrados separados por tamanho
