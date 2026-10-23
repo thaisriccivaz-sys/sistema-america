@@ -313,10 +313,10 @@
                         '</select></div>' +
                 '</div>' +
                 '<div id="ce-resumo" style="font-size:0.8rem;color:#64748b;margin-bottom:0.4rem;"></div>' +
-                '<style>#ce-table th,#ce-table td{padding:8px 6px;overflow-wrap:break-word;}@media (max-width:1200px){#ce-table{font-size:0.78rem;}#ce-table th{font-size:0.7rem !important;}}@media (max-width:1100px){#ce-table th,#ce-table td{padding:8px 4px;}#ce-table td img{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td div[style*="dashed"]{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td .btn{width:22px !important;height:22px !important;}}</style>' +
+                '<style>.ce-c1{width:22.5%}.ce-c2{width:11%}.ce-c3{width:6%}.ce-c4{width:7%}.ce-c5{width:11%}.ce-c6{width:9%}.ce-c7{width:10%}.ce-c8{width:7.5%}.ce-c9{width:8%}.ce-c10{width:8%}#ce-table th,#ce-table td{padding:8px 6px;overflow-wrap:break-word;}@media (max-width:1200px){#ce-table{font-size:0.78rem;}.ce-c1{width:19.5%}.ce-c8{width:8%}.ce-c9{width:9%}.ce-c10{width:9.5%}#ce-table th{font-size:0.7rem !important;}}@media (max-width:1100px){#ce-table th,#ce-table td{padding:8px 4px;}#ce-table td img{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td div[style*="dashed"]{width:30px !important;height:30px !important;min-width:30px !important;}#ce-table td .btn{width:22px !important;height:22px !important;}}</style>' +
                 '<div id="ce-table-wrap" class="table-responsive" style="height:calc(100vh - 185px);max-height:calc(100vh - 185px);min-height:480px;overflow-x:hidden;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;position:relative;">' +
                     '<table id="ce-table" class="table" style="margin:0;border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;">' +
-                        '<colgroup><col style="width:18%"><col style="width:11%"><col style="width:6%"><col style="width:7%"><col style="width:11%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:10%"></colgroup>' +
+                        '<colgroup><col class="ce-c1"><col class="ce-c2"><col class="ce-c3"><col class="ce-c4"><col class="ce-c5"><col class="ce-c6"><col class="ce-c7"><col class="ce-c8"><col class="ce-c9"><col class="ce-c10"></colgroup>' +
                         '<thead id="ce-thead" style="position:sticky;top:0;z-index:12;background:#f8fafc;"></thead>' +
                         '<tbody id="ce-tbody"></tbody>' +
                     '</table>' +
@@ -488,7 +488,7 @@
             out += '<tr onclick="ceToggleTam(' + item.id + ')" style="cursor:pointer;border-left:' + borda + ';' + bg + '">' +
                 '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
                     '<span title="Ver tamanhos, endereços e quantidades" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform .2s;' + (aberto ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
-                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span>' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
+                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span title="' + esc(item.nome) + '" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;min-width:0;">' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
                 '<td style="vertical-align:middle;line-height:1.25;">' + catDuasLinhas(cat) + '</td>' +
                 '<td style="vertical-align:middle;">' + qtdHtml(qtdTotal(item, saldos), low) + '</td>' +
                 '<td style="vertical-align:middle;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
@@ -511,7 +511,7 @@
         const sl = saldos;
         const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
         out += '<tr style="border-left:' + borda + ';' + bg + '">' +
-            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:8px;min-width:0;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span>' + warn + esc(item.nome) + '</span></div></div></td>' +
+            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:8px;min-width:0;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;"><span title="' + esc(item.nome) + '" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;min-width:0;">' + warn + esc(item.nome) + '</span></div></div></td>' +
             '<td style="vertical-align:middle;line-height:1.25;">' + catDuasLinhas(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
