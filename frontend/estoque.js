@@ -247,6 +247,22 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             };
         }
 
+        if (typeof window.ampliarFotoEstoque !== 'function') {
+            window.ampliarFotoEstoque = function(src, titulo) {
+                if (!src) return;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: titulo || 'Foto do Produto',
+                        html: '<div style="display:flex;align-items:center;justify-content:center;padding:8px;"><img src="' + src + '" style="max-width:100%;max-height:75vh;border-radius:10px;object-fit:contain;box-shadow:0 4px 16px rgba(0,0,0,0.12);"></div>',
+                        width: 'auto',
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        backdrop: 'rgba(15, 23, 42, 0.75)'
+                    });
+                }
+            };
+        }
+
         window._estoqueSubcatAbertas = window._estoqueSubcatAbertas || {};
 
         // Função interna que gera as linhas HTML de um item individual
@@ -275,8 +291,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
             // ── Foto ──
             const fotoSrc = item.foto_url || item.foto_base64 || "";
+            const safeItemNome = String(item.nome || 'Produto').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const fotoHtml = fotoSrc
-                ? '<img src="' + fotoSrc + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;">'
+                ? '<img src="' + fotoSrc + '" onclick="event.stopPropagation(); window.ampliarFotoEstoque(this.src, \'' + safeItemNome + '\')" title="Clique para ampliar a foto" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform=\'scale(1.08)\'" onmouseout="this.style.transform=\'scale(1)\'">'
                 : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
@@ -452,7 +469,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             gruposRenderizados[key] = true;
 
             const grupo = gruposSubcat[key];
-            const isOpen = !!search || !!window._estoqueSubcatAbertas[key];
+            const isOpen = !!nome || !!window._estoqueSubcatAbertas[key];
 
             let childrenHtml = '';
             let totalQtdGrupo = 0;
@@ -469,8 +486,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 if (res.isLow) lowCountGrupo++;
             });
 
+            const safeGrupoNome = String(grupo.nome || 'Subcategoria').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const fotoGrupoHtml = fotoGrupo
-                ? '<img src="' + fotoGrupo + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;">'
+                ? '<img src="' + fotoGrupo + '" onclick="event.stopPropagation(); window.ampliarFotoEstoque(this.src, \'' + safeGrupoNome + '\')" title="Clique para ampliar a foto" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform=\'scale(1.08)\'" onmouseout="this.style.transform=\'scale(1)\'">'
                 : '<div style="width:40px;height:40px;border-radius:8px;background:#dbeafe;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;"><i class="ph ph-folders" style="color:#1d4ed8;font-size:1.25rem;"></i></div>';
 
             const borderLeftGrupo = lowCountGrupo > 0 ? '4px solid #ef4444' : '4px solid #2563eb';
