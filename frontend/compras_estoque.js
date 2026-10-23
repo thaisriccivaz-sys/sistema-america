@@ -466,15 +466,19 @@
         const cartBtnFn = (id, tam) => '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:26px;height:26px;padding:0;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:0.95rem;"></i></button>';
 
         // Colunas de compra (produto geral ou por tamanho)
-        const montarCelCompra = (rc) => {
+        const montarCelCompra = (rc, tam) => {
+            const temVinculo = !!(rc.fornecedor || rc.valor_atual > 0 || rc.garantia_ate);
+            const btnLimpar = temVinculo
+                ? '<button type="button" onclick="event.stopPropagation();ceLimparVinculoCompra(' + item.id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Excluir vinculação de fornecedor, garantia e último valor" style="background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:3px 7px;font-size:0.78rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-trash"></i></button>'
+                : '';
             const fc = rc.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(rc.fornecedor) + '</span>' : dash;
             const vc = rc.valor_atual > 0 ? '<span style="font-weight:700;color:#0f766e;">' + money(rc.valor_atual) + '</span>' : dash;
             const uc = rc.ultima_compra
                 ? '<div style="line-height:1.3;"><div style="font-size:0.8rem;color:#334155;font-weight:600;">' + fmtData(rc.ultima_compra) + '</div><span style="font-size:0.7rem;color:#64748b;">' + rc.total_compras + (rc.total_compras === 1 ? ' compra' : ' compras') + (rc.total_notas ? ' &middot; ' + rc.total_notas + ' NF' : '') + '</span></div>'
                 : dash;
-            return '<td style="vertical-align:middle;">' + fc + '</td><td style="vertical-align:middle;">' + vc + '</td><td style="vertical-align:middle;">' + garantiaHtml(rc.garantia_ate) + '</td><td style="vertical-align:middle;">' + uc + '</td>';
+            return '<td style="vertical-align:middle;">' + fc + '</td><td style="vertical-align:middle;">' + vc + '</td><td style="vertical-align:middle;">' + garantiaHtml(rc.garantia_ate) + '</td><td style="vertical-align:middle;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><div>' + uc + '</div>' + btnLimpar + '</div></td>';
         };
-        const celCompra = montarCelCompra(r);
+        const celCompra = montarCelCompra(r, '');
 
         if (sizes) {
             const aberto = !!S.expanded[item.id];
@@ -504,7 +508,7 @@
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
                     '<td>' + stack(s => badgeEnd(nomeEndComRua(s), lowSaldo(s, item))) + '</td>' +
-                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td>' + montarCelCompra(rt) + '</tr>';
+                    '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td>' + montarCelCompra(rt, tam) + '</tr>';
             });
             return out;
         }
@@ -1391,7 +1395,13 @@
                 '<div style="margin-top:8px;font-size:0.76rem;"><a href="#" onclick="ceAbrirNotas();return false;" style="color:#1971c2;font-weight:700;text-decoration:none;"><i class="ph ph-receipt"></i> Cadastrar nova nota fiscal ou vincular a vários produtos</a></div>' +
             '</div>' +
 
-            '<div style="' + cardCss + 'margin-bottom:0;">' + h4('ph-clock-counter-clockwise', 'Histórico de valores pagos e datas de compra') +
+            '<div style="' + cardCss + 'margin-bottom:0;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+                    '<div style="font-weight:800;font-size:0.9rem;color:#1e3a8a;display:flex;align-items:center;gap:6px;"><i class="ph ph-clock-counter-clockwise"></i> Histórico de valores pagos e datas de compra</div>' +
+                    ((infoTam.fornecedor || infoTam.valor_atual > 0 || infoTam.garantia_ate || info.fornecedor || info.valor_atual > 0 || info.garantia_ate)
+                        ? '<button type="button" class="btn btn-sm" onclick="ceLimparVinculoCompra(' + pm.id + (tamSel ? ',\'' + esc(tamSel) + '\'' : '') + ')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;font-size:0.76rem;font-weight:700;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-trash"></i> Excluir fornecedor, garantia e último valor</button>'
+                        : '') +
+                '</div>' +
                 '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
                     card('Nº de compras', hist.length) + card('Último valor', valores.length ? money(hist.find(h => h.valor_unitario > 0).valor_unitario) : '—', '#0f766e') +
                     card('Menor valor', valores.length ? money(Math.min.apply(null, valores)) : '—', '#15803d') + card('Maior valor', valores.length ? money(Math.max.apply(null, valores)) : '—', '#b91c1c') +
@@ -1411,6 +1421,30 @@
     };
     window.ceVerPdf = id => abrirArquivo('/compras-estoque/' + id + '/pdf');
     window.ceVerNota = nid => abrirArquivo('/compras-estoque-notas/' + nid + '/arquivo');
+
+    window.ceLimparVinculoCompra = async function (estoqueId, tam) {
+        const prod = S.data.find(i => i.id === estoqueId) || (S.prodModal && S.prodModal.dados && S.prodModal.dados.produto) || { nome: 'Produto' };
+        const r = await swal({
+            icon: 'warning',
+            title: 'Excluir vínculo de compra?',
+            html: 'Deseja remover a vinculação de <b>fornecedor, garantia e último valor</b> de <b>' + esc(prod.nome) + (tam ? ' (Tam. ' + esc(tam) + ')' : '') + '</b>?',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, excluir vínculo',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444'
+        });
+        if (!r.isConfirmed) return;
+        try {
+            const qs = '?limpar_historico=1' + (tam ? '&tamanho=' + encodeURIComponent(tam) : '');
+            await api('/compras-estoque/' + estoqueId + '/info' + qs, { method: 'DELETE' });
+            await recarregarResumoENotas();
+            renderTabela();
+            if (S.prodModal && S.prodModal.id === estoqueId) await recarregarProduto();
+            toast('Fornecedor, garantia e último valor removidos!');
+        } catch (e) {
+            swal({ icon: 'error', title: 'Erro ao excluir vínculo', text: e.message });
+        }
+    };
 
     window.ceSalvarInfo = async function () {
         const pm = S.prodModal; if (!pm) return;

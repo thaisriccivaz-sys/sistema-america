@@ -31867,14 +31867,20 @@ async function _ceAtualizarInfoUltimaCompra(estoqueId, usuario) {
              VALUES (?, ?, ?, ?, ?, ?)
              ON CONFLICT(estoque_id) DO UPDATE SET
                 valor_atual = excluded.valor_atual,
-                fornecedor = CASE WHEN excluded.fornecedor <> '' THEN excluded.fornecedor ELSE estoque_compras_info.fornecedor END,
-                garantia_meses = CASE WHEN excluded.garantia_meses > 0 THEN excluded.garantia_meses ELSE estoque_compras_info.garantia_meses END,
-                garantia_ate = CASE WHEN excluded.garantia_ate <> '' THEN excluded.garantia_ate ELSE estoque_compras_info.garantia_ate END,
+                fornecedor = excluded.fornecedor,
+                garantia_meses = excluded.garantia_meses,
+                garantia_ate = excluded.garantia_ate,
                 atualizado_em = CURRENT_TIMESTAMP,
                 atualizado_por = excluded.atualizado_por`,
             [estoqueId, ult.fornecedor || '', ult.valor_unitario || 0, ult.garantia_meses || 0, ult.garantia_ate || '', usuario || 'Sistema']
         );
+    } else {
+        await _ceRun(
+            'UPDATE estoque_compras_info SET fornecedor = ?, valor_atual = ?, garantia_meses = ?, garantia_ate = ?, atualizado_em = CURRENT_TIMESTAMP, atualizado_por = ? WHERE estoque_id = ?',
+            ['', 0, 0, '', usuario || 'Sistema', estoqueId]
+        );
     }
+    await _ceRun('DELETE FROM estoque_compras_info_tam WHERE estoque_id = ?', [estoqueId]);
     const tams = await _ceAll('SELECT DISTINCT tamanho FROM estoque_compras_historico WHERE estoque_id = ? AND tamanho IS NOT NULL AND tamanho <> ""', [estoqueId]);
     for (const row of tams) {
         const tm = String(row.tamanho || '').trim().toUpperCase();
@@ -31886,9 +31892,9 @@ async function _ceAtualizarInfoUltimaCompra(estoqueId, usuario) {
              VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(estoque_id, tamanho) DO UPDATE SET
                 valor_atual = excluded.valor_atual,
-                fornecedor = CASE WHEN excluded.fornecedor <> '' THEN excluded.fornecedor ELSE estoque_compras_info_tam.fornecedor END,
-                garantia_meses = CASE WHEN excluded.garantia_meses > 0 THEN excluded.garantia_meses ELSE estoque_compras_info_tam.garantia_meses END,
-                garantia_ate = CASE WHEN excluded.garantia_ate <> '' THEN excluded.garantia_ate ELSE estoque_compras_info_tam.garantia_ate END,
+                fornecedor = excluded.fornecedor,
+                garantia_meses = excluded.garantia_meses,
+                garantia_ate = excluded.garantia_ate,
                 atualizado_em = CURRENT_TIMESTAMP,
                 atualizado_por = excluded.atualizado_por`,
             [estoqueId, tm, ultTam.fornecedor || '', ultTam.valor_unitario || 0, ultTam.garantia_meses || 0, ultTam.garantia_ate || '', usuario || 'Sistema']
@@ -32296,6 +32302,31 @@ app.put('/api/compras-estoque/:id/info', authenticateToken, _ceHandler(async (re
                 garantia_ate = excluded.garantia_ate, atualizado_em = CURRENT_TIMESTAMP, atualizado_por = excluded.atualizado_por`,
             [id, tam, String(b.fornecedor || '').trim().slice(0, 200), _ceNum(b.valor_atual), Math.max(0, parseInt(b.garantia_meses, 10) || 0), String(b.garantia_ate || '').slice(0, 10), _ceUser(req)]
         );
+    }
+    res.json({ ok: true });
+}));
+
+app.delete('/api/compras-estoque/:id/info', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const prod = await _ceGet('SELECT id FROM estoque WHERE id = ?', [id]);
+    if (!prod) throw _ceErr(404, 'Produto não encontrado.');
+    const tam = String((req.query && req.query.tamanho) || (req.body && req.body.tamanho) || '').trim().toUpperCase();
+    const limparHist = String((req.query && req.query.limpar_historico) || (req.body && req.body.limpar_historico) || '') === '1';
+    if (tam) {
+        await _ceRun('DELETE FROM estoque_compras_info_tam WHERE estoque_id = ? AND UPPER(TRIM(tamanho)) = ?', [id, tam]);
+        if (limparHist) {
+            await _ceRun('DELETE FROM estoque_compras_historico WHERE estoque_id = ? AND UPPER(TRIM(COALESCE(tamanho,""))) = ?', [id, tam]);
+        }
+        await _ceAtualizarInfoUltimaCompra(id, _ceUser(req));
+    } else {
+        await _ceRun(
+            'UPDATE estoque_compras_info SET fornecedor = ?, valor_atual = ?, garantia_meses = ?, garantia_ate = ?, observacoes = ?, atualizado_em = CURRENT_TIMESTAMP, atualizado_por = ? WHERE estoque_id = ?',
+            ['', 0, 0, '', '', _ceUser(req), id]
+        );
+        await _ceRun('DELETE FROM estoque_compras_info_tam WHERE estoque_id = ?', [id]);
+        if (limparHist) {
+            await _ceRun('DELETE FROM estoque_compras_historico WHERE estoque_id = ?', [id]);
+        }
     }
     res.json({ ok: true });
 }));
