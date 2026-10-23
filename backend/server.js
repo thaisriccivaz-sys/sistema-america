@@ -26693,6 +26693,41 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisoes (
     db.run("UPDATE frota_revisoes SET data_conclusao = COALESCE(substr(concluido_em, 1, 10), substr(data_revisao, 1, 10), substr(updated_at, 1, 10)) WHERE status = 'realizada' AND (data_conclusao IS NULL OR TRIM(data_conclusao) = '')", () => {});
     db.run("UPDATE frota_revisoes SET km_revisao = marco_km, parado_minutos = NULL, dias_parado = NULL, parado_desde = NULL WHERE status = 'realizada' AND (observacoes LIKE '%marcada como feita manualmente%' OR (COALESCE(valor_total, 0) = 0 AND COALESCE(numero_os, '') = '' AND COALESCE(concessionaria, '') = '' AND km_revisao > marco_km AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)))", () => {});
     db.run("DELETE FROM frota_revisoes WHERE status = 'agendada' AND COALESCE(itens_json, '{}') = '{}' AND COALESCE(numero_os, '') = '' AND COALESCE(valor_total, 0) = 0 AND data_revisao = '2026-05-20' AND NOT EXISTS (SELECT 1 FROM frota_revisao_midias m WHERE m.revisao_id = frota_revisoes.id) AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = frota_revisoes.id)", () => {});
+    // Garantir que caminhonetes/caminhoes (como STU9C20) em regime normal tenham apenas revisoes de 20.000 em 20.000 km (24 em 24 meses)
+    db.run("UPDATE frota_veiculos SET tipo_veiculo = 'Caminhonete' WHERE UPPER(placa) LIKE 'STU%' AND COALESCE(LOWER(tipo_veiculo), '') NOT LIKE '%caminh%'", () => {
+        db.run(`DELETE FROM compras_frota_registros
+                WHERE tipo = 'revisao'
+                  AND origem_id IN (
+                      SELECT fr.id FROM frota_revisoes fr
+                      JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
+                      WHERE LOWER(COALESCE(fv.tipo_veiculo, '')) LIKE '%caminh%'
+                        AND COALESCE(fv.uso_severo, 0) = 0
+                        AND (fr.marco_km % 20000) <> 0
+                        AND COALESCE(fr.valor_total, 0) = 0
+                        AND NOT EXISTS (SELECT 1 FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id)
+                        AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id)
+                  )`, () => {});
+        db.run(`DELETE FROM frota_revisoes
+                WHERE id IN (
+                    SELECT fr.id FROM frota_revisoes fr
+                    JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
+                    WHERE LOWER(COALESCE(fv.tipo_veiculo, '')) LIKE '%caminh%'
+                      AND COALESCE(fv.uso_severo, 0) = 0
+                      AND (fr.marco_km % 20000) <> 0
+                      AND COALESCE(fr.valor_total, 0) = 0
+                      AND NOT EXISTS (SELECT 1 FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id)
+                      AND NOT EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id)
+                )`, () => {});
+        db.run(`UPDATE frota_revisoes
+                SET marco_meses = CAST((marco_km / 20000) * 24 AS INTEGER)
+                WHERE veiculo_id IN (
+                    SELECT fv.id FROM frota_veiculos fv
+                    WHERE LOWER(COALESCE(fv.tipo_veiculo, '')) LIKE '%caminh%'
+                      AND COALESCE(fv.uso_severo, 0) = 0
+                )
+                  AND (marco_km % 20000) = 0
+                  AND marco_meses <> CAST((marco_km / 20000) * 24 AS INTEGER)`, () => {});
+    });
 });
 db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_anexos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26997,13 +27032,9 @@ app.post('/api/frota/revisoes/:veiculoId/salvar', authenticateToken, async (req,
         const rapido = !!b.marcar_feita_rapido; // atalho: marca revisao vencida como feita sem exigir checklist/fotos/video
         if (status === 'realizada') {
             if (!existing && !rapido) {
-                return res.status(400).json({ error: 'Anexe as fotos obrigatórias das conferências internas e o vídeo geral do veículo antes de concluir a revisão.' });
+                return res.status(400).json({ error: 'Anexe as fotos obrigatórias das conferências internas antes de concluir a revisão.' });
             }
             const midiasRev = existing ? await _fmAll('SELECT categoria, servico_id FROM frota_revisao_midias WHERE revisao_id = ?', [existing.id]) : [];
-            const temVideo = rapido || midiasRev.some(m => m.categoria === 'video_geral');
-            if (!temVideo) {
-                return res.status(400).json({ error: 'Para mudar a situação para Realizada (Concluída), é obrigatório anexar o 5. Vídeo geral do veículo.' });
-            }
             const confObrigIds = ehCarretinhaRev
                 ? ['car_pneus', 'car_funilaria', 'car_pintura', 'car_alinhamento_balanceamento', 'car_eixo', 'car_step', 'car_eletrica', 'car_iluminacao', 'car_acessorios']
                 : ['verif_pneus', 'verif_bateria_12v', 'verif_palhetas', 'verif_iluminacao', 'verif_carroceria', 'verif_cameras_rastreadores', 'verif_capas_banco_volante', 'verif_kit_socorro', 'lavagem_motor', 'verif_mangueiras', 'verif_tanques', 'verif_mangote', 'verif_tanque_succao', 'verif_tanque_agua', 'verif_motor_succao'];
@@ -27547,7 +27578,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                 FROM compras_frota_registros r
                 JOIN frota_manutencoes fm ON fm.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
-                LEFT JOIN frota_sinistros sin ON sin.manutencao_id = fm.id
+                LEFT JOIN sinistros sin ON sin.id = fm.sinistro_id
                 WHERE r.tipo = 'corretiva' AND fm.status IN ('em_andamento', 'aguardando', 'concluida')
                 ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => Object.assign({}, x, { situacao: (x.cf_status === 'novo' && Number(x.tem_dados) === 1) ? 'iniciada' : x.cf_status })));
@@ -27560,13 +27591,14 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                        COALESCE(NULLIF(TRIM(fr.concessionaria), ''), (SELECT a.fornecedor FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id AND COALESCE(TRIM(a.fornecedor), '') <> '' ORDER BY a.id DESC LIMIT 1), (SELECT l.fornecedor FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id AND COALESCE(TRIM(l.fornecedor), '') <> '' ORDER BY l.id DESC LIMIT 1)) AS concessionaria,
                        fr.itens_json,
                        COALESCE(fr.valor_pecas, 0) AS valor_pecas, COALESCE(fr.valor_mao_obra, 0) AS valor_mao_obra, COALESCE(fr.valor_total, 0) AS valor_total,
-                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url,
+                       fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url, COALESCE(fv.uso_severo, 0) AS uso_severo,
                        (CASE WHEN EXISTS (SELECT 1 FROM frota_revisao_lancamentos l WHERE l.revisao_id = fr.id)
                                OR EXISTS (SELECT 1 FROM frota_revisao_anexos a WHERE a.revisao_id = fr.id) THEN 1 ELSE 0 END) AS tem_lanc
                 FROM compras_frota_registros r
                 JOIN frota_revisoes fr ON fr.id = r.origem_id
                 LEFT JOIN frota_veiculos fv ON fv.id = fr.veiculo_id
                 WHERE r.tipo = 'revisao' AND fr.status IN ('agendada', 'realizada')
+                  AND NOT (LOWER(COALESCE(fv.tipo_veiculo, '')) LIKE '%caminh%' AND COALESCE(fv.uso_severo, 0) = 0 AND (fr.marco_km % 20000) <> 0)
                 ORDER BY COALESCE(r.carga_inicial, 0) ASC, r.created_at DESC, r.id DESC`);
             return res.json(rows.map(x => {
                 let itens = {};

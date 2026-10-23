@@ -525,7 +525,7 @@
             const st = itensSalvos[id] || {};
             const marcado = st.realizado === true || st.realizado === 'true';
             const isConf = s.grupo === 'conferencia';
-            const tipo = (s.grupo === 'opcional' && !marcado) ? 'vistoriado' : (st.tipo || s.tipoPadrao);
+            const tipo = s.grupo === 'opcional' ? 'troca_manutencao' : (st.tipo || s.tipoPadrao);
             const veioDaLogistica = isConf || (marcado && !!st.marcado_logistica);
 
             if (tr.querySelector('[id^="mn-rev-lbl-conf-"]') && tr.lastElementChild) tr.lastElementChild.remove();

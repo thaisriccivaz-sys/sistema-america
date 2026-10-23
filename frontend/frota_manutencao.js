@@ -1483,7 +1483,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
                     <div style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;">KM Atual (Somente leitura)</div>
                     <div style="font-size:1rem;font-weight:800;color:#0f172a;"><i class="ph ph-gauge" style="color:#d97706;"></i> ${kmAtual ? kmAtual.toLocaleString('pt-BR') + ' km' : 'Não informado'}</div>
                 </div>`}
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Defina a data da 1ª revisão do plano (coloque data passada se já estiver vencida ou datas espaçadas para não vencerem todas no mesmo dia)">
+                <div style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.4rem 0.75rem;" title="Defina a data da 1ª revisão do plano (coloque data passada se já estiver vencida ou datas espaçadas para não vencerem todas no mesmo dia)">
                     <label style="font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;display:block;">Data da 1ª Revisão:</label>
                     <input type="date" id="mn-rev-cfg-primeira" value="${dtPrimeiraRev}" onchange="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, false)" onblur="window._mnRevSalvarDataPrimeiraRevisao(${v.id}, this.value, ${passoMeses}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;font-size:0.8rem;font-weight:700;color:${dtPrimeiraRev ? (dtPrimeiraRev < hojeIso ? '#dc2626' : '#1e293b') : '#1e293b'};">
                 </div>
@@ -1547,7 +1547,7 @@ window._mnRevServicosDoMarco = function(marcoKm) {
         } else if (d.grupo === 'conferencia') {
             lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: 'conferencia', origem: 'Conferência interna obrigatória (anexar foto)', tipoPadrao: d.tipoPadrao || 'vistoriado' });
         } else {
-            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: d.grupo === 'obrigatorio' ? 'Obrigatório em toda revisão' : '', tipoPadrao: 'vistoriado' });
+            lista.push({ id: d.id, nome: d.nome, desc: d.desc, risco: '', grupo: d.grupo, origem: d.grupo === 'obrigatorio' ? 'Obrigatório em toda revisão' : '', tipoPadrao: d.grupo === 'opcional' ? 'troca_manutencao' : 'vistoriado' });
         }
     });
     return lista;
@@ -1577,7 +1577,8 @@ window._mnRevRenderFotosConfItem = function(servicoId) {
 window._mnRevLinhaServicoHtml = function(s, st) {
     const E = window._mnRevEsc;
     const marcado = st.realizado === true || st.realizado === 'true';
-    const tipo = (s.grupo === 'opcional' && !marcado) ? 'vistoriado' : (st.tipo || s.tipoPadrao);
+    const isOpc = s.grupo === 'opcional';
+    const tipo = isOpc ? 'troca_manutencao' : (st.tipo || s.tipoPadrao);
     const isConf = s.grupo === 'conferencia';
     const obrig = s.grupo === 'obrigatorio' || isConf;
     const badgeHtml = isConf
@@ -1594,13 +1595,17 @@ window._mnRevLinhaServicoHtml = function(s, st) {
         <td style="padding:8px 10px;width:240px;">
             ${selectTipoHtml}
             ${inputObsHtml}
+        </td>` : (isOpc ? `
+        <td style="padding:8px 10px;width:250px;">
+            <input type="hidden" data-rev-item="${s.id}" data-rev-field="tipo" value="troca_manutencao">
+            ${inputObsHtml}
         </td>` : `
         <td style="padding:8px 10px;width:250px;">
             ${selectTipoHtml}
         </td>
         <td style="padding:8px 10px;width:190px;">
             ${inputObsHtml}
-        </td>`;
+        </td>`);
     const colFotoConf = isConf ? `
         <td style="padding:8px 10px;min-width:210px;">
             <div style="display:flex;flex-direction:column;gap:5px;">
@@ -1659,14 +1664,16 @@ window._mnRevFiltrarServicos = function(txt) {
 window._mnRevServicoMarcou = function(id) {
     const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + id + '"][data-rev-field="realizado"]');
     const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + id + '"][data-rev-field="tipo"]');
+    const hid = document.querySelector('#mn-rev-modal-ov input[type="hidden"][data-rev-item="' + id + '"][data-rev-field="tipo"]');
     const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + id + '"]');
     if (!cb) return;
     if (sel) {
-        if (cb.checked && cb.getAttribute('data-rev-grupo') === 'opcional') sel.value = 'vistoriado';
+        if (cb.checked && cb.getAttribute('data-rev-grupo') === 'opcional') sel.value = 'troca_manutencao';
         sel.disabled = !cb.checked;
         sel.style.background = cb.checked ? '' : '#f1f5f9';
         sel.style.color = cb.checked ? '' : '#94a3b8';
     }
+    if (hid) hid.value = 'troca_manutencao';
     if (row) row.style.background = cb.checked ? '#f0fdf4' : '#fff';
     if (!cb.checked) window._mnRevPodarVinculos(id);
     window._mnRevAtualizarContadorObrig();
@@ -1713,15 +1720,17 @@ window._mnRevMarcarTodosGrupo = function(grupo, marcado) {
     servs.forEach(function(s) {
         const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
         const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + s.id + '"][data-rev-field="tipo"]');
+        const hid = document.querySelector('#mn-rev-modal-ov input[type="hidden"][data-rev-item="' + s.id + '"][data-rev-field="tipo"]');
         const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]');
         if ((row && row.getAttribute('data-cf-oculto') === '1') || (cb && cb.disabled)) return;
         if (cb) cb.checked = !!marcado;
         if (sel) {
-            if (marcado && grupo === 'opcional') sel.value = 'vistoriado';
+            if (marcado && grupo === 'opcional') sel.value = 'troca_manutencao';
             sel.disabled = !marcado;
             sel.style.background = marcado ? '' : '#f1f5f9';
             sel.style.color = marcado ? '' : '#94a3b8';
         }
+        if (hid) hid.value = 'troca_manutencao';
         if (row) row.style.background = marcado ? '#f0fdf4' : '#fff';
         if (!marcado) window._mnRevPodarVinculos(s.id);
     });
@@ -1784,6 +1793,10 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
         <th style="padding:8px 10px;">Serviço / O que fazer</th>
         <th style="padding:8px 10px;width:250px;">Foi realizado como?</th>
         <th style="padding:8px 10px;width:190px;">Observações</th></tr></thead>`;
+    const thOpcio = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
+        <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
+        <th style="padding:8px 10px;">Serviço / O que fazer</th>
+        <th style="padding:8px 10px;width:250px;">Observações</th></tr></thead>`;
     const thConf = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
         <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
         <th style="padding:8px 10px;">Conferência / O que fazer</th>
@@ -1868,7 +1881,7 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                         <input type="checkbox" id="mn-rev-cb-all-opcio" onchange="window._mnRevMarcarTodosGrupo('opcional', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a;"> Marcar todos os opcionais
                     </label>
                 </div>
-                <div id="mn-rev-grp-body-opcional" style="overflow-x:auto;display:none;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
+                <div id="mn-rev-grp-body-opcional" style="overflow-x:auto;display:none;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thOpcio}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>` : ''}
             </div>
 
             <!-- 3. Anexar notas / OS -->
@@ -1916,12 +1929,12 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:0.65rem;">
                     <div style="font-weight:800;color:#1e293b;font-size:0.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         <i class="ph ph-video-camera" style="color:#7c3aed;"></i> 5. Vídeo geral do veículo
-                        <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;">OBRIGATÓRIO PARA CONCLUIR</span>
+                        <span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:1px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;">OPCIONAL</span>
                     </div>
                 </div>
                 <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                        <div style="font-size:0.78rem;color:#475569;">Anexe um vídeo geral do veículo (obrigatório para alterar a situação da revisão para Realizada / Concluída).</div>
+                        <div style="font-size:0.78rem;color:#475569;">Anexe um vídeo geral do veículo (opcional — você pode salvar como Realizada / Concluída mesmo sem o vídeo).</div>
                         <label id="mn-rev-lbl-video" style="display:inline-flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;padding:0.45rem 0.95rem;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">
                             <i class="ph ph-upload-simple"></i> Anexar vídeo geral do veículo
                             <input type="file" id="mn-rev-inp-video" accept="video/*" style="display:none;" onchange="window._mnRevAnexarVideoGeral(this)">
@@ -2602,18 +2615,6 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
             alert('Para salvar a revisão como Realizada, é obrigatório anexar ao menos uma foto em cada item de Conferências OBRIGATÓRIAS (Interno).\n\nItens sem foto anexada (' + semFoto.length + '):\n- ' + semFoto.map(function(s) { return s.nome; }).join('\n- '));
             return null;
         }
-        const regAtual = window._mnRevRegAtual();
-        const temVideo = ((regAtual && regAtual.midias) || []).some(function(m) { return m.categoria === 'video_geral'; });
-        if (!temVideo) {
-            const secVid = document.getElementById('mn-rev-sec-video');
-            if (secVid) {
-                secVid.style.borderColor = '#dc2626';
-                secVid.style.background = '#fef2f2';
-                secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            alert('Para salvar a revisão como Realizada (Concluída), é obrigatório anexar o vídeo geral do veículo no item "5. Vídeo geral do veículo".');
-            return null;
-        }
     }
 
     const btn = document.getElementById('mn-rev-btn-salvar');
@@ -2815,7 +2816,7 @@ window._mnRevRenderVideoGeral = function() {
     const reg = window._mnRevRegAtual();
     const videos = ((reg && reg.midias) || []).filter(function(m) { return m.categoria === 'video_geral'; });
     if (!videos.length) {
-        el.innerHTML = '<div style="font-size:0.76rem;color:#dc2626;font-weight:700;padding:4px 0;"><i class="ph ph-warning-circle"></i> Nenhum vídeo geral anexado ainda (obrigatório para concluir a revisão).</div>';
+        el.innerHTML = '<div style="font-size:0.76rem;color:#64748b;font-weight:600;padding:4px 0;"><i class="ph ph-video-camera"></i> Nenhum vídeo geral anexado ainda (opcional).</div>';
         return;
     }
     const secVid = document.getElementById('mn-rev-sec-video');
