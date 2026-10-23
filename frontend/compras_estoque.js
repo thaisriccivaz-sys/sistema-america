@@ -1244,13 +1244,10 @@
         pane.innerHTML =
             '<div style="' + cardCss + '">' + h4('ph-file-pdf', 'PDF do produto', '#b91c1c') +
                 '<input type="file" id="ce-p-pdf" accept="application/pdf,.pdf" style="display:none;" onchange="ceEnviarPdf(this)">' +
-                (info.tem_pdf
-                    ? '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span style="font-weight:600;color:#334155;"><i class="ph ph-file-pdf" style="color:#b91c1c;"></i> ' + esc(info.pdf_nome || 'produto.pdf') + '</span>' +
-                      '<div style="display:flex;gap:6px;"><button class="btn btn-sm btn-secondary" onclick="ceVerPdf(' + pm.id + ')"><i class="ph ph-eye"></i> Abrir</button>' +
-                      '<button class="btn btn-sm btn-secondary" onclick="document.getElementById(\'ce-p-pdf\').click()"><i class="ph ph-arrows-clockwise"></i> Substituir</button>' +
-                      '<button class="btn btn-sm" onclick="ceRemoverPdf()" style="background:#fee2e2;color:#ef4444;border:none;"><i class="ph ph-trash"></i> Remover</button></div></div>'
-                    : '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span style="color:#94a3b8;">Nenhum PDF anexado a este produto. Ao anexar uma NF em PDF, os produtos da nota são lidos automaticamente.</span>' +
-                      '<button class="btn btn-sm" onclick="document.getElementById(\'ce-p-pdf\').click()" style="background:#b91c1c;color:#fff;border:none;"><i class="ph ph-upload-simple"></i> Anexar PDF</button></div>') +
+                '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+                    '<span style="color:#64748b;font-size:0.84rem;">Anexe uma nova Nota Fiscal em PDF para ler automaticamente os produtos e registrar no histórico abaixo.</span>' +
+                    '<button class="btn btn-sm" onclick="document.getElementById(\'ce-p-pdf\').click()" style="background:#b91c1c;color:#fff;border:none;display:inline-flex;align-items:center;gap:6px;font-weight:700;"><i class="ph ph-upload-simple"></i> Anexar PDF</button>' +
+                '</div>' +
             '</div>' +
 
             '<div style="display:none;">' +
