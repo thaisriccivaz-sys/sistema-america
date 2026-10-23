@@ -27560,6 +27560,32 @@ async function _cfMudarSituacao(tipo, origemId, acao, usuario) {
     return _fmGet('SELECT status, registrado_em, registrado_por FROM compras_frota_registros WHERE tipo = ? AND origem_id = ?', [tipo, origemId]);
 }
 
+// GET - resumo das revisoes REALIZADAS por veiculo: valores (pecas / mao de obra / total) e dias parado, no total e nos ultimos 12 meses
+app.get('/api/frota/revisoes-resumo-veiculos', authenticateToken, async (req, res) => {
+    try {
+        const rows = await _fmAll(`
+            SELECT fr.veiculo_id,
+                   COUNT(1) AS n_realizadas,
+                   COALESCE(SUM(COALESCE(fr.valor_pecas, 0)), 0) AS pecas_total,
+                   COALESCE(SUM(COALESCE(fr.valor_mao_obra, 0)), 0) AS mo_total,
+                   COALESCE(SUM(COALESCE(fr.valor_total, 0)), 0) AS total_total,
+                   COALESCE(SUM(CASE WHEN dt >= date('now', '-12 months') THEN COALESCE(fr.valor_pecas, 0) ELSE 0 END), 0) AS pecas_12m,
+                   COALESCE(SUM(CASE WHEN dt >= date('now', '-12 months') THEN COALESCE(fr.valor_mao_obra, 0) ELSE 0 END), 0) AS mo_12m,
+                   COALESCE(SUM(CASE WHEN dt >= date('now', '-12 months') THEN COALESCE(fr.valor_total, 0) ELSE 0 END), 0) AS total_12m,
+                   COALESCE(SUM(dias), 0) AS dias_parado_total,
+                   COALESCE(SUM(CASE WHEN dt >= date('now', '-12 months') THEN dias ELSE 0 END), 0) AS dias_parado_12m
+            FROM (
+                SELECT fr.*,
+                       COALESCE(NULLIF(substr(fr.data_conclusao, 1, 10), ''), NULLIF(substr(fr.data_revisao, 1, 10), ''), substr(fr.updated_at, 1, 10)) AS dt,
+                       COALESCE(fr.dias_parado, CAST(COALESCE(fr.parado_minutos, 0) / 1440 AS INTEGER), 0) AS dias
+                FROM frota_revisoes fr
+                WHERE fr.status = 'realizada'
+            ) fr
+            GROUP BY fr.veiculo_id`);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET - lista do Compras (corretivas em manutencao/finalizacao pendente/concluidas ou revisoes agendadas/realizadas) com a situacao do Compras
 app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
     try {
@@ -27571,6 +27597,7 @@ app.get('/api/compras-frota/:tipo', authenticateToken, async (req, res) => {
                        fm.id, fm.veiculo_id, fm.descricao, fm.status AS manut_status, fm.data_conclusao, fm.data_fim, fm.data_inicio, fm.data_agendamento, fm.fornecedor,
                        fm.created_at, fm.updated_at, fm.veiculo_rodando, fm.parado_desde, COALESCE(fm.parado_segundos_acum, 0) AS parado_segundos_acum,
                        COALESCE(fm.custo, 0) AS custo, COALESCE(fm.custo_pecas, 0) AS custo_pecas, COALESCE(fm.custo_mao_obra, 0) AS custo_mao_obra,
+                       (SELECT COUNT(1) FROM frota_manutencao_midias fmm WHERE fmm.manutencao_id = fm.id AND fmm.categoria = 'video_geral') AS tem_video_geral,
                        fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.foto_url, fv.em_manutencao AS veiculo_em_manutencao,
                        sin.manutencao_rodando AS sinistro_rodando,
                        COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) AS veiculo_rodando_efetivo,

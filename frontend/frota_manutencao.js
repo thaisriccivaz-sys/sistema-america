@@ -629,7 +629,7 @@ window._mnRevFiltroAtualizar = function(campo, valor) {
 window._mnRevFiltroLimpar = function() {
     window._mnRevFiltro = { busca: '', tipo: '', garantia: '', status: '' };
     const sub = document.getElementById('mn-sub-conteudo');
-    if (sub) window.mnRenderRevisaoTela(sub);
+    if (sub) window.mnRenderRevisaoTela(sub, true);
 };
 window._mnRevFiltroBarraHtml = function() {
     const f = window._mnRevFiltro || {};
@@ -648,6 +648,8 @@ window._mnRevFiltroBarraHtml = function() {
         + '<select onchange="window._mnRevFiltroAtualizar(\'garantia\', this.value)" style="' + sel + '" title="Garantia">' + opt('', 'Garantia: todos', f.garantia || '') + opt('sim', 'Em garantia', f.garantia || '') + opt('nao', 'Fora de garantia', f.garantia || '') + '</select>'
         + '<select id="mn-rev-f-status" onchange="window._mnRevFiltroAtualizar(\'status\', this.value)" style="' + sel + '" title="Status da revisão">' + opt('', 'Status da revisão: todos', f.status || '') + opt('vencida', 'Revisão vencida', f.status || '') + opt('a_vencer', 'Agendar Revisão', f.status || '') + opt('agendada', 'Revisão agendada', f.status || '') + opt('em_revisao', 'Em revisão', f.status || '') + opt('ok', 'Revisão OK', f.status || '') + opt('sem_status', 'Sem status', f.status || '') + '</select>'
         + '<button type="button" onclick="window._mnRevFiltroLimpar()" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-x-circle"></i> Limpar</button>'
+        + '<button type="button" onclick="window._mnRevAtualizarTudo()" style="padding:0.5rem 0.9rem;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>'
+        + '<button type="button" id="mn-rev-btn-view" onclick="window.mnRevAlternarVisao()" title="Alternar entre visualização em Cards e Lista" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"></button>'
         + '<span id="mn-rev-filtro-cont" style="font-size:0.78rem;color:#64748b;font-weight:700;">' + n + ' de ' + total + ' veículo(s)</span>'
         + '</div>'
         + '</div>';
@@ -708,7 +710,7 @@ window._mnPrevCardsHtml = function(modo) {
                 </div>
                 <div style="background:${parado ? '#fef2f2' : '#f8fafc'};border:1px solid ${parado ? '#fecaca' : '#e2e8f0'};padding:0.6rem;border-radius:8px;">
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
-                </div>${linhaPlano}${linhaGarantia}
+                </div>${linhaPlano}${linhaGarantia}${ehRevisao && window._fcRevResumoHtml ? window._fcRevResumoHtml(v.id) : ''}
             </div>
             ${(ehRevisao && window._mnRevEhCarretinha(v)) ? window._mnRevCarretinhaCardFooterHtml(v) : ehRevisao ? `<div style="background:${parado ? '#fef2f2' : '#f8fafc'};padding:0.6rem 1rem;border-top:1px solid ${parado ? '#fecaca' : '#e2e8f0'};display:flex;align-items:center;justify-content:space-between;gap:8px;" title="A KM é preenchida diariamente na tela de Gestão de Frota">
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -896,8 +898,8 @@ window._mnRevPlanoDoVeiculo = function(v) {
 };
 
 // Historico: TODAS as revisoes ja realizadas de todos os veiculos (a aba Revisao mostra so as ultimas 12 de cada veiculo)
-window.mnCarregarHistRevisoes = async function() {
-    const box = document.getElementById('mn-hist-revisoes');
+window.mnCarregarHistRevisoes = async function(destId) {
+    const box = document.getElementById(typeof destId === 'string' ? destId : 'mn-hist-revisoes');
     if (!box) return;
     box.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;font-size:0.85rem;"><i class="ph ph-circle-notch ph-spin"></i> Carregando revisões...</div>';
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
@@ -949,17 +951,57 @@ window._mnRevHistAbrir = function(vid) {
     setTimeout(function() { window.mnRevisaoAbrirVeiculo(vid); }, 60);
 };
 
-window.mnRenderRevisaoTela = function(sub) {
+window.mnRenderRevisaoTela = function(sub, manterVisao) {
+    if (!manterVisao) window._mnRevView = 'cards';
     sub.innerHTML = `
         ${window._mnRevFiltroBarraHtml()}
         <div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>
+        <div id="mn-rev-lista" style="display:none;"></div>
         <div id="mn-rev-detalhe" style="display:none;"></div>`;
     window._mnPrevAtualizarFrota();
+    window._mnRevCarregarResumo();
+    window._mnRevAplicarVisao();
     if (window._mnRevVeicId) {
         const vid = window._mnRevVeicId;
         window._mnRevVeicId = null;
         window.mnRevisaoAbrirVeiculo(vid);
     }
+};
+
+// Resumo (valores / dias parado em revisao) por veiculo para os cards
+window._mnRevCarregarResumo = async function() {
+    try { await window._fcCarregarRevResumo(); } catch (e) { /* mantem o ultimo resumo */ }
+    const grid = document.getElementById('mn-rev-cards');
+    if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml('revisao');
+};
+// Alterna entre Cards (padrao) e Lista (todas as revisoes realizadas de todos os veiculos)
+window._mnRevAplicarVisao = function() {
+    const lista = document.getElementById('mn-rev-lista'), grid = document.getElementById('mn-rev-cards');
+    const kpi = document.getElementById('mn-rev-kpi-cards'), btn = document.getElementById('mn-rev-btn-view');
+    const modo = window._mnRevView || 'cards';
+    if (btn) btn.innerHTML = modo === 'cards' ? '<i class="ph ph-list-bullets"></i> Ver em Lista' : '<i class="ph ph-squares-four"></i> Ver em Cards';
+    if (!lista || !grid) return;
+    if (modo === 'lista') {
+        grid.style.display = 'none';
+        if (kpi) kpi.style.display = 'none';
+        lista.style.display = 'block';
+        window.mnCarregarHistRevisoes('mn-rev-lista');
+    } else {
+        lista.style.display = 'none';
+        lista.innerHTML = '';
+        if (kpi) kpi.style.display = 'grid';
+        grid.style.display = 'grid';
+        grid.innerHTML = window._mnPrevCardsHtml('revisao');
+    }
+};
+window.mnRevAlternarVisao = function() {
+    window._mnRevView = (window._mnRevView || 'cards') === 'cards' ? 'lista' : 'cards';
+    window._mnRevAplicarVisao();
+};
+window._mnRevAtualizarTudo = async function() {
+    await window._mnPrevAtualizarFrota();
+    await window._mnRevCarregarResumo();
+    if ((window._mnRevView || 'cards') === 'lista') window.mnCarregarHistRevisoes('mn-rev-lista');
 };
 
 window.mnRevisaoVoltarCards = function() {
@@ -977,6 +1019,7 @@ window.mnRevisaoVoltarCards = function() {
     }
     if (grid) { grid.style.display = 'grid'; grid.innerHTML = window._mnPrevCardsHtml('revisao'); }
     window._mnRevAtual = null;
+    if (typeof window._mnRevAplicarVisao === 'function') window._mnRevAplicarVisao();
 };
 
 function _mnRevSomarMesesISO(dtIso, meses) {
@@ -1885,19 +1928,20 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
             </div>
 
             <!-- 3. Anexar notas / OS -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+            <div style="${window._mnRevModoCompras ? 'background:#f8fafc;border:1px solid #e2e8f0;' : 'background:#cbd5e1;border:2px solid #94a3b8;'}border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                ${window._mnRevModoCompras ? '' : '<div style="background:#475569;color:#fff;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:0.8rem;font-weight:700;"><i class="ph ph-lock-key" style="font-size:1.25rem;flex-shrink:0;color:#f8fafc;"></i><div>Não preencher na Logística — o anexo de Notas / OS / Peças / Mão de obra é feito exclusivamente pelo setor de <b>Compras</b>. Os valores da revisão virão da tela de Compras.</div></div>'}
                 <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-receipt" style="color:#0284c7;"></i> 3. Anexar Nota Fiscal de Serviço, Nota de Peças, Recibo ou Ordem de Serviço (PDF ou Imagem)</div>
-                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
+                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;${window._mnRevModoCompras ? '' : 'background:#e2e8f0;pointer-events:none;user-select:none;filter:grayscale(0.8);opacity:0.65;'}">
                     <div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">Selecione o PDF ou foto (JPG/PNG): o sistema lê a nota/recibo e preenche as peças e a mão de obra (valores podem estar separados ou juntos, em uma ou várias notas). Depois vincule cada item a um serviço da revisão.</div>
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <input type="hidden" id="mn-rev-anx-tipo" value="nota_servico">
                         <label style="display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:0.5rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
                             <i class="ph ph-paperclip"></i> Anexar documento (PDF / Foto)
-                            <input type="file" id="mn-rev-anx-file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="window._mnRevAoEscolherPdf(this)" style="display:none;">
+                            <input type="file" id="mn-rev-anx-file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="window._mnRevAoEscolherPdf(this)" ${window._mnRevModoCompras ? '' : 'disabled'} style="display:none;">
                         </label>
                         <span style="font-size:0.74rem;color:#64748b;">Aceita PDF ou Imagem (JPG, PNG). O sistema identifica automaticamente peças e mão de obra.</span>
                     </div>
-                    <div style="margin-top:0.75rem;"><button type="button" onclick="window._mnRevIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;">+ Adicionar peça / serviço manual</button></div>
+                    <div style="margin-top:0.75rem;"><button type="button" onclick="window._mnRevIniciarManual()" ${window._mnRevModoCompras ? '' : 'disabled'} style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;">+ Adicionar peça / serviço manual</button></div>
                     <div id="mn-rev-stage" style="margin-top:0.75rem;"></div>
                     <div style="font-size:0.78rem;font-weight:700;color:#334155;margin:0.9rem 0 6px;">Notas / OS já anexadas nesta revisão:</div>
                     <div id="mn-rev-anx-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -3352,6 +3396,8 @@ window.mnSalvarKmPreventivo = async function() {
 };
 
 function mnRenderCorretivaTela(sub) {
+    window._mnCorrView = 'cards';
+    window._mnCorrVeicSel = null;
     const frota = window._manutFrota || [];
     const veicOpts = frota.map(v => `<option value="${v.id}">${v.placa}</option>`).join('');
     sub.innerHTML = `
@@ -3380,12 +3426,18 @@ function mnRenderCorretivaTela(sub) {
             <button onclick="window.mnCarregarCorretivas()" style="padding:6px 12px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
                 <i class="ph ph-arrows-clockwise"></i> Atualizar
             </button>
+            <button id="mn-corr-btn-view" onclick="window.mnCorrAlternarVisao()" title="Alternar entre visualização em Cards e Lista" style="padding:6px 12px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"></button>
             <span id="mn-corr-count" style="margin-left:auto;font-size:0.8rem;color:#94a3b8;"></span>
             <button onclick="window.mnCorrNovaInterno()" style="padding:7px 14px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-plus"></i> Nova Manutenção Corretiva
             </button>
         </div>
-        <div style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 230px);">
+        <div id="mn-corr-voltar-bar" style="display:none;align-items:center;gap:10px;padding:0.7rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+            <button type="button" onclick="window.mnCorrVoltarCards()" style="padding:0.45rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-arrow-left"></i> Todos os veículos</button>
+            <span id="mn-corr-voltar-placa" style="font-weight:800;color:#1e293b;"></span>
+        </div>
+        <div id="mn-corr-cardview" style="padding:1rem;background:#f8fafc;"></div>
+        <div id="mn-corr-tabela-wrap" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 230px);display:none;">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
             <thead id="mn-corr-thead" style="position:sticky;top:0;z-index:2;background:#f1f5f9;"></thead>
             <tbody id="mn-corr-tbody">
@@ -3397,6 +3449,7 @@ function mnRenderCorretivaTela(sub) {
         </div>
     </div>`;
     window._mnRenderCorrThead();
+    window._mnCorrAtualizarBotaoVisao();
     window.mnCarregarCorretivas();
 }
 
@@ -3460,6 +3513,28 @@ window.mnCorrFiltrarCard = function(chave) {
             sel.value = '';
         }
     }
+    window._mnRenderCorretivaDados(window._mnCorrDados || []);
+};
+
+window._mnCorrAtualizarBotaoVisao = function() {
+    var b = document.getElementById('mn-corr-btn-view');
+    if (!b) return;
+    b.innerHTML = (window._mnCorrView || 'cards') === 'cards'
+        ? '<i class="ph ph-list-bullets"></i> Ver em Lista'
+        : '<i class="ph ph-squares-four"></i> Ver em Cards';
+};
+window.mnCorrAlternarVisao = function() {
+    window._mnCorrView = (window._mnCorrView || 'cards') === 'cards' ? 'lista' : 'cards';
+    window._mnCorrVeicSel = null;
+    window._mnCorrAtualizarBotaoVisao();
+    window._mnRenderCorretivaDados(window._mnCorrDados || []);
+};
+window.mnCorrAbrirVeiculo = function(vid) {
+    window._mnCorrVeicSel = String(vid);
+    window._mnRenderCorretivaDados(window._mnCorrDados || []);
+};
+window.mnCorrVoltarCards = function() {
+    window._mnCorrVeicSel = null;
     window._mnRenderCorretivaDados(window._mnCorrDados || []);
 };
 
@@ -3606,6 +3681,28 @@ window._mnRenderCorretivaDados = function(listaBase) {
             }
             return 0;
         });
+    }
+
+    // Visualização em Cards (padrão) ou Lista. Ao entrar no card de um veículo, a tabela mostra só as manutenções dele.
+    const _vwModo = window._mnCorrView || 'cards';
+    const _vwSel = _vwModo === 'cards' ? window._mnCorrVeicSel : null;
+    const _vwCards = _vwModo === 'cards' && !_vwSel;
+    if (_vwSel) lista = lista.filter(function(m) { return String(m.veiculo_id) === String(_vwSel); });
+    const _elWrap = document.getElementById('mn-corr-tabela-wrap'), _elCards = document.getElementById('mn-corr-cardview'), _elBar = document.getElementById('mn-corr-voltar-bar');
+    if (_elWrap) _elWrap.style.display = _vwCards ? 'none' : '';
+    if (_elCards) _elCards.style.display = _vwCards ? 'block' : 'none';
+    if (_elBar) {
+        _elBar.style.display = _vwSel ? 'flex' : 'none';
+        const _pv = _vwSel ? todasBase.find(function(m) { return String(m.veiculo_id) === String(_vwSel); }) : null;
+        const _elPl = document.getElementById('mn-corr-voltar-placa');
+        if (_elPl) _elPl.textContent = _pv ? ((_pv.placa || '') + (_pv.marca_modelo_versao ? ' — ' + _pv.marca_modelo_versao : '')) : '';
+    }
+    if (_vwCards) {
+        const _grupos = window._fcAgruparCorretivas(todas, lista);
+        if (_elCards) _elCards.innerHTML = window._fcCorrCardsHtml(_grupos, 'window.mnCorrAbrirVeiculo');
+        const _cntC = document.getElementById('mn-corr-count');
+        if (_cntC) _cntC.textContent = _grupos.length + ' veículo' + (_grupos.length !== 1 ? 's' : '');
+        return;
     }
 
     const count = document.getElementById('mn-corr-count');

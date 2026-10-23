@@ -1531,10 +1531,10 @@ ${alertaHtml}
             </div>
             <p style="margin:0 0 1rem;font-size:0.85rem;color:#64748b;padding:0 1rem;">O sistema extrai os dados automaticamente do documento original.</p>
             <div style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
-                <label style="background:#eab308;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                ${id ? '' : `<label style="background:#eab308;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
                     <i class="ph ph-upload-simple"></i> Selecionar PDF
-                    <input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')">
-                </label>
+                    <input type="file" accept=".pdf" style="display:none;" onchange="window.processarCRLV(this,'new')"> 
+                </label>`}
                 ${(id && (v.crlv_filename || v.crlv_r2_key || v.crlv_url || v.crlv_base64))
                     ? `<button type="button" onclick="window.baixarCRLV(${v.id}, '${String(v.placa||'').replace(/'/g,'')}')" title="Baixar CRLV (${v.crlv_filename || 'PDF'})" style="background:#2563eb;color:#fff;border:none;padding:0.6rem 0.95rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;transition:0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Baixar CRLV</button>`
                     : `<button type="button" disabled title="Nenhum CRLV anexado neste veículo" style="background:#93c5fd;color:#fff;border:none;padding:0.6rem 0.95rem;border-radius:8px;cursor:not-allowed;font-weight:700;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;opacity:0.65;"><i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Baixar CRLV</button>`}

@@ -25,8 +25,8 @@
     const CONT = { corretiva: 'compras-corretivas-container', revisao: 'compras-revisao-container' };
     const TITULO = { corretiva: 'Corretiva', revisao: 'Revisão' };
     const state = {
-        corretiva: { dados: [], filtro: '', busca: '' },
-        revisao: { dados: [], filtro: '', busca: '' }
+        corretiva: { dados: [], filtro: '', busca: '', view: 'tabela', veic: null },
+        revisao: { dados: [], filtro: '', busca: '', view: 'tabela', veic: null }
     };
 
     function sitBadge(sit, extraTitle) {
@@ -57,15 +57,17 @@
     };
 
     // ───────────────────────── Listas: Corretiva / Revisão ─────────────────────────
-    window.initComprasFrota = async function (tipo) {
+    window.initComprasFrota = async function (tipo, manterVisao) {
         const cont = document.getElementById(CONT[tipo]);
         if (!cont) return;
+        if (!manterVisao) { state[tipo].view = 'tabela'; state[tipo].veic = null; }
         cont.innerHTML = '<div style="padding:3rem;text-align:center;color:#64748b;"><i class="ph ph-circle-notch ph-spin" style="font-size:2rem;color:#1971c2;"></i><div style="margin-top:8px;font-weight:600;">Carregando registros do Compras...</div></div>';
         try {
             const r = await fetch('/api/compras-frota/' + tipo + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok() }, cache: 'no-store' });
             const j = await r.json();
             if (!r.ok) throw new Error((j && j.error) || 'Erro ao carregar');
             state[tipo].dados = Array.isArray(j) ? j : [];
+            if (tipo === 'revisao' && typeof window._fcCarregarRevResumo === 'function') { try { await window._fcCarregarRevResumo(); } catch (eR) { /* cards seguem sem o resumo */ } }
             renderPagina(tipo);
         } catch (e) {
             cont.innerHTML = '<div style="padding:2rem;text-align:center;color:#dc2626;font-weight:600;">Erro ao carregar: ' + esc(e.message) + '</div>';
@@ -88,7 +90,8 @@
             + '<div style="position:relative;flex:1;min-width:220px;"><i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;"></i>'
             + '<input type="text" id="cf-busca-' + tipo + '" autocomplete="off" value="' + esc(st.busca) + '" placeholder="Pesquisar placa, modelo ou ' + (tipo === 'corretiva' ? 'defeito' : 'concessionária') + '..." oninput="window.comprasFrotaBuscar(\'' + tipo + '\', this.value)" style="width:100%;box-sizing:border-box;padding:0.5rem 0.7rem 0.5rem 2rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.84rem;outline:none;"></div>'
             + '<button type="button" onclick="window.comprasFrotaLimpar(\'' + tipo + '\')" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-x-circle"></i> Limpar</button>'
-            + '<button type="button" onclick="window.initComprasFrota(\'' + tipo + '\')" style="padding:0.5rem 0.9rem;border:none;border-radius:8px;background:#1971c2;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>'
+            + '<button type="button" onclick="window.initComprasFrota(\'' + tipo + '\', true)" style="padding:0.5rem 0.9rem;border:none;border-radius:8px;background:#1971c2;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>'
+            + '<button type="button" id="cf-btn-view-' + tipo + '" onclick="window.comprasFrotaAlternar(\'' + tipo + '\')" title="Alternar entre visualização em Tabela e Cards" style="padding:0.5rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"></button>'
             + '<span id="cf-cont-' + tipo + '" style="font-size:0.78rem;color:#64748b;font-weight:700;"></span>'
             + '</div>'
             + '<div id="cf-tbl-' + tipo + '" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;"></div>';
@@ -101,6 +104,7 @@
         const palavras = norm(st.busca).split(' ').filter(Boolean);
         return st.dados.filter((x) => {
             if (st.filtro && x.situacao !== st.filtro) return false;
+            if (st.veic && String(x.veiculo_id) !== String(st.veic)) return false;
             if (!palavras.length) return true;
             const alvo = norm([x.placa, x.marca_modelo_versao, x.descricao, x.concessionaria, x.fornecedor].join(' '));
             return palavras.every((p) => alvo.indexOf(p) !== -1);
@@ -134,6 +138,13 @@
         if (cnt) cnt.textContent = lista.length + ' de ' + st.dados.length + ' registro(s)';
         const tbl = document.getElementById('cf-tbl-' + tipo);
         if (!tbl) return;
+
+        atualizarBotaoView(tipo);
+        if (st.view === 'cards' && !st.veic) {
+            tbl.innerHTML = cardsHtml(tipo, lista);
+            if (cnt) cnt.textContent = new Set(lista.map((x) => String(x.veiculo_id))).size + ' veículo(s)';
+            return;
+        }
 
         const th = 'padding:10px 12px;text-align:left;color:#475569;font-weight:700;white-space:nowrap;';
         const thC = 'padding:10px 12px;text-align:center;color:#475569;font-weight:700;white-space:nowrap;';
@@ -170,8 +181,8 @@
                 vp = x.valor_pecas; vm = x.valor_mao_obra; vt = x.valor_total;
             }
             const tituloSit = x.situacao === 'registrado' && x.registrado_em ? ('Registrado' + (x.registrado_por ? ' por ' + x.registrado_por : '') + ' em ' + fmtData(x.registrado_em)) : '';
-            const btnCheck = (tipo === 'revisao' && Number(x.carga_inicial) === 1 && x.situacao !== 'registrado')
-                ? '<button type="button" title="Marcar como Registrado sem preencher nada" onclick="window.comprasFrotaMarcarRegistrado(\'' + tipo + '\', ' + x.id + ', this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.65rem;font-size:0.85rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" onmouseenter="this.style.background=\'#15803d\'" onmouseleave="this.style.background=\'#16a34a\'"><i class="ph-bold ph-check"></i></button>'
+            const btnCheck = (tipo === 'revisao' && (Number(x.carga_inicial) === 1 || x.rev_status === 'realizada') && x.situacao !== 'registrado')
+                ? '<button type="button" title="Marcar como Registrado sem preencher nada (exige senha)" onclick="window.comprasFrotaMarcarRegistrado(\'' + tipo + '\', ' + x.id + ', this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.65rem;font-size:0.85rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" onmouseenter="this.style.background=\'#15803d\'" onmouseleave="this.style.background=\'#16a34a\'"><i class="ph-bold ph-check"></i></button>'
                 : '';
             return '<tr style="background:' + bg + ';border-bottom:1px solid #f1f5f9;">'
                 + '<td style="padding:9px 12px;">' + veic + '</td>'
@@ -182,7 +193,7 @@
                 + '<td style="padding:9px 12px;text-align:right;white-space:nowrap;">' + brl(vm) + '</td>'
                 + '<td style="padding:9px 12px;text-align:right;font-weight:800;white-space:nowrap;">' + brl(vt) + '</td>'
                 + '<td style="padding:9px 12px;text-align:center;">' + sitBadge(x.situacao, tituloSit) + '</td>'
-                + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;"><div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;"><button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:#1971c2;color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button>' + btnCheck + '</div></td>'
+                + '<td style="padding:9px 12px;text-align:center;white-space:nowrap;"><div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;"><button type="button" onclick="window.comprasFrotaAbrir(\'' + tipo + '\', ' + x.id + ')" style="background:' + (x.situacao === 'registrado' ? '#1971c2' : '#eab308') + ';color:#fff;border:none;border-radius:8px;padding:0.4rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-pencil-simple"></i> ' + (x.situacao === 'registrado' ? 'Abrir' : 'Registrar') + '</button>' + btnCheck + '</div></td>'
                 + '</tr>';
         }).join('');
 
@@ -190,7 +201,7 @@
             ? ('<th style="' + th + '">Data Início</th><th style="' + thC + '">🚫 Dias Parado</th><th style="' + th + '">Data Conclusão</th>')
             : ('<th style="' + th + '">Data da revisão</th>');
 
-        tbl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.84rem;">'
+        tbl.innerHTML = barraVoltar(tipo) + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.84rem;">'
             + '<thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">'
             + '<th style="' + th + '">Veículo</th>'
             + '<th style="' + th + '">' + (tipo === 'corretiva' ? 'Defeito / Problema' : 'Revisão') + '</th>'
@@ -202,6 +213,90 @@
             + '<tbody>' + (linhas || '<tr><td colspan="' + colSpan + '" style="padding:2.5rem;text-align:center;color:#94a3b8;"><i class="ph ph-tray" style="font-size:2rem;display:block;margin-bottom:6px;"></i>Nenhum registro encontrado.</td></tr>') + '</tbody>'
             + '</table></div>';
     }
+
+    // ───────────────────────── Visualização em Cards (a tela abre em Tabela) ─────────────────────────
+    function atualizarBotaoView(tipo) {
+        const b = document.getElementById('cf-btn-view-' + tipo);
+        if (!b) return;
+        b.innerHTML = state[tipo].view === 'cards'
+            ? '<i class="ph ph-table"></i> Ver em Tabela'
+            : '<i class="ph ph-squares-four"></i> Ver em Cards';
+    }
+
+    function barraVoltar(tipo) {
+        const st = state[tipo];
+        if (!st.veic) return '';
+        const ref = (st.dados || []).find((x) => String(x.veiculo_id) === String(st.veic)) || {};
+        return '<div style="display:flex;align-items:center;gap:10px;padding:0.7rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">'
+            + '<button type="button" onclick="window.comprasFrotaVoltarCards(\'' + tipo + '\')" style="padding:0.45rem 0.9rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrow-left"></i> Todos os veículos</button>'
+            + '<span style="font-weight:800;color:#1e293b;">' + esc(ref.placa || '') + (ref.marca_modelo_versao ? ' — ' + esc(ref.marca_modelo_versao) : '') + '</span></div>';
+    }
+
+    function cardsHtml(tipo, lista) {
+        const st = state[tipo];
+        if (tipo === 'corretiva') {
+            const grupos = window._fcAgruparCorretivas(st.dados, lista);
+            return '<div style="padding:1rem;background:#f8fafc;">' + window._fcCorrCardsHtml(grupos, 'window.comprasCorrAbrirVeiculo') + '</div>';
+        }
+        // revisão: agrupa por veículo; contagem por situação do Compras e valores / dias parado vindos do resumo de revisões realizadas
+        const vids = [];
+        lista.forEach((x) => { const k = String(x.veiculo_id); if (vids.indexOf(k) === -1) vids.push(k); });
+        const grupos = vids.map((k) => {
+            const itens = st.dados.filter((x) => String(x.veiculo_id) === k);
+            return { vid: k, itens: itens, ref: itens[0] || {} };
+        });
+        grupos.sort((a, b) => String(a.ref.placa || '').localeCompare(String(b.ref.placa || '')));
+        const html = grupos.map((g) => {
+            const it = g.itens;
+            const nAg = it.filter((x) => x.rev_status === 'agendada').length;
+            const nRe = it.filter((x) => x.rev_status === 'realizada').length;
+            const sitN = (s) => it.filter((x) => x.situacao === s).length;
+            const abertos = it.filter((x) => x.situacao !== 'registrado');
+            const base = abertos.length ? abertos : it;
+            const d = base.slice().sort((a, b) => String(b.data_revisao || '').localeCompare(String(a.data_revisao || '')) || (Number(b.marco_km) - Number(a.marco_km)))[0];
+            const ehCar = String(g.ref.tipo_veiculo || '').toLowerCase().indexOf('carretinha') !== -1;
+            const marco = d ? (ehCar ? (d.marco_meses + ' meses') : (Number(d.marco_km).toLocaleString('pt-BR') + ' km / ' + d.marco_meses + ' meses')) : '—';
+            const s = d ? (SIT[d.situacao] || SIT.novo) : SIT.novo;
+            const cel = (t, v) => '<div style="min-width:0;"><div style="font-size:0.58rem;font-weight:800;color:#94a3b8;text-transform:uppercase;">' + t + '</div><div style="font-size:0.74rem;font-weight:700;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + v + '</div></div>';
+            const destaque = d ? ('<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:0.6rem;font-weight:800;color:#94a3b8;text-transform:uppercase;">' + (abertos.length ? 'Revisão aguardando registro' : 'Última revisão') + '</span>'
+                + '<span style="background:' + s.bg + ';color:' + s.cor + ';border:1px solid ' + s.cor + '55;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;">' + s.label + '</span></div>'
+                + '<div style="font-size:0.78rem;font-weight:800;color:#6d28d9;margin-bottom:5px;">' + esc(marco) + '</div>'
+                + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;">'
+                + cel('Data da revisão', fmtData(d.data_revisao))
+                + cel('Concessionária', esc(d.concessionaria || '—'))
+                + cel('R$ Total', Number(d.valor_total) > 0 ? brl(d.valor_total) : '—')
+                + '</div></div>') : '';
+            const r = window._fcRevResumoDe(g.vid);
+            return window._fcCardShell({
+                vid: g.vid, placa: g.ref.placa, modelo: g.ref.marca_modelo_versao, tipo: g.ref.tipo_veiculo, foto: g.ref.foto_url, parado: false,
+                onclickFn: 'window.comprasRevAbrirVeiculo',
+                chips: [
+                    { label: 'Revisões', val: it.length, cor: '#7c3aed' },
+                    { label: 'Agendadas', val: nAg, cor: '#2563eb' },
+                    { label: 'Realizadas', val: nRe, cor: '#10b981' },
+                    { label: 'Novo', val: sitN('novo'), cor: SIT.novo.cor },
+                    { label: 'Iniciada', val: sitN('iniciada'), cor: SIT.iniciada.cor },
+                    { label: 'Registrado', val: sitN('registrado'), cor: SIT.registrado.cor }
+                ],
+                destaqueHtml: destaque,
+                gastos: r.gastos,
+                diasHtml: window._fcDiasHtml([{ label: 'parado em revisão (12 meses)', val: r.dias12 }, { label: 'parado em revisão (total)', val: r.diasTotal }]),
+                btnLabel: 'Ver revisões (' + it.length + ')', corBtn: '#7c3aed'
+            });
+        }).join('');
+        return '<div style="padding:1rem;background:#f8fafc;">' + (html ? window._fcGridCards(html) : '<div style="padding:3rem;text-align:center;color:#94a3b8;">Nenhuma revisão encontrada.</div>') + '</div>';
+    }
+
+    window.comprasFrotaAlternar = function (tipo) {
+        const st = state[tipo];
+        st.view = st.view === 'cards' ? 'tabela' : 'cards';
+        st.veic = null;
+        atualizarLista(tipo);
+    };
+    window.comprasCorrAbrirVeiculo = function (vid) { state.corretiva.veic = String(vid); atualizarLista('corretiva'); };
+    window.comprasRevAbrirVeiculo = function (vid) { state.revisao.veic = String(vid); atualizarLista('revisao'); };
+    window.comprasFrotaVoltarCards = function (tipo) { state[tipo].veic = null; atualizarLista(tipo); };
 
     window.comprasFrotaFiltrar = function (tipo, key) {
         const st = state[tipo];
@@ -215,6 +310,9 @@
         return window.comprasRevAbrir(id);
     };
     window.comprasFrotaMarcarRegistrado = async function (tipo, id, btnEl) {
+        const senhaCf = window.prompt('Digite a senha para marcar como Registrado:');
+        if (senhaCf === null) return;
+        if (String(senhaCf).trim() !== 'comp123') { alert('Senha incorreta.'); return; }
         if (btnEl) {
             btnEl.disabled = true;
             btnEl.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i>';
@@ -264,7 +362,7 @@
     function fecharCorr() {
         if (typeof window._mnEdFechar === 'function') window._mnEdFechar();
         window._mnEd = null;
-        window.initComprasFrota('corretiva');
+        window.initComprasFrota('corretiva', true);
     }
 
     window.comprasCorrAbrir = async function (id) {
@@ -461,7 +559,7 @@
         if (typeof window._mnRevFecharVinculo === 'function') window._mnRevFecharVinculo();
         window._mnRevModoCompras = false;
         window._cfRev = null;
-        window.initComprasFrota('revisao');
+        window.initComprasFrota('revisao', true);
     };
 
     window.comprasRevAbrir = async function (revId) {
