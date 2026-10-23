@@ -184,13 +184,32 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 const t = String(tam || '').trim().toUpperCase();
                 const map = {
                     'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5,
-                    'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'EGG': 11,
-                    'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15, 'UNICO': 16, 'ÚNICO': 16
+                    'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'XXGG': 11, 'EGG': 12, 'EXGG': 13,
+                    'G1': 14, 'G2': 15, 'G3': 16, 'G4': 17, 'UNICO': 18, 'ÚNICO': 18
                 };
                 if (map[t] !== undefined) return map[t];
                 const num = parseInt(t, 10);
                 if (!isNaN(num)) return 100 + num;
                 return 900;
+            };
+        }
+
+        if (!window._estoqueProdutosExpandidos) {
+            window._estoqueProdutosExpandidos = {};
+        }
+
+        if (typeof window.toggleDetalhesTamanhosEstoque !== 'function') {
+            window.toggleDetalhesTamanhosEstoque = function(prodId) {
+                const isOpen = !!window._estoqueProdutosExpandidos[prodId];
+                window._estoqueProdutosExpandidos[prodId] = !isOpen;
+                const rowsEl = document.querySelectorAll('.estoque-detalhe-tam-' + prodId);
+                rowsEl.forEach(function(r) {
+                    r.style.display = !isOpen ? '' : 'none';
+                });
+                const icon = document.getElementById('estoque-prod-arrow-' + prodId);
+                if (icon) {
+                    icon.style.transform = !isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
             };
         }
 
@@ -278,51 +297,170 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
 
-            // Resumo de tamanhos abaixo do nome quando o produto possui tamanhos
-            let resumoTamanhosHtml = '';
+            // ── Botões de ação ──
+            const acoesBtns =
+                '<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar / Gerenciar Tamanhos" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
+                '<button class="btn btn-sm" onclick="event.stopPropagation(); window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;" title="Excluir"><i class="ph ph-trash"></i></button>';
+
+            // ── CASO 1: PRODUTO COM TAMANHOS (Linha principal com seta + linhas expansíveis por tamanho e endereço) ──
             if (hasSizes) {
-                const mapTam = {};
+                const isOpen = !!window._estoqueProdutosExpandidos[item.id];
+                const mapTamEnderecos = {};
                 try {
                     const savedTams = JSON.parse(item.tamanhos_lista || '[]');
                     if (Array.isArray(savedTams)) {
                         savedTams.forEach(t => {
                             const tk = String(t || '').trim().toUpperCase();
-                            if (tk) mapTam[tk] = { qtd: 0, low: false };
+                            if (tk && !mapTamEnderecos[tk]) mapTamEnderecos[tk] = [];
                         });
                     }
                 } catch(e) {}
-                saldos.forEach(s => {
-                    const tk = String(s.tamanho || '').trim().toUpperCase();
-                    if (!tk) return;
-                    if (!mapTam[tk]) mapTam[tk] = { qtd: 0, low: false };
-                    mapTam[tk].qtd += (parseInt(s.quantidade) || 0);
-                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
-                    if (minRef > 0 && (parseInt(s.quantidade) || 0) < minRef) {
-                        mapTam[tk].low = true;
-                    }
-                });
-                const tamsSorted = Object.keys(mapTam).sort((a, b) => window._ordemTamanhoEstoque(a) - window._ordemTamanhoEstoque(b));
-                if (tamsSorted.length > 0) {
-                    resumoTamanhosHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' +
-                        tamsSorted.map(tk => {
-                            const info = mapTam[tk];
-                            const bg = info.low ? '#fef2f2' : '#eff6ff';
-                            const col = info.low ? '#dc2626' : '#1e40af';
-                            const brd = info.low ? '#fecaca' : '#bfdbfe';
-                            return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + bg + ';color:' + col + ';border:1px solid ' + brd + ';border-radius:6px;padding:1px 6px;font-size:0.7rem;font-weight:700;">' +
-                                tk + ': ' + info.qtd + (info.low ? ' <i class="ph ph-warning" style="font-size:0.72rem;"></i>' : '') +
-                            '</span>';
-                        }).join('') +
-                    '</div>';
+
+                let saldosFiltrados = saldos.slice();
+                if (selectedEnderecos && selectedEnderecos.length > 0) {
+                    saldosFiltrados = saldosFiltrados.filter(s => s && selectedEnderecos.includes(String(s.endereco_id)));
                 }
+                if (tipoFilter && tipoFilter !== 'sem_tipo') {
+                    const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
+                    const filtroAtivo = saldosFiltrados.filter(s => s && (s.tipo_estoque || 'matriz') === tipoEsperado);
+                    if (filtroAtivo.length > 0) saldosFiltrados = filtroAtivo;
+                }
+
+                saldosFiltrados.forEach(s => {
+                    const tk = String(s.tamanho || 'ÚNICO').trim().toUpperCase();
+                    if (!mapTamEnderecos[tk]) mapTamEnderecos[tk] = [];
+                    mapTamEnderecos[tk].push(s);
+                });
+
+                const tamsSorted = Object.keys(mapTamEnderecos).sort((a, b) => window._ordemTamanhoEstoque(a) - window._ordemTamanhoEstoque(b));
+                const totalQtdProd = saldosFiltrados.reduce((acc, s) => acc + (parseInt(s.quantidade) || 0), 0);
+
+                // Endereços únicos para resumo na linha principal
+                const enderecosUnicosMap = {};
+                const tiposUnicosSet = new Set();
+                saldosFiltrados.forEach(s => {
+                    if (s && s.nome) {
+                        const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : 0;
+                        const lowThis = minRef > 0 && (parseInt(s.quantidade) || 0) < minRef;
+                        if (!enderecosUnicosMap[s.nome]) enderecosUnicosMap[s.nome] = { nome: s.nome, low: false };
+                        if (lowThis) enderecosUnicosMap[s.nome].low = true;
+                    }
+                    if (s) tiposUnicosSet.add(s.tipo_estoque || 'matriz');
+                });
+
+                const resumoEnderecosHtml = Object.values(enderecosUnicosMap).length > 0
+                    ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + Object.values(enderecosUnicosMap).map(eInfo => {
+                        const endColors = getBadgeColors(eInfo.nome, eInfo.low);
+                        return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
+                            eInfo.nome + (eInfo.low ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
+                        '</span>';
+                    }).join('') + '</div>'
+                    : '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
+
+                const resumoTiposHtml = Array.from(tiposUnicosSet).length > 0
+                    ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + Array.from(tiposUnicosSet).map(tp =>
+                        tp === 'reposicao'
+                            ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
+                            : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>'
+                    ).join('') + '</div>'
+                    : '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
+
+                // Linha Principal do Produto (com Seta)
+                rows += '<tr onclick="window.toggleDetalhesTamanhosEstoque(' + item.id + ')" style="cursor:pointer;border-left:' + rowBorderLeft + ';' + (isLow ? 'background:#fff5f5;' : '') + 'transition:background 0.15s;">' +
+                    '<td style="vertical-align:middle;font-weight:600;">' +
+                        '<div style="display:flex;align-items:center;gap:10px;">' +
+                            '<span title="Clique para ver os tamanhos e estoques mínimo/máximo" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                                '<i id="estoque-prod-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform 0.2s;' + (isOpen ? 'transform:rotate(90deg);' : '') + '"></i>' +
+                            '</span>' +
+                            fotoHtml +
+                            '<div>' +
+                                '<div style="display:flex;align-items:center;gap:6px;">' +
+                                    '<span>' + warnIcon + item.nome + '</span>' +
+                                    '<span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tamsSorted.length + (tamsSorted.length === 1 ? ' tamanho' : ' tamanhos') + '</span>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</td>' +
+                    '<td style="vertical-align:middle;">' + (item.categoria || '-') + '</td>' +
+                    '<td style="vertical-align:middle;"><span style="font-weight:700;font-size:1rem;color:' + (isLow ? '#ef4444' : '#10b981') + ';">' + totalQtdProd + '</span></td>' +
+                    '<td style="vertical-align:middle;white-space:nowrap;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
+                    '<td style="vertical-align:middle;">' + resumoEnderecosHtml + '</td>' +
+                    '<td style="vertical-align:middle;white-space:nowrap;">' + resumoTiposHtml + '</td>' +
+                    '<td style="text-align:right;white-space:nowrap;vertical-align:middle;">' + acoesBtns + '</td>' +
+                '</tr>';
+
+                // Linhas Detalhadas de Cada Tamanho e Cada Endereço (exibidas ao clicar na seta)
+                tamsSorted.forEach(function(tam) {
+                    const endsDoTam = mapTamEnderecos[tam] && mapTamEnderecos[tam].length > 0 ? mapTamEnderecos[tam] : [null];
+                    const tamLow = endsDoTam.some(function(s) {
+                        if (!s) return false;
+                        const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : 0;
+                        return minRef > 0 && (parseInt(s.quantidade) || 0) < minRef;
+                    });
+
+                    endsDoTam.forEach(function(s, idxEnd) {
+                        const primeiraLinhaTam = idxEnd === 0;
+                        const rowSpanTam = endsDoTam.length > 1 && primeiraLinhaTam ? ' rowspan="' + endsDoTam.length + '"' : '';
+                        const minRef = s ? (parseInt(s.quantidade_minima) || 0) : 0;
+                        const maxRef = s ? (parseInt(s.quantidade_maxima) || 0) : 0;
+                        const qtdEnd = s ? (parseInt(s.quantidade) || 0) : 0;
+                        const lowEnd = s ? (minRef > 0 && qtdEnd < minRef) : false;
+
+                        let qtdCellTam = !s
+                            ? '<span style="color:#94a3b8;font-style:italic;">0</span>'
+                            : '<span style="font-weight:700;font-size:0.95rem;color:' + (lowEnd ? '#ef4444' : '#10b981') + ';">' + qtdEnd + '</span>';
+
+                        let minMaxCellTam = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
+                        if (s && (minRef > 0 || maxRef > 0)) {
+                            const parts = [];
+                            if (minRef > 0) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">min ' + minRef + '</span>');
+                            if (maxRef > 0) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">max ' + maxRef + '</span>');
+                            minMaxCellTam = '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">' + parts.join('<span style="color:#cbd5e1;">|</span>') + '</div>';
+                        }
+
+                        let endCellTam = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
+                        let tipoCellTam = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
+                        if (s) {
+                            const tipoEstoque = s.tipo_estoque || 'matriz';
+                            tipoCellTam = tipoEstoque === 'reposicao'
+                                ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
+                                : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
+                            const endColors = getBadgeColors(s.nome, lowEnd);
+                            endCellTam = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
+                                s.nome + (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
+                            '</span>';
+                        }
+
+                        const bgTamRow = lowEnd ? 'background:#fff1f2;' : 'background:#f8fafc;';
+                        const borderTopTam = primeiraLinhaTam ? 'border-top:1px solid #e2e8f0;' : 'border-top:1px dashed #e2e8f0;';
+
+                        rows += '<tr class="estoque-detalhe-tam-' + item.id + '" style="display:' + (isOpen ? '' : 'none') + ';border-left:3px solid ' + (tamLow ? '#ef4444' : '#3b82f6') + ';' + bgTamRow + borderTopTam + '">';
+                        if (primeiraLinhaTam) {
+                            rows += '<td' + rowSpanTam + ' style="vertical-align:middle;padding-left:48px;">' +
+                                '<div style="display:flex;align-items:center;gap:8px;">' +
+                                    '<span style="color:#94a3b8;font-size:0.9rem;">↳</span>' +
+                                    '<span style="background:' + (tamLow ? '#fef2f2' : '#dbeafe') + ';color:' + (tamLow ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tamLow ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + tam + '</span>' +
+                                    '<span style="color:#475569;font-size:0.84rem;font-weight:500;">' + item.nome + '</span>' +
+                                '</div>' +
+                            '</td>';
+                            rows += '<td' + rowSpanTam + ' style="vertical-align:middle;color:#64748b;font-size:0.82rem;">Tam. <b>' + tam + '</b></td>';
+                        }
+                        rows += '<td style="vertical-align:middle;">' + qtdCellTam + '</td>';
+                        rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCellTam + '</td>';
+                        rows += '<td style="vertical-align:middle;">' + endCellTam + '</td>';
+                        rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCellTam + '</td>';
+                        if (primeiraLinhaTam) {
+                            rows += '<td' + rowSpanTam + ' style="text-align:right;white-space:nowrap;vertical-align:middle;">' +
+                                '<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Gerenciar Tamanho ' + tam + '" style="font-size:0.75rem;padding:3px 8px;"><i class="ph ph-Sliders"></i> Editar</button>' +
+                            '</td>';
+                        }
+                        rows += '</tr>';
+                    });
+                });
+                return;
             }
 
-            // ── Botões de ação (apenas na primeira linha do produto) ──
-            const acoesBtns =
-                '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar / Gerenciar Tamanhos" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
-                '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;" title="Excluir"><i class="ph ph-trash"></i></button>';
-
-            // ── Agrupar saldos por endereço para exibição limpa na tabela ──
+            // ── CASO 2: PRODUTO SEM TAMANHO (Renderização padrão) ──
             let linhasEndereco = saldos.length > 0 ? saldos : [null];
 
             if (selectedEnderecos && selectedEnderecos.length > 0) {
@@ -341,43 +479,14 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 if (filtroAtivo.length > 0) linhasParaRenderizar = filtroAtivo;
             }
 
-            // Se o produto tem múltiplos tamanhos no mesmo endereço, consolidar 1 linha visual por endereço na tabela principal
-            if (hasSizes && linhasParaRenderizar.length > 0 && linhasParaRenderizar[0] !== null) {
-                const porEndMap = {};
-                linhasParaRenderizar.forEach(s => {
-                    const k = String(s.endereco_id) + '__' + (s.tipo_estoque || 'matriz');
-                    if (!porEndMap[k]) {
-                        porEndMap[k] = {
-                            endereco_id: s.endereco_id,
-                            nome: s.nome,
-                            tipo_estoque: s.tipo_estoque || 'matriz',
-                            quantidade: 0,
-                            quantidade_minima: s.quantidade_minima || 0,
-                            quantidade_maxima: s.quantidade_maxima || 0,
-                            anyLow: false
-                        };
-                    }
-                    porEndMap[k].quantidade += (parseInt(s.quantidade) || 0);
-                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
-                    if (minRef > 0 && (parseInt(s.quantidade) || 0) < minRef) {
-                        porEndMap[k].anyLow = true;
-                    }
-                });
-                linhasParaRenderizar = Object.values(porEndMap);
-            }
-
             linhasParaRenderizar.forEach(function(s, idx) {
                 const primeiraLinha = idx === 0;
 
                 // Cor/estado deste endereço
                 let lowEnd = false;
                 if (s) {
-                    if (s.anyLow !== undefined) {
-                        lowEnd = s.anyLow;
-                    } else {
-                        const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
-                        lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
-                    }
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
                 }
 
                 // Qtd. Atual deste endereço
@@ -431,28 +540,21 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
                 rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
                 
-                // Nome + foto + resumo de tamanhos
                 if (primeiraLinha) {
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div><div>' + warnIcon + item.nome + '</div>' + resumoTamanhosHtml + '</div></div>' +
+                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div><div>' + warnIcon + item.nome + '</div></div></div>' +
                             '</td>';
                             
-                    // Categoria
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
                             '</td>';
                 }
                 
-                // Qtd. Atual
                 rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
-                // Min/Máx
                 rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
-                // Endereço
                 rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
-                // Tipo
                 rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
                 
-                // Ações
                 if (primeiraLinha) {
                     rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 acoesBtns +

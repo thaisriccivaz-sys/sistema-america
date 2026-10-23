@@ -31459,8 +31459,8 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
 function _consolidarProdutosComTamanhoEstoque() {
     const sizeOrder = {
         'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5,
-        'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'EGG': 11,
-        'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15
+        'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'XXGG': 11, 'EGG': 12, 'EXGG': 13,
+        'G1': 14, 'G2': 15, 'G3': 16, 'G4': 17
     };
     function parseNomeTamanho(nome, categoria) {
         const raw = String(nome || '').trim();
