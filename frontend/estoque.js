@@ -292,8 +292,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             const fotoSrc = item.foto_url || item.foto_base64 || "";
             const safeItemNome = String(item.nome || 'Produto').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const fotoHtml = fotoSrc
-                ? '<img src="' + fotoSrc + '" onclick="event.stopPropagation(); window.ampliarFotoEstoque(this.src, \'' + safeItemNome + '\')" title="Clique para ampliar a foto" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform=\'scale(1.08)\'" onmouseout="this.style.transform=\'scale(1)\'">'
-                : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
+                ? '<img src="' + fotoSrc + '" onclick="event.stopPropagation(); window.ampliarFotoEstoque(this.src, \'' + safeItemNome + '\')" title="Clique para ampliar a foto" style="width:40px;height:40px;min-width:40px;flex-shrink:0;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform=\'scale(1.08)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+                : '<div style="width:40px;height:40px;min-width:40px;flex-shrink:0;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
 
@@ -542,7 +542,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 
                 if (primeiraLinha) {
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div><div>' + warnIcon + item.nome + '</div></div></div>' +
+                                '<div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:26px;display:inline-flex;flex-shrink:0;"></span>' + fotoHtml + '<div><div>' + warnIcon + item.nome + '</div></div></div>' +
                             '</td>';
                             
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
