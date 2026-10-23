@@ -40471,14 +40471,19 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
 // Usado pelos loops internos de alerta para evitar sobrescrever mudanças de outros usuários.
 app.patch('/api/sac/tickets/:id/auto', authenticateToken, (req, res) => {
     const t = req.body;
+    // PROTEÇÃO CONTRA SESSÕES DESATUALIZADAS (navegador com cópia antiga do chamado):
+    //  - as flags *_notified só podem ser ARMADAS aqui (0 -> 1); nunca re-zeradas (re-zerar causava aviso repetido).
+    //    O reset legítimo acontece apenas nas transições de etapa (PUT completo).
+    //  - aguard_deadline NUNCA é gravado a partir do navegador (era assim que o prazo ANTIGO voltava para o banco).
+    //    Aqui ele só é limpo quando o chamado já saiu de aguardando_setores/respondido.
     db.run(`UPDATE sac_tickets SET
         comments = ?,
         is_urgent = ?,
-        follow_up_notified = ?,
+        follow_up_notified = MAX(COALESCE(follow_up_notified, 0), ?),
         follow_up_pending_justification = ?,
-        aguard_notified = ?,
+        aguard_notified = MAX(COALESCE(aguard_notified, 0), ?),
         aguard_pending_justification = ?,
-        aguard_deadline = ?,
+        aguard_deadline = CASE WHEN ? = 1 AND stage NOT IN ('aguardando_setores','respondido') THEN NULL ELSE aguard_deadline END,
         sla_overdue_notified = ?,
         sla_overdue_pending_justification = ?,
         updated_at = CURRENT_TIMESTAMP
@@ -40490,7 +40495,7 @@ app.patch('/api/sac/tickets/:id/auto', authenticateToken, (req, res) => {
         t.followUpPendingJustification ? 1 : 0,
         t.aguardNotified ? 1 : 0,
         t.aguardPendingJustification ? 1 : 0,
-        t.aguardDeadline || null,
+        t.aguardDeadline ? 0 : 1,
         t.slaOverdueNotified ? 1 : 0,
         t.slaOverduePendingJustification ? 1 : 0,
         req.params.id
@@ -41052,58 +41057,105 @@ setTimeout(() => {
 // ── POST /api/sac/notificar-acompanhamento ────────────────────────────────────
 // Notifica APENAS usuários configurados em sac_sla_vencido quando o prazo vencer
 app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res) => {
-    const { ticketId, protocol, clientName, followUpDeadline } = req.body;
+    const body = req.body || {};
+    const { ticketId, protocol, clientName } = body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
     if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
 
-    const ticketExiste = await new Promise(resolve => {
-        db.get('SELECT id FROM sac_tickets WHERE id = ?', [ticketId], (err, row) => resolve(!!row));
+    // O SERVIDOR decide se o prazo realmente venceu. O navegador pode estar com uma cópia ANTIGA do chamado
+    // em memória (prazo antigo, etapa antiga, flags antigas) e por isso nunca é fonte confiável sozinho.
+    const row = await new Promise(resolve => {
+        db.get('SELECT id, stage, follow_up_deadline, follow_up_notified, aguard_deadline, aguard_notified FROM sac_tickets WHERE id = ?', [ticketId], (err, r) => resolve(err ? null : (r || null)));
     });
-    if (!ticketExiste) return res.json({ success: false, msg: 'Chamado excluído ou nao encontrado.' });
+    if (!row) return res.json({ success: false, claimed: false, msg: 'Chamado excluído ou nao encontrado.' });
+
+    const mesmoInstante = (a, b) => {
+        const x = new Date(a).getTime(), y = new Date(b).getTime();
+        return !isNaN(x) && !isNaN(y) && Math.abs(x - y) < 1000;
+    };
+    const prazoEnviado = body.deadline || body.followUpDeadline || '';
+
+    // kind: 'followup' (acompanhamento / execucao) ou 'aguard' (aguardando setores)
+    let kind = String(body.kind || '').toLowerCase();
+    if (kind !== 'followup' && kind !== 'aguard') {
+        // Navegador com versão antiga em cache (não envia "kind"): deduz pelo prazo enviado
+        if (prazoEnviado && row.aguard_deadline && mesmoInstante(prazoEnviado, row.aguard_deadline)) kind = 'aguard';
+        else if (prazoEnviado && row.follow_up_deadline && mesmoInstante(prazoEnviado, row.follow_up_deadline)) kind = 'followup';
+        else kind = row.stage === 'execucao' ? 'followup' : 'aguard';
+    }
+    const cfg = kind === 'aguard'
+        ? { stageEsperado: 'aguardando_setores', colDeadline: 'aguard_deadline', colNotified: 'aguard_notified', deadline: row.aguard_deadline, notified: row.aguard_notified }
+        : { stageEsperado: 'execucao', colDeadline: 'follow_up_deadline', colNotified: 'follow_up_notified', deadline: row.follow_up_deadline, notified: row.follow_up_notified };
+
+    const bloquear = (motivo) => {
+        console.log(`[SAC notif] Aviso de prazo NAO enviado (${kind}) ticket=${ticketId} Nº ${protocol}: ${motivo}`);
+        return res.json({ success: true, claimed: false, msg: motivo });
+    };
+    if (row.stage !== cfg.stageEsperado) return bloquear('etapa atual do chamado e "' + row.stage + '" (esperado "' + cfg.stageEsperado + '")');
+    if (!cfg.deadline) return bloquear('chamado sem prazo ativo');
+    const prazoMs = new Date(cfg.deadline).getTime();
+    if (isNaN(prazoMs) || prazoMs > Date.now()) return bloquear('prazo ainda nao venceu (prazo no servidor: ' + cfg.deadline + ')');
+    if (prazoEnviado && !mesmoInstante(prazoEnviado, cfg.deadline)) return bloquear('prazo enviado pelo navegador (' + prazoEnviado + ') esta desatualizado; prazo atual no servidor: ' + cfg.deadline);
+    if (cfg.notified) return bloquear('ja notificado anteriormente');
+
+    // "Claim" atômico no banco: só UMA requisição consegue mudar notified 0 -> 1 para este prazo.
+    // Com vários navegadores abertos ao mesmo tempo, as demais recebem claimed=false e NAO enviam e-mail.
+    const claimed = await new Promise(resolve => {
+        db.run(`UPDATE sac_tickets SET ${cfg.colNotified} = 1 WHERE id = ? AND COALESCE(${cfg.colNotified}, 0) = 0 AND stage = ? AND ${cfg.colDeadline} = ?`,
+            [ticketId, cfg.stageEsperado, cfg.deadline], function (err) { resolve(!err && this.changes === 1); });
+    });
+    if (!claimed) return bloquear('notificacao ja registrada por outra sessao');
+
+    console.log(`[SAC notif] Enviando aviso de prazo vencido (${kind}) ticket=${ticketId} Nº ${protocol} prazo=${cfg.deadline} solicitado por ${(req.user && (req.user.username || req.user.nome)) || '?'}`);
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
     const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
-    const prazoFmt = followUpDeadline ? new Date(followUpDeadline).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    // O servidor roda em UTC: formatar SEMPRE no fuso de Brasília (antes o e-mail mostrava +3h, ex.: 16:30 em vez de 13:30)
+    const prazoFmt = new Date(cfg.deadline).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    const subject = `🚨 SAC — Tempo de Acompanhamento Estourado: Nº ${protocol}`;
+    const isAguard = kind === 'aguard';
+    const titulo = isAguard ? 'Prazo de Aguardo de Setor Estourado' : 'Tempo de Acompanhamento Estourado';
+    const textoPrincipal = isAguard
+        ? 'O prazo de resposta do setor em um chamado SAC <strong>venceu sem resposta</strong>.'
+        : 'O prazo de acompanhamento de um chamado SAC <strong>venceu sem conclusão</strong>.';
+    const rotuloPrazo = isAguard ? 'Prazo de Resposta' : 'Prazo Programado';
+    const textoFinal = isAguard
+        ? 'O sistema aguarda a justificativa do responsável pelo setor.'
+        : 'O sistema aguarda o preenchimento do motivo e devolução do chamado para a Triagem.';
+
+    const subject = `\u{1F6A8} SAC — ${titulo}: Nº ${protocol}`;
     const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
         <div style="padding:24px;">
-            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">🚨 Tempo de Acompanhamento Estourado</span></div>
-            <p style="font-size:1rem;color:#1e293b;">O prazo de acompanhamento de um chamado SAC <strong>venceu sem conclusão</strong>.</p>
+            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">\u{1F6A8} ${titulo}</span></div>
+            <p style="font-size:1rem;color:#1e293b;">${textoPrincipal}</p>
             <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
                 <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
                 <p style="margin:4px 0;"><strong>Cliente:</strong> ${(clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim()}</p>
-                <p style="margin:4px 0;"><strong>Prazo Programado:</strong> ${prazoFmt}</p>
+                <p style="margin:4px 0;"><strong>${rotuloPrazo}:</strong> ${prazoFmt}</p>
             </div>
-            <p>O sistema aguarda o preenchimento do motivo e devolução do chamado para a Triagem.</p>
+            <p>${textoFinal}</p>
             <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
             <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
         </div>
     </div>`;
 
-    // Evita duplicidade por race condition do frontend verificando últimos 5 minutos
-    db.get(`SELECT id FROM notificacoes_usuarios WHERE tipo = 'sac_acompanhamento_vencido' AND dados LIKE ? AND criado_em > datetime('now', '-5 minute') LIMIT 1`, [`%"ticketId":"${ticketId}"%`], (errCheck, rowCheck) => {
-        if (rowCheck) {
-            console.log('[SAC notif] Duplicidade de acompanhamento evitada para ticket ' + ticketId);
-            return res.json({ success: true, msg: 'Já notificado recentemente.' });
-        }
+    // Notificar APENAS usuários configurados para sac_sla_vencido (nao todos os envolvidos)
+    sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
 
-        // Notificar APENAS usuários configurados para sac_sla_vencido (nao todos os envolvidos)
-        sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
-
-        // Popup interno para configurados em sac_sla_vencido
-        db.all(`SELECT DISTINCT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
-            if (err || !rows || rows.length === 0) return;
-            const msg = `🚨 Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> - ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
-            rows.forEach(r => {
-                db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                    [r.usuario_id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
-            });
+    // Popup interno para configurados em sac_sla_vencido
+    db.all(`SELECT DISTINCT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const msg = isAguard
+            ? `\u{1F6A8} Prazo de resposta do setor no chamado <strong>Nº ${protocol}</strong> - ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`
+            : `\u{1F6A8} Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> - ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
+        rows.forEach(r => {
+            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                [r.usuario_id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName, kind })]);
         });
-
-        res.json({ success: true });
     });
+
+    res.json({ success: true, claimed: true });
 });
 
 // ── POST /api/sac/notificar-sla-vencido ───────────────────────────────────────

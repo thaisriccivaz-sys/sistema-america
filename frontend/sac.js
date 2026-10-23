@@ -5148,6 +5148,45 @@
   }
 
   // ══════════════════════════════════════════════════════
+  // AVISO DE PRAZO VENCIDO (acompanhamento / aguardo de setor)
+  // Quem DECIDE é o servidor: ele confere a etapa e o prazo ATUAIS do chamado no banco e registra o aviso
+  // uma única vez. O navegador só pede; se estiver com cópia antiga do chamado, o servidor recusa.
+  // ══════════════════════════════════════════════════════
+  const _sacPrazoEmCurso = new Set();
+  async function _sacNotificarPrazoVencido(ticket, kind, deadlineIso) {
+    const chave = ticket.id + '|' + kind + '|' + deadlineIso;
+    if (_sacPrazoEmCurso.has(chave)) return;
+    _sacPrazoEmCurso.add(chave);
+    let aceito = false;
+    try {
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      const r = await fetch('/api/sac/notificar-acompanhamento', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: ticket.id, protocol: ticket.protocol, clientName: ticket.clientName, kind: kind, deadline: deadlineIso })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j && j.claimed === true) {
+        aceito = true;
+        // Esta sessão foi a que o servidor autorizou: registra o comentário de sistema UMA vez
+        // (sempre sobre a cópia mais recente do chamado, não sobre a referência antiga)
+        const cur = _tickets.find(x => x.id === ticket.id) || ticket;
+        if (kind === 'followup') cur.followUpNotified = true; else cur.aguardNotified = true;
+        if (!cur.comments) cur.comments = [];
+        const rotulo = kind === 'followup' ? 'Prazo de acompanhamento vencido em ' : 'Prazo de aguardo de setor vencido em ';
+        cur.comments.push({ user: 'Sistema', text: '🔔 ' + rotulo + new Date(deadlineIso).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
+        updateTicketAuto(cur);
+      }
+      // claimed === false: já notificado por outra sessão ou esta sessão está desatualizada -> não faz nada
+    } catch (e) {
+      console.error('[SAC] notificar-prazo-vencido:', e);
+    } finally {
+      // Em caso de recusa/erro, tenta de novo só depois de alguns minutos (a tela se atualiza sozinha nesse meio tempo)
+      if (!aceito) setTimeout(() => _sacPrazoEmCurso.delete(chave), 5 * 60 * 1000);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
   // CHECK FOLLOW-UP ALERTS — roda a cada 1 minuto
   // ══════════════════════════════════════════════════════
   function checkFollowUpAlerts() {
@@ -5168,16 +5207,7 @@
             return;
           }
           if (!ticket.followUpNotified && ticket.stage === 'execucao') {
-            ticket.followUpNotified = true;
-            if (!ticket.comments) ticket.comments = [];
-            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-            updateTicketAuto(ticket);
-            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-            fetch('/api/sac/notificar-acompanhamento', {
-              method:'POST',
-              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
-            }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
+            _sacNotificarPrazoVencido(ticket, 'followup', ticket.followUpDeadline);
           }
           // ── CORREÇÃO: popup só aparece se ainda estiver em execucao
           if (ticket.followUpPendingJustification === true && ticket.stage === 'execucao' && !_followupShown.has(ticket.id)) {
@@ -5200,16 +5230,7 @@
         const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
         if (!isNaN(aguardPrazo) && aguardPrazo < now) {
           if (!ticket.aguardNotified && ticket.stage === 'aguardando_setores') {
-            ticket.aguardNotified = true;
-            if (!ticket.comments) ticket.comments = [];
-            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-            updateTicketAuto(ticket);
-            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-            fetch('/api/sac/notificar-acompanhamento', {
-              method:'POST',
-              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
-            }).catch(e => console.error('[SAC] notificar-aguard:', e));
+            _sacNotificarPrazoVencido(ticket, 'aguard', ticket.aguardDeadline);
           }
           // ── BUG FIX: só mostra popup se ainda estiver em aguardando_setores
           if (ticket.aguardPendingJustification === true && (ticket.stage === 'aguardando_setores' || ticket.stage === 'respondido') && !_aguardShown.has(ticket.id)) {
