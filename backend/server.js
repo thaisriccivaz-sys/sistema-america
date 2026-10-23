@@ -31712,6 +31712,379 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
 
 
 
+// ============================================================================
+// FINANCEIRO > COMPRAS > ESTOQUE (peças)
+// Fornecedor, valor, garantia, PDF por produto, notas fiscais únicas vinculáveis
+// a vários produtos e histórico de compras (valores pagos + datas).
+// Arquivos (PDF do produto e arquivo da nota fiscal) são guardados no Cloudflare R2.
+// ============================================================================
+db.run(`CREATE TABLE IF NOT EXISTS estoque_compras_info (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    estoque_id     INTEGER NOT NULL UNIQUE,
+    fornecedor     TEXT DEFAULT '',
+    valor_atual    REAL DEFAULT 0,
+    garantia_meses INTEGER DEFAULT 0,
+    garantia_ate   TEXT DEFAULT '',
+    observacoes    TEXT DEFAULT '',
+    r2_key         TEXT,
+    pdf_nome       TEXT,
+    atualizado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_por TEXT DEFAULT ''
+)`, (err) => {
+    if (err && !String(err.message).includes('already exists')) console.error('[COMPRAS-ESTOQUE] Erro ao criar estoque_compras_info:', err.message);
+});
+db.run(`CREATE TABLE IF NOT EXISTS estoque_notas_fiscais (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero       TEXT NOT NULL,
+    fornecedor   TEXT DEFAULT '',
+    data_emissao TEXT DEFAULT '',
+    valor_total  REAL DEFAULT 0,
+    observacoes  TEXT DEFAULT '',
+    r2_key       TEXT,
+    nome_arquivo TEXT,
+    criado_em    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    criado_por   TEXT DEFAULT ''
+)`, (err) => {
+    if (err && !String(err.message).includes('already exists')) console.error('[COMPRAS-ESTOQUE] Erro ao criar estoque_notas_fiscais:', err.message);
+});
+db.run(`CREATE TABLE IF NOT EXISTS estoque_compras_historico (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    estoque_id     INTEGER NOT NULL,
+    nota_fiscal_id INTEGER,
+    data_compra    TEXT NOT NULL,
+    quantidade     INTEGER DEFAULT 1,
+    valor_unitario REAL DEFAULT 0,
+    fornecedor     TEXT DEFAULT '',
+    garantia_meses INTEGER DEFAULT 0,
+    garantia_ate   TEXT DEFAULT '',
+    observacao     TEXT DEFAULT '',
+    criado_em      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    criado_por     TEXT DEFAULT ''
+)`, (err) => {
+    if (err && !String(err.message).includes('already exists')) console.error('[COMPRAS-ESTOQUE] Erro ao criar estoque_compras_historico:', err.message);
+    db.run('CREATE INDEX IF NOT EXISTS idx_ech_estoque ON estoque_compras_historico(estoque_id)', () => {});
+    db.run('CREATE INDEX IF NOT EXISTS idx_ech_nota ON estoque_compras_historico(nota_fiscal_id)', () => {});
+});
+
+const _ceRun = (sql, params = []) => new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) { if (err) reject(err); else resolve({ lastID: this.lastID, changes: this.changes }); });
+});
+const _ceGet = (sql, params = []) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => { if (err) reject(err); else resolve(row); });
+});
+const _ceAll = (sql, params = []) => new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => { if (err) reject(err); else resolve(rows || []); });
+});
+const _ceErr = (status, msg) => { const e = new Error(msg); e.status = status; return e; };
+const _ceHandler = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch(e => {
+    if (e.status !== 400 && e.status !== 404 && e.status !== 503) console.error('[COMPRAS-ESTOQUE]', e.message);
+    if (!res.headersSent) res.status(e.status || 500).json({ error: e.message });
+});
+const _ceUser = (req) => (req.user && (req.user.nome || req.user.username)) || 'Sistema';
+const _ceNum = (v) => {
+    const n = parseFloat(String(v === undefined || v === null ? '' : v).replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+};
+const _ceHoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+function _ceAddMeses(iso, meses) {
+    const p = String(iso || '').slice(0, 10).split('-').map(Number);
+    if (p.length !== 3 || p.some(isNaN) || !meses) return '';
+    const t = new Date(p[0], p[1] - 1 + meses, 1);
+    const diasNoMes = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    t.setDate(Math.min(p[2], diasNoMes));
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+function _ceDecodificarArquivo(b64, nomeArquivo, extsPermitidas) {
+    if (!b64 || typeof b64 !== 'string') throw _ceErr(400, 'Arquivo não enviado.');
+    const buffer = Buffer.from(b64.replace(/^data:[^;]+;base64,/, ''), 'base64');
+    if (!buffer.length) throw _ceErr(400, 'Arquivo vazio.');
+    if (buffer.length > 15 * 1024 * 1024) throw _ceErr(400, 'Arquivo maior que 15 MB.');
+    const m = /\.([a-zA-Z0-9]{2,5})$/.exec(String(nomeArquivo || ''));
+    const ext = m ? m[1].toLowerCase() : '';
+    if (!extsPermitidas.includes(ext)) throw _ceErr(400, 'Formato inválido. Permitidos: ' + extsPermitidas.join(', ').toUpperCase() + '.');
+    if (ext === 'pdf' && buffer.slice(0, 4).toString('latin1') !== '%PDF') throw _ceErr(400, 'O arquivo enviado não é um PDF válido.');
+    const tipos = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', xml: 'application/xml' };
+    return { buffer, ext, contentType: tipos[ext] || 'application/octet-stream' };
+}
+// Padrão R2 para arquivos não vinculados a colaborador: CATEGORIA/Subcategoria/YYYY/MM/DD_descricao_hash.ext
+function _ceR2Key(subpasta, descricao, ext) {
+    const safe = String(descricao || 'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').slice(0, 60);
+    const agora = new Date();
+    const hash = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    return 'Compras/Estoque/' + subpasta + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+        + String(agora.getDate()).padStart(2, '0') + '_' + safe + '_' + hash + '.' + ext;
+}
+function _ceR2Pronto() {
+    const r2m = require('./utils/r2');
+    if (!r2m.isReady()) throw _ceErr(503, 'Armazenamento de arquivos (R2) não está configurado no servidor. Não é possível anexar arquivos agora.');
+    return r2m;
+}
+async function _ceStreamArquivo(res, r2Key, nomeArquivo, contentTypePadrao) {
+    const r2m = require('./utils/r2');
+    if (!r2Key) throw _ceErr(404, 'Arquivo não encontrado.');
+    if (!r2m.isReady()) throw _ceErr(503, 'Armazenamento de arquivos (R2) não está configurado no servidor.');
+    let arq;
+    try { arq = await r2m.downloadStreamFromR2(r2Key); } catch (e) { throw _ceErr(404, 'Arquivo não encontrado no armazenamento.'); }
+    res.setHeader('Content-Type', arq.contentType || contentTypePadrao || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline; filename="' + String(nomeArquivo || 'arquivo').replace(/[^\w.\- ]/g, '_') + '"');
+    arq.stream.pipe(res);
+}
+// Mantém valor atual / fornecedor / garantia do produto alinhados com a compra mais recente
+async function _ceAtualizarInfoUltimaCompra(estoqueId, usuario) {
+    const ult = await _ceGet('SELECT valor_unitario, fornecedor, garantia_meses, garantia_ate FROM estoque_compras_historico WHERE estoque_id = ? ORDER BY data_compra DESC, id DESC LIMIT 1', [estoqueId]);
+    if (!ult) return;
+    await _ceRun(
+        `INSERT INTO estoque_compras_info (estoque_id, fornecedor, valor_atual, garantia_meses, garantia_ate, atualizado_por)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(estoque_id) DO UPDATE SET
+            valor_atual = excluded.valor_atual,
+            fornecedor = CASE WHEN excluded.fornecedor <> '' THEN excluded.fornecedor ELSE estoque_compras_info.fornecedor END,
+            garantia_meses = CASE WHEN excluded.garantia_meses > 0 THEN excluded.garantia_meses ELSE estoque_compras_info.garantia_meses END,
+            garantia_ate = CASE WHEN excluded.garantia_ate <> '' THEN excluded.garantia_ate ELSE estoque_compras_info.garantia_ate END,
+            atualizado_em = CURRENT_TIMESTAMP,
+            atualizado_por = excluded.atualizado_por`,
+        [estoqueId, ult.fornecedor || '', ult.valor_unitario || 0, ult.garantia_meses || 0, ult.garantia_ate || '', usuario || 'Sistema']
+    );
+}
+
+// ── Resumo para a tabela (um registro por produto) ──────────────────────────
+app.get('/api/compras-estoque/resumo', authenticateToken, _ceHandler(async (req, res) => {
+    const infos = await _ceAll('SELECT estoque_id, fornecedor, valor_atual, garantia_meses, garantia_ate, r2_key, pdf_nome FROM estoque_compras_info');
+    const hist = await _ceAll('SELECT estoque_id, COUNT(*) AS total_compras, MAX(data_compra) AS ultima_compra, COUNT(DISTINCT nota_fiscal_id) AS total_notas FROM estoque_compras_historico GROUP BY estoque_id');
+    const out = {};
+    const obter = (id) => out[id] || (out[id] = { fornecedor: '', valor_atual: 0, garantia_meses: 0, garantia_ate: '', tem_pdf: false, pdf_nome: '', total_compras: 0, ultima_compra: '', total_notas: 0 });
+    infos.forEach(i => {
+        const o = obter(i.estoque_id);
+        o.fornecedor = i.fornecedor || '';
+        o.valor_atual = i.valor_atual || 0;
+        o.garantia_meses = i.garantia_meses || 0;
+        o.garantia_ate = i.garantia_ate || '';
+        o.tem_pdf = !!i.r2_key;
+        o.pdf_nome = i.pdf_nome || '';
+    });
+    hist.forEach(h => {
+        const o = obter(h.estoque_id);
+        o.total_compras = h.total_compras || 0;
+        o.ultima_compra = h.ultima_compra || '';
+        o.total_notas = h.total_notas || 0;
+    });
+    res.json(out);
+}));
+
+// ── Notas fiscais (cadastro único, vinculável a vários produtos) ────────────
+app.get('/api/compras-estoque-notas', authenticateToken, _ceHandler(async (req, res) => {
+    const rows = await _ceAll(
+        `SELECT n.id, n.numero, n.fornecedor, n.data_emissao, n.valor_total, n.observacoes, n.nome_arquivo, n.criado_em, n.criado_por,
+                (n.r2_key IS NOT NULL AND n.r2_key <> '') AS tem_arquivo,
+                (SELECT COUNT(DISTINCT h.estoque_id) FROM estoque_compras_historico h WHERE h.nota_fiscal_id = n.id) AS total_produtos
+         FROM estoque_notas_fiscais n
+         ORDER BY COALESCE(NULLIF(n.data_emissao, ''), n.criado_em) DESC, n.id DESC`
+    );
+    res.json(rows);
+}));
+
+app.post('/api/compras-estoque-notas', authenticateToken, _ceHandler(async (req, res) => {
+    const b = req.body || {};
+    const numero = String(b.numero || '').trim().slice(0, 60);
+    if (!numero) throw _ceErr(400, 'Informe o número da nota fiscal.');
+    const arq = _ceDecodificarArquivo(b.arquivo_base64, b.nome_arquivo, ['pdf', 'png', 'jpg', 'jpeg', 'xml']);
+    const r2m = _ceR2Pronto();
+    const key = _ceR2Key('NotasFiscais', 'NF_' + numero, arq.ext);
+    await r2m.uploadToR2(key, arq.buffer, arq.contentType);
+    const r = await _ceRun(
+        'INSERT INTO estoque_notas_fiscais (numero, fornecedor, data_emissao, valor_total, observacoes, r2_key, nome_arquivo, criado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [numero, String(b.fornecedor || '').trim().slice(0, 200), String(b.data_emissao || '').slice(0, 10), _ceNum(b.valor_total), String(b.observacoes || '').slice(0, 500), key, String(b.nome_arquivo || '').slice(0, 200), _ceUser(req)]
+    );
+    res.json({ ok: true, id: r.lastID });
+}));
+
+app.get('/api/compras-estoque-notas/:nid', authenticateToken, _ceHandler(async (req, res) => {
+    const nid = parseInt(req.params.nid, 10);
+    const nota = await _ceGet(`SELECT id, numero, fornecedor, data_emissao, valor_total, observacoes, nome_arquivo, criado_em,
+                                      (r2_key IS NOT NULL AND r2_key <> '') AS tem_arquivo
+                               FROM estoque_notas_fiscais WHERE id = ?`, [nid]);
+    if (!nota) throw _ceErr(404, 'Nota fiscal não encontrada.');
+    const itens = await _ceAll(
+        `SELECT h.id, h.estoque_id, e.nome, e.categoria, h.data_compra, h.quantidade, h.valor_unitario, h.garantia_meses
+         FROM estoque_compras_historico h JOIN estoque e ON e.id = h.estoque_id
+         WHERE h.nota_fiscal_id = ? ORDER BY e.nome ASC`, [nid]);
+    res.json({ nota, itens });
+}));
+
+app.get('/api/compras-estoque-notas/:nid/arquivo', authenticateToken, _ceHandler(async (req, res) => {
+    const nota = await _ceGet('SELECT r2_key, nome_arquivo FROM estoque_notas_fiscais WHERE id = ?', [parseInt(req.params.nid, 10)]);
+    if (!nota || !nota.r2_key) throw _ceErr(404, 'Arquivo da nota fiscal não encontrado.');
+    await _ceStreamArquivo(res, nota.r2_key, nota.nome_arquivo, 'application/pdf');
+}));
+
+app.delete('/api/compras-estoque-notas/:nid', authenticateToken, _ceHandler(async (req, res) => {
+    const nid = parseInt(req.params.nid, 10);
+    const nota = await _ceGet('SELECT r2_key FROM estoque_notas_fiscais WHERE id = ?', [nid]);
+    if (!nota) throw _ceErr(404, 'Nota fiscal não encontrada.');
+    const r2m = require('./utils/r2');
+    if (nota.r2_key && r2m.isReady()) await r2m.deleteFromR2(nota.r2_key);
+    await _ceRun('UPDATE estoque_compras_historico SET nota_fiscal_id = NULL WHERE nota_fiscal_id = ?', [nid]);
+    await _ceRun('DELETE FROM estoque_notas_fiscais WHERE id = ?', [nid]);
+    res.json({ ok: true });
+}));
+
+// Define o conjunto completo de produtos vinculados à nota (inclui/atualiza/remove vínculos)
+app.post('/api/compras-estoque-notas/:nid/vincular', authenticateToken, _ceHandler(async (req, res) => {
+    const nid = parseInt(req.params.nid, 10);
+    const nota = await _ceGet('SELECT * FROM estoque_notas_fiscais WHERE id = ?', [nid]);
+    if (!nota) throw _ceErr(404, 'Nota fiscal não encontrada.');
+    const itens = Array.isArray(req.body.itens) ? req.body.itens : [];
+    const dataPadrao = String(req.body.data_compra || nota.data_emissao || '').slice(0, 10) || _ceHoje();
+    const usuario = _ceUser(req);
+    const idsMantidos = [];
+    for (const it of itens) {
+        const eid = parseInt(it.estoque_id, 10);
+        if (!eid || idsMantidos.includes(eid)) continue;
+        const prod = await _ceGet('SELECT id FROM estoque WHERE id = ?', [eid]);
+        if (!prod) continue;
+        const qtd = Math.max(1, parseInt(it.quantidade, 10) || 1);
+        const valor = _ceNum(it.valor_unitario);
+        const gMeses = Math.max(0, parseInt(it.garantia_meses, 10) || 0);
+        const dataItem = String(it.data_compra || dataPadrao).slice(0, 10);
+        const gAte = gMeses > 0 ? _ceAddMeses(dataItem, gMeses) : '';
+        const existente = await _ceGet('SELECT id FROM estoque_compras_historico WHERE nota_fiscal_id = ? AND estoque_id = ?', [nid, eid]);
+        if (existente) {
+            await _ceRun(
+                'UPDATE estoque_compras_historico SET data_compra = ?, quantidade = ?, valor_unitario = ?, fornecedor = ?, garantia_meses = ?, garantia_ate = ? WHERE id = ?',
+                [dataItem, qtd, valor, nota.fornecedor || '', gMeses, gAte, existente.id]
+            );
+        } else {
+            await _ceRun(
+                'INSERT INTO estoque_compras_historico (estoque_id, nota_fiscal_id, data_compra, quantidade, valor_unitario, fornecedor, garantia_meses, garantia_ate, observacao, criado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [eid, nid, dataItem, qtd, valor, nota.fornecedor || '', gMeses, gAte, '', usuario]
+            );
+        }
+        idsMantidos.push(eid);
+    }
+    if (idsMantidos.length > 0) {
+        const ph = idsMantidos.map(() => '?').join(',');
+        await _ceRun('DELETE FROM estoque_compras_historico WHERE nota_fiscal_id = ? AND estoque_id NOT IN (' + ph + ')', [nid].concat(idsMantidos));
+    } else {
+        await _ceRun('DELETE FROM estoque_compras_historico WHERE nota_fiscal_id = ?', [nid]);
+    }
+    for (const eid of idsMantidos) await _ceAtualizarInfoUltimaCompra(eid, usuario);
+    res.json({ ok: true, vinculados: idsMantidos.length });
+}));
+
+// ── Histórico de compras (valores pagos e datas) ─────────────────────────────
+app.delete('/api/compras-estoque/historico/:hid', authenticateToken, _ceHandler(async (req, res) => {
+    const r = await _ceRun('DELETE FROM estoque_compras_historico WHERE id = ?', [parseInt(req.params.hid, 10)]);
+    if (!r.changes) throw _ceErr(404, 'Registro de compra não encontrado.');
+    res.json({ ok: true });
+}));
+
+// ── Dados de compra por produto ──────────────────────────────────────────────
+app.get('/api/compras-estoque/:id', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const produto = await _ceGet('SELECT id, nome, categoria, foto_url, foto_base64 FROM estoque WHERE id = ?', [id]);
+    if (!produto) throw _ceErr(404, 'Produto não encontrado.');
+    const info = await _ceGet('SELECT fornecedor, valor_atual, garantia_meses, garantia_ate, observacoes, r2_key, pdf_nome FROM estoque_compras_info WHERE estoque_id = ?', [id]);
+    const historico = await _ceAll(
+        `SELECT h.id, h.nota_fiscal_id, h.data_compra, h.quantidade, h.valor_unitario, h.fornecedor, h.garantia_meses, h.garantia_ate, h.observacao, h.criado_em, h.criado_por,
+                n.numero AS nota_numero, (n.r2_key IS NOT NULL AND n.r2_key <> '') AS nota_tem_arquivo
+         FROM estoque_compras_historico h
+         LEFT JOIN estoque_notas_fiscais n ON n.id = h.nota_fiscal_id
+         WHERE h.estoque_id = ? ORDER BY h.data_compra DESC, h.id DESC`, [id]);
+    res.json({
+        produto,
+        info: {
+            fornecedor: (info && info.fornecedor) || '',
+            valor_atual: (info && info.valor_atual) || 0,
+            garantia_meses: (info && info.garantia_meses) || 0,
+            garantia_ate: (info && info.garantia_ate) || '',
+            observacoes: (info && info.observacoes) || '',
+            tem_pdf: !!(info && info.r2_key),
+            pdf_nome: (info && info.pdf_nome) || ''
+        },
+        historico
+    });
+}));
+
+app.put('/api/compras-estoque/:id/info', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const prod = await _ceGet('SELECT id FROM estoque WHERE id = ?', [id]);
+    if (!prod) throw _ceErr(404, 'Produto não encontrado.');
+    const b = req.body || {};
+    await _ceRun(
+        `INSERT INTO estoque_compras_info (estoque_id, fornecedor, valor_atual, garantia_meses, garantia_ate, observacoes, atualizado_por)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(estoque_id) DO UPDATE SET
+            fornecedor = excluded.fornecedor, valor_atual = excluded.valor_atual, garantia_meses = excluded.garantia_meses,
+            garantia_ate = excluded.garantia_ate, observacoes = excluded.observacoes,
+            atualizado_em = CURRENT_TIMESTAMP, atualizado_por = excluded.atualizado_por`,
+        [id, String(b.fornecedor || '').trim().slice(0, 200), _ceNum(b.valor_atual), Math.max(0, parseInt(b.garantia_meses, 10) || 0), String(b.garantia_ate || '').slice(0, 10), String(b.observacoes || '').slice(0, 1000), _ceUser(req)]
+    );
+    res.json({ ok: true });
+}));
+
+app.post('/api/compras-estoque/:id/pdf', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const prod = await _ceGet('SELECT id, nome FROM estoque WHERE id = ?', [id]);
+    if (!prod) throw _ceErr(404, 'Produto não encontrado.');
+    const b = req.body || {};
+    const arq = _ceDecodificarArquivo(b.arquivo_base64, b.nome_arquivo, ['pdf']);
+    const r2m = _ceR2Pronto();
+    const antigo = await _ceGet('SELECT r2_key FROM estoque_compras_info WHERE estoque_id = ?', [id]);
+    const key = _ceR2Key('Produtos', prod.nome, 'pdf');
+    await r2m.uploadToR2(key, arq.buffer, 'application/pdf');
+    await _ceRun(
+        `INSERT INTO estoque_compras_info (estoque_id, r2_key, pdf_nome, atualizado_por) VALUES (?, ?, ?, ?)
+         ON CONFLICT(estoque_id) DO UPDATE SET r2_key = excluded.r2_key, pdf_nome = excluded.pdf_nome, atualizado_em = CURRENT_TIMESTAMP, atualizado_por = excluded.atualizado_por`,
+        [id, key, String(b.nome_arquivo || 'produto.pdf').slice(0, 200), _ceUser(req)]
+    );
+    if (antigo && antigo.r2_key) await r2m.deleteFromR2(antigo.r2_key);
+    res.json({ ok: true });
+}));
+
+app.get('/api/compras-estoque/:id/pdf', authenticateToken, _ceHandler(async (req, res) => {
+    const info = await _ceGet('SELECT r2_key, pdf_nome FROM estoque_compras_info WHERE estoque_id = ?', [parseInt(req.params.id, 10)]);
+    if (!info || !info.r2_key) throw _ceErr(404, 'Este produto não possui PDF anexado.');
+    await _ceStreamArquivo(res, info.r2_key, info.pdf_nome || 'produto.pdf', 'application/pdf');
+}));
+
+app.delete('/api/compras-estoque/:id/pdf', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const info = await _ceGet('SELECT r2_key FROM estoque_compras_info WHERE estoque_id = ?', [id]);
+    if (!info || !info.r2_key) throw _ceErr(404, 'Este produto não possui PDF anexado.');
+    const r2m = require('./utils/r2');
+    if (r2m.isReady()) await r2m.deleteFromR2(info.r2_key);
+    await _ceRun('UPDATE estoque_compras_info SET r2_key = NULL, pdf_nome = NULL, atualizado_em = CURRENT_TIMESTAMP WHERE estoque_id = ?', [id]);
+    res.json({ ok: true });
+}));
+
+app.post('/api/compras-estoque/:id/historico', authenticateToken, _ceHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const prod = await _ceGet('SELECT id FROM estoque WHERE id = ?', [id]);
+    if (!prod) throw _ceErr(404, 'Produto não encontrado.');
+    const b = req.body || {};
+    const dataCompra = String(b.data_compra || '').slice(0, 10) || _ceHoje();
+    const qtd = Math.max(1, parseInt(b.quantidade, 10) || 1);
+    const valor = _ceNum(b.valor_unitario);
+    if (valor <= 0) throw _ceErr(400, 'Informe o valor pago (maior que zero).');
+    const gMeses = Math.max(0, parseInt(b.garantia_meses, 10) || 0);
+    const gAte = gMeses > 0 ? _ceAddMeses(dataCompra, gMeses) : '';
+    let notaId = parseInt(b.nota_fiscal_id, 10) || null;
+    let fornecedor = String(b.fornecedor || '').trim().slice(0, 200);
+    if (notaId) {
+        const nota = await _ceGet('SELECT id, fornecedor FROM estoque_notas_fiscais WHERE id = ?', [notaId]);
+        if (!nota) throw _ceErr(400, 'Nota fiscal selecionada não existe mais.');
+        if (!fornecedor) fornecedor = nota.fornecedor || '';
+    }
+    const usuario = _ceUser(req);
+    await _ceRun(
+        'INSERT INTO estoque_compras_historico (estoque_id, nota_fiscal_id, data_compra, quantidade, valor_unitario, fornecedor, garantia_meses, garantia_ate, observacao, criado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, notaId, dataCompra, qtd, valor, fornecedor, gMeses, gAte, String(b.observacao || '').slice(0, 500), usuario]
+    );
+    await _ceAtualizarInfoUltimaCompra(id, usuario);
+    res.json({ ok: true });
+}));
+
 app.get('/api/estoque', authenticateToken, (req, res) => {
 
     let sql = 'SELECT * FROM estoque WHERE 1=1';

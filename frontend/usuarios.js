@@ -61,6 +61,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Financeiro', pagina_id: 'compras-gestao-frota', pagina_nome: 'Gestão de Frota', icone: 'ph-truck' },
     { modulo: 'Financeiro', pagina_id: 'compras-corretivas', pagina_nome: 'Corretiva', icone: 'ph-wrench' },
     { modulo: 'Financeiro', pagina_id: 'compras-revisao', pagina_nome: 'Revisão', icone: 'ph-seal-check' },
+    { modulo: 'Financeiro', pagina_id: 'compras-estoque', pagina_nome: 'Estoque (Compras)', icone: 'ph-package' },
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
@@ -644,7 +645,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
-        grupos: [{ titulo: 'Compras › Frota', telas: ['compras-gestao-frota', 'compras-corretivas', 'compras-revisao'] }]
+        grupos: [{ titulo: 'Compras › Frota', telas: ['compras-gestao-frota', 'compras-corretivas', 'compras-revisao'] }, { titulo: 'Compras', telas: ['compras-estoque'] }]
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
