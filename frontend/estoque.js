@@ -37,6 +37,37 @@ async function _carregarEnderecos() {
     } catch (e) { console.warn("[ESTOQUE] Erro ao carregar enderecos:", e.message); }
 }
 
+// ── Rua do endereço Almoxarifado (1 a 50) ─────────────────────────────────────
+window._estNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+window._ehAlmoxarifadoNome = nome => window._estNormTxt(nome).includes('almoxarifado');
+window._ehAlmoxarifado = function(endId) {
+    const e = (window._estoqueEnderecos || []).find(x => String(x.id) === String(endId));
+    return !!e && window._ehAlmoxarifadoNome(e.nome);
+};
+// Select "Rua" exibido ao lado direito do endereço (somente quando o endereço é Almoxarifado)
+window._ruaSelectHtml = function(idx, linha, prefixo) {
+    const alm = window._ehAlmoxarifado(linha.endereco_id);
+    let opts = '<option value="">Rua</option>';
+    for (let i = 1; i <= 50; i++) opts += '<option value="' + i + '"' + (String(linha.rua) === String(i) ? ' selected' : '') + '>Rua ' + i + '</option>';
+    return '<select id="estoque-rua-' + prefixo + idx + '" title="Rua do almoxarifado" onchange="window._enderecoLinhas[' + idx + '].rua = this.value" ' +
+        'style="width:96px;flex-shrink:0;border:1.5px solid #fed7aa;border-radius:6px;padding:6px 8px;font-size:0.84rem;background:#fff7ed;color:#9a3412;font-weight:700;display:' + (alm ? 'block' : 'none') + ';">' + opts + '</select>';
+};
+window._onEnderecoChange = function(idx, val, prefixo) {
+    const l = (window._enderecoLinhas || [])[idx];
+    if (!l) return;
+    l.endereco_id = parseInt(val, 10) || null;
+    const alm = window._ehAlmoxarifado(l.endereco_id);
+    if (!alm) l.rua = '';
+    const sel = document.getElementById('estoque-rua-' + prefixo + idx);
+    if (sel) { sel.style.display = alm ? 'block' : 'none'; sel.value = alm ? (l.rua || '') : ''; }
+};
+// Badge "Rua N" mostrado somente nos detalhes (linhas de tamanho/endereço)
+window._ruaBadgeHtml = function(s) {
+    const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
+    if (!r) return '';
+    return ' <span title="Rua do almoxarifado" style="display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-signpost"></i> Rua ' + r + '</span>';
+};
+
 // ── TABELA PRINCIPAL ──────────────────────────────────────────────────────────
 
 window.toggleTodosEnderecosFiltro = function(cbTodos) {
@@ -604,7 +635,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                             const endColors = getBadgeColors(s.nome, lowEnd);
                             endCellTam = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                                 s.nome + (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                            '</span>';
+                            '</span>' + window._ruaBadgeHtml(s);
                         }
 
                         const bgTamRow = lowEnd ? 'background:#fff1f2;' : 'background:#f8fafc;';
@@ -705,7 +736,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                     endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                        '</span>';
+                        '</span>' + window._ruaBadgeHtml(s);
                 }
 
                 // Separador entre linhas do mesmo produto
@@ -1072,10 +1103,11 @@ window._renderTamanhosNoModal = function() {
             return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;margin-top:8px;">' +
                 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
                     '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
-                    '<select onchange="window._enderecoLinhas[' + idxGlobal + '].endereco_id = parseInt(this.value)" ' +
-                        'style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:0.86rem;background:#fff;">' +
+                    '<select onchange="window._onEnderecoChange(' + idxGlobal + ', this.value, \'t\')" ' +
+                        'style="flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:0.86rem;background:#fff;">' +
                         '<option value="">-- Selecione o endereço do Tam. ' + tam + ' --</option>' + opcoesEnd +
                     '</select>' +
+                    window._ruaSelectHtml(idxGlobal, linha, 't') +
                     '<select onchange="window._enderecoLinhas[' + idxGlobal + '].tipo_estoque = this.value" ' +
                         'style="width:190px;border:1.5px solid #ddd6fe;border-radius:6px;padding:6px 8px;font-size:0.8rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
                         '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz (Compra)</option>' +
@@ -1171,10 +1203,11 @@ window._renderLinhasEndereco = function() {
         return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:2px;">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
                 '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
-                '<select onchange="window._enderecoLinhas[' + idx + '].endereco_id = parseInt(this.value)" ' +
-                    'style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#fff;">' +
+                '<select onchange="window._onEnderecoChange(' + idx + ', this.value, \'n\')" ' +
+                    'style="flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#fff;">' +
                     '<option value="">-- Selecione o endereço --</option>' + opcoesEnd +
                 '</select>' +
+                window._ruaSelectHtml(idx, linha, 'n') +
                 '<button type="button" onclick="window._removerLinhaEndereco(' + idx + ')" ' +
                     'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover">' +
                     '<i class="ph ph-trash"></i>' +
@@ -1333,7 +1366,8 @@ window.editarEstoque = async function(item, tamanhoFoco) {
                     quantidade:        s.quantidade,
                     quantidade_minima: s.quantidade_minima || 0,
                     quantidade_maxima: s.quantidade_maxima || 0,
-                    tipo_estoque:      s.tipo_estoque || 'matriz'
+                    tipo_estoque:      s.tipo_estoque || 'matriz',
+                    rua:               s.rua || ''
                 }));
             }
             window._enderecoLinhas = saldosPermitidos.map(s => {
@@ -1347,7 +1381,8 @@ window.editarEstoque = async function(item, tamanhoFoco) {
                     quantidade:        s.quantidade,
                     quantidade_minima: s.quantidade_minima || 0,
                     quantidade_maxima: s.quantidade_maxima || 0,
-                    tipo_estoque:      s.tipo_estoque || 'matriz'
+                    tipo_estoque:      s.tipo_estoque || 'matriz',
+                    rua:               s.rua || ''
                 };
             });
         }
@@ -1446,7 +1481,8 @@ window.salvarEstoque = async function(e) {
                         quantidade:        l.quantidade,
                         quantidade_minima: l.quantidade_minima || 0,
                         quantidade_maxima: l.quantidade_maxima || 0,
-                        tipo_estoque:      l.tipo_estoque || 'matriz'
+                        tipo_estoque:      l.tipo_estoque || 'matriz',
+                        rua:               window._ehAlmoxarifado(l.endereco_id) ? String(l.rua || '') : ''
                     }))
                 })
             });

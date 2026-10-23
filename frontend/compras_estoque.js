@@ -120,6 +120,11 @@
         return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
             esc(nome) + (low ? ' <i class="ph ph-warning" style="font-size:0.78rem;"></i>' : '') + '</span>';
     }
+    // Rua do almoxarifado (apenas nos detalhes; edição é feita em Controle de Estoque)
+    const ruaBadge = s => {
+        const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
+        return r ? ' <span title="Rua do almoxarifado" style="display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-signpost"></i> Rua ' + r + '</span>' : '';
+    };
     const badgeTipo = t => t === 'reposicao'
         ? '<span style="display:inline-flex;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
         : '<span style="display:inline-flex;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
@@ -419,7 +424,7 @@
                     '<td style="padding-left:56px;vertical-align:middle;"><span style="color:#94a3b8;">↳</span> <span style="background:' + (tl ? '#fef2f2' : '#dbeafe') + ';color:' + (tl ? '#dc2626' : '#1e40af') + ';border:1px solid ' + (tl ? '#fecaca' : '#93c5fd') + ';border-radius:6px;padding:2px 10px;font-size:0.8rem;font-weight:800;">Tamanho ' + esc(tam) + '</span></td><td></td>' +
                     '<td>' + stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) + '</td>' +
                     '<td>' + stack(minMaxHtml) + '</td>' +
-                    '<td>' + stack(s => badgeEnd(s.nome, lowSaldo(s, item))) + '</td>' +
+                    '<td>' + stack(s => badgeEnd(s.nome, lowSaldo(s, item)) + ruaBadge(s)) + '</td>' +
                     '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td><td colspan="5"></td></tr>';
             });
             return out;
@@ -432,7 +437,7 @@
             '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
-            '<td>' + (sl.length ? stack(s => badgeEnd(s.nome, lowSaldo(s, item))) : linha('<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>')) + '</td>' +
+            '<td>' + (sl.length ? stack(s => badgeEnd(s.nome, lowSaldo(s, item)) + ruaBadge(s)) : linha('<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>')) + '</td>' +
             '<td>' + stack(s => badgeTipo(s.tipo_estoque || 'matriz')) + '</td>' + celCompra + '</tr>';
         return out;
     }

@@ -2522,7 +2522,7 @@ window._mnRevRenderStage = function() {
             ? `<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.74rem;font-weight:700;color:${ehEstoque ? '#7c3aed' : '#475569'};cursor:pointer;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da revisão e não aparece na lista salva)"><input type="checkbox" ${ehEstoque ? 'checked' : ''} onchange="window._mnRevStageSet(${i},'estoque',this.checked)" style="accent-color:#7c3aed;"> Estoque</label>`
             : `<span style="color:#cbd5e1;font-size:0.72rem;" title="Disponível apenas para peças">—</span>`;
         const colVinculo = ehEstoque
-            ? `<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>`
+            ? (window.EstNF ? window.EstNF.inputHtml(l.estoque_nome || '', "window._mnRevStageSet(" + i + ",'estoque_prod',this.value)") : `<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>`)
             : `<button type="button" id="mn-stg-btn-${i}" onclick="window._mnRevAbrirVinculo(${i}, this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window._mnRevVincLabel(l.servicos)}</button>`;
         return `<tr style="border-bottom:1px solid #e2e8f0;${ehEstoque ? 'background:#faf5ff;' : ''}">
             <td style="padding:5px 6px;text-align:center;"><input type="checkbox" ${l.incluir ? 'checked' : ''} onchange="window._mnRevStageSet(${i},'incluir',this.checked)" style="accent-color:#0284c7;"></td>
@@ -2584,6 +2584,7 @@ window._mnRevStageSet = function(i, campo, valor) {
     if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
     else if (campo === 'garantia_valor') st.lancs[i].garantia_valor = String(valor).trim() === '' ? '' : Math.max(0, parseInt(valor, 10) || 0);
     else if (campo === 'estoque') st.lancs[i].estoque = !!valor;
+    else if (campo === 'estoque_prod') { if (window.EstNF) window.EstNF.aplicarEscolha(st.lancs[i], valor); }
     else st.lancs[i][campo] = valor;
     if (campo === 'tipo' && valor === 'mao_obra') st.lancs[i].estoque = false;
     if (campo === 'tipo' || campo === 'estoque' || campo === 'garantia_valor') {
@@ -2779,6 +2780,7 @@ window._mnRevAnexarPdf = async function() {
     if (semGarantia.length) return alert('Informe a garantia de cada peça / mão de obra (preencha 0 se não houver garantia).\n\nSem garantia preenchida (' + semGarantia.length + '):\n- ' + semGarantia.map(function(l) { return l.descricao; }).join('\n- '));
 
     if (!usadas.length && temEstoque && !st.file) {
+        if (window.EstNF) await window.EstNF.vincularLinhas(st, 'Revisão');
         window._mnRevNotaStage = null;
         window._mnRevFecharVinculo();
         window._mnRevRenderStage();
@@ -2813,6 +2815,7 @@ window._mnRevAnexarPdf = async function() {
         }
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar');
+        if (window.EstNF) await window.EstNF.vincularLinhas(st, 'Revisão');
 
         await window._mnRevRecarregarDados();
         window._mnRevNotaStage = null;
@@ -6118,7 +6121,7 @@ window._mnEdRenderStage = function() {
             ? '<label style="display:inline-flex;align-items:center;gap:4px;font-size:0.74rem;font-weight:700;color:' + (ehEstoque ? '#7c3aed' : '#475569') + ';cursor:pointer;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da manutenção e não aparece na lista salva)"><input type="checkbox" ' + (ehEstoque ? 'checked' : '') + ' onchange="window._mnEdStageSet(' + i + ',\'estoque\',this.checked)" style="accent-color:#7c3aed;"> Estoque</label>'
             : '<span style="color:#cbd5e1;font-size:0.72rem;" title="Disponível apenas para peças">—</span>';
         var colVinculo = ehEstoque
-            ? '<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>'
+            ? (window.EstNF ? window.EstNF.inputHtml(l.estoque_nome || '', "window._mnEdStageSet(" + i + ",'estoque_prod',this.value)") : '<span style="font-size:0.74rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:3px 8px;border-radius:6px;display:inline-block;width:100%;box-sizing:border-box;text-align:center;">Estoque (sem vínculo)</span>')
             : '<button type="button" id="mned-stg-btn-' + i + '" onclick="window._mnEdAbrirVinculo(' + i + ', this)" style="width:100%;text-align:left;cursor:pointer;font-size:0.76rem;font-weight:700;color:' + (l.servicos.length ? '#15803d' : '#b45309') + ';border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + window._mnEdVincLabel(l.servicos) + '</button>';
         return '<tr style="border-bottom:1px solid #e2e8f0;' + (ehEstoque ? 'background:#faf5ff;' : '') + '">'
             + '<td style="padding:5px 6px;text-align:center;"><input type="checkbox" ' + (l.incluir ? 'checked' : '') + ' onchange="window._mnEdStageSet(' + i + ',\'incluir\',this.checked)" style="accent-color:#0284c7;"></td>'
@@ -6178,6 +6181,7 @@ window._mnEdStageSet = function(i, campo, valor) {
     if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
     else if (campo === 'garantia_valor') st.lancs[i].garantia_valor = String(valor).trim() === '' ? '' : Math.max(0, parseInt(valor, 10) || 0);
     else if (campo === 'estoque') st.lancs[i].estoque = !!valor;
+    else if (campo === 'estoque_prod') { if (window.EstNF) window.EstNF.aplicarEscolha(st.lancs[i], valor); }
     else st.lancs[i][campo] = valor;
     if (campo === 'tipo' && valor === 'mao_obra') st.lancs[i].estoque = false;
     if (campo === 'tipo' || campo === 'estoque' || campo === 'garantia_valor') {
@@ -6217,6 +6221,7 @@ window._mnEdAnexarPdf = async function() {
     if (semGarantia.length) return alert('Informe a garantia de cada peça / mão de obra (preencha 0 se não houver garantia).\n\nSem garantia preenchida (' + semGarantia.length + '):\n- ' + semGarantia.map(function(l) { return l.descricao; }).join('\n- '));
 
     if (!usadas.length && temEstoque && !st.file) {
+        if (window.EstNF) await window.EstNF.vincularLinhas(st, 'Corretiva');
         window._mnEdNotaStage = null;
         window._mnEdFecharVinculo();
         window._mnEdRenderStage();
@@ -6270,6 +6275,7 @@ window._mnEdAnexarPdf = async function() {
         }
         var j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar');
+        if (window.EstNF) await window.EstNF.vincularLinhas(st, 'Corretiva');
 
         await window._mnEdRecarregarDetalhe();
         window._mnEdNotaStage = null;
@@ -7294,6 +7300,8 @@ window._mnpAddLinha = function(init) {
         valor_total: vtIni,
         ratear: 0,
         estoque: !!d.estoque,
+        estoque_id: d.estoque_id || null,
+        estoque_nome: d.estoque_nome || '',
         servicos: servicosIni
     };
     var rv = window._mnEdResumoVinculo(obj);
@@ -7312,6 +7320,7 @@ window._mnpAddLinha = function(init) {
       + '<input type="number" data-k="garantia_valor" min="0" step="1" value="' + esc(garVal) + '" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:80px;">'
       + '<select data-k="garantia_unidade" style="' + ipt + '"><option value="dias"' + (garUni !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (garUni === 'meses' ? ' selected' : '') + '>meses</option></select>'
       + '<label data-lbl-estoque="1" style="display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1.5px solid ' + (obj.estoque ? '#7c3aed' : '#cbd5e1') + ';border-radius:8px;background:' + (obj.estoque ? '#f5f3ff' : '#fff') + ';color:' + (obj.estoque ? '#7c3aed' : '#475569') + ';cursor:pointer;font-weight:700;font-size:0.76rem;" title="Peça comprada para estoque (não precisa vincular a serviço, valor subtraído da manutenção e não salva na lista)"><input type="checkbox" data-k="estoque"' + (obj.estoque ? ' checked' : '') + ' style="accent-color:#7c3aed;margin:0;"> Estoque</label>'
+      + (window.EstNF ? window.EstNF.inputHtml(obj.estoque_nome, '', 'display:' + (obj.estoque ? 'block' : 'none') + ';flex:1 1 100%;min-width:220px;padding:6px 9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:0.8rem;box-sizing:border-box;background:#fff;color:#5b21b6;') : '')
       + '<button type="button" data-pvinc="1" style="padding:6px 10px;border:1.5px solid ' + rv.cor + ';border-radius:8px;background:#fff;color:' + rv.cor + ';cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-link"></i> ' + esc(rv.txt) + '</button>'
       + '<button type="button" data-x="1" title="Remover linha" style="padding:6px 9px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>';
     box.appendChild(row);
@@ -7319,6 +7328,8 @@ window._mnpAddLinha = function(init) {
     var descEl = row.querySelector('[data-k="descricao"]');
     var q = row.querySelector('[data-k="quantidade"]'), un = row.querySelector('[data-k="valor_unit"]'), tt = row.querySelector('[data-k="valor_total"]');
     var estChk = row.querySelector('[data-k="estoque"]'), estLbl = row.querySelector('[data-lbl-estoque]');
+    var prodInp = row.querySelector('[data-k="estoque_prod"]');
+    if (prodInp) prodInp.addEventListener('change', function() { if (window.EstNF) window.EstNF.aplicarEscolha(obj, prodInp.value); });
     var sync = function(campo) {
         window._mnCalcPeca(obj, campo);
         if (campo !== 'valor_unit') un.value = fm(obj.valor_unit);
@@ -7332,6 +7343,7 @@ window._mnpAddLinha = function(init) {
     if (estChk) {
         estChk.addEventListener('change', function() {
             obj.estoque = estChk.checked;
+            if (prodInp) { prodInp.style.display = obj.estoque ? 'block' : 'none'; if (obj.estoque && window.EstNF) window.EstNF.carregar(); }
             if (estLbl) {
                 estLbl.style.borderColor = obj.estoque ? '#7c3aed' : '#cbd5e1';
                 estLbl.style.background = obj.estoque ? '#f5f3ff' : '#fff';
@@ -7578,6 +7590,7 @@ window._mnpSalvar = async function() {
     var servsValidos = (ed.realizados || []).filter(function(s) { return s.id; });
     var pecas = [];
     var qtdEstoque = 0;
+    var estoqueItens = [];
     document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
         var g = function(k) { var el = r.querySelector('[data-k="' + k + '"]'); return el ? el.value : ''; };
         var desc = g('descricao').trim();
@@ -7589,6 +7602,7 @@ window._mnpSalvar = async function() {
         var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
         if (ehEstoque) {
             if (desc || vt > 0) qtdEstoque++;
+            if (o.estoque_id && vt > 0) estoqueItens.push({ estoque_id: o.estoque_id, quantidade: qtd, valor_total: vt });
             return;
         }
         if (!desc && vt > 0 && arq) desc = 'Peças conforme anexo';
@@ -7623,6 +7637,8 @@ window._mnpSalvar = async function() {
     }
     var editId = window._mnp && window._mnp.editNotaId;
     if (!pecas.length && qtdEstoque > 0 && !arq && !editId) {
+        var _gv = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+        if (window.EstNF && estoqueItens.length) await window.EstNF.vincular({ file: null, numero: _gv('mnp-num'), fornecedor: _gv('mnp-forn'), emissao: _gv('mnp-emi'), itens: estoqueItens, origem: 'Corretiva' });
         await window._mnpAposSalvar('✅ Peças de estoque abatidas (não lançadas na manutenção)!');
         return;
     }
@@ -7656,6 +7672,7 @@ window._mnpSalvar = async function() {
             body: fd
         });
         if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar as peças'); }
+        if (window.EstNF && estoqueItens.length) await window.EstNF.vincular({ file: arq, numero: numTxt, fornecedor: fornTxt, emissao: emiTxt, itens: estoqueItens, origem: 'Corretiva' });
         await window._mnpAposSalvar(editId ? '✅ Peças e vinculação atualizadas!' : (arq ? '✅ Anexo salvo e peças incluídas!' : '✅ Peças incluídas!'));
     } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> ' + ((window._mnp && window._mnp.editNotaId) ? 'Salvar alterações' : 'Salvar peças'); }

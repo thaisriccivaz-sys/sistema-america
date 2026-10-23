@@ -31583,11 +31583,14 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
     quantidade_minima INTEGER DEFAULT 0,
     quantidade_maxima INTEGER DEFAULT 0,
     tipo_estoque TEXT DEFAULT 'matriz',
+    rua         TEXT DEFAULT '',
     UNIQUE(estoque_id, endereco_id, tamanho)
 )`, (err) => {
     if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela saldo_por_endereco:', err.message);
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_minima INTEGER DEFAULT 0", () => {});
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_maxima INTEGER DEFAULT 0", () => {});
+    // Rua (1 a 50) do endereco Almoxarifado
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN rua TEXT DEFAULT ''", () => {});
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
 
     // Verificar se a coluna tamanho já existe na tabela; se não, recriar tabela com UNIQUE(estoque_id, endereco_id, tamanho)
@@ -31604,6 +31607,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
                     quantidade_minima INTEGER DEFAULT 0,
                     quantidade_maxima INTEGER DEFAULT 0,
                     tipo_estoque      TEXT DEFAULT 'matriz',
+                    rua               TEXT DEFAULT '',
                     UNIQUE(estoque_id, endereco_id, tamanho)
                 )`);
                 db.run(`INSERT OR IGNORE INTO estoque_saldo_por_endereco_v2 (id, estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
@@ -32413,21 +32417,26 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
                     
                     try {
                         const stmt = db.prepare(`
-                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque, rua)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT(estoque_id, endereco_id, tamanho) DO UPDATE SET
                                 quantidade = EXCLUDED.quantidade,
                                 quantidade_minima = EXCLUDED.quantidade_minima,
                                 quantidade_maxima = EXCLUDED.quantidade_maxima,
-                                tipo_estoque = EXCLUDED.tipo_estoque
+                                tipo_estoque = EXCLUDED.tipo_estoque,
+                                rua = EXCLUDED.rua
                         `);
                         
                         enderecos.forEach(e => {
                             const tam = String(e.tamanho || '').trim().toUpperCase();
-                            stmt.run([id, e.endereco_id, tam, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
+                            const ruaNum = parseInt(e.rua, 10);
+                            const ruaVal = (ruaNum >= 1 && ruaNum <= 50) ? String(ruaNum) : '';
+                            stmt.run([id, e.endereco_id, tam, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz', ruaVal]);
                         });
                         
                         stmt.finalize(() => {
+                            // Rua so faz sentido no endereco Almoxarifado
+                            db.run("UPDATE estoque_saldo_por_endereco SET rua = '' WHERE estoque_id = ? AND endereco_id NOT IN (SELECT id FROM estoque_enderecos WHERE LOWER(nome) LIKE '%almoxarifado%')", [id], () => {});
                             // 2. Grava histórico por endereço/tamanho para quantidades que mudaram
                             enderecos.forEach(e => {
                                 const tam = String(e.tamanho || '').trim().toUpperCase();
@@ -32678,7 +32687,7 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
 // Obter todos os saldos por endereço (para todos os itens de uma vez - usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(
-        `SELECT s.estoque_id, COALESCE(s.tamanho, '') as tamanho, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque,
+        `SELECT s.estoque_id, COALESCE(s.tamanho, '') as tamanho, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque, COALESCE(s.rua, '') as rua,
                 e.id as endereco_id, e.nome as endereco_nome, e.tipo_notificacao
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
@@ -32696,7 +32705,8 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
                     quantidade: r.quantidade,
                     quantidade_minima: r.quantidade_minima,
                     quantidade_maxima: r.quantidade_maxima,
-                    tipo_estoque: r.tipo_estoque || 'matriz'
+                    tipo_estoque: r.tipo_estoque || 'matriz',
+                    rua: r.rua || ''
                 });
             });
             res.json(map);
