@@ -175,7 +175,13 @@ function itensDaPagina(linhas) {
     // ou cabecalho explicito de tabela de PECAS/PRODUTOS (nunca "SERVICOS A EXECUTAR")
     let ini = linhas.findIndex(l => l.norm.includes('NCM') && l.norm.includes('DESCRI'));
     if (ini === -1) {
-        const idxPecas = linhas.findIndex(l => /\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|TABELA\s+DE\s+PECAS)\b/.test(l.norm));
+        ini = linhas.findIndex((l, idx) => {
+            const w = l.norm + ' ' + (linhas[idx + 1] ? linhas[idx + 1].norm : '') + ' ' + (linhas[idx + 2] ? linhas[idx + 2].norm : '');
+            return w.includes('NCM') && w.includes('DESCRI');
+        });
+    }
+    if (ini === -1) {
+        const idxPecas = linhas.findIndex(l => /\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|TABELA\s+DE\s+PECAS|DADOS\s+DOS?\s+PRODUTOS?)\b/.test(l.norm));
         if (idxPecas >= 0) ini = idxPecas;
         else return [];
     }
@@ -204,6 +210,10 @@ function dadosCabecalho(textoCompleto) {
         r.numero = String(parseInt(ch.substr(25, 9), 10));
         const c = ch.substr(6, 14);
         r.cnpj = c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    }
+    if (!r.numero) {
+        const mNum = textoCompleto.match(/\bN[º°o.]\s*([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{4,9})\b/i);
+        if (mNum) r.numero = String(parseInt(mNum[1].replace(/\D/g, ''), 10));
     }
     const mForn = textoCompleto.match(/RECEBEMOS DE,?\s+(.+?)[,\s]+OS PRODUTOS/i);
     if (mForn) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();

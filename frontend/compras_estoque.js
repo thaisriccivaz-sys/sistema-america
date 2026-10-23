@@ -418,9 +418,9 @@
             : '<div style="width:40px;height:40px;min-width:40px;flex-shrink:0;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
         const warn = low ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : '';
 
-        // Botão carrinho (26x26: ao lado esquerdo da foto nos produtos sem seta, ou ao lado esquerdo do tamanho nos com seta) + botão PDF se houver
+        // Botão carrinho (26x26: ao lado esquerdo da foto nos produtos sem seta, ou ao lado esquerdo do tamanho nos com seta)
+        // O PDF da nota fiscal fica apenas nos detalhes do botão de compras (modal)
         const cartBtnFn = (id, tam) => '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceAbrirProduto(' + id + (tam ? ',\'' + esc(tam) + '\'' : '') + ')" title="Editar produto, estoque, fornecedor, valor, garantia, PDF, notas e histórico" style="background:#1971c2;color:#fff;border:none;width:26px;height:26px;padding:0;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-shopping-cart" style="font-size:0.95rem;"></i></button>';
-        const pdfBtn = r.tem_pdf ? '<button type="button" class="btn btn-sm" onclick="event.stopPropagation();ceVerPdf(' + item.id + ')" title="Abrir PDF do produto" style="background:#fee2e2;color:#b91c1c;border:none;width:30px;height:30px;padding:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-file-pdf" style="font-size:1rem;"></i></button>' : '';
 
         // Colunas de compra
         const fornCell = r.fornecedor ? '<span style="font-size:0.84rem;color:#334155;font-weight:600;">' + esc(r.fornecedor) + '</span>' : dash;
@@ -443,7 +443,7 @@
             out += '<tr onclick="ceToggleTam(' + item.id + ')" style="cursor:pointer;border-left:' + borda + ';' + bg + '">' +
                 '<td style="vertical-align:middle;font-weight:600;"><div style="display:flex;align-items:center;gap:10px;">' +
                     '<span title="Ver tamanhos, endereços e quantidades" style="width:26px;height:26px;border-radius:6px;background:#e0e7ff;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i id="ce-arrow-' + item.id + '" class="ph ph-caret-right" style="font-size:0.95rem;transition:transform .2s;' + (aberto ? 'transform:rotate(90deg);' : '') + '"></i></span>' +
-                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + pdfBtn + '<span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
+                    foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span><span style="background:#e2e8f0;color:#475569;border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;">' + tams.length + (tams.length === 1 ? ' tamanho' : ' tamanhos') + '</span></div></div></td>' +
                 '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
                 '<td style="vertical-align:middle;">' + qtdHtml(qtdTotal(item, saldos), low) + '</td>' +
                 '<td style="vertical-align:middle;white-space:nowrap;"><span style="color:#2563eb;font-size:0.78rem;font-weight:600;">Ver por tamanho ▾</span></td>' +
@@ -465,7 +465,7 @@
         const sl = saldos;
         const stack = fn => sl.length ? sl.map(s => linha(fn(s))).join('') : linha(dash);
         out += '<tr style="border-left:' + borda + ';' + bg + '">' +
-            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span>' + pdfBtn + '</div></div></td>' +
+            '<td style="vertical-align:middle;font-weight:500;"><div style="display:flex;align-items:center;gap:10px;">' + cartBtnFn(item.id) + foto + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>' + warn + esc(item.nome) + '</span></div></div></td>' +
             '<td style="vertical-align:middle;">' + esc(cat) + '</td>' +
             '<td>' + (sl.length ? stack(s => qtdHtml(qtdDe(s), lowSaldo(s, item))) : linha(qtdHtml(parseInt(item.quantidade_atual) || 0, low))) + '</td>' +
             '<td>' + stack(minMaxHtml) + '</td>' +
@@ -1118,7 +1118,7 @@
             const anterior = hist[i + 1] ? hist[i + 1].valor_unitario : 0;
             const nf = h.nota_fiscal_id
                 ? (h.nota_tem_arquivo ? '<a href="#" onclick="ceVerNota(' + h.nota_fiscal_id + ');return false;" style="color:#1971c2;font-weight:700;text-decoration:none;" title="Abrir arquivo da nota"><i class="ph ph-receipt"></i> NF ' + esc(h.nota_numero) + '</a>' : '<span style="font-weight:700;">NF ' + esc(h.nota_numero) + '</span>')
-                : '<span style="color:#94a3b8;">—</span>';
+                : (info.tem_pdf ? '<a href="#" onclick="ceVerPdf(' + pm.id + ');return false;" style="color:#b91c1c;font-weight:700;text-decoration:none;" title="Abrir PDF da nota anexada"><i class="ph ph-file-pdf"></i> ' + esc(info.pdf_nome || 'Ver PDF') + '</a>' : '<span style="color:#94a3b8;">—</span>');
             return '<tr><td style="white-space:nowrap;">' + fmtData(h.data_compra) + '</td><td>' + nf + '</td><td>' + (esc(h.fornecedor) || dash) + '</td>' +
                 '<td style="text-align:center;">' + h.quantidade + '</td><td style="white-space:nowrap;"><b>' + money(h.valor_unitario) + '</b> ' + variacao(h.valor_unitario, anterior) + '</td>' +
                 '<td style="white-space:nowrap;">' + money(h.quantidade * h.valor_unitario) + '</td><td style="white-space:nowrap;">' + (h.garantia_ate ? fmtData(h.garantia_ate) + ' <span style="color:#94a3b8;font-size:0.72rem;">(' + h.garantia_meses + 'm)</span>' : dash) + '</td>' +
@@ -1138,18 +1138,16 @@
                       '<button class="btn btn-sm" onclick="document.getElementById(\'ce-p-pdf\').click()" style="background:#b91c1c;color:#fff;border:none;"><i class="ph ph-upload-simple"></i> Anexar PDF</button></div>') +
             '</div>' +
 
-            '<div style="' + cardCss + '">' + h4('ph-identification-card', 'Dados de compra do produto') +
-                '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;">' +
-                    '<div><label style="' + labelCss + '">Fornecedor</label><input id="ce-p-forn" style="' + inputCss + '" value="' + esc(info.fornecedor) + '" placeholder="Nome do fornecedor"></div>' +
-                    '<div><label style="' + labelCss + '">Valor atual (R$)</label><input id="ce-p-valor" type="number" min="0" step="0.01" style="' + inputCss + '" value="' + (info.valor_atual || '') + '" placeholder="0,00"></div>' +
-                    '<div><label style="' + labelCss + '">Garantia (meses)</label><input id="ce-p-gm" type="number" min="0" step="1" style="' + inputCss + '" value="' + (info.garantia_meses || '') + '" placeholder="0"></div>' +
-                    '<div><label style="' + labelCss + '">Garantia até</label><input id="ce-p-ga" type="date" style="' + inputCss + '" value="' + esc(info.garantia_ate) + '"></div>' +
-                '</div>' +
-                '<div style="margin-bottom:10px;"><label style="' + labelCss + '">Observações</label><textarea id="ce-p-obs" rows="2" style="' + inputCss + 'resize:vertical;">' + esc(info.observacoes) + '</textarea></div>' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span style="font-size:0.74rem;color:#94a3b8;">Ao registrar uma compra, valor, fornecedor e garantia são atualizados com a compra mais recente.</span>' +
-                '<button class="btn" onclick="ceSalvarInfo()" style="background:#16a34a;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar dados</button></div></div>' +
+            '<div style="display:none;">' +
+                '<input id="ce-p-forn" value="' + esc(info.fornecedor) + '">' +
+                '<input id="ce-p-valor" type="number" value="' + (info.valor_atual || '') + '">' +
+                '<input id="ce-p-gm" type="number" value="' + (info.garantia_meses || '') + '">' +
+                '<input id="ce-p-ga" type="date" value="' + esc(info.garantia_ate) + '">' +
+                '<textarea id="ce-p-obs">' + esc(info.observacoes) + '</textarea>' +
+            '</div>' +
 
-            '<div style="' + cardCss + '">' + h4('ph-receipt', 'Registrar compra / vincular nota fiscal') +
+            '<div id="ce-card-manual" style="' + cardCss + 'transition:box-shadow .25s,border-color .25s;">' + h4('ph-pencil-simple-line', 'Registrar manualmente') +
+                '<div id="ce-aviso-manual" style="display:none;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:8px 12px;font-size:0.8rem;font-weight:600;margin-bottom:10px;"></div>' +
                 '<div style="display:grid;grid-template-columns:1fr 0.6fr 1fr 1.4fr 0.8fr;gap:10px;margin-bottom:10px;">' +
                     '<div><label style="' + labelCss + '">Data da compra *</label><input id="ce-c-data" type="date" style="' + inputCss + '" value="' + hojeISO() + '"></div>' +
                     '<div><label style="' + labelCss + '">Qtd.</label><input id="ce-c-qtd" type="number" min="1" step="1" style="' + inputCss + '" value="1"></div>' +
@@ -1251,10 +1249,57 @@
             if (extraido && Array.isArray(extraido.itens) && extraido.itens.length > 0) {
                 cePerguntarItemNotaProduto(pm.id, extraido, b64, file.name);
             } else {
-                if (extraido && extraido.fornecedor && $('ce-p-forn') && !$('ce-p-forn').value.trim()) {
-                    $('ce-p-forn').value = extraido.fornecedor;
+                // Caso a nota fiscal não consiga identificar os produtos anexados:
+                // anexa a nota fiscal e pede para digitar os dados em "Registrar manualmente"
+                let notaIdCriada = null;
+                const numAuto = (extraido && extraido.numero) ? String(extraido.numero).trim() : file.name.replace(/\.pdf$/i, '').trim().slice(0, 60);
+                const fornAuto = (extraido && extraido.fornecedor) ? String(extraido.fornecedor).trim() : '';
+                const dataAuto = (extraido && extraido.data_emissao) ? extraido.data_emissao : hojeISO();
+                if (numAuto) {
+                    const jaExiste = (S.notas || []).find(n => String(n.numero).trim() === numAuto);
+                    if (jaExiste) {
+                        notaIdCriada = jaExiste.id;
+                    } else {
+                        try {
+                            const rNf = await api('/compras-estoque-notas', {
+                                method: 'POST',
+                                body: {
+                                    numero: numAuto,
+                                    fornecedor: fornAuto,
+                                    data_emissao: dataAuto,
+                                    valor_total: (extraido && extraido.valor_total) || 0,
+                                    observacoes: 'Nota anexada pelo produto',
+                                    arquivo_base64: b64,
+                                    nome_arquivo: file.name
+                                }
+                            });
+                            notaIdCriada = rNf && rNf.id ? rNf.id : null;
+                            await recarregarResumoENotas();
+                            await recarregarProduto();
+                        } catch (_) {}
+                    }
                 }
-                toast('PDF anexado!');
+                if (dataAuto && $('ce-c-data')) $('ce-c-data').value = dataAuto;
+                if (fornAuto && $('ce-c-forn') && !$('ce-c-forn').value.trim()) $('ce-c-forn').value = fornAuto;
+                if (notaIdCriada && $('ce-c-nf')) $('ce-c-nf').value = String(notaIdCriada);
+                const avisoEl = $('ce-aviso-manual');
+                if (avisoEl) {
+                    avisoEl.style.display = 'block';
+                    avisoEl.innerHTML = '<i class="ph ph-warning-circle"></i> Nota fiscal anexada! Não foi possível identificar os produtos automaticamente nesta nota. Digite os dados abaixo para <b>registrar manualmente</b>.';
+                }
+                const cardMan = $('ce-card-manual');
+                if (cardMan) {
+                    cardMan.style.borderColor = '#f59e0b';
+                    cardMan.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.22)';
+                    cardMan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                await swal({
+                    icon: 'info',
+                    title: 'Nota fiscal anexada!',
+                    text: 'Não foi possível identificar os produtos automaticamente nesta nota fiscal. Digite os dados em "Registrar manualmente" para concluir o registro.',
+                    confirmButtonText: 'Digitar dados manualmente'
+                });
+                if ($('ce-c-valor')) setTimeout(() => $('ce-c-valor').focus(), 80);
             }
         } catch (e) { swal({ icon: 'error', title: 'Erro ao anexar PDF', text: e.message }); }
         finally { input.value = ''; }
@@ -1264,19 +1309,13 @@
         const prod = S.data.find(i => i.id === estoqueId) || (S.prodModal && S.prodModal.dados && S.prodModal.dados.produto) || { id: estoqueId, nome: 'Produto' };
         const infoAtual = (S.prodModal && S.prodModal.dados && S.prodModal.dados.info) || {};
         const itens = extraido.itens || [];
-        let melhorIdx = 0, melhorSc = -1;
-        itens.forEach((it, idx) => {
-            const sc = scoreSimilaridade(it.descricao, prod.nome);
-            if (sc > melhorSc) { melhorSc = sc; melhorIdx = idx; }
-        });
         const dataNota = extraido.data_emissao || hojeISO();
         const fornNota = extraido.fornecedor || infoAtual.fornecedor || '';
         const numNota = extraido.numero || '';
 
         const linhasHtml = itens.map((it, idx) => {
-            const marcado = idx === melhorIdx;
-            return '<label id="ce-sel-nf-lbl-' + idx + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid ' + (marcado ? '#1971c2' : '#e2e8f0') + ';background:' + (marcado ? '#eff6ff' : '#fff') + ';border-radius:10px;cursor:pointer;margin-bottom:6px;transition:all .15s;">' +
-                '<input type="radio" name="ce-sel-nf-item" value="' + idx + '" ' + (marcado ? 'checked' : '') + ' onchange="ceDestacarItemNotaModal(' + idx + ',' + itens.length + ')" style="accent-color:#1971c2;width:17px;height:17px;flex-shrink:0;">' +
+            return '<label id="ce-sel-nf-lbl-' + idx + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;background:#fff;border-radius:10px;cursor:pointer;margin-bottom:6px;transition:all .15s;">' +
+                '<input type="radio" name="ce-sel-nf-item" value="' + idx + '" onchange="ceDestacarItemNotaModal(' + idx + ',' + itens.length + ')" style="accent-color:#1971c2;width:17px;height:17px;flex-shrink:0;">' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="font-weight:700;font-size:0.86rem;color:#1e293b;">' + esc(it.descricao) + (it.codigo ? ' <span style="font-size:0.74rem;color:#64748b;font-weight:600;">(Cód: ' + esc(it.codigo) + ')</span>' : '') + '</div>' +
                     '<div style="font-size:0.78rem;color:#475569;margin-top:2px;">Qtd: <b>' + it.quantidade + ' ' + esc(it.unidade || 'UN') + '</b> &middot; Valor unit.: <b style="color:#0f766e;">' + money(it.valor_unitario) + '</b> &middot; Total do item: <b>' + money(it.valor_total) + '</b></div>' +
@@ -1285,12 +1324,12 @@
         }).join('');
 
         const m = abrirModal({
-            titulo: '<i class="ph ph-file-pdf" style="color:#b91c1c;"></i> Vincular Produto da Nota Fiscal',
+            titulo: '<i class="ph ph-file-pdf" style="color:#b91c1c;"></i> Selecionar Produto da Nota Fiscal',
             largura: '760px',
             corpo:
-                '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.83rem;color:#334155;">' +
-                    '<div style="font-weight:700;color:#1e293b;margin-bottom:4px;">Qual produto desta nota fiscal você gostaria de vincular a <span style="color:#1971c2;">' + esc(prod.nome) + '</span>?</div>' +
-                    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.78rem;color:#64748b;">' +
+                '<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.84rem;color:#1e3a8a;">' +
+                    '<div style="font-weight:800;color:#1d4ed8;margin-bottom:4px;"><i class="ph ph-hand-pointing"></i> Selecione abaixo qual produto da nota fiscal corresponde a <span style="text-decoration:underline;">' + esc(prod.nome) + '</span>:</div>' +
+                    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.78rem;color:#475569;">' +
                         (numNota ? '<span><b>NF:</b> ' + esc(numNota) + '</span>' : '') +
                         (fornNota ? '<span><b>Fornecedor:</b> ' + esc(fornNota) + '</span>' : '') +
                         (extraido.data_emissao ? '<span><b>Emissão:</b> ' + fmtData(extraido.data_emissao) + '</span>' : '') +
@@ -1308,7 +1347,7 @@
                     '<span>Registrar também esta compra no histórico de valores pagos e vincular a nota fiscal</span>' +
                 '</label>' +
                 '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
-                    '<button type="button" class="btn btn-secondary" id="ce-vinc-pdf-pular">Apenas manter PDF</button>' +
+                    '<button type="button" class="btn btn-secondary" id="ce-vinc-pdf-pular">Registrar manualmente</button>' +
                     '<button type="button" class="btn" id="ce-vinc-pdf-confirmar" style="background:#16a34a;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> Vincular produto selecionado</button>' +
                 '</div>'
         });
@@ -1322,10 +1361,16 @@
             }
         };
 
-        $('ce-vinc-pdf-pular').onclick = () => { m.fechar(); toast('PDF anexado!'); };
+        $('ce-vinc-pdf-pular').onclick = () => {
+            m.fechar();
+            if ($('ce-c-valor')) setTimeout(() => $('ce-c-valor').focus(), 80);
+        };
         $('ce-vinc-pdf-confirmar').onclick = async () => {
             const rad = m.el.querySelector('input[name="ce-sel-nf-item"]:checked');
-            const idx = rad ? parseInt(rad.value, 10) : 0;
+            if (!rad) {
+                return swal({ icon: 'warning', title: 'Selecione um produto', text: 'Clique em um dos produtos da nota fiscal acima para vincular.' });
+            }
+            const idx = parseInt(rad.value, 10);
             const itemEscolhido = itens[idx];
             if (!itemEscolhido) return;
             const forn = ($('ce-vinc-pdf-forn').value || '').trim();
@@ -1349,8 +1394,9 @@
                 });
                 if (gravarHist && itemEscolhido.valor_unitario > 0) {
                     let notaId = null;
-                    if (numNota) {
-                        const existente = (S.notas || []).find(n => String(n.numero).trim() === String(numNota).trim());
+                    const numEfetivo = numNota || nomeArquivo.replace(/\.pdf$/i, '').trim().slice(0, 60);
+                    if (numEfetivo) {
+                        const existente = (S.notas || []).find(n => String(n.numero).trim() === String(numEfetivo).trim());
                         if (existente) {
                             notaId = existente.id;
                         } else if (b64) {
@@ -1358,7 +1404,7 @@
                                 const novaNf = await api('/compras-estoque-notas', {
                                     method: 'POST',
                                     body: {
-                                        numero: numNota,
+                                        numero: numEfetivo,
                                         fornecedor: forn,
                                         data_emissao: dt,
                                         valor_total: extraido.valor_total || itemEscolhido.valor_total || itemEscolhido.valor_unitario,
@@ -1481,26 +1527,36 @@
         }
         try {
             const b64 = await lerArquivo(file);
-            const ext = await api('/compras-estoque/extrair-nota', { method: 'POST', body: { arquivo_base64: b64, nome_arquivo: file.name } });
-            if (ext.numero && $('ce-n-num') && !$('ce-n-num').value.trim()) $('ce-n-num').value = ext.numero;
-            if (ext.fornecedor && $('ce-n-forn') && !$('ce-n-forn').value.trim()) $('ce-n-forn').value = ext.fornecedor;
-            if (ext.data_emissao && $('ce-n-data')) $('ce-n-data').value = ext.data_emissao;
-            if (ext.valor_total > 0 && $('ce-n-valor') && !$('ce-n-valor').value) $('ce-n-valor').value = Number(ext.valor_total).toFixed(2);
+            const ext = await api('/compras-estoque/extrair-nota', { method: 'POST', body: { arquivo_base64: b64, nome_arquivo: file.name } }).catch(() => ({}));
+            const numSug = (ext && ext.numero) ? String(ext.numero).trim() : file.name.replace(/\.[a-z0-9]+$/i, '').trim().slice(0, 60);
+            if (numSug && $('ce-n-num') && !$('ce-n-num').value.trim()) $('ce-n-num').value = numSug;
+            if (ext && ext.fornecedor && $('ce-n-forn') && !$('ce-n-forn').value.trim()) $('ce-n-forn').value = ext.fornecedor;
+            if (ext && ext.data_emissao && $('ce-n-data')) $('ce-n-data').value = ext.data_emissao;
+            if (ext && ext.valor_total > 0 && $('ce-n-valor') && !$('ce-n-valor').value) $('ce-n-valor').value = Number(ext.valor_total).toFixed(2);
+            const itensLidos = (ext && Array.isArray(ext.itens)) ? ext.itens : [];
             notaExtraidaStage = {
                 b64: b64,
                 nome_arquivo: file.name,
-                itens: (ext.itens || []).map(it => {
-                    const sugId = sugerirEstoqueParaDescricao(it.descricao);
-                    return {
-                        incluir: !!sugId,
+                modoManual: itensLidos.length === 0,
+                itens: itensLidos.length > 0
+                    ? itensLidos.map(it => ({
+                        incluir: true,
                         descricao: it.descricao || '',
                         codigo: it.codigo || '',
                         quantidade: Math.max(1, Math.round(Number(it.quantidade) || 1)),
                         valor_unitario: Number(it.valor_unitario) || 0,
                         garantia_meses: 0,
-                        estoque_id: sugId
-                    };
-                })
+                        estoque_id: ''
+                    }))
+                    : [{
+                        incluir: true,
+                        descricao: 'Registro manual',
+                        codigo: '',
+                        quantidade: 1,
+                        valor_unitario: (ext && ext.valor_total > 0) ? Number(ext.valor_total) : 0,
+                        garantia_meses: 0,
+                        estoque_id: ''
+                    }]
             };
             renderItensExtraidosNota();
         } catch (e) {
@@ -1511,19 +1567,42 @@
 
     function renderItensExtraidosNota() {
         const stageEl = $('ce-n-itens-extraidos');
-        if (!stageEl) return;
-        if (!notaExtraidaStage || !notaExtraidaStage.itens.length) {
-            stageEl.innerHTML = '<div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;color:#64748b;font-size:0.8rem;">Nenhum item foi lido automaticamente deste arquivo. Salve a nota para vincular os produtos em seguida.</div>';
+        if (!stageEl || !notaExtraidaStage) return;
+        const prodsOrd = (S.data || []).slice().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' }));
+        if (notaExtraidaStage.modoManual) {
+            const linhasMan = notaExtraidaStage.itens.map((it, idx) => {
+                const optsProd = '<option value="">— Selecione um produto do estoque * —</option>' +
+                    prodsOrd.map(p => '<option value="' + p.id + '"' + (String(p.id) === String(it.estoque_id) ? ' selected' : '') + '>' + esc(p.nome) + ' (' + esc(p.categoria || 'Sem Cat.') + ')</option>').join('');
+                return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                    '<td style="vertical-align:middle;"><select onchange="ceNfStageProd(' + idx + ',this.value)" style="' + inputCss + 'padding:6px 8px;font-size:0.82rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;' : 'border-color:#f59e0b;') + '">' + optsProd + '</select></td>' +
+                    '<td style="width:90px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
+                    '<td style="width:140px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + (it.valor_unitario || '') + '" placeholder="0,00" oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:6px;"></td>' +
+                    '<td style="width:110px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:6px;text-align:center;"></td>' +
+                '</tr>';
+            }).join('');
+            stageEl.innerHTML =
+                '<div style="margin-top:12px;border:1.5px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:10px 12px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+                        '<div style="font-weight:800;font-size:0.84rem;color:#9a3412;"><i class="ph ph-pencil-simple-line"></i> Não foi possível identificar os produtos automaticamente nesta nota &mdash; selecione o produto e digite os dados para registrar manualmente:</div>' +
+                        '<button type="button" class="btn btn-sm btn-secondary" onclick="ceNfAddLinhaManual()" style="font-size:0.75rem;padding:3px 10px;">+ Adicionar outro produto</button>' +
+                    '</div>' +
+                    '<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;overflow:hidden;">' +
+                        '<table class="table" style="margin:0;font-size:0.8rem;">' +
+                            '<thead style="background:#fef3c7;"><tr style="font-size:0.73rem;"><th>Produto no Estoque *</th><th>Qtd. *</th><th>Valor unit. (R$) *</th><th>Garantia (meses)</th></tr></thead>' +
+                            '<tbody>' + linhasMan + '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                '</div>';
             return;
         }
-        const prodsOrd = (S.data || []).slice().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' }));
+
         const linhas = notaExtraidaStage.itens.map((it, idx) => {
-            const optsProd = '<option value="">— Selecione o produto do estoque para vincular —</option>' +
+            const optsProd = '<option value="">— Selecione o produto do estoque * —</option>' +
                 prodsOrd.map(p => '<option value="' + p.id + '"' + (String(p.id) === String(it.estoque_id) ? ' selected' : '') + '>' + esc(p.nome) + ' (' + esc(p.categoria || 'Sem Cat.') + ')</option>').join('');
             return '<tr style="border-bottom:1px solid #e2e8f0;' + (it.estoque_id ? 'background:#f0fdf4;' : '') + '">' +
-                '<td style="width:34px;text-align:center;vertical-align:middle;"><input type="checkbox" ' + (it.incluir && it.estoque_id ? 'checked' : '') + ' onchange="ceNfStageToggle(' + idx + ',this.checked)" style="accent-color:#16a34a;width:16px;height:16px;"></td>' +
+                '<td style="width:34px;text-align:center;vertical-align:middle;"><input type="checkbox" ' + (it.incluir ? 'checked' : '') + ' onchange="ceNfStageToggle(' + idx + ',this.checked)" style="accent-color:#16a34a;width:16px;height:16px;"></td>' +
                 '<td style="vertical-align:middle;"><div style="font-weight:700;font-size:0.82rem;color:#1e293b;">' + esc(it.descricao) + '</div>' + (it.codigo ? '<div style="font-size:0.72rem;color:#64748b;">Cód: ' + esc(it.codigo) + '</div>' : '') + '</td>' +
-                '<td style="width:280px;vertical-align:middle;"><select onchange="ceNfStageProd(' + idx + ',this.value)" style="' + inputCss + 'padding:5px 8px;font-size:0.8rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;' : '') + '">' + optsProd + '</select></td>' +
+                '<td style="width:280px;vertical-align:middle;"><select onchange="ceNfStageProd(' + idx + ',this.value)" style="' + inputCss + 'padding:5px 8px;font-size:0.8rem;' + (it.estoque_id ? 'border-color:#16a34a;font-weight:700;' : 'border-color:#f59e0b;') + '">' + optsProd + '</select></td>' +
                 '<td style="width:78px;vertical-align:middle;"><input type="number" min="1" step="1" value="' + it.quantidade + '" oninput="ceNfStageSet(' + idx + ',\'quantidade\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
                 '<td style="width:115px;vertical-align:middle;"><input type="number" min="0" step="0.01" value="' + it.valor_unitario + '" oninput="ceNfStageSet(' + idx + ',\'valor_unitario\',this.value)" style="' + inputCss + 'padding:5px 6px;"></td>' +
                 '<td style="width:85px;vertical-align:middle;"><input type="number" min="0" step="1" value="' + (it.garantia_meses || '') + '" placeholder="0" oninput="ceNfStageSet(' + idx + ',\'garantia_meses\',this.value)" style="' + inputCss + 'padding:5px 6px;text-align:center;"></td>' +
@@ -1533,17 +1612,22 @@
         stageEl.innerHTML =
             '<div style="margin-top:12px;border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;padding:10px 12px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
-                    '<div style="font-weight:800;font-size:0.84rem;color:#075985;"><i class="ph ph-magic-wand"></i> Produtos encontrados na nota fiscal (' + notaExtraidaStage.itens.length + ') &mdash; selecione o produto correspondente no estoque:</div>' +
-                    '<span style="font-size:0.75rem;color:#0369a1;">Ao clicar em <b>Salvar nota</b>, os produtos vinculados abaixo já serão salvos automaticamente.</span>' +
+                    '<div style="font-weight:800;font-size:0.84rem;color:#075985;"><i class="ph ph-hand-pointing"></i> Produtos encontrados na nota fiscal (' + notaExtraidaStage.itens.length + ') &mdash; selecione o produto do estoque para vincular:</div>' +
+                    '<span style="font-size:0.75rem;color:#0369a1;">Selecione o produto correspondente no estoque e clique em <b>Salvar nota</b>.</span>' +
                 '</div>' +
                 '<div style="max-height:34vh;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">' +
                     '<table class="table" style="margin:0;font-size:0.8rem;">' +
-                        '<thead style="position:sticky;top:0;background:#f8fafc;z-index:2;"><tr style="font-size:0.73rem;"><th>Vinc.</th><th>Produto na Nota Fiscal</th><th>Produto no Estoque</th><th>Qtd.</th><th>Valor unit. (R$)</th><th>Garantia (m)</th></tr></thead>' +
+                        '<thead style="position:sticky;top:0;background:#f8fafc;z-index:2;"><tr style="font-size:0.73rem;"><th>Vinc.</th><th>Produto na Nota Fiscal</th><th>Selecione o Produto no Estoque *</th><th>Qtd.</th><th>Valor unit. (R$)</th><th>Garantia (m)</th></tr></thead>' +
                         '<tbody>' + linhas + '</tbody>' +
                     '</table>' +
                 '</div>' +
             '</div>';
     }
+    window.ceNfAddLinhaManual = function () {
+        if (!notaExtraidaStage) return;
+        notaExtraidaStage.itens.push({ incluir: true, descricao: 'Registro manual', codigo: '', quantidade: 1, valor_unitario: 0, garantia_meses: 0, estoque_id: '' });
+        renderItensExtraidosNota();
+    };
     window.ceNfStageToggle = function (idx, checked) {
         if (!notaExtraidaStage || !notaExtraidaStage.itens[idx]) return;
         notaExtraidaStage.itens[idx].incluir = !!checked;
@@ -1565,6 +1649,16 @@
         if (!num) return swal({ icon: 'warning', title: 'Informe o número da nota fiscal' });
         if (!file) return swal({ icon: 'warning', title: 'Anexe o arquivo da nota fiscal' });
         if (file.size > 15 * 1024 * 1024) return swal({ icon: 'warning', title: 'O arquivo deve ter no máximo 15 MB.' });
+        if (notaExtraidaStage && Array.isArray(notaExtraidaStage.itens) && notaExtraidaStage.itens.length > 0) {
+            const algumComProduto = notaExtraidaStage.itens.some(it => it.incluir && it.estoque_id);
+            if (!algumComProduto) {
+                return swal({ icon: 'warning', title: 'Selecione um produto', text: 'Selecione qual produto do estoque deve ser vinculado a esta nota fiscal.' });
+            }
+            const semValor = notaExtraidaStage.itens.find(it => it.incluir && it.estoque_id && !(it.valor_unitario > 0));
+            if (semValor) {
+                return swal({ icon: 'warning', title: 'Informe o valor unitário', text: 'Digite o valor unitário (maior que zero) para registrar o produto selecionado.' });
+            }
+        }
         try {
             swal({ title: 'Salvando nota fiscal...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const b64 = (notaExtraidaStage && notaExtraidaStage.b64) ? notaExtraidaStage.b64 : await lerArquivo(file);
@@ -1594,7 +1688,7 @@
             renderTabela();
             if (S.prodModal) await recarregarProduto();
             if (itensVincular.length > 0) {
-                swal({ icon: 'success', title: 'Nota fiscal salva e vinculada!', text: itensVincular.length + ' produto(s) do estoque foram vinculados automaticamente a esta nota.' });
+                swal({ icon: 'success', title: 'Nota fiscal salva e vinculada!', text: itensVincular.length + ' produto(s) do estoque foram vinculados a esta nota.' });
             } else {
                 const q = await swal({ icon: 'success', title: 'Nota fiscal salva!', text: 'Deseja vincular produtos a esta nota agora?', showCancelButton: true, confirmButtonText: 'Vincular produtos', cancelButtonText: 'Depois' });
                 if (q.isConfirmed) window.ceAbrirVincular(r.id);
