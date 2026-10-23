@@ -3529,15 +3529,17 @@ window._mnRenderCorretivaDados = function(listaBase) {
         const emAndamento = todas.filter(m => m.status === 'em_andamento').length;
         const agendadas   = todas.filter(m => m.status === 'agendada').length;
         const aguardando  = todas.filter(m => m.status === 'aguardando').length;
-        const concluidasMes = todas.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual)).length;
+        const finPendente = todas.filter(m => m.status === 'concluida' && !(Number(m.tem_video_geral) > 0)).length;
+        const concluidasMes = todas.filter(m => m.status === 'concluida' && Number(m.tem_video_geral) > 0 && (m.data_conclusao || '').startsWith(mesAtual)).length;
         const totalTodos  = todas.length;
         const stAtivo = fCard || 'todos';
         cardsEl.innerHTML = [
-            { key: 'em_andamento',  cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',      val: emAndamento },
-            { key: 'agendada',      cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',              val: agendadas },
-            { key: 'aguardando',    cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',         val: aguardando },
-            { key: 'concluidas_mes',cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',val: concluidasMes },
-            { key: 'todos',         cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',              val: totalTodos },
+            { key: 'em_andamento',        cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
+            { key: 'agendada',            cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                val: agendadas },
+            { key: 'aguardando',          cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',           val: aguardando },
+            { key: 'finalizacao_pendente',cor: '#ea580c', bg: '#fff7ed', icone: 'ph-video-camera',  label: 'Finalização Pendente', val: finPendente },
+            { key: 'concluidas_mes',      cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',  val: concluidasMes },
+            { key: 'todos',               cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',                val: totalTodos },
         ].map(c => {
             const ativo = stAtivo === c.key;
             return '<div onclick="window.mnCorrFiltrarCard(\'' + c.key + '\')" title="Filtrar por: ' + c.label + '"'
@@ -3554,8 +3556,10 @@ window._mnRenderCorretivaDados = function(listaBase) {
 
     // Aplica filtro de card / dropdown
     let lista = todas.slice();
-    if (fCard === 'concluidas_mes') {
-        lista = lista.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual));
+    if (fCard === 'finalizacao_pendente') {
+        lista = lista.filter(m => m.status === 'concluida' && !(Number(m.tem_video_geral) > 0));
+    } else if (fCard === 'concluidas_mes') {
+        lista = lista.filter(m => m.status === 'concluida' && Number(m.tem_video_geral) > 0 && (m.data_conclusao || '').startsWith(mesAtual));
     } else if (fCard && fCard !== 'todos') {
         lista = lista.filter(m => m.status === fCard);
     }
@@ -3622,12 +3626,17 @@ window._mnRenderCorretivaDados = function(listaBase) {
     tbody.innerHTML = lista.map((m, i) => {
         const bgRow = i % 2 === 0 ? '#fff' : '#fafafa';
         const sKey = m.status || 'agendada';
-        const statusBadge = `<span style="background:${statusCor[sKey]||'#94a3b8'}22;color:${statusCor[sKey]||'#94a3b8'};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">${statusLbl[sKey]||sKey}</span>`
+        const ehFinPend = (sKey === 'concluida' && !(Number(m.tem_video_geral) > 0));
+        const corSt = ehFinPend ? '#ea580c' : (statusCor[sKey]||'#94a3b8');
+        const lblSt = ehFinPend ? '⏳ Finalização Pendente' : (statusLbl[sKey]||sKey);
+        const kmParadoVal = Number(m.km_na_manutencao || m.km_parado_momento || 0);
+        const statusBadge = `<span style="background:${corSt}22;color:${corSt};padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;" title="${ehFinPend ? 'Veículo liberado — aguardando anexo do vídeo geral' : ''}">${lblSt}</span>`
             + (sKey === 'cancelada' ? '' : (function() {
                 const rodTab = (m.veiculo_rodando_efetivo || m.veiculo_rodando || (sKey === 'em_andamento' ? 'nao' : 'sim')) === 'nao' ? 'nao' : 'sim';
-                return rodTab === 'nao'
+                const kmTag = kmParadoVal > 0 ? `<div style="margin-top:3px;font-size:0.66rem;color:#475569;font-weight:700;white-space:nowrap;" title="KM no momento em que o veículo foi registrado como parado">KM parado: ${kmParadoVal.toLocaleString('pt-BR')} km</div>` : '';
+                return (rodTab === 'nao'
                     ? '<div style="margin-top:4px;"><span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO PARADO</span></div>'
-                    : '<div style="margin-top:4px;"><span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO RODANDO</span></div>';
+                    : '<div style="margin-top:4px;"><span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:1px 8px;border-radius:999px;font-size:0.64rem;font-weight:800;white-space:nowrap;letter-spacing:0.2px;">VEÍCULO RODANDO</span></div>') + kmTag;
             })());
         const tp = getTempos(m);
         const pCor = tp.pedido.dias >= 7 ? '#dc2626' : tp.pedido.dias >= 3 ? '#d97706' : '#0284c7';
@@ -4443,7 +4452,7 @@ window._mnEdMontar = function() {
       +         '<div style="' + secT + 'margin-bottom:12px;"><i class="ph ph-truck" style="color:#d97706;"></i> Dados da manutenção</div>'
       +         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;">'
       +           '<div><label style="' + lbl + '">Veículo *</label><select id="mned-veic" style="' + inp + '">' + veicOpts + '</select></div>'
-      +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +           '<div><label style="' + lbl + '">KM no momento parado / antes</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || m.km_parado_momento || '') + '" style="' + inp + '"></div>'
       +         '</div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Defeito / Problema *</label><textarea id="mned-desc" rows="2" placeholder="Descreva o defeito ou problema do veículo..." style="' + inp + 'resize:vertical;">' + esc(m.descricao || '') + '</textarea></div>'
       +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
@@ -4452,13 +4461,13 @@ window._mnEdMontar = function() {
       +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"><input type="hidden" id="mned-df" value="' + esc(window._mnDataInput(m.data_fim)) + '"></div>'
       +           '<div id="mned-dc-box" style="display:block;"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
       +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
-      +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
+      +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina <span style="color:#dc2626;font-weight:700;font-size:0.72rem;">* (obrigatório para Em manutenção)</span></label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" oninput="this.style.borderColor=\'#e2e8f0\'" style="' + inp + '"></div>'
       +           '<div style="grid-column:1/-1;margin-top:2px;">'
       +             '<label style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">O veículo está rodando? *</label>'
       +             '<div id="mned-rodando-box" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
       +               '<label id="mned-rod-lbl-sim" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #22c55e;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600;transition:all .15s;">'
       +                 '<input type="radio" name="mned_veiculo_rodando" value="sim" style="width:16px;height:16px;accent-color:#16a34a;">'
-      +                 '<span>VEÍCULO RODANDO <small style="opacity:0.85;">(agendar)</small></span>'
+      +                 '<span>VEÍCULO RODANDO <small style="opacity:0.85;">(liberado p/ rodar)</small></span>'
       +               '</label>'
       +               '<label id="mned-rod-lbl-nao" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #ef4444;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#fee2e2;color:#b91c1c;font-weight:600;transition:all .15s;">'
       +                 '<input type="radio" name="mned_veiculo_rodando" value="nao" style="width:16px;height:16px;accent-color:#dc2626;">'
@@ -4492,45 +4501,51 @@ window._mnEdMontar = function() {
       +       '</div>'
       +     '</div>'
       +     '<div>'
-      +       '<div style="' + sec + '">'
-      +         '<div style="' + secT + 'margin-bottom:10px;"><i class="ph ph-wrench" style="color:#d97706;"></i> Serviços realizados</div>'
-      +         '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px;">'
-      +           '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:10px;margin-bottom:8px;">'
-      +             '<div><label style="' + lbl + '">Categoria</label><select id="mned-pick-cat" style="' + inp + '">' + catOpts + '</select></div>'
-      +             '<div><label style="' + lbl + '">Buscar serviço (digite o nome)</label><input type="text" id="mned-pick-busca" autocomplete="off" placeholder="Digite para filtrar a lista..." style="' + inp + '"></div>'
-      +           '</div>'
-      +           '<div id="mned-pick-lista" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px;max-height:300px;overflow-y:auto;"></div>'
-      +           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">'
-      +             '<label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#0284c7;cursor:pointer;"><input type="checkbox" id="mned-pick-all" style="width:16px;height:16px;accent-color:#0284c7;"> Selecionar todos (da lista mostrada)</label>'
-      +             '<span id="mned-pick-cont" style="font-size:0.78rem;color:#64748b;"></span>'
-      +             '<button type="button" id="mned-pick-novo" style="display:none;' + btnSec + 'color:#d97706;border-color:#fcd34d;"><i class="ph ph-plus"></i> <span></span></button>'
-      +           '</div>'
-      +         '</div>'
-      +         '<div id="mned-serv"></div>'
-      +       '</div>'
-      +       '<div style="border:1.5px dashed #cbd5e1;border-radius:10px;padding:0.9rem;background:#fff;margin-bottom:16px;">'
-      +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
-      +           '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças, Recibo ou Ordem de Serviço (PDF ou Imagem)</div>'
-      +           '<button type="button" onclick="window._mnEdIniciarManual()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar peça / serviço manual</button>'
-      +         '</div>'
-      +         '<div style="font-size:0.76rem;color:#64748b;margin-bottom:8px;">Ao selecionar o PDF ou foto (JPG/PNG), o sistema identifica automaticamente se é peça ou mão de obra (ou Ordem de Serviço), lê os itens e valores para você conferir e vincular aos serviços realizados. Se não tiver o documento agora, use <b>+ Adicionar peça / serviço manual</b>.</div>'
-      +         '<div><label style="font-size:0.72rem;font-weight:700;color:#475569;display:inline-flex;align-items:center;gap:6px;background:#0284c7;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;"><i class="ph ph-upload-simple"></i> Anexar documento (PDF / Foto)<input type="file" id="mned-anx-file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="window._mnEdAoEscolherPdf(this)" style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
-      +         '<div id="mned-stage" style="margin-top:0.65rem;"></div>'
-      +         '<div id="mned-notas" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:6px;"></div>'
-      +         '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div></div>'
-      +       '</div>'
-      +       '<div id="mned-total" style="margin-bottom:16px;"></div>'
       +       '<div id="mned-sec-video" style="' + sec + '">'
       +         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
-      +           '<div style="' + secT + '"><i class="ph ph-video-camera" style="color:#7c3aed;"></i> Vídeo geral do veículo <span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;text-transform:none;">Obrigatório para concluir</span></div>'
+      +           '<div style="' + secT + '"><i class="ph ph-video-camera" style="color:#7c3aed;"></i> Vídeo geral do veículo <span id="mned-vid-badge" style="background:#fff7ed;color:#ea580c;border:1px solid #fdba74;padding:2px 8px;border-radius:999px;font-size:0.68rem;font-weight:800;text-transform:none;">Pode anexar depois (Finalização Pendente)</span></div>'
       +           '<label id="mned-lbl-video" style="display:inline-flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">'
       +             '<i class="ph ph-upload-simple"></i> Anexar vídeo geral do veículo'
       +             '<input type="file" id="mned-inp-video" accept="video/*" style="display:none;" onchange="window._mnEdAnexarVideoGeral(this)">'
       +           '</label>'
       +         '</div>'
-      +         '<div style="font-size:0.78rem;color:#64748b;margin-bottom:8px;">Anexe um vídeo geral do veículo para poder mudar a situação da manutenção para <b>Concluído</b>.</div>'
+      +         '<div style="font-size:0.78rem;color:#64748b;margin-bottom:8px;">Ao mudar para <b>Concluído</b>, o veículo é liberado para rodar automaticamente. Se o vídeo ainda não tiver sido anexado, a manutenção ficará como <b>Finalização Pendente</b> até que o vídeo seja anexado.</div>'
       +         '<div id="mned-video-lista"></div>'
       +       '</div>'
+      +       '<div style="background:#cbd5e1;border:2px solid #94a3b8;border-radius:12px;padding:12px 14px;margin-bottom:16px;">'
+      +         '<div style="background:#475569;color:#fff;border-radius:8px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:0.8rem;font-weight:700;">'
+      +           '<i class="ph ph-lock-key" style="font-size:1.25rem;flex-shrink:0;color:#f8fafc;"></i>'
+      +           '<div>Não preencher na Logística — Estes campos (<b>Serviços realizados</b> e <b>Anexo de Notas / OS / Peças / Mão de Obra</b>) são preenchidos exclusivamente pelo setor de <b>Compras</b>.</div>'
+      +         '</div>'
+      +         '<div style="border:1px solid #94a3b8;border-radius:10px;padding:14px;margin-bottom:12px;background:#e2e8f0;opacity:0.78;">'
+      +           '<div style="' + secT + 'margin-bottom:10px;color:#475569;"><i class="ph ph-wrench" style="color:#64748b;"></i> Serviços realizados <span style="font-size:0.7rem;background:#cbd5e1;color:#334155;padding:2px 8px;border-radius:999px;font-weight:700;text-transform:none;">Preenchido pelo Compras</span></div>'
+      +           '<div style="background:#cbd5e188;border:1px solid #94a3b8;border-radius:10px;padding:12px;margin-bottom:12px;pointer-events:none;user-select:none;filter:grayscale(0.8);opacity:0.65;">'
+      +             '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:10px;margin-bottom:8px;">'
+      +               '<div><label style="' + lbl + '">Categoria</label><select id="mned-pick-cat" disabled style="' + inp + 'background:#e2e8f0;cursor:not-allowed;">' + catOpts + '</select></div>'
+      +               '<div><label style="' + lbl + '">Buscar serviço (digite o nome)</label><input type="text" id="mned-pick-busca" disabled autocomplete="off" placeholder="Bloqueado — uso exclusivo do Compras" style="' + inp + 'background:#e2e8f0;cursor:not-allowed;"></div>'
+      +             '</div>'
+      +             '<div id="mned-pick-lista" style="background:#e2e8f0;border:1px solid #94a3b8;border-radius:8px;padding:8px;max-height:140px;overflow-y:auto;"></div>'
+      +             '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">'
+      +               '<label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#64748b;"><input type="checkbox" id="mned-pick-all" disabled style="width:16px;height:16px;"> Selecionar todos (da lista mostrada)</label>'
+      +               '<span id="mned-pick-cont" style="font-size:0.78rem;color:#64748b;"></span>'
+      +               '<button type="button" id="mned-pick-novo" disabled style="display:none;' + btnSec + '"><i class="ph ph-plus"></i> <span></span></button>'
+      +             '</div>'
+      +           '</div>'
+      +           '<div id="mned-serv"></div>'
+      +         '</div>'
+      +         '<div style="border:1.5px dashed #94a3b8;border-radius:10px;padding:0.9rem;background:#e2e8f0;opacity:0.78;">'
+      +           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
+      +             '<div style="font-size:0.78rem;font-weight:800;color:#475569;text-transform:uppercase;"><i class="ph ph-file-pdf" style="color:#64748b;"></i> Anexar Nota Fiscal de Serviço, Nota de Peças, Recibo ou Ordem de Serviço (PDF ou Imagem)</div>'
+      +             '<button type="button" disabled style="background:#cbd5e1;color:#64748b;border:1px solid #94a3b8;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:700;cursor:not-allowed;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-lock-key"></i> Adicionar peça / serviço manual</button>'
+      +           '</div>'
+      +           '<div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">Alimentação de notas fiscais, OS, peças e mão de obra bloqueada nesta tela — realizada exclusivamente pelo setor de <b>Compras</b>.</div>'
+      +           '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:inline-flex;align-items:center;gap:6px;background:#cbd5e1;border:1px solid #94a3b8;padding:7px 14px;border-radius:8px;cursor:not-allowed;"><i class="ph ph-lock-key"></i> Anexar documento (Bloqueado — Compras)<input type="file" id="mned-anx-file" disabled style="display:none;"></label><input type="hidden" id="mned-anx-tipo" value="nota_servico"></div>'
+      +           '<div id="mned-stage" style="margin-top:0.65rem;"></div>'
+      +           '<div id="mned-notas" style="margin-top:0.65rem;display:flex;flex-direction:column;gap:6px;"></div>'
+      +           '<div style="display:none;"><button type="button" id="mned-mo-add"></button><div id="mned-mo"></div></div>'
+      +         '</div>'
+      +       '</div>'
+      +       '<div id="mned-total" style="margin-bottom:16px;"></div>'
       +     '</div>'
       +   '</div>'
       + '</div>'
@@ -4556,10 +4571,17 @@ window._mnEdMontar = function() {
     document.getElementById('mned-veic').onchange = function() {
         var kmEl = document.getElementById('mned-km');
         var v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(this.value); }.bind(this));
-        if (window._mnEd.novo && v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
+        if (v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
         if (typeof window._mnEdRenderAlertaRevisao === 'function') window._mnEdRenderAlertaRevisao();
         if (typeof window._mnEdRenderAlertaAbertas === 'function') window._mnEdRenderAlertaAbertas(false);
     };
+    (function() {
+        var kmElInit = document.getElementById('mned-km');
+        if (kmElInit && !kmElInit.value && m.veiculo_id) {
+            var vInit = (window._manutFrota || []).find(function(x) { return String(x.id) === String(m.veiculo_id); });
+            if (vInit && vInit.km_atual) kmElInit.value = vInit.km_atual;
+        }
+    })();
     var syncDatasRodando = function() {
         var ed = window._mnEd;
         if (!ed || !ed.m) return;
@@ -4593,13 +4615,19 @@ window._mnEdMontar = function() {
     document.querySelectorAll('input[name="mned_veiculo_rodando"]').forEach(function(r) {
         r.onchange = function() {
             if (window._mnEd.status === 'em_andamento' && this.value === 'sim') {
-                alert('Enquanto o status estiver "Em manutenção", o veículo permanece como "VEÍCULO PARADO".');
-                window._mnEdRenderRodando();
-                return;
+                // Libera o veiculo de forma pratica mudando para Concluido (Finalizacao Pendente se faltar video)
+                window._mnEd.status = 'concluida';
+                var dcEl = document.getElementById('mned-dc');
+                if (dcEl && !dcEl.value) { dcEl.value = window._mnHojeISO(); window._mnEd.m.data_conclusao = dcEl.value; }
+                window._mnEdRenderStatus();
             }
             window._mnEd.veiculo_rodando = this.value;
-            if (this.value === 'nao' && !window._mnEd.m.parado_desde) {
-                window._mnEd.m.parado_desde = new Date().toISOString();
+            if (this.value === 'nao') {
+                if (!window._mnEd.m.parado_desde) window._mnEd.m.parado_desde = new Date().toISOString();
+                var kmEl = document.getElementById('mned-km');
+                var veicIdSel = document.getElementById('mned-veic') ? document.getElementById('mned-veic').value : '';
+                var vObj = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veicIdSel); });
+                if (kmEl && !kmEl.value && vObj && vObj.km_atual) kmEl.value = vObj.km_atual;
             }
             window._mnEdRenderRodando();
             window._mnEdAtualizarCronModal();
@@ -4952,13 +4980,16 @@ window._mnMostrarModalListaOutrasAbertas = function(placa, outras) {
 window._mnEdRenderStatus = function() {
     var ed = window._mnEd, box = document.getElementById('mned-status');
     if (!box) return;
+    var temVideoAt = ((ed && ed.midias) || []).some(function(m) { return m.categoria === 'video_geral'; });
     var lista = window._MN_STATUS.slice();
     if (ed.m.status === 'cancelada' || ed.status === 'cancelada') lista.push({ v: 'cancelada', l: 'Cancelada', c: '#94a3b8' });
     box.innerHTML = lista.map(function(s) {
         var ativo = ed.status === s.v;
-        var css = 'padding:8px 18px;border-radius:999px;font-size:0.84rem;font-weight:700;cursor:pointer;transition:all .15s;border:2px solid ' + s.c + ';'
-            + (ativo ? 'background:' + s.c + ';color:#fff;box-shadow:0 2px 8px ' + s.c + '66;' : 'background:' + s.c + '18;color:' + s.c + ';');
-        return '<button type="button" data-s="' + s.v + '" style="' + css + '">' + (ativo ? '<i class="ph ph-check"></i> ' : '') + s.l + '</button>';
+        var corBtn = (s.v === 'concluida' && ativo && !temVideoAt) ? '#ea580c' : s.c;
+        var lblBtn = (s.v === 'concluida' && ativo && !temVideoAt) ? '⏳ Finalização Pendente' : s.l;
+        var css = 'padding:8px 18px;border-radius:999px;font-size:0.84rem;font-weight:700;cursor:pointer;transition:all .15s;border:2px solid ' + corBtn + ';'
+            + (ativo ? 'background:' + corBtn + ';color:#fff;box-shadow:0 2px 8px ' + corBtn + '66;' : 'background:' + s.c + '18;color:' + s.c + ';');
+        return '<button type="button" data-s="' + s.v + '" style="' + css + '">' + (ativo ? '<i class="ph ph-check"></i> ' : '') + lblBtn + '</button>';
     }).join('');
     var ehConcl = ed.status === 'concluida';
     var dcBox = document.getElementById('mned-dc-box'), kfBox = document.getElementById('mned-km-final-box');
@@ -4968,19 +4999,17 @@ window._mnEdRenderStatus = function() {
         b.onclick = function() {
             var novo = b.getAttribute('data-s');
             if (novo === window._mnEd.status) return;
-            if (novo === 'concluida') {
-                var temVideo = ((window._mnEd && window._mnEd.midias) || []).some(function(m) { return m.categoria === 'video_geral'; });
-                if (!temVideo) {
-                    var secVid = document.getElementById('mned-sec-video');
-                    if (secVid) {
-                        secVid.style.borderColor = '#dc2626';
-                        secVid.style.background = '#fef2f2';
-                        if (secVid.scrollIntoView) secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (novo === 'em_andamento') {
+                var fornEl = document.getElementById('mned-forn');
+                var fornVal = fornEl ? fornEl.value.trim() : '';
+                if (!fornVal) {
+                    if (fornEl) {
+                        fornEl.style.borderColor = '#dc2626';
+                        fornEl.focus();
                     }
-                    alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
+                    alert('Para mudar a situação para "Em manutenção", é obrigatório preencher o campo Fornecedor / Oficina.');
                     return;
                 }
-                if (!window._mnEdValidarServicosConclusao()) return;
             }
             var statusAnterior = window._mnEd.status;
             window._mnEdPedirJustificativaStatus(statusAnterior, novo, async function(justTxt) {
@@ -4994,7 +5023,11 @@ window._mnEdRenderStatus = function() {
                     window._mnEd.veiculo_rodando = 'nao';
                     window._mnEd.m.veiculo_rodando = 'nao';
                     if (!window._mnEd.m.parado_desde) window._mnEd.m.parado_desde = new Date().toISOString();
-                } else if (novo === 'concluida' && window._mnEd.veiculo_rodando === 'nao') {
+                    var kmEl = document.getElementById('mned-km');
+                    var veicIdSel = document.getElementById('mned-veic') ? document.getElementById('mned-veic').value : '';
+                    var vObj = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veicIdSel); });
+                    if (kmEl && !kmEl.value && vObj && vObj.km_atual) kmEl.value = vObj.km_atual;
+                } else if (novo === 'concluida') {
                     window._mnEd.veiculo_rodando = 'sim';
                     window._mnEd.m.veiculo_rodando = 'sim';
                 }
@@ -5002,10 +5035,13 @@ window._mnEdRenderStatus = function() {
                 window._mnEdRenderRodando();
                 window._mnEdAtualizarCronModal();
                 window._mnEdRenderServ();
+                if (typeof window._mnEdRenderVideoGeral === 'function') window._mnEdRenderVideoGeral();
                 if (window._mnEd.id) {
                     try {
                         if (novo === 'concluida') await window._mnEdSalvarDetalhe();
                         var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };
+                        var fornAt = document.getElementById('mned-forn') ? document.getElementById('mned-forn').value.trim() : undefined;
+                        var kmAt = document.getElementById('mned-km') ? (document.getElementById('mned-km').value || undefined) : undefined;
                         var rs = await fetch('/api/frota/manutencoes/' + window._mnEd.id + '/status', {
                             method: 'PUT',
                             headers: hdr,
@@ -5013,6 +5049,8 @@ window._mnEdRenderStatus = function() {
                                 status: novo,
                                 veiculo_rodando: window._mnEd.veiculo_rodando,
                                 justificativa_status: justTxt,
+                                fornecedor: fornAt,
+                                km_na_manutencao: kmAt,
                                 data_inicio: di ? (di.value || null) : null,
                                 data_fim: document.getElementById('mned-df') ? (document.getElementById('mned-df').value || null) : null,
                                 data_conclusao: dc ? (dc.value || null) : undefined
@@ -5541,8 +5579,11 @@ window._mnEdRenderServ = function() {
     var ed = window._mnEd, box = document.getElementById('mned-serv'), esc = window._mnEdEsc;
     if (!box) return;
     window._mnGarantirDatalist();
+    var somenteLeitura = !(ed && ed.modoCompras);
     if (!ed.realizados.length) {
-        box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado ainda. Marque os serviços na lista acima e eles serão adicionados automaticamente.</div>';
+        box.innerHTML = '<div style="padding:14px;text-align:center;color:#64748b;font-size:0.82rem;">'
+            + (somenteLeitura ? 'Nenhum serviço realizado preenchido pelo Compras ainda.' : 'Nenhum serviço realizado ainda. Marque os serviços na lista acima e eles serão adicionados automaticamente.')
+            + '</div>';
         window._mnEdRenderTotais();
         return;
     }
@@ -5555,38 +5596,40 @@ window._mnEdRenderServ = function() {
             if (cObj) catRef = cObj.categoria_nome || cObj.item_ref || '';
         }
         var subMeta = catRef && window._mnCatMeta ? window._mnCatMeta(catRef) : null;
-        return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
+        return '<div style="border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
           + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
           +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>'
           +   (subMeta ? '<div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-top:2px;"><i class="ph ' + esc(subMeta.icone) + '" style="color:#d97706;font-size:0.92rem;"></i><span>' + esc(subMeta.nome) + '</span></div>' : '')
           +   '</div>'
           +   '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px;justify-content:flex-end;">'
-          +     '<input type="text" data-i="' + i + '" data-f="observacao" value="' + esc(s.observacao || '') + '" placeholder="Observação do serviço..." style="' + ipt + 'flex:1;max-width:340px;background:#fff;">'
-          +     '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
+          +     '<input type="text" ' + (somenteLeitura ? 'readonly disabled ' : '') + 'data-i="' + i + '" data-f="observacao" value="' + esc(s.observacao || '') + '" placeholder="' + (somenteLeitura ? 'Sem observação' : 'Observação do serviço...') + '" style="' + ipt + 'flex:1;max-width:340px;background:' + (somenteLeitura ? '#e2e8f0' : '#fff') + ';">'
+          +     (somenteLeitura ? '' : '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>')
           +   '</div>'
           + '</div>'
           + '</div>';
     }).join('');
     box.innerHTML = html;
 
-    box.querySelectorAll('[data-f]').forEach(function(el) {
-        var i = parseInt(el.getAttribute('data-i')), f = el.getAttribute('data-f');
-        el.oninput = function() { window._mnEd.realizados[i][f] = el.value; };
-        el.onchange = function() { window._mnEd.realizados[i][f] = el.value; };
-    });
-    box.querySelectorAll('[data-rm]').forEach(function(b) {
-        b.onclick = function() {
-            var i = parseInt(b.getAttribute('data-rm'));
-            var rem = window._mnEd.realizados[i];
-            var remKey = rem ? (rem.id || rem._tmpId) : null;
-            if (remKey) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(remKey)) p.servico_id = null; });
-            if (rem && rem.id) (window._mnEd.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
-            window._mnEd.realizados.splice(i, 1);
-            if (typeof window._mnEdPodarVinculos === 'function') window._mnEdPodarVinculos();
-            window._mnEdRenderServ();
-            window._mnEdPickRender();
-        };
-    });
+    if (!somenteLeitura) {
+        box.querySelectorAll('[data-f]').forEach(function(el) {
+            var i = parseInt(el.getAttribute('data-i')), f = el.getAttribute('data-f');
+            el.oninput = function() { window._mnEd.realizados[i][f] = el.value; };
+            el.onchange = function() { window._mnEd.realizados[i][f] = el.value; };
+        });
+        box.querySelectorAll('[data-rm]').forEach(function(b) {
+            b.onclick = function() {
+                var i = parseInt(b.getAttribute('data-rm'));
+                var rem = window._mnEd.realizados[i];
+                var remKey = rem ? (rem.id || rem._tmpId) : null;
+                if (remKey) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(remKey)) p.servico_id = null; });
+                if (rem && rem.id) (window._mnEd.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
+                window._mnEd.realizados.splice(i, 1);
+                if (typeof window._mnEdPodarVinculos === 'function') window._mnEdPodarVinculos();
+                window._mnEdRenderServ();
+                window._mnEdPickRender();
+            };
+        });
+    }
     window._mnEdRenderTotais();
     if (document.getElementById('mned-mo')) window._mnEdRenderMo();
 };
@@ -5720,7 +5763,7 @@ window._mnEdRenderNotas = function() {
           +   '</div>'
           +   '<div style="display:flex;align-items:center;gap:6px;">'
           +     '<button type="button" onclick="window._mnEdVerNota(' + a.id + ')" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;font-weight:700;cursor:pointer;">Abrir PDF</button>'
-          +     '<button type="button" onclick="window._mnEdExcluirNota(' + a.id + ')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>'
+          +     (ed.modoCompras ? '<button type="button" onclick="window._mnEdExcluirNota(' + a.id + ')" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>' : '')
           +   '</div>'
           + '</div>'
           + linhasHtml
@@ -5735,7 +5778,7 @@ window._mnEdRenderNotas = function() {
         manItens.push('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;border-top:1px dashed #e2e8f0;">'
           + '<span style="color:#475569;"><b>Peça:</b> ' + E(p.descricao) + (p.fornecedor ? ' <span style="color:#0369a1;font-weight:600;">(' + E(p.fornecedor) + ')</span>' : '') + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span>'
           + '<span style="display:flex;align-items:center;gap:8px;"><b>' + fmt(p.valor_total) + '</b>'
-          + '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("peca",' + idsJson + ')\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button></span>'
+          + (ed.modoCompras ? '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("peca",' + idsJson + ')\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button>' : '') + '</span>'
           + '</div>');
     });
     moSemNota.forEach(function(l) {
@@ -5745,7 +5788,7 @@ window._mnEdRenderNotas = function() {
         manItens.push('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;border-top:1px dashed #e2e8f0;">'
           + '<span style="color:#475569;"><b>Serviço:</b> ' + E(l.descricao) + (l.fornecedor ? ' <span style="color:#0369a1;font-weight:600;">(' + E(l.fornecedor) + ')</span>' : '') + (gt ? ' <span style="color:#0369a1;font-weight:700;">• ' + gt + '</span>' : '') + ' <span style="color:#94a3b8;">→ ' + sv + '</span></span>'
           + '<span style="display:flex;align-items:center;gap:8px;"><b>' + fmt(l.valor) + '</b>'
-          + '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("mao_obra",[' + l.id + '])\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button></span>'
+          + (ed.modoCompras ? '<button type="button" onclick=\'window._mnEdExcluirLancamentoManual("mao_obra",[' + l.id + '])\' style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:700;cursor:pointer;">Excluir</button>' : '') + '</span>'
           + '</div>');
     });
     var man = manItens.length ? '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;">'
@@ -6781,7 +6824,9 @@ window._mnEdRenderTotais = function() {
     var legado = (!ed.realizados.length && !(ed.pecas || []).length && !(ed.mo || []).length && Number(ed.m.custo) > 0);
     var total = legado ? Number(ed.m.custo) : (mo + pc);
     box.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem;">'
-        + '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;margin-bottom:8px;">Valores da Manutenção (somente visualização — vêm das notas anexadas e das linhas manuais)</div>'
+        + '<div style="font-size:0.78rem;font-weight:800;color:#1e293b;text-transform:uppercase;margin-bottom:8px;">'
+        + (ed && ed.modoCompras ? 'Valores da Manutenção (somente visualização — vêm das notas anexadas e das linhas manuais)' : 'Valores da Manutenção (somente visualização — preenchidos pela tela de Corretivas de Compras)')
+        + '</div>'
         + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">'
         +   '<div style="background:#dbeafe;border:1.5px solid #60a5fa;border-radius:10px;padding:10px 12px;"><label style="font-size:0.72rem;font-weight:800;color:#1e40af;display:block;margin-bottom:4px;">Valor de Peças (R$)</label><input type="number" step="0.01" readonly tabindex="-1" value="' + Number(pc || 0).toFixed(2) + '" style="width:100%;padding:0.45rem;border:1px solid #93c5fd;border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:#eff6ff;font-weight:800;color:#1d4ed8;cursor:default;"></div>'
         +   '<div style="background:#e0f2fe;border:1.5px solid #38bdf8;border-radius:10px;padding:10px 12px;"><label style="font-size:0.72rem;font-weight:800;color:#075985;display:block;margin-bottom:4px;">Valor Mão de Obra / Serviço (R$)</label><input type="number" step="0.01" readonly tabindex="-1" value="' + Number(mo || 0).toFixed(2) + '" style="width:100%;padding:0.45rem;border:1px solid #7dd3fc;border-radius:8px;font-size:0.95rem;box-sizing:border-box;background:#f0f9ff;font-weight:800;color:#0369a1;cursor:default;"></div>'
@@ -6870,18 +6915,19 @@ window._mnEdTok = function() {
 window._mnEdSalvarDetalhe = async function() {
     await window._mnEdGarantirId();
     var ed = window._mnEd, N = window._mnNum;
+    var payloadDet = { solicitados: ed.solicitados };
+    if (ed && ed.modoCompras) {
+        payloadDet.realizados = ed.realizados.map(function(s) {
+            return { id: s.id, tmp_id: s._tmpId || null, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), mao_obra_informado: (s.mao_obra_informado || N(s.mao_obra) > 0) ? 1 : 0, garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
+        });
+        payloadDet.pecas = ed.pecas.map(function(p) {
+            return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
+        });
+    }
     var r = await fetch('/api/frota/manutencoes/' + ed.id + '/detalhe', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-        body: JSON.stringify({
-            solicitados: ed.solicitados,
-            realizados: ed.realizados.map(function(s) {
-                return { id: s.id, tmp_id: s._tmpId || null, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), mao_obra_informado: (s.mao_obra_informado || N(s.mao_obra) > 0) ? 1 : 0, garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
-            }),
-            pecas: ed.pecas.map(function(p) {
-                return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
-            })
-        })
+        body: JSON.stringify(payloadDet)
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar os serviços'); }
     var j = await r.json();
@@ -6917,9 +6963,24 @@ window._mnEdRenderVideoGeral = function() {
     var ed = window._mnEd || {};
     var esc = window._mnEdEsc;
     var videos = (ed.midias || []).filter(function(m) { return m.categoria === 'video_geral'; });
+    var vidBadge = document.getElementById('mned-vid-badge');
     if (!videos.length) {
-        el.innerHTML = '<div style="font-size:0.78rem;color:#dc2626;font-weight:700;padding:4px 0;"><i class="ph ph-warning-circle"></i> Nenhum vídeo geral anexado ainda (obrigatório para mudar a situação para Concluído).</div>';
+        if (vidBadge) {
+            vidBadge.style.background = '#fff7ed';
+            vidBadge.style.color = '#ea580c';
+            vidBadge.style.borderColor = '#fdba74';
+            vidBadge.textContent = ed.status === 'concluida' ? '⏳ Finalização Pendente (Falta Vídeo)' : 'Pode anexar depois (Finalização Pendente)';
+        }
+        el.innerHTML = ed.status === 'concluida'
+            ? '<div style="font-size:0.78rem;color:#ea580c;font-weight:700;padding:6px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;"><i class="ph ph-clock-countdown"></i> <b>Finalização Pendente:</b> O veículo já está liberado para rodar. Anexe o vídeo geral quando disponível para finalizar completamente esta manutenção.</div>'
+            : '<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:4px 0;"><i class="ph ph-info"></i> Nenhum vídeo anexado ainda. Você pode liberar o veículo salvando como Concluído e anexar o vídeo posteriormente (ficará como Finalização Pendente).</div>';
         return;
+    }
+    if (vidBadge) {
+        vidBadge.style.background = '#ecfdf5';
+        vidBadge.style.color = '#15803d';
+        vidBadge.style.borderColor = '#86efac';
+        vidBadge.textContent = '✓ Vídeo Anexado';
     }
     var secVid = document.getElementById('mned-sec-video');
     if (secVid) { secVid.style.borderColor = '#e2e8f0'; secVid.style.background = '#fff'; }
@@ -6961,7 +7022,9 @@ window._mnEdAnexarVideoGeral = async function(inp) {
         var j = await r.json().catch(function() { return {}; });
         if (!r.ok) throw new Error(j.error || 'Erro ao enviar vídeo para o R2');
         await window._mnEdRecarregarDetalhe();
+        window._mnEdRenderStatus();
         window._mnEdRenderHist();
+        if (typeof window.mnCarregarCorretivas === 'function') window.mnCarregarCorretivas();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Vídeo geral do veículo anexado com sucesso!');
     } catch (e) {
         alert('Erro ao anexar vídeo: ' + e.message);
@@ -6982,7 +7045,9 @@ window._mnEdExcluirMidia = async function(midiaId) {
         var j = await r.json().catch(function() { return {}; });
         if (!r.ok) throw new Error(j.error || 'Erro ao excluir vídeo');
         await window._mnEdRecarregarDetalhe();
+        window._mnEdRenderStatus();
         window._mnEdRenderHist();
+        if (typeof window.mnCarregarCorretivas === 'function') window.mnCarregarCorretivas();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Vídeo removido!');
     } catch (e) {
         alert('Erro ao excluir: ' + e.message);
@@ -7574,22 +7639,26 @@ window.mnCorrSalvarEdicaoInterno = async function() {
     var desc = document.getElementById('mned-desc').value.trim();
     if (!veic) { mostrarMsg('Selecione o veículo.', false); alert('Selecione o veículo.'); return; }
     if (!desc) { mostrarMsg('Informe o defeito / problema.', false); alert('Informe o defeito / problema.'); return; }
-    if (ed.status === 'em_andamento') ed.veiculo_rodando = 'nao';
-    else if (ed.status === 'concluida' && ed.veiculo_rodando === 'nao') ed.veiculo_rodando = 'sim';
-    if (ed.status === 'concluida') {
-        var temVideoConcl = (ed.midias || []).some(function(m) { return m.categoria === 'video_geral'; });
-        if (!temVideoConcl) {
-            var secVid = document.getElementById('mned-sec-video');
-            if (secVid) {
-                secVid.style.borderColor = '#dc2626';
-                secVid.style.background = '#fef2f2';
-                if (secVid.scrollIntoView) secVid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (ed.status === 'em_andamento') {
+        var fornVal = document.getElementById('mned-forn') ? document.getElementById('mned-forn').value.trim() : '';
+        if (!fornVal) {
+            var fornInput = document.getElementById('mned-forn');
+            if (fornInput) {
+                fornInput.style.borderColor = '#dc2626';
+                fornInput.style.background = '#fef2f2';
+                fornInput.focus();
             }
-            mostrarMsg('Anexe o vídeo geral do veículo para concluir.', false);
-            alert('Para mudar a situação da manutenção corretiva para Concluído, é obrigatório anexar o vídeo geral do veículo.');
+            mostrarMsg('Informe o Fornecedor / Oficina para mudar para Em manutenção.', false);
+            alert('Para mudar a situação para Em manutenção, é obrigatório preencher o campo Fornecedor / Oficina.');
             return;
         }
-        if (!window._mnEdValidarServicosConclusao()) { mostrarMsg('Informe a garantia de toda mão de obra e peça (pode ser 0).', false); return; }
+        ed.veiculo_rodando = 'nao';
+    } else if (ed.status === 'concluida') {
+        ed.veiculo_rodando = 'sim';
+        if (ed.modoCompras && !window._mnEdValidarServicosConclusao()) {
+            mostrarMsg('Informe a garantia de toda mão de obra e peça (pode ser 0).', false);
+            return;
+        }
     }
     if (ed.veiculo_rodando !== 'sim' && ed.veiculo_rodando !== 'nao') {
         mostrarMsg('Informe se o veículo está rodando ou parado.', false);

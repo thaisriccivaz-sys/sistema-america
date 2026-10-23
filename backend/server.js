@@ -7177,11 +7177,12 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                         const usuarioMan = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
                         if (!sinistro.manutencao_id) {
                             const calc = _fmCalcularEstadoDatas({ status: 'agendada', veiculo_rodando_req: manRodando, data_inicio: manDtIni, data_fim: manDtFim, prev: null });
+                            const kmSinistro = await _fmObterKmNoMomentoParado(manVeiculoId, calc.pDesde || calc.dtIni);
                             const manId = await new Promise((resolve, reject) => {
                                 db.run(`INSERT INTO frota_manutencoes
-                                    (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, usuario_nome, sinistro_id, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
-                                    VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                                    [manVeiculoId, descMan, calc.dtIni, calc.dtIni, calc.dtFim, calc.pararNoInicio, calc.autoParouInicio, calc.autoLiberouFim, usuarioMan, sinistroId, calc.rodandoNovo, calc.pDesde, calc.pAcum],
+                                    (veiculo_id, tipo, descricao, status, km_na_manutencao, data_agendamento, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, usuario_nome, sinistro_id, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
+                                    VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                                    [manVeiculoId, descMan, kmSinistro, calc.dtIni, calc.dtIni, calc.dtFim, calc.pararNoInicio, calc.autoParouInicio, calc.autoLiberouFim, usuarioMan, sinistroId, calc.rodandoNovo, calc.pDesde, calc.pAcum],
                                     function (err) { err ? reject(err) : resolve(this.lastID); });
                             });
                             await _fmHist(manId, 'evento', 'Manutenção registrada via Sinistro #' + sinistroId + ' (' + (calc.rodandoNovo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', usuarioMan);
@@ -24537,6 +24538,20 @@ async function _fmProcessarTransicoesAutomaticas() {
     }
 }
 
+async function _fmObterKmNoMomentoParado(veiculoId, dataRef) {
+    try {
+        if (!veiculoId) return null;
+        const dtStr = String(dataRef || _fmHojeBR()).trim().slice(0, 10);
+        if (dtStr) {
+            const h = await _fmGet('SELECT km FROM frota_km_historico WHERE veiculo_id = ? AND data <= ? ORDER BY data DESC, id DESC LIMIT 1', [veiculoId, dtStr]);
+            if (h && Number(h.km) > 0) return Number(h.km);
+        }
+        const v = await _fmGet('SELECT km_atual FROM frota_veiculos WHERE id = ?', [veiculoId]);
+        if (v && Number(v.km_atual) > 0) return Number(v.km_atual);
+    } catch (_) {}
+    return null;
+}
+
 // POST - agendar manutenção diretamente do card do veiculo (popup)
 app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, res) => {
     const { veiculo_id, tipo, data_inicio, data_fim, descricao_corretiva, servicos_preventivos, veiculo_rodando, itens_solicitados, observacoes } = req.body;
@@ -24556,14 +24571,15 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
                 data_fim: data_fim || null,
                 prev: null
             });
+            const kmCard = await _fmObterKmNoMomentoParado(veiculo_id, calc.pDesde || calc.dtIni);
 
             // Registra 1 manutenção corretiva sempre com status 'agendada' (Novo)
             newManutId = await new Promise((resolve, reject) => {
                 db.run(
                     `INSERT INTO frota_manutencoes
-                     (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, observacoes, usuario_nome, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
-                     VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                    [veiculo_id, descFinal, calc.dtIni, calc.dtIni, calc.dtFim, calc.pararNoInicio, calc.autoParouInicio, calc.autoLiberouFim, observacoes || null, usuarioNome, calc.rodandoNovo, calc.pDesde, calc.pAcum],
+                     (veiculo_id, tipo, descricao, status, km_na_manutencao, data_agendamento, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, observacoes, usuario_nome, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
+                     VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                    [veiculo_id, descFinal, kmCard, calc.dtIni, calc.dtIni, calc.dtFim, calc.pararNoInicio, calc.autoParouInicio, calc.autoLiberouFim, observacoes || null, usuarioNome, calc.rodandoNovo, calc.pDesde, calc.pAcum],
                     function(err) { err ? reject(err) : resolve(this.lastID); }
                 );
             });
@@ -24651,6 +24667,8 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, async (req, res)
         SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.em_manutencao as veiculo_em_manutencao,
                sin.manutencao_rodando as sinistro_rodando,
                COALESCE(fm.veiculo_rodando, sin.manutencao_rodando, CASE WHEN fm.status='em_andamento' THEN 'nao' ELSE 'sim' END) as veiculo_rodando_efetivo,
+               (SELECT COUNT(1) FROM frota_manutencao_midias fmm WHERE fmm.manutencao_id = fm.id AND fmm.categoria = 'video_geral') as tem_video_geral,
+               COALESCE(fm.km_na_manutencao, (SELECT h.km FROM frota_km_historico h WHERE h.veiculo_id = fm.veiculo_id AND h.data <= substr(COALESCE(fm.parado_desde, fm.data_inicio, fm.created_at), 1, 10) ORDER BY h.data DESC, h.id DESC LIMIT 1), fv.km_atual) as km_parado_momento,
                CASE
                    WHEN fm.status NOT IN ('concluida','cancelada') AND COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio) IS NOT NULL THEN
                        MAX(0, CAST((julianday('now') - julianday(COALESCE(fm.created_at, fm.data_agendamento, fm.data_inicio))) AS INTEGER))
@@ -24688,13 +24706,13 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_fim, data_conclusao, veiculo_rodando, justificativa_status, data_solicitacao } = req.body;
         const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
         if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
-        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, data_conclusao, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id, created_at FROM frota_manutencoes WHERE id = ?', [id]);
+        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio, data_fim, data_conclusao, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum, sinistro_id, created_at, fornecedor, km_na_manutencao FROM frota_manutencoes WHERE id = ?', [id]);
         if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
-        if (status === 'concluida') {
-            const vidRow = await _fmGet("SELECT id FROM frota_manutencao_midias WHERE manutencao_id = ? AND categoria = 'video_geral' LIMIT 1", [id]);
-            if (!vidRow) {
-                return res.status(400).json({ error: 'Para mudar a situação para Concluído, é obrigatório anexar o vídeo geral do veículo.' });
+        if (status === 'em_andamento') {
+            const fornEfetivo = fornecedor !== undefined ? String(fornecedor || '').trim() : String(prev.fornecedor || '').trim();
+            if (!fornEfetivo) {
+                return res.status(400).json({ error: 'Para mudar a situação para Em manutenção, é obrigatório preencher o campo Fornecedor / Oficina.' });
             }
         }
 
@@ -24741,8 +24759,14 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res)
         if (novoVeic) { fields.push('veiculo_id=?'); params.push(novoVeic); }
         if (descricao !== undefined && String(descricao).trim()) { fields.push('descricao=?'); params.push(String(descricao).trim()); }
         if (km_na_manutencao !== undefined) {
-            const kmVal = (km_na_manutencao !== null && km_na_manutencao !== '' && !isNaN(parseInt(km_na_manutencao))) ? parseInt(km_na_manutencao) : null;
+            let kmVal = (km_na_manutencao !== null && km_na_manutencao !== '' && !isNaN(parseInt(km_na_manutencao))) ? parseInt(km_na_manutencao) : null;
+            if (!kmVal && (rodandoNovo === 'nao' || prev.km_na_manutencao)) {
+                kmVal = prev.km_na_manutencao || await _fmObterKmNoMomentoParado(novoVeic || prev.veiculo_id, pDesde || calc.dtIni);
+            }
             fields.push('km_na_manutencao=?'); params.push(kmVal);
+        } else if (!prev.km_na_manutencao && rodandoNovo === 'nao') {
+            const kmAuto = await _fmObterKmNoMomentoParado(novoVeic || prev.veiculo_id, pDesde || calc.dtIni);
+            if (kmAuto) { fields.push('km_na_manutencao=?'); params.push(kmAuto); }
         }
         if (km_final_manutencao !== undefined) {
             const kmFinalVal = (km_final_manutencao !== null && km_final_manutencao !== '' && !isNaN(parseInt(km_final_manutencao))) ? parseInt(km_final_manutencao) : null;
@@ -25065,6 +25089,13 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             await _fmAtualizaEmManutencao(m.veiculo_id);
         } else if (!m.veiculo_rodando) {
             m.veiculo_rodando = m.status === 'em_andamento' ? 'nao' : 'sim';
+        }
+        if (!m.km_na_manutencao && m.veiculo_id) {
+            const kmParadoRef = await _fmObterKmNoMomentoParado(m.veiculo_id, m.parado_desde || m.data_inicio || m.created_at);
+            if (kmParadoRef) {
+                m.km_na_manutencao = kmParadoRef;
+                await _fmRun('UPDATE frota_manutencoes SET km_na_manutencao = ? WHERE id = ?', [kmParadoRef, id]).catch(() => {});
+            }
         }
         let servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
         if (servicos.length === 0 && m.sinistro_id) {
