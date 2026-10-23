@@ -451,7 +451,7 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                         rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCellTam + '</td>';
                         if (primeiraLinhaTam) {
                             rows += '<td' + rowSpanTam + ' style="text-align:right;white-space:nowrap;vertical-align:middle;">' +
-                                '<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Gerenciar Tamanho ' + tam + '" style="font-size:0.75rem;padding:3px 8px;"><i class="ph ph-Sliders"></i> Editar</button>' +
+                                '<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.editarEstoque(window._estoqueCache[' + item.id + '], \'' + tam + '\')" title="Gerenciar Tamanho ' + tam + '" style="font-size:0.75rem;padding:3px 8px;"><i class="ph ph-pencil-simple"></i> Editar</button>' +
                             '</td>';
                         }
                         rows += '</tr>';
@@ -658,12 +658,37 @@ window.toggleTemTamanhoEstoque = function(checked) {
     }
 };
 
+window._modalTamanhosExpandidos = {};
+
+window._toggleTamanhoCardNoModal = function(tamRaw) {
+    const tam = String(tamRaw || '').trim().toUpperCase();
+    window._modalTamanhosExpandidos = window._modalTamanhosExpandidos || {};
+    const willOpen = !window._modalTamanhosExpandidos[tam];
+    window._modalTamanhosExpandidos[tam] = willOpen;
+    const bodyEl = document.getElementById('modal-tam-body-' + tam);
+    if (bodyEl) bodyEl.style.display = willOpen ? 'block' : 'none';
+    const arrowEl = document.getElementById('modal-tam-arrow-' + tam);
+    if (arrowEl) arrowEl.style.transform = willOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+};
+
+window._toggleTodosTamanhosNoModal = function() {
+    const tams = window._tamanhosProdutoAtual || [];
+    window._modalTamanhosExpandidos = window._modalTamanhosExpandidos || {};
+    const algumFechado = tams.some(t => !window._modalTamanhosExpandidos[t]);
+    tams.forEach(t => { window._modalTamanhosExpandidos[t] = algumFechado; });
+    window._renderTamanhosNoModal();
+};
+
 window.incluirTamanhoEstoque = function(tamRaw) {
     const tam = String(tamRaw || '').trim().toUpperCase();
     if (!tam) return;
     window._tamanhosProdutoAtual = window._tamanhosProdutoAtual || [];
+    window._modalTamanhosExpandidos = window._modalTamanhosExpandidos || {};
     if (!window._tamanhosProdutoAtual.includes(tam)) {
         window._tamanhosProdutoAtual.push(tam);
+        window._modalTamanhosExpandidos[tam] = true;
+    } else {
+        window._modalTamanhosExpandidos[tam] = !window._modalTamanhosExpandidos[tam];
     }
     // Se ainda não existe nenhuma linha de endereço para este tamanho, criar uma padrão
     const jaTemLinha = (window._enderecoLinhas || []).some(l => String(l.tamanho || '').trim().toUpperCase() === tam);
@@ -831,65 +856,94 @@ window._renderTamanhosNoModal = function() {
         return;
     }
 
-    listaEl.innerHTML = tamsAtivos.map(tam => {
+    window._modalTamanhosExpandidos = window._modalTamanhosExpandidos || {};
+    const algumFechado = tamsAtivos.some(t => !window._modalTamanhosExpandidos[t]);
+    const barraTopoHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">' +
+        '<span style="font-size:0.78rem;color:#64748b;font-weight:600;"><i class="ph ph-hand-pointing"></i> Clique na seta de cada tamanho para abrir/editar endereço e quantidades:</span>' +
+        '<button type="button" onclick="window._toggleTodosTamanhosNoModal()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">' +
+            '<i class="ph ' + (algumFechado ? 'ph-arrows-out-line-vertical' : 'ph-arrows-in-line-vertical') + '"></i> ' +
+            (algumFechado ? 'Expandir todos os tamanhos' : 'Recolher todos os tamanhos') +
+        '</button>' +
+    '</div>';
+
+    listaEl.innerHTML = barraTopoHtml + tamsAtivos.map(tam => {
+        const isTamOpen = !!window._modalTamanhosExpandidos[tam];
         const linhasDoTam = (window._enderecoLinhas || [])
             .map((linha, idxGlobal) => ({ linha, idxGlobal }))
             .filter(x => String(x.linha.tamanho || '').trim().toUpperCase() === tam);
 
         const totalTam = linhasDoTam.reduce((acc, x) => acc + (parseInt(x.linha.quantidade) || 0), 0);
 
+        // Resumo compacto de endereços para exibir na barra do tamanho
+        const resumoEndsBar = linhasDoTam.map(({ linha }) => {
+            const endObj = (window._estoqueEnderecos || []).find(e => String(e.id) === String(linha.endereco_id));
+            const nomeEnd = endObj ? endObj.nome : 'Sem endereço';
+            const minV = parseInt(linha.quantidade_minima) || 0;
+            const maxV = parseInt(linha.quantidade_maxima) || 0;
+            const qtdV = parseInt(linha.quantidade) || 0;
+            const isLow = minV > 0 && qtdV < minV;
+            const mmTxt = (minV > 0 || maxV > 0) ? ' (min ' + minV + ' | max ' + maxV + ')' : '';
+            return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + (isLow ? '#fef2f2' : '#fff') + ';color:' + (isLow ? '#dc2626' : '#475569') + ';border:1px solid ' + (isLow ? '#fecaca' : '#cbd5e1') + ';border-radius:6px;padding:2px 7px;font-size:0.72rem;font-weight:600;">' +
+                '<i class="ph ph-map-pin" style="color:#1d4ed8;"></i> ' + nomeEnd + ': <b>' + qtdV + '</b>' + mmTxt +
+            '</span>';
+        }).join('');
+
         const enderecosHtml = linhasDoTam.map(({ linha, idxGlobal }) => {
             const opcoesEnd = (window._estoqueEnderecos || []).map(e =>
                 '<option value="' + e.id + '"' + (String(e.id) === String(linha.endereco_id) ? ' selected' : '') + '>' + e.nome + '</option>'
             ).join('');
             const tipoAtual = linha.tipo_estoque || 'matriz';
-            return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-top:6px;">' +
-                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-                    '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:0.95rem;"></i>' +
+            return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;margin-top:8px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                    '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
                     '<select onchange="window._enderecoLinhas[' + idxGlobal + '].endereco_id = parseInt(this.value)" ' +
-                        'style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.84rem;background:#fff;">' +
+                        'style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:0.86rem;background:#fff;">' +
                         '<option value="">-- Selecione o endereço do Tam. ' + tam + ' --</option>' + opcoesEnd +
                     '</select>' +
                     '<select onchange="window._enderecoLinhas[' + idxGlobal + '].tipo_estoque = this.value" ' +
-                        'style="width:190px;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 6px;font-size:0.78rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                        'style="width:190px;border:1.5px solid #ddd6fe;border-radius:6px;padding:6px 8px;font-size:0.8rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
                         '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz (Compra)</option>' +
                         '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição</option>' +
                     '</select>' +
                     '<button type="button" onclick="window._removerLinhaEndereco(' + idxGlobal + ')" ' +
-                        'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover endereço">' +
+                        'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:6px 9px;cursor:pointer;flex-shrink:0;" title="Remover endereço">' +
                         '<i class="ph ph-trash"></i>' +
                     '</button>' +
                 '</div>' +
-                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
                     '<div>' +
-                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#475569;margin-bottom:2px;">Qtd. Atual (Tam. ' + tam + ')</label>' +
+                        '<label style="display:block;font-size:0.72rem;font-weight:600;color:#475569;margin-bottom:3px;">Qtd. Atual (Tam. ' + tam + ')</label>' +
                         '<input type="number" min="0" value="' + (linha.quantidade || 0) + '" placeholder="0" ' +
                             'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade = parseInt(this.value) || 0;" ' +
-                            'style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;box-sizing:border-box;font-weight:700;">' +
+                            'style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;box-sizing:border-box;font-weight:700;">' +
                     '</div>' +
                     '<div>' +
-                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#f59e0b;margin-bottom:2px;">Qtd. Mínima</label>' +
+                        '<label style="display:block;font-size:0.72rem;font-weight:600;color:#f59e0b;margin-bottom:3px;">Qtd. Mínima</label>' +
                         '<input type="number" min="0" value="' + (linha.quantidade_minima || 0) + '" placeholder="0" ' +
                             'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade_minima = parseInt(this.value) || 0;" ' +
-                            'style="width:100%;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#fffbeb;box-sizing:border-box;">' +
+                            'style="width:100%;border:1.5px solid #fde68a;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;background:#fffbeb;box-sizing:border-box;">' +
                     '</div>' +
                     '<div>' +
-                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#10b981;margin-bottom:2px;">Qtd. Máxima</label>' +
+                        '<label style="display:block;font-size:0.72rem;font-weight:600;color:#10b981;margin-bottom:3px;">Qtd. Máxima</label>' +
                         '<input type="number" min="0" value="' + (linha.quantidade_maxima || 0) + '" placeholder="0" ' +
                             'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade_maxima = parseInt(this.value) || 0;" ' +
-                            'style="width:100%;border:1.5px solid #a7f3d0;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#f0fdf4;box-sizing:border-box;">' +
+                            'style="width:100%;border:1.5px solid #a7f3d0;border-radius:6px;padding:6px 8px;font-size:0.9rem;text-align:center;background:#f0fdf4;box-sizing:border-box;">' +
                     '</div>' +
                 '</div>' +
             '</div>';
         }).join('');
 
-        return '<div style="background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:4px solid #1d4ed8;border-radius:10px;padding:10px 12px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
+        return '<div id="modal-tam-card-' + tam + '" style="background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:4px solid #1d4ed8;border-radius:10px;padding:9px 12px;">' +
+            '<div onclick="window._toggleTamanhoCardNoModal(\'' + tam + '\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;user-select:none;">' +
+                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                    '<span title="Clique para abrir/recolher endereço e quantidades do Tamanho ' + tam + '" style="width:24px;height:24px;border-radius:6px;background:#dbeafe;color:#1d4ed8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                        '<i id="modal-tam-arrow-' + tam + '" class="ph ph-caret-right" style="font-size:0.9rem;transition:transform 0.2s;' + (isTamOpen ? 'transform:rotate(90deg);' : '') + '"></i>' +
+                    '</span>' +
                     '<span style="background:#1d4ed8;color:#fff;border-radius:6px;padding:3px 10px;font-size:0.84rem;font-weight:800;">Tamanho ' + tam + '</span>' +
                     '<span style="font-size:0.8rem;color:#334155;font-weight:700;">Saldo: ' + totalTam + ' unid.</span>' +
+                    resumoEndsBar +
                 '</div>' +
-                '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation();">' +
                     '<button type="button" onclick="window._movimentarTamanhoNoModal(\'' + tam + '\', \'entrada\')" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Dar Entrada neste tamanho">' +
                         '<i class="ph-bold ph-plus"></i> Entrada' +
                     '</button>' +
@@ -904,7 +958,9 @@ window._renderTamanhosNoModal = function() {
                     '</button>' +
                 '</div>' +
             '</div>' +
-            enderecosHtml +
+            '<div id="modal-tam-body-' + tam + '" style="display:' + (isTamOpen ? 'block' : 'none') + ';">' +
+                enderecosHtml +
+            '</div>' +
         '</div>';
     }).join('');
 };
@@ -982,6 +1038,10 @@ window._renderLinhasEndereco = function() {
 
 window._adicionarLinhaEndereco = function(tamanhoOpcional) {
     const tam = tamanhoOpcional ? String(tamanhoOpcional).trim().toUpperCase() : '';
+    if (tam) {
+        window._modalTamanhosExpandidos = window._modalTamanhosExpandidos || {};
+        window._modalTamanhosExpandidos[tam] = true;
+    }
     window._enderecoLinhas.push({
         endereco_id: null,
         tamanho: tam,
@@ -1007,6 +1067,7 @@ window.abrirModalEstoque = async function() {
     if (chkTam) chkTam.checked = false;
     window._tamanhosProdutoAtual = [];
     window._enderecoLinhas = [];
+    window._modalTamanhosExpandidos = {};
     window.toggleTemTamanhoEstoque(false);
 
     const fi = document.getElementById("estoque-foto");
@@ -1032,7 +1093,7 @@ window.fecharModalEstoque = function() {
 };
 
 // ── Modal Editar ──────────────────────────────────────────────────────────────
-window.editarEstoque = async function(item) {
+window.editarEstoque = async function(item, tamanhoFoco) {
     if (!item) { console.error("[editarEstoque] item indefinido"); return; }
     await _carregarEnderecos();
     document.getElementById("estoque-id").value   = item.id;
@@ -1063,6 +1124,10 @@ window.editarEstoque = async function(item) {
     window._enderecoLinhas = [];
     window._hiddenEnderecoLinhas = [];
     window._tamanhosProdutoAtual = [];
+    window._modalTamanhosExpandidos = {};
+    if (tamanhoFoco) {
+        window._modalTamanhosExpandidos[String(tamanhoFoco).trim().toUpperCase()] = true;
+    }
     try {
         const savedList = JSON.parse(item.tamanhos_lista || '[]');
         if (Array.isArray(savedList)) {
@@ -1117,6 +1182,12 @@ window.editarEstoque = async function(item) {
 
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
+    if (tamanhoFoco) {
+        setTimeout(() => {
+            const cardEl = document.getElementById('modal-tam-card-' + String(tamanhoFoco).trim().toUpperCase());
+            if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+    }
 };
 
 // ── Salvar ────────────────────────────────────────────────────────────────────
