@@ -179,71 +179,18 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         window._estoqueCache = {};
         data.forEach(item => { window._estoqueCache[item.id] = item; });
 
-        // ── Helpers de Subcategoria e Ordenação por Tamanho ──
-        if (typeof window.obterSubcategoriaEstoque !== 'function') {
-            window.obterSubcategoriaEstoque = function(item) {
-                if (!item) return '';
-                if (item.subcategoria && String(item.subcategoria).trim()) {
-                    return String(item.subcategoria).trim();
-                }
-                const n = String(item.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-                const cat = String(item.categoria || '').trim().toLowerCase();
-                // Botas (EPI / Uniforme)
-                if (n.includes('bota') && n.includes('pvc')) return 'Bota de PVC';
-                if ((n.includes('bota') || n.includes('botina')) && (n.includes('bico') || n.includes('aco') || n.includes('seguranca') || n.includes('couro') || n.includes('composite'))) return 'Bota Bico de Aço';
-                // Uniformes
-                if (cat === 'uniforme' || n.includes('camiseta') || /\bpolo\b/.test(n) || /\bcalca\b/.test(n)) {
-                    if (/\bpolo\b/.test(n)) return 'Polo';
-                    if (n.includes('manga longa')) return 'Camiseta Manga Longa';
-                    if (n.includes('manga curta') || (n.includes('camiseta') && !n.includes('longa'))) return 'Camiseta Manga Curta';
-                    if (/\bcalca\b/.test(n)) return 'Calça';
-                }
-                return '';
-            };
-        }
-
-        if (typeof window._extrairInfoTamanhoEstoque !== 'function') {
-            window._extrairInfoTamanhoEstoque = function(nome) {
-                const raw = String(nome || '').trim();
-                const sizeOrderMap = {
+        if (typeof window._ordemTamanhoEstoque !== 'function') {
+            window._ordemTamanhoEstoque = function(tam) {
+                const t = String(tam || '').trim().toUpperCase();
+                const map = {
                     'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5,
                     'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'EGG': 11,
-                    'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15
+                    'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15, 'UNICO': 16, 'ÚNICO': 16
                 };
-                const tokens = raw.split(/(\s+|\-|\(|\)|\/)/);
-                let foundSize = '';
-                let foundOrder = 999;
-                const baseParts = [];
-                for (let i = 0; i < tokens.length; i++) {
-                    const tk = tokens[i];
-                    const cleanTk = tk.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                    if (!foundSize && sizeOrderMap[cleanTk] !== undefined) {
-                        foundSize = cleanTk;
-                        foundOrder = sizeOrderMap[cleanTk];
-                    } else if (!foundSize && /^(3[3-9]|4[0-9]|5[0-6])$/.test(cleanTk)) {
-                        foundSize = cleanTk;
-                        foundOrder = 100 + parseInt(cleanTk, 10);
-                    } else {
-                        baseParts.push(tk);
-                    }
-                }
-                const baseNome = baseParts.join('').replace(/\s+/g, ' ').replace(/\-\s*$/, '').trim().toLowerCase();
-                return { tamanho: foundSize, ordem: foundOrder, baseNome: baseNome || raw.toLowerCase() };
-            };
-        }
-
-        if (typeof window.toggleSubcategoriaEstoque !== 'function') {
-            window.toggleSubcategoriaEstoque = function(subcatKey) {
-                window._estoqueSubcatAbertas = window._estoqueSubcatAbertas || {};
-                window._estoqueSubcatAbertas[subcatKey] = !window._estoqueSubcatAbertas[subcatKey];
-                const isOpen = !!window._estoqueSubcatAbertas[subcatKey];
-                document.querySelectorAll('tr[data-subcat-child="' + subcatKey + '"]').forEach(function(tr) {
-                    tr.style.display = isOpen ? '' : 'none';
-                });
-                const icon = document.getElementById('estoque-subcat-arrow-' + subcatKey);
-                if (icon) {
-                    icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-                }
+                if (map[t] !== undefined) return map[t];
+                const num = parseInt(t, 10);
+                if (!isNaN(num)) return 100 + num;
+                return 900;
             };
         }
 
@@ -263,11 +210,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             };
         }
 
-        window._estoqueSubcatAbertas = window._estoqueSubcatAbertas || {};
-
-        // Função interna que gera as linhas HTML de um item individual
-        function _renderItemRows(item, subcatKey, isSubcatOpen) {
-            let itemRows = '';
+        let rows = '';
+        data.forEach(item => {
             let saldos = saldosMap[item.id] || [];
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
                 const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
@@ -276,7 +220,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 }
             }
 
-            // ── Verificar se está no mínimo (usa min/max por endereço) ──
+            const hasSizes = !!(item.tem_tamanho || saldos.some(s => s.tamanho && String(s.tamanho).trim() !== ''));
+
+            // ── Verificar se está no mínimo (usa min/max por endereço/tamanho) ──
             let isLow = false;
             if (saldos.length > 0) {
                 isLow = saldos.some(s => {
@@ -287,9 +233,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 isLow = (parseInt(item.quantidade_minima) > 0) && (parseInt(item.quantidade_atual)||0) < parseInt(item.quantidade_minima);
             }
 
-            const rowBorderLeft = isLow ? '3px solid #ef4444' : (subcatKey ? '3px solid #93c5fd' : '3px solid transparent');
+            const rowBorderLeft = isLow ? '3px solid #ef4444' : '3px solid transparent';
 
-            // ── Foto ──
+            // ── Foto clicável para ampliar ──
             const fotoSrc = item.foto_url || item.foto_base64 || "";
             const safeItemNome = String(item.nome || 'Produto').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const fotoHtml = fotoSrc
@@ -297,24 +243,58 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 : '<div style="width:40px;height:40px;border-radius:8px;background:#f1f5f9;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;"><i class="ph ph-image" style="color:#94a3b8;font-size:1.2rem;"></i></div>';
 
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
-            const infoTam = subcatKey ? window._extrairInfoTamanhoEstoque(item.nome) : { tamanho: '' };
-            const badgeTam = infoTam.tamanho
-                ? '<span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:700;background:#e0e7ff;color:#1e40af;border:1px solid #c7d2fe;vertical-align:middle;">Tam. ' + infoTam.tamanho + '</span>'
-                : '';
+
+            // Resumo de tamanhos abaixo do nome quando o produto possui tamanhos
+            let resumoTamanhosHtml = '';
+            if (hasSizes) {
+                const mapTam = {};
+                try {
+                    const savedTams = JSON.parse(item.tamanhos_lista || '[]');
+                    if (Array.isArray(savedTams)) {
+                        savedTams.forEach(t => {
+                            const tk = String(t || '').trim().toUpperCase();
+                            if (tk) mapTam[tk] = { qtd: 0, low: false };
+                        });
+                    }
+                } catch(e) {}
+                saldos.forEach(s => {
+                    const tk = String(s.tamanho || '').trim().toUpperCase();
+                    if (!tk) return;
+                    if (!mapTam[tk]) mapTam[tk] = { qtd: 0, low: false };
+                    mapTam[tk].qtd += (parseInt(s.quantidade) || 0);
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    if (minRef > 0 && (parseInt(s.quantidade) || 0) < minRef) {
+                        mapTam[tk].low = true;
+                    }
+                });
+                const tamsSorted = Object.keys(mapTam).sort((a, b) => window._ordemTamanhoEstoque(a) - window._ordemTamanhoEstoque(b));
+                if (tamsSorted.length > 0) {
+                    resumoTamanhosHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' +
+                        tamsSorted.map(tk => {
+                            const info = mapTam[tk];
+                            const bg = info.low ? '#fef2f2' : '#eff6ff';
+                            const col = info.low ? '#dc2626' : '#1e40af';
+                            const brd = info.low ? '#fecaca' : '#bfdbfe';
+                            return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + bg + ';color:' + col + ';border:1px solid ' + brd + ';border-radius:6px;padding:1px 6px;font-size:0.7rem;font-weight:700;">' +
+                                tk + ': ' + info.qtd + (info.low ? ' <i class="ph ph-warning" style="font-size:0.72rem;"></i>' : '') +
+                            '</span>';
+                        }).join('') +
+                    '</div>';
+                }
+            }
 
             // ── Botões de ação (apenas na primeira linha do produto) ──
             const acoesBtns =
-                '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
-                '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
+                '<button class="btn btn-sm btn-secondary" onclick="window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar / Gerenciar Tamanhos" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
+                '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;" title="Excluir"><i class="ph ph-trash"></i></button>';
 
-            // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
+            // ── Agrupar saldos por endereço para exibição limpa na tabela ──
             let linhasEndereco = saldos.length > 0 ? saldos : [null];
 
             if (selectedEnderecos && selectedEnderecos.length > 0) {
                 linhasEndereco = linhasEndereco.filter(s => s && selectedEnderecos.includes(String(s.endereco_id)));
             }
 
-            // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
             let linhasParaRenderizar = linhasEndereco;
             if (tipoFilter && tipoFilter !== 'sem_tipo') {
                 const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
@@ -327,7 +307,30 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 if (filtroAtivo.length > 0) linhasParaRenderizar = filtroAtivo;
             }
 
-            const totalQtdItem = linhasParaRenderizar.reduce((acc, s) => acc + (s ? (parseInt(s.quantidade) || 0) : (parseInt(item.quantidade_atual) || 0)), 0);
+            // Se o produto tem múltiplos tamanhos no mesmo endereço, consolidar 1 linha visual por endereço na tabela principal
+            if (hasSizes && linhasParaRenderizar.length > 0 && linhasParaRenderizar[0] !== null) {
+                const porEndMap = {};
+                linhasParaRenderizar.forEach(s => {
+                    const k = String(s.endereco_id) + '__' + (s.tipo_estoque || 'matriz');
+                    if (!porEndMap[k]) {
+                        porEndMap[k] = {
+                            endereco_id: s.endereco_id,
+                            nome: s.nome,
+                            tipo_estoque: s.tipo_estoque || 'matriz',
+                            quantidade: 0,
+                            quantidade_minima: s.quantidade_minima || 0,
+                            quantidade_maxima: s.quantidade_maxima || 0,
+                            anyLow: false
+                        };
+                    }
+                    porEndMap[k].quantidade += (parseInt(s.quantidade) || 0);
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    if (minRef > 0 && (parseInt(s.quantidade) || 0) < minRef) {
+                        porEndMap[k].anyLow = true;
+                    }
+                });
+                linhasParaRenderizar = Object.values(porEndMap);
+            }
 
             linhasParaRenderizar.forEach(function(s, idx) {
                 const primeiraLinha = idx === 0;
@@ -335,8 +338,12 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 // Cor/estado deste endereço
                 let lowEnd = false;
                 if (s) {
-                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
-                    lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
+                    if (s.anyLow !== undefined) {
+                        lowEnd = s.anyLow;
+                    } else {
+                        const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                        lowEnd = minRef > 0 && (parseInt(s.quantidade)||0) < minRef;
+                    }
                 }
 
                 // Qtd. Atual deste endereço
@@ -384,145 +391,41 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
                 // Separador entre linhas do mesmo produto
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
-                const bgRow = lowEnd ? 'background:#fff5f5;' : (subcatKey ? 'background:#fafcff;' : '');
-                const displayStyle = (subcatKey && !isSubcatOpen) ? 'display:none;' : '';
-                const subcatAttr = subcatKey ? ' data-subcat-child="' + subcatKey + '"' : '';
+                const bgRow = lowEnd ? 'background:#fff5f5;' : '';
 
                 const rowSpanAttr = linhasParaRenderizar.length > 1 && primeiraLinha ? ' rowspan="' + linhasParaRenderizar.length + '"' : '';
 
-                itemRows += '<tr' + subcatAttr + ' style="' + displayStyle + 'border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
+                rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
                 
-                // Nome + foto
+                // Nome + foto + resumo de tamanhos
                 if (primeiraLinha) {
-                    const padLeft = subcatKey ? 'padding-left:30px;' : '';
-                    itemRows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + padLeft + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + badgeTam + '</div></div>' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                                '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div><div>' + warnIcon + item.nome + '</div>' + resumoTamanhosHtml + '</div></div>' +
                             '</td>';
                             
                     // Categoria
-                    itemRows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
                             '</td>';
                 }
                 
                 // Qtd. Atual
-                itemRows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
+                rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
                 // Min/Máx
-                itemRows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
                 // Endereço
-                itemRows += '<td style="vertical-align:middle;">' + endCell + '</td>';
+                rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
                 // Tipo
-                itemRows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
                 
                 // Ações
                 if (primeiraLinha) {
-                    itemRows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 acoesBtns +
                             '</td>';
                 }
-                itemRows += '</tr>';
+                rows += '</tr>';
             });
-
-            return { html: itemRows, isLow: isLow, totalQtd: totalQtdItem };
-        }
-
-        // Agrupar itens por subcategoria
-        const gruposSubcat = {};
-        data.forEach(item => {
-            const subcat = window.obterSubcategoriaEstoque(item);
-            if (subcat) {
-                const key = ((item.categoria || 'Geral') + '__' + subcat).replace(/[^a-zA-Z0-9_-]/g, '_');
-                if (!gruposSubcat[key]) {
-                    gruposSubcat[key] = {
-                        key: key,
-                        nome: subcat,
-                        categoria: item.categoria || '-',
-                        items: []
-                    };
-                }
-                gruposSubcat[key].items.push(item);
-            }
-        });
-
-        // Ordenar itens dentro de cada subcategoria por nome base + tamanho (PP, P, M, G, GG, EXG / 34..48)
-        Object.values(gruposSubcat).forEach(grupo => {
-            grupo.items.sort((a, b) => {
-                const ia = window._extrairInfoTamanhoEstoque(a.nome);
-                const ib = window._extrairInfoTamanhoEstoque(b.nome);
-                if (ia.baseNome !== ib.baseNome) return ia.baseNome.localeCompare(ib.baseNome);
-                if (ia.ordem !== ib.ordem) return ia.ordem - ib.ordem;
-                return (a.nome || '').localeCompare(b.nome || '');
-            });
-        });
-
-        let rows = '';
-        const gruposRenderizados = {};
-
-        data.forEach(item => {
-            const subcat = window.obterSubcategoriaEstoque(item);
-            if (!subcat) {
-                rows += _renderItemRows(item, '', true).html;
-                return;
-            }
-            const key = ((item.categoria || 'Geral') + '__' + subcat).replace(/[^a-zA-Z0-9_-]/g, '_');
-            if (gruposRenderizados[key]) return;
-            gruposRenderizados[key] = true;
-
-            const grupo = gruposSubcat[key];
-            const isOpen = !!nome || !!window._estoqueSubcatAbertas[key];
-
-            let childrenHtml = '';
-            let totalQtdGrupo = 0;
-            let lowCountGrupo = 0;
-            let fotoGrupo = '';
-
-            grupo.items.forEach(gItem => {
-                if (!fotoGrupo && (gItem.foto_url || gItem.foto_base64)) {
-                    fotoGrupo = gItem.foto_url || gItem.foto_base64;
-                }
-                const res = _renderItemRows(gItem, key, isOpen);
-                childrenHtml += res.html;
-                totalQtdGrupo += res.totalQtd;
-                if (res.isLow) lowCountGrupo++;
-            });
-
-            const safeGrupoNome = String(grupo.nome || 'Subcategoria').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const fotoGrupoHtml = fotoGrupo
-                ? '<img src="' + fotoGrupo + '" onclick="event.stopPropagation(); window.ampliarFotoEstoque(this.src, \'' + safeGrupoNome + '\')" title="Clique para ampliar a foto" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #cbd5e1;cursor:zoom-in;transition:transform 0.15s;" onmouseover="this.style.transform=\'scale(1.08)\'" onmouseout="this.style.transform=\'scale(1)\'">'
-                : '<div style="width:40px;height:40px;border-radius:8px;background:#dbeafe;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;"><i class="ph ph-folders" style="color:#1d4ed8;font-size:1.25rem;"></i></div>';
-
-            const borderLeftGrupo = lowCountGrupo > 0 ? '4px solid #ef4444' : '4px solid #2563eb';
-            const badgeLowGrupo = lowCountGrupo > 0
-                ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;"><i class="ph ph-warning-circle"></i> ' + lowCountGrupo + ' em estoque mín.</span>'
-                : '';
-
-            rows += '<tr data-subcat-parent="' + key + '" onclick="window.toggleSubcategoriaEstoque(\'' + key + '\')" style="cursor:pointer;background:#f1f5f9;border-left:' + borderLeftGrupo + ';border-top:1px solid #e2e8f0;border-bottom:1px solid #cbd5e1;transition:background 0.15s;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f1f5f9\'">' +
-                '<td style="vertical-align:middle;font-weight:700;color:#0f172a;">' +
-                    '<div style="display:flex;align-items:center;gap:10px;">' +
-                        '<span style="width:26px;height:26px;border-radius:6px;background:#fff;border:1px solid #cbd5e1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);flex-shrink:0;">' +
-                            '<i id="estoque-subcat-arrow-' + key + '" class="ph-bold ph-caret-right" style="display:inline-block;transition:transform 0.2s;transform:' + (isOpen ? 'rotate(90deg)' : 'rotate(0deg)') + ';color:#1e40af;font-size:0.95rem;"></i>' +
-                        '</span>' +
-                        fotoGrupoHtml +
-                        '<div>' +
-                            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">' +
-                                '<span style="font-size:0.95rem;font-weight:800;color:#1e293b;">' + grupo.nome + '</span>' +
-                                '<span style="background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:4px;">' + grupo.items.length + (grupo.items.length === 1 ? ' tamanho/item' : ' tamanhos/itens') + '</span>' +
-                                badgeLowGrupo +
-                            '</div>' +
-                            '<div style="font-size:0.74rem;color:#64748b;font-weight:500;margin-top:2px;">Clique na seta para abrir/fechar os tamanhos desta subcategoria</div>' +
-                        '</div>' +
-                    '</div>' +
-                '</td>' +
-                '<td style="vertical-align:middle;font-weight:600;color:#334155;">' + grupo.categoria + '</td>' +
-                '<td style="vertical-align:middle;">' +
-                    '<span style="font-weight:800;font-size:1.02rem;color:' + (lowCountGrupo > 0 ? '#ef4444' : '#0f172a') + ';">' + totalQtdGrupo + '</span>' +
-                    '<span style="font-size:0.72rem;color:#64748b;margin-left:4px;">total</span>' +
-                '</td>' +
-                '<td colspan="4" style="vertical-align:middle;text-align:right;padding-right:16px;color:#475569;font-size:0.78rem;font-weight:600;">' +
-                    '<span style="display:inline-flex;align-items:center;gap:4px;color:#1d4ed8;"><i class="ph ph-arrows-out-line-vertical"></i> Ver tamanhos (' + grupo.items.length + ')</span>' +
-                '</td>' +
-            '</tr>' +
-            childrenHtml;
         });
 
         table.innerHTML = rows;
@@ -600,10 +503,282 @@ window.abrirModalBaixaEstoque = async function(item) {
     } catch(e) { Swal.fire('Erro', e.message, 'error'); }
 };
 
-// ── HELPERS DE ENDEREÇOS NO MODAL ─────────────────────────────────────────────
+// ── HELPERS DE ENDEREÇOS E TAMANHOS NO MODAL ──────────────────────────────────
 window._enderecoLinhas = [];
+window._tamanhosProdutoAtual = [];
+
+const _SUGESTOES_TAMANHOS_ROUPA = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EXG', 'XGG'];
+const _SUGESTOES_TAMANHOS_NUM = ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
+
+window.toggleTemTamanhoEstoque = function(checked) {
+    const secCom = document.getElementById('estoque-secao-com-tamanho');
+    const secSem = document.getElementById('estoque-secao-sem-tamanho');
+    if (secCom) secCom.style.display = checked ? 'block' : 'none';
+    if (secSem) secSem.style.display = checked ? 'none' : 'block';
+    if (checked) {
+        window._renderTamanhosNoModal();
+    } else {
+        window._renderLinhasEndereco();
+    }
+};
+
+window.incluirTamanhoEstoque = function(tamRaw) {
+    const tam = String(tamRaw || '').trim().toUpperCase();
+    if (!tam) return;
+    window._tamanhosProdutoAtual = window._tamanhosProdutoAtual || [];
+    if (!window._tamanhosProdutoAtual.includes(tam)) {
+        window._tamanhosProdutoAtual.push(tam);
+    }
+    // Se ainda não existe nenhuma linha de endereço para este tamanho, criar uma padrão
+    const jaTemLinha = (window._enderecoLinhas || []).some(l => String(l.tamanho || '').trim().toUpperCase() === tam);
+    if (!jaTemLinha) {
+        // Se havia uma linha sem tamanho preenchida antes de marcar o checkbox, reaproveitar para o primeiro tamanho
+        const linhaSemTam = (window._enderecoLinhas || []).find(l => !l.tamanho || String(l.tamanho).trim() === '');
+        if (linhaSemTam && window._tamanhosProdutoAtual.length === 1) {
+            linhaSemTam.tamanho = tam;
+        } else {
+            const defaultEndId = (window._estoqueEnderecos && window._estoqueEnderecos.length === 1) ? window._estoqueEnderecos[0].id : null;
+            window._enderecoLinhas.push({
+                endereco_id: defaultEndId,
+                tamanho: tam,
+                quantidade: 0,
+                quantidade_minima: 0,
+                quantidade_maxima: 0,
+                tipo_estoque: 'matriz'
+            });
+        }
+    }
+    window._tamanhosProdutoAtual.sort((a, b) => window._ordemTamanhoEstoque(a) - window._ordemTamanhoEstoque(b));
+    window._renderTamanhosNoModal();
+};
+
+window.incluirTamanhoInputEstoque = function() {
+    const inp = document.getElementById('estoque-novo-tamanho-input');
+    if (!inp) return;
+    const val = inp.value.trim().toUpperCase();
+    if (!val) return;
+    inp.value = '';
+    window.incluirTamanhoEstoque(val);
+};
+
+window._removerTamanhoEstoque = function(tam) {
+    const t = String(tam || '').trim().toUpperCase();
+    window._tamanhosProdutoAtual = (window._tamanhosProdutoAtual || []).filter(x => x !== t);
+    window._enderecoLinhas = (window._enderecoLinhas || []).filter(l => String(l.tamanho || '').trim().toUpperCase() !== t);
+    window._renderTamanhosNoModal();
+};
+
+// Movimentar (Entrada ou Baixa) diretamente dentro do tamanho no modal do produto
+window._movimentarTamanhoNoModal = async function(tam, tipo) {
+    const t = String(tam || '').trim().toUpperCase();
+    const isEntrada = tipo === 'entrada';
+    const prodId = document.getElementById('estoque-id')?.value;
+    const linhasTam = (window._enderecoLinhas || []).map((l, i) => ({ l, i })).filter(x => String(x.l.tamanho || '').trim().toUpperCase() === t && x.l.endereco_id);
+
+    if (linhasTam.length === 0) {
+        return Swal.fire({
+            target: document.getElementById('modal-estoque') || document.body,
+            icon: 'warning',
+            title: 'Selecione um endereço',
+            text: 'Primeiro escolha o endereço do Tamanho ' + t + ' antes de registrar ' + (isEntrada ? 'entrada' : 'baixa') + '.',
+            confirmButtonColor: '#1d4ed8'
+        });
+    }
+
+    const optsEnd = linhasTam.map(x => {
+        const endObj = (window._estoqueEnderecos || []).find(e => String(e.id) === String(x.l.endereco_id));
+        const endNome = endObj ? endObj.nome : ('Endereço ' + x.l.endereco_id);
+        return '<option value="' + x.i + '">' + endNome + ' (Saldo atual: ' + (x.l.quantidade || 0) + ')</option>';
+    }).join('');
+
+    const cor = isEntrada ? '#16a34a' : '#ef4444';
+    const titulo = isEntrada
+        ? '<i class="ph ph-arrow-down-left" style="color:#16a34a"></i> Entrada — Tamanho ' + t
+        : '<i class="ph ph-arrow-up-right" style="color:#ef4444"></i> Baixa — Tamanho ' + t;
+
+    const { value: vals, isConfirmed } = await Swal.fire({
+        target: document.getElementById('modal-estoque') || document.body,
+        title: titulo,
+        html: '<div style="text-align:left;">' +
+            '<div style="margin-bottom:10px;">' +
+                '<label style="display:block;font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:4px;">Endereço do Tamanho ' + t + ' *</label>' +
+                '<select id="swal-tam-mov-idx" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;">' + optsEnd + '</select>' +
+            '</div>' +
+            '<div style="margin-bottom:10px;">' +
+                '<label style="display:block;font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:4px;">Quantidade a ' + (isEntrada ? 'adicionar (Entrada)' : 'retirar (Baixa)') + ' *</label>' +
+                '<input type="number" id="swal-tam-mov-qtd" min="1" value="1" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.95rem;box-sizing:border-box;">' +
+            '</div>' +
+            (!isEntrada ? (
+                '<div>' +
+                    '<label style="display:block;font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:4px;">Motivo da Baixa</label>' +
+                    '<input type="text" id="swal-tam-mov-motivo" placeholder="Ex: Entrega / ajuste..." style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">' +
+                '</div>'
+            ) : '') +
+        '</div>',
+        showCancelButton: true,
+        confirmButtonText: isEntrada ? 'Confirmar Entrada' : 'Confirmar Baixa',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: cor,
+        preConfirm: () => {
+            const idx = parseInt(document.getElementById('swal-tam-mov-idx').value, 10);
+            const qtd = parseInt(document.getElementById('swal-tam-mov-qtd').value, 10);
+            const motivo = document.getElementById('swal-tam-mov-motivo')?.value?.trim() || '';
+            if (isNaN(idx) || !window._enderecoLinhas[idx]) {
+                Swal.showValidationMessage('Selecione o endereço');
+                return false;
+            }
+            if (!qtd || qtd <= 0) {
+                Swal.showValidationMessage('Informe uma quantidade válida');
+                return false;
+            }
+            const atual = parseInt(window._enderecoLinhas[idx].quantidade) || 0;
+            if (!isEntrada && qtd > atual) {
+                Swal.showValidationMessage('Saldo insuficiente neste endereço (Atual: ' + atual + ')');
+                return false;
+            }
+            return { idx, qtd, motivo };
+        }
+    });
+
+    if (!isConfirmed || !vals) return;
+    const targetLinha = window._enderecoLinhas[vals.idx];
+    const delta = isEntrada ? vals.qtd : -vals.qtd;
+    targetLinha.quantidade = Math.max(0, (parseInt(targetLinha.quantidade) || 0) + delta);
+    window._renderTamanhosNoModal();
+
+    // Se o produto já existe no banco, persistir imediatamente a movimentação
+    if (prodId) {
+        try {
+            const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
+            await fetch(API_URL + "/estoque/" + prodId + "/movimentar", {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    quantidade: delta,
+                    endereco_id: parseInt(targetLinha.endereco_id, 10),
+                    tamanho: t,
+                    motivo: vals.motivo || (isEntrada ? 'Entrada por tamanho' : 'Baixa por tamanho')
+                })
+            });
+            window.renderEstoqueTable(true);
+        } catch(e) {
+            console.warn('[movimentarTamanhoNoModal]', e.message);
+        }
+    }
+};
+
+window._renderTamanhosNoModal = function() {
+    const chipsEl = document.getElementById('estoque-tamanhos-chips');
+    const listaEl = document.getElementById('estoque-tamanhos-lista');
+    if (!listaEl) return;
+
+    const tamsAtivos = window._tamanhosProdutoAtual || [];
+
+    if (chipsEl) {
+        const todosChips = _SUGESTOES_TAMANHOS_ROUPA.concat(_SUGESTOES_TAMANHOS_NUM);
+        chipsEl.innerHTML = todosChips.map(c => {
+            const ativo = tamsAtivos.includes(c);
+            const bg = ativo ? '#1d4ed8' : '#fff';
+            const col = ativo ? '#fff' : '#334155';
+            const brd = ativo ? '#1d4ed8' : '#cbd5e1';
+            return '<button type="button" onclick="window.incluirTamanhoEstoque(\'' + c + '\')" ' +
+                'style="background:' + bg + ';color:' + col + ';border:1px solid ' + brd + ';border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;transition:all 0.15s;">' +
+                (ativo ? '✓ ' : '+ ') + c +
+            '</button>';
+        }).join('');
+    }
+
+    if (tamsAtivos.length === 0) {
+        listaEl.innerHTML = '<div style="text-align:center;padding:18px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;color:#64748b;font-size:0.84rem;">' +
+            'Nenhum tamanho incluído ainda. Clique em um dos tamanhos acima (ex: <b>P, M, G, GG</b> ou <b>38, 40, 42</b>) para vincular tamanhos, endereços e saldos a este produto.' +
+        '</div>';
+        return;
+    }
+
+    listaEl.innerHTML = tamsAtivos.map(tam => {
+        const linhasDoTam = (window._enderecoLinhas || [])
+            .map((linha, idxGlobal) => ({ linha, idxGlobal }))
+            .filter(x => String(x.linha.tamanho || '').trim().toUpperCase() === tam);
+
+        const totalTam = linhasDoTam.reduce((acc, x) => acc + (parseInt(x.linha.quantidade) || 0), 0);
+
+        const enderecosHtml = linhasDoTam.map(({ linha, idxGlobal }) => {
+            const opcoesEnd = (window._estoqueEnderecos || []).map(e =>
+                '<option value="' + e.id + '"' + (String(e.id) === String(linha.endereco_id) ? ' selected' : '') + '>' + e.nome + '</option>'
+            ).join('');
+            const tipoAtual = linha.tipo_estoque || 'matriz';
+            return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-top:6px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+                    '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:0.95rem;"></i>' +
+                    '<select onchange="window._enderecoLinhas[' + idxGlobal + '].endereco_id = parseInt(this.value)" ' +
+                        'style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.84rem;background:#fff;">' +
+                        '<option value="">-- Selecione o endereço do Tam. ' + tam + ' --</option>' + opcoesEnd +
+                    '</select>' +
+                    '<select onchange="window._enderecoLinhas[' + idxGlobal + '].tipo_estoque = this.value" ' +
+                        'style="width:190px;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 6px;font-size:0.78rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                        '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz (Compra)</option>' +
+                        '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição</option>' +
+                    '</select>' +
+                    '<button type="button" onclick="window._removerLinhaEndereco(' + idxGlobal + ')" ' +
+                        'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover endereço">' +
+                        '<i class="ph ph-trash"></i>' +
+                    '</button>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
+                    '<div>' +
+                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#475569;margin-bottom:2px;">Qtd. Atual (Tam. ' + tam + ')</label>' +
+                        '<input type="number" min="0" value="' + (linha.quantidade || 0) + '" placeholder="0" ' +
+                            'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade = parseInt(this.value) || 0;" ' +
+                            'style="width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;box-sizing:border-box;font-weight:700;">' +
+                    '</div>' +
+                    '<div>' +
+                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#f59e0b;margin-bottom:2px;">Qtd. Mínima</label>' +
+                        '<input type="number" min="0" value="' + (linha.quantidade_minima || 0) + '" placeholder="0" ' +
+                            'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade_minima = parseInt(this.value) || 0;" ' +
+                            'style="width:100%;border:1.5px solid #fde68a;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#fffbeb;box-sizing:border-box;">' +
+                    '</div>' +
+                    '<div>' +
+                        '<label style="display:block;font-size:0.7rem;font-weight:600;color:#10b981;margin-bottom:2px;">Qtd. Máxima</label>' +
+                        '<input type="number" min="0" value="' + (linha.quantidade_maxima || 0) + '" placeholder="0" ' +
+                            'oninput="window._enderecoLinhas[' + idxGlobal + '].quantidade_maxima = parseInt(this.value) || 0;" ' +
+                            'style="width:100%;border:1.5px solid #a7f3d0;border-radius:6px;padding:4px 8px;font-size:0.85rem;text-align:center;background:#f0fdf4;box-sizing:border-box;">' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        return '<div style="background:#f1f5f9;border:1.5px solid #cbd5e1;border-left:4px solid #1d4ed8;border-radius:10px;padding:10px 12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<span style="background:#1d4ed8;color:#fff;border-radius:6px;padding:3px 10px;font-size:0.84rem;font-weight:800;">Tamanho ' + tam + '</span>' +
+                    '<span style="font-size:0.8rem;color:#334155;font-weight:700;">Saldo: ' + totalTam + ' unid.</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                    '<button type="button" onclick="window._movimentarTamanhoNoModal(\'' + tam + '\', \'entrada\')" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Dar Entrada neste tamanho">' +
+                        '<i class="ph-bold ph-plus"></i> Entrada' +
+                    '</button>' +
+                    '<button type="button" onclick="window._movimentarTamanhoNoModal(\'' + tam + '\', \'saida\')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;" title="Dar Baixa neste tamanho">' +
+                        '<i class="ph-bold ph-minus"></i> Baixa' +
+                    '</button>' +
+                    '<button type="button" onclick="window._adicionarLinhaEndereco(\'' + tam + '\')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;">' +
+                        '<i class="ph ph-map-pin"></i> + Endereço' +
+                    '</button>' +
+                    '<button type="button" onclick="window._removerTamanhoEstoque(\'' + tam + '\')" style="background:#fff;color:#64748b;border:1px solid #cbd5e1;border-radius:6px;padding:3px 7px;font-size:0.75rem;cursor:pointer;" title="Remover Tamanho ' + tam + '">' +
+                        '<i class="ph ph-trash"></i>' +
+                    '</button>' +
+                '</div>' +
+            '</div>' +
+            enderecosHtml +
+        '</div>';
+    }).join('');
+};
 
 window._renderLinhasEndereco = function() {
+    const temTam = !!document.getElementById('estoque-tem-tamanho')?.checked;
+    if (temTam) {
+        window._renderTamanhosNoModal();
+        return;
+    }
     const lista = document.getElementById('estoque-enderecos-lista');
     const vazio = document.getElementById('estoque-enderecos-vazio');
     if (!lista) return;
@@ -611,15 +786,13 @@ window._renderLinhasEndereco = function() {
     if (!linhas.length) {
         lista.innerHTML = '';
         if (vazio) vazio.style.display = 'block';
-        
         return;
     }
     if (vazio) vazio.style.display = 'none';
     
     const btnTransferir = document.getElementById('btn-transferir-modal');
     if (btnTransferir) {
-        const validos = linhas.filter(l => l.endereco_id);
-        btnTransferir.style.display = 'none'; // validos.length > 1 ? 'flex' : 'none';
+        btnTransferir.style.display = 'none';
     }
 
     lista.innerHTML = linhas.map((linha, idx) => {
@@ -628,7 +801,6 @@ window._renderLinhasEndereco = function() {
         ).join('');
         const tipoAtual = linha.tipo_estoque || 'matriz';
         return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:2px;">' +
-            // Linha 1: ícone + select endereço + botão remover
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
                 '<i class="ph ph-map-pin" style="color:#1d4ed8;flex-shrink:0;font-size:1rem;"></i>' +
                 '<select onchange="window._enderecoLinhas[' + idx + '].endereco_id = parseInt(this.value)" ' +
@@ -640,7 +812,6 @@ window._renderLinhasEndereco = function() {
                     '<i class="ph ph-trash"></i>' +
                 '</button>' +
             '</div>' +
-            // Linha 1b: Tipo de Estoque
             '<div style="margin-bottom:6px;">' +
                 '<label style="display:block;font-size:0.72rem;font-weight:600;color:#7c3aed;margin-bottom:2px;">Tipo de Estoque</label>' +
                 '<select onchange="window._enderecoLinhas[' + idx + '].tipo_estoque = this.value" ' +
@@ -649,7 +820,6 @@ window._renderLinhasEndereco = function() {
                     '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Estoque de Reposição (Pedido de Reposição)</option>' +
                 '</select>' +
             '</div>' +
-            // Linha 2: Qtd Atual | Qtd Mínima | Qtd Máxima
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
                 '<div>' +
                     '<label style="display:block;font-size:0.72rem;font-weight:600;color:#475569;margin-bottom:2px;">Qtd. Atual</label>' +
@@ -672,11 +842,18 @@ window._renderLinhasEndereco = function() {
             '</div>' +
         '</div>';
     }).join('');
-    
 };
 
-window._adicionarLinhaEndereco = function() {
-    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0, tipo_estoque: 'matriz' });
+window._adicionarLinhaEndereco = function(tamanhoOpcional) {
+    const tam = tamanhoOpcional ? String(tamanhoOpcional).trim().toUpperCase() : '';
+    window._enderecoLinhas.push({
+        endereco_id: null,
+        tamanho: tam,
+        quantidade: 0,
+        quantidade_minima: 0,
+        quantidade_maxima: 0,
+        tipo_estoque: 'matriz'
+    });
     window._renderLinhasEndereco();
 };
 
@@ -690,15 +867,18 @@ window.abrirModalEstoque = async function() {
     await _carregarEnderecos();
     document.getElementById("form-estoque").reset();
     document.getElementById("estoque-id").value = "";
-    if (document.getElementById("estoque-subcat")) document.getElementById("estoque-subcat").value = "";
+    const chkTam = document.getElementById("estoque-tem-tamanho");
+    if (chkTam) chkTam.checked = false;
+    window._tamanhosProdutoAtual = [];
+    window._enderecoLinhas = [];
+    window.toggleTemTamanhoEstoque(false);
+
     const fi = document.getElementById("estoque-foto");
     if (fi) fi.value = "";
     document.getElementById("estoque-foto-base64").value = "";
     document.getElementById("estoque-foto-preview").src = "";
     document.getElementById("estoque-foto-preview").style.display = "none";
     document.getElementById("estoque-foto-icon").style.display = "block";
-    window._enderecoLinhas = [];
-    window._renderLinhasEndereco();
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
     
@@ -722,16 +902,14 @@ window.editarEstoque = async function(item) {
     document.getElementById("estoque-id").value   = item.id;
     document.getElementById("estoque-nome").value = item.nome;
     document.getElementById("estoque-cat").value  = item.categoria || '';
-    if (document.getElementById("estoque-subcat")) document.getElementById("estoque-subcat").value = item.subcategoria || (window.obterSubcategoriaEstoque ? window.obterSubcategoriaEstoque(item) : '') || '';
     window.togglePlacasEstoque(item.categoria);
     if (window._veiculosParaEstoque) {
         _renderPlacasCheckboxes((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
     } else if (item.categoria === 'Peças Automotivas' || item.categoria === 'Pneus e Borracharia') {
-        // Vai carregar assincronamente e precisa selecionar as placas do item
         const origCb = _renderPlacasCheckboxes;
         _renderPlacasCheckboxes = function() {
             origCb((item.placas_vinculadas || '').split(',').map(s=>s.trim()).filter(Boolean));
-            _renderPlacasCheckboxes = origCb; // restore
+            _renderPlacasCheckboxes = origCb;
         };
     }
     document.getElementById("estoque-qtd").value  = item.quantidade_atual;
@@ -748,6 +926,17 @@ window.editarEstoque = async function(item) {
     // Carregar endereços já vinculados
     window._enderecoLinhas = [];
     window._hiddenEnderecoLinhas = [];
+    window._tamanhosProdutoAtual = [];
+    try {
+        const savedList = JSON.parse(item.tamanhos_lista || '[]');
+        if (Array.isArray(savedList)) {
+            savedList.forEach(t => {
+                const tk = String(t || '').trim().toUpperCase();
+                if (tk && !window._tamanhosProdutoAtual.includes(tk)) window._tamanhosProdutoAtual.push(tk);
+            });
+        }
+    } catch(e) {}
+
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         const r = await fetch(API_URL + "/estoque/" + item.id + "/saldo-enderecos", {
@@ -760,22 +949,36 @@ window.editarEstoque = async function(item) {
                 saldosPermitidos = saldos.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
                 window._hiddenEnderecoLinhas = saldos.filter(s => !window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id))).map(s => ({
                     endereco_id:       s.endereco_id,
+                    tamanho:           String(s.tamanho || '').trim().toUpperCase(),
                     quantidade:        s.quantidade,
                     quantidade_minima: s.quantidade_minima || 0,
-                    quantidade_maxima: s.quantidade_maxima || 0
+                    quantidade_maxima: s.quantidade_maxima || 0,
+                    tipo_estoque:      s.tipo_estoque || 'matriz'
                 }));
             }
-            window._enderecoLinhas = saldosPermitidos.map(s => ({
-                endereco_id:       s.endereco_id,
-                quantidade:        s.quantidade,
-                quantidade_minima: s.quantidade_minima || 0,
-                quantidade_maxima: s.quantidade_maxima || 0,
-                tipo_estoque:      s.tipo_estoque || 'matriz'
-            }));
+            window._enderecoLinhas = saldosPermitidos.map(s => {
+                const tk = String(s.tamanho || '').trim().toUpperCase();
+                if (tk && !window._tamanhosProdutoAtual.includes(tk)) {
+                    window._tamanhosProdutoAtual.push(tk);
+                }
+                return {
+                    endereco_id:       s.endereco_id,
+                    tamanho:           tk,
+                    quantidade:        s.quantidade,
+                    quantidade_minima: s.quantidade_minima || 0,
+                    quantidade_maxima: s.quantidade_maxima || 0,
+                    tipo_estoque:      s.tipo_estoque || 'matriz'
+                };
+            });
         }
     } catch(e) { console.warn("[editarEstoque] erro ao carregar saldos:", e.message); }
-    // Produto sem endereço: deixar lista vazia com opção de adicionar (não pré-preencher)
-    window._renderLinhasEndereco();
+
+    window._tamanhosProdutoAtual.sort((a, b) => window._ordemTamanhoEstoque(a) - window._ordemTamanhoEstoque(b));
+    const temTam = !!(item.tem_tamanho || window._tamanhosProdutoAtual.length > 0);
+    const chkTam = document.getElementById("estoque-tem-tamanho");
+    if (chkTam) chkTam.checked = temTam;
+    window.toggleTemTamanhoEstoque(temTam);
+
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Item de Estoque';
     document.getElementById("modal-estoque").style.display = "flex";
 };
@@ -784,14 +987,28 @@ window.editarEstoque = async function(item) {
 window.salvarEstoque = async function(e) {
     e.preventDefault();
     const id = document.getElementById("estoque-id").value;
-    let linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id);
+    const temTam = !!document.getElementById("estoque-tem-tamanho")?.checked;
+
+    let linhasValidas = (window._enderecoLinhas || []).filter(l => l.endereco_id && (!temTam || (l.tamanho && String(l.tamanho).trim() !== '')));
     if (window._hiddenEnderecoLinhas && window._hiddenEnderecoLinhas.length > 0) {
         linhasValidas = linhasValidas.concat(window._hiddenEnderecoLinhas);
+    }
+
+    if (temTam && (!window._tamanhosProdutoAtual || window._tamanhosProdutoAtual.length === 0)) {
+        Swal.fire({
+            target: document.getElementById('modal-estoque') || document.body,
+            icon: 'warning',
+            title: 'Tamanhos obrigatórios',
+            text: 'Inclua pelo menos um tamanho para o produto.',
+            confirmButtonColor: '#e67700'
+        });
+        return;
     }
 
     // NOVO produto: obrigatório ter pelo menos 1 endereço selecionado
     if (!id && linhasValidas.length === 0) {
         Swal.fire({
+            target: document.getElementById('modal-estoque') || document.body,
             icon: 'warning',
             title: 'Endereço obrigatório',
             text: 'Adicione e selecione pelo menos um endereço para o produto.',
@@ -800,7 +1017,7 @@ window.salvarEstoque = async function(e) {
         return;
     }
 
-    // Qtd. Atual = soma das quantidades por endereço (ou 0 se sem endereço cadastrado)
+    // Qtd. Atual = soma das quantidades por endereço/tamanho
     const somaEnderecos = linhasValidas.reduce((acc, l) => acc + (parseInt(l.quantidade) || 0), 0);
     const qtdAtual = somaEnderecos;
 
@@ -808,7 +1025,8 @@ window.salvarEstoque = async function(e) {
         nome:              document.getElementById("estoque-nome").value,
         departamento:      '',
         categoria:         document.getElementById("estoque-cat").value,
-        subcategoria:      (document.getElementById("estoque-subcat")?.value || '').trim(),
+        tem_tamanho:       temTam ? 1 : 0,
+        tamanhos_lista:    temTam ? (window._tamanhosProdutoAtual || []) : [],
         quantidade_atual:  qtdAtual,
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
         quantidade_maxima: parseInt(document.getElementById("estoque-max").value) || 0,
@@ -830,7 +1048,7 @@ window.salvarEstoque = async function(e) {
         const result = await res.json();
         const prodId = id ? parseInt(id) : result.id;
 
-        // Sincronizar endereços com o novo endpoint que apaga os removidos
+        // Sincronizar endereços/tamanhos
         try {
             await fetch(API_URL + "/estoque/" + prodId + "/sync-enderecos", {
                 method: "POST",
@@ -838,6 +1056,7 @@ window.salvarEstoque = async function(e) {
                 body: JSON.stringify({ 
                     enderecos: linhasValidas.map(l => ({
                         endereco_id:       l.endereco_id,
+                        tamanho:           temTam ? String(l.tamanho || '').trim().toUpperCase() : '',
                         quantidade:        l.quantidade,
                         quantidade_minima: l.quantidade_minima || 0,
                         quantidade_maxima: l.quantidade_maxima || 0,
@@ -878,14 +1097,37 @@ window.ajustarEstoqueRapido = async function(id, qtdAtual, variacao) {
     } catch(e) { Swal.fire("Erro", "Não foi possível atualizar a quantidade.", "error"); }
 };
 
-// ── Excluir ───────────────────────────────────────────────────────────────────
+// ── Excluir (com senha admin123) ──────────────────────────────────────────────
 window.excluirEstoque = async function(id) {
-    const ok = await Swal.fire({ title: "Excluir item?", text: "Esta ação não pode ser desfeita.", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#64748b", confirmButtonText: "Sim, excluir" });
+    const ok = await Swal.fire({
+        title: "Excluir produto?",
+        html: '<p style="color:#475569;font-size:0.9rem;margin-bottom:10px;">Esta ação não pode ser desfeita.<br>Digite a senha para confirmar a exclusão:</p>' +
+              '<input type="password" id="swal-senha-excluir-estoque" class="swal2-input" placeholder="Digite a senha..." style="margin:0;width:100%;box-sizing:border-box;">',
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "Sim, excluir",
+        cancelButtonText: "Cancelar",
+        didOpen: () => {
+            const inp = document.getElementById('swal-senha-excluir-estoque');
+            if (inp) inp.focus();
+        },
+        preConfirm: () => {
+            const senha = (document.getElementById('swal-senha-excluir-estoque')?.value || '').trim();
+            if (senha !== 'admin123') {
+                Swal.showValidationMessage('Senha incorreta!');
+                return false;
+            }
+            return true;
+        }
+    });
     if (!ok.isConfirmed) return;
     const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
     try {
         const r = await fetch(API_URL + "/estoque/" + id, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
         if (!r.ok) throw new Error("Erro ao excluir");
+        Swal.fire({ icon: "success", title: "Excluído!", text: "Produto excluído com sucesso.", timer: 1400, showConfirmButton: false });
         window.renderEstoqueTable();
     } catch(err) { Swal.fire("Erro", err.message, "error"); }
 };
@@ -1128,7 +1370,7 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
     const optsProdutos = produtos.map(p => `<option value="${p.id}">${p.nome} (Total: ${p.quantidade_atual})</option>`).join('');
 
     // Gerar lista de produtos para busca rápida
-    const produtosJSON = JSON.stringify(produtos.map(p => ({ id: p.id, nome: p.nome, quantidade_atual: p.quantidade_atual })));
+    const produtosJSON = JSON.stringify(produtos.map(p => ({ id: p.id, nome: p.nome, quantidade_atual: p.quantidade_atual, tem_tamanho: p.tem_tamanho ? 1 : 0, tamanhos_lista: p.tamanhos_lista || '[]' })));
 
     let html = `<div style="text-align:left;">
         <div style="margin-bottom:12px;">
@@ -1139,6 +1381,12 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
             </div>
             <input type="hidden" id="swal-global-produto" value="">
             <div id="swal-global-produto-selecionado" style="display:none;margin-top:6px;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:0.85rem;color:#15803d;font-weight:600;"></div>
+        </div>
+        <div id="swal-global-tamanho-container" style="margin-bottom:12px;display:none;">
+            <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Tamanho *</label>
+            <select id="swal-global-tamanho" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                <option value="">Selecione o tamanho</option>
+            </select>
         </div>
         <div style="margin-bottom:12px;">
             <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Endereço *</label>
@@ -1177,8 +1425,47 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
             const listaProdutos = document.getElementById('swal-global-produto-lista');
             const hiddenProduto = document.getElementById('swal-global-produto');
             const labelSelecionado = document.getElementById('swal-global-produto-selecionado');
+            const tamContainer = document.getElementById('swal-global-tamanho-container');
+            const selTam = document.getElementById('swal-global-tamanho');
             const selEnd = document.getElementById('swal-global-endereco');
             const hint = document.getElementById('swal-global-endereco-hint');
+            let _currentSaldos = [];
+            let _currentTemTamanho = false;
+
+            function atualizarOpcoesEnderecos(tamFiltro) {
+                let optionsHTML = '<option value="">Selecione o endereço</option>';
+                const saldosFiltrados = _currentTemTamanho
+                    ? _currentSaldos.filter(s => String(s.tamanho || '').toUpperCase() === String(tamFiltro || '').toUpperCase())
+                    : _currentSaldos;
+                if (_currentTemTamanho && !tamFiltro) {
+                    selEnd.innerHTML = '<option value="">Selecione o tamanho primeiro</option>';
+                    selEnd.disabled = true;
+                    return;
+                }
+                selEnd.disabled = false;
+                if (isEntrada) {
+                    const ends = window._estoqueEnderecos;
+                    optionsHTML += ends.map(end => {
+                        const foundSaldo = saldosFiltrados.find(s => String(s.endereco_id) === String(end.id));
+                        const qty = foundSaldo ? foundSaldo.quantidade : 0;
+                        return `<option value="${end.id}">${end.nome} (Atual: ${qty})</option>`;
+                    }).join('');
+                } else {
+                    let avail = saldosFiltrados.filter(s => s.quantidade > 0);
+                    avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
+                    if (avail.length === 0) {
+                        optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
+                        selEnd.disabled = true;
+                    } else {
+                        optionsHTML += avail.map(s => `<option value="${s.endereco_id}">${s.endereco_nome} (Atual: ${s.quantidade})</option>`).join('');
+                    }
+                }
+                selEnd.innerHTML = optionsHTML;
+            }
+
+            selTam.addEventListener('change', () => {
+                atualizarOpcoesEnderecos(selTam.value);
+            });
 
             // Função para carregar endereços ao selecionar produto
             async function carregarEnderecosProduto(pId, prodNome, prodQtd) {
@@ -1188,6 +1475,7 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                 inputBusca.value = '';
                 listaProdutos.style.display = 'none';
 
+                const prodObj = allProdutos.find(p => String(p.id) === String(pId));
                 selEnd.innerHTML = '<option value="">Selecione o endereço</option>';
                 selEnd.disabled = true;
                 hint.style.display = 'block';
@@ -1196,29 +1484,30 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                     const rs = await fetch(API_URL + "/estoque/" + pId + "/saldo-enderecos", { headers: { "Authorization": "Bearer " + token } });
                     let saldos = [];
                     if (rs.ok) saldos = await rs.json();
-                    
+                    _currentSaldos = saldos;
+
+                    let tams = [];
+                    try { tams = JSON.parse(prodObj?.tamanhos_lista || '[]'); } catch (_) {}
+                    saldos.forEach(s => {
+                        if (s.tamanho && !tams.includes(s.tamanho)) tams.push(s.tamanho);
+                    });
+                    _currentTemTamanho = Boolean((prodObj && prodObj.tem_tamanho) || tams.length > 0);
+                    hiddenProduto.dataset.temTamanho = _currentTemTamanho ? '1' : '0';
+
                     hint.style.display = 'none';
-                    selEnd.disabled = false;
-                    
-                    let optionsHTML = '<option value="">Selecione o endereço</option>';
-                    if (isEntrada) {
-                        const ends = window._estoqueEnderecos;
-                        optionsHTML += ends.map(end => {
-                            const foundSaldo = saldos.find(s => String(s.endereco_id) === String(end.id));
-                            const qty = foundSaldo ? foundSaldo.quantidade : 0;
-                            return `<option value="${end.id}">${end.nome} (Atual: ${qty})</option>`;
+                    if (_currentTemTamanho) {
+                        tamContainer.style.display = 'block';
+                        selTam.innerHTML = '<option value="">Selecione o tamanho</option>' + tams.map(t => {
+                            const totTam = saldos.filter(s => String(s.tamanho || '').toUpperCase() === String(t).toUpperCase()).reduce((acc, s) => acc + (parseInt(s.quantidade) || 0), 0);
+                            return `<option value="${t}">${t} (Saldo: ${totTam})</option>`;
                         }).join('');
+                        selEnd.innerHTML = '<option value="">Selecione o tamanho primeiro</option>';
+                        selEnd.disabled = true;
                     } else {
-                        let avail = saldos.filter(s => s.quantidade > 0);
-                        avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
-                        if (avail.length === 0) {
-                            optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
-                            selEnd.disabled = true;
-                        } else {
-                            optionsHTML += avail.map(s => `<option value="${s.endereco_id}">${s.endereco_nome} (Atual: ${s.quantidade})</option>`).join('');
-                        }
+                        tamContainer.style.display = 'none';
+                        selTam.innerHTML = '<option value=""></option>';
+                        atualizarOpcoesEnderecos('');
                     }
-                    selEnd.innerHTML = optionsHTML;
                 } catch(err) {
                     hint.style.display = 'none';
                 }
@@ -1277,7 +1566,10 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
             setTimeout(() => inputBusca.focus(), 100);
         },
         preConfirm: () => {
-            const pId = document.getElementById('swal-global-produto').value;
+            const hiddenEl = document.getElementById('swal-global-produto');
+            const pId = hiddenEl.value;
+            const temTam = hiddenEl.dataset.temTamanho === '1';
+            const tam = document.getElementById('swal-global-tamanho')?.value || '';
             const endId = document.getElementById('swal-global-endereco').value;
             const qtd = parseInt(document.getElementById('swal-global-qtd').value);
             let motivo = '';
@@ -1286,10 +1578,11 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                 if (!motivo) { Swal.showValidationMessage('Motivo é obrigatório para saída'); return false; }
             }
             if (!pId) { Swal.showValidationMessage('Selecione o produto'); return false; }
+            if (temTam && !tam) { Swal.showValidationMessage('Selecione o tamanho'); return false; }
             if (!endId) { Swal.showValidationMessage('Selecione o endereço'); return false; }
             if (!qtd || qtd <= 0) { Swal.showValidationMessage('Quantidade inválida'); return false; }
             
-            return { pId, endId, qtd, motivo };
+            return { pId, endId, qtd, motivo, tam };
         }
     });
 
@@ -1297,7 +1590,8 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
         try {
             const body = { 
                 quantidade: isEntrada ? vals.qtd : -vals.qtd, 
-                endereco_id: parseInt(vals.endId)
+                endereco_id: parseInt(vals.endId),
+                tamanho: vals.tam || ''
             };
             if (!isEntrada) body.motivo = vals.motivo;
             else body.motivo = 'Entrada de produtos';

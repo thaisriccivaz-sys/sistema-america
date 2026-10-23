@@ -18089,15 +18089,16 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                         notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd);
                     }
 
-                    // Função central para processar a baixa de um item com quantidade total e endereço opcional
-                function processarBaixaEstoque(item, count, enderecoId, enderecoNome) {
+                    // Função central para processar a baixa de um item com quantidade total, endereço e tamanho opcional
+                function processarBaixaEstoque(item, count, enderecoId, enderecoNome, tamanhoEpi) {
+                    const tamNorm = String(tamanhoEpi || '').trim().toUpperCase();
                     if (!item || item.quantidade_atual < count) {
                         console.warn(`[ESTOQUE] Item "${item ? item.nome : '?'}" com estoque insuficiente para baixa de ${count}.`);
                         count = item ? Math.max(0, item.quantidade_atual) : 0;
                         if (count === 0) return;
                     }
                     
-                    db.get('SELECT s.quantidade, s.quantidade_minima, ee.tipo_notificacao, ee.id as e_id FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ?', [item.id, enderecoId || 0], (errS, rowS) => {
+                    db.get('SELECT s.quantidade, s.quantidade_minima, COALESCE(s.tamanho, "") as tamanho, ee.tipo_notificacao, ee.id as e_id FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ? AND (? = "" OR COALESCE(s.tamanho, "") = "" OR UPPER(s.tamanho) = ?)', [item.id, enderecoId || 0, tamNorm, tamNorm], (errS, rowS) => {
                         if (!rowS && !enderecoId) {
                             // Tenta pegar o 'Geral'
                             db.get("SELECT id, tipo_notificacao FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
@@ -18114,16 +18115,18 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                     function efetuarBaixa(finalEnderecoId, tipoNotificacao, rowS) {
                         const oldSaldo = rowS ? rowS.quantidade : 0;
                         const minSaldo = rowS ? (rowS.quantidade_minima || item.quantidade_minima || 0) : (item.quantidade_minima || 0);
+                        const tamRow = rowS ? (rowS.tamanho || '') : tamNorm;
                         
                         db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
                             if (!errUpd) {
                                 if (finalEnderecoId) {
-                                    db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?', [count, item.id, finalEnderecoId], () => {
+                                    db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ? AND (? = "" OR COALESCE(tamanho, "") = "" OR UPPER(tamanho) = ?)', [count, item.id, finalEnderecoId, tamRow, tamRow], () => {
                                         const newSaldo = Math.max(0, oldSaldo - count);
                                         verificarENotificarEstoqueMinimoPorEndereco(item.id, item.nome, item.departamento, finalEnderecoId, oldSaldo, newSaldo, minSaldo, tipoNotificacao, item.foto_url, item.foto_base64);
                                     });
                                 }
-                                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [item.id, count, 'Saida', 'Sistema', 'Baixa prontuario Colaborador', finalEnderecoId, enderecoNome], () => {});
+                                const motivoHist = tamRow ? `Baixa prontuario Colaborador (Tam. ${tamRow})` : 'Baixa prontuario Colaborador';
+                                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [item.id, count, 'Saida', 'Sistema', motivoHist, finalEnderecoId, enderecoNome], () => {});
                             }
                         });
                     }
@@ -18214,7 +18217,9 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
 
                                 // Match de Tamanho
                                 if (isSize) {
-                                    const sizeInItem = tokensItem.includes(lastToken);
+                                    let itemTamList = [];
+                                    try { itemTamList = JSON.parse(item.tamanhos_lista || '[]').map(x => String(x).toUpperCase()); } catch(e) {}
+                                    const sizeInItem = tokensItem.includes(lastToken) || itemTamList.includes(lastToken);
                                     if (sizeInItem) {
                                         score += 100; // Tamanho bateu!
                                     } else {
@@ -18237,6 +18242,9 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
 
                         if (match) {
                             console.log(`[ESTOQUE] Match encontrado: "${match.nome}"`);
+                            const tokensEpiBaixa = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
+                            const lastTkBaixa = tokensEpiBaixa.length > 0 ? tokensEpiBaixa[tokensEpiBaixa.length - 1] : '';
+                            const tamBaixa = /^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|\d{2})$/.test(lastTkBaixa) ? lastTkBaixa : '';
                             // Resolver endereço selecionado para este EPI
                             const epiKeyNorm = (original || '').trim().toUpperCase();
                             let eEnderecoId = null;
@@ -18251,7 +18259,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                                     eEnderecoNome = endInfo && endInfo.nome ? endInfo.nome : null;
                                 }
                             }
-                            processarBaixaEstoque(match, count, eEnderecoId, eEnderecoNome);
+                            processarBaixaEstoque(match, count, eEnderecoId, eEnderecoNome, tamBaixa);
                         } else {
                             console.warn(`[ESTOQUE] Item "${originalNome}" nao encontrado no estoque após tentativas.`);
                         }
@@ -31416,6 +31424,8 @@ db.run("ALTER TABLE estoque ADD COLUMN foto_url TEXT", (err) => { /* ignorar se 
 db.run("ALTER TABLE estoque ADD COLUMN placas_vinculadas TEXT", (err) => { /* ignorar se ja existe */ });
 // Migration: adicionar coluna subcategoria se nao existir
 db.run("ALTER TABLE estoque ADD COLUMN subcategoria TEXT", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE estoque ADD COLUMN tem_tamanho INTEGER DEFAULT 0", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE estoque ADD COLUMN tamanhos_lista TEXT DEFAULT '[]'", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31445,36 +31455,168 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
 });
 
-// Tabela de saldo por produto à endereço
+// Helper: Consolidar automaticamente produtos existentes que foram cadastrados separados por tamanho
+function _consolidarProdutosComTamanhoEstoque() {
+    const sizeOrder = {
+        'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5,
+        'XG': 6, 'EG': 7, 'EXG': 8, 'XGG': 9, 'XXG': 10, 'EGG': 11,
+        'G1': 12, 'G2': 13, 'G3': 14, 'G4': 15
+    };
+    function parseNomeTamanho(nome, categoria) {
+        const raw = String(nome || '').trim();
+        const cat = String(categoria || '').trim().toLowerCase();
+        if (cat !== 'uniforme' && cat !== 'epi') return null;
+        const tokens = raw.split(/(\s+|\-|\(|\)|\/)/);
+        let foundSize = '';
+        const baseParts = [];
+        for (let i = 0; i < tokens.length; i++) {
+            const tk = tokens[i];
+            const cleanTk = tk.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            if (!foundSize && sizeOrder[cleanTk] !== undefined) {
+                foundSize = cleanTk;
+            } else if (!foundSize && /^(3[4-9]|4[0-8])$/.test(cleanTk)) {
+                foundSize = cleanTk;
+            } else {
+                baseParts.push(tk);
+            }
+        }
+        if (!foundSize) return null;
+        const baseNome = baseParts.join('').replace(/\s+/g, ' ').replace(/\s*\-\s*\-/g, ' - ').replace(/\-\s*$/, '').trim();
+        if (!baseNome) return null;
+        return { baseNome, tamanho: foundSize };
+    }
+
+    db.all('SELECT * FROM estoque ORDER BY id ASC', [], (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const groups = {};
+        rows.forEach(r => {
+            const parsed = parseNomeTamanho(r.nome, r.categoria);
+            if (parsed) {
+                const key = (String(r.categoria || '') + '::' + parsed.baseNome).toLowerCase();
+                if (!groups[key]) groups[key] = { baseNome: parsed.baseNome, categoria: r.categoria, variants: [], exactBaseItem: null };
+                groups[key].variants.push({ item: r, tamanho: parsed.tamanho });
+            }
+        });
+        // Check if there is also an item whose name is already exactly baseNome
+        rows.forEach(r => {
+            const key = (String(r.categoria || '') + '::' + String(r.nome || '').trim()).toLowerCase();
+            if (groups[key] && !groups[key].variants.some(v => v.item.id === r.id)) {
+                groups[key].exactBaseItem = r;
+            }
+        });
+
+        Object.values(groups).forEach(grp => {
+            // Consolidate if there are 2+ size variants OR 1+ variant with an existing base item
+            if (grp.variants.length < 2 && !grp.exactBaseItem) return;
+            const master = grp.exactBaseItem || grp.variants[0].item;
+            let fotoUrl = master.foto_url || null;
+            let fotoB64 = master.foto_base64 || null;
+            const allSizesSet = new Set();
+            try {
+                const existingList = JSON.parse(master.tamanhos_lista || '[]');
+                if (Array.isArray(existingList)) existingList.forEach(s => allSizesSet.add(String(s).toUpperCase()));
+            } catch(e) {}
+
+            grp.variants.forEach(v => {
+                allSizesSet.add(v.tamanho);
+                if (!fotoUrl && v.item.foto_url) fotoUrl = v.item.foto_url;
+                if (!fotoB64 && v.item.foto_base64) fotoB64 = v.item.foto_base64;
+            });
+
+            const sortedSizes = Array.from(allSizesSet).sort((a, b) => {
+                const oa = sizeOrder[a] || (100 + (parseInt(a, 10) || 999));
+                const ob = sizeOrder[b] || (100 + (parseInt(b, 10) || 999));
+                return oa - ob;
+            });
+
+            db.serialize(() => {
+                grp.variants.forEach(v => {
+                    if (v.item.id === master.id) {
+                        db.run(
+                            "UPDATE estoque_saldo_por_endereco SET tamanho = ? WHERE estoque_id = ? AND (tamanho IS NULL OR tamanho = '')",
+                            [v.tamanho, master.id]
+                        );
+                    } else {
+                        db.all('SELECT * FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [v.item.id], (errS, saldosSec) => {
+                            if (!errS && saldosSec && saldosSec.length > 0) {
+                                saldosSec.forEach(s => {
+                                    const tamUsar = s.tamanho || v.tamanho;
+                                    db.run(
+                                        `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?)
+                                         ON CONFLICT(estoque_id, endereco_id, tamanho) DO UPDATE SET
+                                             quantidade = estoque_saldo_por_endereco.quantidade + EXCLUDED.quantidade`,
+                                        [master.id, s.endereco_id, tamUsar, s.quantidade || 0, s.quantidade_minima || 0, s.quantidade_maxima || 0, s.tipo_estoque || 'matriz']
+                                    );
+                                });
+                            }
+                            db.run('UPDATE estoque_historico SET estoque_id = ? WHERE estoque_id = ?', [master.id, v.item.id]);
+                            db.run('DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [v.item.id]);
+                            db.run('DELETE FROM estoque WHERE id = ?', [v.item.id]);
+                        });
+                    }
+                });
+
+                setTimeout(() => {
+                    db.get('SELECT COALESCE(SUM(quantidade), 0) as total FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [master.id], (errT, rowT) => {
+                        const totalQtd = rowT ? rowT.total : master.quantidade_atual;
+                        db.run(
+                            'UPDATE estoque SET nome = ?, tem_tamanho = 1, tamanhos_lista = ?, quantidade_atual = ?, foto_url = COALESCE(foto_url, ?), foto_base64 = COALESCE(foto_base64, ?) WHERE id = ?',
+                            [grp.baseNome, JSON.stringify(sortedSizes), totalQtd, fotoUrl, fotoB64, master.id]
+                        );
+                    });
+                }, 300);
+            });
+        });
+    });
+}
+
+// Tabela de saldo por produto e endereço (com suporte a tamanho)
 db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     estoque_id  INTEGER NOT NULL,
     endereco_id INTEGER NOT NULL,
+    tamanho     TEXT DEFAULT '',
     quantidade  INTEGER DEFAULT 0,
-    UNIQUE(estoque_id, endereco_id)
+    quantidade_minima INTEGER DEFAULT 0,
+    quantidade_maxima INTEGER DEFAULT 0,
+    tipo_estoque TEXT DEFAULT 'matriz',
+    UNIQUE(estoque_id, endereco_id, tamanho)
 )`, (err) => {
     if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela saldo_por_endereco:', err.message);
-    // Migration: adicionar colunas min/max por endereço se nao existirem
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_minima INTEGER DEFAULT 0", () => {});
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN quantidade_maxima INTEGER DEFAULT 0", () => {});
-    // Migration: migrar quantidades existentes para o endereço 'Geral' se ainda nao feito
-    db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
-        if (errG || !rowG) return;
-        const geralId = rowG.id;
-        db.get('SELECT COUNT(*) as total FROM estoque_saldo_por_endereco', [], (errC, rowC) => {
-            if (errC || (rowC && rowC.total > 0)) return; // já migrado
-            db.all('SELECT id, quantidade_atual FROM estoque WHERE quantidade_atual > 0', [], (errE, rows) => {
-                if (errE || !rows || rows.length === 0) return;
-                rows.forEach(item => {
-                    db.run(
-                        'INSERT OR IGNORE INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade) VALUES (?, ?, ?)',
-                        [item.id, geralId, item.quantidade_atual],
-                        (errI) => { if (errI) console.error('[ESTOQUE] Erro na migration saldo:', errI.message); }
-                    );
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
+
+    // Verificar se a coluna tamanho já existe na tabela; se não, recriar tabela com UNIQUE(estoque_id, endereco_id, tamanho)
+    db.all("PRAGMA table_info(estoque_saldo_por_endereco)", [], (errP, cols) => {
+        const hasTamanho = Array.isArray(cols) && cols.some(c => c.name === 'tamanho');
+        if (!hasTamanho) {
+            db.serialize(() => {
+                db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco_v2 (
+                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                    estoque_id        INTEGER NOT NULL,
+                    endereco_id       INTEGER NOT NULL,
+                    tamanho           TEXT DEFAULT '',
+                    quantidade        INTEGER DEFAULT 0,
+                    quantidade_minima INTEGER DEFAULT 0,
+                    quantidade_maxima INTEGER DEFAULT 0,
+                    tipo_estoque      TEXT DEFAULT 'matriz',
+                    UNIQUE(estoque_id, endereco_id, tamanho)
+                )`);
+                db.run(`INSERT OR IGNORE INTO estoque_saldo_por_endereco_v2 (id, estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                        SELECT id, estoque_id, endereco_id, '', COALESCE(quantidade, 0), COALESCE(quantidade_minima, 0), COALESCE(quantidade_maxima, 0), COALESCE(tipo_estoque, 'matriz')
+                        FROM estoque_saldo_por_endereco`);
+                db.run("DROP TABLE estoque_saldo_por_endereco");
+                db.run("ALTER TABLE estoque_saldo_por_endereco_v2 RENAME TO estoque_saldo_por_endereco", (errRen) => {
+                    if (errRen) console.error('[ESTOQUE] Erro ao migrar tabela saldo_por_endereco_v2:', errRen.message);
+                    else console.log('[ESTOQUE] Tabela estoque_saldo_por_endereco migrada com suporte a tamanho.');
+                    _consolidarProdutosComTamanhoEstoque();
                 });
-                console.log(`[ESTOQUE] Migration: ${rows.length} itens migrados para endereço 'Geral'.`);
             });
-        });
+        } else {
+            _consolidarProdutosComTamanhoEstoque();
+        }
     });
 });
 
@@ -31611,7 +31753,7 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        let { nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -31640,8 +31782,8 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
         }
 
         db.run(
-            'INSERT INTO estoque (nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nome, departamento, categoria, subcategoria || null, quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
+            'INSERT INTO estoque (nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, departamento, categoria, subcategoria || null, tem_tamanho ? 1 : 0, typeof tamanhos_lista === 'string' ? tamanhos_lista : JSON.stringify(tamanhos_lista || []), quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newItemId = this.lastID;
@@ -31667,7 +31809,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        let { nome, departamento, categoria, subcategoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -31677,6 +31819,10 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
         });
         if (!oldRow) return res.status(404).json({ error: 'Item nao encontrado' });
         const subcatSalvar = (subcategoria !== undefined) ? (subcategoria || null) : (oldRow.subcategoria || null);
+        const temTamSalvar = (tem_tamanho !== undefined) ? (tem_tamanho ? 1 : 0) : (oldRow.tem_tamanho ? 1 : 0);
+        const tamListaSalvar = (tamanhos_lista !== undefined)
+            ? (typeof tamanhos_lista === 'string' ? tamanhos_lista : JSON.stringify(tamanhos_lista || []))
+            : (oldRow.tamanhos_lista || '[]');
 
         let foto_url = oldRow.foto_url || null;
         let foto_b64_salvar = oldRow.foto_base64 || null;
@@ -31705,8 +31851,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
 
         await new Promise((resolve, reject) => {
             db.run(
-                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, subcategoria = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-                [nome, departamento, categoria, subcatSalvar, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
+                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, subcategoria = ?, tem_tamanho = ?, tamanhos_lista = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                [nome, departamento, categoria, subcatSalvar, temTamSalvar, tamListaSalvar, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
                 function(err) { if (err) reject(err); else resolve(this); }
             );
         });
@@ -31871,36 +32017,30 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 
 // Adicionar/Atualizar saldo num endereço específico (entrada de estoque por endereço)
 
-// Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos)
+// Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos, com suporte a tamanho)
 app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
     try {
         const { id } = req.params;
         const enderecos = req.body.enderecos || [];
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
         
-        // 1. Busca quantidades antigas ANTES de alterar
-        db.all('SELECT endereco_id, quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [id], (errQ, oldSaldos) => {
+        // 1. Busca quantidades antigas ANTES de alterar (chave: endereco_id + '__' + tamanho)
+        db.all('SELECT endereco_id, COALESCE(tamanho, "") as tamanho, quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [id], (errQ, oldSaldos) => {
             const oldMap = {};
-            (oldSaldos || []).forEach(s => { oldMap[s.endereco_id] = s.quantidade; });
+            (oldSaldos || []).forEach(s => {
+                const k = String(s.endereco_id) + '__' + String(s.tamanho || '').trim().toUpperCase();
+                oldMap[k] = s.quantidade;
+            });
             
             db.serialize(() => {
-                const enderecoIds = enderecos.map(e => e.endereco_id);
-                const placeholders = enderecoIds.map(() => '?').join(',');
-                
-                const deleteQuery = enderecoIds.length > 0 
-                    ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
-                    : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
-                
-                const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
-                
-                db.run(deleteQuery, deleteParams, (err) => {
+                db.run('DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [id], (err) => {
                     if (err) return res.status(500).json({ error: err.message });
                     
                     try {
                         const stmt = db.prepare(`
-                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, tamanho, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(estoque_id, endereco_id, tamanho) DO UPDATE SET
                                 quantidade = EXCLUDED.quantidade,
                                 quantidade_minima = EXCLUDED.quantidade_minima,
                                 quantidade_maxima = EXCLUDED.quantidade_maxima,
@@ -31908,21 +32048,25 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
                         `);
                         
                         enderecos.forEach(e => {
-                            stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
+                            const tam = String(e.tamanho || '').trim().toUpperCase();
+                            stmt.run([id, e.endereco_id, tam, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
                         });
                         
                         stmt.finalize(() => {
-                            // 2. Grava histórico por endereço para quantidades que mudaram
+                            // 2. Grava histórico por endereço/tamanho para quantidades que mudaram
                             enderecos.forEach(e => {
-                                const oldQtd = (oldMap[e.endereco_id] !== undefined) ? (oldMap[e.endereco_id] || 0) : 0;
+                                const tam = String(e.tamanho || '').trim().toUpperCase();
+                                const k = String(e.endereco_id) + '__' + tam;
+                                const oldQtd = (oldMap[k] !== undefined) ? (oldMap[k] || 0) : 0;
                                 const newQtd = parseInt(e.quantidade) || 0;
                                 const diff = newQtd - oldQtd;
                                 if (diff !== 0) {
                                     db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [e.endereco_id], (errE, rowE) => {
                                         const endNome = rowE ? rowE.nome : null;
+                                        const motivoHist = tam ? ('Edi\u00e7\u00e3o de Estoque (Tam. ' + tam + ')') : 'Edi\u00e7\u00e3o de Estoque';
                                         db.run(
                                             'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                            [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, 'Edi\u00e7\u00e3o de Estoque', e.endereco_id, endNome],
+                                            [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, motivoHist, e.endereco_id, endNome],
                                             () => {}
                                         );
                                     });
@@ -32035,26 +32179,28 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
 // Recebe: { quantidade: Number (+ = entrada, - = sa??da), endereco_id?: Number, motivo?: String }
 app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
     const { id } = req.params;
-    const { quantidade, endereco_id, motivo } = req.body;
+    const { quantidade, endereco_id, tamanho, motivo } = req.body;
+    const tam = String(tamanho || '').trim().toUpperCase();
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
     const qtdRaw = parseInt(quantidade);
     if (isNaN(qtdRaw) || qtdRaw === 0) {
-        return res.status(400).json({ error: 'Quantidade inv??lida. Informe um nºmero diferente de zero.' });
+        return res.status(400).json({ error: 'Quantidade inválida. Informe um número diferente de zero.' });
     }
 
     const isEntrada = qtdRaw > 0;
     const qtdAbs    = Math.abs(qtdRaw);
     const tipo      = isEntrada ? 'Entrada' : 'Saida';
-    const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Sa??da de produtos');
+    const baseMotivo = motivo || (isEntrada ? 'Entrada de produtos' : 'Saída de produtos');
+    const motivoFinal = tam ? (baseMotivo + ' (Tam. ' + tam + ')') : baseMotivo;
 
     db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
         if (err)   return res.status(500).json({ error: err.message });
         if (!item) return res.status(404).json({ error: 'Item de estoque nao encontrado.' });
 
-        // Validação de saldo apenas para sa??das
+        // Validação de saldo apenas para saídas
         if (!isEntrada && item.quantidade_atual < qtdAbs) {
-            return res.status(400).json({ error: `Estoque insuficiente. Disponºvel: ${item.quantidade_atual} unid.` });
+            return res.status(400).json({ error: `Estoque insuficiente. Disponível: ${item.quantidade_atual} unid.` });
         }
 
         const novaQtd = isEntrada
@@ -32067,19 +32213,19 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
             (errU) => {
                 if (errU) return res.status(500).json({ error: errU.message });
 
-                // Atualizar saldo por endereço se informado
+                // Atualizar saldo por endereço (e tamanho) se informado
                 if (endereco_id) {
                     if (isEntrada) {
                         db.run(
-                            `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade)
-                             VALUES (?, ?, ?)
-                             ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
-                            [id, endereco_id, qtdAbs, qtdAbs], () => {}
+                            `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, tamanho, quantidade)
+                             VALUES (?, ?, ?, ?)
+                             ON CONFLICT(estoque_id, endereco_id, tamanho) DO UPDATE SET quantidade = quantidade + ?`,
+                            [id, endereco_id, tam, qtdAbs, qtdAbs], () => {}
                         );
                     } else {
                         db.run(
-                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                            [qtdAbs, id, endereco_id], () => {}
+                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ? AND UPPER(COALESCE(tamanho, "")) = ?',
+                            [qtdAbs, id, endereco_id, tam], () => {}
                         );
                     }
                 }
@@ -32094,7 +32240,7 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
                     );
                 });
 
-                res.json({ success: true, quantidade_atual: novaQtd, tipo });
+                res.json({ success: true, quantidade_atual: novaQtd, tipo, tamanho: tam });
             }
         );
     });
@@ -32157,11 +32303,11 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
 // Obter todos os saldos por endereço (para todos os itens de uma vez - usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(
-        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque,
+        `SELECT s.estoque_id, COALESCE(s.tamanho, '') as tamanho, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque,
                 e.id as endereco_id, e.nome as endereco_nome, e.tipo_notificacao
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
-         ORDER BY e.nome ASC`,
+         ORDER BY e.nome ASC, s.tamanho ASC`,
         [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             const map = {};
@@ -32170,6 +32316,7 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
                 map[r.estoque_id].push({ 
                     endereco_id: r.endereco_id, 
                     nome: r.endereco_nome,
+                    tamanho: r.tamanho || '',
                     tipo_notificacao: r.tipo_notificacao || '',
                     quantidade: r.quantidade,
                     quantidade_minima: r.quantidade_minima,
@@ -32240,7 +32387,9 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
                         else if (colabMasculino) { if (hasMasculina) score += 150; else if (hasFeminina) score -= 150; }
                         
                         if (isSize) {
-                            if (tokensItem.includes(lastToken)) score += 100;
+                            let itemTamList = [];
+                            try { itemTamList = JSON.parse(item.tamanhos_lista || '[]').map(x => String(x).toUpperCase()); } catch(e) {}
+                            if (tokensItem.includes(lastToken) || itemTamList.includes(lastToken)) score += 100;
                             else if (tokensItem.some(t => /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(t) && t !== lastToken)) score -= 100;
                         }
                         
@@ -32250,13 +32399,17 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
                 }
 
                 if (match) {
+                    const tokensEpiMatch = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
+                    const lastTkMatch = tokensEpiMatch.length > 0 ? tokensEpiMatch[tokensEpiMatch.length - 1] : '';
+                    const isSizeMatch = /^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|\d{2})$/.test(lastTkMatch);
                     const p = new Promise(resolve => {
                         db.all(
-                            `SELECT e.id, e.nome, e.departamentos_vinculados, s.quantidade 
+                            `SELECT e.id, e.nome, e.departamentos_vinculados, s.quantidade, COALESCE(s.tamanho, '') as tamanho
                              FROM estoque_saldo_por_endereco s 
                              JOIN estoque_enderecos e ON s.endereco_id = e.id 
-                             WHERE s.estoque_id = ? AND s.quantidade > 0`,
-                            [match.id],
+                             WHERE s.estoque_id = ? AND s.quantidade > 0
+                               AND (? = '' OR COALESCE(s.tamanho, '') = '' OR UPPER(s.tamanho) = ?)`,
+                            [match.id, isSizeMatch ? lastTkMatch : '', isSizeMatch ? lastTkMatch : ''],
                             (errS, rowsS) => {
                                 resultados[originalNome] = {
                                     matchId: match.id,
