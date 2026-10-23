@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261023v9" defer></script>
+    <script src="estoque.js?v=20261023v10" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3760,32 +3760,24 @@
                                     <!-- Populated via JS -->
                                 </div>
                             </div>
-                            <div style="flex: 1; min-width: 200px;">
+                            <div style="flex: 1; min-width: 220px; position: relative;" id="filtro-estoque-cat-container">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Categoria</label>
-                                <select id="filtro-estoque-cat" class="form-control" style="width: 100%;" onchange="window.renderEstoqueTable()">
-                                    <option value="">Todas</option>
-                                    <option value="EPI">EPI</option>
-                                    <option value="Uniforme">Uniforme</option>
-                                    <option value="Copa">Copa</option>
-                                    <option value="Pets">Pets</option>
-                                    <option value="Itens de Escritório">Itens de Escritório</option>
-                                    <option value="Peças para Sanitários/Equipamentos">Peças para Sanitários/Equipamentos</option>
-                                    <option value="Produtos Químicos">Produtos Químicos</option>
-                                    <option value="Limpeza e Higiene">Limpeza e Higiene</option>
-                                    <option value="Ferramentas">Ferramentas</option>
-                                    <option value="Elétrica">Elétrica</option>
-                                    <option value="Hidráulica">Hidráulica</option>
-                                    <option value="Ferragens e Fixadores">Ferragens e Fixadores</option>
-                                    <option value="Pintura e Acabamento">Pintura e Acabamento</option>
-                                    <option value="Lubrificantes e Fluidos">Lubrificantes e Fluidos</option>
-                                    <option value="Automotivo">Automotivo</option>
-                                    <option value="Pneus e Borracharia">Pneus e Borracharia</option>
-                                    <option value="Informática e Eletrônicos">Informática e Eletrônicos</option>
-                                    <option value="Descartáveis">Descartáveis</option>
-                                    <option value="Embalagens">Embalagens</option>
-                                    <option value="Utilidades Gerais">Utilidades Gerais</option>
-                                    <option value="Outros">Outros</option>
-                                </select>
+                                <input type="hidden" id="filtro-estoque-cat" value="">
+                                <div id="filtro-estoque-cat-btn" class="form-control" style="width: 100%; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: #fff;" onclick="window.abrirDropdownCategoriaEstoque()">
+                                    <span id="filtro-estoque-cat-text" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todas</span>
+                                    <i class="ph ph-caret-down"></i>
+                                </div>
+                                <div id="filtro-estoque-cat-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; min-width: 260px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.12); z-index: 105; max-height: 290px; overflow-y: auto; padding: 0.5rem; margin-top: 4px;">
+                                    <div style="position: sticky; top: -0.5rem; background: #fff; padding: 4px 0 6px 0; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px; z-index: 2;">
+                                        <input type="text" id="filtro-estoque-cat-busca" placeholder="Digite para pesquisar categoria..." autocomplete="off"
+                                            oninput="window.filtrarOpcoesCategoriaEstoque(this.value)"
+                                            style="width: 100%; padding: 6px 10px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.83rem; box-sizing: border-box; outline: none;">
+                                    </div>
+                                    <label id="filtro-estoque-cat-todas-label" style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px; font-weight:600;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                        <input type="checkbox" id="filtro-estoque-cat-todas-cb" value="" checked onchange="window.toggleTodasCategoriasFiltro(this)"> Todas
+                                    </label>
+                                    <div id="filtro-estoque-cat-opcoes"></div>
+                                </div>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Status</label>

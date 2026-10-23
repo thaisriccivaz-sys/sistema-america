@@ -66,12 +66,121 @@ window.updateEnderecoFiltroText = function() {
     }
 };
 
+const _CATEGORIAS_ESTOQUE_LISTA = [
+    'Automotivo',
+    'Copa',
+    'Descartáveis',
+    'Elétrica',
+    'Embalagens',
+    'EPI',
+    'Ferragens e Fixadores',
+    'Ferramentas',
+    'Hidráulica',
+    'Informática e Eletrônicos',
+    'Itens de Escritório',
+    'Limpeza e Higiene',
+    'Lubrificantes e Fluidos',
+    'Outros',
+    'Peças para Sanitários/Equipamentos',
+    'Pets',
+    'Pintura e Acabamento',
+    'Pneus e Borracharia',
+    'Produtos Químicos',
+    'Uniforme',
+    'Utilidades Gerais'
+];
+
+function _popularDropdownCategoriasEstoque() {
+    const opcoesContainer = document.getElementById('filtro-estoque-cat-opcoes');
+    if (!opcoesContainer || opcoesContainer.dataset.populated === 'true') return;
+    opcoesContainer.dataset.populated = 'true';
+    const sortedCats = _CATEGORIAS_ESTOQUE_LISTA.slice().sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+    opcoesContainer.innerHTML = sortedCats.map(cat =>
+        '<label class="filtro-estoque-cat-item" data-cat="' + cat.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') + '" ' +
+            'style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" ' +
+            'onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'transparent\'">' +
+            '<input type="checkbox" value="' + cat + '" class="filtro-estoque-cat-cb" onchange="window.updateCategoriaFiltroText(); window.renderEstoqueTable()"> ' +
+            '<span>' + cat + '</span>' +
+        '</label>'
+    ).join('') + '<div id="filtro-estoque-cat-vazio" style="display:none;padding:8px;color:#94a3b8;font-size:0.82rem;text-align:center;">Nenhuma categoria encontrada</div>';
+}
+
+window.abrirDropdownCategoriaEstoque = function() {
+    _popularDropdownCategoriasEstoque();
+    const dropdown = document.getElementById('filtro-estoque-cat-dropdown');
+    if (!dropdown) return;
+    const willOpen = dropdown.style.display !== 'block';
+    dropdown.style.display = willOpen ? 'block' : 'none';
+    if (willOpen) {
+        const inp = document.getElementById('filtro-estoque-cat-busca');
+        if (inp) {
+            inp.value = '';
+            window.filtrarOpcoesCategoriaEstoque('');
+            setTimeout(() => inp.focus(), 30);
+        }
+    }
+};
+
+window.filtrarOpcoesCategoriaEstoque = function(texto) {
+    _popularDropdownCategoriasEstoque();
+    const t = String(texto || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const items = document.querySelectorAll('#filtro-estoque-cat-opcoes .filtro-estoque-cat-item');
+    const todasLbl = document.getElementById('filtro-estoque-cat-todas-label');
+    const vazioEl = document.getElementById('filtro-estoque-cat-vazio');
+    if (todasLbl) todasLbl.style.display = t ? 'none' : 'flex';
+    let visiveis = 0;
+    items.forEach(lbl => {
+        const match = !t || (lbl.dataset.cat || '').includes(t);
+        lbl.style.display = match ? 'flex' : 'none';
+        if (match) visiveis++;
+    });
+    if (vazioEl) vazioEl.style.display = visiveis === 0 ? 'block' : 'none';
+};
+
+window.toggleTodasCategoriasFiltro = function(cbTodas) {
+    const checkboxes = document.querySelectorAll('.filtro-estoque-cat-cb');
+    checkboxes.forEach(cb => { cb.checked = false; });
+    cbTodas.checked = true;
+    window.updateCategoriaFiltroText();
+    window.renderEstoqueTable();
+};
+
+window.updateCategoriaFiltroText = function() {
+    const checkboxes = document.querySelectorAll('.filtro-estoque-cat-cb:checked');
+    const todasCb = document.getElementById('filtro-estoque-cat-todas-cb');
+    const textEl = document.getElementById('filtro-estoque-cat-text');
+    const hiddenEl = document.getElementById('filtro-estoque-cat');
+    if (!textEl) return;
+
+    if (checkboxes.length === 0) {
+        if (todasCb) todasCb.checked = true;
+        textEl.textContent = 'Todas';
+        if (hiddenEl) hiddenEl.value = '';
+    } else {
+        if (todasCb) todasCb.checked = false;
+        if (checkboxes.length === 1) {
+            textEl.textContent = checkboxes[0].value;
+            if (hiddenEl) hiddenEl.value = checkboxes[0].value;
+        } else {
+            textEl.textContent = checkboxes.length + ' categorias selecionadas';
+            if (hiddenEl) hiddenEl.value = '';
+        }
+    }
+};
+
 document.addEventListener('click', (e) => {
     const btn = document.getElementById("filtro-estoque-endereco-btn");
     const dropdown = document.getElementById("filtro-estoque-endereco-dropdown");
     if (btn && dropdown) {
         if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
+        }
+    }
+    const catBtn = document.getElementById("filtro-estoque-cat-btn");
+    const catDropdown = document.getElementById("filtro-estoque-cat-dropdown");
+    if (catBtn && catDropdown) {
+        if (!catBtn.contains(e.target) && !catDropdown.contains(e.target)) {
+            catDropdown.style.display = 'none';
         }
     }
 });
@@ -85,15 +194,16 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         if (!preserveScroll) {
             table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
         }
+        _popularDropdownCategoriasEstoque();
         const dept   = document.getElementById("filtro-estoque-dept").value;
-        const cat    = document.getElementById("filtro-estoque-cat").value;
+        const selectedCategorias = Array.from(document.querySelectorAll('.filtro-estoque-cat-cb:checked')).map(cb => cb.value);
         const statusEl = document.getElementById("filtro-estoque-status");
         const status = statusEl ? statusEl.value : "";
         const nome   = document.getElementById("filtro-estoque-nome").value.toLowerCase();
         const token  = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
         let url = API_URL + "/estoque?";
         if (dept) url += "departamento=" + encodeURIComponent(dept) + "&";
-        if (cat)  url += "categoria=" + encodeURIComponent(cat) + "&";
+        if (selectedCategorias.length === 1) url += "categoria=" + encodeURIComponent(selectedCategorias[0]) + "&";
 
         const headers = { "Authorization": "Bearer " + token };
         const [r1, r2] = await Promise.all([
@@ -126,6 +236,9 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             selectedEnderecos = Array.from(checkboxes).map(cb => cb.value);
         }
 
+        if (selectedCategorias.length > 0) {
+            data = data.filter(i => selectedCategorias.includes(String(i.categoria || '').trim()));
+        }
         if (nome) data = data.filter(i => i.nome.toLowerCase().includes(nome));
         if (selectedEnderecos.length > 0) {
             data = data.filter(i => {
