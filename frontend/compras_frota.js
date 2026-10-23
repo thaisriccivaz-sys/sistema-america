@@ -114,6 +114,8 @@
                     if (!(ms === 'em_andamento' || ms === 'agendada' || ms === 'aguardando' || ms === 'finalizacao_pendente' || finPend)) return false;
                 } else if (st.filtroManut === 'finalizacao_pendente') {
                     if (!finPend && ms !== 'finalizacao_pendente') return false;
+                } else if (st.filtroManut === 'concluida') {
+                    if (!(ms === 'concluida' && temVid)) return false;
                 } else if (st.filtroManut === 'concluidas_mes') {
                     if (!(ms === 'concluida' && temVid && String(x.data_conclusao || '').startsWith(mesAtual))) return false;
                 } else if (ms !== st.filtroManut) {
@@ -138,15 +140,15 @@
                 const aguardando = st.dados.filter((m) => m.manut_status === 'aguardando').length;
                 const finPendente = st.dados.filter((m) => (m.manut_status === 'concluida' && !(Number(m.tem_video_geral) > 0)) || m.manut_status === 'finalizacao_pendente').length;
                 const emAberto = emAndamento + agendadas + aguardando + finPendente;
-                const concluidasMes = st.dados.filter((m) => m.manut_status === 'concluida' && Number(m.tem_video_geral) > 0 && String(m.data_conclusao || '').startsWith(mesAtual)).length;
+                const concluidas = st.dados.filter((m) => m.manut_status === 'concluida' && Number(m.tem_video_geral) > 0).length;
                 const ativoM = st.filtroManut || 'todos';
                 const cardsM = [
-                    { key: 'em_aberto',            cor: '#e11d48', bg: '#fff1f2', icone: 'ph-folder-open',   label: 'Em Aberto',            val: emAberto },
+                    { key: 'em_aberto',            cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-folder-open',   label: 'Em Aberto',            val: emAberto },
                     { key: 'em_andamento',         cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',        val: emAndamento },
                     { key: 'agendada',             cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                val: agendadas },
                     { key: 'aguardando',           cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',           val: aguardando },
                     { key: 'finalizacao_pendente', cor: '#ea580c', bg: '#fff7ed', icone: 'ph-video-camera',  label: 'Finalização Pendente', val: finPendente },
-                    { key: 'concluidas_mes',       cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',  val: concluidasMes },
+                    { key: 'concluida',            cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas',           val: concluidas },
                     { key: 'todos',                cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',                val: st.dados.length }
                 ];
                 kpiManut.innerHTML = cardsM.map((k) => {
@@ -188,7 +190,10 @@
         atualizarBotaoView(tipo);
         if (st.view === 'cards' && !st.veic) {
             tbl.innerHTML = cardsHtml(tipo, lista);
-            if (cnt) cnt.textContent = new Set(lista.map((x) => String(x.veiculo_id))).size + ' veículo(s)';
+            const nVeic = tipo === 'corretiva'
+                ? window._fcAgruparCorretivas(st.dados, lista, st.filtroManut).length
+                : new Set(lista.map((x) => String(x.veiculo_id))).size;
+            if (cnt) cnt.textContent = nVeic + ' veículo(s)';
             return;
         }
 
@@ -284,7 +289,7 @@
     function cardsHtml(tipo, lista) {
         const st = state[tipo];
         if (tipo === 'corretiva') {
-            const grupos = window._fcAgruparCorretivas(st.dados, lista);
+            const grupos = window._fcAgruparCorretivas(st.dados, lista, st.filtroManut);
             return '<div style="padding:1rem;background:#f8fafc;">' + window._fcCorrCardsHtml(grupos, 'window.comprasCorrAbrirVeiculo') + '</div>';
         }
         // revisão: agrupa por veículo; contagem por situação do Compras e valores / dias parado vindos do resumo de revisões realizadas

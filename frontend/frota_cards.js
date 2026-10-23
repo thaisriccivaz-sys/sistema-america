@@ -178,7 +178,7 @@
             return window._fcCardShell({
                 vid: g.vid, placa: g.placa, modelo: g.modelo, tipo: g.tipo, foto: g.foto, parado: st.parado, onclickFn: onclickFn,
                 chips: [
-                    { label: 'Em aberto', val: st.em_aberto, cor: '#e11d48' },
+                    { label: 'Em aberto', val: st.em_aberto, cor: '#7c3aed' },
                     { label: 'Em manutenção', val: st.em_andamento, cor: '#dc2626' },
                     { label: 'Novos', val: st.agendada, cor: '#d97706' },
                     { label: 'Aguardando', val: st.aguardando, cor: '#2563eb' },
@@ -195,17 +195,21 @@
     };
 
     // Monta os grupos por veículo: todas = todas as corretivas (para os totais); visiveis = linhas que passaram nos filtros
-    window._fcAgruparCorretivas = function (todas, visiveis) {
+    window._fcAgruparCorretivas = function (todas, visiveis, filtroStatus) {
         const porV = {};
         (todas || []).forEach((m) => { (porV[String(m.veiculo_id)] = porV[String(m.veiculo_id)] || []).push(window._fcCorrNorm(m)); });
         const vids = [];
         (visiveis || []).forEach((m) => { const k = String(m.veiculo_id); if (vids.indexOf(k) === -1) vids.push(k); });
-        const grupos = vids.map((k) => {
+        let grupos = vids.map((k) => {
             const itens = porV[k] || [];
             const f = itens[0] || {};
             const abertas = itens.filter((i) => i.aberta || i.finPend).length;
-            return { vid: k, placa: f.placa, modelo: f.modelo, tipo: f.tipo, foto: f.foto, itens: itens, _abertas: abertas };
+            const concluidas = itens.filter((i) => i.status === 'concluida' && !i.finPend).length;
+            return { vid: k, placa: f.placa, modelo: f.modelo, tipo: f.tipo, foto: f.foto, itens: itens, _abertas: abertas, _concluidas: concluidas };
         });
+        if (filtroStatus === 'concluida') {
+            grupos = grupos.filter((g) => g._abertas === 0 && g._concluidas > 0);
+        }
         grupos.sort((a, b) => ((b._abertas > 0) - (a._abertas > 0)) || String(a.placa || '').localeCompare(String(b.placa || '')));
         return grupos;
     };
