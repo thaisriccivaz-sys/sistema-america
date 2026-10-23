@@ -31876,6 +31876,91 @@ app.get('/api/compras-estoque/resumo', authenticateToken, _ceHandler(async (req,
     res.json(out);
 }));
 
+// ── Extração automática de produtos/dados de Nota Fiscal (PDF, XML ou Imagem) ─
+function _ceNormalizarDataIso(str) {
+    const s = String(str || '').trim();
+    if (!s) return '';
+    const mIso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (mIso) return mIso[1] + '-' + mIso[2] + '-' + mIso[3];
+    const mBr = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
+    if (mBr) return mBr[3] + '-' + mBr[2] + '-' + mBr[1];
+    return '';
+}
+function _ceExtrairXmlNfe(xmlStr) {
+    const tag = (src, nome) => {
+        const m = new RegExp('<' + nome + '[^>]*>([\\s\\S]*?)<\\/' + nome + '>', 'i').exec(src);
+        return m ? m[1].trim() : '';
+    };
+    const ide = tag(xmlStr, 'ide');
+    const emit = tag(xmlStr, 'emit');
+    const icmsTot = tag(xmlStr, 'ICMSTot');
+    const numero = tag(ide, 'nNF');
+    const serie = tag(ide, 'serie');
+    const data_emissao = _ceNormalizarDataIso(tag(ide, 'dhEmi') || tag(ide, 'dEmi'));
+    const fornecedor = tag(emit, 'xNome') || tag(emit, 'xFant');
+    const cnpj = tag(emit, 'CNPJ');
+    const valor_total = parseFloat(tag(icmsTot, 'vNF')) || 0;
+    const itens = [];
+    const reDet = /<det\b[^>]*>([\s\S]*?)<\/det>/gi;
+    let m;
+    while ((m = reDet.exec(xmlStr)) !== null) {
+        const prod = tag(m[1], 'prod');
+        if (!prod) continue;
+        const descricao = tag(prod, 'xProd');
+        const qtd = parseFloat(tag(prod, 'qCom')) || 1;
+        const vUnit = parseFloat(tag(prod, 'vUnCom')) || 0;
+        const vTot = parseFloat(tag(prod, 'vProd')) || (qtd * vUnit);
+        if (descricao) {
+            itens.push({
+                codigo: tag(prod, 'cProd'),
+                descricao,
+                unidade: tag(prod, 'uCom') || 'UN',
+                quantidade: qtd > 0 ? qtd : 1,
+                valor_unitario: vUnit > 0 ? vUnit : (qtd > 0 ? vTot / qtd : 0),
+                valor_total: vTot
+            });
+        }
+    }
+    return { numero, serie, fornecedor, cnpj, data_emissao, valor_total, itens, avisos: [], fonte: 'xml' };
+}
+
+app.post('/api/compras-estoque/extrair-nota', authenticateToken, _ceHandler(async (req, res) => {
+    const b = req.body || {};
+    const arq = _ceDecodificarArquivo(b.arquivo_base64, b.nome_arquivo, ['pdf', 'png', 'jpg', 'jpeg', 'xml']);
+    if (arq.ext === 'xml') {
+        const xmlStr = arq.buffer.toString('utf8');
+        return res.json(_ceExtrairXmlNfe(xmlStr));
+    }
+    const { analisarDocumentoUnificado } = require('./utils/nfParser');
+    const u = await analisarDocumentoUnificado(arq.buffer, arq.contentType);
+    const brutos = (u.pecas && u.pecas.length) ? u.pecas : (u.moItens || []);
+    const itens = brutos.map(it => {
+        const qtd = Number(it.quantidade) > 0 ? Number(it.quantidade) : 1;
+        const vTot = Number(it.valor_total) || Number(it.valor) || 0;
+        const vUnit = Number(it.valor_unit) > 0 ? Number(it.valor_unit) : (qtd > 0 ? Math.round((vTot / qtd) * 100) / 100 : vTot);
+        return {
+            codigo: it.codigo || '',
+            descricao: it.descricao || '',
+            unidade: it.unidade || 'UN',
+            quantidade: qtd,
+            valor_unitario: vUnit,
+            valor_total: vTot > 0 ? vTot : Math.round(qtd * vUnit * 100) / 100
+        };
+    }).filter(it => it.descricao && (it.valor_unitario > 0 || it.valor_total > 0));
+    const somaItens = Math.round(itens.reduce((acc, i) => acc + (i.valor_total || 0), 0) * 100) / 100;
+    res.json({
+        numero: u.numero || '',
+        serie: u.serie || '',
+        fornecedor: u.fornecedor || '',
+        cnpj: u.cnpj || '',
+        data_emissao: _ceNormalizarDataIso(u.emissao),
+        valor_total: Number(u.valor_total) > 0 ? Number(u.valor_total) : somaItens,
+        itens,
+        avisos: u.avisos || [],
+        fonte: u.fonte || 'local'
+    });
+}));
+
 // ── Notas fiscais (cadastro único, vinculável a vários produtos) ────────────
 app.get('/api/compras-estoque-notas', authenticateToken, _ceHandler(async (req, res) => {
     const rows = await _ceAll(
@@ -32429,8 +32514,14 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
                         
                         enderecos.forEach(e => {
                             const tam = String(e.tamanho || '').trim().toUpperCase();
-                            const ruaNum = parseInt(e.rua, 10);
-                            const ruaVal = (ruaNum >= 1 && ruaNum <= 50) ? String(ruaNum) : '';
+                            const ruaRaw = String(e.rua || '').trim().toUpperCase();
+                            let ruaVal = '';
+                            if (/^[A-Z]$/.test(ruaRaw)) {
+                                ruaVal = ruaRaw;
+                            } else {
+                                const ruaNum = parseInt(ruaRaw, 10);
+                                if (ruaNum >= 1 && ruaNum <= 26) ruaVal = String.fromCharCode(64 + ruaNum);
+                            }
                             stmt.run([id, e.endereco_id, tam, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz', ruaVal]);
                         });
                         

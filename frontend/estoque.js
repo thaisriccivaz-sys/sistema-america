@@ -37,18 +37,30 @@ async function _carregarEnderecos() {
     } catch (e) { console.warn("[ESTOQUE] Erro ao carregar enderecos:", e.message); }
 }
 
-// ── Rua do endereço Almoxarifado (1 a 50) ─────────────────────────────────────
+// ── Rua do endereço Almoxarifado (A a Z) ─────────────────────────────────────
 window._estNormTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 window._ehAlmoxarifadoNome = nome => window._estNormTxt(nome).includes('almoxarifado');
 window._ehAlmoxarifado = function(endId) {
     const e = (window._estoqueEnderecos || []).find(x => String(x.id) === String(endId));
     return !!e && window._ehAlmoxarifadoNome(e.nome);
 };
+window._normalizarRuaLetra = function(raw) {
+    const v = String(raw || '').trim().toUpperCase();
+    if (/^[A-Z]$/.test(v)) return v;
+    const n = parseInt(v, 10);
+    if (n >= 1 && n <= 26) return String.fromCharCode(64 + n);
+    return '';
+};
 // Select "Rua" exibido ao lado direito do endereço (somente quando o endereço é Almoxarifado)
 window._ruaSelectHtml = function(idx, linha, prefixo) {
     const alm = window._ehAlmoxarifado(linha.endereco_id);
+    const rAtual = window._normalizarRuaLetra(linha.rua);
+    if (linha.rua && rAtual) linha.rua = rAtual;
     let opts = '<option value="">Rua</option>';
-    for (let i = 1; i <= 50; i++) opts += '<option value="' + i + '"' + (String(linha.rua) === String(i) ? ' selected' : '') + '>Rua ' + i + '</option>';
+    for (let i = 0; i < 26; i++) {
+        const L = String.fromCharCode(65 + i);
+        opts += '<option value="' + L + '"' + (rAtual === L ? ' selected' : '') + '>Rua ' + L + '</option>';
+    }
     return '<select id="estoque-rua-' + prefixo + idx + '" title="Rua do almoxarifado" onchange="window._enderecoLinhas[' + idx + '].rua = this.value" ' +
         'style="width:96px;flex-shrink:0;border:1.5px solid #fed7aa;border-radius:6px;padding:6px 8px;font-size:0.84rem;background:#fff7ed;color:#9a3412;font-weight:700;display:' + (alm ? 'block' : 'none') + ';">' + opts + '</select>';
 };
@@ -59,11 +71,11 @@ window._onEnderecoChange = function(idx, val, prefixo) {
     const alm = window._ehAlmoxarifado(l.endereco_id);
     if (!alm) l.rua = '';
     const sel = document.getElementById('estoque-rua-' + prefixo + idx);
-    if (sel) { sel.style.display = alm ? 'block' : 'none'; sel.value = alm ? (l.rua || '') : ''; }
+    if (sel) { sel.style.display = alm ? 'block' : 'none'; sel.value = alm ? window._normalizarRuaLetra(l.rua) : ''; }
 };
-// Nome do endereço com número da rua do almoxarifado (ex.: "Almoxarifado - 1")
+// Nome do endereço com letra da rua do almoxarifado (ex.: "Almoxarifado - A")
 window._nomeEnderecoComRua = function(s) {
-    const r = s && s.rua ? String(s.rua).replace(/[^0-9]/g, '') : '';
+    const r = s && s.rua ? window._normalizarRuaLetra(s.rua) : '';
     const nome = s && s.nome ? s.nome : '';
     return nome + (r ? ' - ' + r : '');
 };
