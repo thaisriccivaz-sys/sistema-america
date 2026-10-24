@@ -22377,10 +22377,11 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_email_diario_log (
     PRIMARY KEY (tipo, data_envio)
 )`, (err) => { if (err) console.error('[MIGRATION estoque_email_diario_log]', err.message); });
 
-function verificarEstoqueMinimoDiarioCron() {
+function coletarListasEstoqueMinimo(cb) {
     const agoraSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
     const dataFmtBR = `${String(agoraSP.getDate()).padStart(2, '0')}/${String(agoraSP.getMonth() + 1).padStart(2, '0')}/${agoraSP.getFullYear()}`;
+    const horaFmtBR = `${String(agoraSP.getHours()).padStart(2, '0')}:${String(agoraSP.getMinutes()).padStart(2, '0')}`;
 
     const sql = `
         SELECT 
@@ -22408,10 +22409,7 @@ function verificarEstoqueMinimoDiarioCron() {
     `;
 
     db.all(sql, [], (err, rows) => {
-        if (err) {
-            console.error('[CRON ESTOQUE 08H] Erro ao consultar estoque:', err.message);
-            return;
-        }
+        if (err) return cb(err);
 
         const itensCompras = [];
         const itensReposicao = [];
@@ -22464,7 +22462,90 @@ function verificarEstoqueMinimoDiarioCron() {
             }
         });
 
-        // Helper para montar e disparar o e-mail consolidado por tipo
+        cb(null, { itensCompras, itensReposicao, hojeStr, dataFmtBR, horaFmtBR });
+    });
+}
+
+function montarEmailConsolidadoEstoque(dbTipo, listaItens, dataFmtBR, horaRef) {
+    const isRepos = dbTipo === 'estoque_reposicao';
+    const corPrimaria = isRepos ? '#7c3aed' : '#ea580c';
+    const corBgHeader = isRepos ? '#f5f3ff' : '#fff7ed';
+    const corTextoHeader = isRepos ? '#5b21b6' : '#9a3412';
+    const corBorda = isRepos ? '#ddd6fe' : '#fed7aa';
+    const refHora = horaRef || '08:00';
+    const tituloEmail = isRepos
+        ? `🔄 Relatório — Mínimo para Reposição de Estoque (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`
+        : `🛒 Relatório — Estoque Mínimo para Compras (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`;
+    const subtituloEmail = isRepos
+        ? `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo para <strong>reposição</strong> em <strong>${dataFmtBR} (${refHora})</strong>:`
+        : `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo e <strong>precisam ser comprados</strong> em <strong>${dataFmtBR} (${refHora})</strong>:`;
+    const labelColFaltante = isRepos ? 'Qtd. a Repor (p/ Máx.)' : 'Qtd. a Comprar (p/ Máx.)';
+
+    const linhasHtml = listaItens.map((it, idx) => {
+        const bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        const maxTxt = it.quantidade_maxima !== null ? String(it.quantidade_maxima) : '—';
+        const faltaTxt = it.quantidade_maxima !== null
+            ? String(it.quantidade_faltante)
+            : (it.quantidade_faltante > 0 ? `${it.quantidade_faltante} (p/ mín.)` : '—');
+        return `
+            <tr style="background:${bgRow};">
+                <td style="padding:9px 10px;border:1px solid ${corBorda};font-weight:bold;color:#1e293b;">
+                    ${it.nome}
+                    <div style="font-size:11px;color:#64748b;font-weight:normal;margin-top:2px;">${it.categoria}</div>
+                </td>
+                <td style="padding:9px 10px;border:1px solid ${corBorda};color:#334155;font-size:13px;">${it.endereco}</td>
+                <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#dc2626;font-weight:bold;font-size:14px;">${it.quantidade_atual}</td>
+                <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#92400e;font-weight:600;">${it.quantidade_minima}</td>
+                <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#166534;font-weight:600;">${maxTxt}</td>
+                <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;background:${corBgHeader};color:${corPrimaria};font-weight:800;font-size:14px;">${faltaTxt}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const html = `
+        <div style="font-family:Arial,sans-serif;color:#333;line-height:1.5;max-width:740px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+            <div style="text-align:center;padding:20px 20px 10px;background:#fff;border-bottom:1px solid #f1f5f9;">
+                <img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" />
+            </div>
+            <div style="padding:20px 24px;">
+                <h2 style="color:${corPrimaria};border-bottom:2px solid ${corPrimaria};padding-bottom:10px;margin-top:0;font-size:18px;">${tituloEmail}</h2>
+                <p style="font-size:14px;color:#334155;">${subtituloEmail}</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
+                    <thead>
+                        <tr style="background:${corBgHeader};color:${corTextoHeader};">
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Produto</th>
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Endereço</th>
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Atual</th>
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Mínima</th>
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Máxima</th>
+                            <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">${labelColFaltante}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${linhasHtml}
+                    </tbody>
+                </table>
+                <p style="margin-top:20px;font-size:12px;color:#64748b;">Acesse o sistema para gerenciar o estoque e registrar as compras/reposições.</p>
+                <p style="margin-top:12px;font-size:12px;color:#94a3b8;">Atenciosamente,<br>Sistema América Rental</p>
+            </div>
+        </div>
+    `;
+
+    const subject = isRepos
+        ? `[ESTOQUE] Mínimo para Reposição (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`
+        : `[ESTOQUE] Produtos para Comprar - Estoque Mínimo (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`;
+
+    return { subject, html };
+}
+
+function verificarEstoqueMinimoDiarioCron() {
+    coletarListasEstoqueMinimo((err, dados) => {
+        if (err) {
+            console.error('[CRON ESTOQUE 08H] Erro ao consultar estoque:', err.message);
+            return;
+        }
+        const { itensCompras, itensReposicao, hojeStr, dataFmtBR } = dados;
+
         const dispararEmailConsolidado = (dbTipo, listaItens) => {
             if (!listaItens || listaItens.length === 0) {
                 console.log(`[CRON ESTOQUE 08H] Nenhum item pendente para '${dbTipo}' em ${hojeStr}.`);
@@ -22493,73 +22574,7 @@ function verificarEstoqueMinimoDiarioCron() {
                                 return;
                             }
 
-                            const isRepos = dbTipo === 'estoque_reposicao';
-                            const corPrimaria = isRepos ? '#7c3aed' : '#ea580c';
-                            const corBgHeader = isRepos ? '#f5f3ff' : '#fff7ed';
-                            const corTextoHeader = isRepos ? '#5b21b6' : '#9a3412';
-                            const corBorda = isRepos ? '#ddd6fe' : '#fed7aa';
-                            const tituloEmail = isRepos
-                                ? `🔄 Relatório Diário — Mínimo para Reposição de Estoque (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`
-                                : `🛒 Relatório Diário — Estoque Mínimo para Compras (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`;
-                            const subtituloEmail = isRepos
-                                ? `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo para <strong>reposição</strong> em <strong>${dataFmtBR} (08:00)</strong>:`
-                                : `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo e <strong>precisam ser comprados</strong> em <strong>${dataFmtBR} (08:00)</strong>:`;
-                            const labelColFaltante = isRepos ? 'Qtd. a Repor (p/ Máx.)' : 'Qtd. a Comprar (p/ Máx.)';
-
-                            const linhasHtml = listaItens.map((it, idx) => {
-                                const bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-                                const maxTxt = it.quantidade_maxima !== null ? String(it.quantidade_maxima) : '—';
-                                const faltaTxt = it.quantidade_maxima !== null
-                                    ? String(it.quantidade_faltante)
-                                    : (it.quantidade_faltante > 0 ? `${it.quantidade_faltante} (p/ mín.)` : '—');
-                                return `
-                                    <tr style="background:${bgRow};">
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};font-weight:bold;color:#1e293b;">
-                                            ${it.nome}
-                                            <div style="font-size:11px;color:#64748b;font-weight:normal;margin-top:2px;">${it.categoria}</div>
-                                        </td>
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};color:#334155;font-size:13px;">${it.endereco}</td>
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#dc2626;font-weight:bold;font-size:14px;">${it.quantidade_atual}</td>
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#92400e;font-weight:600;">${it.quantidade_minima}</td>
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#166534;font-weight:600;">${maxTxt}</td>
-                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;background:${corBgHeader};color:${corPrimaria};font-weight:800;font-size:14px;">${faltaTxt}</td>
-                                    </tr>
-                                `;
-                            }).join('');
-
-                            const html = `
-                                <div style="font-family:Arial,sans-serif;color:#333;line-height:1.5;max-width:740px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                                    <div style="text-align:center;padding:20px 20px 10px;background:#fff;border-bottom:1px solid #f1f5f9;">
-                                        <img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" />
-                                    </div>
-                                    <div style="padding:20px 24px;">
-                                        <h2 style="color:${corPrimaria};border-bottom:2px solid ${corPrimaria};padding-bottom:10px;margin-top:0;font-size:18px;">${tituloEmail}</h2>
-                                        <p style="font-size:14px;color:#334155;">${subtituloEmail}</p>
-                                        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
-                                            <thead>
-                                                <tr style="background:${corBgHeader};color:${corTextoHeader};">
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Produto</th>
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Endereço</th>
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Atual</th>
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Mínima</th>
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Máxima</th>
-                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">${labelColFaltante}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${linhasHtml}
-                                            </tbody>
-                                        </table>
-                                        <p style="margin-top:20px;font-size:12px;color:#64748b;">Acesse o sistema para gerenciar o estoque e registrar as compras/reposições.</p>
-                                        <p style="margin-top:12px;font-size:12px;color:#94a3b8;">Atenciosamente,<br>Sistema América Rental</p>
-                                    </div>
-                                </div>
-                            `;
-
-                            const subject = isRepos
-                                ? `[ESTOQUE] Mínimo para Reposição (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`
-                                : `[ESTOQUE] Produtos para Comprar - Estoque Mínimo (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`;
-
+                            const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dataFmtBR, '08:00');
                             sendEmailParaNotificados(dbTipo, { subject, html })
                                 .then(() => console.log(`[CRON ESTOQUE 08H] E-mail consolidado '${dbTipo}' enviado com ${listaItens.length} item(ns).`))
                                 .catch(e => console.error(`[CRON ESTOQUE 08H] Erro ao enviar '${dbTipo}':`, e.message));
@@ -22573,6 +22588,60 @@ function verificarEstoqueMinimoDiarioCron() {
         dispararEmailConsolidado('estoque_reposicao', itensReposicao);
     });
 }
+
+// Disparo manual de e-mail consolidado (botões "Enviar Compras" e "Enviar Reposição")
+app.post('/api/estoque/enviar-email-minimo', authenticateToken, (req, res) => {
+    const tipoReq = String((req.body && req.body.tipo) || 'compra').trim().toLowerCase();
+    const isRepos = tipoReq === 'reposicao' || tipoReq === 'estoque_reposicao';
+    const dbTipo = isRepos ? 'estoque_reposicao' : 'estoque_minimo';
+    const nomeQuadro = isRepos ? 'Mínimo para reposição de estoque' : 'Estoque mínimo para compra';
+
+    coletarListasEstoqueMinimo((err, dados) => {
+        if (err) return res.status(500).json({ error: 'Erro ao consultar itens em estoque mínimo: ' + err.message });
+
+        const listaItens = isRepos ? dados.itensReposicao : dados.itensCompras;
+        if (!listaItens || listaItens.length === 0) {
+            return res.json({
+                success: false,
+                empty: true,
+                message: isRepos
+                    ? 'Não há nenhum produto em estoque mínimo precisando de reposição no momento.'
+                    : 'Não há nenhum produto em estoque mínimo precisando de compra no momento.'
+            });
+        }
+
+        db.all(
+            `SELECT COALESCE(NULLIF(TRIM(cn.email_override), ''), TRIM(u.email)) AS email_dest, u.nome
+             FROM config_notificacoes cn
+             JOIN usuarios u ON u.id = cn.usuario_id
+             WHERE cn.tipo = ? AND u.ativo = 1`,
+            [dbTipo],
+            async (errU, destRows) => {
+                if (errU) return res.status(500).json({ error: 'Erro ao consultar destinatários: ' + errU.message });
+                const destValidos = (destRows || []).filter(d => d.email_dest && d.email_dest.includes('@'));
+                if (destValidos.length === 0) {
+                    return res.json({
+                        success: false,
+                        no_recipients: true,
+                        message: `Nenhum destinatário com e-mail configurado no quadro "${nomeQuadro}" na tela de Notificações.`
+                    });
+                }
+
+                try {
+                    const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dados.dataFmtBR, dados.horaFmtBR);
+                    await sendEmailParaNotificados(dbTipo, { subject, html });
+                    res.json({
+                        success: true,
+                        total_itens: listaItens.length,
+                        destinatarios: destValidos.map(d => d.email_dest)
+                    });
+                } catch (eSend) {
+                    res.status(500).json({ error: 'Falha ao enviar e-mail: ' + eSend.message });
+                }
+            }
+        );
+    });
+});
 
 // Roda todos os dias às 08:00 (horário do servidor)
 cron.schedule('0 8 * * *', () => {

@@ -2359,3 +2359,52 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
             }
         });
     };
+
+window.enviarEmailEstoqueMinimo = async function(tipo) {
+    const isRepos = tipo === 'reposicao';
+    const btnId = isRepos ? 'btn-estoque-enviar-reposicao' : 'btn-estoque-enviar-compras';
+    const btn = document.getElementById(btnId);
+    const origHtml = btn ? btn.innerHTML : '';
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        }
+        const resp = await fetch(API_URL + '/estoque/enviar-email-minimo', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tipo: isRepos ? 'reposicao' : 'compra' })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || ('Erro ' + resp.status));
+
+        if (data && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: isRepos ? 'E-mail de Reposição Enviado!' : 'E-mail de Compras Enviado!',
+                html: 'Lista com <b>' + data.total_itens + '</b> ' + (data.total_itens === 1 ? 'produto' : 'produtos') + ' enviada para:<br><small style="color:#475569;">' + (data.destinatarios || []).join(', ') + '</small>'
+            });
+        } else {
+            Swal.fire({
+                icon: data && data.empty ? 'info' : 'warning',
+                title: data && data.empty ? (isRepos ? 'Sem itens para reposição' : 'Sem itens para compra') : 'Atenção',
+                text: (data && data.message) || 'Não foi possível enviar o e-mail.'
+            });
+        }
+    } catch (e) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro ao enviar e-mail',
+            text: e.message
+        });
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+};

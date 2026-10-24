@@ -294,6 +294,7 @@
                     '<p style="margin:2px 0 0;color:#64748b;font-size:0.82rem;">Fornecedor, valor, garantia, PDF, notas fiscais e histórico de compras de cada produto.</p></div>' +
                 '</div>' +
                 '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    '<button class="btn" id="ce-btn-enviar-compras" onclick="ceEnviarEmailCompras()" style="background:#0f766e;color:#fff;border:none;display:flex;align-items:center;gap:6px;font-weight:700;"><i class="ph ph-paper-plane-tilt"></i> Enviar Compras</button>' +
                     '<button class="btn" onclick="ceAbrirNovoItem()" style="background:#e67700;color:#fff;border:none;display:flex;align-items:center;gap:6px;font-weight:700;"><i class="ph ph-plus"></i> Adicionar Item</button>' +
                     '<button class="btn" onclick="ceAbrirNotas()" style="background:#1971c2;color:#fff;border:none;display:flex;align-items:center;gap:6px;"><i class="ph ph-receipt"></i> Notas Fiscais</button>' +
                     '<button class="btn btn-secondary" onclick="initComprasEstoque()" style="display:flex;align-items:center;gap:6px;"><i class="ph ph-arrows-clockwise"></i> Atualizar</button>' +
@@ -531,6 +532,32 @@
     }
     window.ceAbrirNovoItem = function () {
         if (typeof window.abrirModalEstoque === 'function') window.abrirModalEstoque();
+    };
+
+    window.ceEnviarEmailCompras = async function () {
+        const btn = $('ce-btn-enviar-compras');
+        const origHtml = btn ? btn.innerHTML : '';
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
+            const r = await api('/estoque/enviar-email-minimo', { method: 'POST', body: { tipo: 'compra' } });
+            if (r && r.success) {
+                swal({
+                    icon: 'success',
+                    title: 'E-mail de Compras Enviado!',
+                    html: 'Lista com <b>' + r.total_itens + '</b> ' + (r.total_itens === 1 ? 'produto' : 'produtos') + ' em estoque mínimo enviada para:<br><small style="color:#475569;">' + esc((r.destinatarios || []).join(', ')) + '</small>'
+                });
+            } else {
+                swal({
+                    icon: r && r.empty ? 'info' : 'warning',
+                    title: r && r.empty ? 'Sem itens para compra' : 'Atenção',
+                    text: (r && r.message) || 'Não foi possível enviar o e-mail.'
+                });
+            }
+        } catch (e) {
+            swal({ icon: 'error', title: 'Erro ao enviar e-mail', text: e.message });
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        }
     };
 
     window.ceAbrirProduto = async function (id, tamFoco) {
