@@ -33045,7 +33045,7 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
          WHERE s.estoque_id = ?
-         ORDER BY e.nome ASC`,
+         ORDER BY CASE WHEN COALESCE(LOWER(TRIM(s.tipo_estoque)), 'matriz') = 'reposicao' THEN 1 ELSE 0 END ASC, e.nome ASC, COALESCE(s.tamanho, '') ASC`,
         [id], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json(rows || []);
@@ -33380,7 +33380,7 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
                 e.id as endereco_id, e.nome as endereco_nome, e.tipo_notificacao
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
-         ORDER BY e.nome ASC, s.tamanho ASC`,
+         ORDER BY CASE WHEN COALESCE(LOWER(TRIM(s.tipo_estoque)), 'matriz') = 'reposicao' THEN 1 ELSE 0 END ASC, e.nome ASC, s.tamanho ASC`,
         [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             const map = {};

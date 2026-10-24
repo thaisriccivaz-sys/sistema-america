@@ -576,7 +576,13 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         }
         function _getTipoItem(it) {
             const sList = saldosMap[it.id] || [];
+            if (sList.some(s => (s.tipo_estoque || 'matriz') !== 'reposicao')) return 'matriz';
             return sList.length > 0 ? String(sList[0].tipo_estoque || 'matriz') : 'matriz';
+        }
+        function _getOrdemMatrizItem(it) {
+            const sList = saldosMap[it.id] || [];
+            if (sList.length === 0) return 0;
+            return sList.some(s => (s.tipo_estoque || 'matriz') !== 'reposicao') ? 0 : 1;
         }
 
         // Ordenar mantendo o agrupamento por Categoria e aplicando a coluna clicada dentro de cada categoria
@@ -600,6 +606,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 const cmpT = _getTipoItem(a).localeCompare(_getTipoItem(b), 'pt-BR', { sensitivity: 'base' });
                 if (cmpT !== 0) return cmpT * dir;
             }
+            const ordMat = _getOrdemMatrizItem(a) - _getOrdemMatrizItem(b);
+            if (ordMat !== 0) return ordMat;
             const cmpNome = String(a.nome || '').trim().localeCompare(String(b.nome || '').trim(), 'pt-BR', { sensitivity: 'base', numeric: true });
             return sortState.col === 'nome' ? (cmpNome * dir) : cmpNome;
         });
@@ -631,7 +639,12 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 '</tr>';
             }
 
-            let saldos = saldosMap[item.id] || [];
+            let saldos = (saldosMap[item.id] || []).slice().sort(function(a, b) {
+                const ta = (a && a.tipo_estoque === 'reposicao') ? 1 : 0;
+                const tb = (b && b.tipo_estoque === 'reposicao') ? 1 : 0;
+                if (ta !== tb) return ta - tb;
+                return String((a && a.nome) || '').localeCompare(String((b && b.nome) || ''), 'pt-BR', { sensitivity: 'base' });
+            });
             if (typeof window.isTopAdmin !== 'undefined' && !window.isTopAdmin && window.activeUserPerms) {
                 const hasAnyEndPerm = Object.keys(window.activeUserPerms).some(k => k.startsWith('estoque-endereco:') && window.activeUserPerms[k]);
                 if (hasAnyEndPerm) {
@@ -1236,7 +1249,8 @@ window._renderTamanhosNoModal = function() {
         const isTamOpen = !!window._modalTamanhosExpandidos[tam];
         const linhasDoTam = (window._enderecoLinhas || [])
             .map((linha, idxGlobal) => ({ linha, idxGlobal }))
-            .filter(x => String(x.linha.tamanho || '').trim().toUpperCase() === tam);
+            .filter(x => String(x.linha.tamanho || '').trim().toUpperCase() === tam)
+            .sort((a, b) => ((a.linha.tipo_estoque === 'reposicao') ? 1 : 0) - ((b.linha.tipo_estoque === 'reposicao') ? 1 : 0));
 
         const totalTam = linhasDoTam.reduce((acc, x) => acc + (parseInt(x.linha.quantidade) || 0), 0);
 
@@ -1267,10 +1281,10 @@ window._renderTamanhosNoModal = function() {
                         '<option value="">-- Selecione o endereço do Tam. ' + tam + ' --</option>' + opcoesEnd +
                     '</select>' +
                     window._ruaSelectHtml(idxGlobal, linha, 't') +
-                    '<select onchange="window._enderecoLinhas[' + idxGlobal + '].tipo_estoque = this.value" ' +
-                        'style="width:190px;border:1.5px solid #ddd6fe;border-radius:6px;padding:6px 8px;font-size:0.8rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
-                        '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz (Compra)</option>' +
-                        '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição</option>' +
+                    '<select onchange="window._enderecoLinhas[' + idxGlobal + '].tipo_estoque = this.value; window._renderTamanhosNoModal();" ' +
+                        'style="width:240px;border:1.5px solid #ddd6fe;border-radius:6px;padding:6px 8px;font-size:0.8rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                        '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz de Estoque (Pedido de Compra)</option>' +
+                        '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição de Estoque (Pedido de Reposição)</option>' +
                     '</select>' +
                     '<button type="button" onclick="window._removerLinhaEndereco(' + idxGlobal + ')" ' +
                         'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:6px 9px;cursor:pointer;flex-shrink:0;" title="Remover endereço">' +
@@ -1354,7 +1368,11 @@ window._renderLinhasEndereco = function() {
         btnTransferir.style.display = 'none';
     }
 
-    lista.innerHTML = linhas.map((linha, idx) => {
+    const linhasOrdenadas = linhas
+        .map((linha, idx) => ({ linha, idx }))
+        .sort((a, b) => ((a.linha.tipo_estoque === 'reposicao') ? 1 : 0) - ((b.linha.tipo_estoque === 'reposicao') ? 1 : 0));
+
+    lista.innerHTML = linhasOrdenadas.map(({ linha, idx }) => {
         const opcoesEnd = window._estoqueEnderecos.map(e =>
             '<option value="' + e.id + '"' + (e.id === linha.endereco_id ? ' selected' : '') + '>' + e.nome + '</option>'
         ).join('');
@@ -1374,10 +1392,10 @@ window._renderLinhasEndereco = function() {
             '</div>' +
             '<div style="margin-bottom:6px;">' +
                 '<label style="display:block;font-size:0.72rem;font-weight:600;color:#7c3aed;margin-bottom:2px;">Tipo de Estoque</label>' +
-                '<select onchange="window._enderecoLinhas[' + idx + '].tipo_estoque = this.value" ' +
+                '<select onchange="window._enderecoLinhas[' + idx + '].tipo_estoque = this.value; window._renderLinhasEndereco();" ' +
                     'style="width:100%;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
-                    '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Estoque Matriz (Pedido de Compra)</option>' +
-                    '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Estoque de Reposição (Pedido de Reposição)</option>' +
+                    '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Matriz de Estoque (Pedido de Compra)</option>' +
+                    '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Reposição de Estoque (Pedido de Reposição)</option>' +
                 '</select>' +
             '</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
