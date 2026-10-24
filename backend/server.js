@@ -250,30 +250,41 @@ function buildR2Key(tipo, subtipo, nomeColab, nomeDocumento, ext) {
  * @param {number} minEnd - Quantidade mínima configurada
  * @param {string} tipoNotifEnd - Tipo de notificação: 'reposicao' ou 'compra'
  */
-function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd) {
+function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd, tamanho) {
     if (!(minEnd > 0 && qtdAtual <= minEnd)) return;
+    const tamNorm = String(tamanho || '').trim().toUpperCase();
 
     console.log('[ESTOQUE MINIMO] "' + itemNome + '" atingiu mínimo. qtdAnterior=' + qtdAnterior + ', qtdAtual=' + qtdAtual + ', min=' + minEnd + ', tipo=' + tipoNotifEnd);
 
-    // Busca o nome do endereço e a quantidade máxima do item para enriquecer a notificação
+    // Busca o nome do endereço, a quantidade máxima e o tipo_estoque do item para enriquecer a notificação de popup
     const buscarEnderecoEMaximo = (cb) => {
-        db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [enderecoId || 0], (errE, rowEnd) => {
+        db.get('SELECT nome, tipo_notificacao FROM estoque_enderecos WHERE id = ?', [enderecoId || 0], (errE, rowEnd) => {
             const enderecoNome = rowEnd ? rowEnd.nome : null;
-            db.get('SELECT quantidade_maxima FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [itemId, enderecoId || 0], (errM, rowItem) => {
-                let qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
-                if (qtdMax === null || qtdMax === 0) {
-                    db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM2, rowItem2) => {
-                        qtdMax = rowItem2 ? (rowItem2.quantidade_maxima || null) : null;
-                        cb(enderecoNome, qtdMax);
-                    });
-                } else {
-                    cb(enderecoNome, qtdMax);
+            const endTipoNotif = rowEnd ? (rowEnd.tipo_notificacao || '') : '';
+            db.get(
+                'SELECT quantidade_maxima, tipo_estoque, COALESCE(rua, "") as rua FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ? AND (? = "" OR UPPER(COALESCE(tamanho, "")) = ?)',
+                [itemId, enderecoId || 0, tamNorm, tamNorm],
+                (errM, rowItem) => {
+                    let qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
+                    const tipoEstoqueSaldo = rowItem ? (rowItem.tipo_estoque || '') : '';
+                    const ruaSaldo = rowItem && rowItem.rua ? String(rowItem.rua).trim() : '';
+                    const endNomeFinal = enderecoNome ? (ruaSaldo ? (enderecoNome + ' - Rua ' + ruaSaldo) : enderecoNome) : null;
+                    if (qtdMax === null || qtdMax === 0) {
+                        db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM2, rowItem2) => {
+                            qtdMax = rowItem2 ? (rowItem2.quantidade_maxima || null) : null;
+                            cb(endNomeFinal, qtdMax, tipoEstoqueSaldo, endTipoNotif);
+                        });
+                    } else {
+                        cb(endNomeFinal, qtdMax, tipoEstoqueSaldo, endTipoNotif);
+                    }
                 }
-            });
+            );
         });
     };
 
-    buscarEnderecoEMaximo((enderecoNome, qtdMax) => {
+    buscarEnderecoEMaximo((enderecoNome, qtdMax, tipoEstoqueSaldo, endTipoNotif) => {
+        if (qtdMax !== null && qtdMax > 0 && minEnd >= qtdMax && qtdAtual >= qtdMax) return;
+        const qtdComprar = (qtdMax !== null && qtdMax > 0) ? Math.max(0, qtdMax - qtdAtual) : Math.max(0, minEnd - qtdAtual);
         const msg = 'ESTOQUE BAIXO: O item "' + itemNome + '" atingiu o estoque mínimo. Quantidade Atual: ' + qtdAtual + ' (Mínimo: ' + minEnd + ').';
         const dadosStr = JSON.stringify({
             item_id: itemId,
@@ -281,49 +292,36 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
             quantidade_atual: qtdAtual,
             quantidade_minima: minEnd,
             quantidade_maxima: qtdMax,
+            quantidade_comprar: qtdComprar,
             endereco_nome: enderecoNome,
             endereco_id: enderecoId
         });
 
-        const tiposNotif = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? [tipoNotifEnd] : ['compra'];
+        let tipoResolvido = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? tipoNotifEnd.trim().toLowerCase() : '';
+        if (String(tipoEstoqueSaldo || '').toLowerCase() === 'reposicao') {
+            tipoResolvido = 'reposicao';
+        } else if (!tipoResolvido && String(endTipoNotif || '').toLowerCase() === 'reposicao') {
+            tipoResolvido = 'reposicao';
+        } else if (!tipoResolvido) {
+            tipoResolvido = 'compra';
+        }
+        const tiposNotif = [tipoResolvido];
 
         tiposNotif.forEach(tipoNotif => {
             const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
 
             // 1. Inserir notificação de popup na tela para todos configurados
+            // (O envio de e-mail agora é feito de forma consolidada todos os dias às 08:00 AM via verificarEstoqueMinimoDiarioCron)
             db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [dbTipo], (errCR, rowsCR) => {
                 if (!errCR && rowsCR && rowsCR.length > 0) {
                     rowsCR.forEach(c => {
                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
                     });
-                    console.log('[ESTOQUE MINIMO] Notificações inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
+                    console.log('[ESTOQUE MINIMO] Notificações de popup inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
                 } else {
                     console.warn('[ESTOQUE MINIMO] Nenhum usuário configurado para tipo="' + dbTipo + '"');
                 }
             });
-
-            // 2. Enviar e-mail com endereço e quantidades completas
-            const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposi&ccedil;&atilde;o' : 'Pedido de Compra';
-            const enderecoLabel = enderecoNome || '—';
-            const qtdMaxLabel = qtdMax !== null ? String(qtdMax) : '—';
-            const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
-                '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" /></div>' +
-                '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque M&iacute;nimo Atingido</h2>' +
-                '<p>Um item do estoque atingiu ou est&aacute; abaixo da quantidade m&iacute;nima ap&oacute;s <b>' + labelTipo + '</b>:</p>' +
-                '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Item</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;font-size:15px;">' + itemNome + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Endere&ccedil;o</th><td style="padding:8px;border:1px solid #fed7aa;">' + enderecoLabel + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Atual</th><td style="padding:8px;border:1px solid #fed7aa;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&iacute;nima</th><td style="padding:8px;border:1px solid #fed7aa;">' + minEnd + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&aacute;xima</th><td style="padding:8px;border:1px solid #fed7aa;">' + qtdMaxLabel + '</td></tr>' +
-                '</table>' +
-                '<p style="color:#ea580c;font-weight:bold;">Por favor, providencie a reposi&ccedil;&atilde;o o mais breve poss&iacute;vel.</p>' +
-                '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
-
-            sendEmailParaNotificados(dbTipo, {
-                subject: `[ESTOQUE] ` + (dbTipo === 'estoque_reposicao' ? 'M\u00EDnimo para Reposi\u00E7\u00E3o' : 'Estoque M\u00EDnimo') + ` Atingido - ` + itemNome,
-                html: emailHtml
-            }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
         });
     });
 }
@@ -22369,6 +22367,213 @@ function verificarDesempenhosPendentes() {
     });
 }
 
+// =====================================================================
+// CRON DIÁRIO 08:00 AM — E-mail consolidado de Estoque Mínimo (Compras e Reposição)
+// =====================================================================
+db.run(`CREATE TABLE IF NOT EXISTS estoque_email_diario_log (
+    tipo TEXT NOT NULL,
+    data_envio TEXT NOT NULL,
+    enviado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (tipo, data_envio)
+)`, (err) => { if (err) console.error('[MIGRATION estoque_email_diario_log]', err.message); });
+
+function verificarEstoqueMinimoDiarioCron() {
+    const agoraSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
+    const dataFmtBR = `${String(agoraSP.getDate()).padStart(2, '0')}/${String(agoraSP.getMonth() + 1).padStart(2, '0')}/${agoraSP.getFullYear()}`;
+
+    const sql = `
+        SELECT 
+            i.id AS estoque_id,
+            i.nome AS produto_nome,
+            COALESCE(i.categoria, '') AS categoria,
+            COALESCE(i.tem_tamanho, 0) AS tem_tamanho,
+            COALESCE(i.quantidade_atual, 0) AS prod_qtd,
+            COALESCE(i.quantidade_minima, 0) AS prod_min,
+            COALESCE(i.quantidade_maxima, 0) AS prod_max,
+            s.id AS saldo_id,
+            s.endereco_id AS endereco_id,
+            COALESCE(ee.nome, '') AS endereco_nome,
+            COALESCE(ee.tipo_notificacao, '') AS end_tipo_notif,
+            COALESCE(s.tamanho, '') AS tamanho,
+            COALESCE(s.rua, '') AS rua,
+            COALESCE(s.quantidade, 0) AS saldo_qtd,
+            COALESCE(s.quantidade_minima, 0) AS saldo_min,
+            COALESCE(s.quantidade_maxima, 0) AS saldo_max,
+            COALESCE(s.tipo_estoque, 'matriz') AS tipo_estoque
+        FROM estoque i
+        LEFT JOIN estoque_saldo_por_endereco s ON s.estoque_id = i.id
+        LEFT JOIN estoque_enderecos ee ON ee.id = s.endereco_id
+        ORDER BY i.nome ASC, ee.nome ASC, s.tamanho ASC
+    `;
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('[CRON ESTOQUE 08H] Erro ao consultar estoque:', err.message);
+            return;
+        }
+
+        const itensCompras = [];
+        const itensReposicao = [];
+
+        (rows || []).forEach(r => {
+            const temSaldo = r.saldo_id !== null && r.saldo_id !== undefined;
+            const tam = String(r.tamanho || '').trim().toUpperCase();
+            const temTam = !!(r.tem_tamanho || tam);
+
+            const qtdAtual = temSaldo ? (parseInt(r.saldo_qtd, 10) || 0) : (parseInt(r.prod_qtd, 10) || 0);
+            const qtdMin = temSaldo
+                ? ((parseInt(r.saldo_min, 10) > 0) ? parseInt(r.saldo_min, 10) : (!temTam ? (parseInt(r.prod_min, 10) || 0) : 0))
+                : (parseInt(r.prod_min, 10) || 0);
+            const qtdMax = temSaldo
+                ? ((parseInt(r.saldo_max, 10) > 0) ? parseInt(r.saldo_max, 10) : (!temTam ? (parseInt(r.prod_max, 10) || 0) : 0))
+                : (parseInt(r.prod_max, 10) || 0);
+
+            // Verifica se atingiu ou está abaixo do estoque mínimo e precisa comprar/repor
+            if (!(qtdMin > 0 && qtdAtual <= qtdMin && (qtdMax <= 0 || qtdAtual < qtdMax))) return;
+
+            const qtdFaltanteParaMax = qtdMax > 0
+                ? Math.max(0, qtdMax - qtdAtual)
+                : Math.max(0, qtdMin - qtdAtual);
+
+            const nomeExibicao = tam ? `${r.produto_nome} (Tam. ${tam})` : r.produto_nome;
+            const ruaLimpa = String(r.rua || '').trim().toUpperCase();
+            const enderecoExibicao = r.endereco_nome
+                ? (ruaLimpa ? `${r.endereco_nome} - Rua ${ruaLimpa}` : r.endereco_nome)
+                : '—';
+
+            const tipoEst = String(r.tipo_estoque || '').trim().toLowerCase();
+            const endNotif = String(r.end_tipo_notif || '').trim().toLowerCase();
+            const isReposicao = temSaldo && ((tipoEst === 'reposicao') || (!tipoEst && endNotif === 'reposicao'));
+
+            const itemObj = {
+                estoque_id: r.estoque_id,
+                nome: nomeExibicao,
+                categoria: r.categoria || '—',
+                endereco: enderecoExibicao,
+                quantidade_atual: qtdAtual,
+                quantidade_minima: qtdMin,
+                quantidade_maxima: qtdMax > 0 ? qtdMax : null,
+                quantidade_faltante: qtdFaltanteParaMax
+            };
+
+            if (isReposicao) {
+                itensReposicao.push(itemObj);
+            } else {
+                itensCompras.push(itemObj);
+            }
+        });
+
+        // Helper para montar e disparar o e-mail consolidado por tipo
+        const dispararEmailConsolidado = (dbTipo, listaItens) => {
+            if (!listaItens || listaItens.length === 0) {
+                console.log(`[CRON ESTOQUE 08H] Nenhum item pendente para '${dbTipo}' em ${hojeStr}.`);
+                return;
+            }
+
+            db.all(
+                `SELECT cn.usuario_id FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = ? AND u.ativo = 1 AND (COALESCE(cn.email_override, '') != '' OR COALESCE(u.email, '') != '')`,
+                [dbTipo],
+                (errU, destRows) => {
+                    if (errU || !destRows || destRows.length === 0) {
+                        console.log(`[CRON ESTOQUE 08H] ${listaItens.length} item(ns) para '${dbTipo}', mas nenhum destinatário com e-mail configurado.`);
+                        return;
+                    }
+
+                    db.run(
+                        'INSERT OR IGNORE INTO estoque_email_diario_log (tipo, data_envio) VALUES (?, ?)',
+                        [dbTipo, hojeStr],
+                        function (errLog) {
+                            if (errLog) {
+                                console.error(`[CRON ESTOQUE 08H] Erro ao gravar log '${dbTipo}':`, errLog.message);
+                                return;
+                            }
+                            if (this.changes === 0) {
+                                console.log(`[CRON ESTOQUE 08H] E-mail diário de '${dbTipo}' já enviado em ${hojeStr}.`);
+                                return;
+                            }
+
+                            const isRepos = dbTipo === 'estoque_reposicao';
+                            const corPrimaria = isRepos ? '#7c3aed' : '#ea580c';
+                            const corBgHeader = isRepos ? '#f5f3ff' : '#fff7ed';
+                            const corTextoHeader = isRepos ? '#5b21b6' : '#9a3412';
+                            const corBorda = isRepos ? '#ddd6fe' : '#fed7aa';
+                            const tituloEmail = isRepos
+                                ? `🔄 Relatório Diário — Mínimo para Reposição de Estoque (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`
+                                : `🛒 Relatório Diário — Estoque Mínimo para Compras (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'})`;
+                            const subtituloEmail = isRepos
+                                ? `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo para <strong>reposição</strong> em <strong>${dataFmtBR} (08:00)</strong>:`
+                                : `Confira abaixo a lista consolidada de produtos que atingiram o estoque mínimo e <strong>precisam ser comprados</strong> em <strong>${dataFmtBR} (08:00)</strong>:`;
+                            const labelColFaltante = isRepos ? 'Qtd. a Repor (p/ Máx.)' : 'Qtd. a Comprar (p/ Máx.)';
+
+                            const linhasHtml = listaItens.map((it, idx) => {
+                                const bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                                const maxTxt = it.quantidade_maxima !== null ? String(it.quantidade_maxima) : '—';
+                                const faltaTxt = it.quantidade_maxima !== null
+                                    ? String(it.quantidade_faltante)
+                                    : (it.quantidade_faltante > 0 ? `${it.quantidade_faltante} (p/ mín.)` : '—');
+                                return `
+                                    <tr style="background:${bgRow};">
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};font-weight:bold;color:#1e293b;">
+                                            ${it.nome}
+                                            <div style="font-size:11px;color:#64748b;font-weight:normal;margin-top:2px;">${it.categoria}</div>
+                                        </td>
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};color:#334155;font-size:13px;">${it.endereco}</td>
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#dc2626;font-weight:bold;font-size:14px;">${it.quantidade_atual}</td>
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#92400e;font-weight:600;">${it.quantidade_minima}</td>
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;color:#166534;font-weight:600;">${maxTxt}</td>
+                                        <td style="padding:9px 10px;border:1px solid ${corBorda};text-align:center;background:${corBgHeader};color:${corPrimaria};font-weight:800;font-size:14px;">${faltaTxt}</td>
+                                    </tr>
+                                `;
+                            }).join('');
+
+                            const html = `
+                                <div style="font-family:Arial,sans-serif;color:#333;line-height:1.5;max-width:740px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                                    <div style="text-align:center;padding:20px 20px 10px;background:#fff;border-bottom:1px solid #f1f5f9;">
+                                        <img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" />
+                                    </div>
+                                    <div style="padding:20px 24px;">
+                                        <h2 style="color:${corPrimaria};border-bottom:2px solid ${corPrimaria};padding-bottom:10px;margin-top:0;font-size:18px;">${tituloEmail}</h2>
+                                        <p style="font-size:14px;color:#334155;">${subtituloEmail}</p>
+                                        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
+                                            <thead>
+                                                <tr style="background:${corBgHeader};color:${corTextoHeader};">
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Produto</th>
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:left;">Endereço</th>
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Atual</th>
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Mínima</th>
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">Qtd. Máxima</th>
+                                                    <th style="padding:10px;border:1px solid ${corBorda};text-align:center;">${labelColFaltante}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${linhasHtml}
+                                            </tbody>
+                                        </table>
+                                        <p style="margin-top:20px;font-size:12px;color:#64748b;">Acesse o sistema para gerenciar o estoque e registrar as compras/reposições.</p>
+                                        <p style="margin-top:12px;font-size:12px;color:#94a3b8;">Atenciosamente,<br>Sistema América Rental</p>
+                                    </div>
+                                </div>
+                            `;
+
+                            const subject = isRepos
+                                ? `[ESTOQUE] Mínimo para Reposição (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`
+                                : `[ESTOQUE] Produtos para Comprar - Estoque Mínimo (${listaItens.length} ${listaItens.length === 1 ? 'item' : 'itens'}) - ${dataFmtBR}`;
+
+                            sendEmailParaNotificados(dbTipo, { subject, html })
+                                .then(() => console.log(`[CRON ESTOQUE 08H] E-mail consolidado '${dbTipo}' enviado com ${listaItens.length} item(ns).`))
+                                .catch(e => console.error(`[CRON ESTOQUE 08H] Erro ao enviar '${dbTipo}':`, e.message));
+                        }
+                    );
+                }
+            );
+        };
+
+        dispararEmailConsolidado('estoque_minimo', itensCompras);
+        dispararEmailConsolidado('estoque_reposicao', itensReposicao);
+    });
+}
+
 // Roda todos os dias às 08:00 (horário do servidor)
 cron.schedule('0 8 * * *', () => {
     console.log('[CRON] Iniciando verificações di??rias de 08:00...');
@@ -22439,6 +22644,7 @@ cron.schedule('0 8 * * *', () => {
     verificarKmSemanalCron();
     verificarMarcoRevisaoCron();
     verificarLicencasVencimentoCron();
+    verificarEstoqueMinimoDiarioCron();
 }, { timezone: 'America/Sao_Paulo' });
 
 // Roda à 1:00 da manhã para ativar colaboradores com data de admissão
@@ -32553,35 +32759,15 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         }
 
-        // Lógica de Notificação de Estoque Mínimo
+        // Lógica de Notificação de Estoque Mínimo (apenas popup imediato quando !skip_history; e-mail é consolidado às 08h)
         try {
-            if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
-                const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
-                const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima });
+            if (!skip_history && quantidade_minima > 0 && quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
+                const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento || categoria || 'Estoque'}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
+                const dadosStr = JSON.stringify({ item_id: id, nome, quantidade_atual, quantidade_minima, quantidade_maxima: quantidade_maxima || null });
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
                     if (!errC && rowsC && rowsC.length > 0) {
                         rowsC.forEach(c => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                        });
-                        // E-mail de estoque mínimo (ajuste manual)
-                        sendEmailParaNotificados('estoque_minimo', {
-                            subject: `[ESTOQUE] Estoque M\u00EDnimo Atingido - ${nome}`,
-                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                    <img src="cid:empresa-logo" alt="Am&eacute;rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                                </div>
-                                <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">&#9888; Estoque M&iacute;nimo Atingido</h2>
-                                    <p>Um item do estoque atingiu a quantidade m&iacute;nima ap&oacute;s ajuste manual:</p>
-                                    <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
-                                        <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
-                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
-                                        <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                        <p style="margin:4px 0;"><strong>Quantidade M&iacute;nima:</strong> ${quantidade_minima}</p>
-                                    </div>
-                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
-                                </div>
-                            </div>`
                         });
                     }
                 });
@@ -32748,24 +32934,32 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
                         stmt.finalize(() => {
                             // Rua so faz sentido no endereco Almoxarifado
                             db.run("UPDATE estoque_saldo_por_endereco SET rua = '' WHERE estoque_id = ? AND endereco_id NOT IN (SELECT id FROM estoque_enderecos WHERE LOWER(nome) LIKE '%almoxarifado%')", [id], () => {});
-                            // 2. Grava histórico por endereço/tamanho para quantidades que mudaram
-                            enderecos.forEach(e => {
-                                const tam = String(e.tamanho || '').trim().toUpperCase();
-                                const k = String(e.endereco_id) + '__' + tam;
-                                const oldQtd = (oldMap[k] !== undefined) ? (oldMap[k] || 0) : 0;
-                                const newQtd = parseInt(e.quantidade) || 0;
-                                const diff = newQtd - oldQtd;
-                                if (diff !== 0) {
-                                    db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [e.endereco_id], (errE, rowE) => {
-                                        const endNome = rowE ? rowE.nome : null;
-                                        const motivoHist = tam ? ('Edi\u00e7\u00e3o de Estoque (Tam. ' + tam + ')') : 'Edi\u00e7\u00e3o de Estoque';
-                                        db.run(
-                                            'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                            [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, motivoHist, e.endereco_id, endNome],
-                                            () => {}
-                                        );
-                                    });
-                                }
+                            // 2. Grava histórico por endereço/tamanho para quantidades que mudaram e dispara popup se atingiu mínimo
+                            db.get('SELECT nome, departamento, quantidade_minima FROM estoque WHERE id = ?', [id], (errProd, prodRow) => {
+                                enderecos.forEach(e => {
+                                    const tam = String(e.tamanho || '').trim().toUpperCase();
+                                    const k = String(e.endereco_id) + '__' + tam;
+                                    const oldQtd = (oldMap[k] !== undefined) ? (oldMap[k] || 0) : 0;
+                                    const newQtd = parseInt(e.quantidade) || 0;
+                                    const minEnd = (parseInt(e.quantidade_minima) > 0) ? parseInt(e.quantidade_minima) : (!tam && prodRow ? (parseInt(prodRow.quantidade_minima) || 0) : 0);
+                                    const diff = newQtd - oldQtd;
+                                    if (diff !== 0) {
+                                        db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [e.endereco_id], (errE, rowE) => {
+                                            const endNome = rowE ? rowE.nome : null;
+                                            const motivoHist = tam ? ('Edi\u00e7\u00e3o de Estoque (Tam. ' + tam + ')') : 'Edi\u00e7\u00e3o de Estoque';
+                                            db.run(
+                                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                                [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, motivoHist, e.endereco_id, endNome],
+                                                () => {}
+                                            );
+                                        });
+                                    }
+                                    if (prodRow && minEnd > 0 && newQtd <= minEnd && (oldMap[k] === undefined || oldQtd > minEnd || newQtd < oldQtd)) {
+                                        const nomeItemNotif = tam ? (prodRow.nome + ' (Tam. ' + tam + ')') : prodRow.nome;
+                                        const tipoNotif = (String(e.tipo_estoque || '').toLowerCase() === 'reposicao') ? 'reposicao' : 'compra';
+                                        notificarEstoqueMinimo(db, parseInt(id, 10) || id, nomeItemNotif, prodRow.departamento || '', e.endereco_id, oldQtd, newQtd, minEnd, tipoNotif, tam);
+                                    }
+                                });
                             });
                             res.json({ success: true });
                         });
@@ -32918,9 +33112,25 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
                             [id, endereco_id, tam, qtdAbs, qtdAbs], () => {}
                         );
                     } else {
-                        db.run(
-                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ? AND UPPER(COALESCE(tamanho, "")) = ?',
-                            [qtdAbs, id, endereco_id, tam], () => {}
+                        db.get(
+                            'SELECT s.quantidade, s.quantidade_minima, s.tipo_estoque, ee.tipo_notificacao FROM estoque_saldo_por_endereco s LEFT JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ? AND UPPER(COALESCE(s.tamanho, "")) = ?',
+                            [id, endereco_id, tam],
+                            (errS, rowS) => {
+                                db.run(
+                                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ? AND UPPER(COALESCE(tamanho, "")) = ?',
+                                    [qtdAbs, id, endereco_id, tam],
+                                    () => {
+                                        if (rowS) {
+                                            const oldSaldo = parseInt(rowS.quantidade, 10) || 0;
+                                            const newSaldo = Math.max(0, oldSaldo - qtdAbs);
+                                            const minSaldo = (parseInt(rowS.quantidade_minima, 10) > 0) ? parseInt(rowS.quantidade_minima, 10) : (!tam ? (parseInt(item.quantidade_minima, 10) || 0) : 0);
+                                            const tipoNotif = (String(rowS.tipo_estoque || '').toLowerCase() === 'reposicao' || String(rowS.tipo_notificacao || '').toLowerCase() === 'reposicao') ? 'reposicao' : 'compra';
+                                            const nomeItemNotif = tam ? `${item.nome} (Tam. ${tam})` : item.nome;
+                                            notificarEstoqueMinimo(db, item.id, nomeItemNotif, item.departamento || '', endereco_id, oldSaldo, newSaldo, minSaldo, tipoNotif, tam);
+                                        }
+                                    }
+                                );
+                            }
                         );
                     }
                 }
