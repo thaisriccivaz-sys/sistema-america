@@ -156,65 +156,179 @@ async function sendMailHelper(opts) {
  * @param {string} tipo - tipo da notificação (config_notificacoes.tipo)
  * @param {object} mailOpts - { subject, html, attachments? }
  */
+function resolverEmailsNotificados(tipo) {
+    return new Promise((resolve) => {
+        db.all(
+            `SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail, cn.email_override
+             FROM config_notificacoes cn
+             JOIN usuarios u ON u.id = cn.usuario_id
+             WHERE cn.tipo = ? AND u.ativo = 1`,
+            [tipo],
+            (err, rows) => {
+                if (err) {
+                    console.error(`[Notif Email] Erro na query tipo="${tipo}":`, err.message);
+                    return resolve([]);
+                }
+                if (!rows || rows.length === 0) {
+                    console.log(`[Notif Email] Nenhum usuario configurado para tipo="${tipo}"`);
+                    return resolve([]);
+                }
+
+                db.all(`SELECT id, nome_completo, email_corporativo, email FROM colaboradores`, [], (errC, colabs) => {
+                    if (errC) {
+                        console.error('[Notif Email] Erro colabs:', errC.message);
+                        colabs = [];
+                    }
+                    db.all(
+                        `SELECT ec.endereco, ec.caixa_compartilhada,
+                                COALESCE(ea.colaborador_id, ec.colaborador_id) AS colab_id,
+                                COALESCE(ea.responsavel_nome, ec.responsavel_nome) AS resp_nome
+                         FROM emails_corporativos ec
+                         LEFT JOIN emails_atribuicoes ea ON ea.email_id = ec.id
+                         WHERE COALESCE(ec.status, 'Ativo') != 'Inativo'`,
+                        [],
+                        (errEC, corpRows) => {
+                            if (errEC) corpRows = [];
+                            db.all(
+                                `SELECT colaborador_id, colaborador_livre, email_vinculado
+                                 FROM computadores
+                                 WHERE COALESCE(status, '') != 'Devolvido'
+                                   AND email_vinculado IS NOT NULL AND TRIM(email_vinculado) != ''`,
+                                [],
+                                (errComp, compRows) => {
+                                    if (errComp) compRows = [];
+
+                                    const norm = (s) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[._-]+/g, " ").replace(/\s+/g, " ").toLowerCase().trim() : "";
+                                    const normEmail = (s) => s && String(s).includes('@') ? String(s).trim().toLowerCase() : "";
+                                    const isCorpDomain = (em) => normEmail(em).endsWith('@americarental.com.br');
+                                    const matchNome = (shortStr, fullStr) => {
+                                        if (!shortStr || !fullStr) return false;
+                                        if (fullStr === shortStr || fullStr.includes(shortStr) || shortStr.includes(fullStr)) return true;
+                                        const parts = shortStr.split(' ').filter(p => p.length >= 2);
+                                        const fullParts = fullStr.split(' ');
+                                        return parts.length >= 2 && parts.every(p => fullParts.includes(p));
+                                    };
+
+                                    const emails = new Set();
+                                    rows.forEach(r => {
+                                        const tryAdd = (em) => {
+                                            if (em && String(em).includes('@')) {
+                                                emails.add(String(em).trim().toLowerCase());
+                                                return true;
+                                            }
+                                            return false;
+                                        };
+
+                                        const uNome = norm(r.unome);
+                                        const uUser = norm(r.username);
+                                        const uEmail = normEmail(r.uemail);
+                                        const ovEmail = normEmail(r.email_override);
+
+                                        // 1. Localizar colaborador vinculado (por email pessoal/corp, nome exato ou nome parcial)
+                                        let colab = (colabs || []).find(c => {
+                                            const cEmail = normEmail(c.email);
+                                            const cCorp = normEmail(c.email_corporativo);
+                                            if (uEmail && (cEmail === uEmail || cCorp === uEmail)) return true;
+                                            if (ovEmail && (cEmail === ovEmail || cCorp === ovEmail)) return true;
+                                            return false;
+                                        });
+                                        if (!colab) {
+                                            colab = (colabs || []).find(c => {
+                                                const cNome = norm(c.nome_completo);
+                                                return cNome && (cNome === uNome || cNome === uUser);
+                                            });
+                                        }
+                                        if (!colab) {
+                                            colab = (colabs || []).find(c => {
+                                                const cNome = norm(c.nome_completo);
+                                                return matchNome(uNome, cNome) || matchNome(uUser, cNome);
+                                            });
+                                        }
+
+                                        // 2. Buscar e-mail corporativo em emails_corporativos / emails_atribuicoes
+                                        const matchingCorpRows = (corpRows || []).filter(ec => {
+                                            if (!ec.endereco || !String(ec.endereco).includes('@')) return false;
+                                            if (colab && ec.colab_id && Number(ec.colab_id) === Number(colab.id)) return true;
+                                            const rNome = norm(ec.resp_nome);
+                                            if (rNome && (matchNome(uNome, rNome) || (colab && matchNome(norm(colab.nome_completo), rNome)))) return true;
+                                            return false;
+                                        });
+                                        matchingCorpRows.sort((a, b) => (Number(a.caixa_compartilhada) || 0) - (Number(b.caixa_compartilhada) || 0));
+                                        const emailFromCorpTable = matchingCorpRows.length > 0 ? matchingCorpRows[0].endereco : null;
+
+                                        // 3. Buscar e-mail vinculado em computadores
+                                        const matchingComp = (compRows || []).find(cp => {
+                                            if (!cp.email_vinculado || !String(cp.email_vinculado).includes('@')) return false;
+                                            if (colab && cp.colaborador_id && Number(cp.colaborador_id) === Number(colab.id)) return true;
+                                            const cLivre = norm(cp.colaborador_livre);
+                                            if (cLivre && (matchNome(uNome, cLivre) || (colab && matchNome(norm(colab.nome_completo), cLivre)))) return true;
+                                            return false;
+                                        });
+                                        const emailFromComp = matchingComp ? matchingComp.email_vinculado : null;
+
+                                        // Prioridade estrita para e-mail corporativo (@americarental.com.br)
+                                        if (colab && isCorpDomain(colab.email_corporativo) && tryAdd(colab.email_corporativo)) return;
+                                        if (emailFromCorpTable && isCorpDomain(emailFromCorpTable) && tryAdd(emailFromCorpTable)) return;
+                                        if (emailFromComp && isCorpDomain(emailFromComp) && tryAdd(emailFromComp)) return;
+                                        if (isCorpDomain(r.email_override) && tryAdd(r.email_override)) return;
+                                        if (isCorpDomain(r.uemail) && tryAdd(r.uemail)) return;
+                                        if (isCorpDomain(r.username) && tryAdd(r.username)) return;
+
+                                        // E-mails cadastrados em campos corporativos
+                                        if (colab && tryAdd(colab.email_corporativo)) return;
+                                        if (emailFromCorpTable && tryAdd(emailFromCorpTable)) return;
+                                        if (emailFromComp && tryAdd(emailFromComp)) return;
+
+                                        // Fallback para e-mail pessoal apenas se não houver corporativo
+                                        if (tryAdd(r.email_override)) return;
+                                        if (colab && tryAdd(colab.email)) return;
+                                        if (tryAdd(r.uemail)) return;
+                                        if (tryAdd(r.username)) return;
+
+                                        console.warn(`[Notif Email] Nenhum e-mail resolvido para usuario_id=${r.uid} (nome="${r.unome}").`);
+                                    });
+
+                                    resolve([...emails]);
+                                }
+                            );
+                        }
+                    );
+                });
+            }
+        );
+    });
+}
+
 async function sendEmailParaNotificados(tipo, mailOpts) {
     try {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
-        db.all(`SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail, cn.email_override FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = ? AND u.ativo = 1`, [tipo], (err, rows) => {
-            if (err) { console.error(`[Notif Email] Erro na query tipo="${tipo}":`, err.message); return; }
-            if (!rows || rows.length === 0) { console.log(`[Notif Email] Nenhum usuario configurado para tipo="${tipo}"`); return; }
-            
-            db.all(`SELECT id, nome_completo, email_corporativo, email FROM colaboradores`, [], async (errC, colabs) => {
-                if (errC) { console.error('[Notif Email] Erro colabs:', errC.message); return; }
-                const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[._-]+/g, " ").replace(/\s+/g, " ").toLowerCase().trim() : "";
-                const matchNome = (shortStr, fullStr) => {
-                    if (!shortStr || !fullStr) return false;
-                    if (fullStr === shortStr || fullStr.includes(shortStr) || shortStr.includes(fullStr)) return true;
-                    const parts = shortStr.split(' ').filter(p => p.length >= 2);
-                    const fullParts = fullStr.split(' ');
-                    return parts.length >= 2 && parts.every(p => fullParts.includes(p));
-                };
-                
-                const emails = new Set();
-                rows.forEach(r => {
-                    const tryAdd = (em) => { if (em && em.includes('@')) { emails.add(em.trim()); return true; } return false; };
-                    if (tryAdd(r.email_override)) return;
-                    
-                    const uNome = norm(r.unome);
-                    const uUser = norm(r.username);
-                    let colab = colabs.find(c => {
-                        const cNome = norm(c.nome_completo);
-                        return matchNome(uNome, cNome) || matchNome(uUser, cNome);
-                    });
-                    
-                    if (colab && tryAdd(colab.email_corporativo)) return;
-                    if (colab && tryAdd(colab.email)) return;
-                    if (tryAdd(r.uemail)) return;
-                    
-                    console.warn(`[Notif Email] Nenhum e-mail resolvido para usuario_id=${r.uid} (nome="${r.unome}").`);
-                });
-                
-                if (emails.size === 0) {
-                    console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}".`);
-                    return;
-                }
-            console.log(`[Notif Email] Tipo="${tipo}" - enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
-            try {
-                await sendMailHelper({
-                    to: [...emails].join(', '),
-                    subject: mailOpts.subject,
-                    html: mailOpts.html,
-                    attachments
-                });
-                console.log(`[Notif Email] Tipo="${tipo}" enviado com sucesso para: ${[...emails].join(', ')}`);
-            } catch (mailErr) {
-                console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
-            }
-        });
-        });
+        const emailsList = Array.isArray(mailOpts && mailOpts._resolvedEmails)
+            ? mailOpts._resolvedEmails
+            : await resolverEmailsNotificados(tipo);
+
+        if (!emailsList || emailsList.length === 0) {
+            console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}".`);
+            return [];
+        }
+
+        console.log(`[Notif Email] Tipo="${tipo}" - enviando para ${emailsList.length} destinatário(s): ${emailsList.join(', ')}`);
+        try {
+            await sendMailHelper({
+                to: emailsList.join(', '),
+                subject: mailOpts.subject,
+                html: mailOpts.html,
+                attachments
+            });
+            console.log(`[Notif Email] Tipo="${tipo}" enviado com sucesso para: ${emailsList.join(', ')}`);
+        } catch (mailErr) {
+            console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
+        }
+        return emailsList;
     } catch(e) {
         console.error('[sendEmailParaNotificados] Erro:', e.message);
+        return [];
     }
 }
 
@@ -22546,40 +22660,35 @@ function verificarEstoqueMinimoDiarioCron() {
         }
         const { itensCompras, itensReposicao, hojeStr, dataFmtBR } = dados;
 
-        const dispararEmailConsolidado = (dbTipo, listaItens) => {
+        const dispararEmailConsolidado = async (dbTipo, listaItens) => {
             if (!listaItens || listaItens.length === 0) {
                 console.log(`[CRON ESTOQUE 08H] Nenhum item pendente para '${dbTipo}' em ${hojeStr}.`);
                 return;
             }
 
-            db.all(
-                `SELECT cn.usuario_id FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = ? AND u.ativo = 1 AND (COALESCE(cn.email_override, '') != '' OR COALESCE(u.email, '') != '')`,
-                [dbTipo],
-                (errU, destRows) => {
-                    if (errU || !destRows || destRows.length === 0) {
-                        console.log(`[CRON ESTOQUE 08H] ${listaItens.length} item(ns) para '${dbTipo}', mas nenhum destinatário com e-mail configurado.`);
+            const destEmails = await resolverEmailsNotificados(dbTipo);
+            if (!destEmails || destEmails.length === 0) {
+                console.log(`[CRON ESTOQUE 08H] ${listaItens.length} item(ns) para '${dbTipo}', mas nenhum destinatário com e-mail configurado.`);
+                return;
+            }
+
+            db.run(
+                'INSERT OR IGNORE INTO estoque_email_diario_log (tipo, data_envio) VALUES (?, ?)',
+                [dbTipo, hojeStr],
+                function (errLog) {
+                    if (errLog) {
+                        console.error(`[CRON ESTOQUE 08H] Erro ao gravar log '${dbTipo}':`, errLog.message);
+                        return;
+                    }
+                    if (this.changes === 0) {
+                        console.log(`[CRON ESTOQUE 08H] E-mail diário de '${dbTipo}' já enviado em ${hojeStr}.`);
                         return;
                     }
 
-                    db.run(
-                        'INSERT OR IGNORE INTO estoque_email_diario_log (tipo, data_envio) VALUES (?, ?)',
-                        [dbTipo, hojeStr],
-                        function (errLog) {
-                            if (errLog) {
-                                console.error(`[CRON ESTOQUE 08H] Erro ao gravar log '${dbTipo}':`, errLog.message);
-                                return;
-                            }
-                            if (this.changes === 0) {
-                                console.log(`[CRON ESTOQUE 08H] E-mail diário de '${dbTipo}' já enviado em ${hojeStr}.`);
-                                return;
-                            }
-
-                            const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dataFmtBR, '08:00');
-                            sendEmailParaNotificados(dbTipo, { subject, html })
-                                .then(() => console.log(`[CRON ESTOQUE 08H] E-mail consolidado '${dbTipo}' enviado com ${listaItens.length} item(ns).`))
-                                .catch(e => console.error(`[CRON ESTOQUE 08H] Erro ao enviar '${dbTipo}':`, e.message));
-                        }
-                    );
+                    const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dataFmtBR, '08:00');
+                    sendEmailParaNotificados(dbTipo, { subject, html, _resolvedEmails: destEmails })
+                        .then(() => console.log(`[CRON ESTOQUE 08H] E-mail consolidado '${dbTipo}' enviado com ${listaItens.length} item(ns) para: ${destEmails.join(', ')}`))
+                        .catch(e => console.error(`[CRON ESTOQUE 08H] Erro ao enviar '${dbTipo}':`, e.message));
                 }
             );
         };
@@ -22596,7 +22705,7 @@ app.post('/api/estoque/enviar-email-minimo', authenticateToken, (req, res) => {
     const dbTipo = isRepos ? 'estoque_reposicao' : 'estoque_minimo';
     const nomeQuadro = isRepos ? 'Mínimo para reposição de estoque' : 'Estoque mínimo para compra';
 
-    coletarListasEstoqueMinimo((err, dados) => {
+    coletarListasEstoqueMinimo(async (err, dados) => {
         if (err) return res.status(500).json({ error: 'Erro ao consultar itens em estoque mínimo: ' + err.message });
 
         const listaItens = isRepos ? dados.itensReposicao : dados.itensCompras;
@@ -22610,36 +22719,26 @@ app.post('/api/estoque/enviar-email-minimo', authenticateToken, (req, res) => {
             });
         }
 
-        db.all(
-            `SELECT COALESCE(NULLIF(TRIM(cn.email_override), ''), TRIM(u.email)) AS email_dest, u.nome
-             FROM config_notificacoes cn
-             JOIN usuarios u ON u.id = cn.usuario_id
-             WHERE cn.tipo = ? AND u.ativo = 1`,
-            [dbTipo],
-            async (errU, destRows) => {
-                if (errU) return res.status(500).json({ error: 'Erro ao consultar destinatários: ' + errU.message });
-                const destValidos = (destRows || []).filter(d => d.email_dest && d.email_dest.includes('@'));
-                if (destValidos.length === 0) {
-                    return res.json({
-                        success: false,
-                        no_recipients: true,
-                        message: `Nenhum destinatário com e-mail configurado no quadro "${nomeQuadro}" na tela de Notificações.`
-                    });
-                }
-
-                try {
-                    const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dados.dataFmtBR, dados.horaFmtBR);
-                    await sendEmailParaNotificados(dbTipo, { subject, html });
-                    res.json({
-                        success: true,
-                        total_itens: listaItens.length,
-                        destinatarios: destValidos.map(d => d.email_dest)
-                    });
-                } catch (eSend) {
-                    res.status(500).json({ error: 'Falha ao enviar e-mail: ' + eSend.message });
-                }
+        try {
+            const destEmails = await resolverEmailsNotificados(dbTipo);
+            if (!destEmails || destEmails.length === 0) {
+                return res.json({
+                    success: false,
+                    no_recipients: true,
+                    message: `Nenhum destinatário com e-mail configurado no quadro "${nomeQuadro}" na tela de Notificações.`
+                });
             }
-        );
+
+            const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dados.dataFmtBR, dados.horaFmtBR);
+            await sendEmailParaNotificados(dbTipo, { subject, html, _resolvedEmails: destEmails });
+            res.json({
+                success: true,
+                total_itens: listaItens.length,
+                destinatarios: destEmails
+            });
+        } catch (eSend) {
+            res.status(500).json({ error: 'Falha ao enviar e-mail: ' + eSend.message });
+        }
     });
 });
 
