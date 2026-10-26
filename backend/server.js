@@ -40134,7 +40134,14 @@ app.get('/api/clientes/:id', authenticateToken, (req, res) => {
   db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
-    res.json(row);
+    db.all(
+      'SELECT * FROM contatos WHERE cliente_id = ? OR (codigo = ? AND ? IS NOT NULL) ORDER BY id ASC',
+      [row.id, row.codigo, row.codigo],
+      (errCt, ctRows) => {
+        row.contatos_tabela = (!errCt && Array.isArray(ctRows)) ? ctRows : [];
+        res.json(row);
+      }
+    );
   });
 });
 
@@ -41133,8 +41140,10 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
 // GET /api/contatos - Listar todos os contatos (com filtro opcional ?cliente_id=)
 app.get('/api/contatos', authenticateToken, (req, res) => {
   const cliId = req.query.cliente_id;
-  const whereSql = cliId ? 'WHERE c.cliente_id = ?' : '';
-  const params = cliId ? [cliId] : [];
+  const whereSql = cliId
+    ? 'WHERE c.cliente_id = ? OR c.codigo = (SELECT codigo FROM clientes WHERE id = ? OR codigo = ? LIMIT 1)'
+    : '';
+  const params = cliId ? [cliId, cliId, cliId] : [];
   db.all(`
     SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo
     FROM contatos c

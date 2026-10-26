@@ -2640,12 +2640,34 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
     }
 
     window._modalClienteContatos = [];
-    if (client && client.contatos) {
+    if (client) {
+        const mappedModalCt = Array.isArray(client.contatos_tabela)
+            ? client.contatos_tabela.map(con => ({
+                id: con.id,
+                identificacao: con.codigo || '',
+                nome: con.nome || '',
+                departamento: con.departamento || '',
+                celular: con.celular || con.telefone || '',
+                telefone_ramal: con.telefone ? (con.ramal ? `${con.telefone} Ramal ${con.ramal}` : con.telefone) : '',
+                email: con.email || '',
+                dono: con.representante || '',
+                cargo: con.cargo || '',
+                situacao: con.inativo === 1 ? 'Inativo' : 'Ativo'
+            }))
+            : [];
+        let jsonModalCt = [];
         try {
-            window._modalClienteContatos = JSON.parse(client.contatos || '[]');
-        } catch (e) {
-            console.error(e);
+            jsonModalCt = JSON.parse(client.contatos || '[]');
+        } catch (e) {}
+        const mergedModalCt = [...mappedModalCt];
+        if (Array.isArray(jsonModalCt)) {
+            jsonModalCt.forEach(jc => {
+                if (jc && jc.nome && !mergedModalCt.some(dc => String(dc.nome || '').toLowerCase() === String(jc.nome || '').toLowerCase())) {
+                    mergedModalCt.push(jc);
+                }
+            });
         }
+        window._modalClienteContatos = mergedModalCt;
     }
 
     Swal.fire({
@@ -2784,22 +2806,6 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     </div>
 
                     <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <div id="modal-cli-actions-group" style="display:inline-flex; gap:0.4rem; align-items:center;">
-                            <button type="button" onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                                <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                            </button>
-                            <div style="width: 4px;"></div>
-                            <button type="button" onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                            </button>
-                            <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
-                                <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                            </button>
-                            <button type="button" onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
-                                <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
-                            </button>
-                            <div style="width: 4px;"></div>
-                        </div>
                         <button type="button" onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
                             <i class="ph ph-x" style="font-size:1.15rem;"></i>
                         </button>
@@ -2832,26 +2838,42 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                 <!-- Form Body -->
                 <div id="modal-cli-subview-cadastro" class="mcli-form-body">
                     <!-- Info bar -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
                         <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-info" style="font-size:1.1rem;"></i>
                             Pesquise pelo CNPJ para completar o cadastro.
                         </div>
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; text-transform:uppercase; font-size:0.75rem; margin:0;">
-                            <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
-                        </label>
+                        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; text-transform:uppercase; font-size:0.75rem; margin:0;">
+                                <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
+                            </label>
+                            <div id="modal-cli-actions-group" style="display:inline-flex; gap:0.4rem; align-items:center;">
+                                <button type="button" onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:32px; height:32px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
+                                </button>
+                                <button type="button" onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <i class="ph ph-check" style="font-size:0.95rem;"></i> Salvar
+                                </button>
+                                <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                    <i class="ph ph-trash" style="font-size:0.95rem;"></i> Excluir
+                                </button>
+                                <button type="button" onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
+                                    <i class="ph ph-shield-check" style="font-size:0.95rem;"></i> Verificar
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Main Grid: Campos -->
                     <div style="margin-bottom:0.85rem; display:grid; gap:0.85rem;">
                         <input type="hidden" id="modal-cli-data-cadastro" value="${dataCadastro}">
                         <!-- Linha 1: Código, CPF/CNPJ, IE, IM, Grupo, Centralizador -->
-                        <div style="display:grid; grid-template-columns:130px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
+                        <div style="display:grid; grid-template-columns:105px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
                             <div class="mcli-field">
                                 <label>Código</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input" style="max-width:68px;">
-                                    <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="display:none; background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
                             </div>
@@ -2882,8 +2904,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <div class="mcli-field">
                                 <label>Cliente Centralizador</label>
                                 <div class="mcli-input-group">
-                                    <input type="text" id="modal-cli-centralizador" value="${client ? (client.cliente_centralizador || '') : ''}" placeholder="Pesquise na lupa..." class="mcli-input">
-                                    <button type="button" onclick="window.abrirModalPesquisaCentralizador('modal-cli-centralizador')" title="Pesquisar Cliente Centralizador" class="mcli-btn-addon" style="background:#16a34a;">
+                                    <input type="text" id="modal-cli-centralizador" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarCentralizadorCNPJ('modal-cli-centralizador', document.getElementById('modal-btn-busca-cent'));}" value="${client ? (client.cliente_centralizador || '') : ''}" placeholder="Apenas números (CPF/CNPJ)..." class="mcli-input">
+                                    <button type="button" id="modal-btn-busca-cent" onclick="window.buscarCentralizadorCNPJ('modal-cli-centralizador', this)" title="Buscar CNPJ Centralizador" class="mcli-btn-addon" style="background:#16a34a;">
                                         <i class="ph ph-magnifying-glass"></i>
                                     </button>
                                 </div>
@@ -3196,7 +3218,7 @@ window.modalRenderTabelaContatos = function() {
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;" title="Clique para abrir o cadastro deste contato">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
                 <button type="button" onclick="window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
@@ -3379,6 +3401,49 @@ window.modalBuscarCNPJ = async function() {
     btn.disabled = true;
 
     try {
+        // Se já existir cadastro no sistema com este CNPJ, carrega os dados internos e contatos primeiro
+        try {
+            const listaInterna = await apiGet('/clientes') || [];
+            const foundCli = listaInterna.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (foundCli) {
+                const fullCli = await apiGet(`/clientes/${foundCli.id}`);
+                if (fullCli) {
+                    if (document.getElementById('modal-cli-codigo')) document.getElementById('modal-cli-codigo').value = fullCli.codigo || '';
+                    if (document.getElementById('modal-cli-im') && fullCli.inscricao_municipal) document.getElementById('modal-cli-im').value = fullCli.inscricao_municipal;
+                    if (document.getElementById('modal-cli-celular') && fullCli.celular) document.getElementById('modal-cli-celular').value = fullCli.celular;
+                    if (document.getElementById('modal-cli-observacoes') && fullCli.observacoes) document.getElementById('modal-cli-observacoes').value = fullCli.observacoes;
+                    const mappedModalCt = Array.isArray(fullCli.contatos_tabela)
+                        ? fullCli.contatos_tabela.map(con => ({
+                            id: con.id,
+                            identificacao: con.codigo || '',
+                            nome: con.nome || '',
+                            departamento: con.departamento || '',
+                            celular: con.celular || con.telefone || '',
+                            telefone_ramal: con.telefone ? (con.ramal ? `${con.telefone} Ramal ${con.ramal}` : con.telefone) : '',
+                            email: con.email || '',
+                            dono: con.representante || '',
+                            cargo: con.cargo || '',
+                            situacao: con.inativo === 1 ? 'Inativo' : 'Ativo'
+                        }))
+                        : [];
+                    let jsonModalCt = [];
+                    try { jsonModalCt = JSON.parse(fullCli.contatos || '[]'); } catch (e) {}
+                    const mergedModalCt = [...mappedModalCt];
+                    if (Array.isArray(jsonModalCt)) {
+                        jsonModalCt.forEach(jc => {
+                            if (jc && jc.nome && !mergedModalCt.some(dc => String(dc.nome || '').toLowerCase() === String(jc.nome || '').toLowerCase())) {
+                                mergedModalCt.push(jc);
+                            }
+                        });
+                    }
+                    window._modalClienteContatos = mergedModalCt;
+                    window.modalRenderTabelaContatos();
+                }
+            }
+        } catch (errInt) {
+            console.error('Erro ao buscar cliente interno no modal:', errInt);
+        }
+
         const result = await apiGet(`/consulta-cnpj/${cnpj}`);
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
@@ -5059,15 +5124,18 @@ function _renderCadastroClienteInt() {
                 align-items: center !important;
                 justify-content: center !important;
             }
-            #form-cadastro-cliente button[title="Buscar Cliente"],
+            #form-cadastro-cliente button[title="Buscar Cliente"] {
+                display: none !important;
+            }
             #form-cadastro-cliente button[id="btn-busca-cnpj"],
+            #form-cadastro-cliente button[id="btn-busca-centralizador"],
             #form-cadastro-cliente button[title="Buscar CEP"] {
                 background-color: #16a34a !important;
                 width: 28px !important;
                 padding: 0 !important;
             }
-            #form-cadastro-cliente button[title="Buscar Cliente"]:hover,
             #form-cadastro-cliente button[id="btn-busca-cnpj"]:hover,
+            #form-cadastro-cliente button[id="btn-busca-centralizador"]:hover,
             #form-cadastro-cliente button[title="Buscar CEP"]:hover {
                 background-color: #15803d !important;
             }
@@ -5099,26 +5167,6 @@ function _renderCadastroClienteInt() {
                     </button>
                     <button type="button" id="tab-cli-sub-historico" onclick="window.switchAbaCliente('historico')" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico de clientes
-                    </button>
-                </div>
-
-                <!-- Botões de Ação (Lado Direito) -->
-                <div id="cli-actions-group" style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                    <button type="button" onclick="recarregarCliente()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                    </button>
-
-                    <!-- Spacer -->
-                    <div style="width: 4px;"></div>
-
-                    <button type="button" onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                    </button>
-                    <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
-                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                    </button>
-                    <button type="button" onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
-                        <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                     </button>
                 </div>
             </div>
@@ -5155,14 +5203,30 @@ function _renderCadastroClienteInt() {
             <div id="cli-subview-cadastro" style="padding:1.5rem;">
                 
                 <!-- Info bar at the top of form body -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.5rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
                     <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
                         <i class="ph ph-info" style="font-size:1.1rem;"></i>
                         Pesquise pelo CNPJ para completar o cadastro.
                     </div>
-                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b;">
-                        <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
-                    </label>
+                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; margin:0;">
+                            <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
+                        </label>
+                        <div id="cli-actions-group" style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                            <button type="button" onclick="recarregarCliente()" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                            </button>
+                            <button type="button" onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                                <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                            </button>
+                            <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                                <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                            </button>
+                            <button type="button" onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                                <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
@@ -5170,12 +5234,12 @@ function _renderCadastroClienteInt() {
                     <!-- Grid Principal: Campos -->
                     <div style="margin-bottom:1.5rem; display:grid; gap:0.85rem;">
                         <!-- Linha 1: Código (6 dígitos), CPF/CNPJ, IE, IM, Grupo, Centralizador -->
-                        <div style="display:grid; grid-template-columns:130px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
+                        <div style="display:grid; grid-template-columns:105px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
                             <div>
                                 <label class="prop-lbl">Código</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="cli-codigo" readonly placeholder="Auto" maxlength="6" style="width:100%;max-width:68px;padding:0.45rem 0.35rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;text-align:center;">
-                                    <button type="button" onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="display:none;background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
                             </div>
@@ -5207,8 +5271,8 @@ function _renderCadastroClienteInt() {
                             <div>
                                 <label class="prop-lbl">Cliente Centralizador</label>
                                 <div style="display:flex; gap:3px;">
-                                    <input type="text" id="cli-centralizador" placeholder="Pesquisar..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                    <button type="button" onclick="abrirModalPesquisaCentralizador('cli-centralizador')" title="Pesquisar Cliente Centralizador" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="cli-centralizador" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarCentralizadorCNPJ('cli-centralizador', document.getElementById('btn-busca-centralizador'));}" placeholder="Apenas números (CPF/CNPJ)..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <button type="button" id="btn-busca-centralizador" onclick="window.buscarCentralizadorCNPJ('cli-centralizador', this)" title="Buscar CNPJ Centralizador" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -5744,6 +5808,81 @@ window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-cen
     setTimeout(() => inputEl.focus(), 50);
 };
 
+window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizador', btnEl = null) {
+    const inputEl = document.getElementById(targetInputId);
+    const raw = (inputEl?.value || '').trim();
+    const cnpj = raw.replace(/\D/g, '');
+
+    // Se o usuário digitou letras (nome), abre a pesquisa filtrada pelo nome
+    if (raw && /[a-zA-ZÀ-ÿ]/.test(raw) && cnpj.length !== 11 && cnpj.length !== 14) {
+        return window.abrirModalPesquisaCentralizador(targetInputId);
+    }
+
+    if (cnpj.length === 11) {
+        try {
+            const lista = await apiGet('/clientes') || [];
+            _clientesCache = lista;
+            const found = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (found && inputEl) {
+                inputEl.value = `${found.codigo} - ${found.nome_razao_social || found.nome_fantasia || ''}`;
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso('Cliente Centralizador localizado pelo CPF!');
+                }
+                return;
+            }
+        } catch (e) {}
+        Swal.fire('Aviso', 'CPF não localizado na base interna. A consulta pública automática na Receita Federal está disponível apenas para CNPJ (14 dígitos).', 'info');
+        return;
+    }
+
+    if (cnpj.length !== 14) {
+        alert('Por favor, informe um CNPJ válido (14 dígitos) ou CPF já cadastrado (11 dígitos) para buscar.');
+        return;
+    }
+
+    const btn = btnEl || document.getElementById('btn-busca-centralizador');
+    const origText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        btn.disabled = true;
+    }
+
+    try {
+        let foundInternal = null;
+        try {
+            const lista = await apiGet('/clientes') || [];
+            _clientesCache = lista;
+            foundInternal = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (foundInternal && foundInternal.nome_razao_social && inputEl) {
+                inputEl.value = `${foundInternal.codigo} - ${foundInternal.nome_razao_social}`;
+            }
+        } catch (e) {}
+
+        const result = await apiGet(`/consulta-cnpj/${cnpj}`);
+        if (result && result.data) {
+            const data = result.data;
+            const razao = data.razao_social || data.estabelecimento?.nome_fantasia || data.nome_fantasia || '';
+            if (inputEl && razao) {
+                inputEl.value = foundInternal ? `${foundInternal.codigo} - ${foundInternal.nome_razao_social || razao}` : razao;
+            }
+        }
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Cliente Centralizador importado pelo CNPJ com sucesso!');
+        }
+    } catch (e) {
+        console.error(e);
+        if (!foundInternal) {
+            alert('Erro ao buscar CNPJ do Cliente Centralizador: ' + (e.message || 'Erro desconhecido.'));
+        }
+    } finally {
+        if (btn) {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
+    }
+};
+
 window.toggleAccordion = function(id) {
     const el = document.getElementById(id);
     const arrow = document.getElementById(id + '-arrow');
@@ -5764,6 +5903,7 @@ window.buscarCNPJ = async function() {
     if (cnpj.length === 11) {
         try {
             const lista = await apiGet('/clientes') || [];
+            _clientesCache = lista;
             const found = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
             if (found) {
                 await window.carregarClienteParaEdicao(found.id);
@@ -5784,6 +5924,18 @@ window.buscarCNPJ = async function() {
     btn.disabled = true;
 
     try {
+        // Se o cliente já possuir cadastro no sistema, carregar todos os dados internos e ▼ Contatos primeiro
+        try {
+            const lista = await apiGet('/clientes') || [];
+            _clientesCache = lista;
+            const foundCli = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (foundCli) {
+                await window.carregarClienteParaEdicao(foundCli.id, true);
+            }
+        } catch (errInt) {
+            console.error('Erro ao verificar cliente existente por CNPJ:', errInt);
+        }
+
         const result = await apiGet(`/consulta-cnpj/${cnpj}`);
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
@@ -5992,7 +6144,7 @@ window.abrirModalPesquisaCliente = async function() {
     }
 };
 
-window.carregarClienteParaEdicao = async function(id) {
+window.carregarClienteParaEdicao = async function(id, silentToast = false) {
     try {
         const c = await apiGet(`/clientes/${id}`);
         if (!c) throw new Error('Cliente não encontrado.');
@@ -6036,15 +6188,17 @@ window.carregarClienteParaEdicao = async function(id) {
         const dataCadFmt = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
         setElVal('cli-cad-data', dataCadFmt);
 
-        // Carregar contatos e acordeões com mesclagem da tabela contatos
+        // Carregar contatos e acordeões com mesclagem da tabela contatos + JSON
         try {
-            const clientContatos = await apiGet(`/contatos?cliente_id=${c.id}`) || [];
+            const clientContatos = Array.isArray(c.contatos_tabela) && c.contatos_tabela.length > 0
+                ? c.contatos_tabela
+                : (await apiGet(`/contatos?cliente_id=${c.id}`) || []);
             const mappedContatos = clientContatos.map(con => ({
                 id: con.id,
                 identificacao: con.codigo || '',
                 nome: con.nome || '',
                 departamento: con.departamento || '',
-                celular: con.celular || '',
+                celular: con.celular || con.telefone || '',
                 telefone_ramal: con.telefone ? (con.ramal ? `${con.telefone} Ramal ${con.ramal}` : con.telefone) : '',
                 email: con.email || '',
                 dono: con.representante || '',
@@ -6064,11 +6218,13 @@ window.carregarClienteParaEdicao = async function(id) {
             } catch(e) {}
 
             const merged = [...mappedContatos];
-            jsonContatos.forEach(jc => {
-                if (jc && jc.nome && !merged.some(dc => dc.nome.toLowerCase() === jc.nome.toLowerCase())) {
-                    merged.push(jc);
-                }
-            });
+            if (Array.isArray(jsonContatos)) {
+                jsonContatos.forEach(jc => {
+                    if (jc && jc.nome && !merged.some(dc => String(dc.nome || '').toLowerCase() === String(jc.nome || '').toLowerCase())) {
+                        merged.push(jc);
+                    }
+                });
+            }
             _clienteContatos = merged;
         } catch(e) {
             console.error('Erro ao carregar contatos da tabela:', e);
@@ -6078,6 +6234,10 @@ window.carregarClienteParaEdicao = async function(id) {
                 _clienteContatos = [];
             }
         }
+        const accContatos = document.getElementById('acc-contatos');
+        const accContatosArrow = document.getElementById('acc-contatos-arrow');
+        if (accContatos) accContatos.style.display = 'block';
+        if (accContatosArrow) accContatosArrow.innerText = '▼';
         _renderTabelaContatos();
 
         // Carregar outros campos JSON
@@ -6094,7 +6254,7 @@ window.carregarClienteParaEdicao = async function(id) {
             document.getElementById('cli-f-cnae').value = f.cnae || '';
         } catch(e) {}
 
-        if (typeof mostrarToastSucesso === 'function') {
+        if (!silentToast && typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`Cliente ${c.codigo} carregado com sucesso!`);
         }
     } catch (e) {
@@ -6192,7 +6352,7 @@ window._renderTabelaContatos = function() {
         <tr ondblclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique no nome para abrir o contato">
             <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
-            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
                 <button onclick="event.stopPropagation(); removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
@@ -7669,8 +7829,8 @@ function _renderCadastroContatosInt() {
                             <div class="cc-field">
                                 <label>Cliente Centralizador</label>
                                 <div class="cc-input-group">
-                                    <input type="text" id="emp-centralizador" placeholder="Pesquisar..." class="cc-input">
-                                    <button type="button" onclick="abrirModalPesquisaCentralizador('emp-centralizador')" class="cc-btn-addon" title="Pesquisar Cliente Centralizador"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="emp-centralizador" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarCentralizadorCNPJ('emp-centralizador', document.getElementById('btn-emp-busca-cent'));}" placeholder="Apenas números (CPF/CNPJ)..." class="cc-input">
+                                    <button type="button" id="btn-emp-busca-cent" onclick="window.buscarCentralizadorCNPJ('emp-centralizador', this)" class="cc-btn-addon" title="Buscar CNPJ Centralizador"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                         </div>
