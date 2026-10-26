@@ -40116,13 +40116,43 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
   );
 }
 
-// GET /api/clientes - Listar todos os clientes
+// Inicialização de índices de performance e tabela clientes_anexos (Cloudflare R2)
+db.serialize(() => {
+  db.run('CREATE INDEX IF NOT EXISTS idx_contatos_cliente_id ON contatos(cliente_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_clientes_codigo ON clientes(codigo)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj ON clientes(cpf_cnpj)');
+  db.run(`CREATE TABLE IF NOT EXISTS clientes_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL,
+    nome_original TEXT,
+    mime_type TEXT,
+    tamanho INTEGER,
+    r2_key TEXT,
+    file_path TEXT,
+    criado_por TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run('CREATE INDEX IF NOT EXISTS idx_clientes_anexos_cliente_id ON clientes_anexos(cliente_id)');
+});
+
+const uploadClientesAnexosMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// GET /api/clientes - Listar todos os clientes (otimizado com LEFT JOIN indexado)
 app.get('/api/clientes', authenticateToken, (req, res) => {
   db.all(`
     SELECT clientes.*,
-      (SELECT GROUP_CONCAT(ct.nome, ', ') FROM contatos ct WHERE ct.cliente_id = clientes.id) AS contatos_nomes_tabela
+      ct_agg.contatos_nomes_tabela
     FROM clientes
-    ORDER BY CAST(codigo AS INTEGER) DESC, id DESC
+    LEFT JOIN (
+      SELECT cliente_id, GROUP_CONCAT(nome, ', ') AS contatos_nomes_tabela
+      FROM contatos
+      WHERE cliente_id IS NOT NULL
+      GROUP BY cliente_id
+    ) ct_agg ON ct_agg.cliente_id = clientes.id
+    ORDER BY CAST(clientes.codigo AS INTEGER) DESC, clientes.id DESC
   `, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
@@ -40139,10 +40169,180 @@ app.get('/api/clientes/:id', authenticateToken, (req, res) => {
       [row.id, row.codigo, row.codigo],
       (errCt, ctRows) => {
         row.contatos_tabela = (!errCt && Array.isArray(ctRows)) ? ctRows : [];
-        res.json(row);
+        db.all(
+          'SELECT id, cliente_id, nome_original, mime_type, tamanho, r2_key, file_path, criado_por, criado_em FROM clientes_anexos WHERE cliente_id = ? ORDER BY id DESC',
+          [row.id],
+          (errAnx, anxRows) => {
+            row.anexos_tabela = (!errAnx && Array.isArray(anxRows)) ? anxRows.map(a => ({
+              ...a,
+              url: `/api/clientes/anexo-arquivo/${a.id}`
+            })) : [];
+            res.json(row);
+          }
+        );
       }
     );
   });
+});
+
+// GET /api/clientes/:clienteId/anexos - Listar anexos do cliente
+app.get('/api/clientes/:clienteId/anexos', authenticateToken, (req, res) => {
+  db.all(
+    'SELECT id, cliente_id, nome_original, mime_type, tamanho, r2_key, file_path, criado_por, criado_em FROM clientes_anexos WHERE cliente_id = ? ORDER BY id DESC',
+    [req.params.clienteId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const list = (rows || []).map(a => ({
+        ...a,
+        url: `/api/clientes/anexo-arquivo/${a.id}`
+      }));
+      res.json(list);
+    }
+  );
+});
+
+// POST /api/clientes/:clienteId/anexos - Upload de múltiplos anexos (Imagem, Vídeo, PDF) no Cloudflare R2
+app.post('/api/clientes/:clienteId/anexos', authenticateToken, uploadClientesAnexosMem.array('arquivos', 20), async (req, res) => {
+  const clienteId = Number(req.params.clienteId);
+  if (!clienteId) return res.status(400).json({ error: 'ID do cliente inválido.' });
+  const files = req.files || [];
+  if (files.length === 0) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+  const r2 = require('./utils/r2');
+  const criadoPor = req.user?.nome || req.user?.username || 'Sistema';
+  const now = new Date();
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  const dia = String(now.getDate()).padStart(2, '0');
+
+  try {
+    for (const file of files) {
+      const origName = file.originalname || 'anexo';
+      const ext = (origName.includes('.') ? origName.split('.').pop() : 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+      const safeDesc = origName.replace(/\.[^/.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 45) || 'documento';
+      const hash = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      const r2Key = `Clientes/Anexos/${ano}/${mes}/${dia}_cli${clienteId}_${safeDesc}_${hash}.${ext}`;
+      const contentType = file.mimetype || 'application/octet-stream';
+
+      let savedR2Key = null;
+      let savedLocalPath = null;
+
+      if (r2.isReady()) {
+        await r2.uploadToR2(r2Key, file.buffer, contentType);
+        savedR2Key = r2Key;
+      } else {
+        console.warn('[R2] Storage não configurado — arquivo salvo apenas localmente.');
+        const localDir = path.join(__dirname, '..', 'uploads', 'clientes_anexos');
+        if (!fs.existsSync(localDir)) fs.mkdirSync(localDir, { recursive: true });
+        const localFileName = `${dia}_cli${clienteId}_${safeDesc}_${hash}.${ext}`;
+        savedLocalPath = path.join(localDir, localFileName);
+        fs.writeFileSync(savedLocalPath, file.buffer);
+      }
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO clientes_anexos (cliente_id, nome_original, mime_type, tamanho, r2_key, file_path, criado_por) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [clienteId, origName, contentType, file.size || 0, savedR2Key, savedLocalPath, criadoPor],
+          function (insErr) {
+            if (insErr) return reject(insErr);
+            resolve(this.lastID);
+          }
+        );
+      });
+    }
+
+    db.all(
+      'SELECT id, cliente_id, nome_original, mime_type, tamanho, r2_key, file_path, criado_por, criado_em FROM clientes_anexos WHERE cliente_id = ? ORDER BY id DESC',
+      [clienteId],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const anexos = (rows || []).map(a => ({
+          ...a,
+          url: `/api/clientes/anexo-arquivo/${a.id}`
+        }));
+        res.json({ success: true, anexos });
+      }
+    );
+  } catch (errUpload) {
+    console.error('[CLIENTES ANEXOS] Erro ao salvar anexos:', errUpload);
+    res.status(500).json({ error: 'Erro ao salvar anexos: ' + errUpload.message });
+  }
+});
+
+// GET /api/clientes/anexo-arquivo/:anexoId - Stream/Visualização do anexo do cliente via R2 ou fallback local
+app.get('/api/clientes/anexo-arquivo/:anexoId', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
+  if (!token) return res.status(401).send('Não autorizado');
+  try {
+    jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return res.status(403).send('Token inválido');
+  }
+
+  db.get(
+    'SELECT id, nome_original, mime_type, r2_key, file_path FROM clientes_anexos WHERE id = ?',
+    [req.params.anexoId],
+    async (err, row) => {
+      if (err || !row) return res.status(404).send('Anexo não encontrado');
+      const r2 = require('./utils/r2');
+      const safeFileName = String(row.nome_original || 'anexo').replace(/"/g, '');
+      const disposition = req.query.download === '1' ? 'attachment' : 'inline';
+
+      if (row.r2_key && r2.isReady()) {
+        try {
+          const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+          res.setHeader('Content-Type', row.mime_type || contentType || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `${disposition}; filename="${safeFileName}"`);
+          return stream.pipe(res);
+        } catch (r2Err) {
+          console.error('[CLIENTES ANEXOS] Erro ao baixar do R2:', r2Err);
+        }
+      }
+
+      if (row.file_path && fs.existsSync(row.file_path)) {
+        res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `${disposition}; filename="${safeFileName}"`);
+        return fs.createReadStream(row.file_path).pipe(res);
+      }
+
+      return res.status(404).send('Arquivo não encontrado no storage');
+    }
+  );
+});
+
+// DELETE /api/clientes/:clienteId/anexos/:anexoId - Excluir anexo do R2 e do banco
+app.delete('/api/clientes/:clienteId/anexos/:anexoId', authenticateToken, (req, res) => {
+  const { clienteId, anexoId } = req.params;
+  db.get(
+    'SELECT id, r2_key, file_path FROM clientes_anexos WHERE id = ? AND cliente_id = ?',
+    [anexoId, clienteId],
+    async (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+      try {
+        const r2 = require('./utils/r2');
+        if (row.r2_key && r2.isReady()) {
+          await r2.deleteFromR2(row.r2_key);
+        }
+        if (row.file_path && fs.existsSync(row.file_path)) {
+          try { fs.unlinkSync(row.file_path); } catch (e) {}
+        }
+      } catch (delErr) {
+        console.error('[CLIENTES ANEXOS] Erro ao excluir do R2:', delErr);
+      }
+
+      db.run(
+        'DELETE FROM clientes_anexos WHERE id = ? AND cliente_id = ?',
+        [anexoId, clienteId],
+        function (dbErr) {
+          if (dbErr) return res.status(500).json({ error: dbErr.message });
+          res.json({ success: true });
+        }
+      );
+    }
+  );
 });
 
 // GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente

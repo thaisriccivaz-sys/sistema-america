@@ -3261,12 +3261,21 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <!-- Anexo de Arquivos -->
                         <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                                <span>▶ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
-                                <span id="modal-acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
+                                <span>▼ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
+                                <span id="modal-acc-anexos-arrow" style="transition:transform 0.2s;">▼</span>
                             </div>
-                            <div id="modal-acc-anexos" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                                <input type="file" id="modal-cli-anexo-file" style="margin-bottom:0.5rem; display:block;">
-                                <span style="color:#64748b; font-size:0.75rem;">(Formatos permitidos: PDF, PNG, JPG até 5MB)</span>
+                            <div id="modal-acc-anexos" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+                                    <input type="file" id="modal-cli-anexo-file" multiple accept="image/*,video/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov" onchange="window.adicionarArquivosPendentesCliente(this.files, 'modal')" style="padding:0.35rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.82rem;">
+                                    <button type="button" id="btn-salvar-anexo-modal-cli" onclick="window.salvarAnexosCliente('modal', ${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo
+                                    </button>
+                                    <span style="color:#64748b; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
+                                        <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — selecione vários ou <b>Ctrl+V</b>)
+                                    </span>
+                                </div>
+                                <div id="modal-cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
+                                <div id="modal-cli-anexos-salvos-container" style="margin-top:0.75rem;"></div>
                             </div>
                         </div>
                     </div>
@@ -3290,8 +3299,13 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                 console.error('Erro ao carregar centralizadores no modal:', e);
             }
 
-            // Populate contacts table
+            // Populate contacts table and attachments
             window.modalRenderTabelaContatos();
+            window._modalCliAnexosSalvos = (client && Array.isArray(client.anexos_tabela)) ? client.anexos_tabela : [];
+            window._modalCliAnexosPendentes = [];
+            if (typeof window.renderAnexosCliente === 'function') {
+                window.renderAnexosCliente('modal', _modalClienteEditandoId);
+            }
         }
     });
 };
@@ -3401,9 +3415,18 @@ window.modalRecarregarCliente = function(clientId) {
     }
 };
 
+window.obterClientesCache = async function(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(_clientesCache) && _clientesCache.length > 0) {
+        return _clientesCache;
+    }
+    const lista = await apiGet('/clientes') || [];
+    _clientesCache = lista;
+    return _clientesCache;
+};
+
 window.modalAbrirPesquisaCliente = async function(initialQuery = '') {
     try {
-        const clientes = await apiGet('/clientes');
+        const clientes = await window.obterClientesCache();
         if (!clientes || clientes.length === 0) {
             Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
             return;
@@ -3490,16 +3513,23 @@ window.modalLimparFormCliente = function() {
 
 window.modalBuscarCNPJ = async function() {
     const cnpjRaw = (document.getElementById('modal-cli-cpf-cnpj')?.value || '').trim();
-    if (!cnpjRaw) {
-        window.modalAbrirPesquisaCliente('');
-        return;
-    }
-
     const btn = document.getElementById('modal-btn-busca-cnpj');
     const origText = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
     if (btn) {
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
         btn.disabled = true;
+    }
+
+    if (!cnpjRaw) {
+        try {
+            await window.modalAbrirPesquisaCliente('');
+        } finally {
+            if (btn) {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+        return;
     }
 
     const cnpj = cnpjRaw.replace(/\D/g, '');
@@ -3794,6 +3824,10 @@ window.modalSalvarCliente = async function(clientId) {
 
         if (res && res.success) {
             _clientesCache = []; // Limpar cache para atualizar centralizadores
+            const finalModalCliId = clientId || res.id;
+            if (window._modalCliAnexosPendentes && window._modalCliAnexosPendentes.length > 0 && finalModalCliId) {
+                await window.salvarAnexosCliente('modal', finalModalCliId, true);
+            }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(clientId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
             }
@@ -5516,10 +5550,10 @@ function _renderCadastroClienteInt() {
                                     <span>dias após o vencimento</span>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <button type="button" onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    <button type="button" id="btn-pesq-contato-cli" onclick="abrirModalPesquisaContatoCliente(this)" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                                         <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                     </button>
-                                    <button type="button" onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                                    <button type="button" id="btn-novo-contato-cli" onclick="encaminharNovoContato(this)" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
                                         <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
                                     </button>
                                 </div>
@@ -5531,7 +5565,7 @@ function _renderCadastroClienteInt() {
                                     <thead>
                                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
                                             <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo/Departamento</th>
                                             <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
                                             <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
                                             <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
@@ -5623,12 +5657,21 @@ function _renderCadastroClienteInt() {
                     <!-- Anexo de Arquivos -->
                     <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▶ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
+                            <span>▼ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
                             <span id="acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
                         </div>
-                        <div id="acc-anexos" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <input type="file" id="cli-anexo-file" style="margin-bottom:0.5rem; display:block;">
-                            <span style="color:#64748b; font-size:0.75rem;">(Formatos permitidos: PDF, PNG, JPG até 5MB)</span>
+                        <div id="acc-anexos" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+                                <input type="file" id="cli-anexo-file" multiple accept="image/*,video/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov" onchange="window.adicionarArquivosPendentesCliente(this.files, 'main')" style="padding:0.35rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.82rem;">
+                                <button type="button" id="btn-salvar-anexo-cli" onclick="window.salvarAnexosCliente('main')" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo
+                                </button>
+                                <span style="color:#64748b; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
+                                    <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — selecione vários arquivos ou pressione <b>Ctrl+V</b> para colar imagem copiada)
+                                </span>
+                            </div>
+                            <div id="cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
+                            <div id="cli-anexos-salvos-container" style="margin-top:0.75rem;"></div>
                         </div>
                     </div>
 
@@ -5953,11 +5996,6 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
     const inputEl = document.getElementById(targetInputId);
     const raw = (inputEl?.value || '').trim();
 
-    // Se o campo estiver vazio ao dar Enter ou clicar na lupa, abre a tela de pesquisa de cliente
-    if (!raw) {
-        return window.abrirModalPesquisaCentralizador(targetInputId, '');
-    }
-
     const btn = btnEl || document.getElementById('btn-busca-centralizador');
     const origText = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
     if (btn) {
@@ -5965,13 +6003,26 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
         btn.disabled = true;
     }
 
+    // Se o campo estiver vazio ao dar Enter ou clicar na lupa, mostra o spinner e abre a tela de pesquisa de cliente
+    if (!raw) {
+        try {
+            await new Promise(r => setTimeout(r, 40));
+            await window.abrirModalPesquisaCentralizador(targetInputId, '');
+        } finally {
+            if (btn) {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+        return;
+    }
+
     try {
         const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const qNorm = normStr(raw);
         const qDigits = raw.replace(/\D/g, '');
 
-        const lista = await apiGet('/clientes') || [];
-        _clientesCache = lista;
+        const lista = await window.obterClientesCache();
 
         let foundInternal = null;
 
@@ -6072,11 +6123,6 @@ window.buscarCNPJ = async function() {
     const cnpjRaw = (document.getElementById('cli-cpf-cnpj')?.value || '').trim();
     const cnpj = cnpjRaw.replace(/\D/g, '');
 
-    // Se o campo estiver vazio ao dar Enter ou clicar na lupa, abre a tela de pesquisa de cliente
-    if (!cnpjRaw) {
-        return window.abrirModalPesquisaCliente('');
-    }
-
     const btn = document.getElementById('btn-busca-cnpj');
     const origText = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
     if (btn) {
@@ -6084,10 +6130,23 @@ window.buscarCNPJ = async function() {
         btn.disabled = true;
     }
 
+    // Se o campo estiver vazio ao dar Enter ou clicar na lupa, mostra o spinner e abre a tela de pesquisa de cliente
+    if (!cnpjRaw) {
+        try {
+            await new Promise(r => setTimeout(r, 40));
+            await window.abrirModalPesquisaCliente('');
+        } finally {
+            if (btn) {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+        return;
+    }
+
     try {
         const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const lista = await apiGet('/clientes') || [];
-        _clientesCache = lista;
+        const lista = await window.obterClientesCache();
 
         if (cnpj.length === 11) {
             const cnpjNoZero = cnpj.replace(/^0+/, '');
@@ -6264,7 +6323,7 @@ window.abrirWhatsApp = function() {
 
 window.abrirModalPesquisaCliente = async function(initialQuery = '') {
     try {
-        const clientes = await apiGet('/clientes');
+        const clientes = await window.obterClientesCache();
         if (!clientes || clientes.length === 0) {
             Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
             return;
@@ -6457,6 +6516,12 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
             document.getElementById('cli-f-cnae').value = f.cnae || '';
         } catch(e) {}
 
+        window._cliAnexosSalvos = Array.isArray(c.anexos_tabela) ? c.anexos_tabela : [];
+        window._cliAnexosPendentes = [];
+        if (typeof window.renderAnexosCliente === 'function') {
+            window.renderAnexosCliente('main', c.id);
+        }
+
         if (!silentToast && typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`Cliente ${c.codigo} carregado com sucesso!`);
         }
@@ -6469,6 +6534,8 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
 window.limparFormCliente = function() {
     _clienteEditandoId = null;
     _clienteContatos = [];
+    window._cliAnexosSalvos = [];
+    window._cliAnexosPendentes = [];
     
     const form = document.getElementById('form-cadastro-cliente');
     if (form) form.reset();
@@ -6509,39 +6576,453 @@ window.limparFormCliente = function() {
     }
 
     _renderTabelaContatos();
+    if (typeof window.renderAnexosCliente === 'function') {
+        window.renderAnexosCliente('main', null);
+    }
 };
 
-window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1, origem = 'main') {
+// ── Múltipla seleção de Ramo de Atividade e Acordeão ▼ Cadastro no Popup de Contato ──
+window.toggleMconRamoAtividade = function(chkEl) {
+    const boxes = document.querySelectorAll('.mcon-ramo-chk');
+    const selecionados = [];
+    boxes.forEach(b => {
+        const lbl = b.closest('label');
+        if (b.checked) {
+            selecionados.push(b.value);
+            if (lbl) {
+                lbl.style.background = '#eff6ff';
+                lbl.style.borderColor = '#3b82f6';
+                lbl.style.color = '#1d4ed8';
+            }
+        } else if (lbl) {
+            lbl.style.background = '#fff';
+            lbl.style.borderColor = '#cbd5e1';
+            lbl.style.color = '#334155';
+        }
+    });
+    const hiddenInput = document.getElementById('mcon-ramo-atividade');
+    if (hiddenInput) hiddenInput.value = selecionados.join(', ');
+};
+
+window.toggleMconCadastroAccordion = function() {
+    const body = document.getElementById('mcon-acc-cad-body');
+    const arrow = document.getElementById('mcon-acc-cad-arrow');
+    const title = document.getElementById('mcon-acc-cad-title');
+    if (!body) return;
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        if (arrow) arrow.innerText = '▼';
+        if (title) title.innerHTML = '▼ Cadastro <i class="ph ph-user-circle"></i>';
+    } else {
+        body.style.display = 'none';
+        if (arrow) arrow.innerText = '▶';
+        if (title) title.innerHTML = '▶ Cadastro <i class="ph ph-user-circle"></i>';
+    }
+};
+
+window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
+    const esc = (v) => String(v || '').replace(/"/g, '&quot;');
+    const c = contato || {};
+    const cli = client || {};
+
+    const currentUser = window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const repAuto = c.representante || c.criado_por || currentUser;
+
+    let dataCadAuto = '';
+    const rawDate = c.data_cadastro || c.criado_em || '';
+    if (rawDate) {
+        const datePart = String(rawDate).split(' ')[0].split('T')[0];
+        dataCadAuto = datePart.includes('-') ? datePart.split('-').reverse().join('/') : datePart;
+    } else {
+        dataCadAuto = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
+    }
+
+    const ramoRaw = String(c.ramo_atividade || '');
+    const ramoLower = ramoRaw.toLowerCase();
+    const isObra = ramoLower.includes('obra');
+    const isEvento = ramoLower.includes('evento');
+    const isOutros = ramoLower.includes('outro');
+
+    const pillStyle = (active) => active
+        ? 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border:1px solid #3b82f6; border-radius:4px; background:#eff6ff; color:#1d4ed8; font-size:0.74rem; font-weight:600; cursor:pointer; height:24px; box-sizing:border-box; user-select:none;'
+        : 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#334155; font-size:0.74rem; font-weight:600; cursor:pointer; height:24px; box-sizing:border-box; user-select:none;';
+
+    return `
+        <style>
+            .mcon-container {
+                background: #fff;
+                width: 100%;
+                text-align: left;
+                font-family: 'Inter', sans-serif;
+            }
+            .mcon-toolbar {
+                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                padding: 0.4rem 0.8rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+                position: sticky;
+                top: 0;
+                z-index: 997;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
+            }
+            .mcon-form-body {
+                padding: 0.8rem 1.0rem;
+                max-height: 460px;
+                overflow-y: auto;
+            }
+            .mcon-section-title {
+                font-size: 0.8rem !important;
+                font-weight: 800 !important;
+                color: #475569 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.04em !important;
+                border-bottom: 2px solid #e2e8f0 !important;
+                padding-bottom: 0.25rem !important;
+                margin: 0.8rem 0 0.5rem 0 !important;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .mcon-section-title.first {
+                margin-top: 0 !important;
+            }
+            .mcon-grid {
+                display: grid;
+                gap: 0.4rem 0.6rem;
+            }
+            .mcon-grid-contact-row1 {
+                grid-template-columns: 1.1fr 3.2fr 1.8fr 1.8fr 2.4fr;
+            }
+            .mcon-grid-contact-row2 {
+                grid-template-columns: 1.5fr 2.2fr 1.6fr 1.4fr 2.8fr;
+            }
+            .mcon-grid-company-row1 {
+                grid-template-columns: 4fr 2fr 1.5fr;
+            }
+            .mcon-grid-company-row2 {
+                grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+            }
+            .mcon-grid-company-row3 {
+                grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+            }
+            .mcon-field {
+                display: flex;
+                flex-direction: column;
+                gap: 0.2rem;
+            }
+            .mcon-field label {
+                font-size: 0.7rem !important;
+                font-weight: 700 !important;
+                color: #64748b !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.02em !important;
+                margin-bottom: 2px !important;
+            }
+            .mcon-input, .mcon-select {
+                padding: 0.15rem 0.45rem !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 4px !important;
+                font-size: 0.76rem !important;
+                background: #fff !important;
+                color: #1e293b !important;
+                outline: none !important;
+                transition: all 0.2s !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
+                height: 28px !important;
+                font-family: 'Inter', sans-serif !important;
+            }
+            .mcon-input:focus, .mcon-select:focus {
+                border-color: #3b82f6 !important;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+            }
+            .mcon-input[readonly] {
+                background: #f1f5f9 !important;
+                color: #64748b !important;
+                cursor: not-allowed !important;
+            }
+            .mcon-input-group {
+                display: flex;
+                gap: 0.35rem;
+                width: 100%;
+            }
+            .mcon-ribbon-checkboxes {
+                display: flex;
+                gap: 12px;
+                font-size: 0.76rem;
+                align-items: center;
+                font-weight: 600;
+                font-family: 'Inter', sans-serif;
+            }
+            .mcon-ribbon-checkboxes label {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                cursor: pointer;
+            }
+        </style>
+
+        <div class="mcon-container">
+            <div class="mcon-toolbar">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-weight:800; font-size:0.85rem; color:#1e293b; text-transform:uppercase;">
+                        <i class="ph ${isEdit ? 'ph-identification-card' : 'ph-user-plus'}" style="color:#7048e8; font-size:1.1rem; vertical-align:middle;"></i> ${isEdit ? 'Cadastro do Contato' : 'Novo Contato'}
+                    </span>
+                </div>
+                <div class="mcon-ribbon-checkboxes" style="color:#475569;">
+                    <label><input type="checkbox" id="mcon-email-nfe" ${c.email_nfe ? 'checked' : ''}> Envio NFe</label>
+                    <label><input type="checkbox" id="mcon-email-cobranca" ${c.email_cobranca ? 'checked' : ''}> Cobrança</label>
+                    <label><input type="checkbox" id="mcon-email-os" ${c.email_os ? 'checked' : ''}> OS</label>
+                    <label><input type="checkbox" id="mcon-email-contrato" ${c.email_contrato ? 'checked' : ''}> Contrato</label>
+                    <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo" ${c.inativo ? 'checked' : ''}> Inativo</label>
+                </div>
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                    <button type="button" onclick="${saveAttr}" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                        <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
+                    </button>
+                    <button type="button" onclick="Swal.close()" style="background:#e2e8f0; color:#475569; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
+                    </button>
+                </div>
+            </div>
+
+            <div class="mcon-form-body">
+                <div class="mcon-section-title first">
+                    <i class="ph ph-identification-card"></i> Dados do Contato
+                </div>
+                <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- Linha 1: Código, Nome *, Celular, Telefone, E-mail (não obrigatório) -->
+                    <div class="mcon-grid mcon-grid-contact-row1">
+                        <div class="mcon-field">
+                            <label>Código</label>
+                            <input type="text" id="mcon-codigo" readonly value="${esc(c.codigo)}" placeholder="Auto" class="mcon-input" style="text-align:center; font-weight:bold; color:#7048e8;">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Nome *</label>
+                            <input type="text" id="mcon-nome" value="${esc(c.nome)}" placeholder="Nome Completo" class="mcon-input">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Celular</label>
+                            <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Telefone</label>
+                            <input type="text" id="mcon-telefone" value="${esc(c.telefone)}" placeholder="(XX) XXXX-XXXX" class="mcon-input">
+                        </div>
+                        <div class="mcon-field">
+                            <label>E-mail</label>
+                            <input type="email" id="mcon-email" value="${esc(c.email)}" placeholder="nome@empresa.com" class="mcon-input">
+                        </div>
+                    </div>
+
+                    <!-- Linha 2: Tipo, Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (múltipla seleção) -->
+                    <div class="mcon-grid mcon-grid-contact-row2">
+                        <div class="mcon-field">
+                            <label>Tipo</label>
+                            <select id="mcon-tipo" class="mcon-select">
+                                <option value="">-- Selecione --</option>
+                                <option value="1 - Principal" ${c.tipo === '1 - Principal' ? 'selected' : ''}>1 - Principal</option>
+                                <option value="2 - Financeiro" ${c.tipo === '2 - Financeiro' ? 'selected' : ''}>2 - Financeiro</option>
+                                <option value="3 - Comercial" ${c.tipo === '3 - Comercial' ? 'selected' : ''}>3 - Comercial</option>
+                                <option value="4 - Técnico" ${c.tipo === '4 - Técnico' ? 'selected' : ''}>4 - Técnico</option>
+                                <option value="5 - Diretoria" ${c.tipo === '5 - Diretoria' ? 'selected' : ''}>5 - Diretoria</option>
+                                <option value="6 - Outros" ${c.tipo === '6 - Outros' ? 'selected' : ''}>6 - Outros</option>
+                            </select>
+                        </div>
+                        <div class="mcon-field">
+                            <label>Cargo/Departamento</label>
+                            <input type="text" id="mcon-cargo" value="${esc(c.cargo || c.departamento)}" class="mcon-input">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Origem</label>
+                            <input type="text" id="mcon-origem" value="${esc(c.origem)}" class="mcon-input">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Influenciador</label>
+                            <select id="mcon-influenciador" class="mcon-select">
+                                <option value="">-- Selecione --</option>
+                                <option value="Sim" ${c.influenciador === 'Sim' ? 'selected' : ''}>Sim</option>
+                                <option value="Não" ${c.influenciador === 'Não' ? 'selected' : ''}>Não</option>
+                            </select>
+                        </div>
+                        <div class="mcon-field">
+                            <label>Ramo de Atividade (escolha 1 ou mais)</label>
+                            <input type="hidden" id="mcon-ramo-atividade" value="${esc(ramoRaw)}">
+                            <div style="display:flex; align-items:center; gap:6px; height:28px; flex-wrap:wrap;">
+                                <label style="${pillStyle(isObra)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Obra
+                                </label>
+                                <label style="${pillStyle(isEvento)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Evento
+                                </label>
+                                <label style="${pillStyle(isOutros)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Outros
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mcon-section-title">
+                    <i class="ph ph-buildings"></i> Empresa Cliente
+                </div>
+                <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <div class="mcon-grid mcon-grid-company-row1">
+                        <div class="mcon-field">
+                            <label>Cliente (Razão Social) *</label>
+                            <div class="mcon-input-group">
+                                <input type="text" id="memp-codigo" readonly class="mcon-input" style="width: 80px; font-weight: bold; text-align: center;" value="${esc(cli.codigo)}">
+                                <input type="text" id="memp-razao-social" readonly class="mcon-input" value="${esc(cli.nome_razao_social)}">
+                            </div>
+                        </div>
+                        <div class="mcon-field">
+                            <label>CNPJ *</label>
+                            <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${esc(cli.cpf_cnpj)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>CEP</label>
+                            <input type="text" id="memp-cep" readonly class="mcon-input" value="${esc(cli.cep)}">
+                        </div>
+                    </div>
+
+                    <div class="mcon-grid mcon-grid-company-row2">
+                        <div class="mcon-field">
+                            <label>Endereço</label>
+                            <input type="text" id="memp-endereco" readonly class="mcon-input" value="${esc(cli.endereco)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Número</label>
+                            <input type="text" id="memp-numero" readonly class="mcon-input" value="${esc(cli.numero)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Bairro</label>
+                            <input type="text" id="memp-bairro" readonly class="mcon-input" value="${esc(cli.bairro)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Cidade</label>
+                            <input type="text" id="memp-cidade" readonly class="mcon-input" value="${esc(cli.municipio)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>UF</label>
+                            <input type="text" id="memp-uf" readonly class="mcon-input" value="${esc(cli.uf)}">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="mcon-field">
+                            <label>Grupo de Clientes</label>
+                            <input type="text" id="memp-grupo" readonly class="mcon-input" value="${esc(cli.grupo_clientes)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Cliente Centralizador</label>
+                            <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${esc(cli.cliente_centralizador)}">
+                        </div>
+                    </div>
+
+                    <div class="mcon-grid mcon-grid-company-row3">
+                        <div class="mcon-field">
+                            <label>Telefone</label>
+                            <input type="text" id="memp-telefone" readonly class="mcon-input" value="${esc(cli.telefone)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Ramal</label>
+                            <input type="text" id="memp-ramal" readonly class="mcon-input" value="${esc(cli.ramal)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Telefone 2</label>
+                            <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${esc(cli.telefone_2)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Ramal 2</label>
+                            <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${esc(cli.ramal_2)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Fax</label>
+                            <input type="text" id="memp-fax" readonly class="mcon-input" value="${esc(cli.fax)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Website (Site)</label>
+                            <input type="text" id="memp-site" readonly class="mcon-input" value="${esc(cli.website)}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ▼ Cadastro (Expansível com seta para baixo no final do popup) -->
+                <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden; margin-top:0.85rem;">
+                    <div onclick="window.toggleMconCadastroAccordion()" style="background:#f8fafc; padding:0.5rem 0.85rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:700; font-size:0.78rem; color:#475569;">
+                        <span id="mcon-acc-cad-title">▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                        <span id="mcon-acc-cad-arrow" style="transition:transform 0.2s;">▼</span>
+                    </div>
+                    <div id="mcon-acc-cad-body" style="display:none; padding:0.65rem 0.85rem; border-top:1px solid #e2e8f0; background:#fff;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="mcon-field">
+                                <label>Representante / Usuário que Cadastrou</label>
+                                <input type="text" id="mcon-representante" readonly class="mcon-input" value="${esc(repAuto)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Data de Cadastro</label>
+                                <input type="text" id="mcon-data-cadastro" readonly class="mcon-input" value="${esc(dataCadAuto)}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1, origem = 'main', rowEl = null) {
+    let nameCell = null;
+    let origNameHtml = '';
+    if (rowEl && rowEl.querySelector) {
+        nameCell = rowEl.querySelector('td');
+        if (nameCell) {
+            origNameHtml = nameCell.innerHTML;
+            nameCell.innerHTML = `<i class="ph ph-spinner ph-spin" style="margin-right:4px;"></i> ${origNameHtml}`;
+        }
+    }
+
     let contato = null;
     try {
-        const lista = await apiGet('/contatos') || [];
-        const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        // 1. Se tiver refId numérico, busca direto pelo ID (1 registro em ~5ms, sem baixar todos os contatos!)
         if (refId) {
-            contato = lista.find(ct => Number(ct.id) === Number(refId) || String(ct.codigo) === String(refId));
-            if (!contato) {
-                try {
-                    const byId = await apiGet(`/contatos/${refId}`);
-                    if (byId && byId.id) contato = byId;
-                } catch (e) {}
-            }
+            try {
+                const byId = await apiGet(`/contatos/${refId}`);
+                if (byId && byId.id) contato = byId;
+            } catch (e) {}
         }
-        if (!contato && nomeFallback) {
-            const q = norm(nomeFallback);
-            contato = lista.find(ct => norm(ct.nome) === q) || lista.find(ct => norm(ct.nome).includes(q));
+        // 2. Fallback: busca na lista apenas se não encontrou pelo ID direto
+        if (!contato && (refId || nomeFallback)) {
+            const lista = await apiGet('/contatos') || [];
+            const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            if (refId) {
+                contato = lista.find(ct => Number(ct.id) === Number(refId) || String(ct.codigo) === String(refId));
+            }
+            if (!contato && nomeFallback) {
+                const q = norm(nomeFallback);
+                contato = lista.find(ct => norm(ct.nome) === q) || lista.find(ct => norm(ct.nome).includes(q));
+            }
         }
     } catch (e) {
         console.error('Erro ao buscar contato para popup:', e);
+    } finally {
+        if (nameCell && origNameHtml) {
+            nameCell.innerHTML = origNameHtml;
+        }
     }
 
     const listaLocal = origem === 'modal' ? (window._modalClienteContatos || []) : (_clienteContatos || []);
     if (!contato && idx >= 0 && listaLocal[idx]) {
         const local = listaLocal[idx];
         let telLocal = local.telefone || '';
-        let ramalLocal = local.ramal || '';
         if (!telLocal && local.telefone_ramal) {
             const parts = String(local.telefone_ramal).split(/Ramal/i);
             telLocal = (parts[0] || '').trim();
-            ramalLocal = (parts[1] || '').trim();
         }
         contato = {
             id: local.id || null,
@@ -6551,19 +7032,11 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
             email: local.email || '',
             tipo: local.tipo || '',
             representante: local.dono || local.representante || '',
-            cargo: local.cargo || '',
-            sexo: local.sexo || '',
-            data_nascimento: local.data_nascimento || '',
-            departamento: local.departamento || '',
+            cargo: local.cargo || local.departamento || '',
             origem: local.origem || '',
             influenciador: local.influenciador || '',
-            classificacao: local.classificacao || '',
             ramo_atividade: local.ramo_atividade || '',
-            regiao: local.regiao || '',
-            nextel: local.nextel || '',
             telefone: telLocal,
-            ramal: ramalLocal,
-            outra_comunicacao: local.outra_comunicacao || '',
             email_nfe: local.nfe === 'Sim' || local.email_nfe === 1 ? 1 : 0,
             email_cobranca: local.cobranca === 'Sim' || local.email_cobranca === 1 ? 1 : 0,
             email_os: local.os === 'Sim' || local.email_os === 1 ? 1 : 0,
@@ -6610,8 +7083,8 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
         } catch (e) {}
     }
 
-    const esc = (v) => String(v || '').replace(/"/g, '&quot;');
     const contatoIdNum = Number(contato.id || 0) || 0;
+    const saveAttr = `window.modalSalvarEdicaoContato(${contatoIdNum}, ${idx}, '${origem}')`;
 
     Swal.fire({
         title: '',
@@ -6620,359 +7093,7 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
             popup: 'custom-swal-height-large'
         },
         showConfirmButton: false,
-        html: `
-            <style>
-                .mcon-container {
-                    background: #fff;
-                    width: 100%;
-                    text-align: left;
-                    font-family: 'Inter', sans-serif;
-                }
-                .mcon-toolbar {
-                    background: #f8fafc;
-                    border-bottom: 1px solid #e2e8f0;
-                    padding: 0.4rem 0.8rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 0.4rem;
-                    position: sticky;
-                    top: 0;
-                    z-index: 997;
-                    border-top-left-radius: 12px;
-                    border-top-right-radius: 12px;
-                }
-                .mcon-form-body {
-                    padding: 0.8rem 1.0rem;
-                    max-height: 420px;
-                    overflow-y: auto;
-                }
-                .mcon-section-title {
-                    font-size: 0.8rem !important;
-                    font-weight: 800 !important;
-                    color: #475569 !important;
-                    text-transform: uppercase !important;
-                    letter-spacing: 0.04em !important;
-                    border-bottom: 2px solid #e2e8f0 !important;
-                    padding-bottom: 0.25rem !important;
-                    margin: 0.8rem 0 0.5rem 0 !important;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-                .mcon-section-title.first {
-                    margin-top: 0 !important;
-                }
-                .mcon-grid {
-                    display: grid;
-                    gap: 0.4rem 0.6rem;
-                }
-                .mcon-grid-contact-row1 {
-                    grid-template-columns: 1.5fr 3.5fr 2fr 2fr;
-                }
-                .mcon-grid-contact-row2 {
-                    grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr 1.2fr 1.5fr;
-                }
-                .mcon-grid-contact-row3 {
-                    grid-template-columns: 1.5fr 1.5fr 1.2fr 1.8fr 1.2fr 1.2fr;
-                }
-                .mcon-grid-contact-row4 {
-                    grid-template-columns: 1.5fr 0.8fr 4fr;
-                }
-                .mcon-grid-company-row1 {
-                    grid-template-columns: 4fr 2fr 1.5fr;
-                }
-                .mcon-grid-company-row2 {
-                    grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
-                }
-                .mcon-grid-company-row3 {
-                    grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
-                }
-                .mcon-field {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.2rem;
-                }
-                .mcon-field label {
-                    font-size: 0.7rem !important;
-                    font-weight: 700 !important;
-                    color: #64748b !important;
-                    text-transform: uppercase !important;
-                    letter-spacing: 0.02em !important;
-                    margin-bottom: 2px !important;
-                }
-                .mcon-input, .mcon-select {
-                    padding: 0.15rem 0.45rem !important;
-                    border: 1px solid #cbd5e1 !important;
-                    border-radius: 4px !important;
-                    font-size: 0.76rem !important;
-                    background: #fff !important;
-                    color: #1e293b !important;
-                    outline: none !important;
-                    transition: all 0.2s !important;
-                    box-sizing: border-box !important;
-                    width: 100% !important;
-                    height: 28px !important;
-                    font-family: 'Inter', sans-serif !important;
-                }
-                .mcon-input:focus, .mcon-select:focus {
-                    border-color: #3b82f6 !important;
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
-                }
-                .mcon-input[readonly] {
-                    background: #f1f5f9 !important;
-                    color: #64748b !important;
-                    cursor: not-allowed !important;
-                }
-                .mcon-input-group {
-                    display: flex;
-                    gap: 0.35rem;
-                    width: 100%;
-                }
-                .mcon-ribbon-checkboxes {
-                    display: flex;
-                    gap: 12px;
-                    font-size: 0.76rem;
-                    align-items: center;
-                    font-weight: 600;
-                    font-family: 'Inter', sans-serif;
-                }
-                .mcon-ribbon-checkboxes label {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    cursor: pointer;
-                }
-            </style>
-
-            <div class="mcon-container">
-                <div class="mcon-toolbar">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-weight:800; font-size:0.85rem; color:#1e293b; text-transform:uppercase;">
-                            <i class="ph ph-identification-card" style="color:#7048e8; font-size:1.1rem; vertical-align:middle;"></i> Cadastro do Contato
-                        </span>
-                    </div>
-                    <div class="mcon-ribbon-checkboxes" style="color:#475569;">
-                        <label><input type="checkbox" id="mcon-email-nfe" ${contato.email_nfe ? 'checked' : ''}> Envio NFe</label>
-                        <label><input type="checkbox" id="mcon-email-cobranca" ${contato.email_cobranca ? 'checked' : ''}> Cobrança</label>
-                        <label><input type="checkbox" id="mcon-email-os" ${contato.email_os ? 'checked' : ''}> OS</label>
-                        <label><input type="checkbox" id="mcon-email-contrato" ${contato.email_contrato ? 'checked' : ''}> Contrato</label>
-                        <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo" ${contato.inativo ? 'checked' : ''}> Inativo</label>
-                    </div>
-                    <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <button type="button" onclick="window.modalSalvarEdicaoContato(${contatoIdNum}, ${idx}, '${origem}')" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                            <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
-                        </button>
-                        <button type="button" onclick="Swal.close()" style="background:#e2e8f0; color:#475569; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                            <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mcon-form-body">
-                    <div class="mcon-section-title first">
-                        <i class="ph ph-identification-card"></i> Dados do Contato
-                    </div>
-                    <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
-                        <div class="mcon-grid mcon-grid-contact-row1">
-                            <div class="mcon-field">
-                                <label>Código</label>
-                                <input type="text" id="mcon-codigo" readonly value="${esc(contato.codigo)}" placeholder="Auto" class="mcon-input" style="text-align:center; font-weight:bold; color:#7048e8;">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Nome *</label>
-                                <input type="text" id="mcon-nome" value="${esc(contato.nome)}" placeholder="Nome Completo" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Celular</label>
-                                <input type="text" id="mcon-celular" value="${esc(contato.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>E-mail *</label>
-                                <input type="email" id="mcon-email" value="${esc(contato.email)}" placeholder="nome@empresa.com" class="mcon-input">
-                            </div>
-                        </div>
-
-                        <div class="mcon-grid mcon-grid-contact-row2">
-                            <div class="mcon-field">
-                                <label>Tipo</label>
-                                <select id="mcon-tipo" class="mcon-select">
-                                    <option value="">-- Selecione --</option>
-                                    <option value="1 - Principal" ${contato.tipo === '1 - Principal' ? 'selected' : ''}>1 - Principal</option>
-                                    <option value="2 - Financeiro" ${contato.tipo === '2 - Financeiro' ? 'selected' : ''}>2 - Financeiro</option>
-                                    <option value="3 - Comercial" ${contato.tipo === '3 - Comercial' ? 'selected' : ''}>3 - Comercial</option>
-                                    <option value="4 - Técnico" ${contato.tipo === '4 - Técnico' ? 'selected' : ''}>4 - Técnico</option>
-                                    <option value="5 - Diretoria" ${contato.tipo === '5 - Diretoria' ? 'selected' : ''}>5 - Diretoria</option>
-                                    <option value="6 - Outros" ${contato.tipo === '6 - Outros' ? 'selected' : ''}>6 - Outros</option>
-                                </select>
-                            </div>
-                            <div class="mcon-field">
-                                <label>Representante</label>
-                                <input type="text" id="mcon-representante" value="${esc(contato.representante)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Cargo</label>
-                                <input type="text" id="mcon-cargo" value="${esc(contato.cargo)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Sexo</label>
-                                <select id="mcon-sexo" class="mcon-select">
-                                    <option value="">--</option>
-                                    <option value="M" ${contato.sexo === 'M' || contato.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
-                                    <option value="F" ${contato.sexo === 'F' || contato.sexo === 'Feminino' ? 'selected' : ''}>Feminino</option>
-                                    <option value="O" ${contato.sexo === 'O' || contato.sexo === 'Outro' ? 'selected' : ''}>Outro</option>
-                                </select>
-                            </div>
-                            <div class="mcon-field">
-                                <label>Nascimento</label>
-                                <input type="date" id="mcon-nascimento" value="${esc(contato.data_nascimento)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Departamento</label>
-                                <input type="text" id="mcon-departamento" value="${esc(contato.departamento)}" class="mcon-input">
-                            </div>
-                        </div>
-
-                        <div class="mcon-grid mcon-grid-contact-row3">
-                            <div class="mcon-field">
-                                <label>Origem</label>
-                                <input type="text" id="mcon-origem" value="${esc(contato.origem)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Influenciador</label>
-                                <select id="mcon-influenciador" class="mcon-select">
-                                    <option value="">-- Selecione --</option>
-                                    <option value="Sim" ${contato.influenciador === 'Sim' ? 'selected' : ''}>Sim</option>
-                                    <option value="Não" ${contato.influenciador === 'Não' ? 'selected' : ''}>Não</option>
-                                </select>
-                            </div>
-                            <div class="mcon-field">
-                                <label>Classificação</label>
-                                <select id="mcon-classificacao" class="mcon-select">
-                                    <option value="">-- Selecione --</option>
-                                    <option value="1 - Diamante" ${contato.classificacao === '1 - Diamante' ? 'selected' : ''}>1 - Diamante</option>
-                                    <option value="2 - Ouro" ${contato.classificacao === '2 - Ouro' ? 'selected' : ''}>2 - Ouro</option>
-                                    <option value="3 - Prata" ${contato.classificacao === '3 - Prata' ? 'selected' : ''}>3 - Prata</option>
-                                    <option value="4 - Bronze" ${contato.classificacao === '4 - Bronze' ? 'selected' : ''}>4 - Bronze</option>
-                                </select>
-                            </div>
-                            <div class="mcon-field">
-                                <label>Ramo de Atividade</label>
-                                <input type="text" id="mcon-ramo-atividade" value="${esc(contato.ramo_atividade)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Região</label>
-                                <input type="text" id="mcon-regiao" value="${esc(contato.regiao)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Nextel</label>
-                                <input type="text" id="mcon-nextel" value="${esc(contato.nextel)}" class="mcon-input">
-                            </div>
-                        </div>
-
-                        <div class="mcon-grid mcon-grid-contact-row4">
-                            <div class="mcon-field">
-                                <label>Telefone</label>
-                                <input type="text" id="mcon-telefone" value="${esc(contato.telefone)}" placeholder="(XX) XXXX-XXXX" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Ramal</label>
-                                <input type="text" id="mcon-ramal" value="${esc(contato.ramal)}" class="mcon-input">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Outras Comunicações</label>
-                                <input type="text" id="mcon-outra-comunicacao" value="${esc(contato.outra_comunicacao)}" class="mcon-input">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mcon-section-title">
-                        <i class="ph ph-buildings"></i> Empresa Cliente
-                    </div>
-                    <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
-                        <div class="mcon-grid mcon-grid-company-row1">
-                            <div class="mcon-field">
-                                <label>Cliente (Razão Social) *</label>
-                                <div class="mcon-input-group">
-                                    <input type="text" id="memp-codigo" readonly class="mcon-input" style="width: 80px; font-weight: bold; text-align: center;" value="${esc(client.codigo)}">
-                                    <input type="text" id="memp-razao-social" readonly class="mcon-input" value="${esc(client.nome_razao_social)}">
-                                </div>
-                            </div>
-                            <div class="mcon-field">
-                                <label>CNPJ *</label>
-                                <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${esc(client.cpf_cnpj)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>CEP</label>
-                                <input type="text" id="memp-cep" readonly class="mcon-input" value="${esc(client.cep)}">
-                            </div>
-                        </div>
-
-                        <div class="mcon-grid mcon-grid-company-row2">
-                            <div class="mcon-field">
-                                <label>Endereço</label>
-                                <input type="text" id="memp-endereco" readonly class="mcon-input" value="${esc(client.endereco)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Número</label>
-                                <input type="text" id="memp-numero" readonly class="mcon-input" value="${esc(client.numero)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Bairro</label>
-                                <input type="text" id="memp-bairro" readonly class="mcon-input" value="${esc(client.bairro)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Cidade</label>
-                                <input type="text" id="memp-cidade" readonly class="mcon-input" value="${esc(client.municipio)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>UF</label>
-                                <input type="text" id="memp-uf" readonly class="mcon-input" value="${esc(client.uf)}">
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="mcon-field">
-                                <label>Grupo de Clientes</label>
-                                <input type="text" id="memp-grupo" readonly class="mcon-input" value="${esc(client.grupo_clientes)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Cliente Centralizador</label>
-                                <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${esc(client.cliente_centralizador)}">
-                            </div>
-                        </div>
-
-                        <div class="mcon-grid mcon-grid-company-row3">
-                            <div class="mcon-field">
-                                <label>Telefone</label>
-                                <input type="text" id="memp-telefone" readonly class="mcon-input" value="${esc(client.telefone)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Ramal</label>
-                                <input type="text" id="memp-ramal" readonly class="mcon-input" value="${esc(client.ramal)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Telefone 2</label>
-                                <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${esc(client.telefone_2)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Ramal 2</label>
-                                <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${esc(client.ramal_2)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Fax</label>
-                                <input type="text" id="memp-fax" readonly class="mcon-input" value="${esc(client.fax)}">
-                            </div>
-                            <div class="mcon-field">
-                                <label>Website (Site)</label>
-                                <input type="text" id="memp-site" readonly class="mcon-input" value="${esc(client.website)}">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `,
+        html: window._buildPopupContatoHtml(contato, client, true, saveAttr),
         didOpen: () => {
             const conCelular = document.getElementById('mcon-celular');
             if (conCelular) {
@@ -7000,26 +7121,29 @@ window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = '
         return;
     }
 
+    const cargoDepto = document.getElementById('mcon-cargo')?.value || '';
+    const repAuto = document.getElementById('mcon-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+
     const payload = {
         codigo: document.getElementById('mcon-codigo')?.value || null,
         nome: conNome,
         tipo: document.getElementById('mcon-tipo')?.value || '',
-        representante: document.getElementById('mcon-representante')?.value || '',
-        departamento: document.getElementById('mcon-departamento')?.value || '',
-        cargo: document.getElementById('mcon-cargo')?.value || '',
+        representante: repAuto,
+        departamento: cargoDepto,
+        cargo: cargoDepto,
         origem: document.getElementById('mcon-origem')?.value || '',
         influenciador: document.getElementById('mcon-influenciador')?.value || '',
-        classificacao: document.getElementById('mcon-classificacao')?.value || '',
-        data_nascimento: document.getElementById('mcon-nascimento')?.value || '',
+        classificacao: '',
+        data_nascimento: '',
         ramo_atividade: document.getElementById('mcon-ramo-atividade')?.value || '',
-        regiao: document.getElementById('mcon-regiao')?.value || '',
-        sexo: document.getElementById('mcon-sexo')?.value || '',
+        regiao: '',
+        sexo: '',
         celular: document.getElementById('mcon-celular')?.value || '',
         telefone: document.getElementById('mcon-telefone')?.value || '',
-        ramal: document.getElementById('mcon-ramal')?.value || '',
-        nextel: document.getElementById('mcon-nextel')?.value || '',
+        ramal: '',
+        nextel: '',
         email: conEmail,
-        outra_comunicacao: document.getElementById('mcon-outra-comunicacao')?.value || '',
+        outra_comunicacao: '',
         inativo: document.getElementById('mcon-inativo')?.checked ? 1 : 0,
         email_cobranca: document.getElementById('mcon-email-cobranca')?.checked ? 1 : 0,
         email_nfe: document.getElementById('mcon-email-nfe')?.checked ? 1 : 0,
@@ -7044,7 +7168,7 @@ window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = '
             nome: payload.nome,
             departamento: payload.departamento,
             celular: payload.celular,
-            telefone_ramal: payload.telefone ? (payload.ramal ? `${payload.telefone} Ramal ${payload.ramal}` : payload.telefone) : '',
+            telefone_ramal: payload.telefone || '',
             email: payload.email,
             dono: payload.representante,
             cargo: payload.cargo,
@@ -7094,9 +7218,9 @@ window._renderTabelaContatos = function() {
         const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return `
-        <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'main')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro do contato">
+        <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'main', this)" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro do contato">
             <td style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
-            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
+            <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || c.departamento || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
@@ -7109,7 +7233,14 @@ window._renderTabelaContatos = function() {
     }).join('');
 };
 
-window.encaminharNovoContato = async function() {
+window.encaminharNovoContato = async function(btnEl = null) {
+    const btn = btnEl || document.getElementById('btn-novo-contato-cli');
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Novo Contato';
+        btn.disabled = true;
+    }
+
     const codigoVal = (document.getElementById('cli-codigo')?.value || '').trim();
     const cnpjInput = document.getElementById('cli-cpf-cnpj');
     const rawCnpj = cnpjInput ? cnpjInput.value : '';
@@ -7120,37 +7251,57 @@ window.encaminharNovoContato = async function() {
     const rawRazao = razaoInput ? razaoInput.value.trim().toLowerCase() : '';
 
     try {
-        const clientes = await apiGet('/clientes') || [];
+        await new Promise(r => setTimeout(r, 30));
         let client = null;
 
-        if (_clienteEditandoId) {
-            client = clientes.find(c => Number(c.id) === Number(_clienteEditandoId));
-        }
-
-        if (!client && codigoVal) {
-            client = clientes.find(c => String(c.codigo) === String(codigoVal));
-        }
-
-        if (!client && cleanCnpj) {
-            client = clientes.find(c => {
-                const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
-                return cDoc && (cDoc === cleanCnpj || (cleanCnpjNoZero && cDoc.replace(/^0+/, '') === cleanCnpjNoZero));
-            });
-        }
-
-        if (!client && rawRazao) {
-            client = clientes.find(c =>
-                (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase() === rawRazao) ||
-                (c.nome_fantasia && c.nome_fantasia.trim().toLowerCase() === rawRazao) ||
-                (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao))
-            );
-        }
-
-        if (client) {
-            // Cliente já está cadastrado e salvo no sistema — preserva eventuais edições na tela sem exigir salvar novamente
-            _clienteEditandoId = client.id;
-            const codEl = document.getElementById('cli-codigo');
-            if (codEl && !codEl.value) codEl.value = client.codigo || '';
+        // Se o cliente já está carregado na tela (_clienteEditandoId), lê direto dos campos em 0ms sem precisar baixar /clientes!
+        if (_clienteEditandoId && (codigoVal || rawCnpj || rawRazao)) {
+            client = {
+                id: _clienteEditandoId,
+                codigo: codigoVal,
+                nome_razao_social: razaoInput?.value || '',
+                cpf_cnpj: rawCnpj,
+                cep: document.getElementById('cli-cep')?.value || '',
+                endereco: document.getElementById('cli-endereco')?.value || '',
+                numero: document.getElementById('cli-numero')?.value || '',
+                bairro: document.getElementById('cli-bairro')?.value || '',
+                municipio: document.getElementById('cli-municipio')?.value || '',
+                uf: document.getElementById('cli-uf')?.value || '',
+                grupo_clientes: document.getElementById('cli-grupo')?.value || '',
+                cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+                telefone: document.getElementById('cli-telefone')?.value || '',
+                ramal: document.getElementById('cli-ramal')?.value || '',
+                telefone_2: document.getElementById('cli-telefone2')?.value || '',
+                ramal_2: document.getElementById('cli-ramal2')?.value || '',
+                fax: document.getElementById('cli-fax')?.value || '',
+                website: document.getElementById('cli-website')?.value || ''
+            };
+        } else {
+            const clientes = await window.obterClientesCache();
+            if (_clienteEditandoId) {
+                client = clientes.find(c => Number(c.id) === Number(_clienteEditandoId));
+            }
+            if (!client && codigoVal) {
+                client = clientes.find(c => String(c.codigo) === String(codigoVal));
+            }
+            if (!client && cleanCnpj) {
+                client = clientes.find(c => {
+                    const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
+                    return cDoc && (cDoc === cleanCnpj || (cleanCnpjNoZero && cDoc.replace(/^0+/, '') === cleanCnpjNoZero));
+                });
+            }
+            if (!client && rawRazao) {
+                client = clientes.find(c =>
+                    (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase() === rawRazao) ||
+                    (c.nome_fantasia && c.nome_fantasia.trim().toLowerCase() === rawRazao) ||
+                    (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao))
+                );
+            }
+            if (client) {
+                _clienteEditandoId = client.id;
+                const codEl = document.getElementById('cli-codigo');
+                if (codEl && !codEl.value) codEl.value = client.codigo || '';
+            }
         }
 
         if (!_clienteEditandoId || !client) {
@@ -7171,402 +7322,7 @@ window.encaminharNovoContato = async function() {
                 popup: 'custom-swal-height-large'
             },
             showConfirmButton: false,
-            html: `
-                <style>
-                    .mcon-container {
-                        background: #fff;
-                        width: 100%;
-                        text-align: left;
-                        font-family: 'Inter', sans-serif;
-                    }
-                    .mcon-toolbar {
-                        background: #f8fafc;
-                        border-bottom: 1px solid #e2e8f0;
-                        padding: 0.4rem 0.8rem;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        flex-wrap: wrap;
-                        gap: 0.4rem;
-                        position: sticky;
-                        top: 0;
-                        z-index: 997;
-                        border-top-left-radius: 12px;
-                        border-top-right-radius: 12px;
-                    }
-                    .mcon-form-body {
-                        padding: 0.8rem 1.0rem;
-                        max-height: 420px;
-                        overflow-y: auto;
-                    }
-                    .mcon-section-title {
-                        font-size: 0.8rem !important;
-                        font-weight: 800 !important;
-                        color: #475569 !important;
-                        text-transform: uppercase !important;
-                        letter-spacing: 0.04em !important;
-                        border-bottom: 2px solid #e2e8f0 !important;
-                        padding-bottom: 0.25rem !important;
-                        margin: 0.8rem 0 0.5rem 0 !important;
-                        display: flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                    }
-                    .mcon-section-title.first {
-                        margin-top: 0 !important;
-                    }
-                    .mcon-grid {
-                        display: grid;
-                        gap: 0.4rem 0.6rem;
-                    }
-                    .mcon-grid-contact-row1 {
-                        grid-template-columns: 1.5fr 3.5fr 2fr 2fr;
-                    }
-                    .mcon-grid-contact-row2 {
-                        grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr 1.2fr 1.5fr;
-                    }
-                    .mcon-grid-contact-row3 {
-                        grid-template-columns: 1.5fr 1.5fr 1.2fr 1.8fr 1.2fr 1.2fr;
-                    }
-                    .mcon-grid-contact-row4 {
-                        grid-template-columns: 1.5fr 0.8fr 4fr;
-                    }
-                    .mcon-grid-company-row1 {
-                        grid-template-columns: 4fr 2fr 1.5fr;
-                    }
-                    .mcon-grid-company-row2 {
-                        grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
-                    }
-                    .mcon-grid-company-row3 {
-                        grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
-                    }
-                    .mcon-field {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 0.2rem;
-                    }
-                    .mcon-field label {
-                        font-size: 0.7rem !important;
-                        font-weight: 700 !important;
-                        color: #64748b !important;
-                        text-transform: uppercase !important;
-                        letter-spacing: 0.02em !important;
-                        margin-bottom: 2px !important;
-                    }
-                    .mcon-input, .mcon-select {
-                        padding: 0.15rem 0.45rem !important;
-                        border: 1px solid #cbd5e1 !important;
-                        border-radius: 4px !important;
-                        font-size: 0.76rem !important;
-                        background: #fff !important;
-                        color: #1e293b !important;
-                        outline: none !important;
-                        transition: all 0.2s !important;
-                        box-sizing: border-box !important;
-                        width: 100% !important;
-                        height: 28px !important;
-                        font-family: 'Inter', sans-serif !important;
-                    }
-                    .mcon-input:focus, .mcon-select:focus {
-                        border-color: #3b82f6 !important;
-                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
-                    }
-                    .mcon-input[readonly] {
-                        background: #f1f5f9 !important;
-                        color: #64748b !important;
-                        cursor: not-allowed !important;
-                    }
-                    .mcon-input-group {
-                        display: flex;
-                        gap: 0.35rem;
-                        width: 100%;
-                    }
-                    .mcon-btn-addon {
-                        background: #16a34a;
-                        color: #fff;
-                        border: none;
-                        padding: 0.2rem 0.5rem;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-weight: 600;
-                        font-size: 0.76rem;
-                        transition: all 0.2s;
-                        height: 28px;
-                        box-sizing: border-box;
-                    }
-                    .mcon-btn-addon:hover {
-                        background: #15803d;
-                    }
-                    .mcon-btn-addon.secondary {
-                        background: #475569;
-                    }
-                    .mcon-btn-addon.secondary:hover {
-                        background: #334155;
-                    }
-                    .mcon-btn-addon.success {
-                        background: #25d366;
-                    }
-                    .mcon-btn-addon.success:hover {
-                        background: #20ba5a;
-                    }
-                    .mcon-ribbon-checkboxes {
-                        display: flex;
-                        gap: 12px;
-                        font-size: 0.76rem;
-                        align-items: center;
-                        font-weight: 600;
-                        font-family: 'Inter', sans-serif;
-                    }
-                    .mcon-ribbon-checkboxes label {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 4px;
-                        cursor: pointer;
-                    }
-                </style>
-
-                <div class="mcon-container">
-                    <!-- Toolbar Superior -->
-                    <div class="mcon-toolbar">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-weight:800; font-size:0.85rem; color:#1e293b; text-transform:uppercase;">
-                                <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.1rem; vertical-align:middle;"></i> Novo Contato
-                            </span>
-                        </div>
-                        <div class="mcon-ribbon-checkboxes" style="color:#475569;">
-                            <label><input type="checkbox" id="mcon-email-nfe"> Envio NFe</label>
-                            <label><input type="checkbox" id="mcon-email-cobranca"> Cobrança</label>
-                            <label><input type="checkbox" id="mcon-email-os"> OS</label>
-                            <label><input type="checkbox" id="mcon-email-contrato"> Contrato</label>
-                            <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo"> Inativo</label>
-                        </div>
-                        <div style="display:flex; gap:0.4rem; align-items:center;">
-                            <button onclick="window.modalSalvarNovoContato()" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
-                            </button>
-                            <button onclick="Swal.close()" style="background:#e2e8f0; color:#475569; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                                <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Corpo do Modal -->
-                    <div class="mcon-form-body">
-                        <!-- DADOS DO CONTATO -->
-                        <div class="mcon-section-title first">
-                            <i class="ph ph-identification-card"></i> Dados do Contato
-                        </div>
-                        <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
-                            <!-- Linha 1 -->
-                            <div class="mcon-grid mcon-grid-contact-row1">
-                                <div class="mcon-field">
-                                    <label>Código</label>
-                                    <input type="text" id="mcon-codigo" readonly placeholder="Auto" class="mcon-input" style="text-align:center; font-weight:bold; color:#7048e8;">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Nome *</label>
-                                    <input type="text" id="mcon-nome" placeholder="Nome Completo" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Celular</label>
-                                    <input type="text" id="mcon-celular" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>E-mail *</label>
-                                    <input type="email" id="mcon-email" placeholder="nome@empresa.com" class="mcon-input">
-                                </div>
-                            </div>
-
-                            <!-- Linha 2 -->
-                            <div class="mcon-grid mcon-grid-contact-row2">
-                                <div class="mcon-field">
-                                    <label>Tipo</label>
-                                    <select id="mcon-tipo" class="mcon-select">
-                                        <option value="">-- Selecione --</option>
-                                        <option value="1 - Principal">1 - Principal</option>
-                                        <option value="2 - Financeiro">2 - Financeiro</option>
-                                        <option value="3 - Comercial">3 - Comercial</option>
-                                        <option value="4 - Técnico">4 - Técnico</option>
-                                        <option value="5 - Diretoria">5 - Diretoria</option>
-                                        <option value="6 - Outros">6 - Outros</option>
-                                    </select>
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Representante</label>
-                                    <input type="text" id="mcon-representante" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Cargo</label>
-                                    <input type="text" id="mcon-cargo" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Sexo</label>
-                                    <select id="mcon-sexo" class="mcon-select">
-                                        <option value="">--</option>
-                                        <option value="M">Masculino</option>
-                                        <option value="F">Feminino</option>
-                                        <option value="O">Outro</option>
-                                    </select>
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Nascimento</label>
-                                    <input type="date" id="mcon-nascimento" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Departamento</label>
-                                    <input type="text" id="mcon-departamento" class="mcon-input">
-                                </div>
-                            </div>
-
-                            <!-- Linha 3 -->
-                            <div class="mcon-grid mcon-grid-contact-row3">
-                                <div class="mcon-field">
-                                    <label>Origem</label>
-                                    <input type="text" id="mcon-origem" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Influenciador</label>
-                                    <select id="mcon-influenciador" class="mcon-select">
-                                        <option value="">-- Selecione --</option>
-                                        <option value="Sim">Sim</option>
-                                        <option value="Não">Não</option>
-                                    </select>
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Classificação</label>
-                                    <select id="mcon-classificacao" class="mcon-select">
-                                        <option value="">-- Selecione --</option>
-                                        <option value="1 - Diamante">1 - Diamante</option>
-                                        <option value="2 - Ouro">2 - Ouro</option>
-                                        <option value="3 - Prata">3 - Prata</option>
-                                        <option value="4 - Bronze">4 - Bronze</option>
-                                    </select>
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Ramo de Atividade</label>
-                                    <input type="text" id="mcon-ramo-atividade" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Região</label>
-                                    <input type="text" id="mcon-regiao" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Nextel</label>
-                                    <input type="text" id="mcon-nextel" class="mcon-input">
-                                </div>
-                            </div>
-
-                            <!-- Linha 4 -->
-                            <div class="mcon-grid mcon-grid-contact-row4">
-                                <div class="mcon-field">
-                                    <label>Telefone</label>
-                                    <input type="text" id="mcon-telefone" placeholder="(XX) XXXX-XXXX" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Ramal</label>
-                                    <input type="text" id="mcon-ramal" class="mcon-input">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Outras Comunicações</label>
-                                    <input type="text" id="mcon-outra-comunicacao" class="mcon-input">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- EMPRESA CLIENTE -->
-                        <div class="mcon-section-title">
-                            <i class="ph ph-buildings"></i> Empresa Cliente
-                        </div>
-                        <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
-                            <!-- Linha 1 -->
-                            <div class="mcon-grid mcon-grid-company-row1">
-                                <div class="mcon-field">
-                                    <label>Cliente (Razão Social) *</label>
-                                    <div class="mcon-input-group">
-                                        <input type="text" id="memp-codigo" readonly class="mcon-input" style="width: 80px; font-weight: bold; text-align: center;" value="${client.codigo || ''}">
-                                        <input type="text" id="memp-razao-social" readonly class="mcon-input" value="${client.nome_razao_social || ''}">
-                                    </div>
-                                </div>
-                                <div class="mcon-field">
-                                    <label>CNPJ *</label>
-                                    <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${client.cpf_cnpj || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>CEP</label>
-                                    <input type="text" id="memp-cep" readonly class="mcon-input" value="${client.cep || ''}">
-                                </div>
-                            </div>
-
-                            <!-- Linha 2 -->
-                            <div class="mcon-grid mcon-grid-company-row2">
-                                <div class="mcon-field">
-                                    <label>Endereço</label>
-                                    <input type="text" id="memp-endereco" readonly class="mcon-input" value="${client.endereco || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Número</label>
-                                    <input type="text" id="memp-numero" readonly class="mcon-input" value="${client.numero || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Bairro</label>
-                                    <input type="text" id="memp-bairro" readonly class="mcon-input" value="${client.bairro || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Cidade</label>
-                                    <input type="text" id="memp-cidade" readonly class="mcon-input" value="${client.municipio || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>UF</label>
-                                    <input type="text" id="memp-uf" readonly class="mcon-input" value="${client.uf || ''}">
-                                </div>
-                            </div>
-
-                            <!-- Linha de controle -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div class="mcon-field">
-                                    <label>Grupo de Clientes</label>
-                                    <input type="text" id="memp-grupo" readonly class="mcon-input" value="${client.grupo_clientes || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Cliente Centralizador</label>
-                                    <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${client.cliente_centralizador || ''}">
-                                </div>
-                            </div>
-
-                            <!-- Linha 3 -->
-                            <div class="mcon-grid mcon-grid-company-row3">
-                                <div class="mcon-field">
-                                    <label>Telefone</label>
-                                    <input type="text" id="memp-telefone" readonly class="mcon-input" value="${client.telefone || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Ramal</label>
-                                    <input type="text" id="memp-ramal" readonly class="mcon-input" value="${client.ramal || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Telefone 2</label>
-                                    <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${client.telefone_2 || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Ramal 2</label>
-                                    <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${client.ramal_2 || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Fax</label>
-                                    <input type="text" id="memp-fax" readonly class="mcon-input" value="${client.fax || ''}">
-                                </div>
-                                <div class="mcon-field">
-                                    <label>Website (Site)</label>
-                                    <input type="text" id="memp-site" readonly class="mcon-input" value="${client.website || ''}">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `,
+            html: window._buildPopupContatoHtml({}, client, false, 'window.modalSalvarNovoContato()'),
             didOpen: () => {
                 const conCelular = document.getElementById('mcon-celular');
                 if (conCelular) {
@@ -7587,21 +7343,22 @@ window.encaminharNovoContato = async function() {
     } catch(err) {
         console.error(err);
         Swal.fire('Erro', 'Ocorreu um erro ao carregar o cliente para o contato.', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
+        }
     }
 };
 
 window.modalSalvarNovoContato = async function() {
-    const conNome = document.getElementById('mcon-nome')?.value || '';
-    const conEmail = document.getElementById('mcon-email')?.value || '';
-    const empCnpj = document.getElementById('memp-cnpj')?.value || '';
-    const empRazao = document.getElementById('memp-razao-social')?.value || '';
+    const conNome = (document.getElementById('mcon-nome')?.value || '').trim();
+    const conEmail = (document.getElementById('mcon-email')?.value || '').trim();
+    const empCnpj = (document.getElementById('memp-cnpj')?.value || '').trim();
+    const empRazao = (document.getElementById('memp-razao-social')?.value || '').trim();
 
     if (!conNome) {
         alert('Por favor, preencha o Nome do Contato.');
-        return;
-    }
-    if (!conEmail) {
-        alert('Por favor, preencha o E-mail do Contato.');
         return;
     }
     if (!empCnpj) {
@@ -7613,7 +7370,6 @@ window.modalSalvarNovoContato = async function() {
         return;
     }
 
-    // Vincula apenas pelo ID do cliente já salvo, para não salvar alterações de campos do cliente sem o usuário clicar em Salvar
     const empresa_cliente = _clienteEditandoId ? {
         id: _clienteEditandoId
     } : {
@@ -7638,32 +7394,35 @@ window.modalSalvarNovoContato = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || ''
     };
 
+    const cargoDepto = document.getElementById('mcon-cargo')?.value || '';
+    const repAuto = document.getElementById('mcon-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+
     const payload = {
         codigo: null,
         nome: conNome,
         tipo: document.getElementById('mcon-tipo')?.value || '',
-        representante: document.getElementById('mcon-representante')?.value || '',
-        departamento: document.getElementById('mcon-departamento')?.value || '',
-        cargo: document.getElementById('mcon-cargo')?.value || '',
+        representante: repAuto,
+        departamento: cargoDepto,
+        cargo: cargoDepto,
         origem: document.getElementById('mcon-origem')?.value || '',
         influenciador: document.getElementById('mcon-influenciador')?.value || '',
-        classificacao: document.getElementById('mcon-classificacao')?.value || '',
-        data_nascimento: document.getElementById('mcon-nascimento')?.value || '',
+        classificacao: '',
+        data_nascimento: '',
         ramo_atividade: document.getElementById('mcon-ramo-atividade')?.value || '',
-        regiao: document.getElementById('mcon-regiao')?.value || '',
-        sexo: document.getElementById('mcon-sexo')?.value || '',
+        regiao: '',
+        sexo: '',
         celular: document.getElementById('mcon-celular')?.value || '',
         telefone: document.getElementById('mcon-telefone')?.value || '',
-        ramal: document.getElementById('mcon-ramal')?.value || '',
-        nextel: document.getElementById('mcon-nextel')?.value || '',
+        ramal: '',
+        nextel: '',
         email: conEmail,
-        outra_comunicacao: document.getElementById('mcon-outra-comunicacao')?.value || '',
+        outra_comunicacao: '',
         inativo: document.getElementById('mcon-inativo')?.checked ? 1 : 0,
         email_cobranca: document.getElementById('mcon-email-cobranca')?.checked ? 1 : 0,
         email_nfe: document.getElementById('mcon-email-nfe')?.checked ? 1 : 0,
         email_os: document.getElementById('mcon-email-os')?.checked ? 1 : 0,
         email_contrato: document.getElementById('mcon-email-contrato')?.checked ? 1 : 0,
-        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        criado_por: repAuto,
         cliente_id: _clienteEditandoId,
         empresa_cliente: empresa_cliente
     };
@@ -7674,7 +7433,6 @@ window.modalSalvarNovoContato = async function() {
             _clientesCache = []; // Limpar cache
             Swal.close();
 
-            // Atualiza somente a tabela de contatos vinculada sem sobrescrever eventuais alterações não salvas nos campos do cliente
             try {
                 const c = await apiGet(`/clientes/${_clienteEditandoId}`);
                 if (c) {
@@ -7685,10 +7443,10 @@ window.modalSalvarNovoContato = async function() {
                             nome: con.nome || '',
                             departamento: con.departamento || '',
                             celular: con.celular || con.telefone || '',
-                            telefone_ramal: con.telefone ? (con.ramal ? `${con.telefone} Ramal ${con.ramal}` : con.telefone) : '',
+                            telefone_ramal: con.telefone || '',
                             email: con.email || '',
                             dono: con.representante || '',
-                            cargo: con.cargo || '',
+                            cargo: con.cargo || con.departamento || '',
                             situacao: con.inativo === 1 ? 'Inativo' : 'Ativo',
                             nfe: con.email_nfe === 1 ? 'Sim' : 'Não',
                             cobranca: con.email_cobranca === 1 ? 'Sim' : 'Não',
@@ -7727,7 +7485,353 @@ window.modalSalvarNovoContato = async function() {
     }
 };
 
-window.abrirModalPesquisaContatoCliente = async function() {
+// ── Anexo de Arquivos do Cliente (Múltiplos arquivos, Miniaturas Img/Vídeo/PDF, Ctrl+V e R2) ──
+window._cliAnexosPendentes = window._cliAnexosPendentes || [];
+window._cliAnexosSalvos = window._cliAnexosSalvos || [];
+window._modalCliAnexosPendentes = window._modalCliAnexosPendentes || [];
+window._modalCliAnexosSalvos = window._modalCliAnexosSalvos || [];
+
+window.adicionarArquivosPendentesCliente = function(fileList, escopo = 'main') {
+    if (!fileList || fileList.length === 0) return;
+    const pendentes = escopo === 'modal' ? window._modalCliAnexosPendentes : window._cliAnexosPendentes;
+    Array.from(fileList).forEach(file => {
+        if (!file) return;
+        const previewUrl = URL.createObjectURL(file);
+        pendentes.push({
+            file,
+            nome: file.name || `anexo_${Date.now()}`,
+            mime: file.type || '',
+            tamanho: file.size || 0,
+            previewUrl
+        });
+    });
+
+    const inputEl = document.getElementById(escopo === 'modal' ? 'modal-cli-anexo-file' : 'cli-anexo-file');
+    if (inputEl) inputEl.value = '';
+
+    const accId = escopo === 'modal' ? 'modal-acc-anexos' : 'acc-anexos';
+    const accEl = document.getElementById(accId);
+    const arrowEl = document.getElementById(accId + '-arrow');
+    if (accEl && accEl.style.display === 'none') {
+        accEl.style.display = 'block';
+        if (arrowEl) arrowEl.innerText = '▼';
+    }
+
+    const cliId = escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId;
+    window.renderAnexosCliente(escopo, cliId);
+};
+
+window.removerArquivoPendenteCliente = function(idx, escopo = 'main') {
+    const pendentes = escopo === 'modal' ? window._modalCliAnexosPendentes : window._cliAnexosPendentes;
+    if (pendentes[idx]) {
+        if (pendentes[idx].previewUrl) {
+            try { URL.revokeObjectURL(pendentes[idx].previewUrl); } catch (e) {}
+        }
+        pendentes.splice(idx, 1);
+    }
+    const cliId = escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId;
+    window.renderAnexosCliente(escopo, cliId);
+};
+
+window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, silent = false) {
+    const clienteId = escopo === 'modal' ? (modalCliId || _modalClienteEditandoId) : _clienteEditandoId;
+    const pendentes = escopo === 'modal' ? window._modalCliAnexosPendentes : window._cliAnexosPendentes;
+
+    if (!pendentes || pendentes.length === 0) {
+        if (!silent) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('Aviso', 'Selecione um ou mais arquivos (ou cole uma imagem com Ctrl+V) antes de clicar em Salvar Anexo.', 'info');
+            } else {
+                alert('Selecione um ou mais arquivos (ou cole uma imagem com Ctrl+V) antes de clicar em Salvar Anexo.');
+            }
+        }
+        return;
+    }
+
+    if (!clienteId) {
+        if (!silent) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('Aviso', 'Por favor, salve o cadastro do cliente primeiro (ou clique em Salvar no topo, que os anexos pendentes serão salvos junto).', 'warning');
+            } else {
+                alert('Salve o cadastro do cliente primeiro para gravar os anexos.');
+            }
+        }
+        return;
+    }
+
+    const btnId = escopo === 'modal' ? 'modal-btn-salvar-anexo-cli' : 'btn-salvar-anexo-cli';
+    const btn = document.getElementById(btnId);
+    const origHtml = btn ? btn.innerHTML : '<i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Salvando...';
+        btn.disabled = true;
+    }
+
+    try {
+        const formData = new FormData();
+        pendentes.forEach(item => {
+            if (item && item.file) {
+                formData.append('files', item.file, item.nome);
+            }
+        });
+
+        const token = localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/clientes/${clienteId}/anexos`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            body: formData
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            throw new Error(data.error || 'Falha ao enviar anexos.');
+        }
+
+        pendentes.forEach(item => {
+            if (item && item.previewUrl) {
+                try { URL.revokeObjectURL(item.previewUrl); } catch (e) {}
+            }
+        });
+        if (escopo === 'modal') {
+            window._modalCliAnexosPendentes = [];
+            window._modalCliAnexosSalvos = Array.isArray(data.lista) ? data.lista : [];
+        } else {
+            window._cliAnexosPendentes = [];
+            window._cliAnexosSalvos = Array.isArray(data.lista) ? data.lista : [];
+        }
+
+        window.renderAnexosCliente(escopo, clienteId);
+        if (!silent && typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Anexo(s) salvo(s) com sucesso!');
+        }
+    } catch (err) {
+        console.error('Erro ao salvar anexos do cliente:', err);
+        if (!silent) {
+            alert('Erro ao salvar anexos: ' + (err.message || 'Erro desconhecido.'));
+        }
+    } finally {
+        if (btn) {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    }
+};
+
+window.excluirAnexoCliente = async function(anexoId, escopo = 'main', clienteIdParam = null) {
+    const clienteId = clienteIdParam || (escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId);
+    if (!clienteId || !anexoId) return;
+    if (!confirm('Deseja realmente excluir este anexo?')) return;
+
+    try {
+        const res = await apiDelete(`/clientes/${clienteId}/anexos/${anexoId}`);
+        if (res && res.success) {
+            if (escopo === 'modal') {
+                window._modalCliAnexosSalvos = (window._modalCliAnexosSalvos || []).filter(a => Number(a.id) !== Number(anexoId));
+            } else {
+                window._cliAnexosSalvos = (window._cliAnexosSalvos || []).filter(a => Number(a.id) !== Number(anexoId));
+            }
+            window.renderAnexosCliente(escopo, clienteId);
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Anexo excluído com sucesso!');
+            }
+        } else {
+            alert('Erro ao excluir anexo: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao excluir anexo.');
+    }
+};
+
+window.visualizarAnexoClienteModal = function(url, nome, mime) {
+    const safeNome = String(nome || 'Anexo').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lowerMime = String(mime || '').toLowerCase();
+    const lowerNome = String(nome || '').toLowerCase();
+    const isImg = lowerMime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(lowerNome);
+    const isVideo = lowerMime.startsWith('video/') || /\.(mp4|webm|ogg|mov)$/i.test(lowerNome);
+    const isPdf = lowerMime.includes('pdf') || /\.pdf$/i.test(lowerNome);
+
+    if (typeof Swal === 'undefined') {
+        window.open(url, '_blank');
+        return;
+    }
+
+    let contentHtml = '';
+    if (isImg) {
+        contentHtml = `<div style="display:flex; justify-content:center; align-items:center; max-height:72vh; overflow:auto;"><img src="${url}" alt="${safeNome}" style="max-width:100%; max-height:70vh; border-radius:8px; object-fit:contain;"></div>`;
+    } else if (isVideo) {
+        contentHtml = `<div style="display:flex; justify-content:center; align-items:center;"><video src="${url}" controls autoplay style="max-width:100%; max-height:70vh; border-radius:8px;"></video></div>`;
+    } else if (isPdf) {
+        contentHtml = `<iframe src="${url}" style="width:100%; height:72vh; border:1px solid #e2e8f0; border-radius:8px;"></iframe>`;
+    } else {
+        window.open(url, '_blank');
+        return;
+    }
+
+    Swal.fire({
+        title: `<div style="font-size:1rem; font-weight:700; color:#1e293b; display:flex; align-items:center; justify-content:space-between; gap:10px;"><span>${safeNome}</span><a href="${url}" target="_blank" download="${safeNome}" style="font-size:0.8rem; background:#2563eb; color:#fff; padding:5px 12px; border-radius:6px; text-decoration:none;">Abrir / Baixar</a></div>`,
+        width: '860px',
+        html: contentHtml,
+        showConfirmButton: true,
+        confirmButtonText: 'Fechar',
+        confirmButtonColor: '#475569'
+    });
+};
+
+window._buildMiniaturaAnexoHtml = function(url, nome, mime) {
+    const lowerMime = String(mime || '').toLowerCase();
+    const lowerNome = String(nome || '').toLowerCase();
+    const isImg = lowerMime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(lowerNome);
+    const isVideo = lowerMime.startsWith('video/') || /\.(mp4|webm|ogg|mov)$/i.test(lowerNome);
+    const isPdf = lowerMime.includes('pdf') || /\.pdf$/i.test(lowerNome);
+
+    if (isImg) {
+        return `<img src="${url}" alt="Miniatura" style="width:100%; height:115px; object-fit:cover; border-radius:6px; background:#f1f5f9; display:block;">`;
+    }
+    if (isVideo) {
+        return `
+            <div style="position:relative; width:100%; height:115px; background:#0f172a; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+                <video src="${url}" muted preload="metadata" style="width:100%; height:115px; object-fit:cover;"></video>
+                <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.28); color:#fff;">
+                    <i class="ph ph-play-circle" style="font-size:2.2rem;"></i>
+                </div>
+            </div>
+        `;
+    }
+    if (isPdf) {
+        return `
+            <div style="position:relative; width:100%; height:115px; background:#f8fafc; border-radius:6px; overflow:hidden; border:1px solid #e2e8f0;">
+                <embed src="${url}#toolbar=0&navpanes=0&scrollbar=0" type="application/pdf" style="width:100%; height:115px; pointer-events:none;" />
+                <div style="position:absolute; bottom:4px; right:4px; background:rgba(220,38,38,0.9); color:#fff; font-size:0.65rem; font-weight:700; padding:2px 6px; border-radius:4px;">PDF</div>
+            </div>
+        `;
+    }
+    return `
+        <div style="width:100%; height:115px; background:#f1f5f9; border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#475569; gap:4px;">
+            <i class="ph ph-file-text" style="font-size:2.2rem; color:#2563eb;"></i>
+            <span style="font-size:0.7rem; font-weight:700; text-transform:uppercase;">${(lowerNome.split('.').pop() || 'ARQ').slice(0, 6)}</span>
+        </div>
+    `;
+};
+
+window.renderAnexosCliente = function(escopo = 'main', clienteIdParam = null) {
+    const pendContainer = document.getElementById(escopo === 'modal' ? 'modal-cli-anexos-pendentes-container' : 'cli-anexos-pendentes-container');
+    const salvosContainer = document.getElementById(escopo === 'modal' ? 'modal-cli-anexos-salvos-container' : 'cli-anexos-salvos-container');
+    const pendentes = escopo === 'modal' ? (window._modalCliAnexosPendentes || []) : (window._cliAnexosPendentes || []);
+    const salvos = escopo === 'modal' ? (window._modalCliAnexosSalvos || []) : (window._cliAnexosSalvos || []);
+    const cliId = clienteIdParam || (escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId);
+    const token = localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
+
+    if (pendContainer) {
+        if (pendentes.length === 0) {
+            pendContainer.innerHTML = '';
+        } else {
+            pendContainer.innerHTML = `
+                <div style="margin-bottom:0.75rem; padding:0.7rem; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
+                    <div style="font-size:0.78rem; font-weight:700; color:#b45309; margin-bottom:0.5rem; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-clock-Afternoon"></i> Arquivos prontos para enviar (${pendentes.length}) — clique em "Salvar Anexo" para gravar:
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(155px, 1fr)); gap:0.75rem;">
+                        ${pendentes.map((item, idx) => {
+                            const safeNome = String(item.nome || 'Arquivo').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            const safeNomeJs = String(item.nome || 'Arquivo').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            const safeMimeJs = String(item.mime || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            return `
+                                <div style="background:#fff; border:1px solid #fcd34d; border-radius:8px; padding:0.45rem; display:flex; flex-direction:column; gap:0.35rem; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                    <div onclick="window.visualizarAnexoClienteModal('${item.previewUrl}', '${safeNomeJs}', '${safeMimeJs}')" style="cursor:pointer;" title="Clique para ampliar">
+                                        ${window._buildMiniaturaAnexoHtml(item.previewUrl, item.nome, item.mime)}
+                                    </div>
+                                    <div style="font-size:0.75rem; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${safeNome}">${safeNome}</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.68rem; color:#d97706; font-weight:700;">Pendente</span>
+                                        <button type="button" onclick="window.removerArquivoPendenteCliente(${idx}, '${escopo}')" style="background:#fee2e2; color:#dc2626; border:none; border-radius:5px; padding:3px 7px; cursor:pointer; font-size:0.72rem; font-weight:600;" title="Remover da fila">
+                                            <i class="ph ph-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    if (salvosContainer) {
+        if (salvos.length === 0) {
+            salvosContainer.innerHTML = `<div style="font-size:0.8rem; color:#94a3b8; padding:0.35rem 0;">Nenhum anexo salvo para este cliente.</div>`;
+        } else {
+            salvosContainer.innerHTML = `
+                <div style="font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.5rem;">
+                    Anexos Salvos (${salvos.length}):
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(155px, 1fr)); gap:0.75rem;">
+                    ${salvos.map(a => {
+                        const rawUrl = a.url || `/api/clientes/anexo-arquivo/${a.id}`;
+                        const fullUrl = token ? `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : rawUrl;
+                        const safeNome = String(a.nome_original || 'Anexo').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const safeNomeJs = String(a.nome_original || 'Anexo').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                        const safeMimeJs = String(a.mime_type || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                        return `
+                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:0.45rem; display:flex; flex-direction:column; gap:0.35rem; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                <div onclick="window.visualizarAnexoClienteModal('${fullUrl}', '${safeNomeJs}', '${safeMimeJs}')" style="cursor:pointer;" title="Clique para visualizar">
+                                    ${window._buildMiniaturaAnexoHtml(fullUrl, a.nome_original, a.mime_type)}
+                                </div>
+                                <div style="font-size:0.75rem; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${safeNome}">${safeNome}</div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                                    <button type="button" onclick="window.visualizarAnexoClienteModal('${fullUrl}', '${safeNomeJs}', '${safeMimeJs}')" style="background:#eff6ff; color:#2563eb; border:none; border-radius:5px; padding:3px 8px; cursor:pointer; font-size:0.72rem; font-weight:600; display:inline-flex; align-items:center; gap:3px;" title="Visualizar">
+                                        <i class="ph ph-eye"></i> Ver
+                                    </button>
+                                    <button type="button" onclick="window.excluirAnexoCliente(${a.id}, '${escopo}', ${cliId || 'null'})" style="background:#fee2e2; color:#dc2626; border:none; border-radius:5px; padding:3px 7px; cursor:pointer; font-size:0.72rem; font-weight:600;" title="Excluir Anexo">
+                                        <i class="ph ph-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+    }
+};
+
+// Listener global para Ctrl+V de imagem na tela/modal de Cadastro de Cliente
+if (!window._cliPasteAnexoListenerBound) {
+    window._cliPasteAnexoListenerBound = true;
+    document.addEventListener('paste', function(e) {
+        const items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+
+        const modalCadEl = document.getElementById('modal-cli-subview-cadastro');
+        const mainCadEl = document.getElementById('cli-subview-cadastro');
+        const isModalVisible = !!(modalCadEl && modalCadEl.offsetParent !== null);
+        const isMainVisible = !!(mainCadEl && mainCadEl.offsetParent !== null);
+        if (!isModalVisible && !isMainVisible) return;
+
+        const imageFiles = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type && item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                if (blob) {
+                    const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+                    const nowStr = new Date().toISOString().replace(/[:.]/g, '-');
+                    const file = new File([blob], `colado_${nowStr}.${ext}`, { type: blob.type });
+                    imageFiles.push(file);
+                }
+            }
+        }
+
+        if (imageFiles.length > 0) {
+            const escopo = isModalVisible ? 'modal' : 'main';
+            window.adicionarArquivosPendentesCliente(imageFiles, escopo);
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Imagem colada (Ctrl+V)! Clique em "Salvar Anexo" para gravar.');
+            }
+        }
+    });
+}
+
+window.abrirModalPesquisaContatoCliente = async function(btnEl = null) {
     const codigoVal = (document.getElementById('cli-codigo')?.value || '').trim();
     const cnpjInput = document.getElementById('cli-cpf-cnpj');
     const rawCnpj = cnpjInput ? cnpjInput.value : '';
@@ -7748,8 +7852,14 @@ window.abrirModalPesquisaContatoCliente = async function() {
         return;
     }
 
+    const origBtnHtml = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Pesquisar Contato';
+        btnEl.disabled = true;
+    }
+
     try {
-        const clientes = await apiGet('/clientes') || [];
+        const clientes = await window.obterClientesCache();
         let client = null;
 
         if (_clienteEditandoId) {
@@ -7818,6 +7928,11 @@ window.abrirModalPesquisaContatoCliente = async function() {
     } catch (err) {
         console.error(err);
         Swal.fire('Erro', 'Não foi possível buscar os contatos: ' + err.message, 'error');
+    } finally {
+        if (btnEl) {
+            btnEl.innerHTML = origBtnHtml;
+            btnEl.disabled = false;
+        }
     }
 };
 
@@ -7904,7 +8019,7 @@ window.abrirModalNovoContato = function() {
                     <input id="swal-contato-tel" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;">
                 </div>
                 <div>
-                    <label style="font-weight:bold;display:block;margin-bottom:3px;">E-mail *</label>
+                    <label style="font-weight:bold;display:block;margin-bottom:3px;">E-mail</label>
                     <input id="swal-contato-email" class="swal2-input" style="width:100%;margin:0;padding:0.4rem;height:auto;font-size:0.85rem;" placeholder="email@dominio.com">
                 </div>
                 <div>
@@ -7969,8 +8084,8 @@ window.abrirModalNovoContato = function() {
             const nomeVal = document.getElementById('swal-contato-nome').value;
             const emailVal = document.getElementById('swal-contato-email').value;
             
-            if (!idVal || !nomeVal || !emailVal) {
-                Swal.showValidationMessage('Identificação, Nome e E-mail são obrigatórios.');
+            if (!idVal || !nomeVal) {
+                Swal.showValidationMessage('Identificação e Nome são obrigatórios.');
                 return false;
             }
             return {
@@ -8087,6 +8202,9 @@ window.salvarCliente = async function() {
             if (!_clienteEditandoId && res.id) {
                 _clienteEditandoId = res.id;
                 document.getElementById('cli-codigo').value = res.codigo || '';
+            }
+            if (window._cliAnexosPendentes && window._cliAnexosPendentes.length > 0 && _clienteEditandoId) {
+                await window.salvarAnexosCliente('main', _clienteEditandoId, true);
             }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(_clienteEditandoId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
@@ -8463,13 +8581,13 @@ function _renderCadastroContatosInt() {
                                 </div>
                             </div>
                             <div class="cc-field">
-                                <label>E-mail *</label>
+                                <label>E-mail</label>
                                 <input type="email" id="con-email" placeholder="nome@empresa.com" class="cc-input">
                             </div>
                         </div>
 
-                        <!-- Linha 2: Tipo, Representante, Cargo, Sexo, Nascimento, Departamento -->
-                        <div class="cc-grid cc-grid-contact-row2">
+                        <!-- Linha 2: Tipo, Cargo/Departamento, Origem, Influenciador -->
+                        <div class="cc-grid" style="grid-template-columns: 1.5fr 2fr 1.5fr 1.5fr;">
                             <div class="cc-field">
                                 <label>Tipo</label>
                                 <select id="con-tipo" class="cc-select">
@@ -8483,34 +8601,9 @@ function _renderCadastroContatosInt() {
                                 </select>
                             </div>
                             <div class="cc-field">
-                                <label>Representante</label>
-                                <input type="text" id="con-representante" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Cargo</label>
+                                <label>Cargo/Departamento</label>
                                 <input type="text" id="con-cargo" class="cc-input">
                             </div>
-                            <div class="cc-field">
-                                <label>Sexo</label>
-                                <select id="con-sexo" class="cc-select">
-                                    <option value="">--</option>
-                                    <option value="M">Masculino</option>
-                                    <option value="F">Feminino</option>
-                                    <option value="O">Outro</option>
-                                </select>
-                            </div>
-                            <div class="cc-field">
-                                <label>Nascimento</label>
-                                <input type="date" id="con-nascimento" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Departamento</label>
-                                <input type="text" id="con-departamento" class="cc-input">
-                            </div>
-                        </div>
-
-                        <!-- Linha 3: Origem, Influenciador, Classificação, Ramo, Região, Nextel -->
-                        <div class="cc-grid cc-grid-contact-row3">
                             <div class="cc-field">
                                 <label>Origem</label>
                                 <input type="text" id="con-origem" class="cc-input">
@@ -8523,43 +8616,25 @@ function _renderCadastroContatosInt() {
                                     <option value="Não">Não</option>
                                 </select>
                             </div>
-                            <div class="cc-field">
-                                <label>Classificação</label>
-                                <select id="con-classificacao" class="cc-select">
-                                    <option value="">-- Selecione --</option>
-                                    <option value="1 - Diamante">1 - Diamante</option>
-                                    <option value="2 - Ouro">2 - Ouro</option>
-                                    <option value="3 - Prata">3 - Prata</option>
-                                    <option value="4 - Bronze">4 - Bronze</option>
-                                </select>
-                            </div>
-                            <div class="cc-field">
-                                <label>Ramo de Atividade</label>
-                                <input type="text" id="con-ramo-atividade" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Região</label>
-                                <input type="text" id="con-regiao" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Nextel</label>
-                                <input type="text" id="con-nextel" class="cc-input">
-                            </div>
                         </div>
 
-                        <!-- Linha 4: Telefone, Ramal, Outra Comunicação -->
-                        <div class="cc-grid cc-grid-contact-row4">
+                        <!-- Linha 3: Ramo de Atividade (múltipla seleção: Obra, Evento, Outros) e Telefone -->
+                        <div class="cc-grid" style="grid-template-columns: 2.5fr 1.5fr;">
+                            <div class="cc-field">
+                                <label>Ramo de Atividade (pode selecionar mais de um)</label>
+                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; min-height:38px;">
+                                    ${['Obra', 'Evento', 'Outros'].map(op => `
+                                        <label style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
+                                            <input type="checkbox" class="con-ramo-chk" value="${op}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
+                                            ${op}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                                <input type="hidden" id="con-ramo-atividade" value="">
+                            </div>
                             <div class="cc-field">
                                 <label>Telefone</label>
                                 <input type="text" id="con-telefone" placeholder="(XX) XXXX-XXXX" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Ramal</label>
-                                <input type="text" id="con-ramal" class="cc-input">
-                            </div>
-                            <div class="cc-field">
-                                <label>Outras Comunicações</label>
-                                <input type="text" id="con-outra-comunicacao" class="cc-input">
                             </div>
                         </div>
                     </div>
@@ -8671,6 +8746,25 @@ function _renderCadastroContatosInt() {
                             <div class="cc-field">
                                 <label>Website (Site)</label>
                                 <input type="text" id="emp-site" placeholder="www.empresa.com" class="cc-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO EXPANSÍVEL: ▼ CADASTRO -->
+                    <div style="margin-top: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                        <div onclick="window.toggleConCadastroAccordion()" style="background: #f8fafc; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; user-select: none;">
+                            <span id="con-acc-cadastro-arrow" style="display:inline-block; transition:transform 0.2s;">▶</span> Cadastro
+                        </div>
+                        <div id="con-acc-cadastro-body" style="display: none; padding: 0.9rem 1rem; background: #fff; border-top: 1px solid #e2e8f0;">
+                            <div class="cc-grid" style="grid-template-columns: 1fr 1fr;">
+                                <div class="cc-field">
+                                    <label>Representante / Usuário que Cadastrou</label>
+                                    <input type="text" id="con-representante" class="cc-input" readonly>
+                                </div>
+                                <div class="cc-field">
+                                    <label>Data de Cadastro</label>
+                                    <input type="text" id="con-data-cadastro" class="cc-input" readonly>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -9000,6 +9094,41 @@ window.limparEmpresaCliente = function() {
     }
 };
 
+window.toggleConRamoAtividade = function() {
+    const boxes = document.querySelectorAll('.con-ramo-chk');
+    const selecionados = [];
+    boxes.forEach(b => {
+        const lbl = b.closest('label');
+        if (b.checked) {
+            selecionados.push(b.value);
+            if (lbl) {
+                lbl.style.background = '#eff6ff';
+                lbl.style.borderColor = '#3b82f6';
+                lbl.style.color = '#1d4ed8';
+            }
+        } else if (lbl) {
+            lbl.style.background = '#fff';
+            lbl.style.borderColor = '#cbd5e1';
+            lbl.style.color = '#334155';
+        }
+    });
+    const hiddenInput = document.getElementById('con-ramo-atividade');
+    if (hiddenInput) hiddenInput.value = selecionados.join(', ');
+};
+
+window.toggleConCadastroAccordion = function() {
+    const body = document.getElementById('con-acc-cadastro-body');
+    const arrow = document.getElementById('con-acc-cadastro-arrow');
+    if (!body) return;
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        if (arrow) arrow.textContent = '▼';
+    } else {
+        body.style.display = 'none';
+        if (arrow) arrow.textContent = '▶';
+    }
+};
+
 window.carregarContatoParaEdicao = async function(id) {
     try {
         const c = await apiGet('/contatos/' + id);
@@ -9009,26 +9138,35 @@ window.carregarContatoParaEdicao = async function(id) {
         _empresaSelecionadaId = c.cliente_id || null;
         _empresaSelecionadaCodigo = c.cliente_codigo || null;
 
+        const setVal = (elId, val) => {
+            const el = document.getElementById(elId);
+            if (el) el.value = val;
+        };
+
         // Populate Contact Fields
-        document.getElementById('con-codigo').value = c.codigo || '';
-        document.getElementById('con-nome').value = c.nome || '';
-        document.getElementById('con-celular').value = c.celular || '';
-        document.getElementById('con-email').value = c.email || '';
-        document.getElementById('con-tipo').value = c.tipo || '';
-        document.getElementById('con-representante').value = c.representante || '';
-        document.getElementById('con-cargo').value = c.cargo || '';
-        document.getElementById('con-sexo').value = c.sexo || '';
-        document.getElementById('con-nascimento').value = c.data_nascimento || '';
-        document.getElementById('con-departamento').value = c.departamento || '';
-        document.getElementById('con-origem').value = c.origem || '';
-        document.getElementById('con-influenciador').value = c.influenciador || '';
-        document.getElementById('con-classificacao').value = c.classificacao || '';
-        document.getElementById('con-ramo-atividade').value = c.ramo_atividade || '';
-        document.getElementById('con-regiao').value = c.regiao || '';
-        document.getElementById('con-telefone').value = c.telefone || '';
-        document.getElementById('con-ramal').value = c.ramal || '';
-        document.getElementById('con-nextel').value = c.nextel || '';
-        document.getElementById('con-outra-comunicacao').value = c.outra_comunicacao || '';
+        setVal('con-codigo', c.codigo || '');
+        setVal('con-nome', c.nome || '');
+        setVal('con-celular', c.celular || '');
+        setVal('con-email', c.email || '');
+        setVal('con-tipo', c.tipo || '');
+        setVal('con-representante', c.representante || c.criado_por || window.currentUser?.nome || window.currentUserName || 'Administrador');
+        const hojeFmt = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
+        let dataCadContato = hojeFmt;
+        if (c.criado_em) {
+            const rawDate = String(c.criado_em).split(' ')[0].split('T')[0];
+            dataCadContato = rawDate.includes('-') ? rawDate.split('-').reverse().join('/') : rawDate;
+        }
+        setVal('con-data-cadastro', dataCadContato);
+        setVal('con-cargo', c.cargo || c.departamento || '');
+        setVal('con-origem', c.origem || '');
+        setVal('con-influenciador', c.influenciador || '');
+        setVal('con-ramo-atividade', c.ramo_atividade || '');
+        const ramosArr = String(c.ramo_atividade || '').split(',').map(s => s.trim()).filter(Boolean);
+        document.querySelectorAll('.con-ramo-chk').forEach(chk => {
+            chk.checked = ramosArr.some(r => r.toLowerCase() === chk.value.toLowerCase());
+        });
+        window.toggleConRamoAtividade();
+        setVal('con-telefone', c.telefone || '');
 
         // Checkboxes at the top
         document.getElementById('con-email-nfe').checked = c.email_nfe === 1;
@@ -9070,6 +9208,11 @@ window.limparFormContato = function() {
     _empresaSelecionadaId = null;
     _empresaSelecionadaCodigo = null;
 
+    const setVal = (elId, val) => {
+        const el = document.getElementById(elId);
+        if (el) el.value = val;
+    };
+
     // Clear checkboxes
     document.getElementById('con-email-nfe').checked = false;
     document.getElementById('con-email-cobranca').checked = false;
@@ -9078,25 +9221,20 @@ window.limparFormContato = function() {
     document.getElementById('con-inativo').checked = false;
 
     // Clear Contact inputs
-    document.getElementById('con-codigo').value = 'Auto';
-    document.getElementById('con-nome').value = '';
-    document.getElementById('con-celular').value = '';
-    document.getElementById('con-email').value = '';
-    document.getElementById('con-tipo').value = '';
-    document.getElementById('con-representante').value = '';
-    document.getElementById('con-cargo').value = '';
-    document.getElementById('con-sexo').value = '';
-    document.getElementById('con-nascimento').value = '';
-    document.getElementById('con-departamento').value = '';
-    document.getElementById('con-origem').value = '';
-    document.getElementById('con-influenciador').value = '';
-    document.getElementById('con-classificacao').value = '';
-    document.getElementById('con-ramo-atividade').value = '';
-    document.getElementById('con-regiao').value = '';
-    document.getElementById('con-telefone').value = '';
-    document.getElementById('con-ramal').value = '';
-    document.getElementById('con-nextel').value = '';
-    document.getElementById('con-outra-comunicacao').value = '';
+    setVal('con-codigo', 'Auto');
+    setVal('con-nome', '');
+    setVal('con-celular', '');
+    setVal('con-email', '');
+    setVal('con-tipo', '');
+    setVal('con-representante', window.currentUser?.nome || window.currentUserName || 'Administrador');
+    setVal('con-data-cadastro', new Date().toISOString().split('T')[0].split('-').reverse().join('/'));
+    setVal('con-cargo', '');
+    setVal('con-origem', '');
+    setVal('con-influenciador', '');
+    setVal('con-ramo-atividade', '');
+    document.querySelectorAll('.con-ramo-chk').forEach(chk => { chk.checked = false; });
+    window.toggleConRamoAtividade();
+    setVal('con-telefone', '');
 
     // Clear Company inputs
     document.getElementById('emp-codigo').value = '';
@@ -9172,10 +9310,6 @@ window.salvarContato = async function() {
         alert('Por favor, preencha o Nome do Contato.');
         return;
     }
-    if (!conEmail) {
-        alert('Por favor, preencha o E-mail do Contato.');
-        return;
-    }
     if (!empCnpj) {
         alert('Por favor, preencha o CNPJ da Empresa Cliente.');
         return;
@@ -9190,7 +9324,7 @@ window.salvarContato = async function() {
 
     if (!resolvedId) {
         try {
-            const clientes = await apiGet('/clientes') || [];
+            const clientes = await window.obterClientesCache();
             const cleanCnpj = empCnpj.replace(/\D/g, '');
             const found = clientes.find(c => 
                 (c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj) || 
@@ -9238,32 +9372,35 @@ window.salvarContato = async function() {
         criado_por: window.currentUser?.nome || window.currentUser?.email || ''
     };
 
+    const cargoDepto = document.getElementById('con-cargo')?.value || '';
+    const repAuto = document.getElementById('con-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+
     const payload = {
         codigo: _contatoEditandoId ? document.getElementById('con-codigo')?.value : null,
         nome: conNome,
         tipo: document.getElementById('con-tipo')?.value || '',
-        representante: document.getElementById('con-representante')?.value || '',
-        departamento: document.getElementById('con-departamento')?.value || '',
-        cargo: document.getElementById('con-cargo')?.value || '',
+        representante: repAuto,
+        departamento: cargoDepto,
+        cargo: cargoDepto,
         origem: document.getElementById('con-origem')?.value || '',
         influenciador: document.getElementById('con-influenciador')?.value || '',
-        classificacao: document.getElementById('con-classificacao')?.value || '',
-        data_nascimento: document.getElementById('con-nascimento')?.value || '',
+        classificacao: '',
+        data_nascimento: '',
         ramo_atividade: document.getElementById('con-ramo-atividade')?.value || '',
-        regiao: document.getElementById('con-regiao')?.value || '',
-        sexo: document.getElementById('con-sexo')?.value || '',
+        regiao: '',
+        sexo: '',
         celular: document.getElementById('con-celular')?.value || '',
         telefone: document.getElementById('con-telefone')?.value || '',
-        ramal: document.getElementById('con-ramal')?.value || '',
-        nextel: document.getElementById('con-nextel')?.value || '',
+        ramal: '',
+        nextel: '',
         email: conEmail,
-        outra_comunicacao: document.getElementById('con-outra-comunicacao')?.value || '',
+        outra_comunicacao: '',
         inativo: document.getElementById('con-inativo')?.checked ? 1 : 0,
         email_cobranca: document.getElementById('con-email-cobranca')?.checked ? 1 : 0,
         email_nfe: document.getElementById('con-email-nfe')?.checked ? 1 : 0,
         email_os: document.getElementById('con-email-os')?.checked ? 1 : 0,
         email_contrato: document.getElementById('con-email-contrato')?.checked ? 1 : 0,
-        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        criado_por: repAuto,
         empresa_cliente: empresa_cliente
     };
 
