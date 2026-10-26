@@ -1893,7 +1893,7 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-contato" value="${v('contato_nome')}"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
-                                    <button type="button" onclick="pesquisarContatoProposta()" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <button type="button" id="btn-pesq-contato-prop" onclick="pesquisarContatoProposta(this)" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                     <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
@@ -2198,21 +2198,68 @@ window.clienteTemFaturamentoBloqueado = function(c) {
     return false;
 };
 
+(function _ensureEstiloBloqueioFaturamento() {
+    if (typeof document !== 'undefined' && !document.getElementById('style-faturamento-bloqueado')) {
+        const st = document.createElement('style');
+        st.id = 'style-faturamento-bloqueado';
+        st.textContent = `
+            input.input-faturamento-bloqueado,
+            #form-cadastro-cliente input.input-faturamento-bloqueado,
+            #prop-cliente.input-faturamento-bloqueado,
+            .mcli-input.input-faturamento-bloqueado {
+                background: #fca5a5 !important;
+                background-color: #fca5a5 !important;
+                color: #7f1d1d !important;
+                border-color: #dc2626 !important;
+                font-weight: 700 !important;
+            }
+        `;
+        document.head.appendChild(st);
+    }
+})();
+
+window._aplicarEstiloInputBloqueado = function(el, bloqueado) {
+    if (!el) return;
+    if (bloqueado) {
+        el.classList.add('input-faturamento-bloqueado');
+        el.style.setProperty('background', '#fca5a5', 'important');
+        el.style.setProperty('background-color', '#fca5a5', 'important');
+        el.style.setProperty('color', '#7f1d1d', 'important');
+        el.style.setProperty('border-color', '#dc2626', 'important');
+        el.style.setProperty('font-weight', '700', 'important');
+        el.title = 'Cliente com faturamento bloqueado';
+    } else {
+        el.classList.remove('input-faturamento-bloqueado');
+        el.style.removeProperty('background');
+        el.style.removeProperty('background-color');
+        el.style.removeProperty('color');
+        el.style.removeProperty('border-color');
+        el.style.removeProperty('font-weight');
+        el.title = '';
+    }
+};
+
 window.aplicarVisualBloqueioFaturamento = function(bloqueado, escopo = 'main') {
     const ids = escopo === 'modal'
         ? ['modal-cli-razao-social', 'modal-cli-nome-fantasia']
         : ['cli-razao-social', 'cli-nome-fantasia'];
     ids.forEach(id => {
         const el = document.getElementById(id);
-        if (!el) return;
-        if (bloqueado) {
-            el.classList.add('input-faturamento-bloqueado');
-            el.title = 'Cliente com faturamento bloqueado';
-        } else {
-            el.classList.remove('input-faturamento-bloqueado');
-            el.title = '';
-        }
+        window._aplicarEstiloInputBloqueado(el, bloqueado);
     });
+
+    // Se o cliente da tela de proposta for este mesmo cliente, atualiza lá em tempo real também
+    const propInput = document.getElementById('prop-cliente');
+    if (propInput && propInput.value.trim()) {
+        const razaoEl = document.getElementById(escopo === 'modal' ? 'modal-cli-razao-social' : 'cli-razao-social');
+        const fantEl = document.getElementById(escopo === 'modal' ? 'modal-cli-nome-fantasia' : 'cli-nome-fantasia');
+        const propVal = propInput.value.trim().toLowerCase();
+        const rVal = (razaoEl?.value || '').trim().toLowerCase();
+        const fVal = (fantEl?.value || '').trim().toLowerCase();
+        if ((rVal && propVal === rVal) || (fVal && propVal === fVal)) {
+            window._aplicarEstiloInputBloqueado(propInput, bloqueado);
+        }
+    }
 };
 
 window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
@@ -2220,31 +2267,22 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
     if (!propInput) return;
     const raw = (nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').trim();
     if (!raw) {
-        propInput.classList.remove('input-faturamento-bloqueado');
-        propInput.title = '';
+        window._aplicarEstiloInputBloqueado(propInput, false);
         return;
     }
     try {
-        if (!Array.isArray(_clientesCache) || _clientesCache.length === 0) {
-            _clientesCache = await apiGet('/clientes') || [];
-        }
+        const clientes = await window.obterClientesCache();
         const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const qNorm = normStr(raw);
         const qDigits = raw.replace(/\D/g, '');
-        const found = _clientesCache.find(c =>
+        const found = (clientes || []).find(c =>
             normStr(c.nome_razao_social) === qNorm ||
             normStr(c.nome_fantasia) === qNorm ||
             String(c.codigo) === raw ||
             (qDigits.length >= 11 && String(c.cpf_cnpj || '').replace(/\D/g, '') === qDigits)
         );
         const isBloq = found ? window.clienteTemFaturamentoBloqueado(found) : false;
-        if (isBloq) {
-            propInput.classList.add('input-faturamento-bloqueado');
-            propInput.title = 'Cliente com faturamento bloqueado';
-        } else {
-            propInput.classList.remove('input-faturamento-bloqueado');
-            propInput.title = '';
-        }
+        window._aplicarEstiloInputBloqueado(propInput, isBloq);
     } catch (e) {
         console.error(e);
     }
@@ -2918,9 +2956,26 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </button>
                     </div>
 
-                    <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <button type="button" onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
-                            <i class="ph ph-x" style="font-size:1.15rem;"></i>
+                    <div style="display:flex; gap:0.65rem; align-items:center; flex-wrap:wrap; font-family:'Inter', sans-serif;">
+                        <div id="modal-cli-actions-group" style="display:inline-flex; gap:0.65rem; align-items:center; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; font-size:0.8rem; margin:0;">
+                                <input type="checkbox" id="modal-cli-bloquear-faturamento" ${bloquearFatChecked} onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'modal')" style="accent-color:#dc2626;"> Bloquear faturamento
+                            </label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; font-size:0.8rem; margin:0;">
+                                <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
+                            </label>
+                            <button type="button" onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:32px; height:32px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
+                            </button>
+                            <button type="button" onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                <i class="ph ph-check" style="font-size:0.95rem;"></i> Salvar
+                            </button>
+                            <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <i class="ph ph-trash" style="font-size:0.95rem;"></i> Excluir
+                            </button>
+                        </div>
+                        <button type="button" onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:32px; height:32px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                            <i class="ph ph-x" style="font-size:1.1rem;"></i>
                         </button>
                     </div>
                 </div>
@@ -2951,33 +3006,6 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
                 <!-- Form Body -->
                 <div id="modal-cli-subview-cadastro" class="mcli-form-body">
-                    <!-- Info bar -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.5rem 1rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
-                        <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-info" style="font-size:1.1rem;"></i>
-                            Pesquise pelo CNPJ para completar o cadastro.
-                        </div>
-                        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; text-transform:uppercase; font-size:0.75rem; margin:0;">
-                                <input type="checkbox" id="modal-cli-bloquear-faturamento" ${bloquearFatChecked} onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'modal')" style="accent-color:#dc2626;"> Bloquear faturamento
-                            </label>
-                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; text-transform:uppercase; font-size:0.75rem; margin:0;">
-                                <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
-                            </label>
-                            <div id="modal-cli-actions-group" style="display:inline-flex; gap:0.4rem; align-items:center;">
-                                <button type="button" onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:32px; height:32px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                                    <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
-                                </button>
-                                <button type="button" onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                    <i class="ph ph-check" style="font-size:0.95rem;"></i> Salvar
-                                </button>
-                                <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
-                                    <i class="ph ph-trash" style="font-size:0.95rem;"></i> Excluir
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Main Grid: Campos -->
                     <div style="margin-bottom:0.85rem; display:grid; gap:0.85rem;">
                         <input type="hidden" id="modal-cli-data-cadastro" value="${dataCadastro}">
@@ -3130,7 +3158,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                         <span>dias após o vencimento</span>
                                     </div>
                                     <div style="display:flex; gap:0.5rem; align-items:center;">
-                                        <button type="button" onclick="window.modalAbrirPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                        <button type="button" id="modal-btn-pesq-contato-cli" onclick="window.modalAbrirPesquisaContatoCliente(this)" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                                             <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                         </button>
                                         <button type="button" onclick="document.getElementById('modal-cli-contato-form').style.display='flex'" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s; height:28px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
@@ -3195,7 +3223,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                                     <div class="mcli-field">
                                         <label>Usuário que Cadastrou</label>
-                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? (client.criado_por || currentUser) : currentUser}" readonly class="mcli-input mcli-readonly">
+                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? ((client.criado_por && client.criado_por !== 'Administrador') ? client.criado_por : '') : currentUser}" readonly class="mcli-input mcli-readonly">
                                     </div>
                                     <div class="mcli-field">
                                         <label>Data de Cadastro</label>
@@ -3283,6 +3311,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             </div>
         `,
         didOpen: async () => {
+            window.aplicarVisualBloqueioFaturamento(bloqueadoFaturamento, 'modal');
             try {
                 if (!_clientesCache || _clientesCache.length === 0) {
                     _clientesCache = await apiGet('/clientes') || [];
@@ -3398,13 +3427,47 @@ window.modalSalvarContatoInline = function() {
     document.getElementById('modal-cli-contato-form').style.display = 'none';
 };
 
-window.modalRemoverContato = function(idx) {
+window.modalRemoverContato = async function(idx) {
+    const senha = window.prompt('Digite a senha para excluir o contato:');
+    if (senha === null) return;
+    if (senha !== 'comerc123') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
+        } else {
+            alert('Senha incorreta! Exclusão cancelada.');
+        }
+        return;
+    }
+
+    const item = window._modalClienteContatos && window._modalClienteContatos[idx];
+    if (item && item.id) {
+        try {
+            await apiDelete('/contatos/' + item.id);
+            _clientesCache = [];
+        } catch (e) {
+            console.error('Erro ao excluir contato no banco:', e);
+        }
+    }
     window._modalClienteContatos.splice(idx, 1);
     window.modalRenderTabelaContatos();
 };
 
-window.modalAbrirPesquisaContatoCliente = function() {
-    Swal.fire('Aviso', 'Utilize o botão "Novo Contato" para adicionar contatos a este cliente diretamente.', 'info');
+window.modalAbrirPesquisaContatoCliente = async function(btnEl = null) {
+    const btn = btnEl || document.getElementById('modal-btn-pesq-contato-cli');
+    const origHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Pesquisar Contato';
+        btn.disabled = true;
+    }
+    try {
+        await new Promise(r => setTimeout(r, 30));
+        await window.abrirModalPesquisaContatoCliente(btn);
+    } finally {
+        if (btn) {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    }
 };
 
 window.modalRecarregarCliente = function(clientId) {
@@ -3811,7 +3874,7 @@ window.modalSalvarCliente = async function(clientId) {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('modal-cli-observacoes')?.value || '',
-        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+        criado_por: document.getElementById('modal-cli-cad-usuario')?.value || (clientId ? '' : (window.currentUser?.nome || window.currentUser?.email || ''))
     };
 
     try {
@@ -3899,7 +3962,7 @@ window.modalVerificarCliente = function() {
     Swal.fire('Sucesso', 'Campos validados com sucesso! Pronto para salvar.', 'success');
 };
 
-window.pesquisarContatoProposta = async function() {
+window.pesquisarContatoProposta = async function(btnEl = null) {
     const clienteNome = document.getElementById('prop-cliente').value.trim();
     if (!clienteNome) {
         Swal.fire('Aviso', 'Por favor, selecione o cliente primeiro para buscar os contatos.', 'warning');
@@ -3907,8 +3970,15 @@ window.pesquisarContatoProposta = async function() {
     }
 
     const query = document.getElementById('prop-contato').value.trim();
+    const btn = btnEl || document.getElementById('btn-pesq-contato-prop');
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>';
+        btn.disabled = true;
+    }
 
     try {
+        await new Promise(r => setTimeout(r, 30));
         const contatos = await apiGet('/contatos');
         const filtrados = contatos.filter(c => {
             const matchCliente = c.cliente_nome && c.cliente_nome.toLowerCase() === clienteNome.toLowerCase();
@@ -3922,8 +3992,8 @@ window.pesquisarContatoProposta = async function() {
         });
 
         // Buscar clientes para obter dados do cliente atual
-        const clientes = await apiGet('/clientes') || [];
-        const foundCli = clientes.find(c => c.nome_razao_social && c.nome_razao_social.toLowerCase() === clienteNome.toLowerCase());
+        const clientes = await window.obterClientesCache();
+        const foundCli = (clientes || []).find(c => c.nome_razao_social && c.nome_razao_social.toLowerCase() === clienteNome.toLowerCase());
 
         const handleRedirecionamentoContato = () => {
             _redirectAfterContactSave = true;
@@ -4008,6 +4078,11 @@ window.pesquisarContatoProposta = async function() {
     } catch (e) {
         console.error(e);
         Swal.fire('Erro', 'Não foi possível buscar contatos.', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
+        }
     }
 };
 
@@ -5325,7 +5400,7 @@ function _renderCadastroClienteInt() {
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
             
             <!-- Toolbar -->
-            <div id="prop-toolbar-cliente" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:flex-start; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
+            <div id="prop-toolbar-cliente" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 <!-- Abas Cadastro de Cliente | Histórico de clientes (Alinhadas à esquerda) -->
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <button type="button" id="tab-cli-sub-cadastro" onclick="window.switchAbaCliente('cadastro')" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
@@ -5333,6 +5408,25 @@ function _renderCadastroClienteInt() {
                     </button>
                     <button type="button" id="tab-cli-sub-historico" onclick="window.switchAbaCliente('historico')" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico de clientes
+                    </button>
+                </div>
+
+                <!-- Controles e Botões alinhados à direita da linha das abas -->
+                <div id="cli-actions-group" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; font-size:0.84rem; margin:0;">
+                        <input type="checkbox" id="cli-bloquear-faturamento" style="accent-color:#dc2626;" onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'main')"> Bloquear faturamento
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; font-size:0.84rem; margin:0;">
+                        <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
+                    </label>
+                    <button type="button" onclick="recarregarCliente()" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                    </button>
+                    <button type="button" onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                    </button>
+                    <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
                 </div>
             </div>
@@ -5368,34 +5462,6 @@ function _renderCadastroClienteInt() {
 
             <!-- Corpo da Tela: Cadastro -->
             <div id="cli-subview-cadastro" style="padding:1.5rem;">
-                
-                <!-- Info bar at the top of form body -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.5rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
-                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-info" style="font-size:1.1rem;"></i>
-                        Pesquise pelo CNPJ para completar o cadastro.
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; margin:0;">
-                            <input type="checkbox" id="cli-bloquear-faturamento" style="accent-color:#dc2626;" onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'main')"> Bloquear faturamento
-                        </label>
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; margin:0;">
-                            <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
-                        </label>
-                        <div id="cli-actions-group" style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                            <button type="button" onclick="recarregarCliente()" title="Atualizar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                                <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                            </button>
-                            <button type="button" onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                                <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                            </button>
-                            <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
-                                <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
                     <input type="hidden" id="cli-data-cadastro" value="${hoje}">
                     <!-- Grid Principal: Campos -->
@@ -6441,7 +6507,7 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         setElVal('cli-celular-ddi', c.celular_ddi || '+55 (BRASIL)');
         document.getElementById('cli-celular').value = c.celular || '';
         setElVal('cli-observacoes', c.observacoes || '');
-        setElVal('cli-cad-usuario', c.criado_por || window.currentUser?.nome || window.currentUserName || 'Administrador');
+        setElVal('cli-cad-usuario', (c.criado_por && c.criado_por !== 'Administrador') ? c.criado_por : '');
         const dataCadFmt = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
         setElVal('cli-cad-data', dataCadFmt);
 
@@ -6626,7 +6692,8 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
     const cli = client || {};
 
     const currentUser = window.currentUser?.nome || window.currentUserName || 'Administrador';
-    const repAuto = c.representante || c.criado_por || currentUser;
+    const rawRep = c.representante || c.criado_por || cli.criado_por || '';
+    const repAuto = isEdit ? ((rawRep && rawRep !== 'Administrador') ? rawRep : '') : (rawRep || currentUser);
 
     let dataCadAuto = '';
     const rawDate = c.data_cadastro || c.criado_em || '';
@@ -7832,63 +7899,63 @@ if (!window._cliPasteAnexoListenerBound) {
 }
 
 window.abrirModalPesquisaContatoCliente = async function(btnEl = null) {
-    const codigoVal = (document.getElementById('cli-codigo')?.value || '').trim();
-    const cnpjInput = document.getElementById('cli-cpf-cnpj');
+    const btn = btnEl || document.getElementById('btn-pesq-contato-cli');
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Pesquisar Contato';
+        btn.disabled = true;
+    }
+
+    const codigoVal = (document.getElementById('cli-codigo')?.value || document.getElementById('modal-cli-codigo')?.value || '').trim();
+    const cnpjInput = document.getElementById('cli-cpf-cnpj') || document.getElementById('modal-cli-cpf-cnpj');
     const rawCnpj = cnpjInput ? cnpjInput.value : '';
     const cleanCnpj = rawCnpj.replace(/\D/g, '');
     const cleanCnpjNoZero = cleanCnpj.replace(/^0+/, '');
 
-    const razaoInput = document.getElementById('cli-razao-social');
+    const razaoInput = document.getElementById('cli-razao-social') || document.getElementById('modal-cli-razao-social');
     const rawRazao = razaoInput ? razaoInput.value.trim().toLowerCase() : '';
 
-    if (!_clienteEditandoId && !codigoVal && !cleanCnpj && !rawRazao) {
-        Swal.fire({
-            title: 'Aviso',
-            text: 'Por favor, selecione um cliente cadastrado antes de pesquisar contatos.',
-            icon: 'warning',
-            confirmButtonColor: '#3b82f6',
-            confirmButtonText: 'Ok'
-        });
-        return;
-    }
-
-    const origBtnHtml = btnEl ? btnEl.innerHTML : '';
-    if (btnEl) {
-        btnEl.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Pesquisar Contato';
-        btnEl.disabled = true;
-    }
-
     try {
-        const clientes = await window.obterClientesCache();
-        let client = null;
+        await new Promise(r => setTimeout(r, 30));
 
-        if (_clienteEditandoId) {
-            client = clientes.find(c => Number(c.id) === Number(_clienteEditandoId));
-        }
-
-        if (!client && codigoVal) {
-            client = clientes.find(c => String(c.codigo) === String(codigoVal));
-        }
-
-        if (!client && cleanCnpj) {
-            client = clientes.find(c => {
-                const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
-                return cDoc && (cDoc === cleanCnpj || (cleanCnpjNoZero && cDoc.replace(/^0+/, '') === cleanCnpjNoZero));
+        if (!_clienteEditandoId && !_modalClienteEditandoId && !codigoVal && !cleanCnpj && !rawRazao) {
+            Swal.fire({
+                title: 'Aviso',
+                text: 'Por favor, selecione um cliente cadastrado antes de pesquisar contatos.',
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Ok'
             });
+            return;
         }
 
-        if (!client && rawRazao) {
-            client = clientes.find(c =>
-                (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase() === rawRazao) ||
-                (c.nome_fantasia && c.nome_fantasia.trim().toLowerCase() === rawRazao) ||
-                (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao))
-            );
+        let client = null;
+        if (_clienteEditandoId || _modalClienteEditandoId) {
+            client = { id: _clienteEditandoId || _modalClienteEditandoId, codigo: codigoVal };
+        } else {
+            const clientes = await window.obterClientesCache();
+            if (!client && codigoVal) {
+                client = clientes.find(c => String(c.codigo) === String(codigoVal));
+            }
+            if (!client && cleanCnpj) {
+                client = clientes.find(c => {
+                    const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
+                    return cDoc && (cDoc === cleanCnpj || (cleanCnpjNoZero && cDoc.replace(/^0+/, '') === cleanCnpjNoZero));
+                });
+            }
+            if (!client && rawRazao) {
+                client = clientes.find(c =>
+                    (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase() === rawRazao) ||
+                    (c.nome_fantasia && c.nome_fantasia.trim().toLowerCase() === rawRazao) ||
+                    (c.nome_razao_social && c.nome_razao_social.trim().toLowerCase().includes(rawRazao))
+                );
+            }
         }
 
         if (client) {
             _clienteEditandoId = client.id;
             const codEl = document.getElementById('cli-codigo');
-            if (codEl && !codEl.value) codEl.value = client.codigo || '';
+            if (codEl && !codEl.value && client.codigo) codEl.value = client.codigo || '';
         } else {
             Swal.fire({
                 title: 'Aviso',
@@ -7929,9 +7996,9 @@ window.abrirModalPesquisaContatoCliente = async function(btnEl = null) {
         console.error(err);
         Swal.fire('Erro', 'Não foi possível buscar os contatos: ' + err.message, 'error');
     } finally {
-        if (btnEl) {
-            btnEl.innerHTML = origBtnHtml;
-            btnEl.disabled = false;
+        if (btn) {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
         }
     }
 };
@@ -7941,12 +8008,13 @@ window.filtrarContatosModal = function(term = '') {
     if (!container) return;
 
     const sourceList = window._modalAllContatos || [];
-    const filtered = sourceList.filter(c => 
-        (c.nome && c.nome.toLowerCase().includes(term.toLowerCase())) ||
-        (c.codigo && c.codigo.toString().includes(term)) ||
-        (c.departamento && c.departamento.toLowerCase().includes(term.toLowerCase())) ||
-        (c.email && c.email.toLowerCase().includes(term.toLowerCase())) ||
-        (c.cliente_nome && c.cliente_nome.toLowerCase().includes(term.toLowerCase()))
+    const q = String(term || '').toLowerCase().trim();
+    const filtered = !q ? sourceList : sourceList.filter(c => 
+        (c.nome && c.nome.toLowerCase().includes(q)) ||
+        (c.codigo && c.codigo.toString().includes(q)) ||
+        (c.departamento && c.departamento.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q)) ||
+        (c.cliente_nome && c.cliente_nome.toLowerCase().includes(q))
     );
 
     if (filtered.length === 0) {
@@ -7958,10 +8026,12 @@ window.filtrarContatosModal = function(term = '') {
         return;
     }
 
+    const exibidos = filtered.slice(0, 150);
+
     container.innerHTML = `
         <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif; text-align:left;">
             <thead>
-                <tr style="background:#f8fafc; color:#475569; border-bottom:2px solid #e2e8f0;">
+                <tr style="background:#f8fafc; color:#475569; border-bottom:2px solid #e2e8f0; position:sticky; top:0;">
                     <th style="padding:0.65rem 1rem; font-weight:700;">Cód</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">Nome</th>
                     <th style="padding:0.65rem 1rem; font-weight:700;">Departamento</th>
@@ -7971,7 +8041,7 @@ window.filtrarContatosModal = function(term = '') {
                 </tr>
             </thead>
             <tbody>
-                ${filtered.map(c => `
+                ${exibidos.map(c => `
                     <tr ondblclick="window.selecionarContatoParaCliente('${encodeURIComponent(JSON.stringify(c))}')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para adicionar ao cliente">
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.codigo || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${c.nome}</td>
@@ -7986,11 +8056,29 @@ window.filtrarContatosModal = function(term = '') {
     `;
 };
 
-window.removerContato = function(idx) {
-    if (confirm('Deseja realmente remover este contato?')) {
-        _clienteContatos.splice(idx, 1);
-        _renderTabelaContatos();
+window.removerContato = async function(idx) {
+    const senha = window.prompt('Digite a senha para excluir o contato:');
+    if (senha === null) return;
+    if (senha !== 'comerc123') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
+        } else {
+            alert('Senha incorreta! Exclusão cancelada.');
+        }
+        return;
     }
+
+    const item = _clienteContatos && _clienteContatos[idx];
+    if (item && item.id) {
+        try {
+            await apiDelete('/contatos/' + item.id);
+            _clientesCache = [];
+        } catch (e) {
+            console.error('Erro ao excluir contato no banco:', e);
+        }
+    }
+    _clienteContatos.splice(idx, 1);
+    _renderTabelaContatos();
 };
 
 window.abrirModalNovoContato = function() {
@@ -8186,7 +8274,7 @@ window.salvarCliente = async function() {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('cli-observacoes')?.value || '',
-        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+        criado_por: document.getElementById('cli-cad-usuario')?.value || (_clienteEditandoId ? '' : (window.currentUser?.nome || window.currentUser?.email || ''))
     };
 
     try {
@@ -8566,7 +8654,7 @@ function _renderCadastroContatosInt() {
                                 <label>Código</label>
                                 <div class="cc-input-group">
                                     <input type="text" id="con-codigo" readonly placeholder="Auto" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
-                                    <button type="button" onclick="abrirModalPesquisaContato()" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" id="btn-pesq-contato-standalone" onclick="abrirModalPesquisaContato(this)" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
@@ -8898,23 +8986,21 @@ window.abrirWhatsAppContato = function() {
     window.open(`https://wa.me/55${cleanCel}`, '_blank');
 };
 
-window.abrirModalPesquisaContato = async function() {
+window.abrirModalPesquisaContato = async function(btnEl = null) {
+    const btn = btnEl || document.getElementById('btn-pesq-contato-standalone');
+    const origHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        btn.disabled = true;
+    }
     try {
+        await new Promise(r => setTimeout(r, 30));
         const contatos = await apiGet('/contatos');
         if (!contatos || contatos.length === 0) {
             Swal.fire('Aviso', 'Nenhum contato cadastrado ainda.', 'info');
             return;
         }
-
-        const rowsHtml = contatos.map(c => `
-            <tr onclick="selectContatoPesquisa(${c.id})" class="swal-contato-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.nome}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.email}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.celular || ''}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.cliente_nome || ''}</td>
-            </tr>
-        `).join('');
+        window._pesquisaContatosStandaloneCache = contatos;
 
         window.selectContatoPesquisa = function(id) {
             Swal.close();
@@ -8922,13 +9008,28 @@ window.abrirModalPesquisaContato = async function() {
         };
 
         window.filtrarContatosTabela = function() {
+            const tbody = document.getElementById('swal-busca-contato-tbody');
+            if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-            const query = normStr(document.getElementById('swal-busca-contato').value);
-            const rows = document.querySelectorAll('.swal-contato-row');
-            rows.forEach(row => {
-                const text = normStr(row.innerText);
-                row.style.display = text.includes(query) ? '' : 'none';
-            });
+            const query = normStr(document.getElementById('swal-busca-contato')?.value || '');
+            const source = window._pesquisaContatosStandaloneCache || [];
+            const filtered = !query ? source : source.filter(c =>
+                normStr(c.codigo).includes(query) ||
+                normStr(c.nome).includes(query) ||
+                normStr(c.email).includes(query) ||
+                normStr(c.celular).includes(query) ||
+                normStr(c.cliente_nome).includes(query)
+            );
+            const exibidos = filtered.slice(0, 150);
+            tbody.innerHTML = exibidos.map(c => `
+                <tr onclick="selectContatoPesquisa(${c.id})" class="swal-contato-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.email || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.celular || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.cliente_nome || ''}</td>
+                </tr>
+            `).join('');
         };
 
         Swal.fire({
@@ -8939,7 +9040,7 @@ window.abrirModalPesquisaContato = async function() {
                     <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
                         <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                             <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
                                     <th style="padding:0.5rem; text-align:left;">Código</th>
                                     <th style="padding:0.5rem; text-align:left;">Nome</th>
                                     <th style="padding:0.5rem; text-align:left;">E-mail</th>
@@ -8947,13 +9048,15 @@ window.abrirModalPesquisaContato = async function() {
                                     <th style="padding:0.5rem; text-align:left;">Empresa</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${rowsHtml}
-                            </tbody>
+                            <tbody id="swal-busca-contato-tbody"></tbody>
                         </table>
                     </div>
                 </div>
             `,
+            didOpen: () => {
+                window.filtrarContatosTabela();
+                setTimeout(() => document.getElementById('swal-busca-contato')?.focus(), 50);
+            },
             showConfirmButton: false,
             showCancelButton: true,
             cancelButtonText: 'Fechar',
@@ -8964,6 +9067,11 @@ window.abrirModalPesquisaContato = async function() {
     } catch (e) {
         console.error(e);
         alert('Erro ao carregar lista de contatos: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
     }
 };
 
@@ -9149,7 +9257,8 @@ window.carregarContatoParaEdicao = async function(id) {
         setVal('con-celular', c.celular || '');
         setVal('con-email', c.email || '');
         setVal('con-tipo', c.tipo || '');
-        setVal('con-representante', c.representante || c.criado_por || window.currentUser?.nome || window.currentUserName || 'Administrador');
+        const rawRepCon = c.representante || c.criado_por || '';
+        setVal('con-representante', (rawRepCon && rawRepCon !== 'Administrador') ? rawRepCon : '');
         const hojeFmt = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
         let dataCadContato = hojeFmt;
         if (c.criado_em) {
@@ -9449,7 +9558,10 @@ window.excluirContato = async function() {
         alert('Selecione um contato cadastrado para poder excluir.');
         return;
     }
-    if (!confirm('Deseja realmente excluir este contato permanentemente?')) {
+    const senha = window.prompt('Digite a senha para excluir o contato:');
+    if (senha === null) return;
+    if (senha !== 'comerc123') {
+        alert('Senha incorreta! Exclusão cancelada.');
         return;
     }
 

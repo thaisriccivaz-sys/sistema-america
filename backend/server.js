@@ -41019,129 +41019,134 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
 
   const runSeed = () => {
     if (!fs.existsSync(seedGzPath)) return;
-    db.get("SELECT COUNT(*) as total FROM clientes WHERE codigo = 7165 AND observacoes IS NOT NULL", [], (errCheck, rowCheck) => {
-      db.get("SELECT COUNT(*) as totalAll FROM clientes", [], (errAll, rowAll) => {
-        if (!errAll && rowAll && rowAll.totalAll >= 6935 && rowCheck && rowCheck.total > 0) {
-          return; // Já importado completamente
-        }
-        try {
-          const gzBuf = fs.readFileSync(seedGzPath);
-          const registros = JSON.parse(zlib.gunzipSync(gzBuf).toString('utf8'));
-          if (!Array.isArray(registros) || registros.length === 0) return;
+    db.get("SELECT COUNT(*) as total FROM clientes WHERE codigo = 7165 AND criado_por = 'THAYNAMARQUES'", [], (errCheck, rowCheck) => {
+      db.get("SELECT COUNT(*) as totalAdmin FROM clientes WHERE codigo <= 7165 AND criado_por = 'Administrador'", [], (errAdm, rowAdm) => {
+        db.get("SELECT COUNT(*) as totalAll FROM clientes", [], (errAll, rowAll) => {
+          if (!errAll && rowAll && rowAll.totalAll >= 6935 && rowCheck && rowCheck.total > 0 && (!rowAdm || rowAdm.totalAdmin === 0)) {
+            return; // Já importado completamente com criado_por da planilha
+          }
+          try {
+            const gzBuf = fs.readFileSync(seedGzPath);
+            const registros = JSON.parse(zlib.gunzipSync(gzBuf).toString('utf8'));
+            if (!Array.isArray(registros) || registros.length === 0) return;
 
-          console.log(`[Clientes Eloca] Importando/atualizando ${registros.length} clientes e contatos vinculados...`);
-          const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+            console.log(`[Clientes Eloca] Importando/atualizando ${registros.length} clientes e contatos vinculados...`);
+            const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
-          db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            const stmtCli = db.prepare(`
-              INSERT INTO clientes (
-                codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual,
-                rg, data_nascimento, grupo_clientes, cliente_centralizador,
-                nome_razao_social, nome_fantasia, uf, municipio, pais,
-                telefone, telefone_2, fax, website, celular,
-                contatos, observacoes, criado_por, criado_em, atualizado_em
-              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-              ON CONFLICT(codigo) DO UPDATE SET
-                data_cadastro = CASE WHEN excluded.data_cadastro != '' THEN excluded.data_cadastro ELSE clientes.data_cadastro END,
-                cpf_cnpj = CASE WHEN excluded.cpf_cnpj != '' THEN excluded.cpf_cnpj ELSE clientes.cpf_cnpj END,
-                inscricao_estadual = CASE WHEN excluded.inscricao_estadual != '' THEN excluded.inscricao_estadual ELSE clientes.inscricao_estadual END,
-                rg = CASE WHEN excluded.rg != '' THEN excluded.rg ELSE clientes.rg END,
-                data_nascimento = CASE WHEN excluded.data_nascimento != '' THEN excluded.data_nascimento ELSE clientes.data_nascimento END,
-                grupo_clientes = CASE WHEN excluded.grupo_clientes != '' THEN excluded.grupo_clientes ELSE clientes.grupo_clientes END,
-                cliente_centralizador = excluded.cliente_centralizador,
-                nome_razao_social = excluded.nome_razao_social,
-                nome_fantasia = CASE WHEN excluded.nome_fantasia != '' THEN excluded.nome_fantasia ELSE clientes.nome_fantasia END,
-                uf = CASE WHEN excluded.uf != '' THEN excluded.uf ELSE clientes.uf END,
-                municipio = CASE WHEN excluded.municipio != '' THEN excluded.municipio ELSE clientes.municipio END,
-                telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE clientes.telefone END,
-                telefone_2 = CASE WHEN excluded.telefone_2 != '' THEN excluded.telefone_2 ELSE clientes.telefone_2 END,
-                fax = CASE WHEN excluded.fax != '' THEN excluded.fax ELSE clientes.fax END,
-                website = CASE WHEN excluded.website != '' THEN excluded.website ELSE clientes.website END,
-                celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE clientes.celular END,
-                contatos = CASE WHEN excluded.contatos != '[]' THEN excluded.contatos ELSE clientes.contatos END,
-                observacoes = CASE WHEN excluded.observacoes != '' THEN excluded.observacoes ELSE COALESCE(clientes.observacoes, '') END,
-                criado_por = CASE WHEN excluded.criado_por != '' THEN excluded.criado_por ELSE clientes.criado_por END,
-                atualizado_em = excluded.atualizado_em
-            `);
+            db.serialize(() => {
+              db.run('BEGIN TRANSACTION');
+              const stmtCli = db.prepare(`
+                INSERT INTO clientes (
+                  codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual,
+                  rg, data_nascimento, grupo_clientes, cliente_centralizador,
+                  nome_razao_social, nome_fantasia, uf, municipio, pais,
+                  telefone, telefone_2, fax, website, celular,
+                  contatos, observacoes, criado_por, criado_em, atualizado_em
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(codigo) DO UPDATE SET
+                  data_cadastro = CASE WHEN excluded.data_cadastro != '' THEN excluded.data_cadastro ELSE clientes.data_cadastro END,
+                  cpf_cnpj = CASE WHEN excluded.cpf_cnpj != '' THEN excluded.cpf_cnpj ELSE clientes.cpf_cnpj END,
+                  inscricao_estadual = CASE WHEN excluded.inscricao_estadual != '' THEN excluded.inscricao_estadual ELSE clientes.inscricao_estadual END,
+                  rg = CASE WHEN excluded.rg != '' THEN excluded.rg ELSE clientes.rg END,
+                  data_nascimento = CASE WHEN excluded.data_nascimento != '' THEN excluded.data_nascimento ELSE clientes.data_nascimento END,
+                  grupo_clientes = CASE WHEN excluded.grupo_clientes != '' THEN excluded.grupo_clientes ELSE clientes.grupo_clientes END,
+                  cliente_centralizador = excluded.cliente_centralizador,
+                  nome_razao_social = excluded.nome_razao_social,
+                  nome_fantasia = CASE WHEN excluded.nome_fantasia != '' THEN excluded.nome_fantasia ELSE clientes.nome_fantasia END,
+                  uf = CASE WHEN excluded.uf != '' THEN excluded.uf ELSE clientes.uf END,
+                  municipio = CASE WHEN excluded.municipio != '' THEN excluded.municipio ELSE clientes.municipio END,
+                  telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE clientes.telefone END,
+                  telefone_2 = CASE WHEN excluded.telefone_2 != '' THEN excluded.telefone_2 ELSE clientes.telefone_2 END,
+                  fax = CASE WHEN excluded.fax != '' THEN excluded.fax ELSE clientes.fax END,
+                  website = CASE WHEN excluded.website != '' THEN excluded.website ELSE clientes.website END,
+                  celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE clientes.celular END,
+                  contatos = CASE WHEN excluded.contatos != '[]' THEN excluded.contatos ELSE clientes.contatos END,
+                  observacoes = CASE WHEN excluded.observacoes != '' THEN excluded.observacoes ELSE COALESCE(clientes.observacoes, '') END,
+                  criado_por = excluded.criado_por,
+                  atualizado_em = excluded.atualizado_em
+              `);
 
-            for (const r of registros) {
-              const [
-                codigo, razao, fantasia, cpf_cnpj, rg, telefone, fax, ie, cidade, uf,
-                rep, obs, dataCadIso, tel2, celular, dataNasc, emailContato, nomeContato,
-                website, classificacao, centralizador
-              ] = r;
-              const contatosArr = (nomeContato || emailContato) ? [{
-                codigo: codigo,
-                nome: nomeContato || razao,
-                email: emailContato || '',
-                telefone: telefone || '',
-                celular: celular || '',
-                cargo: '',
-                departamento: ''
-              }] : [];
-              stmtCli.run([
-                codigo, dataCadIso || '', 0, cpf_cnpj || '', ie || '',
-                rg || '', dataNasc || '', classificacao || '', centralizador || '',
-                razao || '', fantasia || '', uf || '', cidade || '', 'Brasil',
-                telefone || '', tel2 || '', fax || '', website || '', celular || '',
-                JSON.stringify(contatosArr), obs || '', rep || '', agora, agora
-              ]);
-            }
-            stmtCli.finalize();
-            db.run('COMMIT', (errCommit) => {
-              if (errCommit) {
-                console.error('[Clientes Eloca] Erro ao commitar clientes:', errCommit.message);
-                return;
+              for (const r of registros) {
+                const [
+                  codigo, razao, fantasia, cpf_cnpj, rg, telefone, fax, ie, cidade, uf,
+                  rep, obs, dataCadIso, tel2, celular, dataNasc, emailContato, nomeContato,
+                  website, classificacao, centralizador
+                ] = r;
+                const contatosArr = (nomeContato || emailContato) ? [{
+                  codigo: codigo,
+                  nome: nomeContato || razao,
+                  email: emailContato || '',
+                  telefone: telefone || '',
+                  celular: celular || '',
+                  dono: rep || '',
+                  representante: rep || '',
+                  cargo: '',
+                  departamento: ''
+                }] : [];
+                stmtCli.run([
+                  codigo, dataCadIso || '', 0, cpf_cnpj || '', ie || '',
+                  rg || '', dataNasc || '', classificacao || '', centralizador || '',
+                  razao || '', fantasia || '', uf || '', cidade || '', 'Brasil',
+                  telefone || '', tel2 || '', fax || '', website || '', celular || '',
+                  JSON.stringify(contatosArr), obs || '', rep || '', agora, agora
+                ]);
               }
-              // Vincular contatos na tabela contatos usando o id real de cada cliente
-              db.all('SELECT id, codigo FROM clientes', [], (errMap, cliRows) => {
-                if (errMap || !cliRows) return;
-                const mapCodToId = new Map();
-                for (const c of cliRows) mapCodToId.set(Number(c.codigo), c.id);
+              stmtCli.finalize();
+              db.run('COMMIT', (errCommit) => {
+                if (errCommit) {
+                  console.error('[Clientes Eloca] Erro ao commitar clientes:', errCommit.message);
+                  return;
+                }
+                // Vincular contatos na tabela contatos usando o id real de cada cliente
+                db.all('SELECT id, codigo FROM clientes', [], (errMap, cliRows) => {
+                  if (errMap || !cliRows) return;
+                  const mapCodToId = new Map();
+                  for (const c of cliRows) mapCodToId.set(Number(c.codigo), c.id);
 
-                db.serialize(() => {
-                  db.run('BEGIN TRANSACTION');
-                  const stmtCont = db.prepare(`
-                    INSERT INTO contatos (
-                      codigo, nome, representante, data_nascimento, celular, telefone,
-                      email, inativo, cliente_id, criado_por, criado_em, atualizado_em
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-                    ON CONFLICT(codigo) DO UPDATE SET
-                      nome = excluded.nome,
-                      representante = CASE WHEN excluded.representante != '' THEN excluded.representante ELSE contatos.representante END,
-                      celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE contatos.celular END,
-                      telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE contatos.telefone END,
-                      email = CASE WHEN excluded.email != '' THEN excluded.email ELSE contatos.email END,
-                      cliente_id = excluded.cliente_id,
-                      atualizado_em = excluded.atualizado_em
-                  `);
-                  for (const r of registros) {
-                    const [
-                      codigo, razao, , , , telefone, , , , ,
-                      rep, , , , celular, dataNasc, emailContato, nomeContato
-                    ] = r;
-                    if (!nomeContato && !emailContato) continue;
-                    const cliId = mapCodToId.get(Number(codigo));
-                    if (!cliId) continue;
-                    stmtCont.run([
-                      codigo, nomeContato || razao, rep || '', dataNasc || '',
-                      celular || '', telefone || '', emailContato || '', 0,
-                      cliId, rep || '', agora, agora
-                    ]);
-                  }
-                  stmtCont.finalize();
-                  db.run('COMMIT', (errC2) => {
-                    if (errC2) console.error('[Clientes Eloca] Erro ao commitar contatos:', errC2.message);
-                    else console.log(`[Clientes Eloca] ${registros.length} clientes e contatos vinculados com sucesso!`);
+                  db.serialize(() => {
+                    db.run('BEGIN TRANSACTION');
+                    const stmtCont = db.prepare(`
+                      INSERT INTO contatos (
+                        codigo, nome, representante, data_nascimento, celular, telefone,
+                        email, inativo, cliente_id, criado_por, criado_em, atualizado_em
+                      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                      ON CONFLICT(codigo) DO UPDATE SET
+                        nome = excluded.nome,
+                        representante = excluded.representante,
+                        criado_por = excluded.criado_por,
+                        celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE contatos.celular END,
+                        telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE contatos.telefone END,
+                        email = CASE WHEN excluded.email != '' THEN excluded.email ELSE contatos.email END,
+                        cliente_id = excluded.cliente_id,
+                        atualizado_em = excluded.atualizado_em
+                    `);
+                    for (const r of registros) {
+                      const [
+                        codigo, razao, , , , telefone, , , , ,
+                        rep, , , , celular, dataNasc, emailContato, nomeContato
+                      ] = r;
+                      if (!nomeContato && !emailContato) continue;
+                      const cliId = mapCodToId.get(Number(codigo));
+                      if (!cliId) continue;
+                      stmtCont.run([
+                        codigo, nomeContato || razao, rep || '', dataNasc || '',
+                        celular || '', telefone || '', emailContato || '', 0,
+                        cliId, rep || '', agora, agora
+                      ]);
+                    }
+                    stmtCont.finalize();
+                    db.run('COMMIT', (errC2) => {
+                      if (errC2) console.error('[Clientes Eloca] Erro ao commitar contatos:', errC2.message);
+                      else console.log(`[Clientes Eloca] ${registros.length} clientes e contatos vinculados com sucesso!`);
+                    });
                   });
                 });
               });
             });
-          });
-        } catch (e) {
-          console.error('[Clientes Eloca] Falha ao processar seed:', e.message);
-        }
+          } catch (e) {
+            console.error('[Clientes Eloca] Falha ao processar seed:', e.message);
+          }
+        });
       });
     });
   };
