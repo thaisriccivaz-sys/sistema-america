@@ -2141,7 +2141,11 @@ db.run("PRAGMA foreign_keys = ON;");
                     console.log('[ESTOQUE] Tabela estoque_equipamentos OK.');
                     db.run("ALTER TABLE estoque_equipamentos ADD COLUMN tipo_item TEXT NOT NULL DEFAULT 'matriz'", () => {});
                     db.run("UPDATE estoque_equipamentos SET codigo = PRINTF('%05d', CAST(REPLACE(REPLACE(UPPER(codigo), 'EQ-', ''), 'EQ', '') AS INTEGER)) WHERE codigo LIKE 'EQ%'", () => {});
-                    db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = UPPER(fonte_fornecimento), grupo_produto = UPPER(grupo_produto)", () => {});
+                    db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = UPPER(fonte_fornecimento), grupo_produto = UPPER(grupo_produto)", () => {
+                        db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'QUÍMICOS OBRA' WHERE fonte_fornecimento = 'BANHEIROS QUÍMICOS OBRA'", () => {});
+                        db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'QUÍMICOS EVENTO' WHERE fonte_fornecimento = 'BANHEIROS QUÍMICOS EVENTO'", () => {});
+                        db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'HIDRÁULICOS' WHERE fonte_fornecimento = 'BANHEIROS HIDRÁULICOS'", () => {});
+                    });
                 }
             });
 

@@ -33448,9 +33448,9 @@ function normalizarFonteEquipamento(val) {
     if (!raw) return 'OUTROS';
     const norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const opcoes = [
-        'BANHEIROS QUÍMICOS OBRA',
-        'BANHEIROS QUÍMICOS EVENTO',
-        'BANHEIROS HIDRÁULICOS',
+        'QUÍMICOS OBRA',
+        'QUÍMICOS EVENTO',
+        'HIDRÁULICOS',
         'LAVATÓRIOS',
         'GUARITAS',
         'PARCEIROS',
@@ -33461,9 +33461,9 @@ function normalizarFonteEquipamento(val) {
         const opNorm = op.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (norm === opNorm) return op;
     }
-    if (norm.includes('obra')) return 'BANHEIROS QUÍMICOS OBRA';
-    if (norm.includes('evento')) return 'BANHEIROS QUÍMICOS EVENTO';
-    if (norm.includes('hidraul')) return 'BANHEIROS HIDRÁULICOS';
+    if (norm.includes('obra')) return 'QUÍMICOS OBRA';
+    if (norm.includes('evento')) return 'QUÍMICOS EVENTO';
+    if (norm.includes('hidraul')) return 'HIDRÁULICOS';
     if (norm.includes('lavator')) return 'LAVATÓRIOS';
     if (norm.includes('guarita')) return 'GUARITAS';
     if (norm.includes('parceir')) return 'PARCEIROS';
@@ -33532,7 +33532,7 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                 'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'STANDARD',
-                'Fonte de fornecimento': 'BANHEIROS QUÍMICOS OBRA',
+                'Fonte de fornecimento': 'QUÍMICOS OBRA',
                 'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
                 'Venda': 'Não',
                 'Estoque ou Produto': 'Produto'

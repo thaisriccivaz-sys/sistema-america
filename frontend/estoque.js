@@ -2658,7 +2658,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-codigo').value = 'Gerando...';
         document.getElementById('equipamento-est-nome').value = '';
         document.getElementById('equipamento-est-unidade').value = 'UNIDADE [UN]';
-        document.getElementById('equipamento-est-fonte').value = 'BANHEIROS QUÍMICOS OBRA';
+        document.getElementById('equipamento-est-fonte').value = 'QUÍMICOS OBRA';
         document.getElementById('equipamento-est-grupo').value = 'STANDARD';
         document.getElementById('equipamento-est-especificacao').value = '';
         window.setVendaEquipamentoEstoqueUI(false);
@@ -2885,7 +2885,7 @@ window.abrirModalImportarEquipamentos = async function() {
                         <li><b>Nome</b> (obrigatório — nomes duplicados são ignorados automaticamente)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
                         <li><b>Grupo</b> (ex: STANDARD, LUXO, LAVATÓRIOS, GUARITAS...)</li>
-                        <li><b>Fonte de fornecimento</b> (BANHEIROS QUÍMICOS OBRA, BANHEIROS QUÍMICOS EVENTO, BANHEIROS HIDRÁULICOS, LAVATÓRIOS, GUARITAS, PARCEIROS, SERVIÇOS, OUTROS)</li>
+                        <li><b>Fonte de fornecimento</b> (QUÍMICOS OBRA, QUÍMICOS EVENTO, HIDRÁULICOS, LAVATÓRIOS, GUARITAS, PARCEIROS, SERVIÇOS, OUTROS)</li>
                         <li><b>Texto técnico</b> (Especificação técnica)</li>
                         <li><b>Venda</b> (Sim ou Não)</li>
                         <li><b>Estoque ou Produto</b> (<b>Produto</b> / <b>Matriz</b> = aparece na Proposta | <b>Estoque</b> = controle interno)</li>
@@ -2970,9 +2970,9 @@ window.abrirModalImportarEquipamentos = async function() {
 
 // ── Combobox Pesquisável / Digitável para Fonte de Fornecimento e Grupo de Produto ──
 window._FONTES_EQUIPAMENTO_PADRAO = [
-    'BANHEIROS QUÍMICOS OBRA',
-    'BANHEIROS QUÍMICOS EVENTO',
-    'BANHEIROS HIDRÁULICOS',
+    'QUÍMICOS OBRA',
+    'QUÍMICOS EVENTO',
+    'HIDRÁULICOS',
     'LAVATÓRIOS',
     'GUARITAS',
     'PARCEIROS',
