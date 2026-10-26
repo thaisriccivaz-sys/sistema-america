@@ -2722,8 +2722,8 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-codigo').value = item.codigo || '';
         document.getElementById('equipamento-est-nome').value = item.nome || '';
         document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
-        document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'OUTROS').toUpperCase();
-        document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'STANDARD').toUpperCase();
+        document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'PACOTE OBRA').toUpperCase();
+        document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'ACESSÓRIO').toUpperCase();
         document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
         window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
         window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
@@ -2735,8 +2735,8 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-codigo').value = 'Gerando...';
         document.getElementById('equipamento-est-nome').value = '';
         document.getElementById('equipamento-est-unidade').value = 'UNIDADE [UN]';
-        document.getElementById('equipamento-est-fonte').value = 'QUÍMICOS OBRA';
-        document.getElementById('equipamento-est-grupo').value = 'STANDARD';
+        document.getElementById('equipamento-est-fonte').value = 'PACOTE OBRA';
+        document.getElementById('equipamento-est-grupo').value = 'ACESSÓRIO';
         document.getElementById('equipamento-est-especificacao').value = '';
         window.setVendaEquipamentoEstoqueUI(false);
         window.setTipoItemEquipamentoEstoqueUI(true);
@@ -2763,8 +2763,8 @@ window.duplicarEquipamentoEstoque = async function(id) {
     document.getElementById('equipamento-est-codigo').value = 'Gerando...';
     document.getElementById('equipamento-est-nome').value = item.nome || '';
     document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
-    document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'OUTROS').toUpperCase();
-    document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'STANDARD').toUpperCase();
+    document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'PACOTE OBRA').toUpperCase();
+    document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'ACESSÓRIO').toUpperCase();
     document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
     window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
     window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
@@ -2818,8 +2818,8 @@ window.salvarEquipamentoEstoque = async function(event) {
     const id = (document.getElementById('equipamento-est-id')?.value || '').trim();
     const nome = (document.getElementById('equipamento-est-nome')?.value || '').trim();
     const unidade_medida = document.getElementById('equipamento-est-unidade')?.value || 'UNIDADE [UN]';
-    const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'OUTROS').trim().toUpperCase();
-    const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'STANDARD').trim().toUpperCase();
+    const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'PACOTE OBRA').trim().toUpperCase();
+    const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const produto_venda = document.getElementById('equipamento-est-venda')?.value === '1' ? 1 : 0;
     const tipo_item = document.getElementById('equipamento-est-tipo-item')?.value === 'estoque' ? 'estoque' : 'matriz';
@@ -2961,8 +2961,8 @@ window.abrirModalImportarEquipamentos = async function() {
                     <ul style="margin:0;padding-left:18px;color:#15803d;line-height:1.55;font-size:0.82rem;">
                         <li><b>Nome</b> (obrigatório — nomes duplicados são ignorados automaticamente)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
-                        <li><b>Grupo</b> (ex: STANDARD, LUXO, LAVATÓRIOS, GUARITAS...)</li>
-                        <li><b>Fonte de fornecimento</b> (QUÍMICOS OBRA, QUÍMICOS EVENTO, HIDRÁULICOS, LAVATÓRIOS, GUARITAS, PARCEIROS, SERVIÇOS, OUTROS)</li>
+                        <li><b>Grupo</b> (ACESSÓRIO, AVARIA, BRINQUEDOS, CONTAINER, CONTENÇÃO, ESTRUTURAS, LAVATÓRIOS, MICTÓRIO, MOBILIÁRIO, PCD, PISOS, SERVIÇOS, TENDA, VIP)</li>
+                        <li><b>Fonte de fornecimento</b> (PACOTE OBRA, PRÓPRIO AVULSO, PARCEIROS)</li>
                         <li><b>Texto técnico</b> (Especificação técnica)</li>
                         <li><b>Venda</b> (Sim ou Não)</li>
                         <li><b>Estoque ou Produto</b> (<b>Produto</b> / <b>Matriz</b> = aparece na Proposta | <b>Estoque</b> = controle interno)</li>
@@ -3047,54 +3047,31 @@ window.abrirModalImportarEquipamentos = async function() {
 
 // ── Combobox Pesquisável / Digitável para Fonte de Fornecimento e Grupo de Produto ──
 window._FONTES_EQUIPAMENTO_PADRAO = [
-    'QUÍMICOS OBRA',
-    'QUÍMICOS EVENTO',
-    'HIDRÁULICOS',
-    'LAVATÓRIOS',
-    'GUARITAS',
-    'PARCEIROS',
-    'SERVIÇOS',
-    'OUTROS'
+    'PACOTE OBRA',
+    'PRÓPRIO AVULSO',
+    'PARCEIROS'
 ];
 
 window._GRUPOS_EQUIPAMENTO_PADRAO = [
-    'STANDARD',
-    'LUXO',
-    'EXTRA LUXO',
-    'PCD',
-    'MICTÓRIO',
-    'LAVATÓRIOS',
-    'CHUVEIRO',
-    'HIDRÁULICO',
-    'GUARITAS',
-    'SERVIÇOS',
-    'AVARIA',
     'ACESSÓRIO',
-    'OUTROS',
+    'AVARIA',
+    'BRINQUEDOS',
     'CONTAINER',
     'CONTENÇÃO',
-    'PISOS',
     'ESTRUTURAS',
-    'BRINQUEDOS',
-    'TENDA',
+    'LAVATÓRIOS',
+    'MICTÓRIO',
     'MOBILIÁRIO',
-    'LICENÇAS',
-    'GUARITAS / BILHETERIAS',
+    'PCD',
+    'PISOS',
+    'SERVIÇOS',
+    'TENDA',
     'VIP'
 ];
 
 window._obterOpcoesComboEquipamento = function(tipo) {
     const isFonte = tipo.includes('fonte');
-    const base = isFonte ? window._FONTES_EQUIPAMENTO_PADRAO.slice() : window._GRUPOS_EQUIPAMENTO_PADRAO.slice();
-    const setNorm = new Set(base.map(x => x.toUpperCase()));
-    (window._equipamentosEstoqueData || []).forEach(item => {
-        const val = String(isFonte ? item.fonte_fornecimento : item.grupo_produto || '').trim().toUpperCase();
-        if (val && !setNorm.has(val)) {
-            setNorm.add(val);
-            base.push(val);
-        }
-    });
-    return base;
+    return isFonte ? window._FONTES_EQUIPAMENTO_PADRAO.slice() : window._GRUPOS_EQUIPAMENTO_PADRAO.slice();
 };
 
 window._getComboConfigEquipamento = function(tipo) {

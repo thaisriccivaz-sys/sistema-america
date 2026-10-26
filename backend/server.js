@@ -33445,47 +33445,36 @@ function normalizarUnidadeEquipamento(val) {
 
 function normalizarFonteEquipamento(val) {
     const raw = String(val || '').trim().toUpperCase();
-    if (!raw) return 'OUTROS';
+    if (!raw) return 'PACOTE OBRA';
     const norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const opcoes = [
-        'QUÍMICOS OBRA',
-        'QUÍMICOS EVENTO',
-        'HIDRÁULICOS',
-        'LAVATÓRIOS',
-        'GUARITAS',
-        'PARCEIROS',
-        'SERVIÇOS',
-        'OUTROS'
+        'PACOTE OBRA',
+        'PRÓPRIO AVULSO',
+        'PARCEIROS'
     ];
     for (const op of opcoes) {
         const opNorm = op.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (norm === opNorm) return op;
     }
-    if (norm.includes('obra')) return 'QUÍMICOS OBRA';
-    if (norm.includes('evento')) return 'QUÍMICOS EVENTO';
-    if (norm.includes('hidraul')) return 'HIDRÁULICOS';
-    if (norm.includes('lavator')) return 'LAVATÓRIOS';
-    if (norm.includes('guarita')) return 'GUARITAS';
+    if (norm.includes('pacote') || norm.includes('obra')) return 'PACOTE OBRA';
+    if (norm.includes('proprio') || norm.includes('avulso')) return 'PRÓPRIO AVULSO';
     if (norm.includes('parceir')) return 'PARCEIROS';
-    if (norm.includes('servic')) return 'SERVIÇOS';
     return raw;
 }
 
 function normalizarGrupoEquipamento(val) {
     const raw = String(val || '').trim().toUpperCase();
-    if (!raw) return 'STANDARD';
+    if (!raw) return 'ACESSÓRIO';
     const norm = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const grupos = [
-        'STANDARD', 'LUXO', 'EXTRA LUXO', 'PCD', 'MICTÓRIO', 'LAVATÓRIOS',
-        'CHUVEIRO', 'HIDRÁULICO', 'GUARITAS', 'SERVIÇOS', 'AVARIA', 'ACESSÓRIO',
-        'OUTROS', 'CONTAINER', 'CONTENÇÃO', 'PISOS', 'ESTRUTURAS', 'BRINQUEDOS',
-        'TENDA', 'MOBILIÁRIO', 'LICENÇAS', 'GUARITAS / BILHETERIAS', 'VIP'
+        'ACESSÓRIO', 'AVARIA', 'BRINQUEDOS', 'CONTAINER', 'CONTENÇÃO',
+        'ESTRUTURAS', 'LAVATÓRIOS', 'MICTÓRIO', 'MOBILIÁRIO', 'PCD',
+        'PISOS', 'SERVIÇOS', 'TENDA', 'VIP'
     ];
     for (const g of grupos) {
         const gNorm = g.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (norm === gNorm) return g;
     }
-    if (norm.includes('BILHETERIA')) return 'GUARITAS / BILHETERIAS';
     return raw;
 }
 
@@ -33531,8 +33520,8 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
             {
                 'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
                 'Unidade de medida': 'UNIDADE [UN]',
-                'Grupo': 'STANDARD',
-                'Fonte de fornecimento': 'QUÍMICOS OBRA',
+                'Grupo': 'PCD',
+                'Fonte de fornecimento': 'PACOTE OBRA',
                 'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
                 'Venda': 'Não',
                 'Estoque ou Produto': 'Produto'
@@ -33541,7 +33530,7 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                 'Nome': 'LAVATÓRIO PORTÁTIL DUPLO',
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'LAVATÓRIOS',
-                'Fonte de fornecimento': 'LAVATÓRIOS',
+                'Fonte de fornecimento': 'PRÓPRIO AVULSO',
                 'Texto técnico': 'Lavatório portátil com acionamento por pedal.',
                 'Venda': 'Sim',
                 'Estoque ou Produto': 'Estoque'
@@ -33708,8 +33697,8 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
 
     const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
-    const fonte_fornecimento = String(d.fonte_fornecimento || 'OUTROS').trim().toUpperCase();
-    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim().toUpperCase();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'PACOTE OBRA').trim().toUpperCase();
+    const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
@@ -33751,8 +33740,8 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
 
     const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
-    const fonte_fornecimento = String(d.fonte_fornecimento || 'OUTROS').trim().toUpperCase();
-    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim().toUpperCase();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'PACOTE OBRA').trim().toUpperCase();
+    const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
