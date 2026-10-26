@@ -3149,8 +3149,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                             <div id="modal-acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
                                 <!-- Controles de e-mail e botão novo contato -->
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                                    <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
+                                <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                    <div style="display:none; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
                                         <span>E-mail de Cobrança: Enviar</span>
                                         <input type="number" id="modal-cli-email-cob-antecedencia" value="${client ? (client.email_cob_antecedencia || 5) : 5}" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
                                         <span>dias antes e</span>
@@ -3295,11 +3295,14 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <div id="modal-acc-anexos" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
                                 <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
                                     <input type="file" id="modal-cli-anexo-file" multiple accept="image/*,video/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov" onchange="window.adicionarArquivosPendentesCliente(this.files, 'modal')" style="padding:0.35rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.82rem;">
-                                    <button type="button" id="btn-salvar-anexo-modal-cli" onclick="window.salvarAnexosCliente('modal', ${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <button type="button" id="btn-salvar-anexo-modal-cli" onclick="window.salvarAnexosCliente('modal', ${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:none; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo
                                     </button>
+                                    <span id="modal-status-upload-anexo-cli" style="display:none; color:#16a34a; font-weight:600; font-size:0.8rem; align-items:center; gap:5px;">
+                                        <i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Salvando anexo...
+                                    </span>
                                     <span style="color:#64748b; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
-                                        <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — selecione vários ou <b>Ctrl+V</b>)
+                                        <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — salvamento automático ao selecionar ou colar com <b>Ctrl+V</b>)
                                     </span>
                                 </div>
                                 <div id="modal-cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
@@ -5607,8 +5610,8 @@ function _renderCadastroClienteInt() {
                         <div id="acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
                             
                             <!-- Controles de e-mail e botão novo contato -->
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                                <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
+                            <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                <div style="display:none; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
                                     <span>E-mail de Cobrança: Enviar</span>
                                     <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
                                     <span>dias antes e</span>
@@ -5729,11 +5732,14 @@ function _renderCadastroClienteInt() {
                         <div id="acc-anexos" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
                             <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
                                 <input type="file" id="cli-anexo-file" multiple accept="image/*,video/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov" onchange="window.adicionarArquivosPendentesCliente(this.files, 'main')" style="padding:0.35rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.82rem;">
-                                <button type="button" id="btn-salvar-anexo-cli" onclick="window.salvarAnexosCliente('main')" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                <button type="button" id="btn-salvar-anexo-cli" onclick="window.salvarAnexosCliente('main')" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:none; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                     <i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo
                                 </button>
+                                <span id="status-upload-anexo-cli" style="display:none; color:#16a34a; font-weight:600; font-size:0.8rem; align-items:center; gap:5px;">
+                                    <i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Salvando anexo...
+                                </span>
                                 <span style="color:#64748b; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px;">
-                                    <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — selecione vários arquivos ou pressione <b>Ctrl+V</b> para colar imagem copiada)
+                                    <i class="ph ph-clipboard" style="font-size:0.95rem; color:#7048e8;"></i> (Permitido: PDF, Imagem e Vídeo — salvamento automático ao selecionar ou colar com <b>Ctrl+V</b>)
                                 </span>
                             </div>
                             <div id="cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
@@ -7558,7 +7564,7 @@ window._cliAnexosSalvos = window._cliAnexosSalvos || [];
 window._modalCliAnexosPendentes = window._modalCliAnexosPendentes || [];
 window._modalCliAnexosSalvos = window._modalCliAnexosSalvos || [];
 
-window.adicionarArquivosPendentesCliente = function(fileList, escopo = 'main') {
+window.adicionarArquivosPendentesCliente = async function(fileList, escopo = 'main') {
     if (!fileList || fileList.length === 0) return;
     const pendentes = escopo === 'modal' ? window._modalCliAnexosPendentes : window._cliAnexosPendentes;
     Array.from(fileList).forEach(file => {
@@ -7584,8 +7590,33 @@ window.adicionarArquivosPendentesCliente = function(fileList, escopo = 'main') {
         if (arrowEl) arrowEl.innerText = '▼';
     }
 
-    const cliId = escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId;
+    let cliId = escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId;
+    if (!cliId && Array.isArray(_clientesCache) && _clientesCache.length > 0) {
+        const prefix = escopo === 'modal' ? 'modal-cli-' : 'cli-';
+        const codVal = (document.getElementById(prefix + 'codigo')?.value || '').trim();
+        const docVal = (document.getElementById(prefix + 'cpf-cnpj')?.value || '').replace(/\D/g, '');
+        let foundCli = null;
+        if (codVal) {
+            foundCli = _clientesCache.find(c => String(c.codigo) === String(codVal));
+        }
+        if (!foundCli && docVal) {
+            foundCli = _clientesCache.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === docVal);
+        }
+        if (foundCli && foundCli.id) {
+            cliId = foundCli.id;
+            if (escopo === 'modal') _modalClienteEditandoId = cliId;
+            else _clienteEditandoId = cliId;
+        }
+    }
+
     window.renderAnexosCliente(escopo, cliId);
+
+    // Salvamento automático imediato se o cliente já estiver identificado/cadastrado
+    if (cliId) {
+        await window.salvarAnexosCliente(escopo, cliId, false);
+    } else if (typeof mostrarToastSucesso === 'function') {
+        mostrarToastSucesso('Anexo adicionado! Será salvo automaticamente ao gravar o novo cliente.');
+    }
 };
 
 window.removerArquivoPendenteCliente = function(idx, escopo = 'main') {
@@ -7626,12 +7657,17 @@ window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, 
         return;
     }
 
-    const btnId = escopo === 'modal' ? 'modal-btn-salvar-anexo-cli' : 'btn-salvar-anexo-cli';
+    const btnId = escopo === 'modal' ? 'btn-salvar-anexo-modal-cli' : 'btn-salvar-anexo-cli';
     const btn = document.getElementById(btnId);
+    const statusId = escopo === 'modal' ? 'modal-status-upload-anexo-cli' : 'status-upload-anexo-cli';
+    const statusEl = document.getElementById(statusId);
     const origHtml = btn ? btn.innerHTML : '<i class="ph ph-floppy-disk" style="font-size:1rem;"></i> Salvar Anexo';
     if (btn) {
         btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Salvando...';
         btn.disabled = true;
+    }
+    if (statusEl) {
+        statusEl.style.display = 'inline-flex';
     }
 
     try {
@@ -7668,7 +7704,7 @@ window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, 
 
         window.renderAnexosCliente(escopo, clienteId);
         if (!silent && typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Anexo(s) salvo(s) com sucesso!');
+            mostrarToastSucesso('Anexo(s) salvo(s) automaticamente com sucesso!');
         }
     } catch (err) {
         console.error('Erro ao salvar anexos do cliente:', err);
@@ -7679,6 +7715,9 @@ window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, 
         if (btn) {
             btn.innerHTML = origHtml;
             btn.disabled = false;
+        }
+        if (statusEl) {
+            statusEl.style.display = 'none';
         }
     }
 };
@@ -7795,7 +7834,7 @@ window.renderAnexosCliente = function(escopo = 'main', clienteIdParam = null) {
             pendContainer.innerHTML = `
                 <div style="margin-bottom:0.75rem; padding:0.7rem; background:#fffbeb; border:1px solid #fde68a; border-radius:8px;">
                     <div style="font-size:0.78rem; font-weight:700; color:#b45309; margin-bottom:0.5rem; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-clock-Afternoon"></i> Arquivos prontos para enviar (${pendentes.length}) — clique em "Salvar Anexo" para gravar:
+                        <i class="ph ph-clock-afternoon"></i> ${cliId ? `Enviando arquivos automaticamente (${pendentes.length})...` : `Arquivos na fila (${pendentes.length}) — serão salvos automaticamente ao salvar o cliente:`}
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(155px, 1fr)); gap:0.75rem;">
                         ${pendentes.map((item, idx) => {
@@ -7891,9 +7930,6 @@ if (!window._cliPasteAnexoListenerBound) {
         if (imageFiles.length > 0) {
             const escopo = isModalVisible ? 'modal' : 'main';
             window.adicionarArquivosPendentesCliente(imageFiles, escopo);
-            if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso('Imagem colada (Ctrl+V)! Clique em "Salvar Anexo" para gravar.');
-            }
         }
     });
 }
@@ -8588,37 +8624,27 @@ function _renderCadastroContatosInt() {
                     </div>
                 </div>
 
-                <!-- Botões de Ação (Lado Direito) -->
-                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                    <button onclick="recarregarContato()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                    </button>
+                <!-- Botões de Ação e Seleção de Notificações/Status -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; width:100%;">
+                    <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                        <button onclick="recarregarContato()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                            <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                        </button>
 
-                    <!-- Spacer -->
-                    <div style="width: 4px;"></div>
+                        <!-- Spacer -->
+                        <div style="width: 4px;"></div>
 
-                    <button onclick="limparFormContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
-                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
-                    </button>
-                    <button onclick="salvarContato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
-                        <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                    </button>
-                    <button onclick="excluirContato()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
-                        <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                    </button>
-                </div>
-            </div>
-
-            <!-- Corpo da Tela -->
-            <div class="cc-form-body" style="padding-bottom: 0;">
-                
-                <!-- Checkboxes info bar at the top of form body -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
-                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-info" style="font-size:1.1rem;"></i>
-                        Configure as notificações de e-mail e status do contato.
+                        <button onclick="limparFormContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                        </button>
+                        <button onclick="salvarContato()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                            <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                        </button>
+                        <button onclick="excluirContato()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                            <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                        </button>
                     </div>
-                    <div class="cc-ribbon-checkboxes" style="color:#1e293b;">
+                    <div class="cc-ribbon-checkboxes" style="color:#1e293b; margin-left:auto;">
                         <label>
                             <input type="checkbox" id="con-email-nfe"> Envio NFe
                         </label>
