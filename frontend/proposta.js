@@ -479,6 +479,23 @@ function renderTelaPropostas() {
                     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
                 }
 
+                input.input-faturamento-bloqueado,
+                [id^="prop-view-"] input.input-faturamento-bloqueado,
+                #form-cadastro-cliente input.input-faturamento-bloqueado,
+                .mcli-input.input-faturamento-bloqueado {
+                    background: #fef2f2 !important;
+                    border: 1.5px solid #dc2626 !important;
+                    color: #dc2626 !important;
+                    font-weight: 700 !important;
+                }
+                input.input-faturamento-bloqueado:focus,
+                [id^="prop-view-"] input.input-faturamento-bloqueado:focus,
+                #form-cadastro-cliente input.input-faturamento-bloqueado:focus,
+                .mcli-input.input-faturamento-bloqueado:focus {
+                    border-color: #dc2626 !important;
+                    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2) !important;
+                }
+
                 [id^="prop-view-"] textarea,
                 #form-cadastro-cliente textarea,
                 .mcli-container textarea,
@@ -523,6 +540,17 @@ function renderTelaPropostas() {
                     font-weight: 600 !important;
                     font-family: 'Inter', sans-serif !important;
                     cursor: pointer !important;
+                }
+
+                button[style*="display:none"],
+                button[style*="display: none"],
+                [id^="prop-view-"] button[style*="display:none"],
+                [id^="prop-view-"] button[style*="display: none"],
+                #form-cadastro-cliente button[style*="display:none"],
+                #form-cadastro-cliente button[style*="display: none"],
+                .mcli-container button[style*="display:none"],
+                .mcli-container button[style*="display: none"] {
+                    display: none !important;
                 }
                 
                 [id^="prop-view-"] form button i,
@@ -1849,6 +1877,8 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Cliente</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
+                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value)"
+                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value)"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome ou razão do cliente">
                                     <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
@@ -2150,7 +2180,75 @@ function _renderFormPropostaInt() {
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
     }
+
+    if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+        window.verificarBloqueioFaturamentoProposta(v('cliente_nome'));
+    }
 }
+
+window.clienteTemFaturamentoBloqueado = function(c) {
+    if (!c) return false;
+    if (c.bloquear_faturamento === 1 || c.bloquear_faturamento === true || c.bloquear_faturamento === '1') return true;
+    if (c.parametros) {
+        try {
+            const p = typeof c.parametros === 'string' ? JSON.parse(c.parametros) : c.parametros;
+            if (p && (p.bloquear_faturamento === true || p.bloquear_faturamento === 1 || p.bloquear_faturamento === '1')) return true;
+        } catch (e) {}
+    }
+    return false;
+};
+
+window.aplicarVisualBloqueioFaturamento = function(bloqueado, escopo = 'main') {
+    const ids = escopo === 'modal'
+        ? ['modal-cli-razao-social', 'modal-cli-nome-fantasia']
+        : ['cli-razao-social', 'cli-nome-fantasia'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (bloqueado) {
+            el.classList.add('input-faturamento-bloqueado');
+            el.title = 'Cliente com faturamento bloqueado';
+        } else {
+            el.classList.remove('input-faturamento-bloqueado');
+            el.title = '';
+        }
+    });
+};
+
+window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
+    const propInput = document.getElementById('prop-cliente');
+    if (!propInput) return;
+    const raw = (nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').trim();
+    if (!raw) {
+        propInput.classList.remove('input-faturamento-bloqueado');
+        propInput.title = '';
+        return;
+    }
+    try {
+        if (!Array.isArray(_clientesCache) || _clientesCache.length === 0) {
+            _clientesCache = await apiGet('/clientes') || [];
+        }
+        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const qNorm = normStr(raw);
+        const qDigits = raw.replace(/\D/g, '');
+        const found = _clientesCache.find(c =>
+            normStr(c.nome_razao_social) === qNorm ||
+            normStr(c.nome_fantasia) === qNorm ||
+            String(c.codigo) === raw ||
+            (qDigits.length >= 11 && String(c.cpf_cnpj || '').replace(/\D/g, '') === qDigits)
+        );
+        const isBloq = found ? window.clienteTemFaturamentoBloqueado(found) : false;
+        if (isBloq) {
+            propInput.classList.add('input-faturamento-bloqueado');
+            propInput.title = 'Cliente com faturamento bloqueado';
+        } else {
+            propInput.classList.remove('input-faturamento-bloqueado');
+            propInput.title = '';
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
 
 window.toggleMotivoReprovacao = function(fase) {
     const wrapper = document.getElementById('wrapper-motivo-reprovacao');
@@ -2359,10 +2457,7 @@ window.selecionarContatoParaCliente = async function(contatoJsonStr) {
 
 window.editarContatoDeCliente = async function(id) {
     if (!id) return;
-    _contatoEditandoId = id;
-    _redirectAfterContactSaveToClient = true;
-    window.switchPropostaTab('cadastro-contatos');
-    await window.carregarContatoParaEdicao(id);
+    await window.abrirContatoDeCliente(id);
 };
 
 window.pesquisarClienteProposta = async function() {
@@ -2600,6 +2695,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
     const hoje = new Date().toISOString().split('T')[0];
     const dataCadastro = client ? (client.data_cadastro || hoje) : hoje;
     const inativoChecked = client ? (client.inativo === 1 ? 'checked' : '') : '';
+    const bloquearFatChecked = client && window.clienteTemFaturamentoBloqueado(client) ? 'checked' : '';
+    const bloqInputClass = bloquearFatChecked ? ' input-faturamento-bloqueado' : '';
     const ufSelect = (selectedUf) => {
         const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
         return ufs.map(uf => `<option value="${uf}" ${selectedUf === uf ? 'selected' : ''}>dots ${uf}</option>`).join('').replace(/\.\.\. /g, '');
@@ -2755,6 +2852,23 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     border-color: #3b82f6 !important;
                     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
                 }
+
+                input.input-faturamento-bloqueado,
+                [id^="prop-view-"] input.input-faturamento-bloqueado,
+                #form-cadastro-cliente input.input-faturamento-bloqueado,
+                .mcli-input.input-faturamento-bloqueado {
+                    background: #fef2f2 !important;
+                    border: 1.5px solid #dc2626 !important;
+                    color: #dc2626 !important;
+                    font-weight: 700 !important;
+                }
+                input.input-faturamento-bloqueado:focus,
+                [id^="prop-view-"] input.input-faturamento-bloqueado:focus,
+                #form-cadastro-cliente input.input-faturamento-bloqueado:focus,
+                .mcli-input.input-faturamento-bloqueado:focus {
+                    border-color: #dc2626 !important;
+                    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2) !important;
+                }
                 .mcli-input[readonly] {
                     background: #f1f5f9 !important;
                     color: #64748b !important;
@@ -2844,6 +2958,9 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             Pesquise pelo CNPJ para completar o cadastro.
                         </div>
                         <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; text-transform:uppercase; font-size:0.75rem; margin:0;">
+                                <input type="checkbox" id="modal-cli-bloquear-faturamento" ${bloquearFatChecked} onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'modal')" style="accent-color:#dc2626;"> Bloquear faturamento
+                            </label>
                             <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; text-transform:uppercase; font-size:0.75rem; margin:0;">
                                 <input type="checkbox" id="modal-cli-inativo" ${inativoChecked} style="accent-color:#3b82f6;"> Inativo?
                             </label>
@@ -2856,9 +2973,6 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 </button>
                                 <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                     <i class="ph ph-trash" style="font-size:0.95rem;"></i> Excluir
-                                </button>
-                                <button type="button" onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.8rem; align-items:center; gap:5px; height:32px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
-                                    <i class="ph ph-shield-check" style="font-size:0.95rem;"></i> Verificar
                                 </button>
                             </div>
                         </div>
@@ -2916,11 +3030,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="mcli-field">
                                 <label>Nome / Razão Social *</label>
-                                <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
+                                <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input${bloqInputClass}">
                             </div>
                             <div class="mcli-field">
                                 <label>Nome Fantasia *</label>
-                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || client.nome_razao_social || '') : ''}" class="mcli-input">
+                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || client.nome_razao_social || '') : ''}" class="mcli-input${bloqInputClass}">
                             </div>
                         </div>
                     </div>
@@ -3215,13 +3329,13 @@ window.modalRenderTabelaContatos = function() {
         const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return `
-        <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;" title="Clique para abrir o cadastro deste contato">${c.nome}</td>
+        <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'modal')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste contato">
+            <td style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
-                <button type="button" onclick="window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+                <button type="button" onclick="event.stopPropagation(); window.modalRemoverContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                 </button>
             </td>
@@ -3622,7 +3736,8 @@ window.modalSalvarCliente = async function(clientId) {
 
     const parametros = {
         limite: document.getElementById('modal-cli-p-limite')?.checked || false,
-        retencao: document.getElementById('modal-cli-p-retencao')?.checked || false
+        retencao: document.getElementById('modal-cli-p-retencao')?.checked || false,
+        bloquear_faturamento: document.getElementById('modal-cli-bloquear-faturamento')?.checked || false
     };
 
     const fiscal = {
@@ -3684,7 +3799,12 @@ window.modalSalvarCliente = async function(clientId) {
             }
             // Atualizar o input de cliente na tela de proposta principal
             const propClienteInput = document.getElementById('prop-cliente');
-            if (propClienteInput) propClienteInput.value = razaoSocial;
+            if (propClienteInput) {
+                propClienteInput.value = razaoSocial;
+                if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+                    window.verificarBloqueioFaturamentoProposta(razaoSocial);
+                }
+            }
             
             Swal.close();
         } else {
@@ -5222,6 +5342,9 @@ function _renderCadastroClienteInt() {
                         Pesquise pelo CNPJ para completar o cadastro.
                     </div>
                     <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#dc2626; margin:0;">
+                            <input type="checkbox" id="cli-bloquear-faturamento" style="accent-color:#dc2626;" onchange="window.aplicarVisualBloqueioFaturamento(this.checked, 'main')"> Bloquear faturamento
+                        </label>
                         <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:600; color:#1e293b; margin:0;">
                             <input type="checkbox" id="cli-inativo" style="accent-color:#3b82f6;"> Inativo?
                         </label>
@@ -5234,9 +5357,6 @@ function _renderCadastroClienteInt() {
                             </button>
                             <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                                 <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                            </button>
-                            <button type="button" onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
-                                <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                             </button>
                         </div>
                     </div>
@@ -6325,6 +6445,11 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
             document.getElementById('cli-p-retencao').checked = !!p.retencao;
         } catch(e) {}
 
+        const bloqueadoFat = window.clienteTemFaturamentoBloqueado(c);
+        const chkBloqFat = document.getElementById('cli-bloquear-faturamento');
+        if (chkBloqFat) chkBloqFat.checked = bloqueadoFat;
+        window.aplicarVisualBloqueioFaturamento(bloqueadoFat, 'main');
+
         try {
             const f = JSON.parse(c.fiscal || '{}');
             document.getElementById('cli-f-tributario').value = f.enquadramento || 'Simples Nacional';
@@ -6350,6 +6475,9 @@ window.limparFormCliente = function() {
     
     document.getElementById('cli-codigo').value = '';
     document.getElementById('cli-inativo').checked = false;
+    const chkBloqFat = document.getElementById('cli-bloquear-faturamento');
+    if (chkBloqFat) chkBloqFat.checked = false;
+    window.aplicarVisualBloqueioFaturamento(false, 'main');
     const obsEl = document.getElementById('cli-observacoes');
     if (obsEl) obsEl.value = '';
     const cadUserEl = document.getElementById('cli-cad-usuario');
@@ -6383,29 +6511,568 @@ window.limparFormCliente = function() {
     _renderTabelaContatos();
 };
 
-window.abrirContatoDeCliente = async function(refId, nomeFallback = '') {
-    if (typeof Swal !== 'undefined' && Swal.isVisible()) {
-        Swal.close();
+window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1, origem = 'main') {
+    let contato = null;
+    try {
+        const lista = await apiGet('/contatos') || [];
+        const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        if (refId) {
+            contato = lista.find(ct => Number(ct.id) === Number(refId) || String(ct.codigo) === String(refId));
+            if (!contato) {
+                try {
+                    const byId = await apiGet(`/contatos/${refId}`);
+                    if (byId && byId.id) contato = byId;
+                } catch (e) {}
+            }
+        }
+        if (!contato && nomeFallback) {
+            const q = norm(nomeFallback);
+            contato = lista.find(ct => norm(ct.nome) === q) || lista.find(ct => norm(ct.nome).includes(q));
+        }
+    } catch (e) {
+        console.error('Erro ao buscar contato para popup:', e);
     }
-    if (refId) {
-        await window.editarContatoDeCliente(refId);
+
+    const listaLocal = origem === 'modal' ? (window._modalClienteContatos || []) : (_clienteContatos || []);
+    if (!contato && idx >= 0 && listaLocal[idx]) {
+        const local = listaLocal[idx];
+        let telLocal = local.telefone || '';
+        let ramalLocal = local.ramal || '';
+        if (!telLocal && local.telefone_ramal) {
+            const parts = String(local.telefone_ramal).split(/Ramal/i);
+            telLocal = (parts[0] || '').trim();
+            ramalLocal = (parts[1] || '').trim();
+        }
+        contato = {
+            id: local.id || null,
+            codigo: local.identificacao || local.codigo || '',
+            nome: local.nome || '',
+            celular: local.celular || '',
+            email: local.email || '',
+            tipo: local.tipo || '',
+            representante: local.dono || local.representante || '',
+            cargo: local.cargo || '',
+            sexo: local.sexo || '',
+            data_nascimento: local.data_nascimento || '',
+            departamento: local.departamento || '',
+            origem: local.origem || '',
+            influenciador: local.influenciador || '',
+            classificacao: local.classificacao || '',
+            ramo_atividade: local.ramo_atividade || '',
+            regiao: local.regiao || '',
+            nextel: local.nextel || '',
+            telefone: telLocal,
+            ramal: ramalLocal,
+            outra_comunicacao: local.outra_comunicacao || '',
+            email_nfe: local.nfe === 'Sim' || local.email_nfe === 1 ? 1 : 0,
+            email_cobranca: local.cobranca === 'Sim' || local.email_cobranca === 1 ? 1 : 0,
+            email_os: local.os === 'Sim' || local.email_os === 1 ? 1 : 0,
+            email_contrato: local.contrato === 'Sim' || local.email_contrato === 1 ? 1 : 0,
+            inativo: local.inativo === 'Sim' || local.situacao === 'Inativo' || local.inativo === 1 ? 1 : 0
+        };
+    }
+
+    if (!contato) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Aviso', 'Contato não localizado no cadastro de contatos.', 'warning');
+        } else {
+            alert('Contato não localizado no cadastro de contatos.');
+        }
         return;
     }
-    if (nomeFallback) {
+
+    let client = {
+        id: _clienteEditandoId || contato.cliente_id || null,
+        codigo: document.getElementById('cli-codigo')?.value || '',
+        nome_razao_social: document.getElementById('cli-razao-social')?.value || '',
+        cpf_cnpj: document.getElementById('cli-cpf-cnpj')?.value || '',
+        cep: document.getElementById('cli-cep')?.value || '',
+        endereco: document.getElementById('cli-endereco')?.value || '',
+        numero: document.getElementById('cli-numero')?.value || '',
+        bairro: document.getElementById('cli-bairro')?.value || '',
+        municipio: document.getElementById('cli-municipio')?.value || '',
+        uf: document.getElementById('cli-uf')?.value || '',
+        grupo_clientes: document.getElementById('cli-grupo')?.value || '',
+        cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+        telefone: document.getElementById('cli-telefone')?.value || '',
+        ramal: document.getElementById('cli-ramal')?.value || '',
+        telefone_2: document.getElementById('cli-telefone2')?.value || '',
+        ramal_2: document.getElementById('cli-ramal2')?.value || '',
+        fax: document.getElementById('cli-fax')?.value || '',
+        website: document.getElementById('cli-website')?.value || ''
+    };
+
+    const targetCliId = _clienteEditandoId || contato.cliente_id;
+    if (targetCliId && (!client.nome_razao_social || !client.cpf_cnpj)) {
         try {
-            const lista = await apiGet('/contatos') || [];
-            const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-            const q = norm(nomeFallback);
-            const found = lista.find(ct => norm(ct.nome) === q) || lista.find(ct => norm(ct.nome).includes(q));
-            if (found) {
-                await window.editarContatoDeCliente(found.id);
-                return;
-            }
-        } catch (e) {
-            console.error(e);
-        }
+            const cDb = await apiGet(`/clientes/${targetCliId}`);
+            if (cDb && cDb.id) client = cDb;
+        } catch (e) {}
     }
-    alert('Contato não localizado no cadastro de contatos.');
+
+    const esc = (v) => String(v || '').replace(/"/g, '&quot;');
+    const contatoIdNum = Number(contato.id || 0) || 0;
+
+    Swal.fire({
+        title: '',
+        width: '1100px',
+        customClass: {
+            popup: 'custom-swal-height-large'
+        },
+        showConfirmButton: false,
+        html: `
+            <style>
+                .mcon-container {
+                    background: #fff;
+                    width: 100%;
+                    text-align: left;
+                    font-family: 'Inter', sans-serif;
+                }
+                .mcon-toolbar {
+                    background: #f8fafc;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding: 0.4rem 0.8rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 0.4rem;
+                    position: sticky;
+                    top: 0;
+                    z-index: 997;
+                    border-top-left-radius: 12px;
+                    border-top-right-radius: 12px;
+                }
+                .mcon-form-body {
+                    padding: 0.8rem 1.0rem;
+                    max-height: 420px;
+                    overflow-y: auto;
+                }
+                .mcon-section-title {
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.04em !important;
+                    border-bottom: 2px solid #e2e8f0 !important;
+                    padding-bottom: 0.25rem !important;
+                    margin: 0.8rem 0 0.5rem 0 !important;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .mcon-section-title.first {
+                    margin-top: 0 !important;
+                }
+                .mcon-grid {
+                    display: grid;
+                    gap: 0.4rem 0.6rem;
+                }
+                .mcon-grid-contact-row1 {
+                    grid-template-columns: 1.5fr 3.5fr 2fr 2fr;
+                }
+                .mcon-grid-contact-row2 {
+                    grid-template-columns: 1.5fr 1.5fr 1.5fr 1.2fr 1.2fr 1.5fr;
+                }
+                .mcon-grid-contact-row3 {
+                    grid-template-columns: 1.5fr 1.5fr 1.2fr 1.8fr 1.2fr 1.2fr;
+                }
+                .mcon-grid-contact-row4 {
+                    grid-template-columns: 1.5fr 0.8fr 4fr;
+                }
+                .mcon-grid-company-row1 {
+                    grid-template-columns: 4fr 2fr 1.5fr;
+                }
+                .mcon-grid-company-row2 {
+                    grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+                }
+                .mcon-grid-company-row3 {
+                    grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+                }
+                .mcon-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.2rem;
+                }
+                .mcon-field label {
+                    font-size: 0.7rem !important;
+                    font-weight: 700 !important;
+                    color: #64748b !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.02em !important;
+                    margin-bottom: 2px !important;
+                }
+                .mcon-input, .mcon-select {
+                    padding: 0.15rem 0.45rem !important;
+                    border: 1px solid #cbd5e1 !important;
+                    border-radius: 4px !important;
+                    font-size: 0.76rem !important;
+                    background: #fff !important;
+                    color: #1e293b !important;
+                    outline: none !important;
+                    transition: all 0.2s !important;
+                    box-sizing: border-box !important;
+                    width: 100% !important;
+                    height: 28px !important;
+                    font-family: 'Inter', sans-serif !important;
+                }
+                .mcon-input:focus, .mcon-select:focus {
+                    border-color: #3b82f6 !important;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                }
+                .mcon-input[readonly] {
+                    background: #f1f5f9 !important;
+                    color: #64748b !important;
+                    cursor: not-allowed !important;
+                }
+                .mcon-input-group {
+                    display: flex;
+                    gap: 0.35rem;
+                    width: 100%;
+                }
+                .mcon-ribbon-checkboxes {
+                    display: flex;
+                    gap: 12px;
+                    font-size: 0.76rem;
+                    align-items: center;
+                    font-weight: 600;
+                    font-family: 'Inter', sans-serif;
+                }
+                .mcon-ribbon-checkboxes label {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    cursor: pointer;
+                }
+            </style>
+
+            <div class="mcon-container">
+                <div class="mcon-toolbar">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-weight:800; font-size:0.85rem; color:#1e293b; text-transform:uppercase;">
+                            <i class="ph ph-identification-card" style="color:#7048e8; font-size:1.1rem; vertical-align:middle;"></i> Cadastro do Contato
+                        </span>
+                    </div>
+                    <div class="mcon-ribbon-checkboxes" style="color:#475569;">
+                        <label><input type="checkbox" id="mcon-email-nfe" ${contato.email_nfe ? 'checked' : ''}> Envio NFe</label>
+                        <label><input type="checkbox" id="mcon-email-cobranca" ${contato.email_cobranca ? 'checked' : ''}> Cobrança</label>
+                        <label><input type="checkbox" id="mcon-email-os" ${contato.email_os ? 'checked' : ''}> OS</label>
+                        <label><input type="checkbox" id="mcon-email-contrato" ${contato.email_contrato ? 'checked' : ''}> Contrato</label>
+                        <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo" ${contato.inativo ? 'checked' : ''}> Inativo</label>
+                    </div>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <button type="button" onclick="window.modalSalvarEdicaoContato(${contatoIdNum}, ${idx}, '${origem}')" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                            <i class="ph ph-check" style="font-size:0.9rem;"></i> Salvar
+                        </button>
+                        <button type="button" onclick="Swal.close()" style="background:#e2e8f0; color:#475569; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                            <i class="ph ph-x" style="font-size:0.9rem;"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mcon-form-body">
+                    <div class="mcon-section-title first">
+                        <i class="ph ph-identification-card"></i> Dados do Contato
+                    </div>
+                    <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                        <div class="mcon-grid mcon-grid-contact-row1">
+                            <div class="mcon-field">
+                                <label>Código</label>
+                                <input type="text" id="mcon-codigo" readonly value="${esc(contato.codigo)}" placeholder="Auto" class="mcon-input" style="text-align:center; font-weight:bold; color:#7048e8;">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Nome *</label>
+                                <input type="text" id="mcon-nome" value="${esc(contato.nome)}" placeholder="Nome Completo" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Celular</label>
+                                <input type="text" id="mcon-celular" value="${esc(contato.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>E-mail *</label>
+                                <input type="email" id="mcon-email" value="${esc(contato.email)}" placeholder="nome@empresa.com" class="mcon-input">
+                            </div>
+                        </div>
+
+                        <div class="mcon-grid mcon-grid-contact-row2">
+                            <div class="mcon-field">
+                                <label>Tipo</label>
+                                <select id="mcon-tipo" class="mcon-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Principal" ${contato.tipo === '1 - Principal' ? 'selected' : ''}>1 - Principal</option>
+                                    <option value="2 - Financeiro" ${contato.tipo === '2 - Financeiro' ? 'selected' : ''}>2 - Financeiro</option>
+                                    <option value="3 - Comercial" ${contato.tipo === '3 - Comercial' ? 'selected' : ''}>3 - Comercial</option>
+                                    <option value="4 - Técnico" ${contato.tipo === '4 - Técnico' ? 'selected' : ''}>4 - Técnico</option>
+                                    <option value="5 - Diretoria" ${contato.tipo === '5 - Diretoria' ? 'selected' : ''}>5 - Diretoria</option>
+                                    <option value="6 - Outros" ${contato.tipo === '6 - Outros' ? 'selected' : ''}>6 - Outros</option>
+                                </select>
+                            </div>
+                            <div class="mcon-field">
+                                <label>Representante</label>
+                                <input type="text" id="mcon-representante" value="${esc(contato.representante)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Cargo</label>
+                                <input type="text" id="mcon-cargo" value="${esc(contato.cargo)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Sexo</label>
+                                <select id="mcon-sexo" class="mcon-select">
+                                    <option value="">--</option>
+                                    <option value="M" ${contato.sexo === 'M' || contato.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
+                                    <option value="F" ${contato.sexo === 'F' || contato.sexo === 'Feminino' ? 'selected' : ''}>Feminino</option>
+                                    <option value="O" ${contato.sexo === 'O' || contato.sexo === 'Outro' ? 'selected' : ''}>Outro</option>
+                                </select>
+                            </div>
+                            <div class="mcon-field">
+                                <label>Nascimento</label>
+                                <input type="date" id="mcon-nascimento" value="${esc(contato.data_nascimento)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Departamento</label>
+                                <input type="text" id="mcon-departamento" value="${esc(contato.departamento)}" class="mcon-input">
+                            </div>
+                        </div>
+
+                        <div class="mcon-grid mcon-grid-contact-row3">
+                            <div class="mcon-field">
+                                <label>Origem</label>
+                                <input type="text" id="mcon-origem" value="${esc(contato.origem)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Influenciador</label>
+                                <select id="mcon-influenciador" class="mcon-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="Sim" ${contato.influenciador === 'Sim' ? 'selected' : ''}>Sim</option>
+                                    <option value="Não" ${contato.influenciador === 'Não' ? 'selected' : ''}>Não</option>
+                                </select>
+                            </div>
+                            <div class="mcon-field">
+                                <label>Classificação</label>
+                                <select id="mcon-classificacao" class="mcon-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="1 - Diamante" ${contato.classificacao === '1 - Diamante' ? 'selected' : ''}>1 - Diamante</option>
+                                    <option value="2 - Ouro" ${contato.classificacao === '2 - Ouro' ? 'selected' : ''}>2 - Ouro</option>
+                                    <option value="3 - Prata" ${contato.classificacao === '3 - Prata' ? 'selected' : ''}>3 - Prata</option>
+                                    <option value="4 - Bronze" ${contato.classificacao === '4 - Bronze' ? 'selected' : ''}>4 - Bronze</option>
+                                </select>
+                            </div>
+                            <div class="mcon-field">
+                                <label>Ramo de Atividade</label>
+                                <input type="text" id="mcon-ramo-atividade" value="${esc(contato.ramo_atividade)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Região</label>
+                                <input type="text" id="mcon-regiao" value="${esc(contato.regiao)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Nextel</label>
+                                <input type="text" id="mcon-nextel" value="${esc(contato.nextel)}" class="mcon-input">
+                            </div>
+                        </div>
+
+                        <div class="mcon-grid mcon-grid-contact-row4">
+                            <div class="mcon-field">
+                                <label>Telefone</label>
+                                <input type="text" id="mcon-telefone" value="${esc(contato.telefone)}" placeholder="(XX) XXXX-XXXX" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Ramal</label>
+                                <input type="text" id="mcon-ramal" value="${esc(contato.ramal)}" class="mcon-input">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Outras Comunicações</label>
+                                <input type="text" id="mcon-outra-comunicacao" value="${esc(contato.outra_comunicacao)}" class="mcon-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mcon-section-title">
+                        <i class="ph ph-buildings"></i> Empresa Cliente
+                    </div>
+                    <div class="mcon-grid" style="display:flex; flex-direction:column; gap:0.5rem;">
+                        <div class="mcon-grid mcon-grid-company-row1">
+                            <div class="mcon-field">
+                                <label>Cliente (Razão Social) *</label>
+                                <div class="mcon-input-group">
+                                    <input type="text" id="memp-codigo" readonly class="mcon-input" style="width: 80px; font-weight: bold; text-align: center;" value="${esc(client.codigo)}">
+                                    <input type="text" id="memp-razao-social" readonly class="mcon-input" value="${esc(client.nome_razao_social)}">
+                                </div>
+                            </div>
+                            <div class="mcon-field">
+                                <label>CNPJ *</label>
+                                <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${esc(client.cpf_cnpj)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>CEP</label>
+                                <input type="text" id="memp-cep" readonly class="mcon-input" value="${esc(client.cep)}">
+                            </div>
+                        </div>
+
+                        <div class="mcon-grid mcon-grid-company-row2">
+                            <div class="mcon-field">
+                                <label>Endereço</label>
+                                <input type="text" id="memp-endereco" readonly class="mcon-input" value="${esc(client.endereco)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Número</label>
+                                <input type="text" id="memp-numero" readonly class="mcon-input" value="${esc(client.numero)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Bairro</label>
+                                <input type="text" id="memp-bairro" readonly class="mcon-input" value="${esc(client.bairro)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Cidade</label>
+                                <input type="text" id="memp-cidade" readonly class="mcon-input" value="${esc(client.municipio)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>UF</label>
+                                <input type="text" id="memp-uf" readonly class="mcon-input" value="${esc(client.uf)}">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="mcon-field">
+                                <label>Grupo de Clientes</label>
+                                <input type="text" id="memp-grupo" readonly class="mcon-input" value="${esc(client.grupo_clientes)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Cliente Centralizador</label>
+                                <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${esc(client.cliente_centralizador)}">
+                            </div>
+                        </div>
+
+                        <div class="mcon-grid mcon-grid-company-row3">
+                            <div class="mcon-field">
+                                <label>Telefone</label>
+                                <input type="text" id="memp-telefone" readonly class="mcon-input" value="${esc(client.telefone)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Ramal</label>
+                                <input type="text" id="memp-ramal" readonly class="mcon-input" value="${esc(client.ramal)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Telefone 2</label>
+                                <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${esc(client.telefone_2)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Ramal 2</label>
+                                <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${esc(client.ramal_2)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Fax</label>
+                                <input type="text" id="memp-fax" readonly class="mcon-input" value="${esc(client.fax)}">
+                            </div>
+                            <div class="mcon-field">
+                                <label>Website (Site)</label>
+                                <input type="text" id="memp-site" readonly class="mcon-input" value="${esc(client.website)}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
+        didOpen: () => {
+            const conCelular = document.getElementById('mcon-celular');
+            if (conCelular) {
+                conCelular.addEventListener('input', (e) => {
+                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+                    e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                });
+            }
+            const conTelefone = document.getElementById('mcon-telefone');
+            if (conTelefone) {
+                conTelefone.addEventListener('input', (e) => {
+                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,4})(\d{0,4})/);
+                    e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                });
+            }
+        }
+    });
+};
+
+window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = 'main') {
+    const conNome = document.getElementById('mcon-nome')?.value.trim() || '';
+    const conEmail = document.getElementById('mcon-email')?.value.trim() || '';
+    if (!conNome) {
+        alert('Por favor, preencha o Nome do Contato.');
+        return;
+    }
+
+    const payload = {
+        codigo: document.getElementById('mcon-codigo')?.value || null,
+        nome: conNome,
+        tipo: document.getElementById('mcon-tipo')?.value || '',
+        representante: document.getElementById('mcon-representante')?.value || '',
+        departamento: document.getElementById('mcon-departamento')?.value || '',
+        cargo: document.getElementById('mcon-cargo')?.value || '',
+        origem: document.getElementById('mcon-origem')?.value || '',
+        influenciador: document.getElementById('mcon-influenciador')?.value || '',
+        classificacao: document.getElementById('mcon-classificacao')?.value || '',
+        data_nascimento: document.getElementById('mcon-nascimento')?.value || '',
+        ramo_atividade: document.getElementById('mcon-ramo-atividade')?.value || '',
+        regiao: document.getElementById('mcon-regiao')?.value || '',
+        sexo: document.getElementById('mcon-sexo')?.value || '',
+        celular: document.getElementById('mcon-celular')?.value || '',
+        telefone: document.getElementById('mcon-telefone')?.value || '',
+        ramal: document.getElementById('mcon-ramal')?.value || '',
+        nextel: document.getElementById('mcon-nextel')?.value || '',
+        email: conEmail,
+        outra_comunicacao: document.getElementById('mcon-outra-comunicacao')?.value || '',
+        inativo: document.getElementById('mcon-inativo')?.checked ? 1 : 0,
+        email_cobranca: document.getElementById('mcon-email-cobranca')?.checked ? 1 : 0,
+        email_nfe: document.getElementById('mcon-email-nfe')?.checked ? 1 : 0,
+        email_os: document.getElementById('mcon-email-os')?.checked ? 1 : 0,
+        email_contrato: document.getElementById('mcon-email-contrato')?.checked ? 1 : 0,
+        cliente_id: _clienteEditandoId || null,
+        empresa_cliente: _clienteEditandoId ? { id: _clienteEditandoId } : null
+    };
+
+    try {
+        let savedId = contatoId;
+        if (contatoId) {
+            await apiPut(`/contatos/${contatoId}`, payload);
+        } else if (_clienteEditandoId) {
+            const res = await apiPost('/contatos', payload);
+            if (res && res.id) savedId = res.id;
+        }
+
+        const mapped = {
+            id: savedId || contatoId || null,
+            identificacao: payload.codigo || '',
+            nome: payload.nome,
+            departamento: payload.departamento,
+            celular: payload.celular,
+            telefone_ramal: payload.telefone ? (payload.ramal ? `${payload.telefone} Ramal ${payload.ramal}` : payload.telefone) : '',
+            email: payload.email,
+            dono: payload.representante,
+            cargo: payload.cargo,
+            situacao: payload.inativo ? 'Inativo' : 'Ativo',
+            nfe: payload.email_nfe ? 'Sim' : 'Não',
+            cobranca: payload.email_cobranca ? 'Sim' : 'Não',
+            os: payload.email_os ? 'Sim' : 'Não',
+            contrato: payload.email_contrato ? 'Sim' : 'Não',
+            origem: payload.origem,
+            inativo: payload.inativo ? 'Sim' : 'Não'
+        };
+
+        if (idx >= 0 && _clienteContatos[idx]) {
+            _clienteContatos[idx] = mapped;
+        } else if (savedId) {
+            const foundIdx = _clienteContatos.findIndex(c => Number(c.id) === Number(savedId));
+            if (foundIdx >= 0) _clienteContatos[foundIdx] = mapped;
+        }
+        _renderTabelaContatos();
+
+        Swal.close();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Contato atualizado com sucesso!');
+        }
+    } catch (e) {
+        console.error('Erro ao salvar edição do contato no popup:', e);
+        alert('Erro ao salvar alterações do contato.');
+    }
 };
 
 window._renderTabelaContatos = function() {
@@ -6424,11 +7091,11 @@ window._renderTabelaContatos = function() {
     }
     
     tbody.innerHTML = _clienteContatos.map((c, idx) => {
-        const refId = c.id || c.identificacao || c.codigo || 0;
-        const safeNome = String(c.nome || '').replace(/'/g, "\\'");
+        const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
+        const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return `
-        <tr ondblclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique no nome para abrir o contato">
-            <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
+        <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'main')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro do contato">
+            <td style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
@@ -7359,7 +8026,8 @@ window.salvarCliente = async function() {
 
     const parametros = {
         limite: document.getElementById('cli-p-limite')?.checked || false,
-        retencao: document.getElementById('cli-p-retencao')?.checked || false
+        retencao: document.getElementById('cli-p-retencao')?.checked || false,
+        bloquear_faturamento: document.getElementById('cli-bloquear-faturamento')?.checked || false
     };
 
     const fiscal = {
@@ -7426,8 +8094,13 @@ window.salvarCliente = async function() {
             if (_redirectAfterClientSave) {
                 _redirectAfterClientSave = false;
                 const propClienteInput = document.getElementById('prop-cliente');
-                if (propClienteInput) propClienteInput.value = razaoSocial;
+                if (propClienteInput) {
+                    propClienteInput.value = razaoSocial;
+                    window.verificarBloqueioFaturamentoProposta(razaoSocial);
+                }
                 window.switchPropostaTab('form');
+            } else {
+                window.verificarBloqueioFaturamentoProposta(razaoSocial);
             }
         } else {
             alert('Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'));
@@ -8738,6 +9411,23 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 .cc-input-modal:focus, .cc-select-modal:focus {
                     border-color: #3b82f6 !important;
                     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                }
+
+                input.input-faturamento-bloqueado,
+                [id^="prop-view-"] input.input-faturamento-bloqueado,
+                #form-cadastro-cliente input.input-faturamento-bloqueado,
+                .mcli-input.input-faturamento-bloqueado {
+                    background: #fef2f2 !important;
+                    border: 1.5px solid #dc2626 !important;
+                    color: #dc2626 !important;
+                    font-weight: 700 !important;
+                }
+                input.input-faturamento-bloqueado:focus,
+                [id^="prop-view-"] input.input-faturamento-bloqueado:focus,
+                #form-cadastro-cliente input.input-faturamento-bloqueado:focus,
+                .mcli-input.input-faturamento-bloqueado:focus {
+                    border-color: #dc2626 !important;
+                    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2) !important;
                 }
                 .cc-input-modal[readonly] {
                     background: #f1f5f9 !important;
