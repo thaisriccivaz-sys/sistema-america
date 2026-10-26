@@ -1839,10 +1839,16 @@ window.navigateTo = function(targetId) {
 };
 
 // ── Abas ──────────────────────────────────────────────────────────────────────
+window._abaAtivaEstoque = "itens";
 window.switchTabEstoque = function(tab) {
-    document.getElementById("content-estoque-itens").style.display     = tab === "itens"     ? "block" : "none";
-    document.getElementById("content-estoque-historico").style.display = tab === "historico" ? "block" : "none";
-    ["itens","historico"].forEach(t => {
+    window._abaAtivaEstoque = tab;
+    const elItens = document.getElementById("content-estoque-itens");
+    const elEquip = document.getElementById("content-estoque-equipamentos");
+    const elHist  = document.getElementById("content-estoque-historico");
+    if (elItens) elItens.style.display = tab === "itens"        ? "block" : "none";
+    if (elEquip) elEquip.style.display = tab === "equipamentos" ? "block" : "none";
+    if (elHist)  elHist.style.display  = tab === "historico"    ? "block" : "none";
+    ["itens", "equipamentos", "historico"].forEach(t => {
         const el = document.getElementById("tab-estoque-" + t);
         if (!el) return;
         el.style.color       = tab === t ? "#e67700" : "#64748b";
@@ -1850,6 +1856,9 @@ window.switchTabEstoque = function(tab) {
         el.style.fontWeight  = tab === t ? "700" : "600";
     });
     if (tab === "historico") window.renderEstoqueHistorico();
+    if (tab === "equipamentos" && typeof window.carregarEquipamentosEstoque === "function") {
+        window.carregarEquipamentosEstoque();
+    }
 };
 
 // ── Histórico ─────────────────────────────────────────────────────────────────
@@ -2424,5 +2433,376 @@ window.enviarEmailEstoqueMinimo = async function(tipo) {
             btn.disabled = false;
             btn.innerHTML = origHtml;
         }
+    }
+};
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ABA: EQUIPAMENTOS (ESTOQUE ADMINISTRATIVO)
+// ══════════════════════════════════════════════════════════════════════════════
+window._equipamentosEstoqueData = [];
+window._equipamentosEstoqueSortCol = 'codigo';
+window._equipamentosEstoqueSortAsc = true;
+
+window.carregarEquipamentosEstoque = async function() {
+    const tbody = document.getElementById('table-estoque-equipamentos');
+    if (tbody && (!window._equipamentosEstoqueData || window._equipamentosEstoqueData.length === 0)) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>';
+    }
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/estoque-equipamentos', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!r.ok) throw new Error('Erro ao carregar equipamentos');
+        const rows = await r.json();
+        window._equipamentosEstoqueData = Array.isArray(rows) ? rows : [];
+        window.renderEquipamentosEstoqueTable();
+    } catch (err) {
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef4444;">Erro ao carregar equipamentos: ' + err.message + '</td></tr>';
+        }
+    }
+};
+
+window.ordenarTabelaEquipamentosEstoque = function(col) {
+    if (window._equipamentosEstoqueSortCol === col) {
+        window._equipamentosEstoqueSortAsc = !window._equipamentosEstoqueSortAsc;
+    } else {
+        window._equipamentosEstoqueSortCol = col;
+        window._equipamentosEstoqueSortAsc = true;
+    }
+    window.renderEquipamentosEstoqueTable();
+};
+
+window.renderEquipamentosEstoqueTable = function() {
+    const tbody = document.getElementById('table-estoque-equipamentos');
+    if (!tbody) return;
+
+    const busca = (document.getElementById('filtro-equip-est-busca')?.value || '').trim().toLowerCase();
+    const grupo = (document.getElementById('filtro-equip-est-grupo')?.value || '').trim();
+    const fonte = (document.getElementById('filtro-equip-est-fonte')?.value || '').trim();
+    const venda = (document.getElementById('filtro-equip-est-venda')?.value || '').trim();
+
+    let lista = (window._equipamentosEstoqueData || []).filter(item => {
+        if (busca) {
+            const matchNome = String(item.nome || '').toLowerCase().includes(busca);
+            const matchCod  = String(item.codigo || '').toLowerCase().includes(busca);
+            const matchEsp  = String(item.especificacao_tecnica || '').toLowerCase().includes(busca);
+            if (!matchNome && !matchCod && !matchEsp) return false;
+        }
+        if (grupo && String(item.grupo_produto || '') !== grupo) return false;
+        if (fonte && String(item.fonte_fornecimento || '') !== fonte) return false;
+        if (venda !== '' && String(item.produto_venda ? '1' : '0') !== venda) return false;
+        return true;
+    });
+
+    const col = window._equipamentosEstoqueSortCol || 'codigo';
+    const dir = window._equipamentosEstoqueSortAsc ? 1 : -1;
+    lista.sort((a, b) => {
+        if (col === 'produto_venda') {
+            return ((a.produto_venda ? 1 : 0) - (b.produto_venda ? 1 : 0)) * dir;
+        }
+        const va = String(a[col] || '').toLowerCase();
+        const vb = String(b[col] || '').toLowerCase();
+        return va.localeCompare(vb, 'pt-BR', { numeric: true }) * dir;
+    });
+
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
+        return;
+    }
+
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    tbody.innerHTML = lista.map(item => {
+        const isVenda = !!item.produto_venda;
+        const badgeVenda = isVenda
+            ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;"></span>ON (Sim)</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;"></span>OFF (Não)</span>';
+
+        const especTexto = String(item.especificacao_tecnica || '').trim();
+        const especPreview = especTexto
+            ? '<div style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
+            : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
+
+        return '<tr>' +
+            '<td><span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-weight:700;font-size:0.78rem;white-space:nowrap;">' + esc(item.codigo) + '</span></td>' +
+            '<td style="font-weight:600;color:#1e293b;">' + esc(item.nome) + '</td>' +
+            '<td><span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:600;white-space:nowrap;">' + esc(item.unidade_medida) + '</span></td>' +
+            '<td style="color:#334155;font-size:0.84rem;">' + esc(item.fonte_fornecimento) + '</td>' +
+            '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(item.grupo_produto) + '</span></td>' +
+            '<td style="text-align:center;">' + badgeVenda + '</td>' +
+            '<td>' + especPreview + '</td>' +
+            '<td style="text-align:right;white-space:nowrap;">' +
+                '<div style="display:inline-flex;gap:6px;align-items:center;">' +
+                    '<button type="button" class="btn btn-sm" onclick="window.duplicarEquipamentoEstoque(' + item.id + ')" title="Duplicar equipamento para editar e salvar" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:0.76rem;padding:4px 9px;">' +
+                        '<i class="ph ph-copy"></i> Duplicar' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-sm" onclick="window.abrirModalEquipamentoEstoque(' + item.id + ')" title="Editar" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;padding:4px 8px;">' +
+                        '<i class="ph ph-pencil-simple"></i>' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-sm" onclick="window.excluirEquipamentoEstoque(' + item.id + ')" title="Excluir" style="background:#fef2f2;color:#ef4444;border:1px solid #fecaca;padding:4px 8px;">' +
+                        '<i class="ph ph-trash"></i>' +
+                    '</button>' +
+                '</div>' +
+            '</td>' +
+        '</tr>';
+    }).join('');
+};
+
+window.setVendaEquipamentoEstoqueUI = function(ativo) {
+    const inp = document.getElementById('equipamento-est-venda');
+    const btn = document.getElementById('btn-toggle-venda-equipamento');
+    const dot = document.getElementById('dot-toggle-venda-equipamento');
+    const lbl = document.getElementById('lbl-toggle-venda-equipamento');
+    const isOn = !!ativo;
+    if (inp) inp.value = isOn ? '1' : '0';
+    if (btn) {
+        btn.style.background  = isOn ? '#dcfce7' : '#e2e8f0';
+        btn.style.borderColor = isOn ? '#22c55e' : '#cbd5e1';
+        btn.style.color       = isOn ? '#15803d' : '#475569';
+    }
+    if (dot) {
+        dot.style.background = isOn ? '#16a34a' : '#64748b';
+    }
+    if (lbl) {
+        lbl.textContent = isOn ? 'ON (Sim)' : 'OFF (Não)';
+    }
+};
+
+window.toggleVendaEquipamentoEstoque = function() {
+    const inp = document.getElementById('equipamento-est-venda');
+    const atual = inp && inp.value === '1';
+    window.setVendaEquipamentoEstoqueUI(!atual);
+};
+
+window._buscarProximoCodigoEquipamento = async function() {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/estoque-equipamentos/proximo-codigo', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (r.ok) {
+            const d = await r.json();
+            if (d && d.codigo) return d.codigo;
+        }
+    } catch (e) {}
+    return 'Automático';
+};
+
+window.abrirModalEquipamentoEstoque = async function(id) {
+    const modal = document.getElementById('modal-estoque-equipamento');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('modal-equipamento-estoque-title');
+    const subEl   = document.getElementById('modal-equipamento-estoque-subtitle');
+    const btnDup  = document.getElementById('btn-modal-duplicar-equipamento');
+
+    if (id) {
+        const item = (window._equipamentosEstoqueData || []).find(x => x.id == id);
+        if (!item) return;
+        document.getElementById('equipamento-est-id').value = item.id;
+        document.getElementById('equipamento-est-codigo').value = item.codigo || '';
+        document.getElementById('equipamento-est-nome').value = item.nome || '';
+        document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
+        document.getElementById('equipamento-est-fonte').value = item.fonte_fornecimento || 'Outros';
+        document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
+        document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
+        window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
+        if (titleEl) titleEl.textContent = 'Editar Equipamento';
+        if (subEl) subEl.textContent = 'Edite os dados ou clique em Duplicar para criar uma cópia';
+        if (btnDup) btnDup.style.display = 'inline-flex';
+    } else {
+        document.getElementById('equipamento-est-id').value = '';
+        document.getElementById('equipamento-est-codigo').value = 'Gerando...';
+        document.getElementById('equipamento-est-nome').value = '';
+        document.getElementById('equipamento-est-unidade').value = 'UNIDADE [UN]';
+        document.getElementById('equipamento-est-fonte').value = 'Banheiros Químicos Obra';
+        document.getElementById('equipamento-est-grupo').value = 'STANDARD';
+        document.getElementById('equipamento-est-especificacao').value = '';
+        window.setVendaEquipamentoEstoqueUI(false);
+        if (titleEl) titleEl.textContent = 'Cadastrar Equipamento';
+        if (subEl) subEl.textContent = 'O código é gerado automaticamente';
+        if (btnDup) btnDup.style.display = 'none';
+
+        const proxCod = await window._buscarProximoCodigoEquipamento();
+        document.getElementById('equipamento-est-codigo').value = proxCod;
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('equipamento-est-nome')?.focus(), 80);
+};
+
+window.duplicarEquipamentoEstoque = async function(id) {
+    const item = (window._equipamentosEstoqueData || []).find(x => x.id == id);
+    if (!item) return;
+
+    const modal = document.getElementById('modal-estoque-equipamento');
+    if (!modal) return;
+
+    document.getElementById('equipamento-est-id').value = '';
+    document.getElementById('equipamento-est-codigo').value = 'Gerando...';
+    document.getElementById('equipamento-est-nome').value = item.nome || '';
+    document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
+    document.getElementById('equipamento-est-fonte').value = item.fonte_fornecimento || 'Outros';
+    document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
+    document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
+    window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
+
+    const titleEl = document.getElementById('modal-equipamento-estoque-title');
+    const subEl   = document.getElementById('modal-equipamento-estoque-subtitle');
+    const btnDup  = document.getElementById('btn-modal-duplicar-equipamento');
+    if (titleEl) titleEl.textContent = 'Duplicar Equipamento';
+    if (subEl) subEl.textContent = 'Altere o nome e as informações necessárias antes de salvar';
+    if (btnDup) btnDup.style.display = 'none';
+
+    modal.style.display = 'flex';
+    const proxCod = await window._buscarProximoCodigoEquipamento();
+    document.getElementById('equipamento-est-codigo').value = proxCod;
+    setTimeout(() => {
+        const inpNome = document.getElementById('equipamento-est-nome');
+        if (inpNome) {
+            inpNome.focus();
+            inpNome.select();
+        }
+    }, 80);
+};
+
+window.duplicarEquipamentoDoModal = async function() {
+    document.getElementById('equipamento-est-id').value = '';
+    document.getElementById('equipamento-est-codigo').value = 'Gerando...';
+    const titleEl = document.getElementById('modal-equipamento-estoque-title');
+    const subEl   = document.getElementById('modal-equipamento-estoque-subtitle');
+    const btnDup  = document.getElementById('btn-modal-duplicar-equipamento');
+    if (titleEl) titleEl.textContent = 'Duplicar Equipamento';
+    if (subEl) subEl.textContent = 'Cópia pronta — altere o nome e edite as informações antes de salvar';
+    if (btnDup) btnDup.style.display = 'none';
+
+    const proxCod = await window._buscarProximoCodigoEquipamento();
+    document.getElementById('equipamento-est-codigo').value = proxCod;
+    const inpNome = document.getElementById('equipamento-est-nome');
+    if (inpNome) {
+        inpNome.focus();
+        inpNome.select();
+    }
+};
+
+window.fecharModalEquipamentoEstoque = function() {
+    const modal = document.getElementById('modal-estoque-equipamento');
+    if (modal) modal.style.display = 'none';
+};
+
+window.salvarEquipamentoEstoque = async function(event) {
+    if (event) event.preventDefault();
+
+    const id = (document.getElementById('equipamento-est-id')?.value || '').trim();
+    const nome = (document.getElementById('equipamento-est-nome')?.value || '').trim();
+    const unidade_medida = document.getElementById('equipamento-est-unidade')?.value || 'UNIDADE [UN]';
+    const fonte_fornecimento = document.getElementById('equipamento-est-fonte')?.value || 'Outros';
+    const grupo_produto = document.getElementById('equipamento-est-grupo')?.value || 'STANDARD';
+    const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
+    const produto_venda = document.getElementById('equipamento-est-venda')?.value === '1' ? 1 : 0;
+
+    if (!nome) {
+        Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe o nome do equipamento.' });
+        return;
+    }
+
+    // Validação no frontend: não permitir 2 equipamentos com o mesmo nome exato
+    const nomeNorm = nome.toLowerCase();
+    const existente = (window._equipamentosEstoqueData || []).find(item =>
+        String(item.nome || '').trim().toLowerCase() === nomeNorm && String(item.id) !== String(id)
+    );
+    if (existente) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Nome já cadastrado',
+            text: 'Já existe um equipamento cadastrado com exatamente o nome "' + existente.nome + '" (Código: ' + existente.codigo + '). Altere o nome antes de salvar.'
+        });
+        return;
+    }
+
+    const btn = document.getElementById('btn-salvar-equipamento-estoque');
+    const origText = btn ? btn.innerHTML : '';
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = 'Salvando...';
+        }
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const url = id ? (API_URL + '/estoque-equipamentos/' + id) : (API_URL + '/estoque-equipamentos');
+        const method = id ? 'PUT' : 'POST';
+
+        const r = await fetch(url, {
+            method,
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome,
+                unidade_medida,
+                fonte_fornecimento,
+                grupo_produto,
+                especificacao_tecnica,
+                produto_venda
+            })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            throw new Error(data.error || 'Erro ao salvar equipamento');
+        }
+
+        window.fecharModalEquipamentoEstoque();
+        await window.carregarEquipamentosEstoque();
+        Swal.fire({
+            icon: 'success',
+            title: id ? 'Equipamento atualizado!' : 'Equipamento cadastrado!',
+            text: !id && data.codigo ? ('Código gerado: ' + data.codigo) : undefined,
+            timer: 1800,
+            showConfirmButton: false
+        });
+    } catch (err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Não foi possível salvar',
+            text: err.message
+        });
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
+    }
+};
+
+window.excluirEquipamentoEstoque = async function(id) {
+    const item = (window._equipamentosEstoqueData || []).find(x => x.id == id);
+    if (!item) return;
+
+    const conf = await Swal.fire({
+        icon: 'warning',
+        title: 'Excluir equipamento?',
+        html: 'Deseja realmente excluir <b>' + item.codigo + ' — ' + item.nome + '</b>?',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/estoque-equipamentos/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Erro ao excluir equipamento');
+        await window.carregarEquipamentosEstoque();
+        Swal.fire({ icon: 'success', title: 'Equipamento excluído!', timer: 1400, showConfirmButton: false });
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Erro ao excluir', text: err.message });
     }
 };

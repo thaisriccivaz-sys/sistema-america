@@ -2119,4 +2119,24 @@ db.run("PRAGMA foreign_keys = ON;");
                 });
             }
 
+
+            // ── Tabela de Equipamentos (Controle de Estoque Administrativo) ──────────
+            db.run(`
+                CREATE TABLE IF NOT EXISTS estoque_equipamentos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    nome TEXT NOT NULL,
+                    unidade_medida TEXT NOT NULL DEFAULT 'UNIDADE [UN]',
+                    fonte_fornecimento TEXT NOT NULL DEFAULT 'Outros',
+                    grupo_produto TEXT NOT NULL DEFAULT 'STANDARD',
+                    especificacao_tecnica TEXT DEFAULT '',
+                    produto_venda INTEGER DEFAULT 0,
+                    criado_por TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (!err) console.log('[ESTOQUE] Tabela estoque_equipamentos OK.');
+            });
+
 module.exports = db;

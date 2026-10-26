@@ -33402,6 +33402,122 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
         }
     );
 });
+
+// ── MÓDULO: EQUIPAMENTOS DO ESTOQUE ADMINISTRATIVO ───────────────────────────
+function gerarProximoCodigoEquipamento(cb) {
+    db.get(`SELECT MAX(CAST(REPLACE(REPLACE(UPPER(codigo), 'EQ-', ''), 'EQ', '') AS INTEGER)) as max_seq FROM estoque_equipamentos`, [], (err, row) => {
+        const nextNum = ((row && row.max_seq) ? parseInt(row.max_seq, 10) : 0) + 1;
+        const codigo = 'EQ-' + String(nextNum).padStart(4, '0');
+        cb(codigo);
+    });
+}
+
+// GET /api/estoque-equipamentos/proximo-codigo
+app.get('/api/estoque-equipamentos/proximo-codigo', authenticateToken, (req, res) => {
+    gerarProximoCodigoEquipamento((codigo) => {
+        res.json({ codigo });
+    });
+});
+
+// GET /api/estoque-equipamentos
+app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM estoque_equipamentos ORDER BY CAST(REPLACE(REPLACE(UPPER(codigo), "EQ-", ""), "EQ", "") AS INTEGER) ASC, id ASC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/estoque-equipamentos
+app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
+    const d = req.body || {};
+    const nome = String(d.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
+
+    const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'Outros').trim();
+    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
+    const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
+    const produto_venda = d.produto_venda ? 1 : 0;
+    const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+    // Verificar duplicidade exata de nome (case-insensitive)
+    db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))', [nome], (errDup, rowDup) => {
+        if (errDup) return res.status(500).json({ error: errDup.message });
+        if (rowDup) {
+            return res.status(400).json({
+                error: `Já existe um equipamento cadastrado com exatamente o nome "${rowDup.nome}" (Código: ${rowDup.codigo}). Altere o nome antes de salvar.`
+            });
+        }
+
+        gerarProximoCodigoEquipamento((codigo) => {
+            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+            db.run(
+                `INSERT INTO estoque_equipamentos (
+                    codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
+                    especificacao_tecnica, produto_venda, criado_por, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, criado_por, agora, agora],
+                function(errIns) {
+                    if (errIns) return res.status(500).json({ error: errIns.message });
+                    res.json({ success: true, id: this.lastID, codigo });
+                }
+            );
+        });
+    });
+});
+
+// PUT /api/estoque-equipamentos/:id
+app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+    const d = req.body || {};
+    const nome = String(d.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
+
+    const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'Outros').trim();
+    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
+    const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
+    const produto_venda = d.produto_venda ? 1 : 0;
+
+    // Verificar duplicidade exata de nome com outro registro (id != ?)
+    db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?', [nome, id], (errDup, rowDup) => {
+        if (errDup) return res.status(500).json({ error: errDup.message });
+        if (rowDup) {
+            return res.status(400).json({
+                error: `Já existe outro equipamento cadastrado com exatamente o nome "${rowDup.nome}" (Código: ${rowDup.codigo}). Altere o nome antes de salvar.`
+            });
+        }
+
+        const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+        db.run(
+            `UPDATE estoque_equipamentos SET
+                nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
+                especificacao_tecnica = ?, produto_venda = ?, updated_at = ?
+             WHERE id = ?`,
+            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, agora, id],
+            function(errUpd) {
+                if (errUpd) return res.status(500).json({ error: errUpd.message });
+                if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// DELETE /api/estoque-equipamentos/:id
+app.delete('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+    db.run('DELETE FROM estoque_equipamentos WHERE id = ?', [id], function(errDel) {
+        if (errDel) return res.status(500).json({ error: errDel.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
+        res.json({ success: true });
+    });
+});
+
 app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res) => {
     const { epis, colaborador_id } = req.body;
     if (!epis || !Array.isArray(epis)) return res.status(400).json({ error: 'Lista de EPIs inv??lida.' });
