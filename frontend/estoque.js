@@ -2557,8 +2557,17 @@ window.renderEquipamentosEstoqueTable = function() {
     if (!tbody) return;
 
     const busca = (document.getElementById('filtro-equip-est-busca')?.value || '').trim().toLowerCase();
-    const grupo = (document.getElementById('filtro-equip-est-grupo')?.value || '').trim();
-    const fonte = (document.getElementById('filtro-equip-est-fonte')?.value || '').trim();
+    const grupoInput = (document.getElementById('filtro-equip-est-grupo')?.value || '').trim().toUpperCase();
+    const fonteInput = (document.getElementById('filtro-equip-est-fonte')?.value || '').trim().toUpperCase();
+    const gruposSel = window._filtroEquipGruposSelecionados instanceof Set ? Array.from(window._filtroEquipGruposSelecionados) : [];
+    const fontesSel = window._filtroEquipFontesSelecionadas instanceof Set ? Array.from(window._filtroEquipFontesSelecionadas) : [];
+
+    const termosGrupo = gruposSel.length > 0
+        ? gruposSel
+        : (grupoInput ? grupoInput.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const termosFonte = fontesSel.length > 0
+        ? fontesSel
+        : (fonteInput ? fonteInput.split(',').map(s => s.trim()).filter(Boolean) : []);
 
     let lista = (window._equipamentosEstoqueData || []).filter(item => {
         if (busca) {
@@ -2567,8 +2576,20 @@ window.renderEquipamentosEstoqueTable = function() {
             const matchEsp  = String(item.especificacao_tecnica || '').toLowerCase().includes(busca);
             if (!matchNome && !matchCod && !matchEsp) return false;
         }
-        if (grupo && !String(item.grupo_produto || '').toUpperCase().includes(grupo.toUpperCase())) return false;
-        if (fonte && !String(item.fonte_fornecimento || '').toUpperCase().includes(fonte.toUpperCase())) return false;
+        if (termosGrupo.length > 0) {
+            const itemGrupo = String(item.grupo_produto || '').trim().toUpperCase();
+            const matchGrupo = gruposSel.length > 0
+                ? gruposSel.includes(itemGrupo)
+                : termosGrupo.some(t => itemGrupo.includes(t));
+            if (!matchGrupo) return false;
+        }
+        if (termosFonte.length > 0) {
+            const itemFonte = String(item.fonte_fornecimento || '').trim().toUpperCase();
+            const matchFonte = fontesSel.length > 0
+                ? fontesSel.includes(itemFonte)
+                : termosFonte.some(t => itemFonte.includes(t));
+            if (!matchFonte) return false;
+        }
         return true;
     });
 
@@ -2981,6 +3002,15 @@ window._GRUPOS_EQUIPAMENTO_PADRAO = [
     'VIP'
 ];
 
+window._filtroEquipGruposSelecionados = window._filtroEquipGruposSelecionados || new Set();
+window._filtroEquipFontesSelecionadas = window._filtroEquipFontesSelecionadas || new Set();
+
+window._getSetFiltroComboEquipamento = function(tipo) {
+    if (tipo === 'filtro-grupo') return window._filtroEquipGruposSelecionados;
+    if (tipo === 'filtro-fonte') return window._filtroEquipFontesSelecionadas;
+    return null;
+};
+
 window._obterOpcoesComboEquipamento = function(tipo) {
     const isFonte = tipo.includes('fonte');
     return isFonte ? window._FONTES_EQUIPAMENTO_PADRAO.slice() : window._GRUPOS_EQUIPAMENTO_PADRAO.slice();
@@ -3011,6 +3041,63 @@ window.fecharTodosCombosEquipamento = function(excetoListId) {
     });
 };
 
+window.onInputFiltroComboEquipamento = function(tipo) {
+    const cfg = window._getComboConfigEquipamento(tipo);
+    if (!cfg) return;
+    const inputEl = document.getElementById(cfg.inputId);
+    const selSet = window._getSetFiltroComboEquipamento(tipo);
+    if (!inputEl || !selSet) return;
+
+    inputEl.value = inputEl.value.toUpperCase();
+    const raw = inputEl.value.trim();
+
+    if (!raw) {
+        selSet.clear();
+        window.abrirComboEquipamento(tipo, false);
+        window.renderEquipamentosEstoqueTable();
+        return;
+    }
+
+    const partes = raw.split(',').map(s => s.trim()).filter(Boolean);
+    Array.from(selSet).forEach(val => {
+        if (!partes.includes(val)) {
+            selSet.delete(val);
+        }
+    });
+
+    window.abrirComboEquipamento(tipo, true);
+    window.renderEquipamentosEstoqueTable();
+};
+
+window.toggleOpcaoFiltroComboEquipamento = function(event, tipo, valor) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const cfg = window._getComboConfigEquipamento(tipo);
+    const selSet = window._getSetFiltroComboEquipamento(tipo);
+    if (!cfg || !selSet) return;
+    const inputEl = document.getElementById(cfg.inputId);
+
+    if (!valor) {
+        selSet.clear();
+        if (inputEl) inputEl.value = '';
+    } else {
+        const valUp = String(valor).trim().toUpperCase();
+        if (selSet.has(valUp)) {
+            selSet.delete(valUp);
+        } else {
+            selSet.add(valUp);
+        }
+        if (inputEl) {
+            inputEl.value = Array.from(selSet).join(', ');
+        }
+    }
+
+    window.abrirComboEquipamento(tipo, false);
+    window.renderEquipamentosEstoqueTable();
+};
+
 window.abrirComboEquipamento = function(tipo, filtrarPorTexto) {
     const cfg = window._getComboConfigEquipamento(tipo);
     if (!cfg) return;
@@ -3021,7 +3108,20 @@ window.abrirComboEquipamento = function(tipo, filtrarPorTexto) {
     window.fecharTodosCombosEquipamento(cfg.listId);
 
     const todasOpcoes = window._obterOpcoesComboEquipamento(tipo);
-    const termo = filtrarPorTexto ? String(inputEl.value || '').trim().toUpperCase() : '';
+    const selSet = window._getSetFiltroComboEquipamento(tipo);
+
+    let termo = '';
+    if (filtrarPorTexto) {
+        const raw = String(inputEl.value || '').trim().toUpperCase();
+        if (cfg.isFiltro) {
+            const partes = raw.split(',').map(s => s.trim());
+            const ultima = partes[partes.length - 1] || '';
+            termo = selSet && selSet.has(ultima) ? '' : ultima;
+        } else {
+            termo = raw;
+        }
+    }
+
     const norm = (s) => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const termoNorm = norm(termo);
 
@@ -3033,26 +3133,39 @@ window.abrirComboEquipamento = function(tipo, filtrarPorTexto) {
 
     let html = '';
     if (cfg.isFiltro) {
-        html += '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'\')" ' +
-            'style="padding:8px 12px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#64748b;border-bottom:1px solid #f1f5f9;background:#f8fafc;" ' +
+        const todosMarcado = !selSet || selSet.size === 0;
+        html += '<div onmousedown="window.toggleOpcaoFiltroComboEquipamento(event, \'' + tipo + '\', \'\')" ' +
+            'style="padding:8px 12px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;gap:8px;" ' +
             'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f8fafc\'">' +
-            esc(cfg.labelTodos) + '</div>';
-    }
+            '<input type="checkbox" ' + (todosMarcado ? 'checked' : '') + ' style="pointer-events:none;accent-color:#e67700;width:15px;height:15px;margin:0;">' +
+            '<span>' + esc(cfg.labelTodos) + '</span></div>';
 
-    if (filtradas.length === 0 && termo) {
-        html += '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(termo) + '\')" ' +
-            'style="padding:9px 12px;cursor:pointer;font-size:0.81rem;font-weight:700;color:#0f766e;background:#f0fdf4;">' +
-            '<i class="ph ph-plus-circle"></i> Usar "' + esc(termo) + '"</div>';
-    } else {
         html += filtradas.map(op => {
-            const selecionado = String(inputEl.value || '').trim().toUpperCase() === op;
+            const selecionado = selSet && selSet.has(op);
             const bg = selecionado ? '#fff7ed' : '#fff';
             const cor = selecionado ? '#c2410c' : '#1e293b';
-            return '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(op) + '\')" ' +
-                'style="padding:8px 12px;cursor:pointer;font-size:0.81rem;font-weight:600;color:' + cor + ';background:' + bg + ';border-bottom:1px solid #f8fafc;text-transform:uppercase;" ' +
+            return '<div onmousedown="window.toggleOpcaoFiltroComboEquipamento(event, \'' + tipo + '\', \'' + esc(op) + '\')" ' +
+                'style="padding:8px 12px;cursor:pointer;font-size:0.81rem;font-weight:600;color:' + cor + ';background:' + bg + ';border-bottom:1px solid #f8fafc;text-transform:uppercase;display:flex;align-items:center;gap:8px;" ' +
                 'onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'' + bg + '\'">' +
-                esc(op) + '</div>';
+                '<input type="checkbox" ' + (selecionado ? 'checked' : '') + ' style="pointer-events:none;accent-color:#e67700;width:15px;height:15px;margin:0;">' +
+                '<span>' + esc(op) + '</span></div>';
         }).join('');
+    } else {
+        if (filtradas.length === 0 && termo) {
+            html += '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(termo) + '\')" ' +
+                'style="padding:9px 12px;cursor:pointer;font-size:0.81rem;font-weight:700;color:#0f766e;background:#f0fdf4;">' +
+                '<i class="ph ph-plus-circle"></i> Usar "' + esc(termo) + '"</div>';
+        } else {
+            html += filtradas.map(op => {
+                const selecionado = String(inputEl.value || '').trim().toUpperCase() === op;
+                const bg = selecionado ? '#fff7ed' : '#fff';
+                const cor = selecionado ? '#c2410c' : '#1e293b';
+                return '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(op) + '\')" ' +
+                    'style="padding:8px 12px;cursor:pointer;font-size:0.81rem;font-weight:600;color:' + cor + ';background:' + bg + ';border-bottom:1px solid #f8fafc;text-transform:uppercase;" ' +
+                    'onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'' + bg + '\'">' +
+                    esc(op) + '</div>';
+            }).join('');
+        }
     }
 
     listEl.innerHTML = html;

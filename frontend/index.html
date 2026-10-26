@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261026v3" defer></script>
+    <script src="estoque.js?v=20261026v4" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3841,24 +3841,24 @@
                                 <div style="position:relative; display:flex; align-items:center;">
                                     <input type="text" id="filtro-equip-est-grupo" class="form-control" style="width:100%; padding-right:32px;" placeholder="Todos (Digite ou Selecione)" autocomplete="off"
                                         onfocus="window.abrirComboEquipamento('filtro-grupo', false)"
-                                        oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('filtro-grupo', true); window.renderEquipamentosEstoqueTable();">
+                                        oninput="window.onInputFiltroComboEquipamento('filtro-grupo')">
                                     <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('filtro-grupo')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
                                         <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
                                     </button>
                                 </div>
-                                <div id="combo-list-filtro-grupo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:230px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); margin-top:3px;"></div>
+                                <div id="combo-list-filtro-grupo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:250px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); margin-top:3px;"></div>
                             </div>
                             <div style="flex:1; min-width:210px; position:relative;" id="wrap-filtro-equip-est-fonte">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Fonte de Fornecimento</label>
                                 <div style="position:relative; display:flex; align-items:center;">
                                     <input type="text" id="filtro-equip-est-fonte" class="form-control" style="width:100%; padding-right:32px;" placeholder="Todos (Digite ou Selecione)" autocomplete="off"
                                         onfocus="window.abrirComboEquipamento('filtro-fonte', false)"
-                                        oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('filtro-fonte', true); window.renderEquipamentosEstoqueTable();">
+                                        oninput="window.onInputFiltroComboEquipamento('filtro-fonte')">
                                     <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('filtro-fonte')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
                                         <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
                                     </button>
                                 </div>
-                                <div id="combo-list-filtro-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:230px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); margin-top:3px;"></div>
+                                <div id="combo-list-filtro-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:250px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); margin-top:3px;"></div>
                             </div>
                             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                                 <button type="button" class="btn btn-secondary" onclick="window.abrirModalImportarEquipamentos()" style="background:#0f766e; border-color:#0f766e; color:#fff; height:38px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-weight:600;">
