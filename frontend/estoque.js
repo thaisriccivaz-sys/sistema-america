@@ -2885,6 +2885,94 @@ window.baixarModeloPlanilhaEquipamentos = async function() {
     }
 };
 
+window._executarUploadPlanilhaEquipamentos = async function(file, modoDuplicados) {
+    Swal.fire({
+        title: 'Importando equipamentos...',
+        text: 'Processando planilha, aguarde...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const fd = new FormData();
+    fd.append('arquivo', file);
+    if (modoDuplicados) {
+        fd.append('modo_duplicados', modoDuplicados);
+    }
+
+    const r = await fetch(API_URL + '/estoque-equipamentos/importar', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: fd
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+        throw new Error(data.error || 'Erro ao importar planilha de equipamentos.');
+    }
+
+    if (data.requires_confirmation) {
+        const dupCount = data.duplicados_count || 0;
+        const novosCount = data.novos_count || 0;
+        const listaPreview = Array.isArray(data.duplicados_nomes) && data.duplicados_nomes.length > 0
+            ? '<div style="max-height:120px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#92400e;margin-top:8px;text-align:left;">' +
+                data.duplicados_nomes.join('<br>') +
+                (dupCount > data.duplicados_nomes.length ? '<br><i>... e mais ' + (dupCount - data.duplicados_nomes.length) + ' equipamento(s)</i>' : '') +
+              '</div>'
+            : '';
+
+        const escolha = await Swal.fire({
+            icon: 'question',
+            title: 'Equipamentos já existentes encontrados',
+            width: 560,
+            html: '<div style="text-align:left;font-size:0.9rem;color:#334155;line-height:1.5;">' +
+                '<p style="margin:0 0 8px;">Foram encontrados <b>' + dupCount + ' equipamento(s)</b> na planilha com nomes que já estão cadastrados no sistema' +
+                (novosCount > 0 ? ' (e <b>' + novosCount + ' novo(s)</b>).' : '.') + '</p>' +
+                '<p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Gostaria de editar/atualizar os equipamentos que já existem com as novas informações da planilha?</p>' +
+                listaPreview +
+                '</div>',
+            showCancelButton: true,
+            showDenyButton: novosCount > 0,
+            confirmButtonColor: '#0f766e',
+            denyButtonColor: '#64748b',
+            confirmButtonText: 'Sim, atualizar existentes',
+            denyButtonText: 'Não, importar apenas novos',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (escolha.isConfirmed) {
+            return await window._executarUploadPlanilhaEquipamentos(file, 'atualizar');
+        } else if (escolha.isDenied) {
+            return await window._executarUploadPlanilhaEquipamentos(file, 'ignorar');
+        } else {
+            return;
+        }
+    }
+
+    await window.carregarEquipamentosEstoque();
+
+    let msgHtml = '<div style="text-align:left;font-size:0.88rem;">' +
+        '<p style="margin:0 0 8px;"><b>Novos equipamentos importados:</b> <span style="color:#16a34a;font-weight:800;">' + (data.importados || 0) + '</span></p>';
+    if (data.atualizados > 0) {
+        msgHtml += '<p style="margin:0 0 8px;"><b>Equipamentos existentes atualizados:</b> <span style="color:#2563eb;font-weight:800;">' + data.atualizados + '</span></p>';
+    }
+    if (data.ignorados_duplicados > 0) {
+        msgHtml += '<p style="margin:0 0 6px;color:#b45309;"><b>Ignorados por nome já existente:</b> ' + data.ignorados_duplicados + '</p>';
+        if (Array.isArray(data.duplicados_nomes) && data.duplicados_nomes.length > 0) {
+            msgHtml += '<div style="max-height:110px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.78rem;color:#92400e;">' +
+                data.duplicados_nomes.join('<br>') +
+            '</div>';
+        }
+    }
+    msgHtml += '</div>';
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Importação Concluída!',
+        html: msgHtml,
+        confirmButtonColor: '#0f766e'
+    });
+};
+
 window.abrirModalImportarEquipamentos = async function() {
     const { value: file, isConfirmed } = await Swal.fire({
         title: '<span style="font-size:1.15rem;font-weight:800;color:#0f172a;"><i class="ph ph-file-xls" style="color:#0f766e;"></i> Importar Produtos (.xlsx)</span>',
@@ -2894,7 +2982,7 @@ window.abrirModalImportarEquipamentos = async function() {
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
                     <div style="font-weight:700;color:#166534;margin-bottom:6px;">Colunas esperadas na planilha (.xlsx):</div>
                     <ul style="margin:0;padding-left:18px;color:#15803d;line-height:1.55;font-size:0.82rem;">
-                        <li><b>Nome</b> (obrigatório — nomes duplicados são ignorados automaticamente)</li>
+                        <li><b>Nome</b> (obrigatório — se já existir, o sistema perguntará se deseja atualizar)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
                         <li><b>Grupo</b> (ACESSÓRIO, AVARIA, BRINQUEDOS, CONTAINER, CONTENÇÃO, ESTRUTURAS, LAVATÓRIOS, MICTÓRIO, MOBILIÁRIO, PCD, PISOS, SERVIÇOS, TENDA, VIP)</li>
                         <li><b>Fonte de fornecimento</b> (PACOTE OBRA, PRÓPRIO AVULSO, PARCEIROS)</li>
@@ -2926,48 +3014,8 @@ window.abrirModalImportarEquipamentos = async function() {
 
     if (!isConfirmed || !file) return;
 
-    Swal.fire({
-        title: 'Importando equipamentos...',
-        text: 'Processando planilha, aguarde...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const fd = new FormData();
-        fd.append('arquivo', file);
-
-        const r = await fetch(API_URL + '/estoque-equipamentos/importar', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-            body: fd
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) {
-            throw new Error(data.error || 'Erro ao importar planilha de equipamentos.');
-        }
-
-        await window.carregarEquipamentosEstoque();
-
-        let msgHtml = '<div style="text-align:left;font-size:0.88rem;">' +
-            '<p style="margin:0 0 8px;"><b>Equipamentos importados com sucesso:</b> <span style="color:#16a34a;font-weight:800;">' + (data.importados || 0) + '</span></p>';
-        if (data.ignorados_duplicados > 0) {
-            msgHtml += '<p style="margin:0 0 6px;color:#b45309;"><b>Ignorados por nome já existente:</b> ' + data.ignorados_duplicados + '</p>';
-            if (Array.isArray(data.duplicados_nomes) && data.duplicados_nomes.length > 0) {
-                msgHtml += '<div style="max-height:110px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.78rem;color:#92400e;">' +
-                    data.duplicados_nomes.join('<br>') +
-                '</div>';
-            }
-        }
-        msgHtml += '</div>';
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Importação Concluída!',
-            html: msgHtml,
-            confirmButtonColor: '#0f766e'
-        });
+        await window._executarUploadPlanilhaEquipamentos(file, '');
     } catch (err) {
         Swal.fire({
             icon: 'error',
