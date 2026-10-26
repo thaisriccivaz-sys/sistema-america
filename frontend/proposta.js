@@ -2612,8 +2612,13 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
     };
 
     const grupoOptions = (selectedVal) => {
-        const options = ['1 - Diamante', '2 - Ouro', '3 - Prata', '4 - Bronze'];
-        return options.map(opt => `<option value="${opt}" ${selectedVal === opt ? 'selected' : ''}>${opt}</option>`).join('');
+        const options = [
+            { val: '1 - Diamante', lbl: '💎Diamante' },
+            { val: '2 - Ouro', lbl: '🥇Ouro' },
+            { val: '3 - Prata', lbl: 'Prata 🥈' },
+            { val: '4 - Bronze', lbl: 'Bronze🥉' }
+        ];
+        return options.map(opt => `<option value="${opt.val}" ${selectedVal === opt.val || selectedVal === opt.lbl ? 'selected' : ''}>${opt.lbl}</option>`).join('');
     };
 
     let parametros = { limite: false, retencao: false };
@@ -2768,35 +2773,64 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             <div class="mcli-container">
                 <!-- Toolbar/Header -->
                 <div class="mcli-toolbar">
-                    <!-- Título do Modal à esquerda -->
-                    <div style="font-size:0.95rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px; font-family:'Inter', sans-serif;">
-                        <i class="ph ph-user-plus" style="color:#7048e8; font-size:1.2rem;"></i>
-                        <span>${_modalClienteEditandoId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</span>
+                    <!-- Abas à esquerda -->
+                    <div style="display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif;">
+                        <button type="button" id="modal-tab-cli-cadastro" onclick="window.modalSwitchAbaCliente('cadastro')" style="background:#7048e8; color:#fff; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px;">
+                            <i class="ph ph-user-plus" style="font-size:1rem;"></i> Cadastro de Cliente
+                        </button>
+                        <button type="button" id="modal-tab-cli-historico" onclick="window.modalSwitchAbaCliente('historico')" style="background:#e2e8f0; color:#475569; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px;">
+                            <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico de clientes
+                        </button>
                     </div>
 
                     <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <button onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                            <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
-                        </button>
-                        <div style="width: 4px;"></div>
-                        <button onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                            <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
-                        </button>
-                        <button onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
-                            <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
-                        </button>
-                        <button onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
-                            <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
-                        </button>
-                        <div style="width: 4px;"></div>
-                        <button onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
+                        <div id="modal-cli-actions-group" style="display:inline-flex; gap:0.4rem; align-items:center;">
+                            <button type="button" onclick="window.modalRecarregarCliente(${_modalClienteEditandoId || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none; box-sizing:border-box;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                            </button>
+                            <div style="width: 4px;"></div>
+                            <button type="button" onclick="window.modalSalvarCliente(${_modalClienteEditandoId || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                            </button>
+                            <button type="button" onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
+                            </button>
+                            <button type="button" onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
+                                <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
+                            </button>
+                            <div style="width: 4px;"></div>
+                        </div>
+                        <button type="button" onclick="Swal.close()" title="Fechar" style="background:#475569; color:white; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; box-sizing:border-box;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#475569'">
                             <i class="ph ph-x" style="font-size:1.15rem;"></i>
                         </button>
                     </div>
                 </div>
 
+                <!-- Aba Histórico no Modal -->
+                <div id="modal-cli-subview-historico" style="display:none; padding:0.8rem 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-bottom:0.65rem; flex-wrap:wrap;">
+                        <input type="text" id="modal-hist-cli-busca" oninput="window.filtrarTabelaHistoricoClientes('modal')" placeholder="Pesquisar por código, CPF/CNPJ, nome fantasia, contato ou observação..." style="flex:1; min-width:240px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">
+                        <span id="modal-hist-cli-count" style="font-size:0.78rem; color:#64748b; font-weight:600;"></span>
+                    </div>
+                    <div style="max-height:360px; height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; font-family:'Inter', sans-serif;">
+                            <thead>
+                                <tr>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase; width:80px;">Código</th>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase; width:145px;">CPF / CNPJ *</th>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase;">Nome fantasia</th>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase; width:135px;">Grupo de Clientes</th>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase; width:160px;">Nome do contato</th>
+                                    <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.6rem 0.75rem; text-align:left; font-weight:700; color:#475569; font-size:0.72rem; text-transform:uppercase;">Observações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-hist-cli-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Form Body -->
-                <div class="mcli-form-body">
+                <div id="modal-cli-subview-cadastro" class="mcli-form-body">
                     <!-- Info bar -->
                     <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
                         <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
@@ -2824,7 +2858,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <div class="mcli-field">
                                 <label>CPF / CNPJ *</label>
                                 <div class="mcli-input-group">
-                                    <input type="text" id="modal-cli-cpf-cnpj" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números" class="mcli-input">
+                                    <input type="text" id="modal-cli-cpf-cnpj" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.modalBuscarCNPJ();}" value="${client ? (client.cpf_cnpj || '') : ''}" placeholder="Apenas números" class="mcli-input">
                                     <button type="button" onclick="window.modalBuscarCNPJ()" id="modal-btn-busca-cnpj" class="mcli-btn-addon" title="Buscar CNPJ">
                                         <i class="ph ph-magnifying-glass"></i>
                                     </button>
@@ -5051,56 +5085,74 @@ function _renderCadastroClienteInt() {
             <!-- Toolbar -->
             <div id="prop-toolbar-cliente" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                 
-                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
+                <!-- Badge Lado Esquerdo: Dropdown de Navegação (oculto via CSS) -->
                 <div class="saas-dropdown-container">
                     <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
                         <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
                     </div>
-                    <div class="saas-dropdown-menu">
-                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
-                            <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                            <i class="ph ph-map-pin"></i> Endereços
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
-                            <i class="ph ph-calculator"></i> Precificação de Serviços
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
-                            <i class="ph ph-file-text"></i> Modelos de Contrato
-                        </div>
-                    </div>
+                </div>
+
+                <!-- Abas Cadastro de Cliente | Histórico de clientes -->
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button type="button" id="tab-cli-sub-cadastro" onclick="window.switchAbaCliente('cadastro')" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
+                        <i class="ph ph-user-plus" style="font-size:1rem;"></i> Cadastro de Cliente
+                    </button>
+                    <button type="button" id="tab-cli-sub-historico" onclick="window.switchAbaCliente('historico')" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
+                        <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico de clientes
+                    </button>
                 </div>
 
                 <!-- Botões de Ação (Lado Direito) -->
-                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                    <button onclick="recarregarCliente()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                <div id="cli-actions-group" style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="recarregarCliente()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
 
                     <!-- Spacer -->
                     <div style="width: 4px;"></div>
 
-                    <button onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button type="button" onclick="salvarCliente()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                    <button type="button" onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
-                    <button onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button type="button" onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                     </button>
                 </div>
             </div>
 
-            <!-- Corpo da Tela -->
-            <div style="padding:1.5rem;">
+            <!-- Aba: Histórico de clientes -->
+            <div id="cli-subview-historico" style="display:none; padding:1.25rem 1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-bottom:0.85rem; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:260px;">
+                        <input type="text" id="hist-cli-busca" oninput="window.filtrarTabelaHistoricoClientes('page')" placeholder="Pesquisar por código, CPF/CNPJ, nome fantasia, grupo, contato ou observação..." style="flex:1; padding:0.5rem 0.85rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
+                        <button type="button" onclick="window.carregarHistoricoClientesTabela('page', true)" title="Atualizar lista" style="background:#e2e8f0; color:#475569; border:none; padding:0.5rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+                    <span id="hist-cli-count" style="font-size:0.82rem; color:#475569; font-weight:700;"></span>
+                </div>
+                <div id="hist-cli-scroll-box" style="max-height:540px; height:540px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
+                        <thead>
+                            <tr>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:90px;">Código</th>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:160px;">CPF / CNPJ *</th>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:24%;">Nome fantasia</th>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:150px;">Grupo de Clientes</th>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:18%;">Nome do contato</th>
+                                <th style="position:sticky; top:0; z-index:2; background:#f8fafc; border-bottom:2px solid #cbd5e1; padding:0.75rem 1rem; text-align:left; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist-cli-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Corpo da Tela: Cadastro -->
+            <div id="cli-subview-cadastro" style="padding:1.5rem;">
                 
                 <!-- Info bar at the top of form body -->
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#f0f7ff; border:1px solid #c2e0ff; padding:0.6rem 1.2rem; border-radius:6px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af; flex-wrap:wrap; gap:0.5rem;">
@@ -5123,15 +5175,15 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">Código</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="cli-codigo" readonly placeholder="Auto" maxlength="6" style="width:100%;max-width:68px;padding:0.45rem 0.35rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;text-align:center;">
-                                    <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
-                                    <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
+                                    <button type="button" onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
                             </div>
                             <div>
                                 <label class="prop-lbl">CPF / CNPJ *</label>
                                 <div style="display:flex; gap:3px;">
-                                    <input type="text" id="cli-cpf-cnpj" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                    <button onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="cli-cpf-cnpj" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); buscarCNPJ();}" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <button type="button" onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div>
@@ -5146,10 +5198,10 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">Grupo de Clientes</label>
                                 <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                                     <option value="">-- Selecione --</option>
-                                    <option value="1 - Diamante">1 - Diamante</option>
-                                    <option value="2 - Ouro">2 - Ouro</option>
-                                    <option value="3 - Prata">3 - Prata</option>
-                                    <option value="4 - Bronze">4 - Bronze</option>
+                                    <option value="1 - Diamante">💎Diamante</option>
+                                    <option value="2 - Ouro">🥇Ouro</option>
+                                    <option value="3 - Prata">Prata 🥈</option>
+                                    <option value="4 - Bronze">Bronze🥉</option>
                                 </select>
                             </div>
                             <div>
@@ -5180,7 +5232,7 @@ function _renderCadastroClienteInt() {
                             <label class="prop-lbl">CEP</label>
                             <div style="display:flex; gap:3px;">
                                 <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                <button onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                <button type="button" onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
                         <div>
@@ -5232,10 +5284,10 @@ function _renderCadastroClienteInt() {
                             <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div style="display:none;">
-                            <button onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
+                            <button type="button" onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
                         </div>
                         <div style="display:none;">
-                            <button onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:34px;justify-content:center;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
+                            <button type="button" onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:34px;justify-content:center;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
                         </div>
                     </div>
 
@@ -5267,25 +5319,25 @@ function _renderCadastroClienteInt() {
                                     <span>dias após o vencimento</span>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <button onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    <button type="button" onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                                         <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                     </button>
-                                    <button onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                                    <button type="button" onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
                                         <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Tabela de contatos cadastrados -->
-                            <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                            <!-- Tabela de contatos cadastrados (cabeçalho fixo e barra de rolagem) -->
+                            <div style="max-height:260px; overflow-y:auto; background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                                 <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                     <thead>
                                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="cli-contatos-tbody">
@@ -5391,6 +5443,179 @@ function _renderCadastroClienteInt() {
 
     _renderTabelaContatos();
 }
+
+window.formatarGrupoClienteIcone = function(grupo) {
+    const g = String(grupo || '').toLowerCase();
+    if (!g) return '—';
+    if (g.includes('diamante') || g.startsWith('1')) return '💎Diamante';
+    if (g.includes('ouro') || g.startsWith('2')) return '🥇Ouro';
+    if (g.includes('prata') || g.startsWith('3')) return 'Prata 🥈';
+    if (g.includes('bronze') || g.startsWith('4')) return 'Bronze🥉';
+    return grupo;
+};
+
+window.extrairNomeContatoCliente = function(c) {
+    const nomes = [];
+    if (c.contatos_nomes_tabela) {
+        String(c.contatos_nomes_tabela).split(',').map(s => s.trim()).filter(Boolean).forEach(n => {
+            if (!nomes.some(x => x.toLowerCase() === n.toLowerCase())) nomes.push(n);
+        });
+    }
+    if (c.contatos) {
+        try {
+            const arr = typeof c.contatos === 'string' ? JSON.parse(c.contatos) : c.contatos;
+            if (Array.isArray(arr)) {
+                arr.forEach(item => {
+                    const n = String(item?.nome || '').trim();
+                    if (n && !nomes.some(x => x.toLowerCase() === n.toLowerCase())) nomes.push(n);
+                });
+            }
+        } catch (e) {}
+    }
+    return nomes.length > 0 ? nomes.join(', ') : '—';
+};
+
+window.switchAbaCliente = function(aba) {
+    const viewCad = document.getElementById('cli-subview-cadastro');
+    const viewHist = document.getElementById('cli-subview-historico');
+    const btnCad = document.getElementById('tab-cli-sub-cadastro');
+    const btnHist = document.getElementById('tab-cli-sub-historico');
+    const actionsGroup = document.getElementById('cli-actions-group');
+
+    if (aba === 'historico') {
+        if (viewCad) viewCad.style.display = 'none';
+        if (viewHist) viewHist.style.display = 'block';
+        if (actionsGroup) actionsGroup.style.display = 'none';
+        if (btnHist) { btnHist.style.background = '#7048e8'; btnHist.style.color = '#fff'; }
+        if (btnCad) { btnCad.style.background = '#e2e8f0'; btnCad.style.color = '#475569'; }
+        window.carregarHistoricoClientesTabela('page', false);
+    } else {
+        if (viewHist) viewHist.style.display = 'none';
+        if (viewCad) viewCad.style.display = 'block';
+        if (actionsGroup) actionsGroup.style.display = 'flex';
+        if (btnCad) { btnCad.style.background = '#7048e8'; btnCad.style.color = '#fff'; }
+        if (btnHist) { btnHist.style.background = '#e2e8f0'; btnHist.style.color = '#475569'; }
+    }
+};
+
+window.modalSwitchAbaCliente = function(aba) {
+    const viewCad = document.getElementById('modal-cli-subview-cadastro');
+    const viewHist = document.getElementById('modal-cli-subview-historico');
+    const btnCad = document.getElementById('modal-tab-cli-cadastro');
+    const btnHist = document.getElementById('modal-tab-cli-historico');
+    const actionsGroup = document.getElementById('modal-cli-actions-group');
+
+    if (aba === 'historico') {
+        if (viewCad) viewCad.style.display = 'none';
+        if (viewHist) viewHist.style.display = 'block';
+        if (actionsGroup) actionsGroup.style.display = 'none';
+        if (btnHist) { btnHist.style.background = '#7048e8'; btnHist.style.color = '#fff'; }
+        if (btnCad) { btnCad.style.background = '#e2e8f0'; btnCad.style.color = '#475569'; }
+        window.carregarHistoricoClientesTabela('modal', false);
+    } else {
+        if (viewHist) viewHist.style.display = 'none';
+        if (viewCad) viewCad.style.display = 'block';
+        if (actionsGroup) actionsGroup.style.display = 'inline-flex';
+        if (btnCad) { btnCad.style.background = '#7048e8'; btnCad.style.color = '#fff'; }
+        if (btnHist) { btnHist.style.background = '#e2e8f0'; btnHist.style.color = '#475569'; }
+    }
+};
+
+window.carregarHistoricoClientesTabela = async function(context = 'page', forceReload = false) {
+    const tbodyId = context === 'modal' ? 'modal-hist-cli-tbody' : 'hist-cli-tbody';
+    const tbody = document.getElementById(tbodyId);
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:1.5rem; text-align:center; color:#64748b;">Carregando clientes...</td></tr>';
+    }
+    if (forceReload || !_clientesCache || _clientesCache.length === 0) {
+        try {
+            _clientesCache = await apiGet('/clientes') || [];
+        } catch (e) {
+            console.error('Erro ao carregar histórico de clientes:', e);
+            _clientesCache = [];
+        }
+    }
+    window.filtrarTabelaHistoricoClientes(context);
+};
+
+window.selecionarClienteDoHistorico = async function(id, context = 'page') {
+    if (context === 'modal') {
+        const c = (_clientesCache || []).find(x => Number(x.id) === Number(id));
+        if (c) {
+            await window.abrirModalCadastroCliente(c);
+        }
+    } else {
+        window.switchAbaCliente('cadastro');
+        await window.carregarClienteParaEdicao(id);
+    }
+};
+
+window.filtrarTabelaHistoricoClientes = function(context = 'page') {
+    const isModal = context === 'modal';
+    const tbody = document.getElementById(isModal ? 'modal-hist-cli-tbody' : 'hist-cli-tbody');
+    const countEl = document.getElementById(isModal ? 'modal-hist-cli-count' : 'hist-cli-count');
+    const inputEl = document.getElementById(isModal ? 'modal-hist-cli-busca' : 'hist-cli-busca');
+    if (!tbody) return;
+
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = normStr(inputEl ? inputEl.value.trim() : '');
+    const qDigits = String(inputEl ? inputEl.value : '').replace(/\D/g, '');
+    const lista = _clientesCache || [];
+
+    const filtrados = !q ? lista : lista.filter(c => {
+        const cod = String(c.codigo || '').toLowerCase();
+        const doc = String(c.cpf_cnpj || '').toLowerCase();
+        const docDigits = doc.replace(/\D/g, '');
+        const fant = normStr(c.nome_fantasia || c.nome_razao_social);
+        const razao = normStr(c.nome_razao_social);
+        const grupo = normStr(window.formatarGrupoClienteIcone(c.grupo_clientes));
+        const contato = normStr(window.extrairNomeContatoCliente(c));
+        const obs = normStr(c.observacoes);
+        return cod.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits)) || fant.includes(q) || razao.includes(q) || grupo.includes(q) || contato.includes(q) || obs.includes(q);
+    });
+
+    if (countEl) {
+        countEl.textContent = `Total: ${filtrados.length.toLocaleString('pt-BR')} cliente(s)`;
+    }
+
+    if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:1.5rem; text-align:center; color:#94a3b8;">Nenhum cliente encontrado.</td></tr>';
+        return;
+    }
+
+    const renderRow = (c) => {
+        const nomeFantasia = c.nome_fantasia || c.nome_razao_social || '—';
+        const grupoFmt = window.formatarGrupoClienteIcone(c.grupo_clientes);
+        const contatoNome = window.extrairNomeContatoCliente(c);
+        const obs = c.observacoes || '—';
+        return `
+            <tr onclick="window.selecionarClienteDoHistorico(${c.id}, '${context}')" style="border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste cliente">
+                <td style="padding:0.65rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">${c.codigo || '—'}</td>
+                <td style="padding:0.65rem 1rem; color:#334155; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
+                <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${nomeFantasia}</td>
+                <td style="padding:0.65rem 1rem; color:#334155; white-space:nowrap; font-weight:600;">${grupoFmt}</td>
+                <td style="padding:0.65rem 1rem; color:#475569;">${contatoNome}</td>
+                <td style="padding:0.65rem 1rem; color:#64748b;">${obs}</td>
+            </tr>
+        `;
+    };
+
+    const scrollBox = tbody.closest('div');
+    let renderedCount = Math.min(filtrados.length, 300);
+    tbody.innerHTML = filtrados.slice(0, renderedCount).map(renderRow).join('');
+
+    if (scrollBox) {
+        scrollBox.scrollTop = 0;
+        scrollBox.onscroll = () => {
+            if (renderedCount >= filtrados.length) return;
+            if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 250) {
+                const nextSlice = filtrados.slice(renderedCount, renderedCount + 300);
+                renderedCount += nextSlice.length;
+                tbody.insertAdjacentHTML('beforeend', nextSlice.map(renderRow).join(''));
+            }
+        };
+    }
+};
 
 window.atualizarClienteCentralizadorOptions = async function(selectedValue = null) {
     if (!_clientesCache || _clientesCache.length === 0) {
@@ -5780,7 +6005,13 @@ window.carregarClienteParaEdicao = async function(id) {
         document.getElementById('cli-ie').value = c.inscricao_estadual || '';
         document.getElementById('cli-im').value = c.inscricao_municipal || '';
         document.getElementById('cli-razao-social').value = c.nome_razao_social || '';
-        document.getElementById('cli-grupo').value = c.grupo_clientes || '';
+        const rawGrupo = String(c.grupo_clientes || '').toLowerCase();
+        let normGrupo = c.grupo_clientes || '';
+        if (rawGrupo.includes('diamante')) normGrupo = '1 - Diamante';
+        else if (rawGrupo.includes('ouro')) normGrupo = '2 - Ouro';
+        else if (rawGrupo.includes('prata')) normGrupo = '3 - Prata';
+        else if (rawGrupo.includes('bronze')) normGrupo = '4 - Bronze';
+        document.getElementById('cli-grupo').value = normGrupo;
         await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
         document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || c.nome_razao_social || '';
         document.getElementById('cli-cep').value = c.cep || '';
@@ -7246,7 +7477,7 @@ function _renderCadastroContatosInt() {
                                 <label>Código</label>
                                 <div class="cc-input-group">
                                     <input type="text" id="con-codigo" readonly placeholder="Auto" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
-                                    <button onclick="abrirModalPesquisaContato()" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="abrirModalPesquisaContato()" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
@@ -7257,7 +7488,7 @@ function _renderCadastroContatosInt() {
                                 <label>Celular</label>
                                 <div class="cc-input-group">
                                     <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" class="cc-input">
-                                    <button onclick="abrirWhatsAppContato()" class="cc-btn-addon success" title="WhatsApp"><i class="ph ph-whatsapp-logo" style="font-size: 1.2rem;"></i></button>
+                                    <button type="button" onclick="abrirWhatsAppContato()" class="cc-btn-addon success" title="WhatsApp"><i class="ph ph-whatsapp-logo" style="font-size: 1.2rem;"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
@@ -7375,22 +7606,22 @@ function _renderCadastroContatosInt() {
                                 <div class="cc-input-group">
                                     <input type="text" id="emp-codigo" readonly placeholder="Cód" class="cc-input" style="width: 80px; font-weight: bold; text-align: center;">
                                     <input type="text" id="emp-razao-social" placeholder="Razão Social da Empresa" class="cc-input" oninput="atualizarClienteCentralizadorOptions()">
-                                    <button onclick="abrirModalPesquisaEmpresa()" class="cc-btn-addon" title="Buscar Empresa"><i class="ph ph-magnifying-glass"></i></button>
-                                    <button onclick="limparEmpresaCliente()" class="cc-btn-addon secondary" title="Nova Empresa"><i class="ph ph-plus"></i></button>
+                                    <button type="button" onclick="abrirModalPesquisaEmpresa()" class="cc-btn-addon" title="Buscar Empresa"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="limparEmpresaCliente()" class="cc-btn-addon secondary" title="Nova Empresa"><i class="ph ph-plus"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
                                 <label>CNPJ *</label>
                                 <div class="cc-input-group">
-                                    <input type="text" id="emp-cnpj" placeholder="CNPJ da Empresa" class="cc-input">
-                                    <button onclick="buscarCNPJContatos()" id="btn-busca-cnpj" class="cc-btn-addon" title="Buscar CNPJ no WebService"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="emp-cnpj" placeholder="CNPJ da Empresa" class="cc-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); buscarCNPJContatos();}">
+                                    <button type="button" onclick="buscarCNPJContatos()" id="btn-busca-cnpj" class="cc-btn-addon" title="Buscar CNPJ no WebService"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
                                 <label>CEP</label>
                                 <div class="cc-input-group">
-                                    <input type="text" id="emp-cep" placeholder="00000-000" class="cc-input">
-                                    <button onclick="buscarCEPContatos()" class="cc-btn-addon" title="Buscar CEP"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="emp-cep" placeholder="00000-000" class="cc-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); buscarCEPContatos();}">
+                                    <button type="button" onclick="buscarCEPContatos()" class="cc-btn-addon" title="Buscar CEP"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -7429,10 +7660,10 @@ function _renderCadastroContatosInt() {
                                 <label>Grupo de Clientes</label>
                                 <select id="emp-grupo" class="cc-select">
                                     <option value="">-- Selecione --</option>
-                                    <option value="1 - Diamante">1 - Diamante</option>
-                                    <option value="2 - Ouro">2 - Ouro</option>
-                                    <option value="3 - Prata">3 - Prata</option>
-                                    <option value="4 - Bronze">4 - Bronze</option>
+                                    <option value="1 - Diamante">💎Diamante</option>
+                                    <option value="2 - Ouro">🥇Ouro</option>
+                                    <option value="3 - Prata">Prata 🥈</option>
+                                    <option value="4 - Bronze">Bronze🥉</option>
                                 </select>
                             </div>
                             <div class="cc-field">

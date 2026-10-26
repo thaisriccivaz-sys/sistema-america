@@ -40118,7 +40118,12 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 
 // GET /api/clientes - Listar todos os clientes
 app.get('/api/clientes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM clientes ORDER BY codigo DESC, id DESC', [], (err, rows) => {
+  db.all(`
+    SELECT clientes.*,
+      (SELECT GROUP_CONCAT(ct.nome, ', ') FROM contatos ct WHERE ct.cliente_id = clientes.id) AS contatos_nomes_tabela
+    FROM clientes
+    ORDER BY CAST(codigo AS INTEGER) DESC, id DESC
+  `, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
   });
