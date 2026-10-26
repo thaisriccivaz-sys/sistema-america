@@ -1831,16 +1831,81 @@ window.previewEstoqueFoto = function(event) {
     reader.readAsDataURL(file);
 };
 
+// ── Permissões por Aba do Estoque (Itens de Estoque vs Equipamentos) ──────────
+window._getEstoquePerms = function() {
+    if (window.isTopAdmin) return { itens: true, equipamentos: true };
+    if (window.estoquePerms) return window.estoquePerms;
+    if (window.activeUserPerms) {
+        return {
+            itens: !!window.activeUserPerms['estoque'],
+            equipamentos: !!window.activeUserPerms['estoque-equipamentos']
+        };
+    }
+    return { itens: true, equipamentos: true };
+};
+
+window.aplicarPermissoesAbasEstoque = function() {
+    const perms = window._getEstoquePerms();
+    const tabItens = document.getElementById('tab-estoque-itens');
+    const tabEquip = document.getElementById('tab-estoque-equipamentos');
+    const tabHist  = document.getElementById('tab-estoque-historico');
+    const headerBtnsItens = document.getElementById('estoque-itens-header-actions');
+
+    if (tabItens) tabItens.style.display = perms.itens ? '' : 'none';
+    if (tabEquip) tabEquip.style.display = perms.equipamentos ? '' : 'none';
+
+    // Histórico de movimentação funciona apenas para os Itens de Estoque (nunca para Equipamentos)
+    const mostrarHistorico = perms.itens && window._abaAtivaEstoque !== 'equipamentos';
+    if (tabHist) tabHist.style.display = mostrarHistorico ? '' : 'none';
+    if (headerBtnsItens) headerBtnsItens.style.display = (perms.itens && window._abaAtivaEstoque !== 'equipamentos') ? 'flex' : 'none';
+
+    // Se a aba atual não é permitida para o usuário, redirecionar automaticamente para a aba permitida
+    if ((window._abaAtivaEstoque === 'itens' || window._abaAtivaEstoque === 'historico') && !perms.itens && perms.equipamentos) {
+        window.switchTabEstoque('equipamentos');
+    } else if (window._abaAtivaEstoque === 'equipamentos' && !perms.equipamentos && perms.itens) {
+        window.switchTabEstoque('itens');
+    }
+};
+
 // ── Hook de navegação ─────────────────────────────────────────────────────────
 const _origNavEstoque = window.navigateTo;
 window.navigateTo = function(targetId) {
+    if (targetId === 'estoque-equipamentos') {
+        if (_origNavEstoque) _origNavEstoque.call(this, 'estoque');
+        window.aplicarPermissoesAbasEstoque();
+        window.switchTabEstoque('equipamentos');
+        return;
+    }
     if (_origNavEstoque) _origNavEstoque.apply(this, arguments);
-    if (targetId === "estoque") window.renderEstoqueTable();
+    if (targetId === "estoque") {
+        window.aplicarPermissoesAbasEstoque();
+        const perms = window._getEstoquePerms();
+        if (!perms.itens && perms.equipamentos) {
+            window.switchTabEstoque('equipamentos');
+        } else {
+            if (window._abaAtivaEstoque === 'equipamentos' && perms.equipamentos) {
+                window.switchTabEstoque('equipamentos');
+            } else {
+                window.switchTabEstoque('itens');
+                window.renderEstoqueTable();
+            }
+        }
+    }
 };
 
 // ── Abas ──────────────────────────────────────────────────────────────────────
 window._abaAtivaEstoque = "itens";
 window.switchTabEstoque = function(tab) {
+    const perms = window._getEstoquePerms();
+    if ((tab === "itens" || tab === "historico") && !perms.itens) {
+        if (perms.equipamentos) tab = "equipamentos";
+        else return;
+    }
+    if (tab === "equipamentos" && !perms.equipamentos) {
+        if (perms.itens) tab = "itens";
+        else return;
+    }
+
     window._abaAtivaEstoque = tab;
     const elItens = document.getElementById("content-estoque-itens");
     const elEquip = document.getElementById("content-estoque-equipamentos");
@@ -1848,6 +1913,18 @@ window.switchTabEstoque = function(tab) {
     if (elItens) elItens.style.display = tab === "itens"        ? "block" : "none";
     if (elEquip) elEquip.style.display = tab === "equipamentos" ? "block" : "none";
     if (elHist)  elHist.style.display  = tab === "historico"    ? "block" : "none";
+
+    // Histórico de movimentação e botões de movimentação só aparecem para Itens em Estoque
+    const tabItensEl = document.getElementById("tab-estoque-itens");
+    const tabEquipEl = document.getElementById("tab-estoque-equipamentos");
+    const tabHistEl  = document.getElementById("tab-estoque-historico");
+    const headerBtnsItens = document.getElementById("estoque-itens-header-actions");
+
+    if (tabItensEl) tabItensEl.style.display = perms.itens ? "" : "none";
+    if (tabEquipEl) tabEquipEl.style.display = perms.equipamentos ? "" : "none";
+    if (tabHistEl)  tabHistEl.style.display  = (perms.itens && tab !== "equipamentos") ? "" : "none";
+    if (headerBtnsItens) headerBtnsItens.style.display = (perms.itens && tab !== "equipamentos") ? "flex" : "none";
+
     ["itens", "equipamentos", "historico"].forEach(t => {
         const el = document.getElementById("tab-estoque-" + t);
         if (!el) return;

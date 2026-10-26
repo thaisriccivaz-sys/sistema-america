@@ -71,7 +71,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-comissao', pagina_nome: 'Comissão', icone: 'ph-currency-circle-dollar' },
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
-    { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
+    { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque (Itens de Estoque)', icone: 'ph-package' },
+    { modulo: 'Administrativo', pagina_id: 'estoque-equipamentos', pagina_nome: 'Estoque (Equipamentos)', icone: 'ph-cube' },
     { modulo: 'Administrativo', pagina_id: 'celulares-corporativos', pagina_nome: 'Celulares Corporativos', icone: 'ph-device-mobile' },
     { modulo: 'Administrativo', pagina_id: 'computadores-corporativos', pagina_nome: 'Computadores', icone: 'ph-desktop' },
     { modulo: 'Administrativo', pagina_id: 'administrativo-senhas', pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
@@ -657,7 +658,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos', 'emails-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'estoque-equipamentos', 'celulares-corporativos', 'computadores-corporativos', 'emails-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',

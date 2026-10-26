@@ -897,7 +897,9 @@ window.carregarPermissoesOnline = async function () {
     if (isTopAdmin) {
         // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
         // Eles têm acesso automático e irrestrito a todas as telas visualmente.
+        window.estoquePerms = { itens: true, equipamentos: true };
         document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
+        if (typeof window.aplicarPermissoesAbasEstoque === 'function') window.aplicarPermissoesAbasEstoque();
         return; // Retorna cedo ignorando qualquer grupo
     }
 
@@ -947,6 +949,14 @@ window.carregarPermissoesOnline = async function () {
         // O item do menu aparece se o usuario tiver qualquer uma; as abas internas respeitam cada uma.
         window.frotaPerms = { gestao: !!mapPerms['logistica-frota'], manutencao: !!mapPerms['logistica-frota-manutencao'] };
         if (window.frotaPerms.manutencao) mapPerms['logistica-frota'] = true;
+
+        // Estoque: duas liberações independentes — Estoque (Itens de Estoque) e Estoque (Equipamentos).
+        // O item do menu aparece se o usuário tiver qualquer uma; as abas internas respeitam cada uma.
+        window.estoquePerms = {
+            itens: !!mapPerms['estoque'],
+            equipamentos: !!mapPerms['estoque-equipamentos']
+        };
+        if (window.estoquePerms.equipamentos) mapPerms['estoque'] = true;
 
         if (mapPerms['comercial-proposta']) {
             if (mapPerms['comercial-enderecos'] === undefined) mapPerms['comercial-enderecos'] = true;
@@ -1067,6 +1077,9 @@ window.carregarPermissoesOnline = async function () {
         // Aplica permissões no Prontuário Digital
         if (window.aplicarPermissoesProntuario) {
             window.aplicarPermissoesProntuario();
+        }
+        if (typeof window.aplicarPermissoesAbasEstoque === 'function') {
+            window.aplicarPermissoesAbasEstoque();
         }
 
         // Sempre garantimos que o ícone de SAIR apareça então não há risco.
