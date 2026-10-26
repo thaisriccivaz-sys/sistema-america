@@ -2127,7 +2127,7 @@ db.run("PRAGMA foreign_keys = ON;");
                     codigo TEXT UNIQUE NOT NULL,
                     nome TEXT NOT NULL,
                     unidade_medida TEXT NOT NULL DEFAULT 'UNIDADE [UN]',
-                    fonte_fornecimento TEXT NOT NULL DEFAULT 'Outros',
+                    fonte_fornecimento TEXT NOT NULL DEFAULT 'OUTROS',
                     grupo_produto TEXT NOT NULL DEFAULT 'STANDARD',
                     especificacao_tecnica TEXT DEFAULT '',
                     produto_venda INTEGER DEFAULT 0,
@@ -2140,6 +2140,8 @@ db.run("PRAGMA foreign_keys = ON;");
                 if (!err) {
                     console.log('[ESTOQUE] Tabela estoque_equipamentos OK.');
                     db.run("ALTER TABLE estoque_equipamentos ADD COLUMN tipo_item TEXT NOT NULL DEFAULT 'matriz'", () => {});
+                    db.run("UPDATE estoque_equipamentos SET codigo = PRINTF('%05d', CAST(REPLACE(REPLACE(UPPER(codigo), 'EQ-', ''), 'EQ', '') AS INTEGER)) WHERE codigo LIKE 'EQ%'", () => {});
+                    db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = UPPER(fonte_fornecimento), grupo_produto = UPPER(grupo_produto)", () => {});
                 }
             });
 

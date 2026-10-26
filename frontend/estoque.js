@@ -2492,8 +2492,8 @@ window.renderEquipamentosEstoqueTable = function() {
             const matchEsp  = String(item.especificacao_tecnica || '').toLowerCase().includes(busca);
             if (!matchNome && !matchCod && !matchEsp) return false;
         }
-        if (grupo && String(item.grupo_produto || '') !== grupo) return false;
-        if (fonte && String(item.fonte_fornecimento || '') !== fonte) return false;
+        if (grupo && !String(item.grupo_produto || '').toUpperCase().includes(grupo.toUpperCase())) return false;
+        if (fonte && !String(item.fonte_fornecimento || '').toUpperCase().includes(fonte.toUpperCase())) return false;
         if (venda !== '' && String(item.produto_venda ? '1' : '0') !== venda) return false;
         if (tipoItem !== '' && String(item.tipo_item || 'matriz').toLowerCase() !== tipoItem) return false;
         return true;
@@ -2542,8 +2542,8 @@ window.renderEquipamentosEstoqueTable = function() {
             '<td><span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-weight:700;font-size:0.78rem;white-space:nowrap;">' + esc(item.codigo) + '</span></td>' +
             '<td style="font-weight:600;color:#1e293b;">' + esc(item.nome) + '</td>' +
             '<td><span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:600;white-space:nowrap;">' + esc(item.unidade_medida) + '</span></td>' +
-            '<td style="color:#334155;font-size:0.84rem;">' + esc(item.fonte_fornecimento) + '</td>' +
-            '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(item.grupo_produto) + '</span></td>' +
+            '<td style="color:#334155;font-size:0.84rem;font-weight:600;text-transform:uppercase;">' + esc(String(item.fonte_fornecimento || '').toUpperCase()) + '</td>' +
+            '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(String(item.grupo_produto || '').toUpperCase()) + '</span></td>' +
             '<td style="text-align:center;">' + badgeVenda + '</td>' +
             '<td style="text-align:center;">' + badgeTipoItem + '</td>' +
             '<td>' + especPreview + '</td>' +
@@ -2645,8 +2645,8 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-codigo').value = item.codigo || '';
         document.getElementById('equipamento-est-nome').value = item.nome || '';
         document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
-        document.getElementById('equipamento-est-fonte').value = item.fonte_fornecimento || 'Outros';
-        document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
+        document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'OUTROS').toUpperCase();
+        document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'STANDARD').toUpperCase();
         document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
         window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
         window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
@@ -2658,7 +2658,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-codigo').value = 'Gerando...';
         document.getElementById('equipamento-est-nome').value = '';
         document.getElementById('equipamento-est-unidade').value = 'UNIDADE [UN]';
-        document.getElementById('equipamento-est-fonte').value = 'Banheiros Químicos Obra';
+        document.getElementById('equipamento-est-fonte').value = 'BANHEIROS QUÍMICOS OBRA';
         document.getElementById('equipamento-est-grupo').value = 'STANDARD';
         document.getElementById('equipamento-est-especificacao').value = '';
         window.setVendaEquipamentoEstoqueUI(false);
@@ -2686,8 +2686,8 @@ window.duplicarEquipamentoEstoque = async function(id) {
     document.getElementById('equipamento-est-codigo').value = 'Gerando...';
     document.getElementById('equipamento-est-nome').value = item.nome || '';
     document.getElementById('equipamento-est-unidade').value = item.unidade_medida || 'UNIDADE [UN]';
-    document.getElementById('equipamento-est-fonte').value = item.fonte_fornecimento || 'Outros';
-    document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
+    document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'OUTROS').toUpperCase();
+    document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'STANDARD').toUpperCase();
     document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
     window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
     window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
@@ -2741,8 +2741,8 @@ window.salvarEquipamentoEstoque = async function(event) {
     const id = (document.getElementById('equipamento-est-id')?.value || '').trim();
     const nome = (document.getElementById('equipamento-est-nome')?.value || '').trim();
     const unidade_medida = document.getElementById('equipamento-est-unidade')?.value || 'UNIDADE [UN]';
-    const fonte_fornecimento = document.getElementById('equipamento-est-fonte')?.value || 'Outros';
-    const grupo_produto = document.getElementById('equipamento-est-grupo')?.value || 'STANDARD';
+    const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'OUTROS').trim().toUpperCase();
+    const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'STANDARD').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const produto_venda = document.getElementById('equipamento-est-venda')?.value === '1' ? 1 : 0;
     const tipo_item = document.getElementById('equipamento-est-tipo-item')?.value === 'estoque' ? 'estoque' : 'matriz';
@@ -2885,7 +2885,7 @@ window.abrirModalImportarEquipamentos = async function() {
                         <li><b>Nome</b> (obrigatório — nomes duplicados são ignorados automaticamente)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
                         <li><b>Grupo</b> (ex: STANDARD, LUXO, LAVATÓRIOS, GUARITAS...)</li>
-                        <li><b>Fonte de fornecimento</b> (Banheiros Químicos Obra, Banheiros Químicos Evento, Banheiros Hidráulicos, Lavatórios, Guaritas, Parceiros, Serviços, Outros)</li>
+                        <li><b>Fonte de fornecimento</b> (BANHEIROS QUÍMICOS OBRA, BANHEIROS QUÍMICOS EVENTO, BANHEIROS HIDRÁULICOS, LAVATÓRIOS, GUARITAS, PARCEIROS, SERVIÇOS, OUTROS)</li>
                         <li><b>Texto técnico</b> (Especificação técnica)</li>
                         <li><b>Venda</b> (Sim ou Não)</li>
                         <li><b>Estoque ou Produto</b> (<b>Produto</b> / <b>Matriz</b> = aparece na Proposta | <b>Estoque</b> = controle interno)</li>
@@ -2966,3 +2966,174 @@ window.abrirModalImportarEquipamentos = async function() {
         });
     }
 };
+
+
+// ── Combobox Pesquisável / Digitável para Fonte de Fornecimento e Grupo de Produto ──
+window._FONTES_EQUIPAMENTO_PADRAO = [
+    'BANHEIROS QUÍMICOS OBRA',
+    'BANHEIROS QUÍMICOS EVENTO',
+    'BANHEIROS HIDRÁULICOS',
+    'LAVATÓRIOS',
+    'GUARITAS',
+    'PARCEIROS',
+    'SERVIÇOS',
+    'OUTROS'
+];
+
+window._GRUPOS_EQUIPAMENTO_PADRAO = [
+    'STANDARD',
+    'LUXO',
+    'EXTRA LUXO',
+    'PCD',
+    'MICTÓRIO',
+    'LAVATÓRIOS',
+    'CHUVEIRO',
+    'HIDRÁULICO',
+    'GUARITAS',
+    'SERVIÇOS',
+    'AVARIA',
+    'ACESSÓRIO',
+    'OUTROS',
+    'CONTAINER',
+    'CONTENÇÃO',
+    'PISOS',
+    'ESTRUTURAS',
+    'BRINQUEDOS',
+    'TENDA',
+    'MOBILIÁRIO',
+    'LICENÇAS',
+    'GUARITAS / BILHETERIAS',
+    'VIP'
+];
+
+window._obterOpcoesComboEquipamento = function(tipo) {
+    const isFonte = tipo.includes('fonte');
+    const base = isFonte ? window._FONTES_EQUIPAMENTO_PADRAO.slice() : window._GRUPOS_EQUIPAMENTO_PADRAO.slice();
+    const setNorm = new Set(base.map(x => x.toUpperCase()));
+    (window._equipamentosEstoqueData || []).forEach(item => {
+        const val = String(isFonte ? item.fonte_fornecimento : item.grupo_produto || '').trim().toUpperCase();
+        if (val && !setNorm.has(val)) {
+            setNorm.add(val);
+            base.push(val);
+        }
+    });
+    return base;
+};
+
+window._getComboConfigEquipamento = function(tipo) {
+    if (tipo === 'filtro-grupo') {
+        return { inputId: 'filtro-equip-est-grupo', listId: 'combo-list-filtro-grupo', isFiltro: true, labelTodos: 'TODOS OS GRUPOS' };
+    }
+    if (tipo === 'filtro-fonte') {
+        return { inputId: 'filtro-equip-est-fonte', listId: 'combo-list-filtro-fonte', isFiltro: true, labelTodos: 'TODAS AS FONTES' };
+    }
+    if (tipo === 'modal-fonte') {
+        return { inputId: 'equipamento-est-fonte', listId: 'combo-list-modal-fonte', isFiltro: false };
+    }
+    if (tipo === 'modal-grupo') {
+        return { inputId: 'equipamento-est-grupo', listId: 'combo-list-modal-grupo', isFiltro: false };
+    }
+    return null;
+};
+
+window.fecharTodosCombosEquipamento = function(excetoListId) {
+    ['combo-list-filtro-grupo', 'combo-list-filtro-fonte', 'combo-list-modal-fonte', 'combo-list-modal-grupo'].forEach(id => {
+        if (id !== excetoListId) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+    });
+};
+
+window.abrirComboEquipamento = function(tipo, filtrarPorTexto) {
+    const cfg = window._getComboConfigEquipamento(tipo);
+    if (!cfg) return;
+    const inputEl = document.getElementById(cfg.inputId);
+    const listEl  = document.getElementById(cfg.listId);
+    if (!inputEl || !listEl) return;
+
+    window.fecharTodosCombosEquipamento(cfg.listId);
+
+    const todasOpcoes = window._obterOpcoesComboEquipamento(tipo);
+    const termo = filtrarPorTexto ? String(inputEl.value || '').trim().toUpperCase() : '';
+    const norm = (s) => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const termoNorm = norm(termo);
+
+    const filtradas = termoNorm
+        ? todasOpcoes.filter(op => norm(op).includes(termoNorm))
+        : todasOpcoes;
+
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    let html = '';
+    if (cfg.isFiltro) {
+        html += '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'\')" ' +
+            'style="padding:8px 12px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#64748b;border-bottom:1px solid #f1f5f9;background:#f8fafc;" ' +
+            'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f8fafc\'">' +
+            esc(cfg.labelTodos) + '</div>';
+    }
+
+    if (filtradas.length === 0 && termo) {
+        html += '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(termo) + '\')" ' +
+            'style="padding:9px 12px;cursor:pointer;font-size:0.81rem;font-weight:700;color:#0f766e;background:#f0fdf4;">' +
+            '<i class="ph ph-plus-circle"></i> Usar "' + esc(termo) + '"</div>';
+    } else {
+        html += filtradas.map(op => {
+            const selecionado = String(inputEl.value || '').trim().toUpperCase() === op;
+            const bg = selecionado ? '#fff7ed' : '#fff';
+            const cor = selecionado ? '#c2410c' : '#1e293b';
+            return '<div onmousedown="window.selecionarOpcaoComboEquipamento(\'' + tipo + '\', \'' + esc(op) + '\')" ' +
+                'style="padding:8px 12px;cursor:pointer;font-size:0.81rem;font-weight:600;color:' + cor + ';background:' + bg + ';border-bottom:1px solid #f8fafc;text-transform:uppercase;" ' +
+                'onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'' + bg + '\'">' +
+                esc(op) + '</div>';
+        }).join('');
+    }
+
+    listEl.innerHTML = html;
+    listEl.style.display = 'block';
+};
+
+window.toggleComboEquipamento = function(tipo) {
+    const cfg = window._getComboConfigEquipamento(tipo);
+    if (!cfg) return;
+    const listEl = document.getElementById(cfg.listId);
+    const inputEl = document.getElementById(cfg.inputId);
+    if (!listEl) return;
+    if (listEl.style.display === 'block') {
+        listEl.style.display = 'none';
+    } else {
+        window.abrirComboEquipamento(tipo, false);
+        if (inputEl) inputEl.focus();
+    }
+};
+
+window.selecionarOpcaoComboEquipamento = function(tipo, valor) {
+    const cfg = window._getComboConfigEquipamento(tipo);
+    if (!cfg) return;
+    const inputEl = document.getElementById(cfg.inputId);
+    const listEl  = document.getElementById(cfg.listId);
+    if (inputEl) inputEl.value = String(valor || '').toUpperCase();
+    if (listEl) listEl.style.display = 'none';
+    if (cfg.isFiltro) {
+        window.renderEquipamentosEstoqueTable();
+    }
+};
+
+if (!window._comboEquipamentoClickOutsideBound) {
+    window._comboEquipamentoClickOutsideBound = true;
+    document.addEventListener('mousedown', function(e) {
+        const wraps = [
+            'wrap-filtro-equip-est-grupo',
+            'wrap-filtro-equip-est-fonte',
+            'wrap-modal-equip-est-fonte',
+            'wrap-modal-equip-est-grupo'
+        ];
+        const clicouDentro = wraps.some(wId => {
+            const el = document.getElementById(wId);
+            return el && el.contains(e.target);
+        });
+        if (!clicouDentro) {
+            window.fecharTodosCombosEquipamento();
+        }
+    });
+}

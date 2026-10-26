@@ -33407,7 +33407,7 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
 function gerarProximoCodigoEquipamento(cb) {
     db.get(`SELECT MAX(CAST(REPLACE(REPLACE(UPPER(codigo), 'EQ-', ''), 'EQ', '') AS INTEGER)) as max_seq FROM estoque_equipamentos`, [], (err, row) => {
         const nextNum = ((row && row.max_seq) ? parseInt(row.max_seq, 10) : 0) + 1;
-        const codigo = 'EQ-' + String(nextNum).padStart(4, '0');
+        const codigo = String(nextNum).padStart(5, '0');
         cb(codigo);
     });
 }
@@ -33444,31 +33444,31 @@ function normalizarUnidadeEquipamento(val) {
 }
 
 function normalizarFonteEquipamento(val) {
-    const raw = String(val || '').trim();
-    if (!raw) return 'Outros';
+    const raw = String(val || '').trim().toUpperCase();
+    if (!raw) return 'OUTROS';
     const norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const opcoes = [
-        'Banheiros Químicos Obra',
-        'Banheiros Químicos Evento',
-        'Banheiros Hidráulicos',
-        'Lavatórios',
-        'Guaritas',
-        'Parceiros',
-        'Serviços',
-        'Outros'
+        'BANHEIROS QUÍMICOS OBRA',
+        'BANHEIROS QUÍMICOS EVENTO',
+        'BANHEIROS HIDRÁULICOS',
+        'LAVATÓRIOS',
+        'GUARITAS',
+        'PARCEIROS',
+        'SERVIÇOS',
+        'OUTROS'
     ];
     for (const op of opcoes) {
         const opNorm = op.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (norm === opNorm) return op;
     }
-    if (norm.includes('obra')) return 'Banheiros Químicos Obra';
-    if (norm.includes('evento')) return 'Banheiros Químicos Evento';
-    if (norm.includes('hidraul')) return 'Banheiros Hidráulicos';
-    if (norm.includes('lavator')) return 'Lavatórios';
-    if (norm.includes('guarita')) return 'Guaritas';
-    if (norm.includes('parceir')) return 'Parceiros';
-    if (norm.includes('servic')) return 'Serviços';
-    return 'Outros';
+    if (norm.includes('obra')) return 'BANHEIROS QUÍMICOS OBRA';
+    if (norm.includes('evento')) return 'BANHEIROS QUÍMICOS EVENTO';
+    if (norm.includes('hidraul')) return 'BANHEIROS HIDRÁULICOS';
+    if (norm.includes('lavator')) return 'LAVATÓRIOS';
+    if (norm.includes('guarita')) return 'GUARITAS';
+    if (norm.includes('parceir')) return 'PARCEIROS';
+    if (norm.includes('servic')) return 'SERVIÇOS';
+    return raw;
 }
 
 function normalizarGrupoEquipamento(val) {
@@ -33486,7 +33486,7 @@ function normalizarGrupoEquipamento(val) {
         if (norm === gNorm) return g;
     }
     if (norm.includes('BILHETERIA')) return 'GUARITAS / BILHETERIAS';
-    return grupos.includes(raw) ? raw : 'OUTROS';
+    return raw;
 }
 
 function normalizarVendaEquipamento(val) {
@@ -33532,7 +33532,7 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                 'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'STANDARD',
-                'Fonte de fornecimento': 'Banheiros Químicos Obra',
+                'Fonte de fornecimento': 'BANHEIROS QUÍMICOS OBRA',
                 'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
                 'Venda': 'Não',
                 'Estoque ou Produto': 'Produto'
@@ -33541,7 +33541,7 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                 'Nome': 'LAVATÓRIO PORTÁTIL DUPLO',
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'LAVATÓRIOS',
-                'Fonte de fornecimento': 'Lavatórios',
+                'Fonte de fornecimento': 'LAVATÓRIOS',
                 'Texto técnico': 'Lavatório portátil com acionamento por pedal.',
                 'Venda': 'Sim',
                 'Estoque ou Produto': 'Estoque'
@@ -33641,7 +33641,7 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                 const tipoRaw  = lerColuna(row, ['estoque ou produto', 'produto ou estoque', 'tipo', 'matriz', 'estoque']);
 
                 maxNum++;
-                const codigo = 'EQ-' + String(maxNum).padStart(4, '0');
+                const codigo = String(maxNum).padStart(5, '0');
 
                 itensParaInserir.push({
                     codigo,
@@ -33708,8 +33708,8 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
 
     const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
-    const fonte_fornecimento = String(d.fonte_fornecimento || 'Outros').trim();
-    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'OUTROS').trim().toUpperCase();
+    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
@@ -33751,8 +33751,8 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     if (!nome) return res.status(400).json({ error: 'O nome do equipamento é obrigatório.' });
 
     const unidade_medida = String(d.unidade_medida || 'UNIDADE [UN]').trim();
-    const fonte_fornecimento = String(d.fonte_fornecimento || 'Outros').trim();
-    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
+    const fonte_fornecimento = String(d.fonte_fornecimento || 'OUTROS').trim().toUpperCase();
+    const grupo_produto = String(d.grupo_produto || 'STANDARD').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';

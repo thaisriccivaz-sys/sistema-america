@@ -12615,7 +12615,7 @@ window.abrirModalBuscaProdutos = async function() {
                         <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.75rem;">
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
-                                <input type="text" id="modal-prod-search-codigo" placeholder="Ex: EQ-0001..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <input type="text" id="modal-prod-search-codigo" placeholder="Ex: 00001..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
                             </div>
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição / Grupo</label>
