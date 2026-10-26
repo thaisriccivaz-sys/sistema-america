@@ -28,7 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261026v2" defer></script>
+    <script src="estoque.js?v=20261026v3" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -3860,22 +3860,6 @@
                                 </div>
                                 <div id="combo-list-filtro-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:230px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); margin-top:3px;"></div>
                             </div>
-                            <div style="flex:0.75; min-width:145px;">
-                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Produto p/ Venda</label>
-                                <select id="filtro-equip-est-venda" class="form-control" style="width:100%;" onchange="window.renderEquipamentosEstoqueTable()">
-                                    <option value="">Todos</option>
-                                    <option value="1">Sim (ON)</option>
-                                    <option value="0">Não (OFF)</option>
-                                </select>
-                            </div>
-                            <div style="flex:0.85; min-width:165px;">
-                                <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Estoque ou Produto</label>
-                                <select id="filtro-equip-est-tipo-item" class="form-control" style="width:100%;" onchange="window.renderEquipamentosEstoqueTable()">
-                                    <option value="">Todos</option>
-                                    <option value="matriz">Produto Matriz (ON)</option>
-                                    <option value="estoque">Produto de Estoque (OFF)</option>
-                                </select>
-                            </div>
                             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                                 <button type="button" class="btn btn-secondary" onclick="window.abrirModalImportarEquipamentos()" style="background:#0f766e; border-color:#0f766e; color:#fff; height:38px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-weight:600;">
                                     <i class="ph ph-file-xls"></i> Importar Produtos
@@ -3895,14 +3879,12 @@
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('unidade_medida')" style="cursor:pointer;white-space:nowrap;user-select:none;">Unid. Medida <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('fonte_fornecimento')" style="cursor:pointer;white-space:nowrap;user-select:none;">Fonte de Fornecimento <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('grupo_produto')" style="cursor:pointer;white-space:nowrap;user-select:none;">Grupo de Produto <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
-                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('produto_venda')" style="cursor:pointer;white-space:nowrap;user-select:none;text-align:center;">Produto p/ Venda <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
-                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('tipo_item')" style="cursor:pointer;white-space:nowrap;user-select:none;text-align:center;">Estoque / Produto <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th style="white-space:nowrap;">Especificação Técnica</th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-equipamentos">
-                                    <tr><td colspan="9" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -4103,37 +4085,6 @@
                                         </button>
                                     </div>
                                     <div id="combo-list-modal-grupo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10005; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
-                                </div>
-                            </div>
-
-                            <!-- Campos ON / OFF: Produto para Venda & Estoque ou Produto (Matriz vs Estoque) -->
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
-                                <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                                    <div>
-                                        <div style="font-weight:700;font-size:0.86rem;color:#1e293b;">É produto para venda?</div>
-                                        <div style="font-size:0.74rem;color:#64748b;">Ative (ON) se pode ser vendido</div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;flex-shrink:0;">
-                                        <input type="hidden" id="equipamento-est-venda" value="0">
-                                        <button type="button" id="btn-toggle-venda-equipamento" onclick="window.toggleVendaEquipamentoEstoque()" style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;border:1.5px solid #cbd5e1;background:#e2e8f0;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.2s;white-space:nowrap;">
-                                            <span id="dot-toggle-venda-equipamento" style="width:13px;height:13px;border-radius:50%;background:#64748b;display:inline-block;transition:all 0.2s;"></span>
-                                            <span id="lbl-toggle-venda-equipamento">OFF (Não)</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                                    <div>
-                                        <div style="font-weight:700;font-size:0.86rem;color:#1e293b;">Estoque ou Produto?</div>
-                                        <div style="font-size:0.74rem;color:#64748b;">ON = Produto Matriz (Proposta) | OFF = Estoque</div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;flex-shrink:0;">
-                                        <input type="hidden" id="equipamento-est-tipo-item" value="matriz">
-                                        <button type="button" id="btn-toggle-matriz-equipamento" onclick="window.toggleTipoItemEquipamentoEstoque()" style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;border:1.5px solid #3b82f6;background:#dbeafe;color:#1d4ed8;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.2s;white-space:nowrap;">
-                                            <span id="dot-toggle-matriz-equipamento" style="width:13px;height:13px;border-radius:50%;background:#2563eb;display:inline-block;transition:all 0.2s;"></span>
-                                            <span id="lbl-toggle-matriz-equipamento">ON (Produto Matriz)</span>
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
 
@@ -6702,7 +6653,7 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261021v1"></script>
     <script src="comercial_credenciamento.js"></script>
-    <script src="proposta.js?v=20261026v3"></script>
+    <script src="proposta.js?v=20261026v4"></script>
     <script src="comercial_comissao.js?v=11"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>

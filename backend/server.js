@@ -33522,24 +33522,20 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'PCD',
                 'Fonte de fornecimento': 'PACOTE OBRA',
-                'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
-                'Venda': 'Não',
-                'Estoque ou Produto': 'Produto'
+                'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.'
             },
             {
                 'Nome': 'LAVATÓRIO PORTÁTIL DUPLO',
                 'Unidade de medida': 'UNIDADE [UN]',
                 'Grupo': 'LAVATÓRIOS',
                 'Fonte de fornecimento': 'PRÓPRIO AVULSO',
-                'Texto técnico': 'Lavatório portátil com acionamento por pedal.',
-                'Venda': 'Sim',
-                'Estoque ou Produto': 'Estoque'
+                'Texto técnico': 'Lavatório portátil com acionamento por pedal.'
             }
         ];
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(dadosModelo);
         ws['!cols'] = [
-            { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 45 }, { wch: 12 }, { wch: 20 }
+            { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 45 }
         ];
         XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
         const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

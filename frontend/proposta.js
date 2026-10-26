@@ -12565,24 +12565,22 @@ window.abrirModalPesquisaPropostas = async function() {
     }
 };
 
-/* ── Módulo de Produtos da Proposta (Somente Equipamentos Matriz) ────────── */
+/* ── Módulo de Produtos da Proposta (Equipamentos) ───────────────────────── */
 window.abrirModalBuscaProdutos = async function() {
     Swal.fire({
-        title: 'Carregando equipamentos matriz...',
+        title: 'Carregando equipamentos...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     try {
-        const todosEquipamentos = await apiGet('/estoque-equipamentos?tipo_item=matriz') || [];
-        const produtos = (Array.isArray(todosEquipamentos) ? todosEquipamentos : []).filter(
-            p => String(p.tipo_item || 'matriz').toLowerCase() !== 'estoque'
-        );
+        const todosEquipamentos = await apiGet('/estoque-equipamentos') || [];
+        const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
         Swal.close();
 
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum produto matriz encontrado na aba Equipamentos.</td></tr>`;
+                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado na aba Equipamentos.</td></tr>`;
             }
             return list.map(p => {
                 const codExib = String(p.codigo || p.id || '').replace(/'/g, "\\'");
@@ -12605,9 +12603,8 @@ window.abrirModalBuscaProdutos = async function() {
                     <!-- Header -->
                     <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <div style="display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Produtos (Matriz)
+                            <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Equipamentos
                         </div>
-                        <span style="font-size:0.72rem; font-weight:700; background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; border-radius:999px; padding:3px 10px;">Somente Produto Matriz</span>
                     </div>
                     
                     <!-- Body/Filters -->
