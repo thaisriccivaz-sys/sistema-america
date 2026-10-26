@@ -65,6 +65,9 @@ const TELAS_SISTEMA = [
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
+    { modulo: 'Comercial', pagina_id: 'comercial-enderecos', pagina_nome: 'Endereços', icone: 'ph-map-pin' },
+    { modulo: 'Comercial', pagina_id: 'comercial-clientes', pagina_nome: 'Cadastro de Cliente', icone: 'ph-user-plus' },
+    { modulo: 'Comercial', pagina_id: 'comercial-contatos', pagina_nome: 'Cadastro de Contato', icone: 'ph-address-book' },
     { modulo: 'Comercial', pagina_id: 'comercial-comissao', pagina_nome: 'Comissão', icone: 'ph-currency-circle-dollar' },
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
@@ -92,6 +95,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Diretoria', pagina_id: 'geradores',             pagina_nome: 'Geradores de Documentos', icone: 'ph-file-text' },
     { modulo: 'Diretoria', pagina_id: 'ficha-epi',             pagina_nome: 'Ficha EPI', icone: 'ph-shield-check' },
     { modulo: 'Diretoria', pagina_id: 'gerenciar-avaliacoes',  pagina_nome: 'Avaliações', icone: 'ph-clipboard-text' },
+    { modulo: 'Diretoria', pagina_id: 'comercial-servicos-precificacao', pagina_nome: 'Precificação de Serviços', icone: 'ph-calculator' },
 ];
 
 const DEPARTAMENTOS = ['RH', 'Financeiro', 'Comercial', 'Logística', 'Administrativo', 'Diretoria', 'Todas'];
@@ -649,7 +653,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-comissao'] }]
+        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-comissao'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
@@ -670,7 +674,7 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital',
-                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
+                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes', 'dissidio', 'comercial-servicos-precificacao'
                 ]
             }
         ]

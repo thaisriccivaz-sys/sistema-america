@@ -1671,4 +1671,452 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+
+            // ── Tabelas do Módulo Comercial (Propostas, Clientes, Contatos, Endereços, Precificação) ──
+            // Tabela de Clientes (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo INTEGER UNIQUE,
+                    data_cadastro TEXT,
+                    inativo INTEGER DEFAULT 0,
+                    cpf_cnpj TEXT UNIQUE,
+                    inscricao_estadual TEXT,
+                    inscricao_municipal TEXT,
+                    rg TEXT,
+                    data_nascimento TEXT,
+                    grupo_clientes TEXT,
+                    cliente_centralizador TEXT,
+                    nome_razao_social TEXT,
+                    nome_fantasia TEXT,
+                    cep TEXT,
+                    endereco TEXT,
+                    numero TEXT,
+                    complemento TEXT,
+                    bairro TEXT,
+                    uf TEXT,
+                    municipio TEXT,
+                    pais TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    telefone_2 TEXT,
+                    ramal_2 TEXT,
+                    fax TEXT,
+                    website TEXT,
+                    celular_ddi TEXT,
+                    celular TEXT,
+                    parametros TEXT,
+                    fiscal TEXT,
+                    contatos TEXT,
+                    validacao_dados TEXT,
+                    anexo_arquivos TEXT,
+                    criado_por TEXT,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+
+            // Tabela de Contatos (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS contatos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo INTEGER UNIQUE,
+                    nome TEXT,
+                    tipo TEXT,
+                    representante TEXT,
+                    departamento TEXT,
+                    cargo TEXT,
+                    origem TEXT,
+                    influenciador TEXT,
+                    classificacao TEXT,
+                    data_nascimento TEXT,
+                    ramo_atividade TEXT,
+                    regiao TEXT,
+                    sexo TEXT,
+                    celular TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    nextel TEXT,
+                    email TEXT,
+                    outra_comunicacao TEXT,
+                    inativo INTEGER DEFAULT 0,
+                    email_cobranca INTEGER DEFAULT 0,
+                    email_nfe INTEGER DEFAULT 0,
+                    email_os INTEGER DEFAULT 0,
+                    email_contrato INTEGER DEFAULT 0,
+                    cliente_id INTEGER,
+                    criado_por TEXT,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+                )
+            `);
+
+            // Tabela de Endereços de Entrega/Instalação de Clientes (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS clientes_enderecos_entrega (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER NOT NULL,
+                    sequencia INTEGER NOT NULL,
+                    nome_local TEXT,
+                    cpf_cnpj TEXT,
+                    inscricao_estadual TEXT,
+                    cep TEXT,
+                    endereco TEXT,
+                    numero TEXT,
+                    complemento TEXT,
+                    bairro TEXT,
+                    uf TEXT,
+                    municipio TEXT,
+                    contato TEXT,
+                    telefone TEXT,
+                    ramal TEXT,
+                    coordenadas TEXT,
+                    UNIQUE(cliente_id, sequencia),
+                    FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+                )
+            `);
+
+            // Tabela de DRE (Demonstrativo do Resultado do Exercício) (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS financeiro_dre (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    periodo TEXT UNIQUE NOT NULL,
+                    receita_bruta REAL DEFAULT 0,
+                    deducoes REAL DEFAULT 0,
+                    cmv_cpv REAL DEFAULT 0,
+                    despesas_operacionais REAL DEFAULT 0,
+                    despesas_administrativas REAL DEFAULT 0,
+                    despesas_financeiras REAL DEFAULT 0,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+
+            // Tabela de Propostas Comerciais (América Rental)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS propostas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE,
+                    local TEXT,
+                    tipo TEXT,
+                    atendente TEXT,
+                    data_cadastro TEXT,
+                    previsao_fechamento TEXT,
+                    fase_negociacao TEXT,
+                    modelo_impressao TEXT,
+                    cliente_nome TEXT,
+                    contato_nome TEXT,
+                    periodo_inicio TEXT,
+                    periodo_fim TEXT,
+                    hora_inicio TEXT DEFAULT '00:00',
+                    hora_fim TEXT DEFAULT '00:00',
+                    dias_contrato INTEGER DEFAULT 0,
+                    tabela_precos TEXT,
+                    endereco_instalacao TEXT,
+                    desconto_percent REAL DEFAULT 0,
+                    desconto_reais REAL DEFAULT 0,
+                    condicao_pagamento TEXT,
+                    representante TEXT,
+                    transportadora TEXT,
+                    tipo_frete TEXT,
+                    valor_frete_ida REAL DEFAULT 0,
+                    valor_frete_volta REAL DEFAULT 0,
+                    observacoes TEXT,
+                    valor_total REAL DEFAULT 0,
+                    status TEXT DEFAULT 'Ativa',
+                    motivo_reprovacao TEXT,
+                    contrato TEXT,
+                    criado_por TEXT,
+                    itens TEXT,
+                    servico_precificacao_id INTEGER,
+                    regiao TEXT,
+                    percentual_zona REAL DEFAULT 0,
+                    valor_km REAL DEFAULT 0,
+                    distancia_km REAL DEFAULT 0,
+                    valor_zona_calculado REAL DEFAULT 0,
+                    valor_distancia_calculado REAL DEFAULT 0,
+                    criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+                )
+            `);
+            db.run(`ALTER TABLE propostas ADD COLUMN itens TEXT`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN regiao TEXT`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN servico_precificacao_id INTEGER`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN percentual_zona REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_km REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN distancia_km REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_zona_calculado REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+            db.run(`ALTER TABLE propostas ADD COLUMN valor_distancia_calculado REAL DEFAULT 0`, (err) => {
+                // Ignore error if already exists
+            });
+
+
+            db.run(`ALTER TABLE propostas ADD COLUMN motivo_reprovacao TEXT`, () => {});
+            db.run(`ALTER TABLE propostas ADD COLUMN contrato TEXT`, () => {});
+            db.run(`ALTER TABLE clientes_enderecos_entrega ADD COLUMN coordenadas TEXT`, () => {});
+
+            // Tabela de precificação de serviços
+            db.run(`
+                CREATE TABLE IF NOT EXISTS servicos_precificacao (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    tabela_precos TEXT NOT NULL,
+                    estrutura_produto TEXT,  -- JSON string de insumos
+                    custo_insumos REAL DEFAULT 0,
+                    custos_fixos TEXT,  -- JSON string de mão-de-obra/fixos
+                    custo_mao_obra REAL DEFAULT 0,
+                    markup_prc REAL DEFAULT 0,
+                    markup_valores TEXT,     -- JSON contendo adm, impostos, lucro, outros
+                    markup_tipo TEXT DEFAULT 'divisor', -- 'divisor' ou 'multiplicador'
+                    preco_venda REAL DEFAULT 0,
+                    observacoes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (!err) {
+                    console.log('[COMERCIAL] Tabela servicos_precificacao OK.');
+                } else {
+                    console.error('[COMERCIAL] Erro ao criar tabela servicos_precificacao:', err);
+                }
+            });
+
+            // 1. Tabela de Itens de Custo
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_itens_custo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    codigo TEXT UNIQUE NOT NULL,
+                    descricao TEXT NOT NULL,
+                    tipo_dado_financeiro TEXT NOT NULL,
+                    natureza TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    unidade_medida TEXT,
+                    custo_unitario REAL DEFAULT 0,
+                    centro_custo TEXT,
+                    vigencia TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // 2. Tabela de Ficha Técnica (Estrutura do Serviço)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_servicos_ficha (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    servico_codigo TEXT UNIQUE NOT NULL,
+                    servico_nome TEXT NOT NULL,
+                    tempo_execucao REAL DEFAULT 0,
+                    custo_direto_total REAL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // 3. Tabela de Itens da Ficha Técnica
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_servicos_ficha_itens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ficha_id INTEGER NOT NULL,
+                    item_custo_id INTEGER NOT NULL,
+                    qtd_padrao REAL DEFAULT 0,
+                    FOREIGN KEY(ficha_id) REFERENCES comercial_servicos_ficha(id) ON DELETE CASCADE,
+                    FOREIGN KEY(item_custo_id) REFERENCES comercial_itens_custo(id)
+                )
+            `);
+
+            // 4. Tabela de Precificação e Ponto de Equilíbrio
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_precificacao_viabilidade (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    servico_codigo TEXT UNIQUE NOT NULL,
+                    rateio_despesas_fixas REAL DEFAULT 0,
+                    margem_lucro REAL DEFAULT 0,
+                    preco_sugerido_dia REAL DEFAULT 0,
+                    preco_sugerido_semana REAL DEFAULT 0,
+                    preco_sugerido_mes REAL DEFAULT 0,
+                    despesas_fixas_mensais REAL DEFAULT 0,
+                    modelo_calculo TEXT DEFAULT 'por_fora',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(servico_codigo) REFERENCES comercial_servicos_ficha(servico_codigo) ON DELETE CASCADE
+                )
+            `, (err) => {
+                if (!err) {
+                    db.run("ALTER TABLE comercial_precificacao_viabilidade ADD COLUMN modelo_calculo TEXT DEFAULT 'por_fora'", () => {});
+                }
+            });
+
+            // 5. Tabela de Rateio de Custos
+            db.run(`
+                CREATE TABLE IF NOT EXISTS comercial_rateio_custo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    periodo TEXT NOT NULL,
+                    centro_custo TEXT NOT NULL,
+                    tipo TEXT NOT NULL, -- 'Fixo' ou 'Variável'
+                    horas_periodo REAL DEFAULT 0,
+                    valor_total REAL DEFAULT 0,
+                    valor_hora REAL DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(periodo, centro_custo, tipo)
+                )
+            `, (err) => {
+                if (!err) {
+                    criarTabelasContratos();
+                }
+            });
+
+            function criarTabelasContratos() {
+                // Tabela de Textos Legais
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS comercial_textos_legais (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        codigo INTEGER UNIQUE,
+                        descricao TEXT NOT NULL,
+                        texto_legal TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `, (errTextos) => {
+                    if (!errTextos) {
+                        // Semeamento de Textos Legais
+                        db.get("SELECT COUNT(*) as count FROM comercial_textos_legais", [], (errCount, row) => {
+                            if (!errCount && row.count === 0) {
+                                const textosSeed = [
+                                    { codigo: 1, descricao: "Proposta Evento", texto: "Cláusula Legal Padrão para Eventos: O locatário declara estar ciente de que a instalação dos equipamentos ocorrerá em conformidade com as normas técnicas de segurança vigente, responsabilizando-se civil e criminalmente por qualquer alteração estrutural não autorizada." },
+                                    { codigo: 2, descricao: "Proposta Obra Mensal", texto: "Cláusula Legal Padrão para Obras Mensais: Fica acordado que a manutenção preventiva dos equipamentos será realizada mensalmente pela locadora. O locatário deverá garantir livre acesso e condições seguras de trabalho para os técnicos no local." },
+                                    { codigo: 3, descricao: "Proposta Limpa Fossa", texto: "Cláusula Legal Padrão para Limpa Fossa: Os serviços de esgotamento e transporte de efluentes serão realizados conforme regulamentação dos órgãos ambientais competentes. O contratante garante a procedência não-industrial dos resíduos." },
+                                    { codigo: 4, descricao: "Proposta VAC", texto: "Cláusula Legal Padrão para VAC: Os termos de limpeza e higienização seguem rigorosamente os parâmetros de vazão e sucção projetados. Eventuais custos de descarte de efluentes em estações homologadas correm por conta do contratante." },
+                                    { codigo: 5, descricao: "ADITIVO", texto: "Cláusula de Aditivo Contratual: Este termo adita o contrato original para prorrogar o prazo de vigência ou alterar a quantidade de equipamentos, mantendo-se inalteradas as demais cláusulas não conflitantes." },
+                                    { codigo: 6, descricao: "TERCEIROS", texto: "Cláusula de Serviços de Terceiros: A contratação de terceiros para a execução de serviços complementares exige prévia anuência por escrito da contratada, respondendo a contratante pelos atos desses terceiros." },
+                                    { codigo: 7, descricao: "Proposta de Venda", texto: "Cláusula Legal para Proposta de Venda: A propriedade dos bens objeto da presente venda só se transferirá em definitivo ao comprador após a quitação integral das parcelas pactuadas nesta proposta." },
+                                    { codigo: 8, descricao: "Proposta Locação Container", texto: "Cláusula Legal para Locação de Container: O container locado destina-se exclusivamente a depósito de materiais de construção, sendo vedada a estocagem de inflamáveis, explosivos, resíduos biológicos ou uso como habitação." },
+                                    { codigo: 9, descricao: "Proposta Obra Quinzenal", texto: "Cláusula Legal para Obras Quinzenais: O ciclo de manutenção e vistorias ocorrerá a cada 15 dias corridos. Falhas na disponibilização do equipamento para equipe técnica sujeitam o locatário a multa contratual." },
+                                    { codigo: 10, descricao: "Proposta Obra Semanal", texto: "Cláusula Legal para Obras Semanais: As vistorias técnicas serão realizadas uma vez por semana. O cronograma de visitas será ajustado previamente para minimizar interferências na atividade produtiva do canteiro." },
+                                    { codigo: 11, descricao: "Proposta Limpa Fossa Mensal", texto: "Cláusula Legal para Limpa Fossa Mensal: O contrato engloba serviços programados mensais de esgotamento de fossas sépticas, limitados ao volume máximo contratado por intervenção." }
+                                ];
+                                const stmt = db.prepare("INSERT INTO comercial_textos_legais (codigo, descricao, texto_legal) VALUES (?, ?, ?)");
+                                textosSeed.forEach(item => {
+                                    stmt.run(item.codigo, item.descricao, item.texto);
+                                });
+                                stmt.finalize();
+                                console.log("[DATABASE] Semeado comercial_textos_legais com sucesso.");
+                            }
+                        });
+                    }
+                });
+
+                // Tabela de Modelos de Contrato
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT UNIQUE NOT NULL,
+                        caputs TEXT NOT NULL, -- JSON string contendo o array estruturado de caputs
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                `, (errModelos) => {
+                    if (!errModelos) {
+                        // Semeamento de Modelos de Contrato
+                        db.get("SELECT COUNT(*) as count FROM comercial_modelos_contrato", [], (errCount, row) => {
+                            if (!errCount && row.count === 0) {
+                                const caputsPadrao = JSON.stringify([
+                                    {
+                                        id: "cpt_contratante",
+                                        tipo: "CONTRATANTE",
+                                        titulo: "CONTRATANTE (DADOS DO CLIENTE)",
+                                        conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}, com sede/endereço de instalação em {{CLIENTE_ENDERECO}}."
+                                    },
+                                    {
+                                        id: "cpt_contratado",
+                                        tipo: "CONTRATADO",
+                                        titulo: "CONTRATADO (DADOS DO LOCADOR)",
+                                        conteudo: "CONTRATADO: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06, com sede na Rua Bom Jardim, 201 - Residencial Parque Cumbica, Guarulhos - SP."
+                                    },
+                                    {
+                                        id: "cpt_valores",
+                                        tipo: "VALORES",
+                                        titulo: "DO VALOR E FATURAMENTO",
+                                        conteudo: "Os valores locatícios dos equipamentos e serviços estão detalhados na proposta comercial. O montante estimado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), faturado de acordo com a tabela de preços {{TABELA_PRECO}} e condições de pagamento pactuadas em {{CONDICAO_PAGAMENTO}}."
+                                    },
+                                    {
+                                        id: "cpt_legal",
+                                        tipo: "TEXTO_LEGAL",
+                                        titulo: "DISPOSIÇÕES LEGAIS E CONTRATUAIS",
+                                        textoLegalId: 2
+                                    }
+                                ]);
+
+                                const modelosSeed = [
+                                    { nome: "Locação Obra", caputs: caputsPadrao },
+                                    { nome: "Locação Evento", caputs: JSON.stringify([
+                                        {
+                                            id: "cpt_contratante",
+                                            tipo: "CONTRATANTE",
+                                            titulo: "CONTRATANTE",
+                                            conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}."
+                                        },
+                                        {
+                                            id: "cpt_contratado",
+                                            tipo: "CONTRATADO",
+                                            titulo: "CONTRATADA",
+                                            conteudo: "CONTRATADA: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06."
+                                        },
+                                        {
+                                            id: "cpt_valores",
+                                            tipo: "VALORES",
+                                            titulo: "VALORES DO EVENTO",
+                                            conteudo: "Para a realização do evento temporário, o valor total pactuado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), compreendendo o período de início em {{PERIODO_INICIO}} até {{PERIODO_FIM}}."
+                                        },
+                                        {
+                                            id: "cpt_legal",
+                                            tipo: "TEXTO_LEGAL",
+                                            titulo: "NORMAS PARA EVENTOS",
+                                            textoLegalId: 1
+                                        }
+                                    ]) },
+                                    { nome: "Proposta Simplificada", caputs: JSON.stringify([
+                                        {
+                                            id: "cpt_contratante",
+                                            tipo: "CONTRATANTE",
+                                            titulo: "CONTRATANTE",
+                                            conteudo: "CONTRATANTE: {{CLIENTE_RAZAO}} (CNPJ/CPF: {{CLIENTE_CNPJ}})."
+                                        },
+                                        {
+                                            id: "cpt_valores",
+                                            tipo: "VALORES",
+                                            titulo: "VALORES E CONDIÇÕES",
+                                            conteudo: "Valor Total Estimado: {{VALOR_TOTAL}} com faturamento via {{CONDICAO_PAGAMENTO}}."
+                                        }
+                                    ]) },
+                                    { nome: "Proposta Completa", caputs: caputsPadrao }
+                                ];
+
+                                const stmt = db.prepare("INSERT INTO comercial_modelos_contrato (nome, caputs) VALUES (?, ?)");
+                                modelosSeed.forEach(item => {
+                                    stmt.run(item.nome, item.caputs);
+                                });
+                                stmt.finalize();
+                                console.log("[DATABASE] Semeado comercial_modelos_contrato com sucesso.");
+                            }
+                        });
+                    }
+                });
+            }
+
 module.exports = db;

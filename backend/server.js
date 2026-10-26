@@ -38601,13 +38601,431 @@ setInterval(async () => {
 
 
 
-// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// GET /api/dashboard/stats - Estatísticas comerciais para Dashboard Comercial
+app.get('/api/dashboard/stats', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            codigo, 
+            cliente_nome, 
+            valor_total, 
+            status, 
+            fase_negociacao,
+            COALESCE(NULLIF(motivo_reprovacao, ''), 'N/A') AS motivo_reprovacao, 
+            data_cadastro, 
+            atendente,
+            CASE 
+                WHEN avg_val IS NULL OR avg_val = 0 THEN 'B'
+                WHEN valor_total > 1.2 * avg_val THEN 'A'
+                WHEN valor_total >= 0.8 * avg_val THEN 'B'
+                ELSE 'C'
+            END AS classificacao
+        FROM propostas,
+        (SELECT AVG(valor_total) AS avg_val FROM propostas)
+        ORDER BY valor_total DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error("Erro na busca de estatísticas do dashboard:", err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// GET /api/ia/diagnostico-ishikawa - Classificação e análise 6M do Ishikawa
+app.get('/api/ia/diagnostico-ishikawa', authenticateToken, (req, res) => {
+    db.all("SELECT fase_negociacao, motivo_reprovacao FROM propostas", [], (err, rows) => {
+        if (err) {
+            console.error("Erro ao buscar propostas para Ishikawa:", err);
+            return res.status(500).json({ error: err.message });
+        }
+
+        const counts = {
+            "Metodo": 0,
+            "Maquina": 0,
+            "Medida": 0,
+            "MeioAmbiente": 0,
+            "MaodeObra": 0,
+            "Material": 0
+        };
+
+        rows.forEach(r => {
+            const fase = r.fase_negociacao || '';
+            const motivo = r.motivo_reprovacao || '';
+            // Rastrear fases de perda
+            if (fase === 'Reprovada' || fase === 'Cancelada' || fase === 'Perdida') {
+                if (motivo === 'Prazo') counts["Metodo"]++;
+                else if (motivo === 'Preço' || motivo === 'Orçamento Esgotado') counts["Medida"]++;
+                else if (motivo === 'Concorrência') counts["MeioAmbiente"]++;
+                else if (motivo === 'Outros') counts["MaodeObra"]++;
+                else if (motivo === 'Especificação Técnica') counts["Material"]++;
+            }
+        });
+
+        // Caso base/seed se o banco de dados não contiver registros de perda comerciais
+        const totalActual = Object.values(counts).reduce((a, b) => a + b, 0);
+        if (totalActual === 0) {
+            counts["Metodo"] = 12;
+            counts["Maquina"] = 2;
+            counts["Medida"] = 25;
+            counts["MeioAmbiente"] = 18;
+            counts["MaodeObra"] = 6;
+            counts["Material"] = 14;
+        }
+
+        res.json(counts);
+    });
+});
+
+// POST /api/ia/classificar-tipo - Analisa o atendimento e sugere o tipo da proposta
+app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto) {
+        return res.status(400).json({ error: 'Texto de atendimento não informado.' });
+    }
+
+    const t = texto.toLowerCase();
+
+    // Query estoque to check registered products
+    db.all('SELECT id, nome, categoria FROM estoque', [], (err, estoqueProds) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: err.message });
+        }
+
+        // Classes mapping with weights based on typical construction & rental business context
+        const classes = [
+            {
+                name: "ADITIVO",
+                keywords: ["aditivo", "aditar", "termo aditivo", "prorrogacao", "prorrogação"]
+            },
+            {
+                name: "EQUIPAMENTOS",
+                keywords: ["equipamento", "equipamentos", "maquina", "maquinas", "locacao de maquinas"]
+            },
+            {
+                name: "PROPOSTA EVENTO",
+                keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "festival", "palco", "aniversario", "fim de semana"]
+            },
+            {
+                name: "PROPOSTA LIMPA FOSSA",
+                keywords: ["limpa fossa", "limpeza de fossa", "esgotamento", "fossa"]
+            },
+            {
+                name: "PROPOSTA LIMPA FOSSA MENSAL",
+                keywords: ["limpa fossa mensal", "fossa mensal", "esgotamento mensal"]
+            },
+            {
+                name: "PROPOSTA LOCAÇÃO CONTAINER",
+                keywords: ["container", "conteiner", "modulo", "módulo"]
+            },
+            {
+                name: "PROPOSTA OBRA MENSAL",
+                keywords: ["mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "longo prazo", "locação mensal"]
+            },
+            {
+                name: "PROPOSTA OBRA QUINZENAL",
+                keywords: ["quinzenal", "quinzena", "quinzenas", "a cada 15 dias", "quinze dias"]
+            },
+            {
+                name: "PROPOSTA OBRA SEMANAL",
+                keywords: ["semanal", "semana", "semanas", "a cada 7 dias", "a cada semana"]
+            },
+            {
+                name: "PROPOSTA VENDA",
+                keywords: ["venda", "comprar", "compra", "adquirir", "vender"]
+            },
+            {
+                name: "VISITA TÉCNICA",
+                keywords: ["visita", "visita tecnica", "visita técnica", "vistoria", "tecnico", "técnico"]
+            }
+        ];
+
+        let bestClass = "PROPOSTA OBRA MENSAL"; // default fallback
+        let maxScore = -1;
+
+        classes.forEach(c => {
+            let score = 0;
+            c.keywords.forEach(kw => {
+                const regex = new RegExp(kw, 'gi');
+                const matches = t.match(regex);
+                if (matches) {
+                    score += matches.length;
+                }
+            });
+            
+            if (score > maxScore) {
+                maxScore = score;
+                bestClass = c.name;
+            }
+        });
+
+        // Special context sub-rules for co-occurrences
+        if (t.includes('obra')) {
+            if (t.includes('semanal') || t.includes('semana')) {
+                bestClass = "PROPOSTA OBRA SEMANAL";
+            } else if (t.includes('quinzenal') || t.includes('quinzena')) {
+                bestClass = "PROPOSTA OBRA QUINZENAL";
+            } else if (t.includes('mensal') || t.includes('mes') || t.includes('mês')) {
+                bestClass = "PROPOSTA OBRA MENSAL";
+            }
+        }
+
+        // Detect quantity of maintenance from the text
+        let qtd_manutencoes = 1; // default
+        if (t.includes('3 manuten') || t.includes('3vezes') || t.includes('3 vezes') || t.includes('3 manut') || t.includes('tres manuten') || t.includes('três manuten') || t.includes('três vezes') || t.includes('tres vezes')) {
+            qtd_manutencoes = 3;
+        } else if (t.includes('2 manuten') || t.includes('2vezes') || t.includes('2 vezes') || t.includes('2 manut') || t.includes('duas manuten') || t.includes('duas vezes') || t.includes('bi-semanal') || t.includes('bisanal')) {
+            qtd_manutencoes = 2;
+        } else if (t.includes('1 manuten') || t.includes('1vezes') || t.includes('1 vez') || t.includes('1 manut') || t.includes('uma manuten') || t.includes('uma vez') || t.includes('semanal') || t.includes('1x por semana')) {
+            qtd_manutencoes = 1;
+        }
+
+        // Helper functions for fuzzy product matching
+        const normalizeText = (str) => {
+            if (!str) return '';
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        };
+
+        const tNormalized = normalizeText(texto);
+        const matchedProducts = [];
+
+        if (estoqueProds && estoqueProds.length > 0) {
+            estoqueProds.forEach(p => {
+                const prodNormalized = normalizeText(p.nome);
+                
+                // 1. Direct match check
+                let matchIndex = tNormalized.indexOf(prodNormalized);
+                let isMatch = matchIndex !== -1;
+                const words = prodNormalized.split(/\s+/).filter(w => w.length > 2);
+
+                // 2. Singular/plural word check if direct check didn't match
+                if (!isMatch && words.length > 0) {
+                    let allMatched = true;
+                    let firstIdx = -1;
+                    for (let word of words) {
+                        const idx = tNormalized.indexOf(word);
+                        if (idx === -1) {
+                            // Try singular
+                            if (word.endsWith('s')) {
+                                const singular = word.slice(0, -1);
+                                const idx2 = tNormalized.indexOf(singular);
+                                if (idx2 !== -1) {
+                                    if (firstIdx === -1) firstIdx = idx2;
+                                    continue;
+                                }
+                            }
+                            allMatched = false;
+                            break;
+                        } else {
+                            if (firstIdx === -1) firstIdx = idx;
+                        }
+                    }
+                    if (allMatched) {
+                        isMatch = true;
+                        matchIndex = firstIdx;
+                    }
+                }
+
+                if (isMatch) {
+                    // Extract context window
+                    const start = Math.max(0, matchIndex - 25);
+                    const end = Math.min(tNormalized.length, matchIndex + prodNormalized.length + 25);
+                    const context = tNormalized.substring(start, end);
+
+                    // Clean product words from context to avoid matching numbers in names (like 150 kVA)
+                    let cleanContext = context;
+                    words.forEach(w => {
+                        cleanContext = cleanContext.replace(new RegExp(w + 's?', 'g'), '');
+                    });
+
+                    // Search for quantities in context
+                    let quantity = 1;
+                    const digitMatch = cleanContext.match(/\b\d+\b/);
+                    if (digitMatch) {
+                        quantity = parseInt(digitMatch[0]);
+                    } else {
+                        const numWords = {
+                            'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'tres': 3, 'três': 3,
+                            'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8,
+                            'nove': 9, 'dez': 10
+                        };
+                        for (let key in numWords) {
+                            if (new RegExp('\\b' + key + '\\b').test(cleanContext)) {
+                                quantity = numWords[key];
+                                break;
+                            }
+                        }
+                    }
+
+                    matchedProducts.push({
+                        codigo: p.id.toString(),
+                        descricao: p.nome,
+                        quantidade: quantity
+                    });
+                }
+            });
+        }
+
+        // Deduplicate matched products by ID (codigo)
+        const uniqueMatchedProducts = [];
+        const seenCodes = new Set();
+        matchedProducts.forEach(item => {
+            if (!seenCodes.has(item.codigo)) {
+                seenCodes.add(item.codigo);
+                uniqueMatchedProducts.push(item);
+            }
+        });
+
+        res.json({
+            tipo_sugerido: bestClass,
+            score: maxScore,
+            observacao_formatada: `--- Primeiro Atendimento (IA) ---\n${texto}\n----------------------------------`,
+            qtd_manutencoes: qtd_manutencoes,
+            produtos_sugeridos: uniqueMatchedProducts
+        });
+    });
+});
+
+// POST /api/ia/classificar-regiao - Identifica a região do endereço via IA com heurística robusta
+app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
+    const { endereco } = req.body;
+    if (!endereco) {
+        return res.status(400).json({ error: 'Endereço não informado.' });
+    }
+
+    const normalizeStr = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    const e = normalizeStr(endereco);
+    let regiao = 'Outra';
+
+    const classes = [
+        {
+            name: "Zona Central",
+            keywords: [
+                "guarulhos", "gopouva", "cumbica", "pimentas", "macedo", "cecilia", 
+                "gru", "bosque maia", "taboao", "vila galvao", "bonsucesso", 
+                "lavras", "soberana", "haras", "recreio", "cecap",
+                "mooca", "belem", "belenzinho", "bras", "pari", "cambuci", "se", "republica", 
+                "bela vista", "consolacao", "santa cecilia", "bom retiro",
+                "santana", "tucuruvi", "casa verde", "limao", "freguesia do o", "tremembe", 
+                "mandaqui", "vila maria", "vila guilherme", "medeiros", "vila medeiros", "parada inglesa", 
+                "jardim sao paulo",
+                "penha", "tatuape", "carrao", "vila formosa", "aricanduva", "cangaiba", 
+                "vila prudente", "itaquera", "artur alvim", "patriarca", "sao miguel", 
+                "itaim paulista", "ermelino matarazzo", "ermelino", "cidade lider", "cidade tiradentes", 
+                "tiradentes", "guaianases", "jardim helena", "helena", "parque do carmo"
+            ]
+        },
+        {
+            name: "Zona Amarela",
+            keywords: [
+                "butanta", "rio pequeno", "raposo tavares", "bonfiglioli", "vila sonia", 
+                "jaguare", "jardim paulista", "cerqueira cesar",
+                "campo limpo", "capao redondo", "capão redondo", "vila andrade", "andrade",
+                "jabaquara", "cidade ademar", "socorro",
+                "sapopemba", "sao rafael", "iguatemi",
+                "pirituba",
+                "aruja", "itaquaquecetuba", "itaqua", "poa", "ferraz de vasconcelos", "ferraz", 
+                "taboao da serra",
+                "sao caetano do sul", "sao caetano",
+                "lapa", "perdizes", "barra funda", "pinheiros", "alto de pinheiros", "vila madalena",
+                "vila mariana", "ipiranga", "sacoma", "cursino", "saude", "moema", "itaim bibi", 
+                "vila olimpia", "chacara santo antonio", "brooklin", "campo belo", "santo amaro",
+                "sao mateus"
+            ]
+        },
+        {
+            name: "Zona Roxa",
+            keywords: [
+                "osasco", "barueri", "santana de parnaiba", "cajamar", "caieiras", 
+                "franco da rocha", "francisco morato", "mairipora", "santa isabel",
+                "cotia", "granja viana", "itapevi", "jandira", "carapicuiba", "alphaville", 
+                "tambore", "embu das artes", "embu", "itapecerica da serra", "itapecerica", 
+                "embu-guacu", "sao lourenco da serra",
+                "diadema", "sao bernardo do campo", "sbc", "santo andre", 
+                "maua", "ribeirao pires", "rio grande da serra",
+                "suzano", "mogi das cruzes", "mogi",
+                "perus", "jaragua", "anhaguera", "brasilandia", "cachoeirinha", 
+                "grajau", "parelheiros", "marsilac", "cidade dutra", "jardim angela", "pedreira"
+            ]
+        }
+    ];
+
+    let maxScore = -1;
+    classes.forEach(c => {
+        let score = 0;
+        c.keywords.forEach(kw => {
+            const regex = new RegExp('\\b' + kw + '\\b', 'gi');
+            const matches = e.match(regex);
+            if (matches) {
+                score += matches.length;
+            }
+        });
+        if (score > maxScore && score > 0) {
+            maxScore = score;
+            regiao = c.name;
+        }
+    });
+
+    res.json({ regiao });
+});
+
+// ── GET /api/config/logistica - Retorna configurações de logística ──────────────
+app.get('/api/config/logistica', authenticateToken, (req, res) => {
+  db.all("SELECT chave, valor FROM config_sistema WHERE chave IN ('logistica_porcentagem_central', 'logistica_porcentagem_amarela', 'logistica_porcentagem_vermelha', 'logistica_porcentagem_outra', 'logistica_valor_km')", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const cfg = {
+      logistica_porcentagem_central: 0,
+      logistica_porcentagem_amarela: 0,
+      logistica_porcentagem_vermelha: 0,
+      logistica_porcentagem_outra: 0,
+      logistica_valor_km: 0
+    };
+    if (rows) {
+      rows.forEach(r => {
+        cfg[r.chave] = parseFloat(r.valor) || 0;
+      });
+    }
+    res.json(cfg);
+  });
+});
+
+// ── PUT /api/config/logistica - Salva configurações de logística no banco ────────
+app.put('/api/config/logistica', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date().toISOString();
+  const keys = [
+    'logistica_porcentagem_central',
+    'logistica_porcentagem_amarela',
+    'logistica_porcentagem_vermelha',
+    'logistica_porcentagem_outra',
+    'logistica_valor_km'
+  ];
+  const promises = keys.map(k => {
+    const val = d[k] !== undefined ? String(d[k]) : '0';
+    return new Promise((resolve, reject) => {
+      db.run(`INSERT INTO config_sistema (chave, valor, updated_at) VALUES (?,?,?)
+              ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor, updated_at=excluded.updated_at`,
+        [k, val, agora], err => err ? reject(err) : resolve());
+    });
+  });
+  Promise.all(promises)
+    .then(() => res.json({ success: true }))
+    .catch(err => res.status(500).json({ error: err.message }));
+});
+
+// ══════════════════════════════════════════════════════════════════════
 // MÓDULO: PROPOSTAS COMERCIAIS
-// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ══════════════════════════════════════════════════════════════════════
 
 db.run(`CREATE TABLE IF NOT EXISTS propostas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   codigo TEXT UNIQUE,
+  contrato TEXT,
   local TEXT,
   tipo TEXT,
   atendente TEXT,
@@ -38640,7 +39058,44 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
   atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
 )`, (err) => {
   if (err) console.error('[PROPOSTAS] Erro ao criar tabela:', err.message);
-  else console.log('[PROPOSTAS] Tabela propostas OK.');
+  else {
+    console.log('[PROPOSTAS] Tabela propostas OK.');
+    // Garantir que a coluna contrato existe em bancos já criados
+    db.run("ALTER TABLE propostas ADD COLUMN contrato TEXT", (errAlter) => {
+      if (errAlter && !errAlter.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela (pode já existir a coluna):', errAlter.message);
+      }
+    });
+    
+    // Seed automático de propostas se a tabela estiver vazia
+    db.get("SELECT COUNT(*) as count FROM propostas", [], (err, rowCount) => {
+        if (!err && rowCount && rowCount.count === 0) {
+            console.log('[PROPOSTAS] Populando propostas comerciais iniciais...');
+            const seedData = [
+                ['PR2026/001', 'CAMPINAS', 'Novo', 'Ana Silva', '2026-06-15', '2026-06-20', 'Aprovada', 'Padrão', 'Auto Peças Ltda.', 'Carlos Souza', '2026-07-01', '2026-07-31', 30, '30 dias', 'Ana Silva', 'FOB', 'FOB', 150, 150, 'Proposta inicial aprovada.', 895.00, 'Diretoria', 'CT2026/001'],
+                ['PR2026/002', 'SÃO PAULO', 'Renovação', 'João Costa', '2026-06-16', '2026-06-22', 'Em Negociação', 'Padrão', 'Mão Certa Locações', 'Marcos Lima', '2026-07-05', '2026-08-04', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 200, 200, 'Aguardando retorno.', 1500.00, 'Diretoria', ''],
+                ['PR2026/003', 'VALINHOS', 'Novo', 'Bia Santos', '2026-06-17', '2026-06-25', 'Convertida em OS', 'Padrão', 'TechGng Solocians', 'Roberto Alves', '2026-07-10', '2026-08-09', 30, 'Faturado', 'Bia Santos', 'FOB', 'FOB', 100, 100, 'Gerado OS.', 12300.00, 'Diretoria', 'CT2026/002'],
+                ['PR2026/004', 'VINHEDO', 'Novo', 'Ana Silva', '2026-06-18', '2026-06-28', 'Em Negociação', 'Padrão', 'Anolva Preal', 'Juliana Dias', '2026-07-15', '2026-08-14', 30, 'Boleto', 'Ana Silva', 'CIF', 'CIF', 180, 180, 'Enviado por e-mail.', 12390.90, 'Diretoria', ''],
+                ['PR2026/005', 'JUNDIAÍ', 'Renovação', 'João Costa', '2026-06-19', '2026-06-29', 'Aguardando Aprovação', 'Padrão', 'Aguardando Final', 'Lucas Martins', '2026-07-20', '2026-08-19', 30, 'Faturado', 'João Costa', 'FOB', 'FOB', 0, 0, 'Análise.', 12300.00, 'Diretoria', ''],
+                ['PR2026/006', 'SUMARÉ', 'Novo', 'Bia Santos', '2026-06-20', '2026-06-30', 'Em Negociação', 'Padrão', 'Aua Clta', 'Felipe Santos', '2026-07-22', '2026-08-21', 30, '30 dias', 'Bia Santos', 'CIF', 'CIF', 120, 120, 'Negociando.', 12390.90, 'Diretoria', ''],
+                ['PR2026/007', 'HORTOLÂNDIA', 'Novo', 'Ana Silva', '2026-06-21', '2026-07-02', 'Perdida', 'Padrão', 'Ave Cifts', 'Amanda Lima', '2026-07-25', '2026-08-24', 30, 'Boleto', 'Ana Silva', 'FOB', 'FOB', 130, 130, 'Recusado.', 12390.90, 'Diretoria', ''],
+                ['PR2026/008', 'PAULÍNIA', 'Novo', 'João Costa', '2026-06-22', '2026-07-05', 'Em Negociação', 'Padrão', 'Avs Cikta', 'Gabriel Costa', '2026-07-28', '2026-08-27', 30, '15 dias', 'João Costa', 'CIF', 'CIF', 160, 160, 'Negociação.', 12380.90, 'Diretoria', ''],
+                ['PR2026/009', 'INDAIATUBA', 'Novo', 'Bia Santos', '2026-06-23', '2026-07-06', 'Em Negociação', 'Padrão', 'Aurlia Custi', 'Patrícia Rocha', '2026-08-01', '2026-08-31', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 150, 150, 'Crédito.', 15300.00, 'Diretoria', ''],
+                ['PR2026/010', 'SALTO', 'Novo', 'Ana Silva', '2026-06-24', '2026-07-08', 'Em Negociação', 'Padrão', 'Aule Cacto', 'Fernanda Silveira', '2026-08-05', '2026-09-04', 30, 'Faturado', 'Ana Silva', 'CIF', 'CIF', 140, 140, 'Andamento.', 13300.00, 'Diretoria', ''],
+                ['PR2026/011', 'ITU', 'Novo', 'Bia Santos', '2026-06-25', '2026-07-10', 'Em Negociação', 'Padrão', 'TechCon-Fund', 'Maurício Souza', '2026-08-10', '2026-09-08', 30, 'Boleto', 'Bia Santos', 'FOB', 'FOB', 170, 170, 'Negociação.', 13360.80, 'Diretoria', '']
+            ];
+            const stmt = db.prepare(`INSERT INTO propostas (
+                codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
+                fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+                periodo_inicio, periodo_fim, dias_contrato, condicao_pagamento,
+                representante, transportadora, tipo_frete, valor_frete_ida,
+                valor_frete_volta, observacoes, valor_total, criado_por, contrato
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            seedData.forEach(rowVal => stmt.run(rowVal));
+            stmt.finalize();
+        }
+    });
+  }
 });
 
 // Gerar código único para proposta
@@ -38649,6 +39104,15 @@ function gerarCodigoProposta(cb) {
   db.get(`SELECT MAX(CAST(SUBSTR(codigo, 6) AS INTEGER)) as max_seq FROM propostas WHERE codigo LIKE 'PR${ano}%'`, [], (err, row) => {
     const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
     cb(`PR${ano}${String(seq).padStart(4, '0')}`);
+  });
+}
+
+// Gerar código único para contrato
+function gerarCodigoContrato(cb) {
+  const ano = new Date().getFullYear();
+  db.get(`SELECT MAX(CAST(SUBSTR(contrato, 7) AS INTEGER)) as max_seq FROM propostas WHERE contrato LIKE 'CT${ano}%'`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
+    cb(`CT${ano}${String(seq).padStart(4, '0')}`);
   });
 }
 
@@ -38664,8 +39128,16 @@ app.get('/api/propostas', authenticateToken, (req, res) => {
 app.get('/api/propostas/:id', authenticateToken, (req, res) => {
   db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'Proposta nao encontrada' });
+    if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
     res.json(row);
+  });
+});
+
+// GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
+app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
+  db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY data_hora DESC", [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
   });
 });
 
@@ -38673,71 +39145,1681 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
   gerarCodigoProposta((codigo) => {
-    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-    db.run(`INSERT INTO propostas (
-      codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
-      fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
-      periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
-      tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
-      condicao_pagamento, representante, transportadora, tipo_frete,
-      valor_frete_ida, valor_frete_volta, observacoes, valor_total,
-      status, criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    gerarCodigoContrato((contrato) => {
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+      db.run(`INSERT INTO propostas (
+        codigo, contrato, local, tipo, atendente, data_cadastro, previsao_fechamento,
+        fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
+        periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
+        tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
+        condicao_pagamento, representante, transportadora, tipo_frete,
+        valor_frete_ida, valor_frete_volta, observacoes, valor_total,
+        status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
+        percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
+        criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+        d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
+        d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
+        d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+        d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
+        d.representante, d.transportadora, d.tipo_frete,
+        d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
+        d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null, d.criado_por,
+        d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
+        d.servico_precificacao_id || null,
+        d.regiao || null,
+        d.percentual_zona || 0,
+        d.valor_km || 0,
+        d.distancia_km || 0,
+        d.valor_zona_calculado || 0,
+        d.valor_distancia_calculado || 0,
+        agora, agora
+      ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Log de criação
+        const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
+          [usuarioLog, `Proposta criada com contrato ${contrato}`, this.lastID]);
+
+        res.json({ success: true, id: this.lastID, codigo, contrato });
+      });
+    });
+  });
+});
+
+// PUT /api/propostas/:id - Atualizar proposta com log comparativo
+app.put('/api/propostas/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const proposalId = req.params.id;
+  const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (err, oldRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldRow) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    db.run(`UPDATE propostas SET
+      local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
+      fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
+      periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
+      tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+      condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
+      valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
+      status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
+      percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
+      atualizado_em=?
+      WHERE id=?`,
     [
-      codigo, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+      d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-      d.valor_total||0, d.status||'Ativa', d.criado_por, agora, agora
-    ], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: this.lastID, codigo });
+      d.valor_total||0, d.status||'Ativa', d.motivo_reprovacao||null,
+      d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
+      d.servico_precificacao_id || null,
+      d.regiao || null,
+      d.percentual_zona || 0,
+      d.valor_km || 0,
+      d.distancia_km || 0,
+      d.valor_zona_calculado || 0,
+      d.valor_distancia_calculado || 0,
+      agora, proposalId
+    ], function(errUpdate) {
+      if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+      // Auditoria: comparar campos alterados
+      const fieldsToCompare = [
+        { field: 'local', label: 'Local' },
+        { field: 'tipo', label: 'Tipo' },
+        { field: 'atendente', label: 'Atendente' },
+        { field: 'data_cadastro', label: 'Data Cadastro' },
+        { field: 'previsao_fechamento', label: 'Previsão Fechamento' },
+        { field: 'fase_negociacao', label: 'Fase de Negociação' },
+        { field: 'modelo_impressao', label: 'Modelo de Impressão' },
+        { field: 'cliente_nome', label: 'Cliente' },
+        { field: 'contato_nome', label: 'Contato' },
+        { field: 'periodo_inicio', label: 'Período Início' },
+        { field: 'periodo_fim', label: 'Período Fim' },
+        { field: 'hora_inicio', label: 'Hora Início' },
+        { field: 'hora_fim', label: 'Hora Fim' },
+        { field: 'dias_contrato', label: 'Dias Contrato' },
+        { field: 'tabela_precos', label: 'Tabela de Preços' },
+        { field: 'endereco_instalacao', label: 'Endereço de Instalação' },
+        { field: 'desconto_percent', label: 'Desconto (%)' },
+        { field: 'desconto_reais', label: 'Desconto (R$)' },
+        { field: 'condicao_pagamento', label: 'Condição de Pagamento' },
+        { field: 'representante', label: 'Representante' },
+        { field: 'transportadora', label: 'Transportadora' },
+        { field: 'tipo_frete', label: 'Tipo de Frete' },
+        { field: 'valor_frete_ida', label: 'Frete Ida' },
+        { field: 'valor_frete_volta', label: 'Frete Volta' },
+        { field: 'observacoes', label: 'Observações' },
+        { field: 'valor_total', label: 'Valor Total' },
+        { field: 'status', label: 'Status' },
+        { field: 'motivo_reprovacao', label: 'Motivo de Reprovação' },
+        { field: 'percentual_zona', label: 'Percentual Zona' },
+        { field: 'valor_km', label: 'Valor por KM' },
+        { field: 'distancia_km', label: 'Distância (KM)' },
+        { field: 'valor_zona_calculado', label: 'Valor Zona' },
+        { field: 'valor_distancia_calculado', label: 'Valor Distância' }
+      ];
+
+      fieldsToCompare.forEach(item => {
+        let oldVal = oldRow[item.field] !== null && oldRow[item.field] !== undefined ? String(oldRow[item.field]) : '';
+        let newVal = d[item.field] !== null && d[item.field] !== undefined ? String(d[item.field]) : '';
+        
+        // Tratar padrões
+        if (item.field === 'hora_inicio' || item.field === 'hora_fim') {
+          if (!newVal) newVal = '00:00';
+        }
+        if (['dias_contrato', 'desconto_percent', 'desconto_reais', 'valor_frete_ida', 'valor_frete_volta', 'valor_total', 'percentual_zona', 'valor_km', 'distancia_km', 'valor_zona_calculado', 'valor_distancia_calculado'].includes(item.field)) {
+          if (!newVal) newVal = '0';
+          if (!oldVal) oldVal = '0';
+          if (parseFloat(oldVal) === parseFloat(newVal)) return;
+        }
+
+        if (oldVal !== newVal) {
+          db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
+            [usuarioLog, item.label, oldVal, newVal, proposalId]);
+        }
+      });
+
+      res.json({ success: true });
     });
   });
 });
 
-// PUT /api/propostas/:id - Atualizar proposta
-app.put('/api/propostas/:id', authenticateToken, (req, res) => {
-  const d = req.body;
-  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-  db.run(`UPDATE propostas SET
-    local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
-    fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
-    periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
-    tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
-    condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
-    valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
-    status=?, atualizado_em=?
-    WHERE id=?`,
-  [
-    d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
-    d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
-    d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
-    d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
-    d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
-    d.representante, d.transportadora, d.tipo_frete,
-    d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
-    d.valor_total||0, d.status||'Ativa', agora, req.params.id
-  ], function(err) {
+// POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
+app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
+  const { assunto, destinatarios, corpo } = req.body;
+  if (!destinatarios) return res.status(400).json({ error: 'Informe pelo menos um destinatário.' });
+
+  db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Proposta nao encontrada' });
-    res.json({ success: true });
+    if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    try {
+      // 1. Gerar HTML da Proposta
+      const proposalHtml = gerarHtmlProposta(p);
+
+      // 2. Gerar PDF com layout completo usando html-pdf-node
+      const htmlPdf = require('html-pdf-node');
+      const pdfBuffer = await htmlPdf.generatePdf(
+        { content: proposalHtml },
+        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
+      );
+
+      // 3. Enviar e-mail usando sendMailHelper
+      const toList = destinatarios.replace(/;/g, ',');
+      await sendMailHelper({
+        to: toList,
+        subject: assunto || `Proposta Comercial ${p.codigo}`,
+        html: corpo || '<p>Segue em anexo a nossa proposta comercial.</p>',
+        attachments: [
+          {
+            filename: `Proposta_${p.codigo}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      // 4. Registrar auditoria do envio de e-mail
+      const loggedUser = req.user?.username || req.user?.nome || 'unknown';
+      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
+        [loggedUser, `Enviado para: ${toList}`, p.id]);
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[PROPOSTAS] Erro ao enviar e-mail:', e);
+      res.status(500).json({ error: 'Erro ao gerar ou enviar e-mail: ' + e.message });
+    }
   });
 });
+
+// Helper: Função para renderizar HTML do PDF da proposta
+function gerarHtmlProposta(p) {
+  const fmtMoeda = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmtData = (s) => {
+    if (!s) return '—';
+    try {
+      const d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
+      return d.toLocaleDateString('pt-BR');
+    } catch (e) { return s; }
+  };
+  return `<!DOCTYPE html><html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>Proposta ${p.codigo}</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #1e293b; background: #fff; padding: 15px; }
+            .header { background: #4c1d95; color: white; padding: 15px 20px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .header h1 { font-size: 14pt; margin-bottom: 3px; }
+            .header .sub { font-size: 9pt; opacity: 0.85; }
+            .badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 15px; font-size: 9pt; font-weight: bold; }
+            .section { margin-bottom: 15px; }
+            .section h3 { font-size: 9pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 4px; margin-bottom: 8px; }
+            .grid { display: flex; flex-wrap: wrap; margin: -4px; }
+            .col-2 { width: 50%; padding: 4px; }
+            .col-3 { width: 33.33%; padding: 4px; }
+            .col-4 { width: 25%; padding: 4px; }
+            .col-12 { width: 100%; padding: 4px; }
+            .field { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 4px; padding: 6px 8px; }
+            .field label { display: block; font-size: 7.5pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+            .field span { font-size: 9.5pt; color: #1e293b; font-weight: 600; }
+            .valor-box { background: #4c1d95; color: white; border-radius: 6px; padding: 10px 15px; text-align: center; margin-top: 12px; }
+            .valor-box .label { font-size: 8pt; opacity: 0.8; margin-bottom: 2px; }
+            .valor-box .val { font-size: 18pt; font-weight: 800; }
+            .footer { border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 15px; font-size: 8pt; color: #94a3b8; text-align: center; }
+            .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; padding: 8px 10px; font-size: 9pt; color: #78350f; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h1>📋 Proposta de Locação</h1>
+                <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
+            </div>
+            <div class="badge">${p.codigo || 'S/N'}</div>
+        </div>
+
+        <div class="section">
+            <h3>Informações Gerais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Cliente</h3>
+            <div class="grid">
+                <div class="col-2"><div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div></div>
+                <div class="col-2"><div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Período e Local</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div></div>
+                <div class="col-12" style="margin-top:4px;"><div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Condições Comerciais</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div></div>
+                <div class="col-4"><div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div></div>
+            </div>
+        </div>
+
+        ${(() => {
+            if (p.itens) {
+                try {
+                    const list = JSON.parse(p.itens);
+                    if (list && list.length > 0) {
+                        return `
+                        <div class="section">
+                            <h3>Produtos / Equipamentos</h3>
+                            <table style="width:100%; border-collapse:collapse; margin-top:5px; font-size:9.5pt;">
+                                <thead>
+                                    <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:8pt; text-transform:uppercase;">
+                                        <th style="padding:6px 8px; font-weight:bold; width:120px; text-align:center;">Código</th>
+                                        <th style="padding:6px 8px; font-weight:bold;">Descrição</th>
+                                        <th style="padding:6px 8px; font-weight:bold; width:100px; text-align:center;">Quantidade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${list.map(item => `
+                                        <tr style="border-bottom:1px solid #e2e8f0;">
+                                            <td style="padding:6px 8px; text-align:center; font-weight:bold; color:#7048e8;">${item.codigo}</td>
+                                            <td style="padding:6px 8px; font-weight:600; color:#1e293b;">${item.descricao}</td>
+                                            <td style="padding:6px 8px; text-align:center; font-weight:bold; color:#475569;">${item.quantidade}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        `;
+                    }
+                } catch(e) { console.error(e); }
+            }
+            return '';
+        })()}
+
+        <div class="section">
+            <h3>Representante e Frete</h3>
+            <div class="grid">
+                <div class="col-4"><div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div></div>
+                <div class="col-4"><div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div></div>
+            </div>
+        </div>
+
+        ${p.observacoes ? `
+        <div class="section">
+            <h3>Observações</h3>
+            <div class="obs">${p.observacoes}</div>
+        </div>` : ''}
+
+        <div class="valor-box">
+            <div class="label">VALOR TOTAL DA PROPOSTA</div>
+            <div class="val">${fmtMoeda(p.valor_total)}</div>
+        </div>
+
+        <div class="footer">
+            América Rental Equipamentos · Gerado em ${new Date().toLocaleDateString('pt-BR')}
+        </div>
+    </body></html>`;
+}
 
 // DELETE /api/propostas/:id - Excluir proposta
 app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
   db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Proposta nao encontrada' });
+    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+    res.json({ success: true });
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: CADASTRO DE CLIENTES
+// ══════════════════════════════════════════════════════════════════════
+
+db.run(`CREATE TABLE IF NOT EXISTS clientes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  data_cadastro TEXT,
+  inativo INTEGER DEFAULT 0,
+  cpf_cnpj TEXT UNIQUE,
+  inscricao_estadual TEXT,
+  inscricao_municipal TEXT,
+  rg TEXT,
+  data_nascimento TEXT,
+  grupo_clientes TEXT,
+  cliente_centralizador TEXT,
+  nome_razao_social TEXT,
+  nome_fantasia TEXT,
+  cep TEXT,
+  endereco TEXT,
+  numero TEXT,
+  complemento TEXT,
+  bairro TEXT,
+  uf TEXT,
+  municipio TEXT,
+  pais TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  telefone_2 TEXT,
+  ramal_2 TEXT,
+  fax TEXT,
+  website TEXT,
+  celular_ddi TEXT,
+  celular TEXT,
+  parametros TEXT,
+  fiscal TEXT,
+  contatos TEXT,
+  validacao_dados TEXT,
+  anexo_arquivos TEXT,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (err) => {
+  if (err) console.error('[CLIENTES] Erro ao criar tabela:', err.message);
+  else console.log('[CLIENTES] Tabela clientes OK.');
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS contatos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo INTEGER UNIQUE,
+  nome TEXT,
+  tipo TEXT,
+  representante TEXT,
+  departamento TEXT,
+  cargo TEXT,
+  origem TEXT,
+  influenciador TEXT,
+  classificacao TEXT,
+  data_nascimento TEXT,
+  ramo_atividade TEXT,
+  regiao TEXT,
+  sexo TEXT,
+  celular TEXT,
+  telefone TEXT,
+  ramal TEXT,
+  nextel TEXT,
+  email TEXT,
+  outra_comunicacao TEXT,
+  inativo INTEGER DEFAULT 0,
+  email_cobranca INTEGER DEFAULT 0,
+  email_nfe INTEGER DEFAULT 0,
+  email_os INTEGER DEFAULT 0,
+  email_contrato INTEGER DEFAULT 0,
+  cliente_id INTEGER,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+)`, (err) => {
+  if (err) console.error('[CONTATOS] Erro ao criar tabela:', err.message);
+  else console.log('[CONTATOS] Tabela contatos OK.');
+});
+
+// Gerar código sequencial único para cliente
+function gerarCodigoCliente(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM clientes`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 6000) + 1;
+    cb(seq);
+  });
+}
+
+// Gerar código sequencial único para contato
+function gerarCodigoContato(cb) {
+  db.get(`SELECT MAX(codigo) as max_seq FROM contatos`, [], (err, row) => {
+    const seq = (row && row.max_seq ? row.max_seq : 14800) + 1;
+    cb(seq);
+  });
+}
+
+// Auxiliar para salvar ou atualizar empresa cliente a partir de contato
+function salvarOuAtualizarEmpresa(cliData, callback) {
+  if (!cliData) {
+    return callback(null, null);
+  }
+
+  const lookupId = cliData.id || null;
+  const lookupCodigo = cliData.codigo || null;
+  const cpfCnpj = cliData.cpf_cnpj || null;
+
+  if (!lookupId && !lookupCodigo && !cpfCnpj) {
+    return callback(null, null);
+  }
+
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? OR (cpf_cnpj = ? AND ? IS NOT NULL)', 
+    [lookupId, lookupCodigo, cpfCnpj, cpfCnpj], (err, row) => {
+      if (err) return callback(err);
+
+      if (row) {
+        const idExistente = row.id;
+        
+        // Merge e preservação de campos para não apagar dados existentes no banco
+        const rSocial = cliData.nome_razao_social || row.nome_razao_social;
+        const cnpj = cliData.cpf_cnpj || row.cpf_cnpj;
+        const cep = cliData.cep || row.cep;
+        const endereco = cliData.endereco || row.endereco;
+        const numero = cliData.numero || row.numero;
+        const bairro = cliData.bairro || row.bairro;
+        const municipio = cliData.municipio || row.municipio;
+        const uf = cliData.uf || row.uf;
+        const tel = cliData.telefone || row.telefone;
+        const ramal = cliData.ramal || row.ramal;
+        const fax = cliData.fax || row.fax;
+        const tel2 = cliData.telefone_2 || row.telefone_2;
+        const ramal2 = cliData.ramal_2 || row.ramal_2;
+        const website = cliData.website || row.website;
+
+        db.run(`UPDATE clientes SET
+          nome_razao_social=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
+          municipio=?, uf=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?,
+          atualizado_em=?
+          WHERE id=?`,
+        [
+          rSocial, cnpj, cep, endereco, numero, bairro, municipio, uf, tel, ramal, fax, tel2, ramal2, website,
+          agora, idExistente
+        ], function(err2) {
+          if (err2) return callback(err2);
+          callback(null, idExistente);
+        });
+      } else {
+        // Se a empresa não existe no banco, CPF/CNPJ e Nome são obrigatórios para criá-la
+        if (!cpfCnpj || !cliData.nome_razao_social) {
+          return callback(new Error('CNPJ/CPF e Razão Social são obrigatórios para cadastrar um novo cliente.'));
+        }
+
+        gerarCodigoCliente((novoCodigo) => {
+          db.run(`INSERT INTO clientes (
+            codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, cep, endereco,
+            numero, bairro, municipio, uf, telefone, ramal, fax, telefone_2, ramal_2, website,
+            criado_por, criado_em, atualizado_em
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social,
+            cliData.cep || '', cliData.endereco || '', cliData.numero || '', cliData.bairro || '', cliData.municipio || '',
+            cliData.uf || '', cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
+            cliData.website || '', cliData.criado_por || '', agora, agora
+          ], function(err2) {
+            if (err2) return callback(err2);
+            callback(null, this.lastID);
+          });
+        });
+      }
+    }
+  );
+}
+
+// GET /api/clientes - Listar todos os clientes
+app.get('/api/clientes', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM clientes ORDER BY criado_em DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/clientes/:id - Buscar cliente por ID ou Código
+app.get('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json(row);
+  });
+});
+
+// GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
+app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST /api/clientes/:clienteId/enderecos - Salvar ou atualizar endereço de entrega do cliente
+app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  const d = req.body;
+  
+  if (!d.sequencia) {
+    return res.status(400).json({ error: 'A sequência do endereço é obrigatória.' });
+  }
+
+  db.run(`INSERT INTO clientes_enderecos_entrega (
+    cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(cliente_id, sequencia) DO UPDATE SET
+    nome_local=excluded.nome_local,
+    cpf_cnpj=excluded.cpf_cnpj,
+    inscricao_estadual=excluded.inscricao_estadual,
+    cep=excluded.cep,
+    endereco=excluded.endereco,
+    numero=excluded.numero,
+    complemento=excluded.complemento,
+    bairro=excluded.bairro,
+    uf=excluded.uf,
+    municipio=excluded.municipio,
+    contato=excluded.contato,
+    telefone=excluded.telefone,
+    ramal=excluded.ramal,
+    coordenadas=excluded.coordenadas`,
+  [
+    clienteId, d.sequencia, d.nome_local, d.cpf_cnpj, d.inscricao_estadual, d.cep,
+    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal, d.coordenadas
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID || d.id });
+  });
+});
+
+// DELETE /api/clientes/:clienteId/enderecos/:id - Excluir endereço de entrega do cliente
+app.delete('/api/clientes/:clienteId/enderecos/:id', authenticateToken, (req, res) => {
+  const { clienteId, id } = req.params;
+  db.run('DELETE FROM clientes_enderecos_entrega WHERE cliente_id = ? AND id = ?', [clienteId, id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Endereço não encontrado.' });
+    res.json({ success: true });
+  });
+});
+
+// ─── ENDPOINTS DRE (DEMONSTRATIVO DO RESULTADO DO EXERCÍCIO) ──────
+app.get('/api/financeiro/dre/:periodo', authenticateToken, (req, res) => {
+  const { periodo } = req.params;
+  db.get('SELECT * FROM financeiro_dre WHERE periodo = ?', [periodo], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) {
+      return res.json({
+        periodo,
+        receita_bruta: 0,
+        deducoes: 0,
+        cmv_cpv: 0,
+        despesas_operacionais: 0,
+        despesas_administrativas: 0,
+        despesas_financeiras: 0
+      });
+    }
+    res.json(row);
+  });
+});
+
+app.post('/api/financeiro/dre/:periodo', authenticateToken, (req, res) => {
+  const { periodo } = req.params;
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.run(`INSERT INTO financeiro_dre (
+    periodo, receita_bruta, deducoes, cmv_cpv, despesas_operacionais, despesas_administrativas, despesas_financeiras, criado_em, atualizado_em
+  ) VALUES (?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(periodo) DO UPDATE SET
+    receita_bruta=excluded.receita_bruta,
+    deducoes=excluded.deducoes,
+    cmv_cpv=excluded.cmv_cpv,
+    despesas_operacionais=excluded.despesas_operacionais,
+    despesas_administrativas=excluded.despesas_administrativas,
+    despesas_financeiras=excluded.despesas_financeiras,
+    atualizado_em=excluded.atualizado_em`,
+  [
+    periodo, d.receita_bruta || 0, d.deducoes || 0, d.cmv_cpv || 0,
+    d.despesas_operacionais || 0, d.despesas_administrativas || 0, d.despesas_financeiras || 0,
+    agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+app.get('/api/financeiro/dre-evolucao/:ano', authenticateToken, (req, res) => {
+  const { ano } = req.params;
+  const minPeriod = `${ano}-01`;
+  const maxPeriod = `${ano}-12`;
+  db.all('SELECT * FROM financeiro_dre WHERE periodo >= ? AND periodo <= ? ORDER BY periodo ASC', [minPeriod, maxPeriod], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+  });
+});
+
+// ─── ENDPOINTS COMERCIAL - GESTÃO DE CUSTOS E PRECIFIÇÃO ──────────
+app.get('/api/comercial/itens-custo', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_itens_custo ORDER BY codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/comercial/itens-custo', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  if (d.id) {
+    db.run(`UPDATE comercial_itens_custo SET
+      descricao = ?, tipo_dado_financeiro = ?, natureza = ?, categoria = ?,
+      unidade_medida = ?, custo_unitario = ?, centro_custo = ?, vigencia = ?, updated_at = ?
+      WHERE id = ?`,
+      [d.descricao, d.tipo_dado_financeiro, d.natureza, d.categoria, d.unidade_medida, d.custo_unitario || 0, d.centro_custo, d.vigencia, agora, d.id],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: d.id });
+      }
+    );
+  } else {
+    db.get('SELECT COUNT(*) as count FROM comercial_itens_custo', [], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const nextId = (row ? row.count : 0) + 1;
+      const codigo = `CST-${String(nextId).padStart(4, '0')}`;
+
+      db.run(`INSERT INTO comercial_itens_custo (
+        codigo, descricao, tipo_dado_financeiro, natureza, categoria, unidade_medida, custo_unitario, centro_custo, vigencia, created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [codigo, d.descricao, d.tipo_dado_financeiro, d.natureza, d.categoria, d.unidade_medida, d.custo_unitario || 0, d.centro_custo, d.vigencia, agora, agora],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, codigo });
+      });
+    });
+  }
+});
+
+app.delete('/api/comercial/itens-custo/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM comercial_itens_custo WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// ─── ENDPOINTS COMERCIAL - RATEIO DE CUSTOS E DESPESAS ────────────────
+app.get('/api/comercial/rateio-custo', authenticateToken, (req, res) => {
+  const { periodo } = req.query;
+  let query = 'SELECT * FROM comercial_rateio_custo';
+  let params = [];
+  if (periodo) {
+    query += ' WHERE periodo = ?';
+    params.push(periodo);
+  }
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/comercial/rateio-custo', authenticateToken, (req, res) => {
+  const items = Array.isArray(req.body) ? req.body : [req.body];
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.serialize(() => {
+    let errorOccurred = null;
+    const stmt = db.prepare(`
+      REPLACE INTO comercial_rateio_custo (
+        periodo, centro_custo, tipo, horas_periodo, valor_total, valor_hora, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const item of items) {
+      stmt.run(
+        [item.periodo, item.centro_custo, item.tipo, item.horas_periodo || 0, item.valor_total || 0, item.valor_hora || 0, agora, agora],
+        (err) => {
+          if (err) errorOccurred = err;
+        }
+      );
+    }
+
+    stmt.finalize((err) => {
+      if (err || errorOccurred) {
+        return res.status(500).json({ error: err ? err.message : errorOccurred.message });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+
+app.post('/api/comercial/itens-custo/importar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('arquivo'), async (req, res) => {
+  const { tipo } = req.body;
+  if (!req.file) {
+    return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  }
+
+  // Helper function to dynamically classify category, nature and unit based on description
+  const sugerirClassificacao = (desc) => {
+    const descLower = (desc || '').toLowerCase();
+    
+    // 1. Categoria
+    let categoria = 'MDO';
+    if (descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('material') || descLower.includes('peça') || descLower.includes('peca') || descLower.includes('insumo') || descLower.includes('graxa') || descLower.includes('filtro') || descLower.includes('combustivel') || descLower.includes('combustível') || descLower.includes('produto') || descLower.includes('lubrificante') || descLower.includes('gasolina') || descLower.includes('diesel') || descLower.includes('etanol') || descLower.includes('conserto') || descLower.includes('reparo') || descLower.includes('manutencao') || descLower.includes('manutenção') || descLower.includes('equipamento') || descLower.includes('ferramenta') || descLower.includes('máquina') || descLower.includes('maquina')) {
+      categoria = 'Insumo';
+    } else if (descLower.includes('frete') || descLower.includes('entrega') || descLower.includes('transporte') || descLower.includes('carreto') || descLower.includes('logistica') || descLower.includes('logística') || descLower.includes('pedagio') || descLower.includes('pedágio')) {
+      categoria = 'Frete';
+    } else if (descLower.includes('imposto') || descLower.includes('taxa') || descLower.includes('aliquota') || descLower.includes('alíquota') || descLower.includes('iss') || descLower.includes('icms') || descLower.includes('darf') || descLower.includes('tributo') || descLower.includes('contribuição') || descLower.includes('contribuicao')) {
+      categoria = 'Imposto';
+    }
+
+    // 2. Natureza
+    let natureza = 'Fixo';
+    const termosVariaveis = [
+      'combustivel', 'combustível', 'gasolina', 'diesel', 'etanol', 'lubrificante',
+      'frete', 'entrega', 'carreto', 'pedagio', 'pedágio', 'viagem', 'hospedagem',
+      'alimentacao', 'alimentação', 'refeicao', 'refeição', 'km', 'quilometragem',
+      'manutencao', 'manutenção', 'reparo', 'conserto', 'peça', 'peca', 'óleo', 'oleo',
+      'graxa', 'filtro', 'material', 'insumo', 'consumo', 'avulso', 'extra'
+    ];
+    const eVariavel = termosVariaveis.some(t => descLower.includes(t));
+    if (eVariavel) {
+      natureza = 'Variável';
+    }
+
+    // 3. Unidade de Medida
+    let unidade = 'UN';
+    if (descLower.includes('design') || descLower.includes('consultoria') || descLower.includes('desenvolvimento') || descLower.includes('projeto') || descLower.includes('mão de obra') || descLower.includes('mao de obra') || descLower.includes('serviço') || descLower.includes('servico') || descLower.includes('técnico') || descLower.includes('tecnico') || descLower.includes('analista') || descLower.includes('programador') || descLower.includes('suporte') || descLower.includes('consultor') || descLower.includes('assessoria') || descLower.includes('treinamento') || descLower.includes('instrutor') || descLower.includes('palestra') || descLower.includes('aula') || descLower.includes('coordenação') || descLower.includes('coordenacao') || descLower.includes('gerente') || descLower.includes('gerenciamento') || descLower.includes('hora') || descLower.includes('horas') || descLower.includes('hr')) {
+      unidade = 'H';
+    } else if (descLower.includes('quilometragem') || descLower.includes('km') || descLower.includes('distância') || descLower.includes('distancia') || descLower.includes('rodado') || descLower.includes('deslocamento')) {
+      unidade = 'KM';
+    } else if (descLower.includes('combustível') || descLower.includes('combustivel') || descLower.includes('diesel') || descLower.includes('gasolina') || descLower.includes('etanol') || descLower.includes('lubrificante') || descLower.includes('óleo') || descLower.includes('oleo') || descLower.includes('litro') || descLower.includes('litros') || descLower.includes('agua') || descLower.includes('água')) {
+      unidade = 'L';
+    } else if (descLower.includes('kg') || descLower.includes('kilo') || descLower.includes('quilo') || descLower.includes('peso') || descLower.includes('grama') || descLower.includes('gramas')) {
+      unidade = 'KG';
+    }
+
+    return { categoria, natureza, unidade };
+  };
+
+  try {
+    let itens = [];
+
+    if (tipo === 'Planilha MDO') {
+      const xlsx = require('xlsx');
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      if (!data || data.length === 0) {
+        return res.status(400).json({ error: "A planilha está vazia ou corrompida." });
+      }
+
+      for (const row of data) {
+        const keys = Object.keys(row);
+        const descKey = keys.find(k => k.toLowerCase().includes('desc') || k.toLowerCase().includes('item') || k.toLowerCase().includes('nome') || k.toLowerCase().includes('serviço') || k.toLowerCase().includes('servico'));
+        const valKey = keys.find(k => k.toLowerCase().includes('val') || k.toLowerCase().includes('cust') || k.toLowerCase().includes('preço') || k.toLowerCase().includes('preco'));
+
+        if (descKey && valKey) {
+          const desc = String(row[descKey] || '').trim();
+          const val = parseFloat(String(row[valKey]).replace(/[^\d,.-]/g, '').replace(',', '.'));
+          if (desc && !isNaN(val)) {
+            const classif = sugerirClassificacao(desc);
+            itens.push({
+              descricao: desc,
+              valor: val,
+              natureza: classif.natureza,
+              categoria: classif.categoria,
+              unidade: classif.unidade
+            });
+          }
+        }
+      }
+
+      if (itens.length === 0) {
+        return res.status(400).json({ error: "Colunas não encontradas ou nenhum item válido. O arquivo de Planilha MDO deve possuir colunas contendo as palavras 'Descrição' e 'Valor'." });
+      }
+
+    } else if (tipo === 'PDF Fatura') {
+      // PDF processado diretamente em memória (req.file.buffer)
+
+      const { PDFParse } = require('pdf-parse');
+      const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
+      const pdfData = await parser.getText();
+      const text = pdfData.text || '';
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: "O PDF não possui texto legível por OCR." });
+      }
+
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      console.log(`[COMERCIAL] Importando PDF: ${lines.length} linhas de texto extraídas.`);
+      // accepts dots or commas as decimal separators
+      const lineValRegex = /(?:r\$\s*)?([\d.]+[.,]\d{2})\b/i;
+
+      lines.forEach((line) => {
+        const lineLower = line.toLowerCase();
+        
+        // Skip obvious document total/tax/header lines in line-by-line item extraction
+        if (lineLower.includes('valor total') || lineLower.includes('total a pagar') || lineLower.includes('total geral') || lineLower.includes('total da fatura') || lineLower.includes('total liquido') || lineLower.includes('total líquido') || lineLower.includes('cnpj') || lineLower.includes('inscricao') || lineLower.includes('inscrição') || lineLower.includes('sub-total') || lineLower.includes('subtotal') || lineLower.includes('imposto')) {
+          return;
+        }
+
+        const match = line.match(lineValRegex);
+        if (match) {
+          let rawVal = match[1];
+          let cleanVal = rawVal;
+          if (cleanVal.includes('.') && cleanVal.includes(',')) {
+            cleanVal = cleanVal.replace(/\./g, '').replace(',', '.');
+          } else if (cleanVal.includes(',')) {
+            cleanVal = cleanVal.replace(',', '.');
+          } else if (cleanVal.includes('.')) {
+            const parts = cleanVal.split('.');
+            if (parts.length === 2 && parts[1].length === 2) {
+              // decimal separator
+            } else {
+              // thousands separator
+              cleanVal = cleanVal.replace(/\./g, '');
+            }
+          }
+          const parsedVal = parseFloat(cleanVal);
+          
+          if (!isNaN(parsedVal) && parsedVal > 0) {
+            // Get everything before the matched value to keep the description clean and exclude Qty/Total after it
+            let desc = line.split(match[0])[0].trim();
+            // clean up common punctuation and space separators at start/end
+            desc = desc.replace(/^[\s\-.:;=]+/g, '').replace(/[\s\-.:;=]+$/g, '').trim();
+            
+            // Skip total label lines
+            const descClean = desc.replace(/:/g, '').trim().toLowerCase();
+            if (descClean === 'total' || descClean === 'subtotal' || descClean === 'sub-total' || descClean.startsWith('total ') || descClean === 'total geral' || descClean === 'total a pagar') {
+              return;
+            }
+
+            // Only keep if it looks like a real description (minimum 3 alphabetical letters)
+            const letterCount = (desc.match(/[a-zA-Z\u00C0-\u00FF]/g) || []).length;
+            if (letterCount >= 3 && desc.length < 150) {
+              const classif = sugerirClassificacao(desc);
+              itens.push({
+                descricao: desc,
+                valor: parsedVal,
+                natureza: classif.natureza,
+                categoria: classif.categoria,
+                unidade: classif.unidade
+              });
+            }
+          }
+        }
+      });
+
+      // Fallback: If line-by-line items extraction yielded nothing, fall back to extracting overall details
+      if (itens.length === 0) {
+        let singleDesc = "";
+        let singleVal = 0.00;
+
+        // Extract value
+        const valRegex = /(?:r\$\s*)?([\d.]+[.,]\d{2})\b/gi;
+        let valCandidates = [];
+        lines.forEach((line, idx) => {
+          const lineLower = line.toLowerCase();
+          let match;
+          valRegex.lastIndex = 0;
+          while ((match = valRegex.exec(line)) !== null) {
+            let rawVal = match[1];
+            if (rawVal.includes('.') && rawVal.includes(',')) {
+              rawVal = rawVal.replace(/\./g, '').replace(',', '.');
+            } else if (rawVal.includes(',')) {
+              rawVal = rawVal.replace(',', '.');
+            } else if (rawVal.includes('.')) {
+              const parts = rawVal.split('.');
+              if (parts.length === 2 && parts[1].length === 2) {
+                // decimal
+              } else {
+                rawVal = rawVal.replace(/\./g, '');
+              }
+            }
+            const parsed = parseFloat(rawVal);
+            if (!isNaN(parsed) && parsed > 0) {
+              let score = 0;
+              if (line.includes('R$')) score += 50;
+              if (lineLower.includes('total') || lineLower.includes('líquido') || lineLower.includes('liquido') || lineLower.includes('pagar') || lineLower.includes('fatura') || lineLower.includes('soma') || lineLower.includes('vlr')) {
+                score += 100;
+              }
+              valCandidates.push({ value: parsed, score });
+            }
+          }
+        });
+        if (valCandidates.length > 0) {
+          valCandidates.sort((a, b) => b.score - a.score);
+          singleVal = valCandidates[0].value;
+        }
+
+        // Extract description
+        let descCandidates = [];
+        lines.forEach((line, idx) => {
+          const lineLower = line.toLowerCase();
+          if (lineLower.includes('descrição') || lineLower.includes('descricao') || lineLower.includes('serviço') || lineLower.includes('servico') || lineLower.includes('referente a')) {
+            const colonIdx = line.indexOf(':');
+            if (colonIdx !== -1 && colonIdx < line.length - 1) {
+              const afterColon = line.substring(colonIdx + 1).trim();
+              if (afterColon.replace(/[_\-*#]/g, '').trim().length > 3) {
+                descCandidates.push({ text: afterColon.replace(/[_\-*#]/g, '').trim(), score: 80 });
+              }
+            }
+            if (idx < lines.length - 1) {
+              const nextLine = lines[idx+1].trim().replace(/[_\-*#]/g, '').trim();
+              if (nextLine.length > 5 && !nextLine.toLowerCase().includes('valor') && !nextLine.toLowerCase().includes('total') && !nextLine.toLowerCase().includes('preço') && !nextLine.toLowerCase().includes('r$')) {
+                descCandidates.push({ text: nextLine, score: 100 });
+              }
+            }
+          }
+        });
+
+        if (descCandidates.length > 0) {
+          descCandidates.sort((a, b) => b.score - a.score);
+          singleDesc = descCandidates[0].text;
+        }
+
+        if (!singleDesc) {
+          const keywords = ['internet', 'telefone', 'telefonia', 'energia', 'luz', 'água', 'agua', 'aluguel', 'locação', 'locacao', 'frete', 'transporte', 'combustível', 'combustivel', 'mão de obra', 'salário', 'manutenção', 'seguro'];
+          for (const line of lines) {
+            const matchesKeyword = keywords.some(kw => line.toLowerCase().includes(kw));
+            if (matchesKeyword && line.length > 5 && line.length < 120 && !line.includes('R$')) {
+              singleDesc = line.trim();
+              break;
+            }
+          }
+        }
+
+        if (!singleDesc) {
+          const filteredLines = lines.filter(l => l.length > 10 && l.length < 100 && !l.includes('R$') && !l.includes('$') && !l.toLowerCase().includes('cnpj'));
+          singleDesc = filteredLines.length > 0 ? filteredLines[0] : "Fatura Importada (PDF)";
+        }
+
+        const classif = sugerirClassificacao(singleDesc);
+        itens.push({
+          descricao: singleDesc,
+          valor: singleVal,
+          natureza: classif.natureza,
+          categoria: classif.categoria,
+          unidade: classif.unidade
+        });
+      }
+
+    } else if (tipo === 'Nota XML') {
+      const xmlText = req.file.buffer.toString('utf8');
+      
+      const prodRegex = /<prod>([\s\S]*?)<\/prod>/g;
+      let match;
+      while ((match = prodRegex.exec(xmlText)) !== null) {
+        const prodBlock = match[1];
+        const xProdMatch = prodBlock.match(/<xProd>([^<]+)<\/xProd>/);
+        const vUnComMatch = prodBlock.match(/<vUnCom>([^<]+)<\/vUnCom>/) || prodBlock.match(/<vProd>([^<]+)<\/vProd>/);
+
+        if (xProdMatch && vUnComMatch) {
+          const desc = xProdMatch[1].trim();
+          const val = parseFloat(vUnComMatch[1]);
+          if (desc && !isNaN(val)) {
+            const classif = sugerirClassificacao(desc);
+            itens.push({
+              descricao: desc,
+              valor: val,
+              natureza: classif.natureza,
+              categoria: classif.categoria,
+              unidade: classif.unidade
+            });
+          }
+        }
+      }
+
+      if (itens.length === 0) {
+        const vNFMatch = xmlText.match(/<vNF>([^<]+)<\/vNF>/);
+        const xProdMatch = xmlText.match(/<xProd>([^<]+)<\/xProd>/);
+        const vUnComMatch = xmlText.match(/<vUnCom>([^<]+)<\/vUnCom>/);
+        
+        let val = 0.00;
+        if (vUnComMatch) {
+          val = parseFloat(vUnComMatch[1]);
+        } else if (vNFMatch) {
+          val = parseFloat(vNFMatch[1]);
+        }
+        
+        let desc = "Nota XML Importada";
+        if (xProdMatch) {
+          desc = xProdMatch[1].trim();
+        }
+
+        if (desc && !isNaN(val)) {
+          const classif = sugerirClassificacao(desc);
+          itens.push({
+            descricao: desc,
+            valor: val,
+            natureza: classif.natureza,
+            categoria: classif.categoria,
+            unidade: classif.unidade
+          });
+        }
+      }
+
+      if (itens.length === 0) {
+        return res.status(400).json({ error: "Não foi possível extrair itens do XML da NFe." });
+      }
+
+    } else {
+      return res.status(400).json({ error: "Modo de importação de arquivo inválido." });
+    }
+
+    res.json({ success: true, itens });
+
+  } catch (err) {
+    console.error("[IMPORT-ERROR] Falha geral no parser:", err);
+    res.status(500).json({ error: "Erro de processamento no servidor: " + err.message });
+  }
+});
+
+app.get('/api/comercial/servicos-ficha', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_servicos_ficha ORDER BY servico_codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.get('/api/comercial/servicos-ficha/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.get('SELECT * FROM comercial_servicos_ficha WHERE servico_codigo = ?', [codigo], (err, ficha) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!ficha) return res.json(null);
+
+    db.all(`SELECT fi.*, ic.codigo as item_codigo, ic.descricao as item_descricao, ic.unidade_medida as item_unidade, ic.custo_unitario as item_custo
+            FROM comercial_servicos_ficha_itens fi
+            JOIN comercial_itens_custo ic ON fi.item_custo_id = ic.id
+            WHERE fi.ficha_id = ?`, [ficha.id], (err, items) => {
+      if (err) return res.status(500).json({ error: err.message });
+      ficha.itens = items || [];
+      res.json(ficha);
+    });
+  });
+});
+
+app.post('/api/comercial/servicos-ficha', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.serialize(() => {
+    db.run(`INSERT INTO comercial_servicos_ficha (
+      servico_codigo, servico_nome, tempo_execucao, custo_direto_total, created_at, updated_at
+    ) VALUES (?,?,?,?,?,?)
+    ON CONFLICT(servico_codigo) DO UPDATE SET
+      servico_nome = excluded.servico_nome,
+      tempo_execucao = excluded.tempo_execucao,
+      custo_direto_total = excluded.custo_direto_total,
+      updated_at = excluded.updated_at`,
+    [d.servico_codigo, d.servico_nome, d.tempo_execucao || 0, d.custo_direto_total || 0, agora, agora],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const fichaId = this.lastID || d.id;
+
+      const saveItens = (actualFichaId) => {
+        db.run('DELETE FROM comercial_servicos_ficha_itens WHERE ficha_id = ?', [actualFichaId], (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+
+          if (!d.itens || d.itens.length === 0) {
+            return res.json({ success: true, id: actualFichaId });
+          }
+
+          const stmt = db.prepare('INSERT INTO comercial_servicos_ficha_itens (ficha_id, item_custo_id, qtd_padrao) VALUES (?,?,?)');
+          d.itens.forEach(item => {
+            stmt.run(actualFichaId, item.item_custo_id, item.qtd_padrao || 0);
+          });
+          stmt.finalize((err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id: actualFichaId });
+          });
+        });
+      };
+
+      if (this.lastID) {
+        saveItens(this.lastID);
+      } else {
+        db.get('SELECT id FROM comercial_servicos_ficha WHERE servico_codigo = ?', [d.servico_codigo], (err, row) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (!row) return res.status(404).json({ error: 'Ficha não encontrada' });
+          saveItens(row.id);
+        });
+      }
+    });
+  });
+});
+
+app.delete('/api/comercial/servicos-ficha/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.run('DELETE FROM comercial_servicos_ficha WHERE servico_codigo = ?', [codigo], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_precificacao_viabilidade', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.get('/api/comercial/precificacao-viabilidade/:codigo', authenticateToken, (req, res) => {
+  const { codigo } = req.params;
+  db.get('SELECT * FROM comercial_precificacao_viabilidade WHERE servico_codigo = ?', [codigo], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) {
+      return res.json({
+        servico_codigo: codigo,
+        rateio_despesas_fixas: 0,
+        margem_lucro: 0,
+        preco_sugerido_dia: 0,
+        preco_sugerido_semana: 0,
+        preco_sugerido_mes: 0,
+        despesas_fixas_mensais: 0,
+        modelo_calculo: 'por_fora'
+      });
+    }
+    res.json(row);
+  });
+});
+
+app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.run(`INSERT INTO comercial_precificacao_viabilidade (
+    servico_codigo, rateio_despesas_fixas, margem_lucro, preco_sugerido_dia, preco_sugerido_semana, preco_sugerido_mes, despesas_fixas_mensais, modelo_calculo, created_at, updated_at
+  ) VALUES (?,?,?,?,?,?,?,?,?,?)
+  ON CONFLICT(servico_codigo) DO UPDATE SET
+    rateio_despesas_fixas = excluded.rateio_despesas_fixas,
+    margem_lucro = excluded.margem_lucro,
+    preco_sugerido_dia = excluded.preco_sugerido_dia,
+    preco_sugerido_semana = excluded.preco_sugerido_semana,
+    preco_sugerido_mes = excluded.preco_sugerido_mes,
+    despesas_fixas_mensais = excluded.despesas_fixas_mensais,
+    modelo_calculo = excluded.modelo_calculo,
+    updated_at = excluded.updated_at`,
+  [
+    d.servico_codigo, d.rateio_despesas_fixas || 0, d.margem_lucro || 0,
+    d.preco_sugerido_dia || 0, d.preco_sugerido_semana || 0, d.preco_sugerido_mes || 0,
+    d.despesas_fixas_mensais || 0, d.modelo_calculo || 'por_fora', agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+
+// POST /api/clientes - Criar novo cliente
+app.post('/api/clientes', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  const insertClient = (codigo) => {
+    db.run(`INSERT INTO clientes (
+      codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+      rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+      nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+      pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+      celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+      criado_por, criado_em, atualizado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+      d.criado_por, agora, agora
+    ], function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+          return res.status(400).json({ error: 'Já existe um cliente cadastrado com este CPF/CNPJ.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID, codigo });
+    });
+  };
+
+  if (d.codigo) {
+    insertClient(d.codigo);
+  } else {
+    gerarCodigoCliente((codigo) => {
+      insertClient(codigo);
+    });
+  }
+});
+
+// PUT /api/clientes/:id - Atualizar cliente
+app.put('/api/clientes/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE clientes SET
+    data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
+    rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+    nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
+    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, celular_ddi=?,
+    celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
+    atualizado_em=?
+    WHERE id=? OR codigo=?`,
+  [
+    d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+    d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+    d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+    d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+    agora, req.params.id, req.params.id
+  ], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
+        return res.status(400).json({ error: 'Já existe outro cliente cadastrado com este CPF/CNPJ.' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/clientes/:id - Excluir cliente
+app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// GET /api/consulta-cnpj/:cnpj - Proxy para consulta de CNPJ com IE (cnpj.ws e fallback BrasilAPI)
+app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
+  const cnpj = req.params.cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14) {
+    return res.status(400).json({ error: 'CNPJ inválido. Deve conter 14 dígitos.' });
+  }
+
+  try {
+    // 1. Tentar cnpj.ws para obter Inscrição Estadual
+    const response = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+    if (response.ok) {
+      const data = await response.json();
+      return res.json({ source: 'cnpjws', data });
+    }
+
+    console.warn(`[CNPJ] Erro na API cnpj.ws (Status ${response.status}). Tentando fallback BrasilAPI...`);
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em cnpj.ws:', err.message);
+  }
+
+  // 2. Fallback para BrasilAPI
+  try {
+    const fallbackResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+    if (fallbackResponse.ok) {
+      const data = await fallbackResponse.json();
+      return res.json({ source: 'brasilapi', data });
+    }
+    return res.status(fallbackResponse.status).json({ error: 'CNPJ não encontrado nas bases públicas de consulta.' });
+  } catch (err) {
+    console.error('[CNPJ] Falha ao conectar em BrasilAPI:', err.message);
+    return res.status(500).json({ error: 'Erro ao consultar APIs de CNPJ.' });
+  }
+});
+
+// GET /api/contatos - Listar todos os contatos
+app.get('/api/contatos', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    ORDER BY c.criado_em DESC
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/contatos/:id/navegar/:direcao - Navegar para anterior ou próximo contato
+app.get('/api/contatos/:id/navegar/:direcao', authenticateToken, (req, res) => {
+  const currentId = req.params.id;
+  const direcao = req.params.direcao; // 'proximo' ou 'anterior'
+  
+  db.get('SELECT codigo FROM contatos WHERE id = ? OR codigo = ?', [currentId, currentId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato atual não encontrado' });
+    
+    const currentCode = row.codigo;
+    let query, params;
+    
+    if (direcao === 'proximo') {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo > ? ORDER BY codigo ASC LIMIT 1';
+      params = [currentCode];
+    } else {
+      query = 'SELECT id, codigo FROM contatos WHERE codigo < ? ORDER BY codigo DESC LIMIT 1';
+      params = [currentCode];
+    }
+    
+    db.get(query, params, (err2, nextRow) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (!nextRow) return res.json({ endOfList: true });
+      res.json(nextRow);
+    });
+  });
+});
+
+// GET /api/contatos/:id - Buscar contato por ID ou Código
+app.get('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.get(`
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo,
+           cli.cpf_cnpj, cli.cep, cli.endereco, cli.numero, cli.bairro, cli.municipio as cliente_cidade,
+           cli.uf, cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
+           cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site
+    FROM contatos c
+    LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    WHERE c.id = ? OR c.codigo = ?
+  `, [req.params.id, req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/contatos - Criar novo contato
+app.post('/api/contatos', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    const insertContato = (codigo) => {
+      db.run(`INSERT INTO contatos (
+        codigo, nome, tipo, representante, departamento, cargo, origem, influenciador,
+        classificacao, data_nascimento, ramo_atividade, regiao, sexo, celular, telefone,
+        ramal, nextel, email, outra_comunicacao, inativo, email_cobranca, email_nfe,
+        email_os, email_contrato, cliente_id, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+        d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+        d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+        d.email_os||0, d.email_contrato||0, clienteId, d.criado_por, agora, agora
+      ], function(err2) {
+        if (err2) {
+          if (err2.message.includes('UNIQUE constraint failed: contatos.codigo')) {
+             return res.status(400).json({ error: 'Código de contato duplicado.' });
+          }
+          return res.status(500).json({ error: err2.message });
+        }
+        res.json({ success: true, id: this.lastID, codigo, cliente_id: clienteId });
+      });
+    };
+
+    if (d.codigo) {
+      insertContato(d.codigo);
+    } else {
+      gerarCodigoContato((codigo) => {
+        insertContato(codigo);
+      });
+    }
+  });
+});
+
+// PUT /api/contatos/:id - Atualizar contato
+app.put('/api/contatos/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
+    if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
+
+    db.run(`UPDATE contatos SET
+      nome=?, tipo=?, representante=?, departamento=?, cargo=?, origem=?, influenciador=?,
+      classificacao=?, data_nascimento=?, ramo_atividade=?, regiao=?, sexo=?, celular=?, telefone=?,
+      ramal=?, nextel=?, email=?, outra_comunicacao=?, inativo=?, email_cobranca=?, email_nfe=?,
+      email_os=?, email_contrato=?, cliente_id=?, atualizado_em=?
+      WHERE id=? OR codigo=?`,
+    [
+      d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+      d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+      d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+      d.email_os||0, d.email_contrato||0, clienteId, agora, req.params.id, req.params.id
+    ], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+      res.json({ success: true, cliente_id: clienteId });
+    });
+  });
+});
+
+// DELETE /api/contatos/:id - Excluir contato
+app.delete('/api/contatos/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM contatos WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// GET /api/servicos-precificacao - Listar serviços precificados
+app.get('/api/servicos-precificacao', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM servicos_precificacao ORDER BY id DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/servicos-precificacao/:id - Obter serviço precificado por ID
+app.get('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM servicos_precificacao WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/servicos-precificacao - Criar serviço precificado
+app.post('/api/servicos-precificacao', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`INSERT INTO servicos_precificacao (
+    nome, tabela_precos, estrutura_produto, custo_insumos, custos_fixos, custo_mao_obra,
+    markup_prc, markup_valores, markup_tipo, preco_venda, observacoes, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [
+    d.nome, d.tabela_precos, d.estrutura_produto, d.custo_insumos || 0, d.custos_fixos, d.custo_mao_obra || 0,
+    d.markup_prc || 0, d.markup_valores, d.markup_tipo || 'divisor', d.preco_venda || 0, d.observacoes, agora, agora
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, id: this.lastID });
+  });
+});
+
+// PUT /api/servicos-precificacao/:id - Atualizar serviço precificado
+app.put('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  const d = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(`UPDATE servicos_precificacao SET
+    nome=?, tabela_precos=?, estrutura_produto=?, custo_insumos=?, custos_fixos=?, custo_mao_obra=?,
+    markup_prc=?, markup_valores=?, markup_tipo=?, preco_venda=?, observacoes=?, updated_at=?
+    WHERE id=?`,
+  [
+    d.nome, d.tabela_precos, d.estrutura_produto, d.custo_insumos || 0, d.custos_fixos, d.custo_mao_obra || 0,
+    d.markup_prc || 0, d.markup_valores, d.markup_tipo || 'divisor', d.preco_venda || 0, d.observacoes, agora, req.params.id
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// DELETE /api/servicos-precificacao/:id - Excluir serviço precificado
+app.delete('/api/servicos-precificacao/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM servicos_precificacao WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Serviço não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// ── ENDPOINTS DE TEXTOS LEGAIS ──────────────────────────────────────────
+// GET /api/comercial/textos-legais - Listar todos os textos legais
+app.get('/api/comercial/textos-legais', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_textos_legais ORDER BY codigo ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/comercial/textos-legais/:id - Obter um texto legal específico
+app.get('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_textos_legais WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Texto legal não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/comercial/textos-legais - Criar um texto legal
+app.post('/api/comercial/textos-legais', authenticateToken, (req, res) => {
+  const { codigo, descricao, texto_legal } = req.body;
+  if (!descricao || !texto_legal) {
+    return res.status(400).json({ error: 'Descrição e texto legal são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  
+  // Obter o maior código se não fornecido
+  const runInsert = (code) => {
+    db.run('INSERT INTO comercial_textos_legais (codigo, descricao, texto_legal, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [code, descricao, texto_legal, agora, agora],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, codigo: code });
+      }
+    );
+  };
+
+  if (codigo) {
+    runInsert(codigo);
+  } else {
+    db.get('SELECT MAX(codigo) as maxCode FROM comercial_textos_legais', [], (err, row) => {
+      const nextCode = (row && row.maxCode ? row.maxCode : 0) + 1;
+      runInsert(nextCode);
+    });
+  }
+});
+
+// PUT /api/comercial/textos-legais/:id - Atualizar um texto legal
+app.put('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  const { descricao, texto_legal } = req.body;
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run('UPDATE comercial_textos_legais SET descricao = ?, texto_legal = ?, updated_at = ? WHERE id = ?',
+    [descricao, texto_legal, agora, req.params.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Texto legal não encontrado' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// DELETE /api/comercial/textos-legais/:id - Remover um texto legal
+app.delete('/api/comercial/textos-legais/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_textos_legais WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Texto legal não encontrado' });
+    res.json({ success: true });
+  });
+});
+
+// ── ENDPOINTS DE MODELOS DE CONTRATOS ───────────────────────────────────
+// GET /api/comercial/modelos-contrato - Listar todos os modelos de contrato
+app.get('/api/comercial/modelos-contrato', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_modelos_contrato ORDER BY nome ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// GET /api/comercial/modelos-contrato/:id - Obter detalhes de um modelo
+app.get('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Modelo não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/comercial/modelos-contrato - Criar um modelo de contrato
+app.post('/api/comercial/modelos-contrato', authenticateToken, (req, res) => {
+  const { nome, caputs } = req.body;
+  if (!nome || !caputs) {
+    return res.status(400).json({ error: 'Nome e caputs (JSON) são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const caputsStr = typeof caputs === 'string' ? caputs : JSON.stringify(caputs);
+  
+  db.run('INSERT INTO comercial_modelos_contrato (nome, caputs, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    [nome, caputsStr, agora, agora],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe um modelo de contrato com este nome.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID });
+    }
+  );
+});
+
+// PUT /api/comercial/modelos-contrato/:id - Atualizar um modelo de contrato
+app.put('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  const { nome, caputs } = req.body;
+  if (!nome || !caputs) {
+    return res.status(400).json({ error: 'Nome e caputs (JSON) são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const caputsStr = typeof caputs === 'string' ? caputs : JSON.stringify(caputs);
+
+  db.run('UPDATE comercial_modelos_contrato SET nome = ?, caputs = ?, updated_at = ? WHERE id = ?',
+    [nome, caputsStr, agora, req.params.id],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe um modelo de contrato com este nome.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) return res.status(404).json({ error: 'Modelo não encontrado' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// DELETE /api/comercial/modelos-contrato/:id - Remover um modelo de contrato
+app.delete('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Modelo não encontrado' });
     res.json({ success: true });
   });
 });
 
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
+console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
+console.log('[COMERCIAL] Módulo de precificação de serviços carregado.');
+console.log('[CONTRATOS] Módulo de gerenciamento de modelos de contratos carregado.');
 
 
 
