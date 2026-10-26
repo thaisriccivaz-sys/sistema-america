@@ -2360,7 +2360,7 @@ window.selecionarContatoParaCliente = async function(contatoJsonStr) {
 
 window.editarContatoDeCliente = async function(id) {
     if (!id) return;
-    window.limparFormContato();
+    _contatoEditandoId = id;
     _redirectAfterContactSaveToClient = true;
     window.switchPropostaTab('cadastro-contatos');
     await window.carregarContatoParaEdicao(id);
@@ -2401,9 +2401,11 @@ window.pesquisarClienteProposta = async function() {
 
         // If there's a search term, let's pre-check if there are any matches
         if (query) {
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const queryNorm = normStr(query);
             const queryClean = query.replace(/\D/g, '');
             const initialMatches = clientes.filter(c => {
-                const matchNome = c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query.toLowerCase());
+                const matchNome = normStr(c.nome_razao_social).includes(queryNorm) || normStr(c.nome_fantasia).includes(queryNorm);
                 const matchCodigo = c.codigo && c.codigo.toString() === query;
                 const matchCnpjRaw = c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query.toLowerCase());
                 const matchCnpjClean = c.cpf_cnpj && queryClean && c.cpf_cnpj.replace(/\D/g, '').includes(queryClean);
@@ -2500,9 +2502,10 @@ window.pesquisarClienteProposta = async function() {
 };
 
 window.filtrarClientesGrid = function() {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const codVal = document.getElementById('filtro-cli-codigo')?.value.trim().toLowerCase() || '';
     const cnpjVal = document.getElementById('filtro-cli-cnpj')?.value.trim().toLowerCase() || '';
-    const razaoVal = document.getElementById('filtro-cli-razao')?.value.trim().toLowerCase() || '';
+    const razaoVal = normStr(document.getElementById('filtro-cli-razao')?.value.trim() || '');
 
     const cleanCnpjVal = cnpjVal.replace(/\D/g, '');
 
@@ -2517,8 +2520,8 @@ window.filtrarClientesGrid = function() {
             if (!cnpjStr.includes(cnpjVal) && !cleanCnpjStr.includes(cleanCnpjVal)) return false;
         }
         if (razaoVal) {
-            const nameStr = String(c.nome_razao_social || '').toLowerCase();
-            const fantStr = String(c.nome_fantasia || '').toLowerCase();
+            const nameStr = normStr(c.nome_razao_social || '');
+            const fantStr = normStr(c.nome_fantasia || '');
             if (!nameStr.includes(razaoVal) && !fantStr.includes(razaoVal)) return false;
         }
         return true;
@@ -2782,7 +2785,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <button onclick="window.modalExcluirCliente(${_modalClienteEditandoId || 'null'})" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                             <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                         </button>
-                        <button onclick="window.modalVerificarCliente()" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
+                        <button onclick="window.modalVerificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; height:34px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'">
                             <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                         </button>
                         <div style="width: 4px;"></div>
@@ -2807,19 +2810,16 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
                     <!-- Main Grid: Campos -->
                     <div style="margin-bottom:0.85rem; display:grid; gap:0.85rem;">
-                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
+                        <input type="hidden" id="modal-cli-data-cadastro" value="${dataCadastro}">
+                        <!-- Linha 1: Código, CPF/CNPJ, IE, IM, Grupo, Centralizador -->
+                        <div style="display:grid; grid-template-columns:130px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
                             <div class="mcli-field">
                                 <label>Código</label>
                                 <div style="display:flex; gap:3px;">
-                                    <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input">
+                                    <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input" style="max-width:68px;">
                                     <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
-                            </div>
-                            <div class="mcli-field">
-                                <label>Data de Cadastro</label>
-                                <input type="date" id="modal-cli-data-cadastro" value="${dataCadastro}" class="mcli-input">
                             </div>
                             <div class="mcli-field">
                                 <label>CPF / CNPJ *</label>
@@ -2834,10 +2834,6 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <label>Inscrição Estadual</label>
                                 <input type="text" id="modal-cli-ie" value="${client ? (client.inscricao_estadual || '') : ''}" placeholder="ISENTO" class="mcli-input">
                             </div>
-                        </div>
-
-                        <!-- Linha 2: IM, Grupo, Centralizador -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
                             <div class="mcli-field">
                                 <label>Inscrição Municipal</label>
                                 <input type="text" id="modal-cli-im" value="${client ? (client.inscricao_municipal || '') : ''}" class="mcli-input">
@@ -2851,13 +2847,16 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                             <div class="mcli-field">
                                 <label>Cliente Centralizador</label>
-                                <select id="modal-cli-centralizador" class="mcli-select">
-                                    <option value="">-- Selecione --</option>
-                                </select>
+                                <div class="mcli-input-group">
+                                    <input type="text" id="modal-cli-centralizador" value="${client ? (client.cliente_centralizador || '') : ''}" placeholder="Pesquise na lupa..." class="mcli-input">
+                                    <button type="button" onclick="window.abrirModalPesquisaCentralizador('modal-cli-centralizador')" title="Pesquisar Cliente Centralizador" class="mcli-btn-addon" style="background:#16a34a;">
+                                        <i class="ph ph-magnifying-glass"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Linha 3: Razão Social e Nome Fantasia lado a lado -->
+                        <!-- Linha 2: Razão Social e Nome Fantasia lado a lado -->
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div class="mcli-field">
                                 <label>Nome / Razão Social *</label>
@@ -2918,8 +2917,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                     </div>
 
-                    <!-- Linha 7 Contatos: Telefone, Celular, Whatsapp -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Linha 7 Contatos: Telefone, Celular -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
                             <label>Telefone *</label>
                             <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
@@ -2928,7 +2927,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <label>Celular / WhatsApp *</label>
                             <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX" class="mcli-input">
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <button type="button" onclick="window.abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:28px;width:38px;box-sizing:border-box;"><i class="ph ph-whatsapp-logo"></i></button>
                         </div>
                         <div style="display:none;">
@@ -2944,67 +2943,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
                     <!-- ACORDEÕES EXPANSÍVEIS -->
                     <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
-                        <!-- Cadastro -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                            <div onclick="window.modalToggleAccordion('modal-acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                                <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
-                                <span id="modal-acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
-                            </div>
-                            <div id="modal-acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                                    <div class="mcli-field">
-                                        <label>Usuário que Cadastrou</label>
-                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? (client.criado_por || currentUser) : currentUser}" readonly class="mcli-input mcli-readonly">
-                                    </div>
-                                    <div class="mcli-field">
-                                        <label>Data de Cadastro</label>
-                                        <input type="text" id="modal-cli-cad-data" value="${client && client.data_cadastro ? (client.data_cadastro.includes('-') ? client.data_cadastro.split('-').reverse().join('/') : client.data_cadastro) : hoje.split('-').reverse().join('/')}" readonly class="mcli-input mcli-readonly">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Parâmetros -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                            <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                                <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
-                                <span id="modal-acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
-                            </div>
-                            <div id="modal-acc-parametros" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-limite" ${parametros.limite ? 'checked' : ''}> Bloquear faturamento por limite de crédito</label>
-                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-retencao" ${parametros.retencao ? 'checked' : ''}> Exigir retenção de impostos em notas fiscais</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Fiscal (Oculto) -->
-                        <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                            <div onclick="window.modalToggleAccordion('modal-acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                                <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
-                                <span id="modal-acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
-                            </div>
-                            <div id="modal-acc-fiscal" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
-                                    <div>
-                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Enquadramento Tributário</label>
-                                        <select id="modal-cli-f-tributario" class="mcli-select">
-                                            ${enquadramentoOptions(fiscal.enquadramento)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Regime Especial ISS</label>
-                                        <input type="text" id="modal-cli-f-iss" value="${fiscal.regime_iss}" placeholder="Ex: Nenhum" class="mcli-input">
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">CNAE Principal</label>
-                                        <input type="text" id="modal-cli-f-cnae" value="${fiscal.cnae}" class="mcli-input">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Contatos (Expandido por padrão) -->
+                        <!-- Contatos (Expandido por padrão, acima de Cadastro) -->
                         <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                                 <span>▼ Contatos <i class="ph ph-users-three"></i></span>
@@ -3076,6 +3015,66 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
+                        <!-- Cadastro -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                                <span id="modal-acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="mcli-field">
+                                        <label>Usuário que Cadastrou</label>
+                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? (client.criado_por || currentUser) : currentUser}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                    <div class="mcli-field">
+                                        <label>Data de Cadastro</label>
+                                        <input type="text" id="modal-cli-cad-data" value="${client && client.data_cadastro ? (client.data_cadastro.includes('-') ? client.data_cadastro.split('-').reverse().join('/') : client.data_cadastro) : hoje.split('-').reverse().join('/')}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parâmetros -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
+                                <span id="modal-acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-parametros" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-limite" ${parametros.limite ? 'checked' : ''}> Bloquear faturamento por limite de crédito</label>
+                                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" id="modal-cli-p-retencao" ${parametros.retencao ? 'checked' : ''}> Exigir retenção de impostos em notas fiscais</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fiscal (Oculto) -->
+                        <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
+                                <span id="modal-acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-fiscal" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Enquadramento Tributário</label>
+                                        <select id="modal-cli-f-tributario" class="mcli-select">
+                                            ${enquadramentoOptions(fiscal.enquadramento)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">Regime Especial ISS</label>
+                                        <input type="text" id="modal-cli-f-iss" value="${fiscal.regime_iss}" placeholder="Ex: Nenhum" class="mcli-input">
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:2px; display:block;">CNAE Principal</label>
+                                        <input type="text" id="modal-cli-f-cnae" value="${fiscal.cnae}" class="mcli-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Validação de Dados (DataValid) (Oculto) -->
                         <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -3105,31 +3104,17 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             </div>
         `,
         didOpen: async () => {
-            // Populate Cliente Centralizador (filtrado de forma leve)
             try {
                 if (!_clientesCache || _clientesCache.length === 0) {
                     _clientesCache = await apiGet('/clientes') || [];
                 }
-                const selectCentralizador = document.getElementById('modal-cli-centralizador');
-                if (selectCentralizador) {
-                    const selectedVal = client ? (client.cliente_centralizador || '') : '';
-                    const razaoVal = document.getElementById('modal-cli-razao-social')?.value.trim() || '';
-                    const words = razaoVal.split(/\s+/).filter(w => w.length > 2);
-                    const filterWord = words.length > 0 ? words[0].toLowerCase() : '';
-                    let filtered = filterWord
-                        ? _clientesCache.filter(c => (c.nome_razao_social || '').toLowerCase().includes(filterWord)).slice(0, 100)
-                        : _clientesCache.slice(0, 100);
-                    if (selectedVal) {
-                        const found = _clientesCache.find(c => String(c.codigo) === String(selectedVal) || String(c.nome_razao_social) === String(selectedVal));
-                        if (found && !filtered.some(x => x.id === found.id)) {
-                            filtered.unshift(found);
-                        }
+                const inputCentralizador = document.getElementById('modal-cli-centralizador');
+                if (inputCentralizador && client && client.cliente_centralizador) {
+                    const selectedVal = String(client.cliente_centralizador).trim();
+                    const found = _clientesCache.find(c => String(c.codigo) === selectedVal || String(c.nome_razao_social) === selectedVal);
+                    if (found) {
+                        inputCentralizador.value = `${found.codigo} - ${found.nome_razao_social}`;
                     }
-                    selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
-                        filtered.map(c => {
-                            const isSel = selectedVal && (String(c.codigo) === String(selectedVal) || String(c.nome_razao_social) === String(selectedVal));
-                            return `<option value="${c.codigo}" ${isSel ? 'selected' : ''}>${c.codigo} - ${c.nome_razao_social}</option>`;
-                        }).join('');
                 }
             } catch (e) {
                 console.error('Erro ao carregar centralizadores no modal:', e);
@@ -3170,9 +3155,12 @@ window.modalRenderTabelaContatos = function() {
         return;
     }
     
-    tbody.innerHTML = window._modalClienteContatos.map((c, idx) => `
+    tbody.innerHTML = window._modalClienteContatos.map((c, idx) => {
+        const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
+        const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600; word-break:break-word;">${c.nome}</td>
+            <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;" title="Clique para abrir o cadastro deste contato">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
@@ -3182,7 +3170,8 @@ window.modalRenderTabelaContatos = function() {
                 </button>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 };
 
 window.modalSalvarContatoInline = function() {
@@ -3258,18 +3247,20 @@ window.modalAbrirPesquisaCliente = async function() {
             }, 300);
         };
 
+        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
         window.renderLinhasPesquisaClienteModal = function(termo = '') {
             const tbody = document.getElementById('modal-pesq-cli-tbody');
             const infoEl = document.getElementById('modal-pesq-cli-info');
             if (!tbody) return;
-            const q = String(termo || '').trim().toLowerCase();
+            const q = normStr(termo).trim();
             const qDigits = q.replace(/\D/g, '');
             const lista = window._pesquisaClientesModalCache || [];
             const filtrados = !q ? lista : lista.filter(c => {
                 const cod = String(c.codigo || '');
-                const razao = String(c.nome_razao_social || '').toLowerCase();
-                const fant = String(c.nome_fantasia || '').toLowerCase();
-                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
+                const doc = normStr(c.cpf_cnpj);
                 const docDigits = doc.replace(/\D/g, '');
                 return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
             });
@@ -3592,18 +3583,12 @@ window.modalExcluirCliente = async function(clientId) {
         return;
     }
     
-    const confirmRes = await Swal.fire({
-        title: 'Confirmação',
-        text: 'Deseja realmente excluir este cliente permanentemente?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sim, excluir',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#64748b'
-    });
-    
-    if (!confirmRes.isConfirmed) return;
+    const senhaDigitada = window.prompt('Digite a senha para excluir o cliente:');
+    if (senhaDigitada === null) return;
+    if (senhaDigitada !== 'comerc123') {
+        Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
+        return;
+    }
     
     try {
         const res = await apiDelete(`/clientes/${clientId}`);
@@ -5108,7 +5093,7 @@ function _renderCadastroClienteInt() {
                     <button onclick="excluirCliente()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
-                    <button onclick="verificarCliente()" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button onclick="verificarCliente()" style="display:none; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-shield-check" style="font-size:1rem;"></i> Verificar
                     </button>
                 </div>
@@ -5129,22 +5114,18 @@ function _renderCadastroClienteInt() {
                 </div>
 
                 <form id="form-cadastro-cliente" onsubmit="return false;" style="margin-bottom:1.5rem;">
-                    
+                    <input type="hidden" id="cli-data-cadastro" value="${hoje}">
                     <!-- Grid Principal: Campos -->
                     <div style="margin-bottom:1.5rem; display:grid; gap:0.85rem;">
-                        <!-- Linha 1: Código, Data Cadastro, CPF/CNPJ, IE -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1fr 1.5fr 1.5fr; gap:0.75rem;">
+                        <!-- Linha 1: Código (6 dígitos), CPF/CNPJ, IE, IM, Grupo, Centralizador -->
+                        <div style="display:grid; grid-template-columns:130px 1.25fr 0.95fr 0.95fr 1.1fr 1.5fr; gap:0.6rem;">
                             <div>
                                 <label class="prop-lbl">Código</label>
                                 <div style="display:flex; gap:3px;">
-                                    <input type="text" id="cli-codigo" readonly placeholder="Auto" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;">
+                                    <input type="text" id="cli-codigo" readonly placeholder="Auto" maxlength="6" style="width:100%;max-width:68px;padding:0.45rem 0.35rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;text-align:center;">
                                     <button onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
                                     <button onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Data de Cadastro</label>
-                                <input type="date" id="cli-data-cadastro" value="${hoje}" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">CPF / CNPJ *</label>
@@ -5157,10 +5138,6 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">Inscrição Estadual</label>
                                 <input type="text" id="cli-ie" placeholder="ISENTO" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
-                        </div>
-
-                        <!-- Linha 2: IM, Grupo, Centralizador -->
-                        <div style="display:grid; grid-template-columns:1.2fr 1.5fr 2.3fr; gap:0.75rem;">
                             <div>
                                 <label class="prop-lbl">Inscrição Municipal</label>
                                 <input type="text" id="cli-im" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
@@ -5177,17 +5154,18 @@ function _renderCadastroClienteInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Cliente Centralizador</label>
-                                <select id="cli-centralizador" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                    <option value="">-- Selecione --</option>
-                                </select>
+                                <div style="display:flex; gap:3px;">
+                                    <input type="text" id="cli-centralizador" placeholder="Pesquisar..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                    <button type="button" onclick="abrirModalPesquisaCentralizador('cli-centralizador')" title="Pesquisar Cliente Centralizador" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Linha 3: Razão Social e Nome Fantasia lado a lado -->
+                        <!-- Linha 2: Razão Social e Nome Fantasia lado a lado -->
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                             <div>
                                 <label class="prop-lbl">Nome / Razão Social *</label>
-                                <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <input type="text" id="cli-razao-social" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Nome Fantasia *</label>
@@ -5243,8 +5221,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Contatos: Telefone, Celular, Whatsapp -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Contatos: Telefone, Celular -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
                             <label class="prop-lbl">Telefone *</label>
                             <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
@@ -5253,7 +5231,7 @@ function _renderCadastroClienteInt() {
                             <label class="prop-lbl">Celular / WhatsApp *</label>
                             <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <button onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
                         </div>
                         <div style="display:none;">
@@ -5271,6 +5249,53 @@ function _renderCadastroClienteInt() {
                 <!-- ACORDEÕES EXPANSÍVEIS -->
                 <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
                     
+                    <!-- Contatos (Expandido por padrão, acima de Cadastro) -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▼ Contatos <i class="ph ph-users-three"></i></span>
+                            <span id="acc-contatos-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            
+                            <!-- Controles de e-mail e botão novo contato -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
+                                    <span>E-mail de Cobrança: Enviar</span>
+                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
+                                    <span>dias antes e</span>
+                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
+                                    <span>dias após o vencimento</span>
+                                </div>
+                                <div style="display:flex; gap:0.5rem; align-items:center;">
+                                    <button onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                        <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
+                                    </button>
+                                    <button onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tabela de contatos cadastrados -->
+                            <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
+                                    <thead>
+                                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
+                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cli-contatos-tbody">
+                                        <!-- Populado dinamicamente -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Cadastro -->
                     <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -5333,53 +5358,6 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Contatos (Expandido por padrão) -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-contatos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▼ Contatos <i class="ph ph-users-three"></i></span>
-                            <span id="acc-contatos-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-contatos" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            
-                            <!-- Controles de e-mail e botão novo contato -->
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                                <div style="display:flex; align-items:center; gap:8px; font-weight:600; font-family:'Inter', sans-serif; font-size:0.85rem; color:#475569;">
-                                    <span>E-mail de Cobrança: Enviar</span>
-                                    <input type="number" id="cli-email-cob-antecedencia" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                    <span>dias antes e</span>
-                                    <input type="number" id="cli-email-cob-posterior" value="5" style="width:45px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:6px; height:30px; box-sizing:border-box; outline:none; font-family:'Inter', sans-serif;">
-                                    <span>dias após o vencimento</span>
-                                </div>
-                                <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <button onclick="abrirModalPesquisaContatoCliente()" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
-                                    </button>
-                                    <button onclick="encaminharNovoContato()" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Tabela de contatos cadastrados -->
-                            <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
-                                    <thead>
-                                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">Nome</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">Cargo</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Celular</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:30%;">E-mail</th>
-                                            <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; text-align:center; width:5%; white-space:nowrap;">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="cli-contatos-tbody">
-                                        <!-- Populado dinamicamente -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Validação de Dados (DataValid) (Oculto) -->
                     <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -5415,11 +5393,6 @@ function _renderCadastroClienteInt() {
 }
 
 window.atualizarClienteCentralizadorOptions = async function(selectedValue = null) {
-    const razaoSocialInput = document.getElementById('cli-razao-social');
-    const selectCentralizador = document.getElementById('cli-centralizador');
-    if (!selectCentralizador) return;
-
-    // Se a lista de clientes no cache estiver vazia, vamos buscar uma vez
     if (!_clientesCache || _clientesCache.length === 0) {
         try {
             _clientesCache = await apiGet('/clientes') || [];
@@ -5429,46 +5402,121 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
         }
     }
 
-    const currentVal = razaoSocialInput ? razaoSocialInput.value.trim() : '';
-    
-    // Extrai a primeira palavra com mais de 2 caracteres
-    const words = currentVal.split(/\s+/).filter(w => w.length > 2);
-    const filterWord = words.length > 0 ? words[0] : '';
-
-    // Filtra os clientes
-    let filtered = [];
-    if (filterWord) {
-        // Função para remover acentos para comparação mais robusta
-        const cleanStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        const searchVal = cleanStr(filterWord);
-        
-        filtered = _clientesCache.filter(c => {
-            const nameClean = cleanStr(c.nome_razao_social || '');
-            return nameClean.includes(searchVal);
-        });
-    }
-
-    // Se o selectedValue foi passado e não está na lista filtrada, vamos adicioná-lo
-    // para não perder a seleção salva na renderização
-    if (selectedValue) {
-        const alreadyInList = filtered.some(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
-        if (!alreadyInList) {
-            const found = _clientesCache.find(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
-            if (found) {
-                filtered.unshift(found);
-            }
+    const cliCentInput = document.getElementById('cli-centralizador');
+    if (cliCentInput && selectedValue !== null) {
+        if (!selectedValue) {
+            cliCentInput.value = '';
+        } else {
+            const found = (_clientesCache || []).find(c =>
+                String(c.codigo) === String(selectedValue) ||
+                String(c.nome_razao_social) === String(selectedValue) ||
+                `${c.codigo} - ${c.nome_razao_social}` === String(selectedValue)
+            );
+            cliCentInput.value = found ? `${found.codigo} - ${found.nome_razao_social}` : selectedValue;
         }
     }
 
-    // Monta as opções do select
-    let optionsHtml = '<option value="">-- Selecione --</option>';
-    filtered.forEach(c => {
-        // Marcamos como selecionado se coincide com selectedValue (código ou razão)
-        const isSelected = selectedValue && (String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue)) ? 'selected' : '';
-        optionsHtml += `<option value="${c.codigo}" ${isSelected}>${c.codigo} - ${c.nome_razao_social}</option>`;
-    });
+    const empCentEl = document.getElementById('emp-centralizador');
+    if (empCentEl && selectedValue !== null) {
+        if (empCentEl.tagName === 'INPUT') {
+            const found = (_clientesCache || []).find(c =>
+                String(c.codigo) === String(selectedValue) ||
+                String(c.nome_razao_social) === String(selectedValue) ||
+                `${c.codigo} - ${c.nome_razao_social}` === String(selectedValue)
+            );
+            empCentEl.value = found ? `${found.codigo} - ${found.nome_razao_social}` : (selectedValue || '');
+        }
+    }
+};
 
-    selectCentralizador.innerHTML = optionsHtml;
+window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-centralizador') {
+    if (!_clientesCache || _clientesCache.length === 0) {
+        try {
+            _clientesCache = await apiGet('/clientes') || [];
+        } catch (e) {
+            console.error('Erro ao carregar clientes para centralizador:', e);
+            _clientesCache = [];
+        }
+    }
+    const existing = document.getElementById('centralizador-search-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'centralizador-search-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:99999; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif;';
+    overlay.innerHTML = `
+        <div style="background:#fff; width:760px; max-width:95vw; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.25); overflow:hidden; display:flex; flex-direction:column;">
+            <div style="padding:0.9rem 1.2rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:0.95rem; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-magnifying-glass" style="color:#7048e8;"></i> Pesquisar Cliente Centralizador
+                </span>
+                <button type="button" onclick="document.getElementById('centralizador-search-overlay')?.remove()" style="background:none; border:none; font-size:1.2rem; color:#64748b; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:1rem 1.2rem;">
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <input type="text" id="pesq-cent-input" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="flex:1; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
+                    <button type="button" id="pesq-cent-clear" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.85rem; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">Limpar Seleção</button>
+                </div>
+                <div id="pesq-cent-info" style="font-size:0.75rem; color:#64748b; margin-bottom:0.5rem;"></div>
+                <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
+                                <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left; width:160px;">CPF / CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pesq-cent-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const tbody = overlay.querySelector('#pesq-cent-tbody');
+    const infoEl = overlay.querySelector('#pesq-cent-info');
+    const inputEl = overlay.querySelector('#pesq-cent-input');
+    const clearBtn = overlay.querySelector('#pesq-cent-clear');
+
+    window._selecionarCentralizador = function(val) {
+        const target = document.getElementById(targetInputId);
+        if (target) target.value = val;
+        overlay.remove();
+    };
+
+    const renderRows = (termo = '') => {
+        const q = normStr(termo.trim());
+        const qDigits = String(termo || '').replace(/\D/g, '');
+        const lista = _clientesCache || [];
+        const filtrados = !q ? lista : lista.filter(c => {
+            const cod = String(c.codigo || '').toLowerCase();
+            const razao = normStr(c.nome_razao_social);
+            const fant = normStr(c.nome_fantasia);
+            const doc = String(c.cpf_cnpj || '').toLowerCase();
+            const docDigits = doc.replace(/\D/g, '');
+            return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
+        });
+        const exibidos = filtrados.slice(0, 150);
+        if (infoEl) infoEl.textContent = `Exibindo ${exibidos.length} de ${filtrados.length} clientes`;
+        tbody.innerHTML = exibidos.map(c => {
+            const label = `${c.codigo} - ${c.nome_razao_social || ''}`.replace(/'/g, "\\'");
+            return `
+                <tr onclick="window._selecionarCentralizador('${label}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
+                    <td style="padding:0.5rem;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem;">${c.cpf_cnpj || ''}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    inputEl.addEventListener('input', (e) => renderRows(e.target.value));
+    clearBtn.addEventListener('click', () => window._selecionarCentralizador(''));
+    renderRows('');
+    setTimeout(() => inputEl.focus(), 50);
 };
 
 window.toggleAccordion = function(id) {
@@ -5659,13 +5707,14 @@ window.abrirModalPesquisaCliente = async function() {
             const tbody = document.getElementById('pesq-cli-tbody');
             const infoEl = document.getElementById('pesq-cli-info');
             if (!tbody) return;
-            const q = String(termo || '').trim().toLowerCase();
-            const qDigits = q.replace(/\D/g, '');
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const q = normStr(String(termo || '').trim());
+            const qDigits = String(termo || '').replace(/\D/g, '');
             const lista = window._pesquisaClientesCache || [];
             const filtrados = !q ? lista : lista.filter(c => {
-                const cod = String(c.codigo || '');
-                const razao = String(c.nome_razao_social || '').toLowerCase();
-                const fant = String(c.nome_fantasia || '').toLowerCase();
+                const cod = String(c.codigo || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
                 const doc = String(c.cpf_cnpj || '').toLowerCase();
                 const docDigits = doc.replace(/\D/g, '');
                 return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
@@ -5859,10 +5908,35 @@ window.limparFormCliente = function() {
     // Resetar centralizador
     const selectCentralizador = document.getElementById('cli-centralizador');
     if (selectCentralizador) {
-        selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
+        selectCentralizador.value = '';
     }
 
     _renderTabelaContatos();
+};
+
+window.abrirContatoDeCliente = async function(refId, nomeFallback = '') {
+    if (typeof Swal !== 'undefined' && Swal.isVisible()) {
+        Swal.close();
+    }
+    if (refId) {
+        await window.editarContatoDeCliente(refId);
+        return;
+    }
+    if (nomeFallback) {
+        try {
+            const lista = await apiGet('/contatos') || [];
+            const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const q = norm(nomeFallback);
+            const found = lista.find(ct => norm(ct.nome) === q) || lista.find(ct => norm(ct.nome).includes(q));
+            if (found) {
+                await window.editarContatoDeCliente(found.id);
+                return;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    alert('Contato não localizado no cadastro de contatos.');
 };
 
 window._renderTabelaContatos = function() {
@@ -5880,19 +5954,23 @@ window._renderTabelaContatos = function() {
         return;
     }
     
-    tbody.innerHTML = _clienteContatos.map((c, idx) => `
-        <tr ondblclick="if (${c.id || 0}) window.editarContatoDeCliente(${c.id || 0})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Duplo clique para editar contato">
-            <td style="padding:0.75rem 1rem; color:#1e293b; font-weight:600; word-break:break-word;">${c.nome}</td>
+    tbody.innerHTML = _clienteContatos.map((c, idx) => {
+        const refId = c.id || c.identificacao || c.codigo || 0;
+        const safeNome = String(c.nome || '').replace(/'/g, "\\'");
+        return `
+        <tr ondblclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique no nome para abrir o contato">
+            <td onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}')" style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
             <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
-                <button onclick="removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
+                <button onclick="event.stopPropagation(); removerContato(${idx})" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fa5252'; this.style.color='#fff';" onmouseout="this.style.background='#ffe3e3'; this.style.color='#e03131';" title="Remover Contato">
                     <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                 </button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 };
 
 window.encaminharNovoContato = async function() {
@@ -6836,6 +6914,12 @@ window.excluirCliente = async function() {
         alert('Selecione um cliente cadastrado para poder excluir.');
         return;
     }
+    const senha = window.prompt('Digite a senha para excluir o cliente:');
+    if (senha === null) return;
+    if (senha !== 'comerc123') {
+        alert('Senha incorreta! Exclusão cancelada.');
+        return;
+    }
     if (!confirm('Deseja realmente excluir este cliente permanentemente?')) {
         return;
     }
@@ -7353,9 +7437,10 @@ function _renderCadastroContatosInt() {
                             </div>
                             <div class="cc-field">
                                 <label>Cliente Centralizador</label>
-                                <select id="emp-centralizador" class="cc-select">
-                                    <option value="">-- Selecione --</option>
-                                </select>
+                                <div class="cc-input-group">
+                                    <input type="text" id="emp-centralizador" placeholder="Pesquisar..." class="cc-input">
+                                    <button type="button" onclick="abrirModalPesquisaCentralizador('emp-centralizador')" class="cc-btn-addon" title="Pesquisar Cliente Centralizador"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
                             </div>
                         </div>
 
@@ -7408,54 +7493,6 @@ function _renderCadastroContatosInt() {
         carregarContatoParaEdicao(_contatoEditandoId);
     }
 }
-
-window.atualizarClienteCentralizadorOptions = async function(selectedValue = null) {
-    const razaoSocialInput = document.getElementById('emp-razao-social');
-    const selectCentralizador = document.getElementById('emp-centralizador');
-    if (!selectCentralizador) return;
-
-    if (!_clientesCache || _clientesCache.length === 0) {
-        try {
-            _clientesCache = await apiGet('/clientes') || [];
-        } catch (e) {
-            console.error('Erro ao carregar clientes para centralizador:', e);
-            _clientesCache = [];
-        }
-    }
-
-    const currentVal = razaoSocialInput ? razaoSocialInput.value.trim() : '';
-    const words = currentVal.split(/\s+/).filter(w => w.length > 2);
-    const filterWord = words.length > 0 ? words[0] : '';
-
-    let filtered = [];
-    if (filterWord) {
-        const cleanStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        const searchVal = cleanStr(filterWord);
-        
-        filtered = _clientesCache.filter(c => {
-            const nameClean = cleanStr(c.nome_razao_social || '');
-            return nameClean.includes(searchVal);
-        });
-    }
-
-    if (selectedValue) {
-        const alreadyInList = filtered.some(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
-        if (!alreadyInList) {
-            const found = _clientesCache.find(c => String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue));
-            if (found) {
-                filtered.unshift(found);
-            }
-        }
-    }
-
-    let optionsHtml = '<option value="">-- Selecione --</option>';
-    filtered.forEach(c => {
-        const isSelected = selectedValue && (String(c.codigo) === String(selectedValue) || String(c.nome_razao_social) === String(selectedValue)) ? 'selected' : '';
-        optionsHtml += `<option value="${c.codigo}" ${isSelected}>${c.codigo} - ${c.nome_razao_social}</option>`;
-    });
-
-    selectCentralizador.innerHTML = optionsHtml;
-};
 
 window.buscarCNPJContatos = async function() {
     const cnpjRaw = document.getElementById('emp-cnpj')?.value || '';
@@ -7589,10 +7626,11 @@ window.abrirModalPesquisaContato = async function() {
         };
 
         window.filtrarContatosTabela = function() {
-            const query = document.getElementById('swal-busca-contato').value.toLowerCase();
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const query = normStr(document.getElementById('swal-busca-contato').value);
             const rows = document.querySelectorAll('.swal-contato-row');
             rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
+                const text = normStr(row.innerText);
                 row.style.display = text.includes(query) ? '' : 'none';
             });
         };
@@ -7655,10 +7693,11 @@ window.abrirModalPesquisaEmpresa = async function() {
         };
 
         window.filtrarEmpresasTabela = function() {
-            const query = document.getElementById('swal-busca-empresa').value.toLowerCase();
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const query = normStr(document.getElementById('swal-busca-empresa').value);
             const rows = document.querySelectorAll('.swal-empresa-row');
             rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
+                const text = normStr(row.innerText);
                 row.style.display = text.includes(query) ? '' : 'none';
             });
         };
@@ -7744,7 +7783,7 @@ window.limparEmpresaCliente = function() {
     
     const selectCentralizador = document.getElementById('emp-centralizador');
     if (selectCentralizador) {
-        selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
+        selectCentralizador.value = '';
     }
 
     document.getElementById('emp-telefone').value = '';
@@ -7871,7 +7910,7 @@ window.limparFormContato = function() {
     
     const selectCentralizador = document.getElementById('emp-centralizador');
     if (selectCentralizador) {
-        selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>';
+        selectCentralizador.value = '';
     }
 
     document.getElementById('emp-telefone').value = '';
@@ -8686,11 +8725,13 @@ window.modalBuscarCliente = async function() {
         window.submodalFiltrarClientes = function(term) {
             const tbody = document.getElementById('submodal-cliente-tbody');
             if (!tbody) return;
-            const query = term.toLowerCase();
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const query = normStr(term);
             const filtered = clientes.filter(c => 
-                (c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query)) ||
+                normStr(c.nome_razao_social).includes(query) ||
+                normStr(c.nome_fantasia).includes(query) ||
                 (c.codigo && c.codigo.toString().includes(query)) ||
-                (c.cpf_cnpj && c.cpf_cnpj.includes(query))
+                (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
             );
             tbody.innerHTML = filtered.map(c => `
                 <tr onclick="window.modalSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
@@ -9357,11 +9398,13 @@ window.pageBuscarCliente = async function() {
         window.pageSubmodalFiltrarClientes = function(term) {
             const tbody = document.getElementById('page-submodal-cliente-tbody');
             if (!tbody) return;
-            const query = term.toLowerCase();
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const query = normStr(term);
             const filtered = clientes.filter(c => 
-                (c.nome_razao_social && c.nome_razao_social.toLowerCase().includes(query)) ||
+                normStr(c.nome_razao_social).includes(query) ||
+                normStr(c.nome_fantasia).includes(query) ||
                 (c.codigo && c.codigo.toString().includes(query)) ||
-                (c.cpf_cnpj && c.cpf_cnpj.includes(query))
+                (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
             );
             tbody.innerHTML = filtered.map(c => `
                 <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
