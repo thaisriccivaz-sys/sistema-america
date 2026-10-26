@@ -2850,16 +2850,16 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Linha 3: Razão Social -->
-                        <div class="mcli-field">
-                            <label>Nome / Razão Social *</label>
-                            <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
-                        </div>
-
-                        <!-- Linha 4: Nome Fantasia -->
-                        <div class="mcli-field">
-                            <label>Nome Fantasia</label>
-                            <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
+                        <!-- Linha 3: Razão Social e Nome Fantasia lado a lado -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="mcli-field">
+                                <label>Nome / Razão Social *</label>
+                                <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Nome Fantasia</label>
+                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
+                            </div>
                         </div>
                     </div>
 
@@ -2911,8 +2911,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                     </div>
 
-                    <!-- Linha 7 Contatos: Telefone, Celular, Whatsapp, CRM -->
-                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Linha 7 Contatos: Telefone, Celular, Whatsapp -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
                             <label>Telefone</label>
                             <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
@@ -2924,13 +2924,39 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <div>
                             <button type="button" onclick="window.abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:28px;width:38px;box-sizing:border-box;"><i class="ph ph-whatsapp-logo"></i></button>
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <button type="button" onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.78rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:28px;justify-content:center;width:100%;box-sizing:border-box;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
                         </div>
                     </div>
 
+                    <!-- Observações -->
+                    <div class="mcli-field" style="margin-top:0.85rem;">
+                        <label>Observações</label>
+                        <textarea id="modal-cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." class="mcli-input" style="height:auto; min-height:52px; padding:0.45rem; resize:vertical; font-family:inherit;">${client ? (client.observacoes || '') : ''}</textarea>
+                    </div>
+
                     <!-- ACORDEÕES EXPANSÍVEIS -->
                     <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
+                        <!-- Cadastro -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                                <span id="modal-acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
+                            </div>
+                            <div id="modal-acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="mcli-field">
+                                        <label>Usuário que Cadastrou</label>
+                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? (client.criado_por || currentUser) : currentUser}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                    <div class="mcli-field">
+                                        <label>Data de Cadastro</label>
+                                        <input type="text" id="modal-cli-cad-data" value="${client && client.data_cadastro ? (client.data_cadastro.includes('-') ? client.data_cadastro.split('-').reverse().join('/') : client.data_cadastro) : hoje.split('-').reverse().join('/')}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Parâmetros -->
                         <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -2945,8 +2971,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Fiscal -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <!-- Fiscal (Oculto) -->
+                        <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                                 <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
                                 <span id="modal-acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
@@ -3043,8 +3069,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Validação de Dados (DataValid) -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <!-- Validação de Dados (DataValid) (Oculto) -->
+                        <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                                 <span>▶ Validação de Dados (DataValid) <i class="ph ph-check-circle"></i></span>
                                 <span id="modal-acc-validacao-arrow" style="transition:transform 0.2s;">▶</span>
@@ -3072,13 +3098,31 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
             </div>
         `,
         didOpen: async () => {
-            // Populate Cliente Centralizador
+            // Populate Cliente Centralizador (filtrado de forma leve)
             try {
-                const clientesList = await apiGet('/clientes') || [];
+                if (!_clientesCache || _clientesCache.length === 0) {
+                    _clientesCache = await apiGet('/clientes') || [];
+                }
                 const selectCentralizador = document.getElementById('modal-cli-centralizador');
                 if (selectCentralizador) {
+                    const selectedVal = client ? (client.cliente_centralizador || '') : '';
+                    const razaoVal = document.getElementById('modal-cli-razao-social')?.value.trim() || '';
+                    const words = razaoVal.split(/\s+/).filter(w => w.length > 2);
+                    const filterWord = words.length > 0 ? words[0].toLowerCase() : '';
+                    let filtered = filterWord
+                        ? _clientesCache.filter(c => (c.nome_razao_social || '').toLowerCase().includes(filterWord)).slice(0, 100)
+                        : _clientesCache.slice(0, 100);
+                    if (selectedVal) {
+                        const found = _clientesCache.find(c => String(c.codigo) === String(selectedVal) || String(c.nome_razao_social) === String(selectedVal));
+                        if (found && !filtered.some(x => x.id === found.id)) {
+                            filtered.unshift(found);
+                        }
+                    }
                     selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
-                        clientesList.map(c => `<option value="${c.nome_razao_social}" ${client && client.cliente_centralizador === c.nome_razao_social ? 'selected' : ''}>${c.nome_razao_social}</option>`).join('').replace(/\.\.\./g, '');
+                        filtered.map(c => {
+                            const isSel = selectedVal && (String(c.codigo) === String(selectedVal) || String(c.nome_razao_social) === String(selectedVal));
+                            return `<option value="${c.codigo}" ${isSel ? 'selected' : ''}>${c.codigo} - ${c.nome_razao_social}</option>`;
+                        }).join('');
                 }
             } catch (e) {
                 console.error('Erro ao carregar centralizadores no modal:', e);
@@ -3198,14 +3242,7 @@ window.modalAbrirPesquisaCliente = async function() {
             Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
             return;
         }
-
-        const rowsHtml = clientes.map(c => `
-            <tr onclick="window.modalSelectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
-            </tr>
-        `).join('');
+        window._pesquisaClientesModalCache = clientes;
 
         window.modalSelectClientePesquisa = function(id) {
             Swal.close();
@@ -3214,24 +3251,59 @@ window.modalAbrirPesquisaCliente = async function() {
             }, 300);
         };
 
+        window.renderLinhasPesquisaClienteModal = function(termo = '') {
+            const tbody = document.getElementById('modal-pesq-cli-tbody');
+            const infoEl = document.getElementById('modal-pesq-cli-info');
+            if (!tbody) return;
+            const q = String(termo || '').trim().toLowerCase();
+            const qDigits = q.replace(/\D/g, '');
+            const lista = window._pesquisaClientesModalCache || [];
+            const filtrados = !q ? lista : lista.filter(c => {
+                const cod = String(c.codigo || '');
+                const razao = String(c.nome_razao_social || '').toLowerCase();
+                const fant = String(c.nome_fantasia || '').toLowerCase();
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
+            });
+            const exibidos = filtrados.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtrados.length} clientes`;
+            }
+            tbody.innerHTML = exibidos.map(c => `
+                <tr onclick="window.modalSelectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || ''}</td>
+                </tr>
+            `).join('');
+        };
+
         Swal.fire({
             title: 'Pesquisar Cliente',
+            width: '780px',
             html: `
-                <div style="max-height:400px; overflow-y:auto; width:100%;">
+                <div style="margin-bottom:0.65rem; text-align:left;">
+                    <input type="text" id="modal-pesq-cli-input" oninput="window.renderLinhasPesquisaClienteModal(this.value)" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="modal-pesq-cli-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:380px; overflow-y:auto; width:100%; border:1px solid #e2e8f0; border-radius:6px;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.85rem; font-family:'Inter', sans-serif;">
                         <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
                                 <th style="padding:0.5rem; text-align:left;">Código</th>
                                 <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
                                 <th style="padding:0.5rem; text-align:left;">CPF / CNPJ</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
+                        <tbody id="modal-pesq-cli-tbody"></tbody>
                     </table>
                 </div>
             `,
+            didOpen: () => {
+                window.renderLinhasPesquisaClienteModal('');
+                setTimeout(() => document.getElementById('modal-pesq-cli-input')?.focus(), 50);
+            },
             showConfirmButton: false,
             showCancelButton: true,
             cancelButtonText: 'Fechar'
@@ -3433,6 +3505,7 @@ window.modalSalvarCliente = async function(clientId) {
         contatos: JSON.stringify(window._modalClienteContatos || []),
         validacao_dados: '',
         anexo_arquivos: '',
+        observacoes: document.getElementById('modal-cli-observacoes')?.value || '',
         criado_por: window.currentUser?.nome || window.currentUser?.email || ''
     };
 
@@ -5060,16 +5133,16 @@ function _renderCadastroClienteInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 3: Razão Social -->
-                        <div>
-                            <label class="prop-lbl">Nome / Razão Social *</label>
-                            <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
-
-                        <!-- Linha 4: Nome Fantasia -->
-                        <div>
-                            <label class="prop-lbl">Nome Fantasia</label>
-                            <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        <!-- Linha 3: Razão Social e Nome Fantasia lado a lado -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div>
+                                <label class="prop-lbl">Nome / Razão Social *</label>
+                                <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Nome Fantasia</label>
+                                <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
                         </div>
                     </div>
 
@@ -5120,8 +5193,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Contatos: Telefone, Celular, Whatsapp, CRM -->
-                    <div style="display:grid; grid-template-columns:1.5fr 2fr auto 1.5fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Contatos: Telefone, Celular, Whatsapp -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
                             <label class="prop-lbl">Telefone</label>
                             <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
@@ -5133,15 +5206,41 @@ function _renderCadastroClienteInt() {
                         <div>
                             <button onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <button onclick="alert('Abrindo CRM...')" style="background:#3b5bdb;color:white;border:none;padding:0.45rem 1rem;border-radius:4px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:5px;height:34px;justify-content:center;"><i class="ph ph-briefcase"></i> Abrir no CRM</button>
                         </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div style="margin-top:0.85rem;">
+                        <label class="prop-lbl">Observações</label>
+                        <textarea id="cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
                     </div>
                 </form>
 
                 <!-- ACORDEÕES EXPANSÍVEIS -->
                 <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem;">
                     
+                    <!-- Cadastro -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                            <span id="acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                <div>
+                                    <label class="prop-lbl">Usuário que Cadastrou</label>
+                                    <input type="text" id="cli-cad-usuario" value="${currentUser}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Data de Cadastro</label>
+                                    <input type="text" id="cli-cad-data" value="${hoje.split('-').reverse().join('/')}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Parâmetros -->
                     <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -5156,8 +5255,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Fiscal -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                    <!-- Fiscal (Oculto) -->
+                    <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-fiscal')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                             <span>▶ Fiscal <i class="ph ph-wrench"></i></span>
                             <span id="acc-fiscal-arrow" style="transition:transform 0.2s;">▶</span>
@@ -5231,8 +5330,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Validação de Dados (DataValid) -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                    <!-- Validação de Dados (DataValid) (Oculto) -->
+                    <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-validacao')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                             <span>▶ Validação de Dados (DataValid) <i class="ph ph-check-circle"></i></span>
                             <span id="acc-validacao-arrow" style="transition:transform 0.2s;">▶</span>
@@ -5473,38 +5572,66 @@ window.abrirModalPesquisaCliente = async function() {
             Swal.fire('Aviso', 'Nenhum cliente cadastrado ainda.', 'info');
             return;
         }
-
-        const rowsHtml = clientes.map(c => `
-            <tr onclick="selectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
-            </tr>
-        `).join('');
+        window._pesquisaClientesCache = clientes;
 
         window.selectClientePesquisa = function(id) {
             Swal.close();
             carregarClienteParaEdicao(id);
         };
 
+        window.renderLinhasPesquisaCliente = function(termo = '') {
+            const tbody = document.getElementById('pesq-cli-tbody');
+            const infoEl = document.getElementById('pesq-cli-info');
+            if (!tbody) return;
+            const q = String(termo || '').trim().toLowerCase();
+            const qDigits = q.replace(/\D/g, '');
+            const lista = window._pesquisaClientesCache || [];
+            const filtrados = !q ? lista : lista.filter(c => {
+                const cod = String(c.codigo || '');
+                const razao = String(c.nome_razao_social || '').toLowerCase();
+                const fant = String(c.nome_fantasia || '').toLowerCase();
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
+            });
+            const exibidos = filtrados.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtrados.length} clientes`;
+            }
+            tbody.innerHTML = exibidos.map(c => `
+                <tr onclick="selectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || ''}</td>
+                </tr>
+            `).join('');
+        };
+
         Swal.fire({
             title: 'Pesquisar Cliente',
+            width: '780px',
             html: `
-                <div style="max-height:400px; overflow-y:auto;">
+                <div style="margin-bottom:0.65rem; text-align:left;">
+                    <input type="text" id="pesq-cli-input" oninput="window.renderLinhasPesquisaCliente(this.value)" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="pesq-cli-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                         <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
                                 <th style="padding:0.5rem; text-align:left;">Código</th>
                                 <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
                                 <th style="padding:0.5rem; text-align:left;">CPF / CNPJ</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
+                        <tbody id="pesq-cli-tbody"></tbody>
                     </table>
                 </div>
             `,
+            didOpen: () => {
+                window.renderLinhasPesquisaCliente('');
+                setTimeout(() => document.getElementById('pesq-cli-input')?.focus(), 50);
+            },
             showConfirmButton: false,
             showCancelButton: true,
             cancelButtonText: 'Fechar'
@@ -5548,11 +5675,14 @@ window.carregarClienteParaEdicao = async function(id) {
         setElVal('cli-website', c.website || '');
         setElVal('cli-celular-ddi', c.celular_ddi || '+55 (BRASIL)');
         document.getElementById('cli-celular').value = c.celular || '';
+        setElVal('cli-observacoes', c.observacoes || '');
+        setElVal('cli-cad-usuario', c.criado_por || window.currentUser?.nome || window.currentUserName || 'Administrador');
+        const dataCadFmt = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
+        setElVal('cli-cad-data', dataCadFmt);
 
         // Carregar contatos e acordeões com mesclagem da tabela contatos
         try {
-            const allContatos = await apiGet('/contatos') || [];
-            const clientContatos = allContatos.filter(con => con.cliente_id === c.id);
+            const clientContatos = await apiGet(`/contatos?cliente_id=${c.id}`) || [];
             const mappedContatos = clientContatos.map(con => ({
                 id: con.id,
                 identificacao: con.codigo || '',
@@ -5626,6 +5756,15 @@ window.limparFormCliente = function() {
     
     document.getElementById('cli-codigo').value = '';
     document.getElementById('cli-inativo').checked = false;
+    const obsEl = document.getElementById('cli-observacoes');
+    if (obsEl) obsEl.value = '';
+    const cadUserEl = document.getElementById('cli-cad-usuario');
+    if (cadUserEl) cadUserEl.value = window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const cadDataEl = document.getElementById('cli-cad-data');
+    if (cadDataEl) {
+        const hojeIso = new Date().toISOString().split('T')[0];
+        cadDataEl.value = hojeIso.split('-').reverse().join('/');
+    }
     
     // Resetar checkboxes adicionais
     const checkLimite = document.getElementById('cli-p-limite');
@@ -6568,6 +6707,7 @@ window.salvarCliente = async function() {
         contatos: JSON.stringify(_clienteContatos),
         validacao_dados: '',
         anexo_arquivos: '',
+        observacoes: document.getElementById('cli-observacoes')?.value || '',
         criado_por: window.currentUser?.nome || window.currentUser?.email || ''
     };
 

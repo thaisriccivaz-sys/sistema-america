@@ -40118,7 +40118,7 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 
 // GET /api/clientes - Listar todos os clientes
 app.get('/api/clientes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM clientes ORDER BY criado_em DESC', [], (err, rows) => {
+  db.all('SELECT * FROM clientes ORDER BY codigo DESC, id DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
   });
@@ -40800,6 +40800,222 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
 });
 
 
+// ── Migração e Seed Automático da Planilha Clientes Eloca (6.935 clientes) ──
+(function migrateAndSeedClientesEloca() {
+  const zlib = require('zlib');
+  const seedGzPath = path.join(__dirname, 'data', 'clientes_eloca_seed.json.gz');
+
+  const runSeed = () => {
+    if (!fs.existsSync(seedGzPath)) return;
+    db.get("SELECT COUNT(*) as total FROM clientes WHERE codigo = 7165 AND observacoes IS NOT NULL", [], (errCheck, rowCheck) => {
+      db.get("SELECT COUNT(*) as totalAll FROM clientes", [], (errAll, rowAll) => {
+        if (!errAll && rowAll && rowAll.totalAll >= 6935 && rowCheck && rowCheck.total > 0) {
+          return; // Já importado completamente
+        }
+        try {
+          const gzBuf = fs.readFileSync(seedGzPath);
+          const registros = JSON.parse(zlib.gunzipSync(gzBuf).toString('utf8'));
+          if (!Array.isArray(registros) || registros.length === 0) return;
+
+          console.log(`[Clientes Eloca] Importando/atualizando ${registros.length} clientes e contatos vinculados...`);
+          const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+          db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            const stmtCli = db.prepare(`
+              INSERT INTO clientes (
+                codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual,
+                rg, data_nascimento, grupo_clientes, cliente_centralizador,
+                nome_razao_social, nome_fantasia, uf, municipio, pais,
+                telefone, telefone_2, fax, website, celular,
+                contatos, observacoes, criado_por, criado_em, atualizado_em
+              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              ON CONFLICT(codigo) DO UPDATE SET
+                data_cadastro = CASE WHEN excluded.data_cadastro != '' THEN excluded.data_cadastro ELSE clientes.data_cadastro END,
+                cpf_cnpj = CASE WHEN excluded.cpf_cnpj != '' THEN excluded.cpf_cnpj ELSE clientes.cpf_cnpj END,
+                inscricao_estadual = CASE WHEN excluded.inscricao_estadual != '' THEN excluded.inscricao_estadual ELSE clientes.inscricao_estadual END,
+                rg = CASE WHEN excluded.rg != '' THEN excluded.rg ELSE clientes.rg END,
+                data_nascimento = CASE WHEN excluded.data_nascimento != '' THEN excluded.data_nascimento ELSE clientes.data_nascimento END,
+                grupo_clientes = CASE WHEN excluded.grupo_clientes != '' THEN excluded.grupo_clientes ELSE clientes.grupo_clientes END,
+                cliente_centralizador = excluded.cliente_centralizador,
+                nome_razao_social = excluded.nome_razao_social,
+                nome_fantasia = CASE WHEN excluded.nome_fantasia != '' THEN excluded.nome_fantasia ELSE clientes.nome_fantasia END,
+                uf = CASE WHEN excluded.uf != '' THEN excluded.uf ELSE clientes.uf END,
+                municipio = CASE WHEN excluded.municipio != '' THEN excluded.municipio ELSE clientes.municipio END,
+                telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE clientes.telefone END,
+                telefone_2 = CASE WHEN excluded.telefone_2 != '' THEN excluded.telefone_2 ELSE clientes.telefone_2 END,
+                fax = CASE WHEN excluded.fax != '' THEN excluded.fax ELSE clientes.fax END,
+                website = CASE WHEN excluded.website != '' THEN excluded.website ELSE clientes.website END,
+                celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE clientes.celular END,
+                contatos = CASE WHEN excluded.contatos != '[]' THEN excluded.contatos ELSE clientes.contatos END,
+                observacoes = CASE WHEN excluded.observacoes != '' THEN excluded.observacoes ELSE COALESCE(clientes.observacoes, '') END,
+                criado_por = CASE WHEN excluded.criado_por != '' THEN excluded.criado_por ELSE clientes.criado_por END,
+                atualizado_em = excluded.atualizado_em
+            `);
+
+            for (const r of registros) {
+              const [
+                codigo, razao, fantasia, cpf_cnpj, rg, telefone, fax, ie, cidade, uf,
+                rep, obs, dataCadIso, tel2, celular, dataNasc, emailContato, nomeContato,
+                website, classificacao, centralizador
+              ] = r;
+              const contatosArr = (nomeContato || emailContato) ? [{
+                codigo: codigo,
+                nome: nomeContato || razao,
+                email: emailContato || '',
+                telefone: telefone || '',
+                celular: celular || '',
+                cargo: '',
+                departamento: ''
+              }] : [];
+              stmtCli.run([
+                codigo, dataCadIso || '', 0, cpf_cnpj || '', ie || '',
+                rg || '', dataNasc || '', classificacao || '', centralizador || '',
+                razao || '', fantasia || '', uf || '', cidade || '', 'Brasil',
+                telefone || '', tel2 || '', fax || '', website || '', celular || '',
+                JSON.stringify(contatosArr), obs || '', rep || '', agora, agora
+              ]);
+            }
+            stmtCli.finalize();
+            db.run('COMMIT', (errCommit) => {
+              if (errCommit) {
+                console.error('[Clientes Eloca] Erro ao commitar clientes:', errCommit.message);
+                return;
+              }
+              // Vincular contatos na tabela contatos usando o id real de cada cliente
+              db.all('SELECT id, codigo FROM clientes', [], (errMap, cliRows) => {
+                if (errMap || !cliRows) return;
+                const mapCodToId = new Map();
+                for (const c of cliRows) mapCodToId.set(Number(c.codigo), c.id);
+
+                db.serialize(() => {
+                  db.run('BEGIN TRANSACTION');
+                  const stmtCont = db.prepare(`
+                    INSERT INTO contatos (
+                      codigo, nome, representante, data_nascimento, celular, telefone,
+                      email, inativo, cliente_id, criado_por, criado_em, atualizado_em
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(codigo) DO UPDATE SET
+                      nome = excluded.nome,
+                      representante = CASE WHEN excluded.representante != '' THEN excluded.representante ELSE contatos.representante END,
+                      celular = CASE WHEN excluded.celular != '' THEN excluded.celular ELSE contatos.celular END,
+                      telefone = CASE WHEN excluded.telefone != '' THEN excluded.telefone ELSE contatos.telefone END,
+                      email = CASE WHEN excluded.email != '' THEN excluded.email ELSE contatos.email END,
+                      cliente_id = excluded.cliente_id,
+                      atualizado_em = excluded.atualizado_em
+                  `);
+                  for (const r of registros) {
+                    const [
+                      codigo, razao, , , , telefone, , , , ,
+                      rep, , , , celular, dataNasc, emailContato, nomeContato
+                    ] = r;
+                    if (!nomeContato && !emailContato) continue;
+                    const cliId = mapCodToId.get(Number(codigo));
+                    if (!cliId) continue;
+                    stmtCont.run([
+                      codigo, nomeContato || razao, rep || '', dataNasc || '',
+                      celular || '', telefone || '', emailContato || '', 0,
+                      cliId, rep || '', agora, agora
+                    ]);
+                  }
+                  stmtCont.finalize();
+                  db.run('COMMIT', (errC2) => {
+                    if (errC2) console.error('[Clientes Eloca] Erro ao commitar contatos:', errC2.message);
+                    else console.log(`[Clientes Eloca] ${registros.length} clientes e contatos vinculados com sucesso!`);
+                  });
+                });
+              });
+            });
+          });
+        } catch (e) {
+          console.error('[Clientes Eloca] Falha ao processar seed:', e.message);
+        }
+      });
+    });
+  };
+
+  setTimeout(() => {
+    db.run("ALTER TABLE clientes ADD COLUMN observacoes TEXT", () => {
+      db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='clientes'", [], (err, row) => {
+        if (!err && row && row.sql && /cpf_cnpj\s+TEXT\s+UNIQUE/i.test(row.sql)) {
+          console.log('[Clientes Eloca] Removendo constraint UNIQUE de cpf_cnpj para permitir filiais...');
+          db.serialize(() => {
+            db.run('PRAGMA foreign_keys=OFF');
+            db.run('BEGIN TRANSACTION');
+            db.run(`
+              CREATE TABLE IF NOT EXISTS clientes_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo INTEGER UNIQUE,
+                data_cadastro TEXT,
+                inativo INTEGER DEFAULT 0,
+                cpf_cnpj TEXT,
+                inscricao_estadual TEXT,
+                inscricao_municipal TEXT,
+                rg TEXT,
+                data_nascimento TEXT,
+                grupo_clientes TEXT,
+                cliente_centralizador TEXT,
+                nome_razao_social TEXT,
+                nome_fantasia TEXT,
+                cep TEXT,
+                endereco TEXT,
+                numero TEXT,
+                complemento TEXT,
+                bairro TEXT,
+                uf TEXT,
+                municipio TEXT,
+                pais TEXT,
+                telefone TEXT,
+                ramal TEXT,
+                telefone_2 TEXT,
+                ramal_2 TEXT,
+                fax TEXT,
+                website TEXT,
+                celular_ddi TEXT,
+                celular TEXT,
+                parametros TEXT,
+                fiscal TEXT,
+                contatos TEXT,
+                validacao_dados TEXT,
+                anexo_arquivos TEXT,
+                observacoes TEXT,
+                criado_por TEXT,
+                criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+                atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+              )
+            `);
+            db.run(`
+              INSERT INTO clientes_new (
+                id, codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+                rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+                nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+                pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+                celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+                observacoes, criado_por, criado_em, atualizado_em
+              )
+              SELECT
+                id, codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+                rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+                nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+                pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+                celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+                observacoes, criado_por, criado_em, atualizado_em
+              FROM clientes
+            `);
+            db.run('DROP TABLE clientes');
+            db.run('ALTER TABLE clientes_new RENAME TO clientes');
+            db.run('COMMIT', () => {
+              db.run('PRAGMA foreign_keys=ON', () => runSeed());
+            });
+          });
+        } else {
+          runSeed();
+        }
+      });
+    });
+  }, 1500);
+})();
+
 // POST /api/clientes - Criar novo cliente
 app.post('/api/clientes', authenticateToken, (req, res) => {
   const d = req.body;
@@ -40812,20 +41028,17 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
       nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
       pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
       celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
-      criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      observacoes, criado_por, criado_em, atualizado_em
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
       d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
       d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
       d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
       d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-      d.criado_por, agora, agora
+      d.observacoes || '', d.criado_por, agora, agora
     ], function(err) {
       if (err) {
-        if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
-          return res.status(400).json({ error: 'Já existe um cliente cadastrado com este CPF/CNPJ.' });
-        }
         return res.status(500).json({ error: err.message });
       }
       res.json({ success: true, id: this.lastID, codigo });
@@ -40851,7 +41064,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
     nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
     pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, celular_ddi=?,
     celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
-    atualizado_em=?
+    observacoes=?, atualizado_em=?
     WHERE id=? OR codigo=?`,
   [
     d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
@@ -40859,12 +41072,9 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
     d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
     d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
     d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-    agora, req.params.id, req.params.id
+    d.observacoes || '', agora, req.params.id, req.params.id
   ], function(err) {
     if (err) {
-      if (err.message.includes('UNIQUE constraint failed: clientes.cpf_cnpj')) {
-        return res.status(400).json({ error: 'Já existe outro cliente cadastrado com este CPF/CNPJ.' });
-      }
       return res.status(500).json({ error: err.message });
     }
     if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
@@ -40915,14 +41125,18 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/contatos - Listar todos os contatos
+// GET /api/contatos - Listar todos os contatos (com filtro opcional ?cliente_id=)
 app.get('/api/contatos', authenticateToken, (req, res) => {
+  const cliId = req.query.cliente_id;
+  const whereSql = cliId ? 'WHERE c.cliente_id = ?' : '';
+  const params = cliId ? [cliId] : [];
   db.all(`
     SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo
     FROM contatos c
     LEFT JOIN clientes cli ON c.cliente_id = cli.id
+    ${whereSql}
     ORDER BY c.criado_em DESC
-  `, [], (err, rows) => {
+  `, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
   });

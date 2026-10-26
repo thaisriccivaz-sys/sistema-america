@@ -1680,7 +1680,7 @@ db.run("PRAGMA foreign_keys = ON;");
                     codigo INTEGER UNIQUE,
                     data_cadastro TEXT,
                     inativo INTEGER DEFAULT 0,
-                    cpf_cnpj TEXT UNIQUE,
+                    cpf_cnpj TEXT,
                     inscricao_estadual TEXT,
                     inscricao_municipal TEXT,
                     rg TEXT,
@@ -1710,11 +1710,13 @@ db.run("PRAGMA foreign_keys = ON;");
                     contatos TEXT,
                     validacao_dados TEXT,
                     anexo_arquivos TEXT,
+                    observacoes TEXT,
                     criado_por TEXT,
                     criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
                     atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
                 )
             `);
+            db.run("ALTER TABLE clientes ADD COLUMN observacoes TEXT", () => {});
 
             // Tabela de Contatos (América Rental)
             db.run(`
