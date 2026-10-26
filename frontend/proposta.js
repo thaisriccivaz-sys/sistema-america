@@ -308,6 +308,13 @@ function renderTelaPropostas() {
                 .saas-dropdown-container {
                     position: relative;
                     display: inline-block;
+                    visibility: hidden !important;
+                    pointer-events: none !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                 }
                 .saas-dropdown-menu {
                     display: none;
@@ -2857,14 +2864,14 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input">
                             </div>
                             <div class="mcli-field">
-                                <label>Nome Fantasia</label>
-                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || '') : ''}" class="mcli-input">
+                                <label>Nome Fantasia *</label>
+                                <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || client.nome_razao_social || '') : ''}" class="mcli-input">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Linha 5 CEP, Endereço, Número, Complemento -->
-                    <div style="display:grid; grid-template-columns:1.2fr 3fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                    <!-- Linha 5 CEP, Endereço, Complemento (Número oculto) -->
+                    <div style="display:grid; grid-template-columns:1.2fr 4fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
                         <div class="mcli-field">
                             <label>CEP</label>
                             <div class="mcli-input-group">
@@ -2875,10 +2882,10 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
                         <div class="mcli-field">
-                            <label>Endereço</label>
-                            <input type="text" id="modal-cli-endereco" value="${client ? (client.endereco || '') : ''}" class="mcli-input">
+                            <label>Endereço *</label>
+                            <input type="text" id="modal-cli-endereco" value="${client ? ((client.endereco || '') + (client.numero && !(client.endereco || '').includes(client.numero) ? ', ' + client.numero : '')) : ''}" class="mcli-input">
                         </div>
-                        <div class="mcli-field">
+                        <div class="mcli-field" style="display:none;">
                             <label>Número</label>
                             <input type="text" id="modal-cli-numero" value="${client ? (client.numero || '') : ''}" class="mcli-input">
                         </div>
@@ -2914,11 +2921,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     <!-- Linha 7 Contatos: Telefone, Celular, Whatsapp -->
                     <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
-                            <label>Telefone</label>
+                            <label>Telefone *</label>
                             <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
                         </div>
                         <div class="mcli-field">
-                            <label>Celular</label>
+                            <label>Celular / WhatsApp *</label>
                             <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX" class="mcli-input">
                         </div>
                         <div>
@@ -3321,8 +3328,23 @@ window.modalLimparFormCliente = function() {
 window.modalBuscarCNPJ = async function() {
     const cnpjRaw = document.getElementById('modal-cli-cpf-cnpj')?.value || '';
     const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length === 11) {
+        try {
+            const lista = await apiGet('/clientes') || [];
+            const found = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (found) {
+                window.abrirModalCadastroCliente(found.id, '');
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso('Cliente localizado no banco de dados pelo CPF!');
+                }
+                return;
+            }
+        } catch (e) {}
+        Swal.fire('Aviso', 'CPF não localizado na base interna. A consulta pública automática na Receita Federal está disponível apenas para CNPJ (14 dígitos).', 'info');
+        return;
+    }
     if (cnpj.length !== 14) {
-        Swal.fire('Aviso', 'Por favor, informe um CNPJ válido com 14 dígitos para buscar.', 'warning');
+        Swal.fire('Aviso', 'Por favor, informe um CNPJ válido (14 dígitos) ou CPF já cadastrado (11 dígitos) para buscar.', 'warning');
         return;
     }
     
@@ -3341,8 +3363,10 @@ window.modalBuscarCNPJ = async function() {
         const source = result.source;
 
         if (source === 'cnpjws') {
-            document.getElementById('modal-cli-razao-social').value = data.razao_social || '';
-            document.getElementById('modal-cli-nome-fantasia').value = data.estabelecimento?.nome_fantasia || '';
+            const razao = data.razao_social || '';
+            const fantasia = (data.estabelecimento?.nome_fantasia || '').trim() || razao;
+            document.getElementById('modal-cli-razao-social').value = razao;
+            document.getElementById('modal-cli-nome-fantasia').value = fantasia;
             document.getElementById('modal-cli-cep').value = data.estabelecimento?.cep || '';
             
             // Endereço
@@ -3376,10 +3400,18 @@ window.modalBuscarCNPJ = async function() {
             }
             document.getElementById('modal-cli-ie').value = ie;
 
+            // Inscrição Municipal (se disponível na resposta ou na base interna)
+            const imApi = data.estabelecimento?.inscricao_municipal || data.inscricao_municipal || '';
+            if (imApi && document.getElementById('modal-cli-im')) {
+                document.getElementById('modal-cli-im').value = imApi;
+            }
+
         } else {
             // Source: brasilapi
-            document.getElementById('modal-cli-razao-social').value = data.razao_social || '';
-            document.getElementById('modal-cli-nome-fantasia').value = data.nome_fantasia || '';
+            const razao = data.razao_social || '';
+            const fantasia = (data.nome_fantasia || '').trim() || razao;
+            document.getElementById('modal-cli-razao-social').value = razao;
+            document.getElementById('modal-cli-nome-fantasia').value = fantasia;
             document.getElementById('modal-cli-cep').value = data.cep || '';
             document.getElementById('modal-cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
             document.getElementById('modal-cli-bairro').value = data.bairro || '';
@@ -3396,10 +3428,20 @@ window.modalBuscarCNPJ = async function() {
         // Atualizar opções do centralizador
         try {
             const clientesList = await apiGet('/clientes') || [];
+            const existingCli = clientesList.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj && c.inscricao_municipal);
+            if (existingCli && document.getElementById('modal-cli-im') && !document.getElementById('modal-cli-im').value) {
+                document.getElementById('modal-cli-im').value = existingCli.inscricao_municipal;
+            }
             const selectCentralizador = document.getElementById('modal-cli-centralizador');
             if (selectCentralizador) {
+                const razaoVal = document.getElementById('modal-cli-razao-social')?.value.trim() || '';
+                const words = razaoVal.split(/\s+/).filter(w => w.length > 2);
+                const filterWord = words.length > 0 ? words[0].toLowerCase() : '';
+                const filtered = filterWord
+                    ? clientesList.filter(c => (c.nome_razao_social || '').toLowerCase().includes(filterWord)).slice(0, 100)
+                    : clientesList.slice(0, 100);
                 selectCentralizador.innerHTML = '<option value="">-- Selecione --</option>' + 
-                    clientesList.map(c => `<option value="${c.nome_razao_social}">${c.nome_razao_social}</option>`).join('');
+                    filtered.map(c => `<option value="${c.codigo}">${c.codigo} - ${c.nome_razao_social}</option>`).join('');
             }
         } catch (e) {
             console.error(e);
@@ -3448,15 +3490,23 @@ window.modalBuscarCEP = async function() {
 };
 
 window.modalSalvarCliente = async function(clientId) {
-    const cpfCnpj = document.getElementById('modal-cli-cpf-cnpj')?.value || '';
-    const razaoSocial = document.getElementById('modal-cli-razao-social')?.value || '';
+    const cpfCnpj = (document.getElementById('modal-cli-cpf-cnpj')?.value || '').trim();
+    const razaoSocial = (document.getElementById('modal-cli-razao-social')?.value || '').trim();
+    const nomeFantasia = (document.getElementById('modal-cli-nome-fantasia')?.value || '').trim();
+    const endereco = (document.getElementById('modal-cli-endereco')?.value || '').trim();
+    const telefone = (document.getElementById('modal-cli-telefone')?.value || '').trim();
+    const celular = (document.getElementById('modal-cli-celular')?.value || '').trim();
     
-    if (!cpfCnpj) {
-        Swal.fire('Aviso', 'Por favor, informe o CPF / CNPJ.', 'warning');
-        return;
-    }
-    if (!razaoSocial) {
-        Swal.fire('Aviso', 'Por favor, informe a Razão Social.', 'warning');
+    const faltantes = [];
+    if (!cpfCnpj) faltantes.push('CPF / CNPJ');
+    if (!razaoSocial) faltantes.push('Nome / Razão Social');
+    if (!nomeFantasia) faltantes.push('Nome Fantasia');
+    if (!endereco) faltantes.push('Endereço');
+    if (!telefone) faltantes.push('Telefone');
+    if (!celular) faltantes.push('Celular / WhatsApp');
+
+    if (faltantes.length > 0) {
+        Swal.fire('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
         return;
     }
 
@@ -5140,14 +5190,14 @@ function _renderCadastroClienteInt() {
                                 <input type="text" id="cli-razao-social" oninput="atualizarClienteCentralizadorOptions()" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Nome Fantasia</label>
+                                <label class="prop-lbl">Nome Fantasia *</label>
                                 <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Endereço -->
-                    <div style="display:grid; grid-template-columns:1.2fr 3fr 1fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
+                    <!-- Endereço (Número oculto) -->
+                    <div style="display:grid; grid-template-columns:1.2fr 4fr 1.5fr; gap:0.75rem; margin-top:0.85rem;">
                         <div>
                             <label class="prop-lbl">CEP</label>
                             <div style="display:flex; gap:3px;">
@@ -5156,10 +5206,10 @@ function _renderCadastroClienteInt() {
                             </div>
                         </div>
                         <div>
-                            <label class="prop-lbl">Endereço</label>
+                            <label class="prop-lbl">Endereço *</label>
                             <input type="text" id="cli-endereco" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <label class="prop-lbl">Número</label>
                             <input type="text" id="cli-numero" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
@@ -5196,11 +5246,11 @@ function _renderCadastroClienteInt() {
                     <!-- Contatos: Telefone, Celular, Whatsapp -->
                     <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
-                            <label class="prop-lbl">Telefone</label>
+                            <label class="prop-lbl">Telefone *</label>
                             <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Celular</label>
+                            <label class="prop-lbl">Celular / WhatsApp *</label>
                             <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
@@ -5438,8 +5488,20 @@ window.toggleAccordion = function(id) {
 window.buscarCNPJ = async function() {
     const cnpjRaw = document.getElementById('cli-cpf-cnpj')?.value || '';
     const cnpj = cnpjRaw.replace(/\D/g, '');
+    if (cnpj.length === 11) {
+        try {
+            const lista = await apiGet('/clientes') || [];
+            const found = lista.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            if (found) {
+                await window.carregarClienteParaEdicao(found.id);
+                return;
+            }
+        } catch (e) {}
+        Swal.fire('Aviso', 'CPF não localizado na base interna. A consulta pública automática na Receita Federal está disponível apenas para CNPJ (14 dígitos).', 'info');
+        return;
+    }
     if (cnpj.length !== 14) {
-        alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
+        alert('Por favor, informe um CNPJ válido (14 dígitos) ou CPF já cadastrado (11 dígitos) para buscar.');
         return;
     }
     
@@ -5458,8 +5520,10 @@ window.buscarCNPJ = async function() {
         const source = result.source;
 
         if (source === 'cnpjws') {
-            document.getElementById('cli-razao-social').value = data.razao_social || '';
-            document.getElementById('cli-nome-fantasia').value = data.estabelecimento?.nome_fantasia || '';
+            const razao = data.razao_social || '';
+            const fantasia = (data.estabelecimento?.nome_fantasia || '').trim() || razao;
+            document.getElementById('cli-razao-social').value = razao;
+            document.getElementById('cli-nome-fantasia').value = fantasia;
             document.getElementById('cli-cep').value = data.estabelecimento?.cep || '';
             
             // Endereço
@@ -5493,10 +5557,18 @@ window.buscarCNPJ = async function() {
             }
             document.getElementById('cli-ie').value = ie;
 
+            // Inscrição Municipal (se disponível na resposta)
+            const imApi = data.estabelecimento?.inscricao_municipal || data.inscricao_municipal || '';
+            if (imApi && document.getElementById('cli-im')) {
+                document.getElementById('cli-im').value = imApi;
+            }
+
         } else {
             // Source: brasilapi
-            document.getElementById('cli-razao-social').value = data.razao_social || '';
-            document.getElementById('cli-nome-fantasia').value = data.nome_fantasia || '';
+            const razao = data.razao_social || '';
+            const fantasia = (data.nome_fantasia || '').trim() || razao;
+            document.getElementById('cli-razao-social').value = razao;
+            document.getElementById('cli-nome-fantasia').value = fantasia;
             document.getElementById('cli-cep').value = data.cep || '';
             document.getElementById('cli-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
             document.getElementById('cli-bairro').value = data.bairro || '';
@@ -5510,8 +5582,12 @@ window.buscarCNPJ = async function() {
             document.getElementById('cli-ie').value = 'ISENTO';
         }
 
-        // Atualizar as opções do centralizador dinamicamente!
+        // Atualizar as opções do centralizador dinamicamente e verificar IM na base interna!
         await atualizarClienteCentralizadorOptions();
+        if (Array.isArray(_clientesCache) && document.getElementById('cli-im') && !document.getElementById('cli-im').value) {
+            const existingCli = _clientesCache.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj && c.inscricao_municipal);
+            if (existingCli) document.getElementById('cli-im').value = existingCli.inscricao_municipal;
+        }
 
         if (typeof mostrarToastSucesso === 'function') {
             const extra = source === 'cnpjws' ? '' : ' (Inscrição Estadual indisponível no fallback)';
@@ -5657,9 +5733,9 @@ window.carregarClienteParaEdicao = async function(id) {
         document.getElementById('cli-razao-social').value = c.nome_razao_social || '';
         document.getElementById('cli-grupo').value = c.grupo_clientes || '';
         await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
-        document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || '';
+        document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || c.nome_razao_social || '';
         document.getElementById('cli-cep').value = c.cep || '';
-        document.getElementById('cli-endereco').value = c.endereco || '';
+        document.getElementById('cli-endereco').value = (c.endereco || '') + (c.numero && !(c.endereco || '').includes(c.numero) ? ', ' + c.numero : '');
         document.getElementById('cli-numero').value = c.numero || '';
         document.getElementById('cli-complemento').value = c.complemento || '';
         document.getElementById('cli-bairro').value = c.bairro || '';
@@ -6650,15 +6726,27 @@ window.abrirModalNovoContato = function() {
 };
 
 window.salvarCliente = async function() {
-    const cpfCnpj = document.getElementById('cli-cpf-cnpj')?.value || '';
-    const razaoSocial = document.getElementById('cli-razao-social')?.value || '';
+    const cpfCnpj = (document.getElementById('cli-cpf-cnpj')?.value || '').trim();
+    const razaoSocial = (document.getElementById('cli-razao-social')?.value || '').trim();
+    const nomeFantasia = (document.getElementById('cli-nome-fantasia')?.value || '').trim();
+    const endereco = (document.getElementById('cli-endereco')?.value || '').trim();
+    const telefone = (document.getElementById('cli-telefone')?.value || '').trim();
+    const celular = (document.getElementById('cli-celular')?.value || '').trim();
     
-    if (!cpfCnpj) {
-        alert('Por favor, informe o CPF / CNPJ.');
-        return;
-    }
-    if (!razaoSocial) {
-        alert('Por favor, informe a Razão Social.');
+    const faltantes = [];
+    if (!cpfCnpj) faltantes.push('CPF / CNPJ');
+    if (!razaoSocial) faltantes.push('Nome / Razão Social');
+    if (!nomeFantasia) faltantes.push('Nome Fantasia');
+    if (!endereco) faltantes.push('Endereço');
+    if (!telefone) faltantes.push('Telefone');
+    if (!celular) faltantes.push('Celular / WhatsApp');
+
+    if (faltantes.length > 0) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
+        } else {
+            alert('Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.');
+        }
         return;
     }
 
