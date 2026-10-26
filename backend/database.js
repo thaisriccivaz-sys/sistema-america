@@ -2131,12 +2131,16 @@ db.run("PRAGMA foreign_keys = ON;");
                     grupo_produto TEXT NOT NULL DEFAULT 'STANDARD',
                     especificacao_tecnica TEXT DEFAULT '',
                     produto_venda INTEGER DEFAULT 0,
+                    tipo_item TEXT NOT NULL DEFAULT 'matriz',
                     criado_por TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `, (err) => {
-                if (!err) console.log('[ESTOQUE] Tabela estoque_equipamentos OK.');
+                if (!err) {
+                    console.log('[ESTOQUE] Tabela estoque_equipamentos OK.');
+                    db.run("ALTER TABLE estoque_equipamentos ADD COLUMN tipo_item TEXT NOT NULL DEFAULT 'matriz'", () => {});
+                }
             });
 
 module.exports = db;

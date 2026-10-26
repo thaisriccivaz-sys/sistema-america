@@ -2483,6 +2483,7 @@ window.renderEquipamentosEstoqueTable = function() {
     const grupo = (document.getElementById('filtro-equip-est-grupo')?.value || '').trim();
     const fonte = (document.getElementById('filtro-equip-est-fonte')?.value || '').trim();
     const venda = (document.getElementById('filtro-equip-est-venda')?.value || '').trim();
+    const tipoItem = (document.getElementById('filtro-equip-est-tipo-item')?.value || '').trim();
 
     let lista = (window._equipamentosEstoqueData || []).filter(item => {
         if (busca) {
@@ -2494,6 +2495,7 @@ window.renderEquipamentosEstoqueTable = function() {
         if (grupo && String(item.grupo_produto || '') !== grupo) return false;
         if (fonte && String(item.fonte_fornecimento || '') !== fonte) return false;
         if (venda !== '' && String(item.produto_venda ? '1' : '0') !== venda) return false;
+        if (tipoItem !== '' && String(item.tipo_item || 'matriz').toLowerCase() !== tipoItem) return false;
         return true;
     });
 
@@ -2503,13 +2505,18 @@ window.renderEquipamentosEstoqueTable = function() {
         if (col === 'produto_venda') {
             return ((a.produto_venda ? 1 : 0) - (b.produto_venda ? 1 : 0)) * dir;
         }
+        if (col === 'tipo_item') {
+            const ta = String(a.tipo_item || 'matriz').toLowerCase();
+            const tb = String(b.tipo_item || 'matriz').toLowerCase();
+            return ta.localeCompare(tb, 'pt-BR') * dir;
+        }
         const va = String(a[col] || '').toLowerCase();
         const vb = String(b[col] || '').toLowerCase();
         return va.localeCompare(vb, 'pt-BR', { numeric: true }) * dir;
     });
 
     if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
         return;
     }
 
@@ -2518,12 +2525,17 @@ window.renderEquipamentosEstoqueTable = function() {
     tbody.innerHTML = lista.map(item => {
         const isVenda = !!item.produto_venda;
         const badgeVenda = isVenda
-            ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;"></span>ON (Sim)</span>'
-            : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;"></span>OFF (Não)</span>';
+            ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:700;white-space:nowrap;"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;"></span>ON (Sim)</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:600;white-space:nowrap;"><span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;"></span>OFF (Não)</span>';
+
+        const isMatriz = String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque';
+        const badgeTipoItem = isMatriz
+            ? '<span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:700;white-space:nowrap;" title="Disponível para seleção na tela de Proposta"><span style="width:7px;height:7px;border-radius:50%;background:#2563eb;"></span>ON (Produto Matriz)</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;border:1px solid #fcd34d;border-radius:999px;padding:2px 10px;font-size:0.74rem;font-weight:700;white-space:nowrap;" title="Controle interno de quantidade disponível em estoque"><span style="width:7px;height:7px;border-radius:50%;background:#d97706;"></span>OFF (Estoque)</span>';
 
         const especTexto = String(item.especificacao_tecnica || '').trim();
         const especPreview = especTexto
-            ? '<div style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
+            ? '<div style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
             : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
 
         return '<tr>' +
@@ -2533,6 +2545,7 @@ window.renderEquipamentosEstoqueTable = function() {
             '<td style="color:#334155;font-size:0.84rem;">' + esc(item.fonte_fornecimento) + '</td>' +
             '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(item.grupo_produto) + '</span></td>' +
             '<td style="text-align:center;">' + badgeVenda + '</td>' +
+            '<td style="text-align:center;">' + badgeTipoItem + '</td>' +
             '<td>' + especPreview + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;align-items:center;">' +
@@ -2577,6 +2590,32 @@ window.toggleVendaEquipamentoEstoque = function() {
     window.setVendaEquipamentoEstoqueUI(!atual);
 };
 
+window.setTipoItemEquipamentoEstoqueUI = function(isMatriz) {
+    const inp = document.getElementById('equipamento-est-tipo-item');
+    const btn = document.getElementById('btn-toggle-matriz-equipamento');
+    const dot = document.getElementById('dot-toggle-matriz-equipamento');
+    const lbl = document.getElementById('lbl-toggle-matriz-equipamento');
+    const matrizOn = isMatriz !== false && isMatriz !== 'estoque' && isMatriz !== '0';
+    if (inp) inp.value = matrizOn ? 'matriz' : 'estoque';
+    if (btn) {
+        btn.style.background  = matrizOn ? '#dbeafe' : '#fef3c7';
+        btn.style.borderColor = matrizOn ? '#3b82f6' : '#f59e0b';
+        btn.style.color       = matrizOn ? '#1d4ed8' : '#b45309';
+    }
+    if (dot) {
+        dot.style.background = matrizOn ? '#2563eb' : '#d97706';
+    }
+    if (lbl) {
+        lbl.textContent = matrizOn ? 'ON (Produto Matriz)' : 'OFF (Produto de Estoque)';
+    }
+};
+
+window.toggleTipoItemEquipamentoEstoque = function() {
+    const inp = document.getElementById('equipamento-est-tipo-item');
+    const atualMatriz = !inp || inp.value !== 'estoque';
+    window.setTipoItemEquipamentoEstoqueUI(!atualMatriz);
+};
+
 window._buscarProximoCodigoEquipamento = async function() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -2610,6 +2649,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
         document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
         window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
+        window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
         if (titleEl) titleEl.textContent = 'Editar Equipamento';
         if (subEl) subEl.textContent = 'Edite os dados ou clique em Duplicar para criar uma cópia';
         if (btnDup) btnDup.style.display = 'inline-flex';
@@ -2622,6 +2662,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-grupo').value = 'STANDARD';
         document.getElementById('equipamento-est-especificacao').value = '';
         window.setVendaEquipamentoEstoqueUI(false);
+        window.setTipoItemEquipamentoEstoqueUI(true);
         if (titleEl) titleEl.textContent = 'Cadastrar Equipamento';
         if (subEl) subEl.textContent = 'O código é gerado automaticamente';
         if (btnDup) btnDup.style.display = 'none';
@@ -2649,6 +2690,7 @@ window.duplicarEquipamentoEstoque = async function(id) {
     document.getElementById('equipamento-est-grupo').value = item.grupo_produto || 'STANDARD';
     document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
     window.setVendaEquipamentoEstoqueUI(!!item.produto_venda);
+    window.setTipoItemEquipamentoEstoqueUI(String(item.tipo_item || 'matriz').toLowerCase() !== 'estoque');
 
     const titleEl = document.getElementById('modal-equipamento-estoque-title');
     const subEl   = document.getElementById('modal-equipamento-estoque-subtitle');
@@ -2703,6 +2745,7 @@ window.salvarEquipamentoEstoque = async function(event) {
     const grupo_produto = document.getElementById('equipamento-est-grupo')?.value || 'STANDARD';
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const produto_venda = document.getElementById('equipamento-est-venda')?.value === '1' ? 1 : 0;
+    const tipo_item = document.getElementById('equipamento-est-tipo-item')?.value === 'estoque' ? 'estoque' : 'matriz';
 
     if (!nome) {
         Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe o nome do equipamento.' });
@@ -2746,7 +2789,8 @@ window.salvarEquipamentoEstoque = async function(event) {
                 fonte_fornecimento,
                 grupo_produto,
                 especificacao_tecnica,
-                produto_venda
+                produto_venda,
+                tipo_item
             })
         });
         const data = await r.json().catch(() => ({}));
@@ -2804,5 +2848,121 @@ window.excluirEquipamentoEstoque = async function(id) {
         Swal.fire({ icon: 'success', title: 'Equipamento excluído!', timer: 1400, showConfirmButton: false });
     } catch (err) {
         Swal.fire({ icon: 'error', title: 'Erro ao excluir', text: err.message });
+    }
+};
+
+
+window.baixarModeloPlanilhaEquipamentos = async function() {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/estoque-equipamentos/modelo-xlsx', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!r.ok) throw new Error('Falha ao baixar planilha modelo');
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'modelo_importacao_equipamentos.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: e.message });
+    }
+};
+
+window.abrirModalImportarEquipamentos = async function() {
+    const { value: file, isConfirmed } = await Swal.fire({
+        title: '<span style="font-size:1.15rem;font-weight:800;color:#0f172a;"><i class="ph ph-file-xls" style="color:#0f766e;"></i> Importar Produtos (.xlsx)</span>',
+        width: 620,
+        html: `
+            <div style="text-align:left;font-size:0.86rem;color:#334155;">
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+                    <div style="font-weight:700;color:#166534;margin-bottom:6px;">Colunas esperadas na planilha (.xlsx):</div>
+                    <ul style="margin:0;padding-left:18px;color:#15803d;line-height:1.55;font-size:0.82rem;">
+                        <li><b>Nome</b> (obrigatório — nomes duplicados são ignorados automaticamente)</li>
+                        <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
+                        <li><b>Grupo</b> (ex: STANDARD, LUXO, LAVATÓRIOS, GUARITAS...)</li>
+                        <li><b>Fonte de fornecimento</b> (Banheiros Químicos Obra, Banheiros Químicos Evento, Banheiros Hidráulicos, Lavatórios, Guaritas, Parceiros, Serviços, Outros)</li>
+                        <li><b>Texto técnico</b> (Especificação técnica)</li>
+                        <li><b>Venda</b> (Sim ou Não)</li>
+                        <li><b>Estoque ou Produto</b> (<b>Produto</b> / <b>Matriz</b> = aparece na Proposta | <b>Estoque</b> = controle interno)</li>
+                    </ul>
+                    <div style="margin-top:10px;">
+                        <button type="button" onclick="window.baixarModeloPlanilhaEquipamentos()" style="background:#fff;color:#0f766e;border:1px solid #0f766e;border-radius:6px;padding:5px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+                            <i class="ph ph-download-simple"></i> Baixar Planilha Modelo (.xlsx)
+                        </button>
+                    </div>
+                </div>
+                <label style="display:block;font-weight:700;color:#1e293b;margin-bottom:6px;">Selecione o arquivo Excel (.xlsx):</label>
+                <input type="file" id="input-import-equipamentos-xlsx" accept=".xlsx,.xls" class="form-control" style="width:100%;padding:8px;">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#0f766e',
+        confirmButtonText: '<i class="ph ph-upload-simple"></i> Importar Planilha',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const inp = document.getElementById('input-import-equipamentos-xlsx');
+            if (!inp || !inp.files || !inp.files[0]) {
+                Swal.showValidationMessage('Selecione uma planilha .xlsx para continuar.');
+                return false;
+            }
+            return inp.files[0];
+        }
+    });
+
+    if (!isConfirmed || !file) return;
+
+    Swal.fire({
+        title: 'Importando equipamentos...',
+        text: 'Processando planilha, aguarde...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const fd = new FormData();
+        fd.append('arquivo', file);
+
+        const r = await fetch(API_URL + '/estoque-equipamentos/importar', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: fd
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            throw new Error(data.error || 'Erro ao importar planilha de equipamentos.');
+        }
+
+        await window.carregarEquipamentosEstoque();
+
+        let msgHtml = '<div style="text-align:left;font-size:0.88rem;">' +
+            '<p style="margin:0 0 8px;"><b>Equipamentos importados com sucesso:</b> <span style="color:#16a34a;font-weight:800;">' + (data.importados || 0) + '</span></p>';
+        if (data.ignorados_duplicados > 0) {
+            msgHtml += '<p style="margin:0 0 6px;color:#b45309;"><b>Ignorados por nome já existente:</b> ' + data.ignorados_duplicados + '</p>';
+            if (Array.isArray(data.duplicados_nomes) && data.duplicados_nomes.length > 0) {
+                msgHtml += '<div style="max-height:110px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:0.78rem;color:#92400e;">' +
+                    data.duplicados_nomes.join('<br>') +
+                '</div>';
+            }
+        }
+        msgHtml += '</div>';
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Importação Concluída!',
+            html: msgHtml,
+            confirmButtonColor: '#0f766e'
+        });
+    } catch (err) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Falha na importação',
+            text: err.message
+        });
     }
 };

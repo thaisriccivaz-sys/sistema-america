@@ -12565,29 +12565,34 @@ window.abrirModalPesquisaPropostas = async function() {
     }
 };
 
-/* ── Módulo de Produtos da Proposta ─────────────────────────────────── */
+/* ── Módulo de Produtos da Proposta (Somente Equipamentos Matriz) ────────── */
 window.abrirModalBuscaProdutos = async function() {
     Swal.fire({
-        title: 'Carregando produtos...',
+        title: 'Carregando equipamentos matriz...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     try {
-        const produtos = await apiGet('/estoque') || [];
+        const todosEquipamentos = await apiGet('/estoque-equipamentos?tipo_item=matriz') || [];
+        const produtos = (Array.isArray(todosEquipamentos) ? todosEquipamentos : []).filter(
+            p => String(p.tipo_item || 'matriz').toLowerCase() !== 'estoque'
+        );
         Swal.close();
 
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum produto encontrado.</td></tr>`;
+                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum produto matriz encontrado na aba Equipamentos.</td></tr>`;
             }
             return list.map(p => {
+                const codExib = String(p.codigo || p.id || '').replace(/'/g, "\\'");
+                const nomeExib = String(p.nome || '').replace(/'/g, "\\'");
                 return `
-                    <tr ondblclick="window.selecionarProdutoBusca('${p.id}', '${p.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center;">${p.id}</td>
+                    <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || p.id}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.nome}</td>
-                        <td style="padding:10px 12px; color:#475569;">${p.categoria || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.quantidade_atual || 0}</td>
+                        <td style="padding:10px 12px; color:#475569;">${p.grupo_produto || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.unidade_medida || '—'}</td>
                     </tr>
                 `;
             }).join('');
@@ -12598,8 +12603,11 @@ window.abrirModalBuscaProdutos = async function() {
             html: `
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
                     <!-- Header -->
-                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Produtos
+                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Produtos (Matriz)
+                        </div>
+                        <span style="font-size:0.72rem; font-weight:700; background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; border-radius:999px; padding:3px 10px;">Somente Produto Matriz</span>
                     </div>
                     
                     <!-- Body/Filters -->
@@ -12607,11 +12615,11 @@ window.abrirModalBuscaProdutos = async function() {
                         <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.75rem;">
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
-                                <input type="text" id="modal-prod-search-codigo" placeholder="Filtrar por código..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <input type="text" id="modal-prod-search-codigo" placeholder="Ex: EQ-0001..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
                             </div>
                             <div>
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição</label>
-                                <input type="text" id="modal-prod-search-descricao" placeholder="Filtrar por descrição..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição / Grupo</label>
+                                <input type="text" id="modal-prod-search-descricao" placeholder="Filtrar por nome ou grupo..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
                             </div>
                         </div>
 
@@ -12620,10 +12628,10 @@ window.abrirModalBuscaProdutos = async function() {
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:80px;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px;">Código</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Descrição</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px;">Categoria</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px;">Qtd Atual</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:140px;">Grupo</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px;">Unid. Medida</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modal-prod-tbody">
@@ -12633,14 +12641,14 @@ window.abrirModalBuscaProdutos = async function() {
                         </div>
                         
                         <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
-                            <span>Dica: Clique duas vezes (Double Click) em um produto para selecioná-lo.</span>
-                            <span id="modal-prod-count" style="font-weight:700; color:#475569;">Total: ${produtos.length} produto(s)</span>
+                            <span>Dica: Clique em um produto matriz para selecioná-lo.</span>
+                            <span id="modal-prod-count" style="font-weight:700; color:#475569;">Total: ${produtos.length} produto(s) matriz</span>
                         </div>
                     </div>
                 </div>
             `,
             showConfirmButton: false,
-            width: '650px',
+            width: '700px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
@@ -12655,13 +12663,16 @@ window.abrirModalBuscaProdutos = async function() {
                     const descVal = (inputDescricao?.value || '').toLowerCase().trim();
 
                     const filtered = produtos.filter(p => {
-                        const matchCodigo = !codVal || (p.id && p.id.toString().includes(codVal));
-                        const matchDesc = !descVal || (p.nome && p.nome.toLowerCase().includes(descVal));
+                        const codStr = String(p.codigo || p.id || '').toLowerCase();
+                        const nomeStr = String(p.nome || '').toLowerCase();
+                        const grupoStr = String(p.grupo_produto || '').toLowerCase();
+                        const matchCodigo = !codVal || codStr.includes(codVal);
+                        const matchDesc = !descVal || nomeStr.includes(descVal) || grupoStr.includes(descVal);
                         return matchCodigo && matchDesc;
                     });
 
                     if (tbody) tbody.innerHTML = renderRows(filtered);
-                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} produto(s)`;
+                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} produto(s) matriz`;
                 };
 
                 [inputCodigo, inputDescricao].forEach(input => {

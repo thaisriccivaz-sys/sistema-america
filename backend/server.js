@@ -33419,12 +33419,286 @@ app.get('/api/estoque-equipamentos/proximo-codigo', authenticateToken, (req, res
     });
 });
 
+// Helper: normalizar campos da planilha de equipamentos
+function normalizarUnidadeEquipamento(val) {
+    const raw = String(val || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!raw) return 'UNIDADE [UN]';
+    const map = [
+        { keys: ['CAIXA [CX]', 'CAIXA', 'CX'], out: 'CAIXA [CX]' },
+        { keys: ['GRAMA [GR]', 'GRAMA', 'GR', 'G'], out: 'GRAMA [GR]' },
+        { keys: ['KILO GRAMA [KG]', 'KILO GRAMA', 'KILOGRAMA', 'QUILOGRAMA', 'KILO', 'KG'], out: 'KILO GRAMA [KG]' },
+        { keys: ['LITRO [LT]', 'LITRO', 'LITROS', 'LT', 'L'], out: 'LITRO [LT]' },
+        { keys: ['METRO QUADRADO [M2]', 'METRO QUADRADO', 'M2', 'M²'], out: 'METRO QUADRADO [M2]' },
+        { keys: ['METRO LINEAR [ML]', 'METRO LINEAR', 'ML', 'METRO', 'M'], out: 'METRO LINEAR [ML]' },
+        { keys: ['PECA [PC]', 'PECA', 'PC', 'PÇ'], out: 'PECA [PC]' },
+        { keys: ['PACOTE [PCT]', 'PACOTE', 'PCT'], out: 'PACOTE [PCT]' },
+        { keys: ['ROLO [ROLO]', 'ROLO', 'RL'], out: 'ROLO [ROLO]' },
+        { keys: ['UNIDADE [UN]', 'UNIDADE', 'UN', 'UNID', 'UND'], out: 'UNIDADE [UN]' }
+    ];
+    for (const item of map) {
+        if (item.keys.includes(raw) || raw.includes('[' + item.keys[item.keys.length - 1] + ']')) {
+            return item.out;
+        }
+    }
+    return 'UNIDADE [UN]';
+}
+
+function normalizarFonteEquipamento(val) {
+    const raw = String(val || '').trim();
+    if (!raw) return 'Outros';
+    const norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const opcoes = [
+        'Banheiros Químicos Obra',
+        'Banheiros Químicos Evento',
+        'Banheiros Hidráulicos',
+        'Lavatórios',
+        'Guaritas',
+        'Parceiros',
+        'Serviços',
+        'Outros'
+    ];
+    for (const op of opcoes) {
+        const opNorm = op.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (norm === opNorm) return op;
+    }
+    if (norm.includes('obra')) return 'Banheiros Químicos Obra';
+    if (norm.includes('evento')) return 'Banheiros Químicos Evento';
+    if (norm.includes('hidraul')) return 'Banheiros Hidráulicos';
+    if (norm.includes('lavator')) return 'Lavatórios';
+    if (norm.includes('guarita')) return 'Guaritas';
+    if (norm.includes('parceir')) return 'Parceiros';
+    if (norm.includes('servic')) return 'Serviços';
+    return 'Outros';
+}
+
+function normalizarGrupoEquipamento(val) {
+    const raw = String(val || '').trim().toUpperCase();
+    if (!raw) return 'STANDARD';
+    const norm = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const grupos = [
+        'STANDARD', 'LUXO', 'EXTRA LUXO', 'PCD', 'MICTÓRIO', 'LAVATÓRIOS',
+        'CHUVEIRO', 'HIDRÁULICO', 'GUARITAS', 'SERVIÇOS', 'AVARIA', 'ACESSÓRIO',
+        'OUTROS', 'CONTAINER', 'CONTENÇÃO', 'PISOS', 'ESTRUTURAS', 'BRINQUEDOS',
+        'TENDA', 'MOBILIÁRIO', 'LICENÇAS', 'GUARITAS / BILHETERIAS', 'VIP'
+    ];
+    for (const g of grupos) {
+        const gNorm = g.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (norm === gNorm) return g;
+    }
+    if (norm.includes('BILHETERIA')) return 'GUARITAS / BILHETERIAS';
+    return grupos.includes(raw) ? raw : 'OUTROS';
+}
+
+function normalizarVendaEquipamento(val) {
+    const norm = String(val ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (['sim', 's', 'on', '1', 'true', 'venda'].includes(norm)) return 1;
+    return 0;
+}
+
+function normalizarTipoItemEquipamento(val) {
+    const norm = String(val ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!norm) return 'matriz';
+    if (norm.includes('estoque') || ['off', 'nao', 'n', '0', 'false'].includes(norm)) return 'estoque';
+    return 'matriz';
+}
+
+const uploadImportEquipamentos = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024 }
+});
+
 // GET /api/estoque-equipamentos
 app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM estoque_equipamentos ORDER BY CAST(REPLACE(REPLACE(UPPER(codigo), "EQ-", ""), "EQ", "") AS INTEGER) ASC, id ASC', [], (err, rows) => {
+    const tipoFiltro = String(req.query.tipo_item || '').trim().toLowerCase();
+    let sql = 'SELECT * FROM estoque_equipamentos';
+    const params = [];
+    if (tipoFiltro === 'matriz' || tipoFiltro === 'estoque') {
+        sql += " WHERE COALESCE(LOWER(TRIM(tipo_item)), 'matriz') = ?";
+        params.push(tipoFiltro);
+    }
+    sql += ' ORDER BY CAST(REPLACE(REPLACE(UPPER(codigo), "EQ-", ""), "EQ", "") AS INTEGER) ASC, id ASC';
+    db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
+});
+
+// GET /api/estoque-equipamentos/modelo-xlsx
+app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) => {
+    try {
+        const XLSX = require('xlsx');
+        const dadosModelo = [
+            {
+                'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
+                'Unidade de medida': 'UNIDADE [UN]',
+                'Grupo': 'STANDARD',
+                'Fonte de fornecimento': 'Banheiros Químicos Obra',
+                'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
+                'Venda': 'Não',
+                'Estoque ou Produto': 'Produto'
+            },
+            {
+                'Nome': 'LAVATÓRIO PORTÁTIL DUPLO',
+                'Unidade de medida': 'UNIDADE [UN]',
+                'Grupo': 'LAVATÓRIOS',
+                'Fonte de fornecimento': 'Lavatórios',
+                'Texto técnico': 'Lavatório portátil com acionamento por pedal.',
+                'Venda': 'Sim',
+                'Estoque ou Produto': 'Estoque'
+            }
+        ];
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(dadosModelo);
+        ws['!cols'] = [
+            { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 45 }, { wch: 12 }, { wch: 20 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
+        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="modelo_importacao_equipamentos.xlsx"');
+        res.send(buf);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/estoque-equipamentos/importar
+app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEquipamentos.single('arquivo'), (req, res) => {
+    try {
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ error: 'Selecione um arquivo .xlsx válido para importar.' });
+        }
+
+        const XLSX = require('xlsx');
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+            return res.status(400).json({ error: 'A planilha enviada não possui abas.' });
+        }
+
+        const sheet = workbook.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (!rawRows || rawRows.length === 0) {
+            return res.status(400).json({ error: 'A planilha está vazia.' });
+        }
+
+        const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+
+        // Buscar registros existentes para evitar nomes duplicados e calcular próximo código EQ-XXXX
+        db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errAll, existentes) => {
+            if (errAll) return res.status(500).json({ error: errAll.message });
+
+            const nomesExistentes = new Set();
+            let maxNum = 0;
+            (existentes || []).forEach(r => {
+                if (r.nome) nomesExistentes.add(String(r.nome).trim().toLowerCase());
+                const m = String(r.codigo || '').match(/(\d+)/);
+                if (m) {
+                    const n = parseInt(m[1], 10);
+                    if (n > maxNum) maxNum = n;
+                }
+            });
+
+            const lerColuna = (rowObj, candidatos) => {
+                const keys = Object.keys(rowObj || {});
+                for (const k of keys) {
+                    const kNorm = k.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    if (candidatos.includes(kNorm)) {
+                        return rowObj[k];
+                    }
+                }
+                for (const k of keys) {
+                    const kNorm = k.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    if (candidatos.some(c => kNorm.includes(c))) {
+                        return rowObj[k];
+                    }
+                }
+                return '';
+            };
+
+            const itensParaInserir = [];
+            const duplicadosNomes = [];
+            let linhasVazias = 0;
+
+            for (const row of rawRows) {
+                const nomeVal = String(lerColuna(row, ['nome', 'equipamento', 'produto', 'descricao', 'nome do equipamento']) || '').trim();
+                if (!nomeVal) {
+                    linhasVazias++;
+                    continue;
+                }
+                const nomeKey = nomeVal.toLowerCase();
+                if (nomesExistentes.has(nomeKey)) {
+                    duplicadosNomes.push(nomeVal);
+                    continue;
+                }
+                nomesExistentes.add(nomeKey);
+
+                const unidRaw = lerColuna(row, ['unidade de medida', 'unidade', 'unid', 'um', 'medida']);
+                const grupoRaw = lerColuna(row, ['grupo', 'grupo de produto']);
+                const fonteRaw = lerColuna(row, ['fonte de fornecimento', 'fonte de fonecimento', 'fonte', 'fornecimento']);
+                const textoRaw = lerColuna(row, ['texto tecnico', 'especificacao tecnica', 'especificacao', 'texto']);
+                const vendaRaw = lerColuna(row, ['venda', 'venda - sim ou nao', 'produto para venda']);
+                const tipoRaw  = lerColuna(row, ['estoque ou produto', 'produto ou estoque', 'tipo', 'matriz', 'estoque']);
+
+                maxNum++;
+                const codigo = 'EQ-' + String(maxNum).padStart(4, '0');
+
+                itensParaInserir.push({
+                    codigo,
+                    nome: nomeVal,
+                    unidade_medida: normalizarUnidadeEquipamento(unidRaw),
+                    fonte_fornecimento: normalizarFonteEquipamento(fonteRaw),
+                    grupo_produto: normalizarGrupoEquipamento(grupoRaw),
+                    especificacao_tecnica: String(textoRaw || '').trim(),
+                    produto_venda: normalizarVendaEquipamento(vendaRaw),
+                    tipo_item: normalizarTipoItemEquipamento(tipoRaw)
+                });
+            }
+
+            if (itensParaInserir.length === 0) {
+                return res.status(400).json({
+                    error: duplicadosNomes.length > 0
+                        ? `Nenhum equipamento novo importado. Todos os ${duplicadosNomes.length} equipamento(s) da planilha já existem cadastrados com o mesmo nome.`
+                        : 'Nenhum equipamento válido encontrado na planilha. Verifique se a coluna "Nome" está preenchida.'
+                });
+            }
+
+            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+            let inseridos = 0;
+            let idx = 0;
+
+            const inserirProximo = () => {
+                if (idx >= itensParaInserir.length) {
+                    return res.json({
+                        success: true,
+                        importados: inseridos,
+                        ignorados_duplicados: duplicadosNomes.length,
+                        duplicados_nomes: duplicadosNomes.slice(0, 20),
+                        linhas_vazias: linhasVazias
+                    });
+                }
+                const it = itensParaInserir[idx++];
+                db.run(
+                    `INSERT INTO estoque_equipamentos (
+                        codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
+                        especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        it.codigo, it.nome, it.unidade_medida, it.fonte_fornecimento, it.grupo_produto,
+                        it.especificacao_tecnica, it.produto_venda, it.tipo_item, criado_por, agora, agora
+                    ],
+                    function(errIns) {
+                        if (!errIns) inseridos++;
+                        inserirProximo();
+                    }
+                );
+            };
+
+            inserirProximo();
+        });
+    } catch (err) {
+        return res.status(500).json({ error: 'Erro ao processar planilha: ' + err.message });
+    }
 });
 
 // POST /api/estoque-equipamentos
@@ -33438,6 +33712,7 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
+    const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
     // Verificar duplicidade exata de nome (case-insensitive)
@@ -33454,9 +33729,9 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
             db.run(
                 `INSERT INTO estoque_equipamentos (
                     codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
-                    especificacao_tecnica, produto_venda, criado_por, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, criado_por, agora, agora],
+                    especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, agora, agora],
                 function(errIns) {
                     if (errIns) return res.status(500).json({ error: errIns.message });
                     res.json({ success: true, id: this.lastID, codigo });
@@ -33480,6 +33755,7 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const grupo_produto = String(d.grupo_produto || 'STANDARD').trim();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
+    const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
 
     // Verificar duplicidade exata de nome com outro registro (id != ?)
     db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?', [nome, id], (errDup, rowDup) => {
@@ -33494,9 +33770,9 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
         db.run(
             `UPDATE estoque_equipamentos SET
                 nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                especificacao_tecnica = ?, produto_venda = ?, updated_at = ?
+                especificacao_tecnica = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
              WHERE id = ?`,
-            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, agora, id],
+            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, agora, id],
             function(errUpd) {
                 if (errUpd) return res.status(500).json({ error: errUpd.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
