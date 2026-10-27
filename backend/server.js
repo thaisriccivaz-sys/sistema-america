@@ -33526,9 +33526,7 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                     'Unidade de medida': r.unidade_medida || 'UNIDADE [UN]',
                     'Grupo': r.grupo_produto || 'ACESSÓRIO',
                     'Fonte de fornecimento': r.fonte_fornecimento || 'PACOTE OBRA',
-                    'Texto técnico': r.especificacao_tecnica || '',
-                    'Venda - Sim ou Não': r.produto_venda ? 'Sim' : 'Não',
-                    'Estoque ou Produto': (String(r.tipo_item || 'matriz').trim().toLowerCase() === 'estoque') ? 'Estoque' : 'Produto'
+                    'Texto técnico': r.especificacao_tecnica || ''
                 }))
                 : [
                     {
@@ -33537,16 +33535,14 @@ app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) =
                         'Unidade de medida': 'UNIDADE [UN]',
                         'Grupo': 'PCD',
                         'Fonte de fornecimento': 'PACOTE OBRA',
-                        'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
-                        'Venda - Sim ou Não': 'Não',
-                        'Estoque ou Produto': 'Produto'
+                        'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.'
                     }
                 ];
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(lista);
             ws['!cols'] = [
-                { wch: 12 }, { wch: 38 }, { wch: 22 }, { wch: 22 }, { wch: 26 }, { wch: 45 }, { wch: 18 }, { wch: 18 }
+                { wch: 12 }, { wch: 38 }, { wch: 22 }, { wch: 22 }, { wch: 26 }, { wch: 45 }
             ];
             XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
             const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -33752,11 +33748,11 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                 db.run(
                     `UPDATE estoque_equipamentos SET
                         nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                        especificacao_tecnica = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
+                        especificacao_tecnica = ?, updated_at = ?
                      WHERE id = ?`,
                     [
                         up.nome, up.unidade_medida, up.fonte_fornecimento, up.grupo_produto,
-                        up.especificacao_tecnica, up.produto_venda, up.tipo_item, agora, up.id
+                        up.especificacao_tecnica, agora, up.id
                     ],
                     function(errUpd) {
                         if (!errUpd) atualizados++;
