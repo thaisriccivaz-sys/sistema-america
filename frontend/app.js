@@ -804,8 +804,8 @@ const BREADCRUMB_MAP = {
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
     'comercial-comissao': { path: 'Comercial → Comissão', code: 'COM003' },
     'comercial-enderecos': { path: 'Comercial → Endereços', code: 'COM004' },
-    'comercial-clientes': { path: 'Comercial → Cadastro de Cliente', code: 'COM005' },
-    'comercial-contatos': { path: 'Comercial → Cadastro de Contato', code: 'COM006' },
+    'comercial-clientes': { path: 'Comercial → Clientes', code: 'COM005' },
+    'comercial-contatos': { path: 'Comercial → Contatos', code: 'COM006' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
@@ -1230,8 +1230,8 @@ const TAB_META = {
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
-    'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Cadastro de Cliente' },
-    'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Cadastro de Contato' },
+    'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
+    'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },
     'comercial-comissao': { color: '#7048e8', icon: 'ph-currency-circle-dollar', title: 'Comissão' },
     'comercial-servicos-precificacao': { color: '#d9480f', icon: 'ph-calculator', title: 'Precificação de Serviços' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
@@ -1274,6 +1274,7 @@ function renderAppTabs() {
         const activeColor = t.color || '#0f172a';
         // Cor inativa: mesma cor do departamento mas com opacidade reduzida
         const inactiveColor = activeColor;
+        const displayTitle = TAB_META[t.target]?.title || t.title;
         return `
         <div class="app-top-tab ${t.active ? 'active' : ''}" 
              onclick="navigateToTab('${t.tabId}')"
@@ -1289,7 +1290,7 @@ function renderAppTabs() {
              onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
              onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
             ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
-            <span title="${t.title}">${t.title.length > 15 ? t.title.substring(0, 15) + '…' : t.title}</span>
+            <span title="${displayTitle}">${displayTitle.length > 15 ? displayTitle.substring(0, 15) + '…' : displayTitle}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
                style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"

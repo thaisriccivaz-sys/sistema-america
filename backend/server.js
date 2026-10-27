@@ -40027,6 +40027,7 @@ db.run(`CREATE TABLE IF NOT EXISTS clientes (
   ramal_2 TEXT,
   fax TEXT,
   website TEXT,
+  email TEXT,
   celular_ddi TEXT,
   celular TEXT,
   parametros TEXT,
@@ -40119,6 +40120,7 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
         
         // Merge e preservação de campos para não apagar dados existentes no banco
         const rSocial = cliData.nome_razao_social || row.nome_razao_social;
+        const nFantasia = cliData.nome_fantasia || row.nome_fantasia || rSocial;
         const cnpj = cliData.cpf_cnpj || row.cpf_cnpj;
         const cep = cliData.cep || row.cep;
         const endereco = cliData.endereco || row.endereco;
@@ -40126,20 +40128,23 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
         const bairro = cliData.bairro || row.bairro;
         const municipio = cliData.municipio || row.municipio;
         const uf = cliData.uf || row.uf;
+        const grupo = cliData.grupo_clientes !== undefined ? (cliData.grupo_clientes || row.grupo_clientes) : row.grupo_clientes;
+        const centralizador = cliData.cliente_centralizador !== undefined ? (cliData.cliente_centralizador || row.cliente_centralizador) : row.cliente_centralizador;
         const tel = cliData.telefone || row.telefone;
         const ramal = cliData.ramal || row.ramal;
         const fax = cliData.fax || row.fax;
         const tel2 = cliData.telefone_2 || row.telefone_2;
         const ramal2 = cliData.ramal_2 || row.ramal_2;
-        const website = cliData.website || row.website;
+        const website = cliData.website !== undefined ? (cliData.website || row.website) : row.website;
+        const email = cliData.email !== undefined ? (cliData.email || row.email) : row.email;
 
         db.run(`UPDATE clientes SET
-          nome_razao_social=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
-          municipio=?, uf=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?,
+          nome_razao_social=?, nome_fantasia=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
+          municipio=?, uf=?, grupo_clientes=?, cliente_centralizador=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?, email=?,
           atualizado_em=?
           WHERE id=?`,
         [
-          rSocial, cnpj, cep, endereco, numero, bairro, municipio, uf, tel, ramal, fax, tel2, ramal2, website,
+          rSocial, nFantasia, cnpj, cep, endereco, numero, bairro, municipio, uf, grupo, centralizador, tel, ramal, fax, tel2, ramal2, website, email,
           agora, idExistente
         ], function(err2) {
           if (err2) return callback(err2);
@@ -40153,15 +40158,16 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 
         gerarCodigoCliente((novoCodigo) => {
           db.run(`INSERT INTO clientes (
-            codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, cep, endereco,
-            numero, bairro, municipio, uf, telefone, ramal, fax, telefone_2, ramal_2, website,
+            codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, nome_fantasia, cep, endereco,
+            numero, bairro, municipio, uf, grupo_clientes, cliente_centralizador, telefone, ramal, fax, telefone_2, ramal_2, website, email,
             criado_por, criado_em, atualizado_em
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
-            novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social,
+            novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social, cliData.nome_fantasia || cliData.nome_razao_social || '',
             cliData.cep || '', cliData.endereco || '', cliData.numero || '', cliData.bairro || '', cliData.municipio || '',
-            cliData.uf || '', cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
-            cliData.website || '', cliData.criado_por || '', agora, agora
+            cliData.uf || '', cliData.grupo_clientes || '', cliData.cliente_centralizador || '',
+            cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
+            cliData.website || '', cliData.email || '', cliData.criado_por || '', agora, agora
           ], function(err2) {
             if (err2) return callback(err2);
             callback(null, this.lastID);
@@ -40174,6 +40180,7 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 
 // Inicialização de índices de performance e tabela clientes_anexos (Cloudflare R2)
 db.serialize(() => {
+  db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
   db.run('CREATE INDEX IF NOT EXISTS idx_contatos_cliente_id ON contatos(cliente_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_clientes_codigo ON clientes(codigo)');
   db.run('CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj ON clientes(cpf_cnpj)');
@@ -41299,15 +41306,15 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
       codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
       rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
       nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
-      pais, telefone, ramal, telefone_2, ramal_2, fax, website, celular_ddi,
+      pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
       celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
       observacoes, criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
       d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
       d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
-      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
       d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
       d.observacoes || '', d.criado_por, agora, agora
     ], function(err) {
@@ -41335,7 +41342,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
     data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
     rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
     nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
-    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, celular_ddi=?,
+    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
     celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
     observacoes=?, atualizado_em=?
     WHERE id=? OR codigo=?`,
@@ -41343,7 +41350,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
     d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
     d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
     d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
-    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.celular_ddi,
+    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
     d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
     d.observacoes || '', agora, req.params.id, req.params.id
   ], function(err) {
@@ -41448,10 +41455,12 @@ app.get('/api/contatos/:id/navegar/:direcao', authenticateToken, (req, res) => {
 // GET /api/contatos/:id - Buscar contato por ID ou Código
 app.get('/api/contatos/:id', authenticateToken, (req, res) => {
   db.get(`
-    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.codigo as cliente_codigo,
+    SELECT c.*, cli.nome_razao_social as cliente_nome, cli.nome_fantasia as cliente_nome_fantasia, cli.codigo as cliente_codigo,
            cli.cpf_cnpj, cli.cep, cli.endereco, cli.numero, cli.bairro, cli.municipio as cliente_cidade,
-           cli.uf, cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
-           cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site
+           cli.uf, cli.grupo_clientes, cli.cliente_centralizador,
+           cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
+           cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site,
+           cli.email as cliente_email
     FROM contatos c
     LEFT JOIN clientes cli ON c.cliente_id = cli.id
     WHERE c.id = ? OR c.codigo = ?

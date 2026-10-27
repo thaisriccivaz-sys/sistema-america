@@ -428,8 +428,8 @@ function renderTelaPropostas() {
                 .prop-lbl-modal,
                 .mcli-field label,
                 .prec-input-group label,
-                .mcon-field label,
-                [id^="prop-view-"] label {
+                .mcon-field label:not(.ramo-pill-lbl),
+                [id^="prop-view-"] label:not(.ramo-pill-lbl) {
                     font-weight: 600 !important;
                     font-size: 0.7rem !important;
                     color: #475569 !important;
@@ -438,6 +438,21 @@ function renderTelaPropostas() {
                     white-space: nowrap !important;
                     text-transform: none !important;
                     letter-spacing: normal !important;
+                }
+                label.ramo-pill-lbl {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 5px !important;
+                    margin-bottom: 0 !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
+                    white-space: nowrap !important;
+                }
+                label.ramo-pill-lbl input[type="checkbox"] {
+                    margin: 0 !important;
+                    vertical-align: middle !important;
+                    flex-shrink: 0 !important;
                 }
 
                 /* Títulos de Seção / Painéis */
@@ -677,10 +692,10 @@ function renderTelaPropostas() {
                                 <i class="ph ph-pencil-simple"></i> Nova Proposta
                             </div>
                             <div class="saas-dropdown-item" id="tab-prop-cadastro-cliente" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                                <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                                <i class="ph ph-user-plus"></i> Clientes
                             </div>
                             <div class="saas-dropdown-item" id="tab-prop-cadastro-contatos" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                                <i class="ph ph-identification-card"></i> Cadastro de Contato
+                                <i class="ph ph-identification-card"></i> Contatos
                             </div>
                             <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                                 <i class="ph ph-map-pin"></i> Endereços
@@ -1773,10 +1788,10 @@ function _renderFormPropostaInt() {
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus"></i> Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
+                            <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
@@ -2979,7 +2994,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     <!-- Abas à esquerda -->
                     <div style="display:flex; align-items:center; gap:0.4rem; font-family:'Inter', sans-serif;">
                         <button type="button" id="modal-tab-cli-cadastro" onclick="window.modalSwitchAbaCliente('cadastro')" style="background:#7048e8; color:#fff; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px;">
-                            <i class="ph ph-user-plus" style="font-size:1rem;"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus" style="font-size:1rem;"></i> Clientes
                         </button>
                         <button type="button" id="modal-tab-cli-historico" onclick="window.modalSwitchAbaCliente('historico')" style="background:#e2e8f0; color:#475569; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; height:32px;">
                             <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico de clientes
@@ -3145,8 +3160,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                     </div>
 
-                    <!-- Linha 7 Contatos: Telefone, Celular -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Linha 7 Contatos: Telefone, Celular, Website, Endereço de E-mail -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr 1.2fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
                             <label>Telefone *</label>
                             <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
@@ -3154,6 +3169,14 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <div class="mcli-field">
                             <label>Celular / WhatsApp *</label>
                             <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Website (Site)</label>
+                            <input type="text" id="modal-cli-website" value="${client ? (client.website || '') : ''}" placeholder="www.empresa.com" class="mcli-input">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Endereço de E-mail</label>
+                            <input type="email" id="modal-cli-email" value="${client ? (client.email || '') : ''}" placeholder="contato@empresa.com" class="mcli-input">
                         </div>
                         <div style="display:none;">
                             <button type="button" onclick="window.abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:28px;width:38px;box-sizing:border-box;"><i class="ph ph-whatsapp-logo"></i></button>
@@ -3690,6 +3713,8 @@ window.modalBuscarCNPJ = async function() {
                     if (document.getElementById('modal-cli-codigo')) document.getElementById('modal-cli-codigo').value = fullCli.codigo || '';
                     if (document.getElementById('modal-cli-im') && fullCli.inscricao_municipal) document.getElementById('modal-cli-im').value = fullCli.inscricao_municipal;
                     if (document.getElementById('modal-cli-celular') && fullCli.celular) document.getElementById('modal-cli-celular').value = fullCli.celular;
+                    if (document.getElementById('modal-cli-website') && fullCli.website) document.getElementById('modal-cli-website').value = fullCli.website;
+                    if (document.getElementById('modal-cli-email') && fullCli.email) document.getElementById('modal-cli-email').value = fullCli.email;
                     if (document.getElementById('modal-cli-observacoes') && fullCli.observacoes) document.getElementById('modal-cli-observacoes').value = fullCli.observacoes;
                     const mappedModalCt = Array.isArray(fullCli.contatos_tabela)
                         ? fullCli.contatos_tabela.map(con => ({
@@ -3774,6 +3799,10 @@ window.modalBuscarCNPJ = async function() {
             if (imApi && document.getElementById('modal-cli-im')) {
                 document.getElementById('modal-cli-im').value = imApi;
             }
+            const emailApi = data.estabelecimento?.email || data.email || '';
+            if (emailApi && document.getElementById('modal-cli-email') && !document.getElementById('modal-cli-email').value) {
+                document.getElementById('modal-cli-email').value = emailApi;
+            }
 
         } else {
             // Source: brasilapi
@@ -3792,6 +3821,9 @@ window.modalBuscarCNPJ = async function() {
                 document.getElementById('modal-cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
             }
             document.getElementById('modal-cli-ie').value = 'ISENTO';
+            if (data.email && document.getElementById('modal-cli-email') && !document.getElementById('modal-cli-email').value) {
+                document.getElementById('modal-cli-email').value = data.email;
+            }
         }
 
         // Atualizar opções do centralizador
@@ -3918,6 +3950,7 @@ window.modalSalvarCliente = async function(clientId) {
         ramal_2: document.getElementById('modal-cli-ramal2')?.value || '',
         fax: document.getElementById('modal-cli-fax')?.value || '',
         website: document.getElementById('modal-cli-website')?.value || '',
+        email: document.getElementById('modal-cli-email')?.value || '',
         celular_ddi: document.getElementById('modal-cli-celular-ddi')?.value || '',
         celular: document.getElementById('modal-cli-celular')?.value || '',
         parametros: JSON.stringify(parametros),
@@ -5622,8 +5655,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Contatos: Telefone, Celular -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
+                    <!-- Contatos: Telefone, Celular, Website, Endereço de E-mail -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr 1.2fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
                             <label class="prop-lbl">Telefone *</label>
                             <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
@@ -5631,6 +5664,14 @@ function _renderCadastroClienteInt() {
                         <div>
                             <label class="prop-lbl">Celular / WhatsApp *</label>
                             <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Website (Site)</label>
+                            <input type="text" id="cli-website" placeholder="www.empresa.com" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Endereço de E-mail</label>
+                            <input type="email" id="cli-email" placeholder="contato@empresa.com" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div style="display:none;">
                             <button type="button" onclick="abrirWhatsApp()" style="background:#25d366;color:white;border:none;padding:0.5rem;border-radius:4px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;height:34px;width:38px;"><i class="ph ph-whatsapp-logo"></i></button>
@@ -6384,6 +6425,10 @@ window.buscarCNPJ = async function() {
             if (imApi && document.getElementById('cli-im')) {
                 document.getElementById('cli-im').value = imApi;
             }
+            const emailApi = data.estabelecimento?.email || data.email || '';
+            if (emailApi && document.getElementById('cli-email') && !document.getElementById('cli-email').value) {
+                document.getElementById('cli-email').value = emailApi;
+            }
 
         } else {
             // Source: brasilapi
@@ -6402,6 +6447,9 @@ window.buscarCNPJ = async function() {
                 document.getElementById('cli-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
             }
             document.getElementById('cli-ie').value = 'ISENTO';
+            if (data.email && document.getElementById('cli-email') && !document.getElementById('cli-email').value) {
+                document.getElementById('cli-email').value = data.email;
+            }
         }
 
         // Atualizar as opções do centralizador dinamicamente e verificar IM na base interna!
@@ -6580,6 +6628,7 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         setElVal('cli-ramal2', c.ramal_2 || '');
         setElVal('cli-fax', c.fax || '');
         setElVal('cli-website', c.website || '');
+        setElVal('cli-email', c.email || '');
         setElVal('cli-celular-ddi', c.celular_ddi || '+55 (BRASIL)');
         document.getElementById('cli-celular').value = c.celular || '';
         setElVal('cli-observacoes', c.observacoes || '');
@@ -6684,6 +6733,8 @@ window.limparFormCliente = function() {
     
     document.getElementById('cli-codigo').value = '';
     document.getElementById('cli-inativo').checked = false;
+    if (document.getElementById('cli-website')) document.getElementById('cli-website').value = '';
+    if (document.getElementById('cli-email')) document.getElementById('cli-email').value = '';
     const chkBloqFat = document.getElementById('cli-bloquear-faturamento');
     if (chkBloqFat) chkBloqFat.checked = false;
     window.aplicarVisualBloqueioFaturamento(false, 'main');
@@ -6840,26 +6891,26 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                 gap: 0.4rem 0.6rem;
             }
             .mcon-grid-contact-row1 {
-                grid-template-columns: 1.1fr 3.2fr 1.8fr 1.8fr 2.4fr;
+                grid-template-columns: 1.1fr 3.5fr 2fr 2.4fr;
             }
             .mcon-grid-contact-row2 {
-                grid-template-columns: 1.5fr 2.2fr 1.6fr 1.4fr 2.8fr;
+                grid-template-columns: 2fr 1.5fr 1.3fr 2.8fr;
             }
             .mcon-grid-company-row1 {
-                grid-template-columns: 4fr 2fr 1.5fr;
+                grid-template-columns: 3fr 2.2fr 1.8fr 1.3fr;
             }
             .mcon-grid-company-row2 {
-                grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+                grid-template-columns: 3.5fr 2fr 2.5fr 1fr;
             }
             .mcon-grid-company-row3 {
-                grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+                grid-template-columns: 1.5fr 2fr 2fr;
             }
             .mcon-field {
                 display: flex;
                 flex-direction: column;
                 gap: 0.2rem;
             }
-            .mcon-field label {
+            .mcon-field label:not(.ramo-pill-lbl) {
                 font-size: 0.7rem !important;
                 font-weight: 700 !important;
                 color: #64748b !important;
@@ -6954,7 +7005,7 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             <label>Celular / WhatsApp *</label>
                             <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input" required>
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Telefone</label>
                             <input type="text" id="mcon-telefone" value="${esc(c.telefone)}" placeholder="(XX) XXXX-XXXX" class="mcon-input">
                         </div>
@@ -6964,9 +7015,9 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         </div>
                     </div>
 
-                    <!-- Linha 2: Tipo, Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (múltipla seleção) -->
+                    <!-- Linha 2: Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (múltipla seleção) -->
                     <div class="mcon-grid mcon-grid-contact-row2">
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Tipo</label>
                             <select id="mcon-tipo" class="mcon-select">
                                 <option value="">-- Selecione --</option>
@@ -6999,16 +7050,16 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             </select>
                         </div>
                         <div class="mcon-field">
-                            <label>Ramo de Atividade (escolha 1 ou mais)</label>
+                            <label>Ramo de Atividade (pode selecionar mais de um)</label>
                             <input type="hidden" id="mcon-ramo-atividade" value="${esc(ramoRaw)}">
                             <div style="display:flex; align-items:center; gap:6px; height:28px; flex-wrap:wrap;">
-                                <label style="${pillStyle(isObra)}">
+                                <label class="ramo-pill-lbl" style="${pillStyle(isObra)}">
                                     <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💙Obra
                                 </label>
-                                <label style="${pillStyle(isEvento)}">
+                                <label class="ramo-pill-lbl" style="${pillStyle(isEvento)}">
                                     <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💜Evento
                                 </label>
-                                <label style="${pillStyle(isOutros)}">
+                                <label class="ramo-pill-lbl" style="${pillStyle(isOutros)}">
                                     <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💧Outros
                                 </label>
                             </div>
@@ -7029,6 +7080,10 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             </div>
                         </div>
                         <div class="mcon-field">
+                            <label>Nome Fantasia *</label>
+                            <input type="text" id="memp-nome-fantasia" readonly class="mcon-input" value="${esc(cli.nome_fantasia || cli.nome_razao_social)}">
+                        </div>
+                        <div class="mcon-field">
                             <label>CNPJ *</label>
                             <input type="text" id="memp-cnpj" readonly class="mcon-input" value="${esc(cli.cpf_cnpj)}">
                         </div>
@@ -7041,9 +7096,9 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                     <div class="mcon-grid mcon-grid-company-row2">
                         <div class="mcon-field">
                             <label>Endereço</label>
-                            <input type="text" id="memp-endereco" readonly class="mcon-input" value="${esc(cli.endereco)}">
+                            <input type="text" id="memp-endereco" readonly class="mcon-input" value="${esc((cli.endereco || '') + (cli.numero && !(cli.endereco || '').includes(cli.numero) ? ', ' + cli.numero : ''))}">
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Número</label>
                             <input type="text" id="memp-numero" readonly class="mcon-input" value="${esc(cli.numero)}">
                         </div>
@@ -7077,25 +7132,29 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             <label>Telefone</label>
                             <input type="text" id="memp-telefone" readonly class="mcon-input" value="${esc(cli.telefone)}">
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Ramal</label>
                             <input type="text" id="memp-ramal" readonly class="mcon-input" value="${esc(cli.ramal)}">
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Telefone 2</label>
                             <input type="text" id="memp-telefone2" readonly class="mcon-input" value="${esc(cli.telefone_2)}">
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Ramal 2</label>
                             <input type="text" id="memp-ramal2" readonly class="mcon-input" value="${esc(cli.ramal_2)}">
                         </div>
-                        <div class="mcon-field">
+                        <div class="mcon-field" style="display:none;">
                             <label>Fax</label>
                             <input type="text" id="memp-fax" readonly class="mcon-input" value="${esc(cli.fax)}">
                         </div>
                         <div class="mcon-field">
                             <label>Website (Site)</label>
                             <input type="text" id="memp-site" readonly class="mcon-input" value="${esc(cli.website)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Endereço de E-mail</label>
+                            <input type="email" id="memp-email" readonly class="mcon-input" value="${esc(cli.email)}">
                         </div>
                     </div>
                 </div>
@@ -7206,6 +7265,7 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
         id: _clienteEditandoId || contato.cliente_id || null,
         codigo: document.getElementById('cli-codigo')?.value || '',
         nome_razao_social: document.getElementById('cli-razao-social')?.value || '',
+        nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
         cpf_cnpj: document.getElementById('cli-cpf-cnpj')?.value || '',
         cep: document.getElementById('cli-cep')?.value || '',
         endereco: document.getElementById('cli-endereco')?.value || '',
@@ -7220,7 +7280,8 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
         telefone_2: document.getElementById('cli-telefone2')?.value || '',
         ramal_2: document.getElementById('cli-ramal2')?.value || '',
         fax: document.getElementById('cli-fax')?.value || '',
-        website: document.getElementById('cli-website')?.value || ''
+        website: document.getElementById('cli-website')?.value || '',
+        email: document.getElementById('cli-email')?.value || ''
     };
 
     const targetCliId = _clienteEditandoId || contato.cliente_id;
@@ -7413,6 +7474,7 @@ window.encaminharNovoContato = async function(btnEl = null) {
                 id: _clienteEditandoId,
                 codigo: codigoVal,
                 nome_razao_social: razaoInput?.value || '',
+                nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
                 cpf_cnpj: rawCnpj,
                 cep: document.getElementById('cli-cep')?.value || '',
                 endereco: document.getElementById('cli-endereco')?.value || '',
@@ -7427,7 +7489,8 @@ window.encaminharNovoContato = async function(btnEl = null) {
                 telefone_2: document.getElementById('cli-telefone2')?.value || '',
                 ramal_2: document.getElementById('cli-ramal2')?.value || '',
                 fax: document.getElementById('cli-fax')?.value || '',
-                website: document.getElementById('cli-website')?.value || ''
+                website: document.getElementById('cli-website')?.value || '',
+                email: document.getElementById('cli-email')?.value || ''
             };
         } else {
             const clientes = await window.obterClientesCache();
@@ -7535,6 +7598,7 @@ window.modalSalvarNovoContato = async function() {
         codigo: document.getElementById('memp-codigo')?.value || '',
         cpf_cnpj: empCnpj,
         nome_razao_social: empRazao,
+        nome_fantasia: document.getElementById('memp-nome-fantasia')?.value || empRazao,
         cep: document.getElementById('memp-cep')?.value || '',
         endereco: document.getElementById('memp-endereco')?.value || '',
         numero: document.getElementById('memp-numero')?.value || '',
@@ -7549,6 +7613,7 @@ window.modalSalvarNovoContato = async function() {
         ramal_2: document.getElementById('memp-ramal2')?.value || '',
         fax: document.getElementById('memp-fax')?.value || '',
         website: document.getElementById('memp-site')?.value || '',
+        email: document.getElementById('memp-email')?.value || '',
         criado_por: window.obterNomeUsuarioLogado()
     };
 
@@ -8388,6 +8453,7 @@ window.salvarCliente = async function() {
         ramal_2: document.getElementById('cli-ramal2')?.value || '',
         fax: document.getElementById('cli-fax')?.value || '',
         website: document.getElementById('cli-website')?.value || '',
+        email: document.getElementById('cli-email')?.value || '',
         celular_ddi: document.getElementById('cli-celular-ddi')?.value || '',
         celular: document.getElementById('cli-celular')?.value || '',
         parametros: JSON.stringify(parametros),
@@ -8589,20 +8655,20 @@ function _renderCadastroContatosInt() {
                 grid-template-columns: 1.5fr 0.8fr 4fr;
             }
             .cc-grid-company-row1 {
-                grid-template-columns: 4fr 2fr 1.5fr;
+                grid-template-columns: 3fr 2.2fr 1.8fr 1.3fr;
             }
             .cc-grid-company-row2 {
-                grid-template-columns: 3.5fr 1fr 2fr 2.5fr 1fr;
+                grid-template-columns: 3.5fr 2fr 2.5fr 1fr;
             }
             .cc-grid-company-row3 {
-                grid-template-columns: 1.5fr 0.8fr 1.5fr 1.5fr 0.8fr 2fr;
+                grid-template-columns: 1.5fr 2fr 2fr;
             }
             .cc-field {
                 display: flex;
                 flex-direction: column;
                 gap: 0.25rem;
             }
-            .cc-field label {
+            .cc-field label:not(.ramo-pill-lbl) {
                 font-size: 0.75rem;
                 font-weight: 700;
                 color: #64748b;
@@ -8693,10 +8759,10 @@ function _renderCadastroContatosInt() {
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus"></i> Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
+                            <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
@@ -8783,9 +8849,9 @@ function _renderCadastroContatosInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 2: Tipo, Cargo/Departamento, Origem, Influenciador -->
-                        <div class="cc-grid" style="grid-template-columns: 1.5fr 2fr 1.5fr 1.5fr;">
-                            <div class="cc-field">
+                        <!-- Linha 2: Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (pode selecionar mais de um) -->
+                        <div class="cc-grid" style="grid-template-columns: 1.8fr 1.4fr 1.2fr 2.2fr;">
+                            <div class="cc-field" style="display:none;">
                                 <label>Tipo</label>
                                 <select id="con-tipo" class="cc-select">
                                     <option value="">-- Selecione --</option>
@@ -8822,15 +8888,11 @@ function _renderCadastroContatosInt() {
                                     <option value="Não">Não</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- Linha 3: Ramo de Atividade (múltipla seleção: Obra, Evento, Outros) e Telefone -->
-                        <div class="cc-grid" style="grid-template-columns: 2.5fr 1.5fr;">
                             <div class="cc-field">
                                 <label>Ramo de Atividade (pode selecionar mais de um)</label>
                                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; min-height:38px;">
                                     ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
-                                        <label style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
+                                        <label class="ramo-pill-lbl" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
                                             <input type="checkbox" class="con-ramo-chk" value="${op.val}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
                                             ${op.label}
                                         </label>
@@ -8838,7 +8900,7 @@ function _renderCadastroContatosInt() {
                                 </div>
                                 <input type="hidden" id="con-ramo-atividade" value="">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Telefone</label>
                                 <input type="text" id="con-telefone" placeholder="(XX) XXXX-XXXX" class="cc-input">
                             </div>
@@ -8851,7 +8913,7 @@ function _renderCadastroContatosInt() {
                     </div>
 
                     <div class="cc-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <!-- Linha 1: Cliente, CNPJ, CEP -->
+                        <!-- Linha 1: Cliente, Nome Fantasia, CNPJ, CEP -->
                         <div class="cc-grid cc-grid-company-row1">
                             <div class="cc-field">
                                 <label>Cliente (Razão Social) *</label>
@@ -8861,6 +8923,10 @@ function _renderCadastroContatosInt() {
                                     <button type="button" id="btn-busca-emp-razao" onclick="window.buscarEmpresaClienteContato('razao', this)" class="cc-btn-addon" title="Buscar Cliente"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="window.abrirTelaCadastroClienteDeContato()" class="cc-btn-addon secondary" title="Cadastrar Cliente"><i class="ph ph-plus"></i></button>
                                 </div>
+                            </div>
+                            <div class="cc-field">
+                                <label>Nome Fantasia *</label>
+                                <input type="text" id="emp-nome-fantasia" class="cc-input">
                             </div>
                             <div class="cc-field">
                                 <label>CNPJ *</label>
@@ -8878,13 +8944,13 @@ function _renderCadastroContatosInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 2: Endereço, Número, Bairro, Cidade, UF -->
+                        <!-- Linha 2: Endereço, Bairro, Cidade, UF -->
                         <div class="cc-grid cc-grid-company-row2">
                             <div class="cc-field">
                                 <label>Endereço</label>
                                 <input type="text" id="emp-endereco" class="cc-input">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Número</label>
                                 <input type="text" id="emp-numero" class="cc-input">
                             </div>
@@ -8927,31 +8993,35 @@ function _renderCadastroContatosInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 3: Telefone, Ramal, Telefone 2, Ramal 2, Fax, Website -->
+                        <!-- Linha 3: Telefone, Website, Endereço de E-mail -->
                         <div class="cc-grid cc-grid-company-row3">
                             <div class="cc-field">
                                 <label>Telefone</label>
                                 <input type="text" id="emp-telefone" class="cc-input">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Ramal</label>
                                 <input type="text" id="emp-ramal" class="cc-input">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Telefone 2</label>
                                 <input type="text" id="emp-telefone2" class="cc-input">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Ramal 2</label>
                                 <input type="text" id="emp-ramal2" class="cc-input">
                             </div>
-                            <div class="cc-field">
+                            <div class="cc-field" style="display:none;">
                                 <label>Fax</label>
                                 <input type="text" id="emp-fax" class="cc-input">
                             </div>
                             <div class="cc-field">
                                 <label>Website (Site)</label>
                                 <input type="text" id="emp-site" placeholder="www.empresa.com" class="cc-input">
+                            </div>
+                            <div class="cc-field">
+                                <label>Endereço de E-mail</label>
+                                <input type="email" id="emp-email" placeholder="contato@empresa.com" class="cc-input">
                             </div>
                         </div>
                     </div>
@@ -9066,8 +9136,10 @@ window.buscarEmpresaClienteContato = async function(origem = 'razao', btnEl = nu
                     const data = result.data;
                     const source = result.source;
                     if (source === 'cnpjws') {
-                        document.getElementById('emp-razao-social').value = data.razao_social || '';
-                        document.getElementById('emp-site').value = data.estabelecimento?.nome_fantasia || '';
+                        const razao = data.razao_social || '';
+                        const fantasia = (data.estabelecimento?.nome_fantasia || '').trim() || razao;
+                        document.getElementById('emp-razao-social').value = razao;
+                        if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = fantasia;
                         document.getElementById('emp-cep').value = data.estabelecimento?.cep || '';
                         const logradouro = data.estabelecimento?.logradouro || '';
                         const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
@@ -9079,8 +9151,15 @@ window.buscarEmpresaClienteContato = async function(origem = 'razao', btnEl = nu
                         if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
                             document.getElementById('emp-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
                         }
+                        const emailApi = data.estabelecimento?.email || data.email || '';
+                        if (emailApi && document.getElementById('emp-email') && !document.getElementById('emp-email').value) {
+                            document.getElementById('emp-email').value = emailApi;
+                        }
                     } else {
-                        document.getElementById('emp-razao-social').value = data.razao_social || '';
+                        const razao = data.razao_social || '';
+                        const fantasia = (data.nome_fantasia || '').trim() || razao;
+                        document.getElementById('emp-razao-social').value = razao;
+                        if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = fantasia;
                         document.getElementById('emp-cep').value = data.cep || '';
                         document.getElementById('emp-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
                         document.getElementById('emp-bairro').value = data.bairro || '';
@@ -9088,6 +9167,9 @@ window.buscarEmpresaClienteContato = async function(origem = 'razao', btnEl = nu
                         document.getElementById('emp-cidade').value = data.municipio || '';
                         if (data.ddd_telefone_1) {
                             document.getElementById('emp-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+                        }
+                        if (data.email && document.getElementById('emp-email') && !document.getElementById('emp-email').value) {
+                            document.getElementById('emp-email').value = data.email;
                         }
                     }
                     document.getElementById('emp-cnpj').value = qDigits;
@@ -9350,9 +9432,10 @@ window.carregarEmpresaSelecionada = async function(id) {
 
         document.getElementById('emp-codigo').value = c.codigo || '';
         document.getElementById('emp-razao-social').value = c.nome_razao_social || '';
+        if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = c.nome_fantasia || c.nome_razao_social || '';
         document.getElementById('emp-cnpj').value = c.cpf_cnpj || '';
         document.getElementById('emp-cep').value = c.cep || '';
-        document.getElementById('emp-endereco').value = c.endereco || '';
+        document.getElementById('emp-endereco').value = (c.endereco || '') + (c.numero && !(c.endereco || '').includes(c.numero) ? ', ' + c.numero : '');
         document.getElementById('emp-numero').value = c.numero || '';
         document.getElementById('emp-bairro').value = c.bairro || '';
         document.getElementById('emp-cidade').value = c.municipio || '';
@@ -9365,6 +9448,7 @@ window.carregarEmpresaSelecionada = async function(id) {
         document.getElementById('emp-ramal2').value = c.ramal_2 || '';
         document.getElementById('emp-fax').value = c.fax || '';
         document.getElementById('emp-site').value = c.website || '';
+        if (document.getElementById('emp-email')) document.getElementById('emp-email').value = c.email || '';
 
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`Empresa ${c.nome_razao_social} selecionada!`);
@@ -9381,6 +9465,7 @@ window.limparEmpresaCliente = function() {
 
     document.getElementById('emp-codigo').value = '';
     document.getElementById('emp-razao-social').value = '';
+    if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = '';
     document.getElementById('emp-cnpj').value = '';
     document.getElementById('emp-cep').value = '';
     document.getElementById('emp-endereco').value = '';
@@ -9401,6 +9486,7 @@ window.limparEmpresaCliente = function() {
     document.getElementById('emp-ramal2').value = '';
     document.getElementById('emp-fax').value = '';
     document.getElementById('emp-site').value = '';
+    if (document.getElementById('emp-email')) document.getElementById('emp-email').value = '';
 
     if (typeof mostrarToastSucesso === 'function') {
         mostrarToastSucesso('Pronto para cadastrar nova empresa cliente.');
@@ -9502,9 +9588,10 @@ window.carregarContatoParaEdicao = async function(id) {
         // Populate Company Fields
         document.getElementById('emp-codigo').value = c.cliente_codigo || '';
         document.getElementById('emp-razao-social').value = c.cliente_nome || '';
+        if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = c.cliente_nome_fantasia || c.cliente_nome || '';
         document.getElementById('emp-cnpj').value = c.cpf_cnpj || '';
         document.getElementById('emp-cep').value = c.cep || '';
-        document.getElementById('emp-endereco').value = c.endereco || '';
+        document.getElementById('emp-endereco').value = (c.endereco || '') + (c.numero && !(c.endereco || '').includes(c.numero) ? ', ' + c.numero : '');
         document.getElementById('emp-numero').value = c.numero || '';
         document.getElementById('emp-bairro').value = c.bairro || '';
         document.getElementById('emp-cidade').value = c.cliente_cidade || '';
@@ -9517,6 +9604,7 @@ window.carregarContatoParaEdicao = async function(id) {
         document.getElementById('emp-ramal2').value = c.cliente_ramal2 || '';
         document.getElementById('emp-fax').value = c.cliente_fax || '';
         document.getElementById('emp-site').value = c.cliente_site || '';
+        if (document.getElementById('emp-email')) document.getElementById('emp-email').value = c.cliente_email || '';
 
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`Contato ${c.codigo} carregado com sucesso!`);
@@ -9563,6 +9651,7 @@ window.limparFormContato = function() {
     // Clear Company inputs
     document.getElementById('emp-codigo').value = '';
     document.getElementById('emp-razao-social').value = '';
+    if (document.getElementById('emp-nome-fantasia')) document.getElementById('emp-nome-fantasia').value = '';
     document.getElementById('emp-cnpj').value = '';
     document.getElementById('emp-cep').value = '';
     document.getElementById('emp-endereco').value = '';
@@ -9583,6 +9672,7 @@ window.limparFormContato = function() {
     document.getElementById('emp-ramal2').value = '';
     document.getElementById('emp-fax').value = '';
     document.getElementById('emp-site').value = '';
+    if (document.getElementById('emp-email')) document.getElementById('emp-email').value = '';
 };
 
 window.recarregarContato = function() {
@@ -9630,6 +9720,7 @@ window.salvarContato = async function() {
     const conEmail = document.getElementById('con-email')?.value || '';
     const empCnpj = (document.getElementById('emp-cnpj')?.value || '').trim();
     const empRazao = (document.getElementById('emp-razao-social')?.value || '').trim();
+    const empNomeFantasia = (document.getElementById('emp-nome-fantasia')?.value || '').trim();
 
     if (!conNome) {
         alert('Por favor, preencha o Nome do Contato.');
@@ -9645,6 +9736,10 @@ window.salvarContato = async function() {
     }
     if (!empRazao) {
         alert('Por favor, preencha a Razão Social da Empresa Cliente.');
+        return;
+    }
+    if (!empNomeFantasia) {
+        alert('Por favor, preencha o Nome Fantasia da Empresa Cliente.');
         return;
     }
 
@@ -9684,6 +9779,7 @@ window.salvarContato = async function() {
         codigo: resolvedCodigo,
         cpf_cnpj: empCnpj,
         nome_razao_social: empRazao,
+        nome_fantasia: (document.getElementById('emp-nome-fantasia')?.value || '').trim() || empRazao,
         cep: document.getElementById('emp-cep')?.value || '',
         endereco: document.getElementById('emp-endereco')?.value || '',
         numero: document.getElementById('emp-numero')?.value || '',
@@ -9698,6 +9794,7 @@ window.salvarContato = async function() {
         ramal_2: document.getElementById('emp-ramal2')?.value || '',
         fax: document.getElementById('emp-fax')?.value || '',
         website: document.getElementById('emp-site')?.value || '',
+        email: (document.getElementById('emp-email')?.value || '').trim(),
         criado_por: window.obterNomeUsuarioLogado()
     };
 
@@ -10594,10 +10691,10 @@ function _renderEnderecosInt() {
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus"></i> Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
+                            <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
@@ -12207,10 +12304,10 @@ function _renderPrecificacaoBaseLayout() {
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus"></i> Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
+                            <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
@@ -15326,10 +15423,10 @@ function _renderModelosContratoBaseLayout() {
                             <i class="ph ph-pencil-simple"></i> Nova Proposta
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Cadastro de Cliente
+                            <i class="ph ph-user-plus"></i> Clientes
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
-                            <i class="ph ph-identification-card"></i> Cadastro de Contato
+                            <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
