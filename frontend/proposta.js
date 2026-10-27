@@ -3117,7 +3117,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         <div class="mcli-field">
                             <label>CEP</label>
                             <div class="mcli-input-group">
-                                <input type="text" id="modal-cli-cep" value="${client ? (client.cep || '') : ''}" placeholder="00000-000" class="mcli-input">
+                                <input type="text" id="modal-cli-cep" value="${client ? (client.cep || '') : ''}" placeholder="00000-000" class="mcli-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCEP();}">
                                 <button type="button" onclick="window.modalBuscarCEP()" class="mcli-btn-addon" title="Buscar CEP">
                                     <i class="ph ph-magnifying-glass"></i>
                                 </button>
@@ -3125,7 +3125,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                         <div class="mcli-field">
                             <label>Endereço *</label>
-                            <input type="text" id="modal-cli-endereco" value="${client ? ((client.endereco || '') + (client.numero && !(client.endereco || '').includes(client.numero) ? ', ' + client.numero : '')) : ''}" class="mcli-input">
+                            <input type="text" id="modal-cli-endereco" value="${client ? ((client.endereco || '') + (client.numero && !(client.endereco || '').includes(client.numero) ? ', ' + client.numero : '')) : ''}" placeholder="Rua / Avenida, Número" class="mcli-input">
                         </div>
                         <div class="mcli-field" style="display:none;">
                             <label>Número</label>
@@ -3875,7 +3875,8 @@ window.modalBuscarCEP = async function() {
         const data = await res.json();
         if (data.erro) throw new Error('CEP inexistente.');
         
-        document.getElementById('modal-cli-endereco').value = data.logradouro || '';
+        const numExistModal = (document.getElementById('modal-cli-numero')?.value || '').trim();
+        document.getElementById('modal-cli-endereco').value = (data.logradouro || '') + (numExistModal ? ', ' + numExistModal : '');
         document.getElementById('modal-cli-bairro').value = data.bairro || '';
         document.getElementById('modal-cli-uf').value = data.uf || '';
         document.getElementById('modal-cli-municipio').value = data.localidade || '';
@@ -3937,8 +3938,18 @@ window.modalSalvarCliente = async function(clientId) {
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('modal-cli-nome-fantasia')?.value || '',
         cep: document.getElementById('modal-cli-cep')?.value || '',
-        endereco: document.getElementById('modal-cli-endereco')?.value || '',
-        numero: document.getElementById('modal-cli-numero')?.value || '',
+        endereco: (() => {
+            const rawEnd = (document.getElementById('modal-cli-endereco')?.value || '').trim();
+            const rawNum = (document.getElementById('modal-cli-numero')?.value || '').trim();
+            const parsed = window._separarRuaENumeroEnderecos ? window._separarRuaENumeroEnderecos(rawEnd, rawNum) : { rua: rawEnd, numero: rawNum };
+            return parsed.rua && parsed.numero ? `${parsed.rua}, ${parsed.numero}` : rawEnd;
+        })(),
+        numero: (() => {
+            const rawEnd = (document.getElementById('modal-cli-endereco')?.value || '').trim();
+            const rawNum = (document.getElementById('modal-cli-numero')?.value || '').trim();
+            const parsed = window._separarRuaENumeroEnderecos ? window._separarRuaENumeroEnderecos(rawEnd, rawNum) : { rua: rawEnd, numero: rawNum };
+            return parsed.numero || rawNum;
+        })(),
         complemento: document.getElementById('modal-cli-complemento')?.value || '',
         bairro: document.getElementById('modal-cli-bairro')?.value || '',
         uf: document.getElementById('modal-cli-uf')?.value || '',
@@ -3985,6 +3996,38 @@ window.modalSalvarCliente = async function(clientId) {
                 propClienteInput.value = razaoSocial;
                 if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
                     window.verificarBloqueioFaturamentoProposta(razaoSocial);
+                }
+            }
+
+            // Se o cadastro foi aberto a partir da tela ou modal de Endereços (+), selecionar o cliente recém-cadastrado
+            if (window._returnToEnderecosModalAfterClientSave && finalModalCliId) {
+                window._returnToEnderecosModalAfterClientSave = false;
+                try {
+                    const savedCli = await apiGet(`/clientes/${finalModalCliId}`);
+                    if (savedCli) {
+                        window.abrirModalEnderecosEntrega(savedCli);
+                        return;
+                    }
+                } catch (eEnd) {
+                    console.error(eEnd);
+                }
+            } else if (document.getElementById('page-cli-razao') && finalModalCliId) {
+                try {
+                    const savedCli = await apiGet(`/clientes/${finalModalCliId}`);
+                    if (savedCli) {
+                        window._pageSelectedClienteId = savedCli.id;
+                        if (document.getElementById('page-cli-codigo')) document.getElementById('page-cli-codigo').value = savedCli.codigo || '';
+                        if (document.getElementById('page-cli-razao')) document.getElementById('page-cli-razao').value = savedCli.nome_razao_social || '';
+                        if (document.getElementById('page-cli-fantasia')) document.getElementById('page-cli-fantasia').value = savedCli.nome_fantasia || '';
+                        if (document.getElementById('page-cli-data')) {
+                            document.getElementById('page-cli-data').value = savedCli.data_cadastro
+                                ? (savedCli.data_cadastro.includes('-') ? savedCli.data_cadastro.split('-').reverse().join('/') : savedCli.data_cadastro)
+                                : new Date().toLocaleDateString('pt-BR');
+                        }
+                        window.pageCarregarEnderecos(savedCli.id);
+                    }
+                } catch (ePageEnd) {
+                    console.error(ePageEnd);
                 }
             }
             
@@ -5613,13 +5656,13 @@ function _renderCadastroClienteInt() {
                         <div>
                             <label class="prop-lbl">CEP</label>
                             <div style="display:flex; gap:3px;">
-                                <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;" onkeydown="if(event.key==='Enter'){event.preventDefault(); buscarCEP();}">
                                 <button type="button" onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
                         <div>
                             <label class="prop-lbl">Endereço *</label>
-                            <input type="text" id="cli-endereco" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            <input type="text" id="cli-endereco" placeholder="Rua / Avenida, Número" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div style="display:none;">
                             <label class="prop-lbl">Número</label>
@@ -6486,7 +6529,8 @@ window.buscarCEP = async function() {
         const data = await res.json();
         if (data.erro) throw new Error('CEP inexistente.');
         
-        document.getElementById('cli-endereco').value = data.logradouro || '';
+        const numExistMain = (document.getElementById('cli-numero')?.value || '').trim();
+        document.getElementById('cli-endereco').value = (data.logradouro || '') + (numExistMain ? ', ' + numExistMain : '');
         document.getElementById('cli-bairro').value = data.bairro || '';
         document.getElementById('cli-uf').value = data.uf || '';
         document.getElementById('cli-municipio').value = data.localidade || '';
@@ -8440,8 +8484,18 @@ window.salvarCliente = async function() {
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
         cep: document.getElementById('cli-cep')?.value || '',
-        endereco: document.getElementById('cli-endereco')?.value || '',
-        numero: document.getElementById('cli-numero')?.value || '',
+        endereco: (() => {
+            const rawEnd = (document.getElementById('cli-endereco')?.value || '').trim();
+            const rawNum = (document.getElementById('cli-numero')?.value || '').trim();
+            const parsed = window._separarRuaENumeroEnderecos ? window._separarRuaENumeroEnderecos(rawEnd, rawNum) : { rua: rawEnd, numero: rawNum };
+            return parsed.rua && parsed.numero ? `${parsed.rua}, ${parsed.numero}` : rawEnd;
+        })(),
+        numero: (() => {
+            const rawEnd = (document.getElementById('cli-endereco')?.value || '').trim();
+            const rawNum = (document.getElementById('cli-numero')?.value || '').trim();
+            const parsed = window._separarRuaENumeroEnderecos ? window._separarRuaENumeroEnderecos(rawEnd, rawNum) : { rua: rawEnd, numero: rawNum };
+            return parsed.numero || rawNum;
+        })(),
         complemento: document.getElementById('cli-complemento')?.value || '',
         bairro: document.getElementById('cli-bairro')?.value || '',
         uf: document.getElementById('cli-uf')?.value || '',
@@ -10094,19 +10148,23 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Código</label>
-                            <input type="text" id="modal-cli-codigo" readonly value="1" class="cc-input-modal" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
+                            <input type="text" id="modal-cli-codigo" readonly value="" placeholder="Auto" class="cc-input-modal" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Razão Social</label>
-                            <input type="text" id="modal-cli-razao" class="cc-input-modal" placeholder="Razão Social">
+                            <div style="display:flex; gap:0.35rem;">
+                                <input type="text" id="modal-cli-razao" class="cc-input-modal" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCliente(this.value);}">
+                                <button type="button" onclick="window.modalBuscarCliente(document.getElementById('modal-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Cadastrar Novo Cliente"><i class="ph ph-plus-bold" style="font-size:0.9rem;"></i></button>
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Nome Fantasia</label>
-                            <input type="text" id="modal-cli-fantasia" class="cc-input-modal" placeholder="Nome Fantasia">
+                            <input type="text" id="modal-cli-fantasia" readonly class="cc-input-modal" placeholder="Nome Fantasia">
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Data de Cadastro</label>
-                            <input type="text" id="modal-cli-data" readonly value="${new Date().toLocaleDateString('pt-BR')}" class="cc-input-modal" style="text-align:center; background:#f8fafc;">
+                            <input type="text" id="modal-cli-data" readonly value="" class="cc-input-modal" style="text-align:center; background:#f8fafc;">
                         </div>
                     </div>
 
@@ -10122,15 +10180,15 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <div>
                             <label class="prop-lbl-modal">Nome do Local *</label>
                             <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: FILIAL CAMPINAS" style="flex:1;">
-                                <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorNomeLocal();}">
+                                <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
                             <label class="prop-lbl-modal">CPF/CNPJ</label>
                             <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-cnpj" class="cc-input-modal" style="flex:1;">
-                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <input type="text" id="modal-end-cnpj" class="cc-input-modal" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorCNPJLocal();}">
+                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -10143,8 +10201,8 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <div>
                             <label class="prop-lbl-modal">CEP *</label>
                             <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000">
-                                <button type="button" onclick="window.modalBuscarCEPEntrega()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCEPEntrega();}">
+                                <button type="button" onclick="window.modalBuscarCEPEntrega()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -10162,13 +10220,13 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <div>
                             <label class="prop-lbl-modal">Lat/Long (Google Maps)</label>
                             <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052, -46.633308" style="flex:1;">
-                                <button type="button" onclick="window.modalBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052, -46.633308" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.abrirMapaSelecaoLatLong('modal');}">
+                                <button type="button" onclick="window.abrirMapaSelecaoLatLong('modal')" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="cc-grid-modal cc-grid-modal-row3" style="margin-bottom: 0.4rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row3" style="margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Bairro *</label>
                             <input type="text" id="modal-end-bairro" class="cc-input-modal">
@@ -10183,7 +10241,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         </div>
                     </div>
 
-                    <div class="cc-grid-modal cc-grid-modal-row4" style="margin-bottom: 0.8rem;">
+                    <div class="cc-grid-modal cc-grid-modal-row4" style="display:none; margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Contato</label>
                             <input type="text" id="modal-end-contato" class="cc-input-modal">
@@ -10236,20 +10294,24 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
 
             if (matchedClient) {
                 window._modalSelectedClienteId = matchedClient.id;
-                document.getElementById('modal-cli-codigo').value = matchedClient.codigo || '1';
+                document.getElementById('modal-cli-codigo').value = matchedClient.codigo || '';
                 document.getElementById('modal-cli-razao').value = matchedClient.nome_razao_social || '';
                 document.getElementById('modal-cli-fantasia').value = matchedClient.nome_fantasia || '';
-                document.getElementById('modal-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : new Date().toLocaleDateString('pt-BR');
+                document.getElementById('modal-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : '';
                 window.modalCarregarEnderecos(matchedClient.id);
             } else {
-                window.modalCarregarEnderecos(0);
+                window.modalRenderEnderecos();
             }
         }
     });
 };window.modalCarregarEnderecos = async function(clienteId) {
     try {
-        const cid = clienteId || 0;
-        const res = await apiGet(`/clientes/${cid}/enderecos`) || [];
+        if (!clienteId) {
+            window._modalEnderecos = [];
+            window.modalRenderEnderecos();
+            return;
+        }
+        const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._modalEnderecos = res;
         window.modalRenderEnderecos();
         window.modalNovoEndereco();
@@ -10300,24 +10362,13 @@ window.modalCarregarEnderecoForm = function(idx) {
     window._modalEnderecoEditandoId = e.id;
     const seqNum = e.sequencia || (idx + 1);
     document.getElementById('modal-end-seq').value = seqNum;
-    if (!window._modalSelectedClienteId && document.getElementById('modal-cli-codigo')) {
-        document.getElementById('modal-cli-codigo').value = seqNum;
-    }
-    if (e.razao_social && document.getElementById('modal-cli-razao')) {
-        document.getElementById('modal-cli-razao').value = e.razao_social;
-    }
-    if (e.nome_fantasia && document.getElementById('modal-cli-fantasia')) {
-        document.getElementById('modal-cli-fantasia').value = e.nome_fantasia;
-    }
-    if (e.data_cadastro && document.getElementById('modal-cli-data')) {
-        document.getElementById('modal-cli-data').value = e.data_cadastro;
-    }
     document.getElementById('modal-end-nome').value = e.nome_local || '';
     document.getElementById('modal-end-cnpj').value = e.cpf_cnpj || '';
     document.getElementById('modal-end-ie').value = e.inscricao_estadual || '';
     document.getElementById('modal-end-cep').value = e.cep || '';
-    document.getElementById('modal-end-rua').value = e.endereco || '';
-    document.getElementById('modal-end-num').value = e.numero || '';
+    const parsedEnd = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
+    document.getElementById('modal-end-rua').value = parsedEnd.rua;
+    document.getElementById('modal-end-num').value = parsedEnd.numero;
     document.getElementById('modal-end-comp').value = e.complemento || '';
     document.getElementById('modal-end-bairro').value = e.bairro || '';
     document.getElementById('modal-end-uf').value = e.uf || '';
@@ -10336,12 +10387,6 @@ window.modalNovoEndereco = function() {
     }
 
     document.getElementById('modal-end-seq').value = nextSeq;
-    if (!window._modalSelectedClienteId && document.getElementById('modal-cli-codigo')) {
-        document.getElementById('modal-cli-codigo').value = nextSeq;
-    }
-    if (document.getElementById('modal-cli-data') && !document.getElementById('modal-cli-data').value) {
-        document.getElementById('modal-cli-data').value = new Date().toLocaleDateString('pt-BR');
-    }
     document.getElementById('modal-end-nome').value = '';
     document.getElementById('modal-end-cnpj').value = '';
     document.getElementById('modal-end-ie').value = '';
@@ -10359,7 +10404,11 @@ window.modalNovoEndereco = function() {
 };
 
 window.modalSalvarEndereco = async function() {
-    const cid = window._modalSelectedClienteId || 0;
+    if (!window._modalSelectedClienteId) {
+        Swal.fire('Aviso', 'O cliente deve estar cadastrado no sistema para cadastrar um novo endereço vinculado a ele. Pesquise o cliente na lupa ao lado de Razão Social ou clique no botão + para cadastrá-lo.', 'warning');
+        return;
+    }
+    const cid = window._modalSelectedClienteId;
 
     const seqVal = parseInt(document.getElementById('modal-end-seq').value) || 1;
     const nomeVal = document.getElementById('modal-end-nome').value.trim();
@@ -10487,54 +10536,63 @@ window.modalBuscarCEP = async function() {
     }
 };
 
-window.modalBuscarCliente = async function() {
+window.modalCadastrarNovoClienteEnderecos = function() {
+    const razaoTyped = (document.getElementById('modal-cli-razao')?.value || '').trim();
+    window._returnToEnderecosModalAfterClientSave = true;
+    window.abrirModalCadastroCliente(null, razaoTyped);
+};
+
+window.pageCadastrarNovoClienteEnderecos = function() {
+    const razaoTyped = (document.getElementById('page-cli-razao')?.value || '').trim();
+    window._returnToEnderecosModalAfterClientSave = false;
+    window.abrirModalCadastroCliente(null, razaoTyped);
+};
+
+window.modalBuscarCliente = async function(initialTerm = '') {
     try {
+        const qInit = String(initialTerm !== undefined && initialTerm !== null ? initialTerm : (document.getElementById('modal-cli-razao')?.value || '')).trim();
         const clientes = await apiGet('/clientes') || [];
         if (clientes.length === 0) {
-            Swal.fire('Aviso', 'Nenhum cliente cadastrado.', 'info');
+            Swal.fire('Aviso', 'Nenhum cliente cadastrado. Clique no botão + para cadastrar.', 'info');
             return;
         }
 
-        const rowsHtml = clientes.map(c => `
-            <tr onclick="window.modalSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
-            </tr>
-        `).join('');
-
+        const safeQ = qInit.replace(/"/g, '&quot;');
         Swal.fire({
             title: '',
             html: `
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
                     <!-- Title Bar -->
-                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-user-focus" style="color:#7c3aed; font-size:1.2rem;"></i> Selecionar Cliente
+                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-user-focus" style="color:#16a34a; font-size:1.2rem;"></i> Selecionar Cliente</span>
+                        <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-bold"></i> Novo Cliente</button>
                     </div>
                     <!-- Body Content -->
                     <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
-                        <input type="text" id="submodal-search-cliente" placeholder="Filtrar por nome..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.submodalFiltrarClientes(this.value)">
-                        <div style="height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <input type="text" id="submodal-search-cliente" value="${safeQ}" placeholder="Filtrar por razão social, nome fantasia, código ou CNPJ..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.submodalFiltrarClientes(this.value)">
+                        <div style="height:240px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:120px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:130px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
                                     </tr>
                                 </thead>
-                                <tbody id="submodal-cliente-tbody">
-                                    ${rowsHtml}
-                                </tbody>
+                                <tbody id="submodal-cliente-tbody"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             `,
             showConfirmButton: false,
-            width: '500px',
+            width: '560px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
+            },
+            didOpen: () => {
+                window.submodalFiltrarClientes(qInit);
+                setTimeout(() => document.getElementById('submodal-search-cliente')?.focus(), 50);
             }
         });
 
@@ -10543,13 +10601,17 @@ window.modalBuscarCliente = async function() {
             if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             const query = normStr(term);
-            const filtered = clientes.filter(c => 
+            const filtered = !query ? clientes : clientes.filter(c => 
                 normStr(c.nome_razao_social).includes(query) ||
                 normStr(c.nome_fantasia).includes(query) ||
                 (c.codigo && c.codigo.toString().includes(query)) ||
                 (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
             );
-            tbody.innerHTML = filtered.map(c => `
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="padding:1.2rem; text-align:center; color:#64748b;">Nenhum cliente encontrado. <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="margin-left:6px; background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:0.76rem; font-weight:600; cursor:pointer;">+ Cadastrar Cliente</button></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.modalSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
                     <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
@@ -10571,7 +10633,9 @@ window.modalSelecionarEndereco = function(idx) {
     const e = window._modalEnderecos[idx];
     if (!e) return;
 
-    const fullAddress = `${e.nome_local} - ${e.endereco}, ${e.numero}${e.complemento ? ' (' + e.complemento + ')' : ''} - ${e.bairro} - ${e.municipio}/${e.uf}`;
+    const parsedEnd = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
+    const endComNum = parsedEnd.numero ? `${parsedEnd.rua}, ${parsedEnd.numero}` : parsedEnd.rua;
+    const fullAddress = `${e.nome_local ? e.nome_local + ' - ' : ''}${endComNum}${e.complemento ? ' (' + e.complemento + ')' : ''}${e.bairro ? ' - ' + e.bairro : ''}${e.municipio ? ' - ' + e.municipio : ''}${e.uf ? '/' + e.uf : ''}`;
     
     // Save coordinates to cache immediately if present
     if (e.coordenadas && e.coordenadas.trim()) {
@@ -10766,19 +10830,23 @@ function _renderEnderecosInt() {
                 <div class="cc-grid-end cc-grid-end-row1" style="margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Código</label>
-                        <input type="text" id="page-cli-codigo" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
+                        <input type="text" id="page-cli-codigo" readonly value="" placeholder="Auto" class="cc-input-end" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
                     </div>
                     <div>
                         <label class="prop-lbl-end">Razão Social</label>
-                        <input type="text" id="page-cli-razao" class="cc-input-end" placeholder="Razão Social">
+                        <div style="display:flex; gap:0.35rem;">
+                            <input type="text" id="page-cli-razao" class="cc-input-end" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarCliente(this.value);}">
+                            <button type="button" onclick="window.pageBuscarCliente(document.getElementById('page-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Cadastrar Novo Cliente"><i class="ph ph-plus-bold" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                     <div>
                         <label class="prop-lbl-end">Nome Fantasia</label>
-                        <input type="text" id="page-cli-fantasia" class="cc-input-end" placeholder="Nome Fantasia">
+                        <input type="text" id="page-cli-fantasia" readonly class="cc-input-end" placeholder="Nome Fantasia">
                     </div>
                     <div>
                         <label class="prop-lbl-end">Data de Cadastro</label>
-                        <input type="text" id="page-cli-data" readonly value="${new Date().toLocaleDateString('pt-BR')}" class="cc-input-end" style="text-align:center; background:#f8fafc;">
+                        <input type="text" id="page-cli-data" readonly value="" class="cc-input-end" style="text-align:center; background:#f8fafc;">
                     </div>
                 </div>
 
@@ -10794,15 +10862,15 @@ function _renderEnderecosInt() {
                     <div>
                         <label class="prop-lbl-end">Nome do Local *</label>
                         <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: FILIAL CAMPINAS" style="flex:1;">
-                            <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorNomeLocal();}">
+                            <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
                         <label class="prop-lbl-end">CPF/CNPJ</label>
                         <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-cnpj" class="cc-input-end" style="flex:1;">
-                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <input type="text" id="page-end-cnpj" class="cc-input-end" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorCNPJLocal();}">
+                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
@@ -10815,8 +10883,8 @@ function _renderEnderecosInt() {
                     <div>
                         <label class="prop-lbl-end">CEP *</label>
                         <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-cep" class="cc-input-end" placeholder="00000-000">
-                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <input type="text" id="page-end-cep" class="cc-input-end" placeholder="00000-000" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarCEP();}">
+                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
@@ -10834,13 +10902,13 @@ function _renderEnderecosInt() {
                     <div>
                         <label class="prop-lbl-end">Lat/Long (Google Maps)</label>
                         <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052, -46.633308" style="flex:1;">
-                            <button type="button" onclick="window.pageBuscarPorCoords()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar por Coordenadas"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052, -46.633308" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.abrirMapaSelecaoLatLong('page');}">
+                            <button type="button" onclick="window.abrirMapaSelecaoLatLong('page')" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                 </div>
 
-                <div class="cc-grid-end cc-grid-end-row3" style="margin-bottom: 0.75rem;">
+                <div class="cc-grid-end cc-grid-end-row3" style="margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Bairro *</label>
                         <input type="text" id="page-end-bairro" class="cc-input-end">
@@ -10855,7 +10923,7 @@ function _renderEnderecosInt() {
                     </div>
                 </div>
 
-                <div class="cc-grid-end cc-grid-end-row4" style="margin-bottom: 1.5rem;">
+                <div class="cc-grid-end cc-grid-end-row4" style="display:none; margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Contato</label>
                         <input type="text" id="page-end-contato" class="cc-input-end">
@@ -10910,26 +10978,30 @@ function _renderEnderecosInt() {
             const matchedClient = (clientes || []).find(c => c.nome_razao_social && c.nome_razao_social.trim() === clientName);
             if (matchedClient) {
                 window._pageSelectedClienteId = matchedClient.id;
-                document.getElementById('page-cli-codigo').value = matchedClient.codigo || '1';
+                document.getElementById('page-cli-codigo').value = matchedClient.codigo || '';
                 document.getElementById('page-cli-razao').value = matchedClient.nome_razao_social || '';
                 document.getElementById('page-cli-fantasia').value = matchedClient.nome_fantasia || '';
-                document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : new Date().toLocaleDateString('pt-BR');
+                document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : '';
                 window.pageCarregarEnderecos(matchedClient.id);
             } else {
-                window.pageCarregarEnderecos(0);
+                window.pageRenderEnderecos();
             }
         }).catch(err => {
             console.error(err);
-            window.pageCarregarEnderecos(0);
+            window.pageRenderEnderecos();
         });
     } else {
-        window.pageCarregarEnderecos(0);
+        window.pageRenderEnderecos();
     }
 }
 window.pageCarregarEnderecos = async function(clienteId) {
     try {
-        const cid = clienteId || 0;
-        const res = await apiGet(`/clientes/${cid}/enderecos`) || [];
+        if (!clienteId) {
+            window._pageEnderecos = [];
+            window.pageRenderEnderecos();
+            return;
+        }
+        const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._pageEnderecos = res;
         window.pageRenderEnderecos();
         window.pageNovoEndereco();
@@ -10975,24 +11047,13 @@ window.pageCarregarEnderecoForm = function(idx) {
     window._pageEnderecoEditandoId = e.id;
     const seqNum = e.sequencia || (idx + 1);
     document.getElementById('page-end-seq').value = seqNum;
-    if (!window._pageSelectedClienteId && document.getElementById('page-cli-codigo')) {
-        document.getElementById('page-cli-codigo').value = seqNum;
-    }
-    if (e.razao_social && document.getElementById('page-cli-razao')) {
-        document.getElementById('page-cli-razao').value = e.razao_social;
-    }
-    if (e.nome_fantasia && document.getElementById('page-cli-fantasia')) {
-        document.getElementById('page-cli-fantasia').value = e.nome_fantasia;
-    }
-    if (e.data_cadastro && document.getElementById('page-cli-data')) {
-        document.getElementById('page-cli-data').value = e.data_cadastro;
-    }
     document.getElementById('page-end-nome').value = e.nome_local || '';
     document.getElementById('page-end-cnpj').value = e.cpf_cnpj || '';
     document.getElementById('page-end-ie').value = e.inscricao_estadual || '';
     document.getElementById('page-end-cep').value = e.cep || '';
-    document.getElementById('page-end-rua').value = e.endereco || '';
-    document.getElementById('page-end-num').value = e.numero || '';
+    const parsedEnd = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
+    document.getElementById('page-end-rua').value = parsedEnd.rua;
+    document.getElementById('page-end-num').value = parsedEnd.numero;
     document.getElementById('page-end-comp').value = e.complemento || '';
     document.getElementById('page-end-bairro').value = e.bairro || '';
     document.getElementById('page-end-uf').value = e.uf || '';
@@ -11011,12 +11072,6 @@ window.pageNovoEndereco = function() {
     }
 
     document.getElementById('page-end-seq').value = nextSeq;
-    if (!window._pageSelectedClienteId && document.getElementById('page-cli-codigo')) {
-        document.getElementById('page-cli-codigo').value = nextSeq;
-    }
-    if (document.getElementById('page-cli-data') && !document.getElementById('page-cli-data').value) {
-        document.getElementById('page-cli-data').value = new Date().toLocaleDateString('pt-BR');
-    }
     document.getElementById('page-end-nome').value = '';
     document.getElementById('page-end-cnpj').value = '';
     document.getElementById('page-end-ie').value = '';
@@ -11034,7 +11089,11 @@ window.pageNovoEndereco = function() {
 };
 
 window.pageSalvarEndereco = async function() {
-    const cid = window._pageSelectedClienteId || 0;
+    if (!window._pageSelectedClienteId) {
+        Swal.fire('Aviso', 'O cliente deve estar cadastrado no sistema para cadastrar um novo endereço vinculado a ele. Pesquise o cliente na lupa ao lado de Razão Social ou clique no botão + para cadastrá-lo.', 'warning');
+        return;
+    }
+    const cid = window._pageSelectedClienteId;
 
     const seqVal = parseInt(document.getElementById('page-end-seq').value) || 1;
     const nomeVal = document.getElementById('page-end-nome').value.trim();
@@ -11180,52 +11239,49 @@ window.pageBuscarCEP = async function() {
     }
 };
 
-window.pageBuscarCliente = async function() {
+window.pageBuscarCliente = async function(initialTerm = '') {
     try {
+        const qInit = String(initialTerm !== undefined && initialTerm !== null ? initialTerm : (document.getElementById('page-cli-razao')?.value || '')).trim();
         const clientes = await apiGet('/clientes') || [];
         if (clientes.length === 0) {
-            Swal.fire('Aviso', 'Nenhum cliente cadastrado.', 'info');
+            Swal.fire('Aviso', 'Nenhum cliente cadastrado. Clique no botão + para cadastrar.', 'info');
             return;
         }
 
-        const rowsHtml = clientes.map(c => `
-            <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
-            </tr>
-        `).join('');
-
+        const safeQ = qInit.replace(/"/g, '&quot;');
         Swal.fire({
             title: '',
             html: `
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
-                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-user-focus" style="color:#7c3aed; font-size:1.2rem;"></i> Selecionar Cliente
+                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-user-focus" style="color:#16a34a; font-size:1.2rem;"></i> Selecionar Cliente</span>
+                        <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-bold"></i> Novo Cliente</button>
                     </div>
                     <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
-                        <input type="text" id="page-submodal-search-cliente" placeholder="Filtrar por nome..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.pageSubmodalFiltrarClientes(this.value)">
-                        <div style="height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <input type="text" id="page-submodal-search-cliente" value="${safeQ}" placeholder="Filtrar por razão social, nome fantasia, código ou CNPJ..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.pageSubmodalFiltrarClientes(this.value)">
+                        <div style="height:240px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:120px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:130px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
                                     </tr>
                                 </thead>
-                                <tbody id="page-submodal-cliente-tbody">
-                                    ${rowsHtml}
-                                </tbody>
+                                <tbody id="page-submodal-cliente-tbody"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             `,
             showConfirmButton: false,
-            width: '500px',
+            width: '560px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
+            },
+            didOpen: () => {
+                window.pageSubmodalFiltrarClientes(qInit);
+                setTimeout(() => document.getElementById('page-submodal-search-cliente')?.focus(), 50);
             }
         });
 
@@ -11234,13 +11290,17 @@ window.pageBuscarCliente = async function() {
             if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             const query = normStr(term);
-            const filtered = clientes.filter(c => 
+            const filtered = !query ? clientes : clientes.filter(c => 
                 normStr(c.nome_razao_social).includes(query) ||
                 normStr(c.nome_fantasia).includes(query) ||
                 (c.codigo && c.codigo.toString().includes(query)) ||
                 (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
             );
-            tbody.innerHTML = filtered.map(c => `
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="padding:1.2rem; text-align:center; color:#64748b;">Nenhum cliente encontrado. <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="margin-left:6px; background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:0.76rem; font-weight:600; cursor:pointer;">+ Cadastrar Cliente</button></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
                     <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
@@ -11256,7 +11316,7 @@ window.pageBuscarCliente = async function() {
             document.getElementById('page-cli-codigo').value = c.codigo || '';
             document.getElementById('page-cli-razao').value = c.nome_razao_social || '';
             document.getElementById('page-cli-fantasia').value = c.nome_fantasia || '';
-            document.getElementById('page-cli-data').value = c.data_cadastro ? c.data_cadastro.split('-').reverse().join('/') : '';
+            document.getElementById('page-cli-data').value = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
             
             window.pageCarregarEnderecos(c.id);
             Swal.close();
@@ -14950,51 +15010,66 @@ window.modalBuscarCEPEntrega = async function() {
     }
 };
 
-// ─── 2. BUSCA POR NOME DO LOCAL (FORWARD GEOCONDING) ────────────────
-window.modalBuscarPorNomeLocal = async function() {
-    const query = document.getElementById('modal-end-nome')?.value.trim() || '';
+// ─── HELPER: SEPARAR RUA E NÚMERO ────────────────────────────────────
+window._separarRuaENumeroEnderecos = function(enderecoRaw, numeroRaw) {
+    let rua = String(enderecoRaw || '').trim();
+    let numero = String(numeroRaw || '').trim();
+    if (!numero && rua) {
+        const m = rua.match(/^(.*?)\s*(?:,\s*(?:n[º°.]?\s*)?|\s+n[º°.]\s*)([0-9]+[A-Za-z0-9\-\/]*|S\/N|SN)\s*$/i);
+        if (m) {
+            rua = m[1].trim();
+            numero = m[2].trim();
+        }
+    } else if (numero && rua) {
+        const escapedNum = numero.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const suffixRe = new RegExp(`(?:,\\s*(?:n[º°.]?\\s*)?|\\s+n[º°.]\\s*)${escapedNum}\\s*$`, 'i');
+        if (suffixRe.test(rua)) {
+            rua = rua.replace(suffixRe, '').trim();
+        }
+    }
+    return { rua, numero };
+};
+
+// ─── 2. BUSCA POR NOME DO LOCAL (PESQUISÁVEL NO SISTEMA + GEOCODING) ──
+window._geocodificarPorNomeLocalOSM = async function(escopo, query) {
+    const prefix = escopo === 'modal' ? 'modal-end-' : 'page-end-';
     if (!query) {
-        alert('Por favor, digite o Nome do Local para pesquisar.');
+        alert('Por favor, digite o Nome do Local para pesquisar no mapa.');
         return;
     }
-
     try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&country=Brazil&format=json&addressdetails=1&limit=1`;
         const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
         if (!res.ok) throw new Error('Serviço de busca indisponível.');
         const data = await res.json();
         if (!data || data.length === 0) {
-            alert('Nenhum local encontrado para a pesquisa informada.');
+            alert('Nenhum local encontrado no OpenStreetMap para a pesquisa informada.');
             return;
         }
-
         const info = data[0];
-        const addr = info.address;
-        
-        // Coordenadas
+        const addr = info.address || {};
         const lat = parseFloat(info.lat).toFixed(6);
         const lon = parseFloat(info.lon).toFixed(6);
-        document.getElementById('modal-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
-
-        // Endereço
-        if (addr.road) document.getElementById('modal-end-rua').value = addr.road;
-        if (addr.suburb || addr.neighbourhood) {
-            document.getElementById('modal-end-bairro').value = addr.suburb || addr.neighbourhood;
+        if (document.getElementById(prefix + 'coords')) {
+            document.getElementById(prefix + 'coords').value = `${lat}, ${lon}`;
         }
-        if (addr.city || addr.town || addr.village) {
-            document.getElementById('modal-end-cidade').value = addr.city || addr.town || addr.village;
+        if (addr.road && document.getElementById(prefix + 'rua')) document.getElementById(prefix + 'rua').value = addr.road;
+        if ((addr.suburb || addr.neighbourhood) && document.getElementById(prefix + 'bairro')) {
+            document.getElementById(prefix + 'bairro').value = addr.suburb || addr.neighbourhood;
         }
-        if (addr.state) {
+        if ((addr.city || addr.town || addr.village) && document.getElementById(prefix + 'cidade')) {
+            document.getElementById(prefix + 'cidade').value = addr.city || addr.town || addr.village;
+        }
+        if (addr.state && document.getElementById(prefix + 'uf')) {
             const stateLower = addr.state.toLowerCase();
-            document.getElementById('modal-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
+            document.getElementById(prefix + 'uf').value = ufMapping[stateLower] || addr.state.substring(0, 2).toUpperCase();
         }
-        if (addr.postcode) {
-            document.getElementById('modal-end-cep').value = formatCEP(addr.postcode);
+        if (addr.postcode && document.getElementById(prefix + 'cep')) {
+            document.getElementById(prefix + 'cep').value = formatCEP(addr.postcode);
         }
-        if (addr.house_number) {
-            document.getElementById('modal-end-num').value = addr.house_number;
+        if (addr.house_number && document.getElementById(prefix + 'num')) {
+            document.getElementById(prefix + 'num').value = addr.house_number;
         }
-
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('Local e coordenadas preenchidos com sucesso!');
         }
@@ -15002,180 +15077,563 @@ window.modalBuscarPorNomeLocal = async function() {
         console.error(e);
         alert('Erro ao buscar local: ' + e.message);
     }
+};
+
+window._abrirPopupPesquisaNomeLocal = async function(escopo) {
+    const isModal = escopo === 'modal';
+    const prefix = isModal ? 'modal-end-' : 'page-end-';
+    const cliId = isModal ? window._modalSelectedClienteId : window._pageSelectedClienteId;
+    const initialQuery = (document.getElementById(prefix + 'nome')?.value || '').trim();
+
+    let enderecos = [];
+    try {
+        if (cliId) {
+            const resCli = await apiGet(`/clientes/${cliId}/enderecos`) || [];
+            enderecos = Array.isArray(resCli) ? resCli : [];
+            if (isModal) window._modalEnderecosList = enderecos;
+            else window._pageEnderecosList = enderecos;
+        } else {
+            const resAll = await apiGet('/enderecos-entrega') || [];
+            enderecos = Array.isArray(resAll) ? resAll : [];
+        }
+    } catch (e) {
+        console.error('Erro ao buscar endereços para pesquisa de Nome do Local:', e);
+    }
+
+    const existing = document.getElementById('pesq-nome-local-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pesq-nome-local-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:200000; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif; padding:1rem;';
+    overlay.innerHTML = `
+        <div style="background:#fff; width:920px; max-width:96vw; border-radius:10px; box-shadow:0 20px 45px rgba(0,0,0,0.3); padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:0.6rem;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-map-pin" style="color:#16a34a; font-size:1.25rem;"></i> Pesquisar Endereço por Nome do Local
+                </h3>
+                <button type="button" onclick="document.getElementById('pesq-nome-local-overlay')?.remove()" style="background:#f1f5f9; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer; color:#475569; font-weight:700;">✕</button>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="pesq-nome-local-input" placeholder="Pesquise por Nome do Local (ex: Endereço de Faturamento), rua, número, bairro, cidade ou cliente..." style="flex:1; min-width:260px; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; outline:none;">
+                ${cliId ? `
+                <label style="display:inline-flex; align-items:center; gap:5px; font-size:0.78rem; font-weight:600; color:#475569; cursor:pointer; user-select:none;">
+                    <input type="checkbox" id="pesq-nome-local-todos" style="accent-color:#16a34a;"> Mostrar de todos os clientes
+                </label>` : ''}
+                <button type="button" id="btn-pesq-nome-local-osm" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 0.85rem; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-globe-hemisphere-west"></i> Buscar Local no Mapa (OSM)
+                </button>
+            </div>
+            <div id="pesq-nome-local-info" style="font-size:0.75rem; color:#64748b;">* Clique em um endereço abaixo para carregar seus dados no formulário.</div>
+            <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; z-index:1; color:#475569;">
+                            <th style="padding:0.55rem 0.65rem; width:55px;">Seq.</th>
+                            <th style="padding:0.55rem 0.65rem;">Nome do Local</th>
+                            <th style="padding:0.55rem 0.65rem;">Cliente</th>
+                            <th style="padding:0.55rem 0.65rem;">Endereço, Número</th>
+                            <th style="padding:0.55rem 0.65rem; width:140px;">Município / UF</th>
+                            <th style="padding:0.55rem 0.65rem; width:90px;">CEP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pesq-nome-local-tbody"></tbody>
+                </table>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.25rem;">
+                <button type="button" onclick="document.getElementById('pesq-nome-local-overlay')?.remove()" style="background:#dc2626; color:#fff; border:none; padding:0.5rem 1.2rem; border-radius:6px; font-size:0.84rem; font-weight:600; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const tbody = overlay.querySelector('#pesq-nome-local-tbody');
+    const inputEl = overlay.querySelector('#pesq-nome-local-input');
+    const chkTodos = overlay.querySelector('#pesq-nome-local-todos');
+    const btnOsm = overlay.querySelector('#btn-pesq-nome-local-osm');
+
+    let currentList = enderecos;
+
+    if (chkTodos) {
+        chkTodos.addEventListener('change', async () => {
+            if (chkTodos.checked) {
+                try {
+                    currentList = await apiGet('/enderecos-entrega') || [];
+                } catch (err) {
+                    console.error(err);
+                }
+            } else if (cliId) {
+                try {
+                    currentList = await apiGet(`/clientes/${cliId}/enderecos`) || [];
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+            renderRows(inputEl.value);
+        });
+    }
+
+    if (btnOsm) {
+        btnOsm.addEventListener('click', async () => {
+            const q = (inputEl.value || '').trim();
+            if (q && document.getElementById(prefix + 'nome')) {
+                document.getElementById(prefix + 'nome').value = q;
+            }
+            overlay.remove();
+            await window._geocodificarPorNomeLocalOSM(escopo, q);
+        });
+    }
+
+    window._selecionarEnderecoPesquisaLocal = async function(idx) {
+        const end = (window._pesqNomeLocalFiltered || [])[idx];
+        if (!end) return;
+        overlay.remove();
+
+        // Se o endereço pertence a um cliente diferente do selecionado atualmente, vincula o cliente também
+        if (end.cliente_id && Number(end.cliente_id) !== Number(isModal ? window._modalSelectedClienteId : window._pageSelectedClienteId)) {
+            try {
+                const clientes = await window.obterClientesCache();
+                const foundCli = (clientes || []).find(c => Number(c.id) === Number(end.cliente_id));
+                if (foundCli) {
+                    if (isModal) {
+                        window._modalSelectedClienteId = foundCli.id;
+                        if (document.getElementById('modal-cli-codigo')) document.getElementById('modal-cli-codigo').value = foundCli.codigo || '';
+                        if (document.getElementById('modal-cli-razao')) document.getElementById('modal-cli-razao').value = foundCli.nome_razao_social || '';
+                        if (document.getElementById('modal-cli-fantasia')) document.getElementById('modal-cli-fantasia').value = foundCli.nome_fantasia || '';
+                        await window.modalCarregarEnderecos(foundCli.id);
+                    } else {
+                        window._pageSelectedClienteId = foundCli.id;
+                        if (document.getElementById('page-cli-codigo')) document.getElementById('page-cli-codigo').value = foundCli.codigo || '';
+                        if (document.getElementById('page-cli-razao')) document.getElementById('page-cli-razao').value = foundCli.nome_razao_social || '';
+                        if (document.getElementById('page-cli-fantasia')) document.getElementById('page-cli-fantasia').value = foundCli.nome_fantasia || '';
+                        await window.pageCarregarEnderecos(foundCli.id);
+                    }
+                }
+            } catch (eCli) {
+                console.error(eCli);
+            }
+        }
+
+        const parsedEnd = window._separarRuaENumeroEnderecos(end.endereco, end.numero);
+        if (isModal) {
+            window._modalEnderecoEditandoId = end.id;
+            if (document.getElementById('modal-end-seq')) document.getElementById('modal-end-seq').value = end.sequencia || '';
+            if (document.getElementById('modal-end-inativo')) document.getElementById('modal-end-inativo').checked = end.inativo === 1;
+            if (document.getElementById('modal-end-nome')) document.getElementById('modal-end-nome').value = end.nome_local || '';
+            if (document.getElementById('modal-end-cnpj')) document.getElementById('modal-end-cnpj').value = end.cpf_cnpj_local || '';
+            if (document.getElementById('modal-end-cep')) document.getElementById('modal-end-cep').value = end.cep || '';
+            if (document.getElementById('modal-end-rua')) document.getElementById('modal-end-rua').value = parsedEnd.rua || '';
+            if (document.getElementById('modal-end-num')) document.getElementById('modal-end-num').value = parsedEnd.numero || '';
+            if (document.getElementById('modal-end-comp')) document.getElementById('modal-end-comp').value = end.complemento || '';
+            if (document.getElementById('modal-end-bairro')) document.getElementById('modal-end-bairro').value = end.bairro || '';
+            if (document.getElementById('modal-end-uf')) document.getElementById('modal-end-uf').value = end.uf || '';
+            if (document.getElementById('modal-end-cidade')) document.getElementById('modal-end-cidade').value = end.municipio || '';
+            if (document.getElementById('modal-end-coords')) document.getElementById('modal-end-coords').value = end.coordenadas || '';
+        } else {
+            window._pageEnderecoEditandoId = end.id;
+            if (document.getElementById('page-end-seq')) document.getElementById('page-end-seq').value = end.sequencia || '';
+            if (document.getElementById('page-end-inativo')) document.getElementById('page-end-inativo').checked = end.inativo === 1;
+            if (document.getElementById('page-end-nome')) document.getElementById('page-end-nome').value = end.nome_local || '';
+            if (document.getElementById('page-end-cnpj')) document.getElementById('page-end-cnpj').value = end.cpf_cnpj_local || '';
+            if (document.getElementById('page-end-cep')) document.getElementById('page-end-cep').value = end.cep || '';
+            if (document.getElementById('page-end-rua')) document.getElementById('page-end-rua').value = parsedEnd.rua || '';
+            if (document.getElementById('page-end-num')) document.getElementById('page-end-num').value = parsedEnd.numero || '';
+            if (document.getElementById('page-end-comp')) document.getElementById('page-end-comp').value = end.complemento || '';
+            if (document.getElementById('page-end-bairro')) document.getElementById('page-end-bairro').value = end.bairro || '';
+            if (document.getElementById('page-end-uf')) document.getElementById('page-end-uf').value = end.uf || '';
+            if (document.getElementById('page-end-cidade')) document.getElementById('page-end-cidade').value = end.municipio || '';
+            if (document.getElementById('page-end-coords')) document.getElementById('page-end-coords').value = end.coordenadas || '';
+        }
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Endereço "${end.nome_local || ''}" carregado!`);
+        }
+    };
+
+    const renderRows = (termo = '') => {
+        const q = normStr(termo.trim());
+        const filtrados = !q ? currentList : currentList.filter(e => {
+            const nome = normStr(e.nome_local);
+            const rua = normStr(e.endereco);
+            const num = normStr(e.numero);
+            const bairro = normStr(e.bairro);
+            const cid = normStr(e.municipio);
+            const cli = normStr(e.cliente_razao || e.cliente_fantasia);
+            const cep = String(e.cep || '').replace(/\D/g, '');
+            const qDigits = termo.replace(/\D/g, '');
+            return nome.includes(q) || rua.includes(q) || num.includes(q) || bairro.includes(q) || cid.includes(q) || cli.includes(q) || (qDigits && cep.includes(qDigits));
+        });
+        window._pesqNomeLocalFiltered = filtrados.slice(0, 200);
+        if (window._pesqNomeLocalFiltered.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding:1.5rem; text-align:center; color:#64748b;">
+                        Nenhum endereço cadastrado encontrado para "<b>${termo || ''}</b>".<br>
+                        <span style="font-size:0.75rem;">Você pode clicar em <b>"Buscar Local no Mapa (OSM)"</b> acima para importar do mapa.</span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        const razaoAtual = (document.getElementById(isModal ? 'modal-cli-razao' : 'page-cli-razao')?.value || '').trim();
+        tbody.innerHTML = window._pesqNomeLocalFiltered.map((e, i) => {
+            const parsed = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
+            const endFmt = parsed.rua ? `${parsed.rua}${parsed.numero ? ', ' + parsed.numero : ''}` : '—';
+            const cidUf = `${e.municipio || '—'}${e.uf ? '/' + e.uf : ''}`;
+            const cliNome = e.cliente_razao || e.cliente_fantasia || razaoAtual || '—';
+            const isFaturamento = normStr(e.nome_local) === normStr('Endereço de Faturamento');
+            return `
+                <tr onclick="window._selecionarEnderecoPesquisaLocal(${i})" style="cursor:pointer; border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem 0.65rem; font-weight:700; color:#7048e8;">${e.sequencia || (i + 1)}</td>
+                    <td style="padding:0.5rem 0.65rem; font-weight:600; color:#1e293b;">
+                        ${e.nome_local || '—'}
+                        ${isFaturamento ? '<span style="margin-left:6px; background:#dcfce7; color:#15803d; font-size:0.68rem; padding:1px 6px; border-radius:4px; font-weight:700;">Faturamento</span>' : ''}
+                    </td>
+                    <td style="padding:0.5rem 0.65rem; color:#475569;">${cliNome}</td>
+                    <td style="padding:0.5rem 0.65rem; color:#334155;">${endFmt}${e.bairro ? ' - ' + e.bairro : ''}</td>
+                    <td style="padding:0.5rem 0.65rem; color:#475569;">${cidUf}</td>
+                    <td style="padding:0.5rem 0.65rem; color:#64748b;">${e.cep || '—'}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    inputEl.value = initialQuery;
+    inputEl.addEventListener('input', (e) => renderRows(e.target.value));
+    renderRows(initialQuery);
+    setTimeout(() => inputEl.focus(), 50);
+};
+
+window.modalBuscarPorNomeLocal = async function() {
+    await window._abrirPopupPesquisaNomeLocal('modal');
 };
 
 window.pageBuscarPorNomeLocal = async function() {
-    const query = document.getElementById('page-end-nome')?.value.trim() || '';
-    if (!query) {
-        alert('Por favor, digite o Nome do Local para pesquisar.');
-        return;
-    }
-
-    try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&country=Brazil&format=json&addressdetails=1&limit=1`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
-        if (!res.ok) throw new Error('Serviço de busca indisponível.');
-        const data = await res.json();
-        if (!data || data.length === 0) {
-            alert('Nenhum local encontrado para a pesquisa informada.');
-            return;
-        }
-
-        const info = data[0];
-        const addr = info.address;
-        
-        // Coordenadas
-        const lat = parseFloat(info.lat).toFixed(6);
-        const lon = parseFloat(info.lon).toFixed(6);
-        document.getElementById('page-end-coords').value = `${lat}, ${lon}`.replace(/\.\.\. /g, '').replace(/\.\.\./g, '');
-
-        // Endereço
-        if (addr.road) document.getElementById('page-end-rua').value = addr.road;
-        if (addr.suburb || addr.neighbourhood) {
-            document.getElementById('page-end-bairro').value = addr.suburb || addr.neighbourhood;
-        }
-        if (addr.city || addr.town || addr.village) {
-            document.getElementById('page-end-cidade').value = addr.city || addr.town || addr.village;
-        }
-        if (addr.state) {
-            const stateLower = addr.state.toLowerCase();
-            document.getElementById('page-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
-        }
-        if (addr.postcode) {
-            document.getElementById('page-end-cep').value = formatCEP(addr.postcode);
-        }
-        if (addr.house_number) {
-            document.getElementById('page-end-num').value = addr.house_number;
-        }
-
-        if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Local e coordenadas preenchidos com sucesso!');
-        }
-    } catch (e) {
-        console.error(e);
-        alert('Erro ao buscar local: ' + e.message);
-    }
+    await window._abrirPopupPesquisaNomeLocal('page');
 };
 
-// ─── 3. BUSCA POR COORDENADAS (REVERSE GEOCONDING) ───────────────────
-window.modalBuscarPorCoords = async function() {
-    const coordsRaw = document.getElementById('modal-end-coords')?.value.trim() || '';
-    if (!coordsRaw) {
-        alert('Por favor, informe a latitude e longitude separadas por vírgula (Ex: -23.55052, -46.633308).');
-        return;
+// ─── 3. MAPA INTERATIVO DE LAT/LONG (MESMO MAPA DA TELA DE OS) ───────
+window.abrirMapaSelecaoLatLong = async function(escopo = 'page') {
+    const isModal = escopo === 'modal';
+    const prefix = isModal ? 'modal-end-' : 'page-end-';
+
+    const ruaRaw = (document.getElementById(prefix + 'rua')?.value || '').trim();
+    const numRaw = (document.getElementById(prefix + 'num')?.value || '').trim();
+    const parsedEnd = window._separarRuaENumeroEnderecos(ruaRaw, numRaw);
+    const rua = parsedEnd.rua;
+    const numero = parsedEnd.numero;
+    const bairro = (document.getElementById(prefix + 'bairro')?.value || '').trim();
+    const cidade = (document.getElementById(prefix + 'cidade')?.value || '').trim();
+    const uf = (document.getElementById(prefix + 'uf')?.value || '').trim();
+    const cep = (document.getElementById(prefix + 'cep')?.value || '').replace(/\D/g, '');
+    const coordsRaw = (document.getElementById(prefix + 'coords')?.value || '').trim();
+
+    const enderecoMontado = [
+        rua ? (numero ? `${rua}, ${numero}` : rua) : '',
+        bairro,
+        cidade ? (uf ? `${cidade} - ${uf}` : cidade) : uf,
+        cep ? formatCEP(cep) : ''
+    ].filter(Boolean).join(', ');
+
+    const existing = document.getElementById('mapa-latlong-os-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mapa-latlong-os-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:200000; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif; padding:1rem;';
+    overlay.innerHTML = `
+        <div style="background:#fff; width:920px; max-width:96vw; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.35); overflow:hidden; display:flex; flex-direction:column;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.85rem 1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="ph ph-map-pin-line" style="font-size:1.3rem; color:#16a34a;"></i>
+                    <span style="font-size:1rem; font-weight:700; color:#1e293b;">Selecionar Localização Exata (Mapa OS - Google Maps)</span>
+                </div>
+                <button type="button" id="btn-fechar-mapa-latlong" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer; color:#475569; font-weight:700;">✕</button>
+            </div>
+            <div style="padding:0.85rem 1.25rem; display:flex; flex-direction:column; gap:0.65rem;">
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="mapa-latlong-search-input" placeholder="Endereço e número para localizar no mapa..." style="flex:1; min-width:260px; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; outline:none;">
+                    <button type="button" id="btn-mapa-latlong-buscar" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 0.95rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-magnifying-glass"></i> Localizar Endereço
+                    </button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; font-size:0.78rem; color:#475569;">
+                    <span id="mapa-latlong-status"><i class="ph ph-info"></i> Clique no mapa ou arraste o pino vermelho para ajustar o ponto exato.</span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-weight:700; color:#334155;">Lat/Long selecionada:</span>
+                        <input type="text" id="mapa-latlong-coords-preview" readonly style="width:195px; padding:0.3rem 0.55rem; border:1px solid #cbd5e1; border-radius:5px; background:#f8fafc; font-weight:700; color:#0f172a; font-size:0.8rem; text-align:center;">
+                    </div>
+                </div>
+                <div id="mapa-latlong-leaflet-box" style="width:100%; height:430px; border-radius:8px; border:1px solid #cbd5e1; overflow:hidden; position:relative; z-index:1;"></div>
+            </div>
+            <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:0.75rem 1.25rem; display:flex; justify-content:flex-end; gap:0.6rem;">
+                <button type="button" id="btn-cancelar-mapa-latlong" style="background:#64748b; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-size:0.84rem; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button type="button" id="btn-confirmar-mapa-latlong" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1.25rem; border-radius:6px; font-size:0.84rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="ph ph-check-bold"></i> Confirmar Localização
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const searchInput = overlay.querySelector('#mapa-latlong-search-input');
+    const coordsPreview = overlay.querySelector('#mapa-latlong-coords-preview');
+    const statusEl = overlay.querySelector('#mapa-latlong-status');
+    const mapBox = overlay.querySelector('#mapa-latlong-leaflet-box');
+
+    searchInput.value = enderecoMontado || '';
+
+    // Coordenada inicial padrão (São Paulo, igual à tela de OS em rota_redonda.js)
+    let selLat = -23.550520;
+    let selLng = -46.633308;
+    let hasInitialCoords = false;
+
+    if (coordsRaw && coordsRaw.includes(',')) {
+        const parts = coordsRaw.split(',').map(p => parseFloat(p.trim()));
+        if (!isNaN(parts[0]) && !isNaN(parts[1])) {
+            selLat = parts[0];
+            selLng = parts[1];
+            hasInitialCoords = true;
+        }
     }
 
-    const parts = coordsRaw.split(',').map(p => p.trim());
-    if (parts.length < 2) {
-        alert('Formato inválido. Use: latitude, longitude');
-        return;
+    let mapInstance = null;
+    let markerInstance = null;
+
+    const cleanupAndClose = () => {
+        if (mapInstance) {
+            try { mapInstance.remove(); } catch (e) {}
+            mapInstance = null;
+        }
+        overlay.remove();
+    };
+
+    overlay.querySelector('#btn-fechar-mapa-latlong').onclick = cleanupAndClose;
+    overlay.querySelector('#btn-cancelar-mapa-latlong').onclick = cleanupAndClose;
+
+    const updateMarkerPosition = (lat, lng, pan = true) => {
+        selLat = Number(lat);
+        selLng = Number(lng);
+        if (coordsPreview) {
+            coordsPreview.value = `${selLat.toFixed(6)}, ${selLng.toFixed(6)}`;
+        }
+        if (!mapInstance) return;
+        if (!markerInstance) {
+            const pinHtml = `<div style="background-color:#ef4444; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.45); cursor:grab;"></div>`;
+            const icon = L.divIcon({ className: 'custom-os-latlong-pin', html: pinHtml, iconSize: [26, 26], iconAnchor: [13, 13] });
+            markerInstance = L.marker([selLat, selLng], { icon, draggable: true }).addTo(mapInstance);
+            markerInstance.on('dragend', function(ev) {
+                const pos = ev.target.getLatLng();
+                updateMarkerPosition(pos.lat, pos.lng, false);
+            });
+        } else {
+            markerInstance.setLatLng([selLat, selLng]);
+        }
+        if (pan) {
+            mapInstance.setView([selLat, selLng], 17);
+        }
+    };
+
+    if (typeof L !== 'undefined') {
+        mapInstance = L.map(mapBox).setView([selLat, selLng], hasInitialCoords ? 17 : 13);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google Maps',
+            maxZoom: 20
+        }).addTo(mapInstance);
+
+        updateMarkerPosition(selLat, selLng, false);
+
+        mapInstance.on('click', function(ev) {
+            updateMarkerPosition(ev.latlng.lat, ev.latlng.lng, false);
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Ponto ajustado manualmente no mapa (${selLat.toFixed(6)}, ${selLng.toFixed(6)}).</span>`;
+            }
+        });
+
+        setTimeout(() => {
+            if (mapInstance) mapInstance.invalidateSize();
+        }, 120);
+    } else {
+        mapBox.innerHTML = `<div style="padding:2rem; text-align:center; color:#dc2626;">Biblioteca de mapa (Leaflet) não carregada.</div>`;
     }
 
-    const lat = parseFloat(parts[0]);
-    const lon = parseFloat(parts[1]);
-    if (isNaN(lat) || isNaN(lon)) {
-        alert('Coordenadas numéricas inválidas.');
-        return;
+    // Geocodificação estruturada idêntica à tela de OS (considerando endereço e número preenchidos)
+    const geocodificarEnderecoNoMapa = async (customText = null) => {
+        if (statusEl) {
+            statusEl.innerHTML = `<span style="color:#2563eb; font-weight:600;"><i class="ph ph-spinner ph-spin"></i> Localizando endereço e número no mapa...</span>`;
+        }
+        try {
+            let foundLat = null;
+            let foundLon = null;
+            let displayFound = '';
+
+            // 1. Se não veio busca customizada manual e temos rua + número/cidade do formulário, usa busca estruturada com número
+            if (!customText && rua) {
+                const streetQuery = numero ? `${numero} ${rua}` : rua;
+                const params = new URLSearchParams({
+                    street: streetQuery,
+                    country: 'Brazil',
+                    format: 'json',
+                    limit: '1'
+                });
+                if (cidade) params.set('city', cidade);
+                if (uf) params.set('state', uf);
+                if (cep && cep.length === 8) params.set('postalcode', cep);
+
+                const resStruct = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+                    headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                });
+                if (resStruct.ok) {
+                    const dataStruct = await resStruct.json();
+                    if (Array.isArray(dataStruct) && dataStruct.length > 0) {
+                        foundLat = parseFloat(dataStruct[0].lat);
+                        foundLon = parseFloat(dataStruct[0].lon);
+                        displayFound = dataStruct[0].display_name || '';
+                    }
+                }
+            }
+
+            // 2. Fallback: busca textual completa com Rua, Número, Bairro, Cidade, UF
+            if (foundLat === null || foundLon === null) {
+                const queryFree = customText || [
+                    rua ? (numero ? `${rua}, ${numero}` : rua) : '',
+                    bairro,
+                    cidade,
+                    uf,
+                    'Brasil'
+                ].filter(Boolean).join(', ');
+
+                if (queryFree && queryFree !== 'Brasil') {
+                    const resFree = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryFree)}&countrycodes=br&format=json&limit=1`, {
+                        headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                    });
+                    if (resFree.ok) {
+                        const dataFree = await resFree.json();
+                        if (Array.isArray(dataFree) && dataFree.length > 0) {
+                            foundLat = parseFloat(dataFree[0].lat);
+                            foundLon = parseFloat(dataFree[0].lon);
+                            displayFound = dataFree[0].display_name || '';
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback sem bairro (apenas Rua, Número, Cidade, UF)
+            if ((foundLat === null || foundLon === null) && !customText && rua && cidade) {
+                const querySimple = `${rua}${numero ? ', ' + numero : ''}, ${cidade}${uf ? ' - ' + uf : ''}, Brasil`;
+                const resSimple = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(querySimple)}&countrycodes=br&format=json&limit=1`, {
+                    headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                });
+                if (resSimple.ok) {
+                    const dataSimple = await resSimple.json();
+                    if (Array.isArray(dataSimple) && dataSimple.length > 0) {
+                        foundLat = parseFloat(dataSimple[0].lat);
+                        foundLon = parseFloat(dataSimple[0].lon);
+                        displayFound = dataSimple[0].display_name || '';
+                    }
+                }
+            }
+
+            // 4. Fallback por CEP se ainda não achou
+            if ((foundLat === null || foundLon === null) && cep && cep.length === 8) {
+                const resCep = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cep}&country=Brazil&format=json&limit=1`, {
+                    headers: { 'User-Agent': 'SistemaAmerica/1.0' }
+                });
+                if (resCep.ok) {
+                    const dataCep = await resCep.json();
+                    if (Array.isArray(dataCep) && dataCep.length > 0) {
+                        foundLat = parseFloat(dataCep[0].lat);
+                        foundLon = parseFloat(dataCep[0].lon);
+                        displayFound = dataCep[0].display_name || '';
+                    }
+                }
+            }
+
+            if (foundLat !== null && foundLon !== null && !isNaN(foundLat) && !isNaN(foundLon)) {
+                updateMarkerPosition(foundLat, foundLon, true);
+                if (statusEl) {
+                    statusEl.innerHTML = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Local encontrado! Clique no mapa ou arraste o pino para ajuste fino.</span>`;
+                }
+            } else if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#d97706; font-weight:600;"><i class="ph ph-warning"></i> Endereço exato não localizado automaticamente — clique no mapa para marcar o ponto.</span>`;
+            }
+        } catch (errGeo) {
+            console.warn('Erro ao geocodificar no mapa:', errGeo);
+            if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#dc2626;">Não foi possível consultar o endereço automaticamente. Clique no mapa para selecionar.</span>`;
+            }
+        }
+    };
+
+    // Se o formulário já tem endereço/número ou CEP preenchido, posiciona o mapa considerando o endereço e número preenchidos
+    if (rua || cep) {
+        geocodificarEnderecoNoMapa(null);
     }
 
-    try {
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
-        if (!res.ok) throw new Error('Serviço de busca reversa indisponível.');
-        const data = await res.json();
-        if (!data || !data.address) {
-            alert('Nenhum endereço encontrado para essas coordenadas.');
-            return;
+    overlay.querySelector('#btn-mapa-latlong-buscar').onclick = () => {
+        const q = (searchInput.value || '').trim();
+        geocodificarEnderecoNoMapa(q || null);
+    };
+    searchInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            const q = (searchInput.value || '').trim();
+            geocodificarEnderecoNoMapa(q || null);
+        }
+    });
+
+    overlay.querySelector('#btn-confirmar-mapa-latlong').onclick = async () => {
+        const formattedCoords = `${selLat.toFixed(6)}, ${selLng.toFixed(6)}`;
+        const coordsInput = document.getElementById(prefix + 'coords');
+        if (coordsInput) {
+            coordsInput.value = formattedCoords;
         }
 
-        const addr = data.address;
-        
-        // Preencher
-        if (addr.road) document.getElementById('modal-end-rua').value = addr.road;
-        if (addr.suburb || addr.neighbourhood) {
-            document.getElementById('modal-end-bairro').value = addr.suburb || addr.neighbourhood;
-        }
-        if (addr.city || addr.town || addr.village) {
-            document.getElementById('modal-end-cidade').value = addr.city || addr.town || addr.village;
-        }
-        if (addr.state) {
-            const stateLower = addr.state.toLowerCase();
-            document.getElementById('modal-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
-        }
-        if (addr.postcode) {
-            document.getElementById('modal-end-cep').value = formatCEP(addr.postcode);
-        }
-        if (addr.house_number) {
-            document.getElementById('modal-end-num').value = addr.house_number;
+        // Se o campo de rua estiver vazio, preenche via reverse geocoding
+        const ruaInput = document.getElementById(prefix + 'rua');
+        if (ruaInput && !ruaInput.value.trim()) {
+            try {
+                const url = `https://nominatim.openstreetmap.org/reverse?lat=${selLat}&lon=${selLng}&format=json&addressdetails=1`;
+                const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    const addr = data?.address || {};
+                    if (addr.road && document.getElementById(prefix + 'rua')) document.getElementById(prefix + 'rua').value = addr.road;
+                    if (addr.house_number && document.getElementById(prefix + 'num') && !document.getElementById(prefix + 'num').value) {
+                        document.getElementById(prefix + 'num').value = addr.house_number;
+                    }
+                    if ((addr.suburb || addr.neighbourhood) && document.getElementById(prefix + 'bairro') && !document.getElementById(prefix + 'bairro').value) {
+                        document.getElementById(prefix + 'bairro').value = addr.suburb || addr.neighbourhood;
+                    }
+                    if ((addr.city || addr.town || addr.village) && document.getElementById(prefix + 'cidade') && !document.getElementById(prefix + 'cidade').value) {
+                        document.getElementById(prefix + 'cidade').value = addr.city || addr.town || addr.village;
+                    }
+                    if (addr.state && document.getElementById(prefix + 'uf') && !document.getElementById(prefix + 'uf').value) {
+                        const stateLower = addr.state.toLowerCase();
+                        document.getElementById(prefix + 'uf').value = ufMapping[stateLower] || addr.state.substring(0, 2).toUpperCase();
+                    }
+                    if (addr.postcode && document.getElementById(prefix + 'cep') && !document.getElementById(prefix + 'cep').value) {
+                        document.getElementById(prefix + 'cep').value = formatCEP(addr.postcode);
+                    }
+                }
+            } catch (eRev) {
+                console.warn('Erro no reverse geocoding ao confirmar mapa:', eRev);
+            }
         }
 
+        cleanupAndClose();
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Endereço importado a partir das coordenadas!');
+            mostrarToastSucesso('Latitude e Longitude selecionadas no mapa!');
         }
-    } catch (e) {
-        console.error(e);
-        alert('Erro na busca reversa por coordenadas: ' + e.message);
-    }
+    };
+};
+
+window.modalBuscarPorCoords = async function() {
+    await window.abrirMapaSelecaoLatLong('modal');
 };
 
 window.pageBuscarPorCoords = async function() {
-    const coordsRaw = document.getElementById('page-end-coords')?.value.trim() || '';
-    if (!coordsRaw) {
-        alert('Por favor, informe a latitude e longitude separadas por vírgula (Ex: -23.55052, -46.633308).');
-        return;
-    }
-
-    const parts = coordsRaw.split(',').map(p => p.trim());
-    if (parts.length < 2) {
-        alert('Formato inválido. Use: latitude, longitude');
-        return;
-    }
-
-    const lat = parseFloat(parts[0]);
-    const lon = parseFloat(parts[1]);
-    if (isNaN(lat) || isNaN(lon)) {
-        alert('Coordenadas numéricas inválidas.');
-        return;
-    }
-
-    try {
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'SistemaAmerica/1.0' } });
-        if (!res.ok) throw new Error('Serviço de busca reversa indisponível.');
-        const data = await res.json();
-        if (!data || !data.address) {
-            alert('Nenhum endereço encontrado para essas coordenadas.');
-            return;
-        }
-
-        const addr = data.address;
-        
-        // Preencher
-        if (addr.road) document.getElementById('page-end-rua').value = addr.road;
-        if (addr.suburb || addr.neighbourhood) {
-            document.getElementById('page-end-bairro').value = addr.suburb || addr.neighbourhood;
-        }
-        if (addr.city || addr.town || addr.village) {
-            document.getElementById('page-end-cidade').value = addr.city || addr.town || addr.village;
-        }
-        if (addr.state) {
-            const stateLower = addr.state.toLowerCase();
-            document.getElementById('page-end-uf').value = ufMapping[stateLower] || addr.state.substring(0,2).toUpperCase();
-        }
-        if (addr.postcode) {
-            document.getElementById('page-end-cep').value = formatCEP(addr.postcode);
-        }
-        if (addr.house_number) {
-            document.getElementById('page-end-num').value = addr.house_number;
-        }
-
-        if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Endereço importado a partir das coordenadas!');
-        }
-    } catch (e) {
-        console.error(e);
-        alert('Erro na busca reversa por coordenadas: ' + e.message);
-    }
+    await window.abrirMapaSelecaoLatLong('page');
 };
 
 // ─── 4. BUSCA POR CNPJ DO LOCAL ──────────────────────────────────────
