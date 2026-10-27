@@ -16938,12 +16938,17 @@ window.salvarAssinaturaColaborador = async function () {
 
         if (_epiSelfieBase64) {
             try {
-                const selfieBase64Data = _epiSelfieBase64.split(',')[1];
+                const selfieBase64Data = _epiSelfieBase64.includes(',') ? _epiSelfieBase64.split(',')[1] : _epiSelfieBase64;
                 const selfieBytes = Uint8Array.from(atob(selfieBase64Data), c => c.charCodeAt(0));
-                const selfieImage = await pdfDoc.embedJpg(selfieBytes);
-                const sImgW = 85;
-                const sImgH = 64;
-                sigPage.drawImage(selfieImage, { x: cX + cWidth + 10, y: cCpfY - 10, width: sImgW, height: sImgH });
+                const isPngSelfie = _epiSelfieBase64.startsWith('data:image/png');
+                const selfieImage = isPngSelfie ? await pdfDoc.embedPng(selfieBytes) : await pdfDoc.embedJpg(selfieBytes);
+                const sImgW = 115;
+                const sImgH = 86;
+                sigPage.drawImage(selfieImage, { x: cX + cWidth + 20, y: cCpfY - 12, width: sImgW, height: sImgH });
+                try {
+                    const prevKw = pdfDoc.getKeywords() || '';
+                    pdfDoc.setKeywords([prevKw, 'SELFIE_EMBEDDED'].filter(Boolean));
+                } catch (_) {}
             } catch (e) { console.error('Erro ao add selfie no pdf', e); }
         }
 

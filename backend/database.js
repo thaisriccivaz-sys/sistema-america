@@ -1758,7 +1758,7 @@ db.run("PRAGMA foreign_keys = ON;");
             db.run(`
                 CREATE TABLE IF NOT EXISTS clientes_enderecos_entrega (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cliente_id INTEGER NOT NULL,
+                    cliente_id INTEGER DEFAULT 0,
                     sequencia INTEGER NOT NULL,
                     nome_local TEXT,
                     cpf_cnpj TEXT,
@@ -1774,10 +1774,15 @@ db.run("PRAGMA foreign_keys = ON;");
                     telefone TEXT,
                     ramal TEXT,
                     coordenadas TEXT,
-                    UNIQUE(cliente_id, sequencia),
-                    FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+                    razao_social TEXT,
+                    nome_fantasia TEXT,
+                    data_cadastro TEXT,
+                    UNIQUE(cliente_id, sequencia)
                 )
             `);
+            db.run(`ALTER TABLE clientes_enderecos_entrega ADD COLUMN razao_social TEXT`, () => {});
+            db.run(`ALTER TABLE clientes_enderecos_entrega ADD COLUMN nome_fantasia TEXT`, () => {});
+            db.run(`ALTER TABLE clientes_enderecos_entrega ADD COLUMN data_cadastro TEXT`, () => {});
 
             // Tabela de DRE (Demonstrativo do Resultado do Exercício) (América Rental)
             db.run(`

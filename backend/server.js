@@ -11150,6 +11150,127 @@ app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     });
 });
 
+async function _streamToBufferR2(stream) {
+    if (!stream) return null;
+    if (Buffer.isBuffer(stream)) return stream;
+    if (typeof stream.transformToByteArray === 'function') {
+        return Buffer.from(await stream.transformToByteArray());
+    }
+    const chunks = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+}
+
+async function ensureSelfieOnSignedOcorrenciaPdf(row, pdfBuffer) {
+    try {
+        if (!row || !pdfBuffer || row.assinafy_status !== 'Assinado' || row.assinafy_id) return pdfBuffer;
+        const isAdvOuSusp = row.tab_name === 'Advertências' ||
+            /advert|suspens/i.test(row.document_type || '') ||
+            /advert|suspens/i.test(row.file_name || '');
+        if (!isAdvOuSusp || !row.colaborador_id) return pdfBuffer;
+
+        const { PDFDocument } = require('pdf-lib');
+        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        let kw = '';
+        try { kw = String(pdfDoc.getKeywords() || ''); } catch (_) {}
+        if (kw.includes('SELFIE_EMBEDDED')) return pdfBuffer;
+
+        const selfieRow = await new Promise((resolve) => {
+            db.get(
+                `SELECT id, selfie_base64 FROM epi_selfies
+                 WHERE colaborador_id = ? AND selfie_base64 IS NOT NULL AND selfie_base64 != ''
+                 ORDER BY ABS(strftime('%s', COALESCE(timestamp, criado_em)) - strftime('%s', ?)) ASC, id DESC LIMIT 1`,
+                [row.colaborador_id, row.upload_date || new Date().toISOString()],
+                (err, r) => resolve(r || null)
+            );
+        });
+        if (!selfieRow || !selfieRow.selfie_base64) return pdfBuffer;
+
+        const r2Utils = require('./utils/r2');
+        let imgBytes = null;
+        let isPng = false;
+        const val = String(selfieRow.selfie_base64).trim();
+
+        if (val.startsWith('data:image/')) {
+            isPng = val.startsWith('data:image/png');
+            const b64Part = val.split(',')[1];
+            if (b64Part) imgBytes = Buffer.from(b64Part, 'base64');
+        } else {
+            let r2Key = null;
+            if (val.startsWith('s3://')) {
+                r2Key = val.replace(/^s3:\/\/[^/]+\//, '');
+            } else if (process.env.R2_PUBLIC_URL && val.startsWith(process.env.R2_PUBLIC_URL)) {
+                r2Key = val.slice(process.env.R2_PUBLIC_URL.length).replace(/^\/+/, '');
+            } else if (val.startsWith('http://') || val.startsWith('https://')) {
+                try { r2Key = decodeURIComponent(new URL(val).pathname.replace(/^\/+/, '')); } catch (_) {}
+            } else {
+                r2Key = val;
+            }
+            if (r2Key && r2Utils.isReady()) {
+                try {
+                    const dl = await r2Utils.downloadStreamFromR2(r2Key);
+                    imgBytes = await _streamToBufferR2(dl.stream);
+                    if (dl.contentType && dl.contentType.includes('png')) isPng = true;
+                } catch (_) {}
+            }
+            if (!imgBytes && (val.startsWith('http://') || val.startsWith('https://'))) {
+                try {
+                    const resp = await fetch(val);
+                    if (resp.ok) imgBytes = Buffer.from(await resp.arrayBuffer());
+                } catch (_) {}
+            }
+        }
+
+        if (!imgBytes || imgBytes.length === 0) return pdfBuffer;
+        if (imgBytes[0] === 0x89 && imgBytes[1] === 0x50) isPng = true;
+
+        const selfieImage = isPng ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+        const pages = pdfDoc.getPages();
+        if (pages.length === 0) return pdfBuffer;
+
+        let pageIndexToDraw = pages.length - 1;
+        const lastSz = pages[pages.length - 1].getSize();
+        const pgW = lastSz.width || 595.28;
+        const pgH = lastSz.height || 841.89;
+        const hasSignaturePage = kw.includes('ASSINATURAS_SEPARADAS');
+        let cCpfY = hasSignaturePage ? 300 : 30;
+
+        if (kw.includes('contentHeightMm:')) {
+            const match = kw.match(/contentHeightMm:([0-9.]+)/);
+            if (match) {
+                const totalH = parseFloat(match[1]);
+                const drawHMm = Math.max(0, totalH - 79 + 50);
+                pageIndexToDraw = Math.min(pages.length - 1, Math.floor(drawHMm / 297));
+                const yFromTop = (drawHMm % 297) * (72 / 25.4);
+                cCpfY = pgH - yFromTop - 95;
+            }
+        }
+
+        const sigPage = pages[pageIndexToDraw] || pages[pages.length - 1];
+        const cX = 50;
+        const cWidth = 240;
+        sigPage.drawImage(selfieImage, { x: cX + cWidth + 20, y: cCpfY - 12, width: 115, height: 86 });
+        pdfDoc.setKeywords([kw ? `${kw} SELFIE_EMBEDDED` : 'SELFIE_EMBEDDED']);
+
+        const updatedBuf = Buffer.from(await pdfDoc.save());
+        const targetKey = row.signed_r2_key || row.r2_key;
+        if (targetKey && r2Utils.isReady()) {
+            try {
+                await r2Utils.uploadToR2(targetKey, updatedBuf, 'application/pdf');
+                console.log(`[SELFIE-RETROFIT] Selfie embutida no PDF assinado doc=${row.id} (${targetKey})`);
+            } catch (upErr) {
+                console.warn('[SELFIE-RETROFIT] Falha ao atualizar R2:', upErr.message);
+            }
+        }
+        return updatedBuf;
+    } catch (err) {
+        console.warn('[SELFIE-RETROFIT] Aviso ao verificar selfie no PDF:', err.message);
+        return pdfBuffer;
+    }
+}
+
 app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento nao encontrado' });
@@ -11163,6 +11284,11 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                 if (!safeFileName.toLowerCase().endsWith('.pdf')) safeFileName = safeFileName.replace(/\.[^.]+$/, '') + '.pdf';
                 res.setHeader('Content-Type', fileData.contentType || 'application/pdf');
                 res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent('ASSINADO_' + safeFileName)}"`);
+                if (row.assinafy_status === 'Assinado' && !row.assinafy_id && (row.tab_name === 'Advertências' || /advert|suspens/i.test(row.document_type || ''))) {
+                    const rawBuf = await _streamToBufferR2(fileData.stream);
+                    const finalBuf = await ensureSelfieOnSignedOcorrenciaPdf(row, rawBuf);
+                    return res.send(finalBuf);
+                }
                 if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
                 if (fileData.stream && typeof fileData.stream.pipe === 'function') {
                     return fileData.stream.pipe(res);
@@ -11227,6 +11353,14 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                 const r2Mime = fileData.contentType || 'application/pdf';
                 res.setHeader('Content-Type', r2Mime);
                 res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(r2FileName)}"`);
+                if (row.assinafy_status === 'Assinado') {
+                    const rawBuf = await _streamToBufferR2(fileData);
+                    if (rawBuf) {
+                        const finalBuf = await ensureSelfieOnSignedOcorrenciaPdf(row, rawBuf);
+                        res.setHeader('Content-Length', finalBuf.length);
+                        return res.send(finalBuf);
+                    }
+                }
                 if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
                 if (fileData.stream && typeof fileData.stream.pipe === 'function') {
                     return fileData.stream.pipe(res);
@@ -11306,12 +11440,11 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                 if (!safeFileName.toLowerCase().endsWith('.pdf')) safeFileName = safeFileName.replace(/\.[^.]+$/, '') + '.pdf';
                 res.setHeader('Content-Type', fileData.contentType || 'application/pdf');
                 res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent('ASSINADO_' + safeFileName)}"`);
-                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
-                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
-                    return fileData.stream.pipe(res);
-                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
-                    const bytes = await fileData.stream.transformToByteArray();
-                    return res.send(Buffer.from(bytes));
+                const rawBuf = await _streamToBufferR2(fileData);
+                if (rawBuf) {
+                    const finalBuf = await ensureSelfieOnSignedOcorrenciaPdf(row, rawBuf);
+                    res.setHeader('Content-Length', finalBuf.length);
+                    return res.send(finalBuf);
                 }
             } catch (r2Err) { console.warn('[VIEW] signed_r2_key falhou, tentando fallback:', r2Err.message); }
         }
@@ -11423,6 +11556,14 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                 }
                 res.setHeader('Content-Type', r2Mime);
                 res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(r2FileName)}"`);
+                if (row.assinafy_status === 'Assinado') {
+                    const rawBuf = await _streamToBufferR2(fileData);
+                    if (rawBuf) {
+                        const finalBuf = await ensureSelfieOnSignedOcorrenciaPdf(row, rawBuf);
+                        res.setHeader('Content-Length', finalBuf.length);
+                        return res.send(finalBuf);
+                    }
+                }
                 if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
                 if (fileData.stream && typeof fileData.stream.pipe === 'function') {
                     return fileData.stream.pipe(res);
@@ -17067,6 +17208,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         }
 
         if (pdfAttachmentBuffer) {
+            pdfAttachmentBuffer = await ensureSelfieOnSignedOcorrenciaPdf(doc, pdfAttachmentBuffer);
             attachments.push({ filename: pdfAttachmentName, content: pdfAttachmentBuffer, contentType: 'application/pdf' });
         } else {
             return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado nao encontrado no servidor.' });
@@ -40520,14 +40662,83 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
   const cid = Number(clienteId);
   if (!cid || cid <= 0) return cb();
 
-  db.get('SELECT * FROM clientes WHERE id = ?', [cid], (err, cli) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [cid, cid], async (err, cli) => {
     if (err || !cli) return cb();
-    const hasAddr = (cli.endereco && String(cli.endereco).trim()) || (cli.cep && String(cli.cep).trim());
-    if (!hasAddr) return cb();
+    const realCid = cli.id;
+
+    let hasAddr = (cli.endereco && String(cli.endereco).trim()) || (cli.cep && String(cli.cep).trim());
+    if (!hasAddr) {
+      const cnpjClean = String(cli.cpf_cnpj || '').replace(/\D/g, '');
+      if (cnpjClean.length === 14) {
+        try {
+          let fetchedEnd = null;
+          try {
+            const r1 = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjClean}`);
+            if (r1.ok) {
+              const d1 = await r1.json();
+              const est = d1?.estabelecimento;
+              if (est && (est.logradouro || est.cep)) {
+                const ruaCnpj = `${est.tipo_logradouro || ''} ${est.logradouro || ''}`.trim();
+                const numCnpj = String(est.numero || '').trim();
+                fetchedEnd = {
+                  cep: String(est.cep || '').replace(/\D/g, ''),
+                  endereco: ruaCnpj && numCnpj ? `${ruaCnpj}, ${numCnpj}` : ruaCnpj,
+                  numero: numCnpj || 'S/N',
+                  complemento: est.complemento || '',
+                  bairro: est.bairro || '',
+                  uf: est.estado?.sigla || cli.uf || '',
+                  municipio: est.cidade?.nome || cli.municipio || ''
+                };
+              }
+            }
+          } catch (_) {}
+
+          if (!fetchedEnd) {
+            try {
+              const r2 = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjClean}`);
+              if (r2.ok) {
+                const d2 = await r2.json();
+                if (d2 && (d2.logradouro || d2.cep)) {
+                  const ruaB = String(d2.logradouro || '').trim();
+                  const numB = String(d2.numero || '').trim();
+                  fetchedEnd = {
+                    cep: String(d2.cep || '').replace(/\D/g, ''),
+                    endereco: ruaB && numB ? `${ruaB}, ${numB}` : ruaB,
+                    numero: numB || 'S/N',
+                    complemento: d2.complemento || '',
+                    bairro: d2.bairro || '',
+                    uf: d2.uf || cli.uf || '',
+                    municipio: d2.municipio || cli.municipio || ''
+                  };
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (fetchedEnd && (fetchedEnd.endereco || fetchedEnd.cep)) {
+            cli.cep = fetchedEnd.cep || cli.cep || '';
+            cli.endereco = fetchedEnd.endereco || cli.endereco || '';
+            cli.numero = fetchedEnd.numero || cli.numero || '';
+            cli.complemento = fetchedEnd.complemento || cli.complemento || '';
+            cli.bairro = fetchedEnd.bairro || cli.bairro || '';
+            cli.uf = fetchedEnd.uf || cli.uf || '';
+            cli.municipio = fetchedEnd.municipio || cli.municipio || '';
+            hasAddr = true;
+            db.run(
+              `UPDATE clientes SET cep = ?, endereco = ?, numero = ?, complemento = ?, bairro = ?, uf = ?, municipio = ? WHERE id = ?`,
+              [cli.cep, cli.endereco, cli.numero, cli.complemento, cli.bairro, cli.uf, cli.municipio, realCid],
+              () => {}
+            );
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!hasAddr) return cb(cli);
 
     const { rua, numero } = extrairRuaENumeroCliente(cli.endereco, cli.numero);
-    db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [cid], (err2, rows) => {
-      if (err2) return cb();
+    db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [realCid], (err2, rows) => {
+      if (err2) return cb(cli);
       const list = rows || [];
       const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
       const fatRow = list.find(r => norm(r.nome_local) === 'ENDERECO DE FATURAMENTO');
@@ -40555,7 +40766,32 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
             cli.data_cadastro || '',
             fatRow.id
           ],
-          () => cb()
+          (uErr) => {
+            if (uErr) {
+              db.run(
+                `UPDATE clientes_enderecos_entrega SET
+                  nome_local = ?, cpf_cnpj = ?, inscricao_estadual = ?, cep = ?,
+                  endereco = ?, numero = ?, complemento = ?, bairro = ?, uf = ?, municipio = ?
+                WHERE id = ?`,
+                [
+                  'Endereço de Faturamento',
+                  cli.cpf_cnpj || '',
+                  cli.inscricao_estadual || '',
+                  cli.cep || '',
+                  rua,
+                  numero,
+                  cli.complemento || '',
+                  cli.bairro || '',
+                  cli.uf || '',
+                  cli.municipio || '',
+                  fatRow.id
+                ],
+                () => cb(cli)
+              );
+            } else {
+              cb(cli);
+            }
+          }
         );
       } else {
         const hasSeq1 = list.some(r => Number(r.sequencia) === 1);
@@ -40569,7 +40805,7 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
             razao_social, nome_fantasia, data_cadastro
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
-            cid,
+            realCid,
             seqToUse,
             'Endereço de Faturamento',
             cli.cpf_cnpj || '',
@@ -40589,7 +40825,37 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
             cli.nome_fantasia || '',
             cli.data_cadastro || ''
           ],
-          () => cb()
+          (iErr) => {
+            if (iErr) {
+              db.run(
+                `INSERT OR IGNORE INTO clientes_enderecos_entrega (
+                  cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+                  endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [
+                  realCid,
+                  seqToUse,
+                  'Endereço de Faturamento',
+                  cli.cpf_cnpj || '',
+                  cli.inscricao_estadual || '',
+                  cli.cep || '',
+                  rua,
+                  numero,
+                  cli.complemento || '',
+                  cli.bairro || '',
+                  cli.uf || '',
+                  cli.municipio || '',
+                  '',
+                  cli.telefone || '',
+                  cli.ramal || '',
+                  ''
+                ],
+                () => cb(cli)
+              );
+            } else {
+              cb(cli);
+            }
+          }
         );
       }
     });
@@ -40613,10 +40879,37 @@ app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
       }
     );
   } else {
-    syncEnderecoFaturamentoCliente(clienteId, () => {
-      db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
+    syncEnderecoFaturamentoCliente(clienteId, (cliRow) => {
+      const targetCid = cliRow && cliRow.id ? cliRow.id : clienteId;
+      db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [targetCid], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        const list = Array.isArray(rows) ? rows : [];
+        if (list.length === 0 && cliRow && ((cliRow.endereco && String(cliRow.endereco).trim()) || (cliRow.cep && String(cliRow.cep).trim()))) {
+          const { rua, numero } = extrairRuaENumeroCliente(cliRow.endereco, cliRow.numero);
+          list.push({
+            id: 0,
+            cliente_id: cliRow.id,
+            sequencia: 1,
+            nome_local: 'Endereço de Faturamento',
+            cpf_cnpj: cliRow.cpf_cnpj || '',
+            inscricao_estadual: cliRow.inscricao_estadual || '',
+            cep: cliRow.cep || '',
+            endereco: rua,
+            numero: numero,
+            complemento: cliRow.complemento || '',
+            bairro: cliRow.bairro || '',
+            uf: cliRow.uf || '',
+            municipio: cliRow.municipio || '',
+            contato: '',
+            telefone: cliRow.telefone || '',
+            ramal: cliRow.ramal || '',
+            coordenadas: '',
+            razao_social: cliRow.nome_razao_social || '',
+            nome_fantasia: cliRow.nome_fantasia || '',
+            data_cadastro: cliRow.data_cadastro || ''
+          });
+        }
+        res.json(list);
       });
     });
   }
@@ -41475,6 +41768,7 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
                 ramal_2 TEXT,
                 fax TEXT,
                 website TEXT,
+                email TEXT,
                 celular_ddi TEXT,
                 celular TEXT,
                 parametros TEXT,
@@ -41509,10 +41803,12 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
             db.run('DROP TABLE clientes');
             db.run('ALTER TABLE clientes_new RENAME TO clientes');
             db.run('COMMIT', () => {
+              db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
               db.run('PRAGMA foreign_keys=ON', () => runSeed());
             });
           });
         } else {
+          db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
           runSeed();
         }
       });
