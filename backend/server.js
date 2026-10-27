@@ -40258,7 +40258,7 @@ app.get('/api/clientes/:clienteId/anexos', authenticateToken, (req, res) => {
 });
 
 // POST /api/clientes/:clienteId/anexos - Upload de múltiplos anexos (Imagem, Vídeo, PDF) no Cloudflare R2
-app.post('/api/clientes/:clienteId/anexos', authenticateToken, uploadClientesAnexosMem.array('arquivos', 20), async (req, res) => {
+app.post('/api/clientes/:clienteId/anexos', authenticateToken, uploadClientesAnexosMem.any(), async (req, res) => {
   const clienteId = Number(req.params.clienteId);
   if (!clienteId) return res.status(400).json({ error: 'ID do cliente inválido.' });
   const files = req.files || [];
@@ -40316,7 +40316,7 @@ app.post('/api/clientes/:clienteId/anexos', authenticateToken, uploadClientesAne
           ...a,
           url: `/api/clientes/anexo-arquivo/${a.id}`
         }));
-        res.json({ success: true, anexos });
+        res.json({ success: true, anexos, lista: anexos });
       }
     );
   } catch (errUpload) {
@@ -40331,7 +40331,7 @@ app.get('/api/clientes/anexo-arquivo/:anexoId', async (req, res) => {
   const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
   if (!token) return res.status(401).send('Não autorizado');
   try {
-    jwt.verify(token, JWT_SECRET);
+    jwt.verify(token, SECRET_KEY);
   } catch (e) {
     return res.status(403).send('Token inválido');
   }

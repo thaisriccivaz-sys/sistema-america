@@ -7674,17 +7674,17 @@ window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, 
         const formData = new FormData();
         pendentes.forEach(item => {
             if (item && item.file) {
-                formData.append('files', item.file, item.nome);
+                formData.append('arquivos', item.file, item.nome);
             }
         });
 
-        const token = localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
         const resp = await fetch(`/api/clientes/${clienteId}/anexos`, {
             method: 'POST',
             headers: token ? { 'Authorization': `Bearer ${token}` } : {},
             body: formData
         });
-        const data = await resp.json();
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.success) {
             throw new Error(data.error || 'Falha ao enviar anexos.');
         }
@@ -7694,12 +7694,13 @@ window.salvarAnexosCliente = async function(escopo = 'main', modalCliId = null, 
                 try { URL.revokeObjectURL(item.previewUrl); } catch (e) {}
             }
         });
+        const listaSalva = Array.isArray(data.lista) ? data.lista : (Array.isArray(data.anexos) ? data.anexos : []);
         if (escopo === 'modal') {
             window._modalCliAnexosPendentes = [];
-            window._modalCliAnexosSalvos = Array.isArray(data.lista) ? data.lista : [];
+            window._modalCliAnexosSalvos = listaSalva;
         } else {
             window._cliAnexosPendentes = [];
-            window._cliAnexosSalvos = Array.isArray(data.lista) ? data.lista : [];
+            window._cliAnexosSalvos = listaSalva;
         }
 
         window.renderAnexosCliente(escopo, clienteId);
@@ -7825,7 +7826,7 @@ window.renderAnexosCliente = function(escopo = 'main', clienteIdParam = null) {
     const pendentes = escopo === 'modal' ? (window._modalCliAnexosPendentes || []) : (window._cliAnexosPendentes || []);
     const salvos = escopo === 'modal' ? (window._modalCliAnexosSalvos || []) : (window._cliAnexosSalvos || []);
     const cliId = clienteIdParam || (escopo === 'modal' ? _modalClienteEditandoId : _clienteEditandoId);
-    const token = localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || '';
 
     if (pendContainer) {
         if (pendentes.length === 0) {
