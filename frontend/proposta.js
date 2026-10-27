@@ -3,6 +3,32 @@
    Gerenciamento completo de propostas de locação
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Utilitário global de identificação do usuário logado ───────────── */
+window.obterNomeUsuarioLogado = function() {
+    if (window.currentUser && typeof window.currentUser === 'object') {
+        const n = window.currentUser.nome || window.currentUser.username || window.currentUser.name || window.currentUser.email;
+        if (n && n !== 'Administrador') return String(n).trim();
+    }
+    if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser === 'object') {
+        const n = currentUser.nome || currentUser.username || currentUser.name || currentUser.email;
+        if (n && n !== 'Administrador') return String(n).trim();
+    }
+    try {
+        const saved = localStorage.getItem('erp_user');
+        if (saved) {
+            const u = JSON.parse(saved);
+            const n = u?.nome || u?.username || u?.name || u?.email;
+            if (n && n !== 'Administrador') return String(n).trim();
+        }
+    } catch (e) {}
+    const topEl = document.getElementById('logged-user-name');
+    if (topEl && topEl.textContent) {
+        const txt = topEl.textContent.trim();
+        if (txt && txt !== 'Usuário' && txt !== 'Administrador') return txt;
+    }
+    return window.currentUser?.nome || window.currentUser?.username || window.currentUserName || '';
+};
+
 /* ── Dados de configuração ─────────────────────────────────────────── */
 const PROP_TIPOS = [
     'ADITIVO',
@@ -1830,7 +1856,7 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${v('atendente') || window.currentUser?.nome || window.currentUser?.username || window.currentUser?.email || ''}" readonly
+                            <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}" readonly
                                 style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
@@ -2112,7 +2138,7 @@ function _renderFormPropostaInt() {
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:0.5rem 0.75rem;">
                             <div style="grid-column:span 2;">
                                 <label class="prop-lbl">Representante *</label>
-                                <input type="text" id="prop-representante" value="${v('representante') || window.currentUser?.nome || window.currentUser?.username || window.currentUser?.email || ''}" readonly
+                                <input type="text" id="prop-representante" value="${v('representante') || window.obterNomeUsuarioLogado()}" readonly
                                     style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
@@ -3227,7 +3253,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                                     <div class="mcli-field">
                                         <label>Usuário que Cadastrou</label>
-                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? ((client.criado_por && client.criado_por !== 'Administrador') ? client.criado_por : '') : currentUser}" readonly class="mcli-input mcli-readonly">
+                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? ((client.criado_por && client.criado_por !== 'Administrador') ? client.criado_por : '') : window.obterNomeUsuarioLogado()}" readonly class="mcli-input mcli-readonly">
                                     </div>
                                     <div class="mcli-field">
                                         <label>Data de Cadastro</label>
@@ -3412,7 +3438,7 @@ window.modalSalvarContatoInline = function() {
         celular: celular,
         telefone_ramal: '',
         email: email,
-        dono: window.currentUser?.nome || '',
+        dono: window.obterNomeUsuarioLogado(),
         cargo: cargo,
         situacao: 'Ativo',
         nfe: 'Sim',
@@ -3603,20 +3629,30 @@ window.modalBuscarCNPJ = async function() {
     }
 
     const cnpj = cnpjRaw.replace(/\D/g, '');
-    if (cnpj.length !== 14) {
+    if (cnpj.length !== 14 || cnpj.length !== cnpjRaw.replace(/[.\-\/\s]/g, '').length) {
         try {
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const qNorm = normStr(cnpjRaw);
-            const lista = await apiGet('/clientes') || [];
-            const found = lista.find(c => {
-                const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
-                if (cnpj && cDoc && (cDoc === cnpj || cDoc.replace(/^0+/, '') === cnpj.replace(/^0+/, ''))) return true;
-                if (String(c.codigo || '').toLowerCase() === qNorm) return true;
-                if (qNorm.length >= 3 && (normStr(c.nome_razao_social) === qNorm || normStr(c.nome_fantasia) === qNorm)) return true;
-                return false;
+            const cnpjNoZero = cnpj.replace(/^0+/, '');
+            const lista = await window.obterClientesCache();
+            const matches = lista.filter(c => {
+                const cod = String(c.codigo || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const cDoc = doc.replace(/\D/g, '');
+                if (cnpj.length === 11 && cnpj.length === cnpjRaw.replace(/[.\-\/\s]/g, '').length) {
+                    return cDoc && (cDoc === cnpj || cDoc.replace(/^0+/, '') === cnpjNoZero);
+                }
+                return cod === qNorm ||
+                    (razao && razao.includes(qNorm)) ||
+                    (fant && fant.includes(qNorm)) ||
+                    doc.includes(qNorm) ||
+                    (cnpjNoZero.length >= 9 && cDoc && cDoc.replace(/^0+/, '') === cnpjNoZero) ||
+                    (cnpj.length >= 4 && cDoc.includes(cnpj));
             });
-            if (found) {
-                window.abrirModalCadastroCliente(found.id, '');
+            if (matches.length === 1) {
+                window.abrirModalCadastroCliente(matches[0].id, '');
                 if (typeof mostrarToastSucesso === 'function') {
                     mostrarToastSucesso('Cliente localizado no banco de dados!');
                 }
@@ -3637,8 +3673,17 @@ window.modalBuscarCNPJ = async function() {
     try {
         // Se já existir cadastro no sistema com este CNPJ, carrega os dados internos e contatos primeiro
         try {
-            const listaInterna = await apiGet('/clientes') || [];
-            const foundCli = listaInterna.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === cnpj);
+            const listaInterna = await window.obterClientesCache();
+            const cnpjNoZero = cnpj.replace(/^0+/, '');
+            const matchesCli = listaInterna.filter(c => {
+                const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
+                return cDoc && (cDoc === cnpj || cDoc.replace(/^0+/, '') === cnpjNoZero);
+            });
+            if (matchesCli.length > 1) {
+                window.modalAbrirPesquisaCliente(cnpjRaw);
+                return;
+            }
+            const foundCli = matchesCli[0];
             if (foundCli) {
                 const fullCli = await apiGet(`/clientes/${foundCli.id}`);
                 if (fullCli) {
@@ -3881,7 +3926,7 @@ window.modalSalvarCliente = async function(clientId) {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('modal-cli-observacoes')?.value || '',
-        criado_por: document.getElementById('modal-cli-cad-usuario')?.value || (clientId ? '' : (window.currentUser?.nome || window.currentUser?.email || ''))
+        criado_por: document.getElementById('modal-cli-cad-usuario')?.value || (clientId ? '' : window.obterNomeUsuarioLogado())
     };
 
     try {
@@ -4346,7 +4391,7 @@ window.salvarPropostaNova = async function() {
         valor_total: obterN('prop-valor-total'),
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
-        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
@@ -4895,7 +4940,7 @@ window.estornarPropostaEdicao = async function() {
         valor_total: obterN('prop-valor-total'),
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
-        criado_por: window.currentUser?.nome || window.currentUser?.email || '',
+        criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null
@@ -5662,7 +5707,7 @@ function _renderCadastroClienteInt() {
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                                 <div>
                                     <label class="prop-lbl">Usuário que Cadastrou</label>
-                                    <input type="text" id="cli-cad-usuario" value="${currentUser}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
+                                    <input type="text" id="cli-cad-usuario" value="${window.obterNomeUsuarioLogado()}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
                                 </div>
                                 <div>
                                     <label class="prop-lbl">Data de Cadastro</label>
@@ -6230,6 +6275,11 @@ window.buscarCNPJ = async function() {
                 await window.carregarClienteParaEdicao(matchesCpf[0].id);
                 return;
             }
+            if (_clienteEditandoId) {
+                window.limparFormCliente();
+                const docEl = document.getElementById('cli-cpf-cnpj');
+                if (docEl) docEl.value = cnpjRaw;
+            }
             await window.abrirModalPesquisaCliente(cnpjRaw);
             return;
         }
@@ -6254,16 +6304,31 @@ window.buscarCNPJ = async function() {
                 await window.carregarClienteParaEdicao(matches[0].id);
                 return;
             }
+            if (_clienteEditandoId) {
+                window.limparFormCliente();
+                const docEl = document.getElementById('cli-cpf-cnpj');
+                if (docEl) docEl.value = cnpjRaw;
+            }
             await window.abrirModalPesquisaCliente(cnpjRaw);
             return;
         }
 
         // Se o cliente já possuir cadastro no sistema, carregar todos os dados internos e ▼ Contatos primeiro
         const cnpjNoZero = cnpj.replace(/^0+/, '');
-        const foundCli = lista.find(c => {
+        const matchesCli = lista.filter(c => {
             const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
             return cDoc && (cDoc === cnpj || cDoc.replace(/^0+/, '') === cnpjNoZero);
         });
+        if (matchesCli.length > 1) {
+            if (_clienteEditandoId) {
+                window.limparFormCliente();
+                const docEl = document.getElementById('cli-cpf-cnpj');
+                if (docEl) docEl.value = cnpjRaw;
+            }
+            await window.abrirModalPesquisaCliente(cnpjRaw);
+            return;
+        }
+        const foundCli = matchesCli[0];
         if (foundCli) {
             await window.carregarClienteParaEdicao(foundCli.id, true);
         }
@@ -6625,7 +6690,7 @@ window.limparFormCliente = function() {
     const obsEl = document.getElementById('cli-observacoes');
     if (obsEl) obsEl.value = '';
     const cadUserEl = document.getElementById('cli-cad-usuario');
-    if (cadUserEl) cadUserEl.value = window.currentUser?.nome || window.currentUserName || 'Administrador';
+    if (cadUserEl) cadUserEl.value = window.obterNomeUsuarioLogado();
     const cadDataEl = document.getElementById('cli-cad-data');
     if (cadDataEl) {
         const hojeIso = new Date().toISOString().split('T')[0];
@@ -6702,9 +6767,10 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
     const c = contato || {};
     const cli = client || {};
 
-    const currentUser = window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const currentUser = window.obterNomeUsuarioLogado();
     const rawRep = c.representante || c.criado_por || cli.criado_por || '';
-    const repAuto = isEdit ? ((rawRep && rawRep !== 'Administrador') ? rawRep : '') : (rawRep || currentUser);
+    const cleanRep = (rawRep && rawRep !== 'Administrador') ? rawRep : '';
+    const repAuto = isEdit ? cleanRep : (currentUser || cleanRep);
 
     let dataCadAuto = '';
     const rawDate = c.data_cadastro || c.criado_em || '';
@@ -7209,7 +7275,7 @@ window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = '
     }
 
     const cargoDepto = document.getElementById('mcon-cargo')?.value || '';
-    const repAuto = document.getElementById('mcon-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const repAuto = document.getElementById('mcon-representante')?.value || window.obterNomeUsuarioLogado();
 
     const payload = {
         codigo: document.getElementById('mcon-codigo')?.value || null,
@@ -7483,11 +7549,11 @@ window.modalSalvarNovoContato = async function() {
         ramal_2: document.getElementById('memp-ramal2')?.value || '',
         fax: document.getElementById('memp-fax')?.value || '',
         website: document.getElementById('memp-site')?.value || '',
-        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+        criado_por: window.obterNomeUsuarioLogado()
     };
 
     const cargoDepto = document.getElementById('mcon-cargo')?.value || '';
-    const repAuto = document.getElementById('mcon-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const repAuto = document.getElementById('mcon-representante')?.value || window.obterNomeUsuarioLogado();
 
     const payload = {
         codigo: null,
@@ -8330,7 +8396,7 @@ window.salvarCliente = async function() {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('cli-observacoes')?.value || '',
-        criado_por: document.getElementById('cli-cad-usuario')?.value || (_clienteEditandoId ? '' : (window.currentUser?.nome || window.currentUser?.email || ''))
+        criado_por: document.getElementById('cli-cad-usuario')?.value || (_clienteEditandoId ? '' : window.obterNomeUsuarioLogado())
     };
 
     try {
@@ -9484,7 +9550,7 @@ window.limparFormContato = function() {
     setVal('con-celular', '');
     setVal('con-email', '');
     setVal('con-tipo', '');
-    setVal('con-representante', window.currentUser?.nome || window.currentUserName || 'Administrador');
+    setVal('con-representante', window.obterNomeUsuarioLogado());
     setVal('con-data-cadastro', new Date().toISOString().split('T')[0].split('-').reverse().join('/'));
     setVal('con-cargo', '');
     setVal('con-origem', '');
@@ -9632,11 +9698,11 @@ window.salvarContato = async function() {
         ramal_2: document.getElementById('emp-ramal2')?.value || '',
         fax: document.getElementById('emp-fax')?.value || '',
         website: document.getElementById('emp-site')?.value || '',
-        criado_por: window.currentUser?.nome || window.currentUser?.email || ''
+        criado_por: window.obterNomeUsuarioLogado()
     };
 
     const cargoDepto = document.getElementById('con-cargo')?.value || '';
-    const repAuto = document.getElementById('con-representante')?.value || window.currentUser?.nome || window.currentUserName || 'Administrador';
+    const repAuto = document.getElementById('con-representante')?.value || window.obterNomeUsuarioLogado();
 
     const payload = {
         codigo: _contatoEditandoId ? document.getElementById('con-codigo')?.value : null,
