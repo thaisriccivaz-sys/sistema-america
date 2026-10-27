@@ -16932,7 +16932,7 @@ window.salvarAssinaturaColaborador = async function () {
             const dtCriado = new Date(doc.created_at || doc.data_inclusao);
             if (!isNaN(dtCriado)) {
                 const dateStrCriado = dtCriado.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                lastPage.drawText(`Incluído no sistema em: ${dateStrCriado}`, { x: cX, y: cCpfY - 24, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+                sigPage.drawText(`Incluído no sistema em: ${dateStrCriado}`, { x: cX, y: cCpfY - 24, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
             }
         }
 
@@ -16943,7 +16943,7 @@ window.salvarAssinaturaColaborador = async function () {
                 const selfieImage = await pdfDoc.embedJpg(selfieBytes);
                 const sImgW = 85;
                 const sImgH = 64;
-                lastPage.drawImage(selfieImage, { x: cX + cWidth + 10, y: cCpfY - 10, width: sImgW, height: sImgH });
+                sigPage.drawImage(selfieImage, { x: cX + cWidth + 10, y: cCpfY - 10, width: sImgW, height: sImgH });
             } catch (e) { console.error('Erro ao add selfie no pdf', e); }
         }
 

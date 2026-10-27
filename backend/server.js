@@ -1376,6 +1376,18 @@ db.run("ALTER TABLE documentos ADD COLUMN r2_key TEXT", (err) => {
 });
 db.run("ALTER TABLE documentos ADD COLUMN signed_r2_key TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration signed_r2_key:', err.message);
+    db.run(
+        `UPDATE documentos
+         SET signed_r2_key = r2_key
+         WHERE assinafy_status = 'Assinado'
+           AND (assinafy_id IS NULL OR assinafy_id = '')
+           AND (signed_r2_key IS NULL OR signed_r2_key = '')
+           AND r2_key IS NOT NULL AND r2_key != ''`,
+        [],
+        (errFix) => {
+            if (errFix) console.warn('[MIGRATION] Fix signed_r2_key local signed docs:', errFix.message);
+        }
+    );
 });
 db.run("ALTER TABLE admissao_assinaturas ADD COLUMN signed_r2_key TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration admissao_assinaturas signed_r2_key:', err.message);
@@ -2324,7 +2336,11 @@ async function uploadDocToR2(docId, bufferOverride) {
 
         const r2Url = await r2.uploadToR2(r2Key, fileBuffer, mimeType);
         console.log(`[R2-AUTO] OK: ${r2Key}`);
-        await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [r2Key, docId], resolve));
+        if (doc.assinafy_status === 'Assinado' && !doc.assinafy_id) {
+            await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ?, signed_r2_key = ? WHERE id = ?', [r2Key, r2Key, docId], resolve));
+        } else {
+            await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [r2Key, docId], resolve));
+        }
         if (doc.tab_name === 'Fotos' && /\.(jpg|jpeg|png|webp)$/i.test(fileName)) {
             db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ?', [r2Url || r2Key, doc.colaborador_id]);
         }
@@ -10982,7 +10998,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
             }
 
             db.run(`UPDATE documentos SET ${setClause} WHERE id = ?`,
-                [...baseParams, row.id], function (updateErr) {
+                [...baseParams, row.id], async function (updateErr) {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
                     const path = require('path');
@@ -10995,8 +11011,12 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
                     const _isVerbal2 = /verbal/i.test(_tipoSimples2);
                     const _podeOneDrive2 = false; // Desativado a pedido do usuário (mantido apenas no R2)
 
-                    // Upload para R2 (duplo backup com OneDrive)
-                    setImmediate(() => uploadDocToR2(row.id, processedBuffer || req.file.buffer).catch(e => console.warn('[R2-UPDATE] Erro:', e.message)));
+                    // Upload para R2 concluído antes de responder para evitar janela sem r2_key/signed_r2_key
+                    try {
+                        await uploadDocToR2(row.id, processedBuffer || req.file.buffer);
+                    } catch (e) {
+                        console.warn('[R2-UPDATE] Erro:', e.message);
+                    }
                     saveAuditLocal(row.id);
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
@@ -11006,7 +11026,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
             db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [colaborador_id, tab_name, document_type, fileNameToStore, file_path, year || null, month || null, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null, assinafy_status || 'Nenhum'],
-                function (insertErr) {
+                async function (insertErr) {
                     if (insertErr) return res.status(500).json({ error: insertErr.message });
 
                     const path = require('path');
@@ -11076,8 +11096,12 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
                         }
                     }
 
-                    // Upload para R2 (duplo backup com OneDrive)
-                    setImmediate(() => uploadDocToR2(newDocId, processedBuffer || req.file.buffer).catch(e => console.warn('[R2-INSERT] Erro:', e.message)));
+                    // Upload para R2 concluído antes de responder
+                    try {
+                        await uploadDocToR2(newDocId, processedBuffer || req.file.buffer);
+                    } catch (e) {
+                        console.warn('[R2-INSERT] Erro:', e.message);
+                    }
                     saveAuditLocal(newDocId);
                     res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });
                 });
@@ -11195,8 +11219,8 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // PRIORIDADE 4: Arquivo original no R2 — NÃO servir unsigned quando doc está Assinado
-        if (row.r2_key && r2Utils.isReady() && row.assinafy_status !== 'Assinado') {
+        // PRIORIDADE 4: Arquivo no R2 — permite servir quando não está Assinado OU quando foi assinado em tela (sem assinafy_id)
+        if (row.r2_key && r2Utils.isReady() && (row.assinafy_status !== 'Assinado' || !row.assinafy_id)) {
             try {
                 const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
                 const r2FileName = row.file_name || 'documento.pdf';
@@ -11213,10 +11237,9 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             } catch (r2Err) { console.warn('[DOWNLOAD] r2_key falhou, tentando disco local:', r2Err.message); }
         }
 
-        // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
-        // NÃO devolver para docs Assinados — evita mostrar PDF sem assinatura
+        // Fallback final: Devolve o arquivo do disco local (ou assinado em tela sem assinafy_id)
         pathLocal = row.file_path;
-        if (pathLocal && fs.existsSync(pathLocal) && row.assinafy_status !== 'Assinado') {
+        if (pathLocal && fs.existsSync(pathLocal) && (row.assinafy_status !== 'Assinado' || !row.assinafy_id)) {
             let isDocx = false;
             try {
                 const fd = fs.openSync(pathLocal, 'r');
@@ -11384,10 +11407,12 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             console.log(`[VIEW-DIAG] doc=${row.id} SEM assinafy_id, status=${row.assinafy_status}`);
         }
 
-        // PRIORIDADE 4: Arquivo original no R2 (para /view) — NÃO servir unsigned quando doc está Assinado
-        // Exceto quando Assinafy confirma que o doc ainda está pendente (assinafyPendingSignature=true)
-        if (row.r2_key && r2Utils.isReady() && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature)) {
+        // PRIORIDADE 4: Arquivo no R2 (para /view) — permite servir quando não está Assinado, quando Assinafy confirma pendente, OU quando foi assinado em tela (sem assinafy_id)
+        if (row.r2_key && r2Utils.isReady() && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature || !row.assinafy_id)) {
             try {
+                if (row.assinafy_status === 'Assinado' && !row.assinafy_id && !row.signed_r2_key) {
+                    db.run('UPDATE documentos SET signed_r2_key = ? WHERE id = ?', [row.r2_key, row.id]);
+                }
                 const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
                 const r2FileName = row.file_name || 'documento.pdf';
                 const r2Mime = fileData.contentType || 'application/pdf';
@@ -11408,10 +11433,9 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             } catch (r2Err) { console.warn('[VIEW] r2_key falhou, tentando disco local:', r2Err.message); }
         }
 
-        // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
+        // Fallback final: Devolve o arquivo do disco local (ou assinado em tela sem assinafy_id)
         pathLocal = row.file_path;
-        // Nao devolver PDF original para docs Assinados — EXCETO se Assinafy confirmou que ainda está pendente
-        if (pathLocal && fs.existsSync(pathLocal) && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature)) {
+        if (pathLocal && fs.existsSync(pathLocal) && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature || !row.assinafy_id)) {
             let isDocx = false;
             try {
                 const fd = fs.openSync(pathLocal, 'r');
