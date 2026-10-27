@@ -3215,7 +3215,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                             <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                         </button>
                                         <button type="button" onclick="document.getElementById('modal-cli-contato-form').style.display='flex'" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s; height:28px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                                            <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
+                                            <i class="ph ph-plus" style="font-size:1rem;"></i> Novo Contato
                                         </button>
                                     </div>
                                 </div>
@@ -5756,7 +5756,7 @@ function _renderCadastroClienteInt() {
                                         <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                     </button>
                                     <button type="button" id="btn-novo-contato-cli" onclick="encaminharNovoContato(this)" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                                        <i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato
+                                        <i class="ph ph-plus" style="font-size:1rem;"></i> Novo Contato
                                     </button>
                                 </div>
                             </div>
@@ -7493,7 +7493,7 @@ window._renderTabelaContatos = function() {
 
 window.encaminharNovoContato = async function(btnEl = null) {
     const btn = btnEl || document.getElementById('btn-novo-contato-cli');
-    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-plus-bold" style="font-size:1rem;"></i> Novo Contato';
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-plus" style="font-size:1rem;"></i> Novo Contato';
     if (btn) {
         btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Novo Contato';
         btn.disabled = true;
@@ -8775,10 +8775,11 @@ function _renderCadastroContatosInt() {
                 background: #15803d;
             }
             .cc-btn-addon.secondary {
-                background: #475569;
+                background: #eab308;
+                color: #fff;
             }
             .cc-btn-addon.secondary:hover {
-                background: #334155;
+                background: #ca8a04;
             }
             .cc-btn-addon.success {
                 background: #25d366;
@@ -10155,7 +10156,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-cli-razao" class="cc-input-modal" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCliente(this.value);}">
                                 <button type="button" onclick="window.modalBuscarCliente(document.getElementById('modal-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
-                                <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Cadastrar Novo Cliente"><i class="ph ph-plus-bold" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#eab308; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar Novo Cliente"><i class="ph ph-plus" style="font-size:0.95rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -10565,18 +10566,18 @@ window.modalBuscarCliente = async function(initialTerm = '') {
                     <!-- Title Bar -->
                     <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-user-focus" style="color:#16a34a; font-size:1.2rem;"></i> Selecionar Cliente</span>
-                        <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-bold"></i> Novo Cliente</button>
+                        <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus"></i> Novo Cliente</button>
                     </div>
                     <!-- Body Content -->
                     <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
                         <input type="text" id="submodal-search-cliente" value="${safeQ}" placeholder="Filtrar por razão social, nome fantasia, código ou CNPJ..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.submodalFiltrarClientes(this.value)">
-                        <div style="height:240px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="height:340px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:70px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:130px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:170px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
                                     </tr>
                                 </thead>
                                 <tbody id="submodal-cliente-tbody"></tbody>
@@ -10586,7 +10587,7 @@ window.modalBuscarCliente = async function(initialTerm = '') {
                 </div>
             `,
             showConfirmButton: false,
-            width: '560px',
+            width: '780px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
@@ -10600,22 +10601,26 @@ window.modalBuscarCliente = async function(initialTerm = '') {
             const tbody = document.getElementById('submodal-cliente-tbody');
             if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-            const query = normStr(term);
-            const filtered = !query ? clientes : clientes.filter(c => 
-                normStr(c.nome_razao_social).includes(query) ||
-                normStr(c.nome_fantasia).includes(query) ||
-                (c.codigo && c.codigo.toString().includes(query)) ||
-                (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
-            );
+            const query = normStr(term).trim();
+            const qDigits = String(term || '').replace(/\D/g, '');
+            const filtered = !query ? clientes : clientes.filter(c => {
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return normStr(c.nome_razao_social).includes(query) ||
+                    normStr(c.nome_fantasia).includes(query) ||
+                    (c.codigo && c.codigo.toString().toLowerCase().includes(query)) ||
+                    doc.includes(query) ||
+                    (qDigits && docDigits.includes(qDigits));
+            });
             if (filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" style="padding:1.2rem; text-align:center; color:#64748b;">Nenhum cliente encontrado. <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="margin-left:6px; background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:0.76rem; font-weight:600; cursor:pointer;">+ Cadastrar Cliente</button></td></tr>`;
                 return;
             }
             tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.modalSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6; white-space:nowrap;">${c.codigo}</td>
                     <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
-                    <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
+                    <td style="padding:0.5rem; text-align:left; color:#475569; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
                 </tr>
             `).join('');
         };
@@ -10837,7 +10842,7 @@ function _renderEnderecosInt() {
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-cli-razao" class="cc-input-end" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarCliente(this.value);}">
                             <button type="button" onclick="window.pageBuscarCliente(document.getElementById('page-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
-                            <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Cadastrar Novo Cliente"><i class="ph ph-plus-bold" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#eab308; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar Novo Cliente"><i class="ph ph-plus" style="font-size:1.05rem;"></i></button>
                         </div>
                     </div>
                     <div>
@@ -11255,17 +11260,17 @@ window.pageBuscarCliente = async function(initialTerm = '') {
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
                     <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:12px 16px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-user-focus" style="color:#16a34a; font-size:1.2rem;"></i> Selecionar Cliente</span>
-                        <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-bold"></i> Novo Cliente</button>
+                        <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus"></i> Novo Cliente</button>
                     </div>
                     <div style="padding:16px; display:flex; flex-direction:column; gap:10px; background:#f1f5f9;">
                         <input type="text" id="page-submodal-search-cliente" value="${safeQ}" placeholder="Filtrar por razão social, nome fantasia, código ou CNPJ..." style="width:100%; padding:0 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; height:38px; box-sizing:border-box; outline:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'" oninput="window.pageSubmodalFiltrarClientes(this.value)">
-                        <div style="height:240px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="height:340px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:60px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; text-align:center; width:70px; position:sticky; top:0; background:#f8fafc; z-index:1;">Cód</th>
                                         <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; position:sticky; top:0; background:#f8fafc; z-index:1;">Razão Social</th>
-                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:130px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
+                                        <th style="padding:10px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:170px; position:sticky; top:0; background:#f8fafc; z-index:1;">CNPJ</th>
                                     </tr>
                                 </thead>
                                 <tbody id="page-submodal-cliente-tbody"></tbody>
@@ -11275,7 +11280,7 @@ window.pageBuscarCliente = async function(initialTerm = '') {
                 </div>
             `,
             showConfirmButton: false,
-            width: '560px',
+            width: '780px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
@@ -11289,22 +11294,26 @@ window.pageBuscarCliente = async function(initialTerm = '') {
             const tbody = document.getElementById('page-submodal-cliente-tbody');
             if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-            const query = normStr(term);
-            const filtered = !query ? clientes : clientes.filter(c => 
-                normStr(c.nome_razao_social).includes(query) ||
-                normStr(c.nome_fantasia).includes(query) ||
-                (c.codigo && c.codigo.toString().includes(query)) ||
-                (c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query))
-            );
+            const query = normStr(term).trim();
+            const qDigits = String(term || '').replace(/\D/g, '');
+            const filtered = !query ? clientes : clientes.filter(c => {
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return normStr(c.nome_razao_social).includes(query) ||
+                    normStr(c.nome_fantasia).includes(query) ||
+                    (c.codigo && c.codigo.toString().toLowerCase().includes(query)) ||
+                    doc.includes(query) ||
+                    (qDigits && docDigits.includes(qDigits));
+            });
             if (filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" style="padding:1.2rem; text-align:center; color:#64748b;">Nenhum cliente encontrado. <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="margin-left:6px; background:#16a34a; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:0.76rem; font-weight:600; cursor:pointer;">+ Cadastrar Cliente</button></td></tr>`;
                 return;
             }
             tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
+                    <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6; white-space:nowrap;">${c.codigo}</td>
                     <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
-                    <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
+                    <td style="padding:0.5rem; text-align:left; color:#475569; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
                 </tr>
             `).join('');
         };
