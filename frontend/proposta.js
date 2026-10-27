@@ -5978,46 +5978,38 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
 };
 
 window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-centralizador', initialQuery = '') {
-    if (!_clientesCache || _clientesCache.length === 0) {
-        try {
-            _clientesCache = await apiGet('/clientes') || [];
-        } catch (e) {
-            console.error('Erro ao carregar clientes para centralizador:', e);
-            _clientesCache = [];
-        }
+    try {
+        await window.obterClientesCache();
+    } catch (e) {
+        console.error('Erro ao carregar clientes para centralizador:', e);
     }
     const existing = document.getElementById('centralizador-search-overlay');
     if (existing) existing.remove();
 
     const overlay = document.createElement('div');
     overlay.id = 'centralizador-search-overlay';
-    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:99999; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif;';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:99999; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif;';
     overlay.innerHTML = `
-        <div style="background:#fff; width:760px; max-width:95vw; border-radius:10px; box-shadow:0 20px 40px rgba(0,0,0,0.25); overflow:hidden; display:flex; flex-direction:column;">
-            <div style="padding:0.9rem 1.2rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:0.95rem; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-magnifying-glass" style="color:#7048e8;"></i> Pesquisar Cliente Centralizador
-                </span>
-                <button type="button" onclick="document.getElementById('centralizador-search-overlay')?.remove()" style="background:none; border:none; font-size:1.2rem; color:#64748b; cursor:pointer;">&times;</button>
+        <div style="background:#fff; width:780px; max-width:95vw; border-radius:8px; box-shadow:0 20px 40px rgba(0,0,0,0.25); padding:1.5rem 1.75rem; display:flex; flex-direction:column;">
+            <h2 style="margin:0 0 1.1rem 0; text-align:center; font-size:1.35rem; font-weight:700; color:#1e293b;">Pesquisar Cliente</h2>
+            <div style="margin-bottom:0.65rem; text-align:left;">
+                <input type="text" id="pesq-cent-input" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                <div id="pesq-cent-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
             </div>
-            <div style="padding:1rem 1.2rem;">
-                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <input type="text" id="pesq-cent-input" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="flex:1; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
-                    <button type="button" id="pesq-cent-clear" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.85rem; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">Limpar Seleção</button>
-                </div>
-                <div id="pesq-cent-info" style="font-size:0.75rem; color:#64748b; margin-bottom:0.5rem;"></div>
-                <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
-                                <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
-                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
-                                <th style="padding:0.5rem; text-align:left; width:160px;">CPF / CNPJ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pesq-cent-tbody"></tbody>
-                    </table>
-                </div>
+            <div style="max-height:380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
+                            <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
+                            <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                            <th style="padding:0.5rem; text-align:left; width:170px;">CPF / CNPJ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pesq-cent-tbody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:1.1rem; display:flex; justify-content:center; gap:0.5rem;">
+                <button type="button" onclick="document.getElementById('centralizador-search-overlay')?.remove()" style="background:#dc2626; color:#fff; border:none; padding:0.55rem 1.35rem; border-radius:6px; font-size:0.9rem; font-weight:600; cursor:pointer;">Fechar</button>
             </div>
         </div>
     `;
@@ -6027,7 +6019,6 @@ window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-cen
     const tbody = overlay.querySelector('#pesq-cent-tbody');
     const infoEl = overlay.querySelector('#pesq-cent-info');
     const inputEl = overlay.querySelector('#pesq-cent-input');
-    const clearBtn = overlay.querySelector('#pesq-cent-clear');
 
     window._selecionarCentralizador = function(val) {
         const target = document.getElementById(targetInputId);
@@ -6053,9 +6044,9 @@ window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-cen
             const label = `${c.codigo} - ${c.nome_razao_social || ''}`.replace(/'/g, "\\'");
             return `
                 <tr onclick="window._selecionarCentralizador('${label}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
-                    <td style="padding:0.5rem;">${c.nome_razao_social || ''}</td>
-                    <td style="padding:0.5rem;">${c.cpf_cnpj || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8; white-space:nowrap;">${c.codigo || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; white-space:nowrap;">${c.cpf_cnpj || ''}</td>
                 </tr>
             `;
         }).join('');
@@ -6063,7 +6054,6 @@ window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-cen
 
     inputEl.value = initialQuery || '';
     inputEl.addEventListener('input', (e) => renderRows(e.target.value));
-    clearBtn.addEventListener('click', () => window._selecionarCentralizador(''));
     renderRows(initialQuery || '');
     setTimeout(() => inputEl.focus(), 50);
 };
@@ -6082,7 +6072,7 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
     // Se o campo estiver vazio ao dar Enter ou clicar na lupa, mostra o spinner e abre a tela de pesquisa de cliente
     if (!raw) {
         try {
-            await new Promise(r => setTimeout(r, 40));
+            await new Promise(r => setTimeout(r, 30));
             await window.abrirModalPesquisaCentralizador(targetInputId, '');
         } finally {
             if (btn) {
@@ -6094,52 +6084,51 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
     }
 
     try {
+        await new Promise(r => setTimeout(r, 30));
         const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const qNorm = normStr(raw);
         const qDigits = raw.replace(/\D/g, '');
 
         const lista = await window.obterClientesCache();
 
-        let foundInternal = null;
+        let matches = [];
 
-        // 1. Busca exata por CPF ou CNPJ (apenas números, ignorando zeros à esquerda)
-        if (qDigits.length >= 10) {
+        // 1. Se já estiver no formato "CODIGO - NOME", busca pelo código exato
+        if (raw.includes(' - ')) {
+            const possibleCode = raw.split('-')[0].trim();
+            if (/^\d{1,7}$/.test(possibleCode)) {
+                matches = lista.filter(c => String(c.codigo) === possibleCode);
+            }
+        }
+
+        // 2. Busca exata por CPF ou CNPJ (apenas números, ignorando zeros à esquerda)
+        if (matches.length === 0 && qDigits.length >= 11 && qDigits.length === raw.replace(/[.\-\/\s]/g, '').length) {
             const qNoZero = qDigits.replace(/^0+/, '');
-            foundInternal = lista.find(c => {
+            matches = lista.filter(c => {
                 const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
                 return cDoc && (cDoc === qDigits || cDoc.replace(/^0+/, '') === qNoZero);
             });
         }
 
-        // 2. Busca exata por código ou formato "CODIGO - NOME"
-        if (!foundInternal) {
-            const possibleCode = raw.split('-')[0].trim();
-            if (/^\d{1,7}$/.test(possibleCode)) {
-                foundInternal = lista.find(c => String(c.codigo) === possibleCode);
-            }
-        }
-
-        // 3. Busca exata por Razão Social ou Nome Fantasia (sem acento)
-        if (!foundInternal && qNorm) {
-            foundInternal = lista.find(c =>
-                normStr(c.nome_razao_social) === qNorm ||
-                normStr(c.nome_fantasia) === qNorm
-            );
-        }
-
-        // 4. Busca parcial por Razão Social, Nome Fantasia ou CPF/CNPJ
-        if (!foundInternal && qNorm) {
-            foundInternal = lista.find(c => {
+        // 3. Busca geral por código, Razão Social, Nome Fantasia ou CPF/CNPJ parcial
+        if (matches.length === 0 && qNorm) {
+            matches = lista.filter(c => {
+                const cod = String(c.codigo || '').toLowerCase();
                 const razao = normStr(c.nome_razao_social);
                 const fant = normStr(c.nome_fantasia);
-                const docDigits = String(c.cpf_cnpj || '').replace(/\D/g, '');
-                return (razao && razao.includes(qNorm)) ||
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return cod === qNorm ||
+                       (razao && razao.includes(qNorm)) ||
                        (fant && fant.includes(qNorm)) ||
-                       (qDigits.length >= 6 && docDigits.includes(qDigits));
+                       doc.includes(qNorm) ||
+                       (qDigits.length >= 4 && docDigits.includes(qDigits));
             });
         }
 
-        if (foundInternal && inputEl) {
+        // Se houver um único cliente correspondente, preenche automaticamente
+        if (matches.length === 1 && inputEl) {
+            const foundInternal = matches[0];
             const nomeExib = foundInternal.nome_razao_social || foundInternal.nome_fantasia || '';
             inputEl.value = `${foundInternal.codigo} - ${nomeExib}`;
             if (typeof mostrarToastSucesso === 'function') {
@@ -6148,7 +6137,13 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
             return;
         }
 
-        // 5. Se for CNPJ de 14 dígitos não cadastrado internamente, tenta consultar na Receita Federal
+        // Se houver mais de um cliente correspondente, NÃO preenche e abre o popup igual ao Anexo 3
+        if (matches.length > 1) {
+            await window.abrirModalPesquisaCentralizador(targetInputId, raw);
+            return;
+        }
+
+        // Se for CNPJ de 14 dígitos não cadastrado internamente, tenta consultar na Receita Federal
         if (qDigits.length === 14) {
             try {
                 const result = await apiGet(`/consulta-cnpj/${qDigits}`);
@@ -6168,7 +6163,7 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
             }
         }
 
-        // 6. Apenas se não localizar cliente com as informações preenchidas, abre a tela de pesquisa
+        // Se não localizar cliente único, abre o popup de pesquisa com o texto digitado
         await window.abrirModalPesquisaCentralizador(targetInputId, raw);
     } catch (e) {
         console.error(e);
@@ -6209,7 +6204,7 @@ window.buscarCNPJ = async function() {
     // Se o campo estiver vazio ao dar Enter ou clicar na lupa, mostra o spinner e abre a tela de pesquisa de cliente
     if (!cnpjRaw) {
         try {
-            await new Promise(r => setTimeout(r, 40));
+            await new Promise(r => setTimeout(r, 30));
             await window.abrirModalPesquisaCliente('');
         } finally {
             if (btn) {
@@ -6221,36 +6216,42 @@ window.buscarCNPJ = async function() {
     }
 
     try {
+        await new Promise(r => setTimeout(r, 30));
         const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const lista = await window.obterClientesCache();
 
-        if (cnpj.length === 11) {
+        if (cnpj.length === 11 && cnpj.length === cnpjRaw.replace(/[.\-\/\s]/g, '').length) {
             const cnpjNoZero = cnpj.replace(/^0+/, '');
-            const found = lista.find(c => {
+            const matchesCpf = lista.filter(c => {
                 const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
                 return cDoc && (cDoc === cnpj || cDoc.replace(/^0+/, '') === cnpjNoZero);
             });
-            if (found) {
-                await window.carregarClienteParaEdicao(found.id);
+            if (matchesCpf.length === 1) {
+                await window.carregarClienteParaEdicao(matchesCpf[0].id);
                 return;
             }
             await window.abrirModalPesquisaCliente(cnpjRaw);
             return;
         }
 
-        if (cnpj.length !== 14) {
+        if (cnpj.length !== 14 || cnpj.length !== cnpjRaw.replace(/[.\-\/\s]/g, '').length) {
             const qNorm = normStr(cnpjRaw);
             const cnpjNoZero = cnpj.replace(/^0+/, '');
-            const found = lista.find(c => {
-                const cDoc = String(c.cpf_cnpj || '').replace(/\D/g, '');
-                return String(c.codigo) === cnpjRaw ||
-                    normStr(c.nome_razao_social) === qNorm ||
-                    normStr(c.nome_fantasia) === qNorm ||
+            const matches = lista.filter(c => {
+                const cod = String(c.codigo || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const cDoc = doc.replace(/\D/g, '');
+                return cod === qNorm ||
+                    (razao && razao.includes(qNorm)) ||
+                    (fant && fant.includes(qNorm)) ||
+                    doc.includes(qNorm) ||
                     (cnpjNoZero.length >= 9 && cDoc && cDoc.replace(/^0+/, '') === cnpjNoZero) ||
-                    (cnpj.length >= 6 && cDoc.includes(cnpj));
+                    (cnpj.length >= 4 && cDoc.includes(cnpj));
             });
-            if (found) {
-                await window.carregarClienteParaEdicao(found.id);
+            if (matches.length === 1) {
+                await window.carregarClienteParaEdicao(matches[0].id);
                 return;
             }
             await window.abrirModalPesquisaCliente(cnpjRaw);
@@ -6884,8 +6885,8 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             <input type="text" id="mcon-nome" value="${esc(c.nome)}" placeholder="Nome Completo" class="mcon-input">
                         </div>
                         <div class="mcon-field">
-                            <label>Celular</label>
-                            <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input">
+                            <label>Celular / WhatsApp *</label>
+                            <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input" required>
                         </div>
                         <div class="mcon-field">
                             <label>Telefone</label>
@@ -6917,7 +6918,11 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         </div>
                         <div class="mcon-field">
                             <label>Origem</label>
-                            <input type="text" id="mcon-origem" value="${esc(c.origem)}" class="mcon-input">
+                            <select id="mcon-origem" class="mcon-select">
+                                <option value="">-- Selecione --</option>
+                                ${['Google', 'Indicação', 'Instagram', 'Facebook', 'ChatGPT', 'Outros anúncios', 'Prospecção Ativa'].map(op => `<option value="${op}" ${c.origem === op ? 'selected' : ''}>${op}</option>`).join('')}
+                                ${c.origem && !['Google', 'Indicação', 'Instagram', 'Facebook', 'ChatGPT', 'Outros anúncios', 'Prospecção Ativa'].includes(c.origem) ? `<option value="${esc(c.origem)}" selected>${esc(c.origem)}</option>` : ''}
+                            </select>
                         </div>
                         <div class="mcon-field">
                             <label>Influenciador</label>
@@ -6932,13 +6937,13 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                             <input type="hidden" id="mcon-ramo-atividade" value="${esc(ramoRaw)}">
                             <div style="display:flex; align-items:center; gap:6px; height:28px; flex-wrap:wrap;">
                                 <label style="${pillStyle(isObra)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Obra
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💙Obra
                                 </label>
                                 <label style="${pillStyle(isEvento)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Evento
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💜Evento
                                 </label>
                                 <label style="${pillStyle(isOutros)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> Outros
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💧Outros
                                 </label>
                             </div>
                         </div>
@@ -7192,9 +7197,14 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
 
 window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = 'main') {
     const conNome = document.getElementById('mcon-nome')?.value.trim() || '';
+    const conCelular = document.getElementById('mcon-celular')?.value.trim() || '';
     const conEmail = document.getElementById('mcon-email')?.value.trim() || '';
     if (!conNome) {
         alert('Por favor, preencha o Nome do Contato.');
+        return;
+    }
+    if (!conCelular) {
+        alert('Por favor, preencha o Celular / WhatsApp do Contato.');
         return;
     }
 
@@ -7430,12 +7440,17 @@ window.encaminharNovoContato = async function(btnEl = null) {
 
 window.modalSalvarNovoContato = async function() {
     const conNome = (document.getElementById('mcon-nome')?.value || '').trim();
+    const conCelular = (document.getElementById('mcon-celular')?.value || '').trim();
     const conEmail = (document.getElementById('mcon-email')?.value || '').trim();
     const empCnpj = (document.getElementById('memp-cnpj')?.value || '').trim();
     const empRazao = (document.getElementById('memp-razao-social')?.value || '').trim();
 
     if (!conNome) {
         alert('Por favor, preencha o Nome do Contato.');
+        return;
+    }
+    if (!conCelular) {
+        alert('Por favor, preencha o Celular / WhatsApp do Contato.');
         return;
     }
     if (!empCnpj) {
@@ -8693,11 +8708,8 @@ function _renderCadastroContatosInt() {
                                 <input type="text" id="con-nome" placeholder="Nome Completo" class="cc-input">
                             </div>
                             <div class="cc-field">
-                                <label>Celular</label>
-                                <div class="cc-input-group">
-                                    <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" class="cc-input">
-                                    <button type="button" onclick="abrirWhatsAppContato()" class="cc-btn-addon success" title="WhatsApp"><i class="ph ph-whatsapp-logo" style="font-size: 1.2rem;"></i></button>
-                                </div>
+                                <label>Celular / WhatsApp *</label>
+                                <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" class="cc-input">
                             </div>
                             <div class="cc-field">
                                 <label>E-mail</label>
@@ -8725,7 +8737,16 @@ function _renderCadastroContatosInt() {
                             </div>
                             <div class="cc-field">
                                 <label>Origem</label>
-                                <input type="text" id="con-origem" class="cc-input">
+                                <select id="con-origem" class="cc-select">
+                                    <option value="">-- Selecione --</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Indicação">Indicação</option>
+                                    <option value="Instagram">Instagram</option>
+                                    <option value="Facebook">Facebook</option>
+                                    <option value="ChatGPT">ChatGPT</option>
+                                    <option value="Outros anúncios">Outros anúncios</option>
+                                    <option value="Prospecção Ativa">Prospecção Ativa</option>
+                                </select>
                             </div>
                             <div class="cc-field">
                                 <label>Influenciador</label>
@@ -8742,10 +8763,10 @@ function _renderCadastroContatosInt() {
                             <div class="cc-field">
                                 <label>Ramo de Atividade (pode selecionar mais de um)</label>
                                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; min-height:38px;">
-                                    ${['Obra', 'Evento', 'Outros'].map(op => `
+                                    ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
                                         <label style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
-                                            <input type="checkbox" class="con-ramo-chk" value="${op}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
-                                            ${op}
+                                            <input type="checkbox" class="con-ramo-chk" value="${op.val}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
+                                            ${op.label}
                                         </label>
                                     `).join('')}
                                 </div>
@@ -8770,16 +8791,16 @@ function _renderCadastroContatosInt() {
                                 <label>Cliente (Razão Social) *</label>
                                 <div class="cc-input-group">
                                     <input type="text" id="emp-codigo" readonly placeholder="Cód" class="cc-input" style="width: 80px; font-weight: bold; text-align: center;">
-                                    <input type="text" id="emp-razao-social" placeholder="Razão Social da Empresa" class="cc-input" oninput="atualizarClienteCentralizadorOptions()">
-                                    <button type="button" onclick="abrirModalPesquisaEmpresa()" class="cc-btn-addon" title="Buscar Empresa"><i class="ph ph-magnifying-glass"></i></button>
-                                    <button type="button" onclick="limparEmpresaCliente()" class="cc-btn-addon secondary" title="Nova Empresa"><i class="ph ph-plus"></i></button>
+                                    <input type="text" id="emp-razao-social" placeholder="Nome, CPF/CNPJ ou Razão Social" class="cc-input" oninput="atualizarClienteCentralizadorOptions()" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarEmpresaClienteContato('razao', document.getElementById('btn-busca-emp-razao'));}">
+                                    <button type="button" id="btn-busca-emp-razao" onclick="window.buscarEmpresaClienteContato('razao', this)" class="cc-btn-addon" title="Buscar Cliente"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="window.abrirTelaCadastroClienteDeContato()" class="cc-btn-addon secondary" title="Cadastrar Cliente"><i class="ph ph-plus"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
                                 <label>CNPJ *</label>
                                 <div class="cc-input-group">
-                                    <input type="text" id="emp-cnpj" placeholder="CNPJ da Empresa" class="cc-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); buscarCNPJContatos();}">
-                                    <button type="button" onclick="buscarCNPJContatos()" id="btn-busca-cnpj" class="cc-btn-addon" title="Buscar CNPJ no WebService"><i class="ph ph-magnifying-glass"></i></button>
+                                    <input type="text" id="emp-cnpj" placeholder="CPF, CNPJ ou Nome" class="cc-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarEmpresaClienteContato('cnpj', document.getElementById('btn-busca-cnpj'));}">
+                                    <button type="button" onclick="window.buscarEmpresaClienteContato('cnpj', this)" id="btn-busca-cnpj" class="cc-btn-addon" title="Buscar Cliente / CNPJ"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div class="cc-field">
@@ -8896,74 +8917,140 @@ function _renderCadastroContatosInt() {
     limparFormContato();
 }
 
-window.buscarCNPJContatos = async function() {
-    const cnpjRaw = document.getElementById('emp-cnpj')?.value || '';
-    const cnpj = cnpjRaw.replace(/\D/g, '');
-    if (cnpj.length !== 14) {
-        alert('Por favor, informe um CNPJ válido com 14 dígitos para buscar.');
-        return;
+window.abrirTelaCadastroClienteDeContato = function() {
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('comercial-clientes');
+    } else if (typeof window.switchPropostaTab === 'function') {
+        window.switchPropostaTab('cadastro-cliente');
     }
+    setTimeout(() => {
+        if (typeof window.switchAbaCliente === 'function') window.switchAbaCliente('cadastro');
+        if (typeof window.limparFormCliente === 'function') window.limparFormCliente();
+    }, 100);
+};
 
-    const btn = document.getElementById('btn-busca-cnpj');
-    const origText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
-    btn.disabled = true;
+window.buscarEmpresaClienteContato = async function(origem = 'razao', btnEl = null) {
+    const razaoRaw = (document.getElementById('emp-razao-social')?.value || '').trim();
+    const cnpjRaw = (document.getElementById('emp-cnpj')?.value || '').trim();
+    const raw = (origem === 'cnpj' ? (cnpjRaw || razaoRaw) : (razaoRaw || cnpjRaw)).trim();
+
+    const btn = btnEl || document.getElementById(origem === 'cnpj' ? 'btn-busca-cnpj' : 'btn-busca-emp-razao');
+    const origText = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        btn.disabled = true;
+    }
 
     try {
-        const result = await apiGet('/consulta-cnpj/' + cnpj);
-        if (!result || !result.data) {
-            throw new Error('Retorno inválido do servidor.');
+        await new Promise(r => setTimeout(r, 30));
+        if (!raw) {
+            await window.abrirModalPesquisaEmpresa('', null);
+            return;
         }
 
-        const data = result.data;
-        const source = result.source;
+        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const qNorm = normStr(raw);
+        const qDigits = raw.replace(/\D/g, '');
+        const lista = await window.obterClientesCache();
 
-        if (source === 'cnpjws') {
-            document.getElementById('emp-razao-social').value = data.razao_social || '';
-            document.getElementById('emp-site').value = data.estabelecimento?.nome_fantasia || '';
-            document.getElementById('emp-cep').value = data.estabelecimento?.cep || '';
+        let matches = [];
 
-            // Endereço
-            const logradouro = data.estabelecimento?.logradouro || '';
-            const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
-            const numero = data.estabelecimento?.numero || '';
-            const compl = data.estabelecimento?.complemento || '';
+        // 1. Busca exata por CPF/CNPJ (11 ou 14 dígitos quando o campo contém apenas documento)
+        if (qDigits.length >= 11 && qDigits.length === raw.replace(/[.\-\/\s]/g, '').length) {
+            const qNoZero = qDigits.replace(/^0+/, '');
+            matches = lista.filter(c => {
+                const cDoc = (c.cpf_cnpj || '').replace(/\D/g, '');
+                return cDoc && (cDoc === qDigits || cDoc.replace(/^0+/, '') === qNoZero);
+            });
+        }
 
-            document.getElementById('emp-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
-            document.getElementById('emp-bairro').value = data.estabelecimento?.bairro || '';
-            document.getElementById('emp-uf').value = data.estabelecimento?.estado?.sigla || '';
-            document.getElementById('emp-cidade').value = data.estabelecimento?.cidade?.nome || '';
+        // 2. Busca por nome/razão social, nome fantasia, código ou CPF/CNPJ parcial
+        if (matches.length === 0 && qNorm) {
+            matches = lista.filter(c => {
+                const cod = String(c.codigo || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return cod === qNorm ||
+                    (razao && razao.includes(qNorm)) ||
+                    (fant && fant.includes(qNorm)) ||
+                    doc.includes(qNorm) ||
+                    (qDigits.length >= 4 && docDigits.includes(qDigits));
+            });
+        }
 
-            if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
-                document.getElementById('emp-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
+        // Se houver um único cliente correspondente, preenche os dados do cliente automaticamente
+        if (matches.length === 1) {
+            await window.carregarEmpresaSelecionada(matches[0].id);
+            return;
+        }
+
+        // Se houver mais de um cliente correspondente, abre o popup largo com a lista filtrada
+        if (matches.length > 1) {
+            await window.abrirModalPesquisaEmpresa(raw, null);
+            return;
+        }
+
+        // Se não encontrou cliente interno e digitou um CNPJ de 14 dígitos, tenta importar da Receita Federal
+        if (qDigits.length === 14) {
+            try {
+                const result = await apiGet('/consulta-cnpj/' + qDigits);
+                if (result && result.data) {
+                    const data = result.data;
+                    const source = result.source;
+                    if (source === 'cnpjws') {
+                        document.getElementById('emp-razao-social').value = data.razao_social || '';
+                        document.getElementById('emp-site').value = data.estabelecimento?.nome_fantasia || '';
+                        document.getElementById('emp-cep').value = data.estabelecimento?.cep || '';
+                        const logradouro = data.estabelecimento?.logradouro || '';
+                        const tipoLogradouro = data.estabelecimento?.tipo_logradouro || '';
+                        const numero = data.estabelecimento?.numero || '';
+                        document.getElementById('emp-endereco').value = `${tipoLogradouro} ${logradouro}`.trim() + (numero ? ', ' + numero : '');
+                        document.getElementById('emp-bairro').value = data.estabelecimento?.bairro || '';
+                        document.getElementById('emp-uf').value = data.estabelecimento?.estado?.sigla || '';
+                        document.getElementById('emp-cidade').value = data.estabelecimento?.cidade?.nome || '';
+                        if (data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1) {
+                            document.getElementById('emp-telefone').value = `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}`;
+                        }
+                    } else {
+                        document.getElementById('emp-razao-social').value = data.razao_social || '';
+                        document.getElementById('emp-cep').value = data.cep || '';
+                        document.getElementById('emp-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
+                        document.getElementById('emp-bairro').value = data.bairro || '';
+                        document.getElementById('emp-uf').value = data.uf || '';
+                        document.getElementById('emp-cidade').value = data.municipio || '';
+                        if (data.ddd_telefone_1) {
+                            document.getElementById('emp-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
+                        }
+                    }
+                    document.getElementById('emp-cnpj').value = qDigits;
+                    await atualizarClienteCentralizadorOptions();
+                    if (typeof mostrarToastSucesso === 'function') {
+                        mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
+                    }
+                    return;
+                }
+            } catch (errCnpj) {
+                console.warn('CNPJ não localizado na Receita:', errCnpj);
             }
-
-        } else {
-            // Source: brasilapi
-            document.getElementById('emp-razao-social').value = data.razao_social || '';
-            document.getElementById('emp-cep').value = data.cep || '';
-            document.getElementById('emp-endereco').value = (data.logradouro || '') + (data.numero ? ', ' + data.numero : '');
-            document.getElementById('emp-bairro').value = data.bairro || '';
-            document.getElementById('emp-uf').value = data.uf || '';
-            document.getElementById('emp-cidade').value = data.municipio || '';
-
-            if (data.ddd_telefone_1) {
-                document.getElementById('emp-telefone').value = `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}`;
-            }
         }
 
-        await atualizarClienteCentralizadorOptions();
-
-        if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso('Dados do CNPJ importados com sucesso!');
-        }
-    } catch(e) {
+        // Caso não tenha encontrado nenhum, abre o popup de pesquisa preenchido com o texto digitado
+        await window.abrirModalPesquisaEmpresa(raw, null);
+    } catch (e) {
         console.error(e);
-        alert('Erro ao buscar CNPJ: ' + (e.message || 'Erro desconhecido.'));
+        await window.abrirModalPesquisaEmpresa(raw, null);
     } finally {
-        btn.innerHTML = origText;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
     }
+};
+
+window.buscarCNPJContatos = async function() {
+    return window.buscarEmpresaClienteContato('cnpj', document.getElementById('btn-busca-cnpj'));
 };
 
 window.buscarCEPContatos = async function() {
@@ -9093,56 +9180,82 @@ window.abrirModalPesquisaContato = async function(btnEl = null) {
     }
 };
 
-window.abrirModalPesquisaEmpresa = async function() {
+window.abrirModalPesquisaEmpresa = async function(initialQuery = '', btnEl = null) {
+    const origHtml = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        btnEl.disabled = true;
+    }
     try {
-        const empresas = await apiGet('/clientes');
+        const empresas = await window.obterClientesCache();
         if (!empresas || empresas.length === 0) {
             Swal.fire('Aviso', 'Nenhuma empresa cadastrada ainda.', 'info');
             return;
         }
-
-        const rowsHtml = empresas.map(c => `
-            <tr onclick="selectEmpresaPesquisa(${c.id})" class="swal-empresa-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social}</td>
-                <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj}</td>
-            </tr>
-        `).join('');
+        window._pesquisaEmpresasCache = empresas;
 
         window.selectEmpresaPesquisa = function(id) {
             Swal.close();
             carregarEmpresaSelecionada(id);
         };
 
-        window.filtrarEmpresasTabela = function() {
+        window.filtrarEmpresasTabela = function(termoOverride) {
+            const tbody = document.getElementById('swal-busca-empresa-tbody');
+            const infoEl = document.getElementById('swal-busca-empresa-info');
+            if (!tbody) return;
             const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-            const query = normStr(document.getElementById('swal-busca-empresa').value);
-            const rows = document.querySelectorAll('.swal-empresa-row');
-            rows.forEach(row => {
-                const text = normStr(row.innerText);
-                row.style.display = text.includes(query) ? '' : 'none';
+            const rawVal = termoOverride !== undefined ? termoOverride : (document.getElementById('swal-busca-empresa')?.value || '');
+            const q = normStr(String(rawVal || '').trim());
+            const qDigits = String(rawVal || '').replace(/\D/g, '');
+            const lista = window._pesquisaEmpresasCache || [];
+            const filtrados = !q ? lista : lista.filter(c => {
+                const cod = String(c.codigo || '').toLowerCase();
+                const razao = normStr(c.nome_razao_social);
+                const fant = normStr(c.nome_fantasia);
+                const doc = String(c.cpf_cnpj || '').toLowerCase();
+                const docDigits = doc.replace(/\D/g, '');
+                return cod.includes(q) || razao.includes(q) || fant.includes(q) || doc.includes(q) || (qDigits && docDigits.includes(qDigits));
             });
+            const exibidos = filtrados.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtrados.length} clientes`;
+            }
+            tbody.innerHTML = exibidos.map(c => `
+                <tr onclick="selectEmpresaPesquisa(${c.id})" class="swal-empresa-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8; white-space:nowrap;">${c.codigo || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; white-space:nowrap;">${c.cpf_cnpj || ''}</td>
+                </tr>
+            `).join('');
         };
 
         Swal.fire({
             title: 'Pesquisar Empresa Cliente',
+            width: '780px',
             html: `
-                <input type="text" id="swal-busca-empresa" oninput="filtrarEmpresasTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box;">
-                <div style="max-height:300px; overflow-y:auto;">
+                <div style="margin-bottom:0.65rem; text-align:left;">
+                    <input type="text" id="swal-busca-empresa" oninput="filtrarEmpresasTabela(this.value)" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="swal-busca-empresa-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                         <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1;">
-                                <th style="padding:0.5rem; text-align:left;">Código</th>
-                                <th style="padding:0.5rem; text-align:left;">Razão Social</th>
-                                <th style="padding:0.5rem; text-align:left;">CNPJ</th>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0;">
+                                <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left; width:170px;">CPF / CNPJ</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
+                        <tbody id="swal-busca-empresa-tbody"></tbody>
                     </table>
                 </div>
             `,
+            didOpen: () => {
+                const inp = document.getElementById('swal-busca-empresa');
+                if (inp && initialQuery) inp.value = initialQuery;
+                window.filtrarEmpresasTabela(initialQuery || '');
+                setTimeout(() => inp?.focus(), 50);
+            },
             showConfirmButton: false,
             showCancelButton: true,
             cancelButtonText: 'Fechar'
@@ -9150,12 +9263,20 @@ window.abrirModalPesquisaEmpresa = async function() {
     } catch (e) {
         console.error(e);
         alert('Erro ao carregar lista de empresas: ' + e.message);
+    } finally {
+        if (btnEl) {
+            btnEl.innerHTML = origHtml;
+            btnEl.disabled = false;
+        }
     }
 };
 
 window.carregarEmpresaSelecionada = async function(id) {
     try {
-        const c = await apiGet('/clientes/' + id);
+        let c = Array.isArray(_clientesCache) ? _clientesCache.find(item => String(item.id) === String(id)) : null;
+        if (!c) {
+            c = await apiGet('/clientes/' + id);
+        }
         if (!c) throw new Error('Empresa não encontrada.');
 
         _empresaSelecionadaId = c.id;
@@ -9285,7 +9406,17 @@ window.carregarContatoParaEdicao = async function(id) {
         }
         setVal('con-data-cadastro', dataCadContato);
         setVal('con-cargo', c.cargo || c.departamento || '');
-        setVal('con-origem', c.origem || '');
+        const origemEl = document.getElementById('con-origem');
+        if (origemEl) {
+            const origVal = c.origem || '';
+            if (origVal && !Array.from(origemEl.options || []).some(o => o.value === origVal)) {
+                const opt = document.createElement('option');
+                opt.value = origVal;
+                opt.textContent = origVal;
+                origemEl.appendChild(opt);
+            }
+            origemEl.value = origVal;
+        }
         setVal('con-influenciador', c.influenciador || '');
         setVal('con-ramo-atividade', c.ramo_atividade || '');
         const ramosArr = String(c.ramo_atividade || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -9428,13 +9559,18 @@ window.navegarContato = async function(direcao) {
 };
 
 window.salvarContato = async function() {
-    const conNome = document.getElementById('con-nome')?.value || '';
+    const conNome = (document.getElementById('con-nome')?.value || '').trim();
+    const conCelular = (document.getElementById('con-celular')?.value || '').trim();
     const conEmail = document.getElementById('con-email')?.value || '';
-    const empCnpj = document.getElementById('emp-cnpj')?.value || '';
-    const empRazao = document.getElementById('emp-razao-social')?.value || '';
+    const empCnpj = (document.getElementById('emp-cnpj')?.value || '').trim();
+    const empRazao = (document.getElementById('emp-razao-social')?.value || '').trim();
 
     if (!conNome) {
         alert('Por favor, preencha o Nome do Contato.');
+        return;
+    }
+    if (!conCelular) {
+        alert('Por favor, preencha o Celular / WhatsApp do Contato.');
         return;
     }
     if (!empCnpj) {
