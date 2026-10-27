@@ -40408,18 +40408,82 @@ app.delete('/api/clientes/:clienteId/anexos/:anexoId', authenticateToken, (req, 
   );
 });
 
+db.serialize(() => {
+  db.run("ALTER TABLE clientes_enderecos_entrega ADD COLUMN razao_social TEXT", () => {});
+  db.run("ALTER TABLE clientes_enderecos_entrega ADD COLUMN nome_fantasia TEXT", () => {});
+  db.run("ALTER TABLE clientes_enderecos_entrega ADD COLUMN data_cadastro TEXT", () => {});
+  db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='clientes_enderecos_entrega'", [], (err, row) => {
+    if (!err && row && row.sql && /FOREIGN KEY/i.test(row.sql)) {
+      db.serialize(() => {
+        db.run('PRAGMA foreign_keys=OFF');
+        db.run('BEGIN TRANSACTION');
+        db.run(`
+          CREATE TABLE IF NOT EXISTS clientes_enderecos_entrega_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cliente_id INTEGER DEFAULT 0,
+            sequencia INTEGER NOT NULL,
+            nome_local TEXT,
+            cpf_cnpj TEXT,
+            inscricao_estadual TEXT,
+            cep TEXT,
+            endereco TEXT,
+            numero TEXT,
+            complemento TEXT,
+            bairro TEXT,
+            uf TEXT,
+            municipio TEXT,
+            contato TEXT,
+            telefone TEXT,
+            ramal TEXT,
+            coordenadas TEXT,
+            razao_social TEXT,
+            nome_fantasia TEXT,
+            data_cadastro TEXT,
+            UNIQUE(cliente_id, sequencia)
+          )
+        `);
+        db.run(`
+          INSERT OR IGNORE INTO clientes_enderecos_entrega_new (
+            id, cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+            endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal,
+            coordenadas, razao_social, nome_fantasia, data_cadastro
+          )
+          SELECT
+            id, COALESCE(cliente_id, 0), sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+            endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal,
+            coordenadas, razao_social, nome_fantasia, data_cadastro
+          FROM clientes_enderecos_entrega
+        `);
+        db.run('DROP TABLE clientes_enderecos_entrega');
+        db.run('ALTER TABLE clientes_enderecos_entrega_new RENAME TO clientes_enderecos_entrega');
+        db.run('COMMIT', () => {
+          db.run('PRAGMA foreign_keys=ON');
+        });
+      });
+    }
+  });
+});
+
 // GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
 app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
   const clienteId = req.params.clienteId;
-  db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows || []);
-  });
+  if (clienteId === '0' || clienteId === 'all' || clienteId === 'null') {
+    db.all('SELECT * FROM clientes_enderecos_entrega ORDER BY sequencia ASC, id ASC', [], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    });
+  } else {
+    db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [clienteId], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    });
+  }
 });
 
 // POST /api/clientes/:clienteId/enderecos - Salvar ou atualizar endereço de entrega do cliente
 app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
-  const clienteId = req.params.clienteId;
+  const rawCliId = req.params.clienteId;
+  const clienteId = (!rawCliId || rawCliId === 'null' || rawCliId === 'undefined') ? 0 : (Number(rawCliId) || 0);
   const d = req.body;
   
   if (!d.sequencia) {
@@ -40428,8 +40492,9 @@ app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => 
 
   db.run(`INSERT INTO clientes_enderecos_entrega (
     cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
-    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas,
+    razao_social, nome_fantasia, data_cadastro
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(cliente_id, sequencia) DO UPDATE SET
     nome_local=excluded.nome_local,
     cpf_cnpj=excluded.cpf_cnpj,
@@ -40444,10 +40509,14 @@ app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => 
     contato=excluded.contato,
     telefone=excluded.telefone,
     ramal=excluded.ramal,
-    coordenadas=excluded.coordenadas`,
+    coordenadas=excluded.coordenadas,
+    razao_social=excluded.razao_social,
+    nome_fantasia=excluded.nome_fantasia,
+    data_cadastro=excluded.data_cadastro`,
   [
     clienteId, d.sequencia, d.nome_local, d.cpf_cnpj, d.inscricao_estadual, d.cep,
-    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal, d.coordenadas
+    d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio, d.contato, d.telefone, d.ramal, d.coordenadas,
+    d.razao_social || '', d.nome_fantasia || '', d.data_cadastro || ''
   ], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, id: this.lastID || d.id });
@@ -40456,8 +40525,8 @@ app.post('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => 
 
 // DELETE /api/clientes/:clienteId/enderecos/:id - Excluir endereço de entrega do cliente
 app.delete('/api/clientes/:clienteId/enderecos/:id', authenticateToken, (req, res) => {
-  const { clienteId, id } = req.params;
-  db.run('DELETE FROM clientes_enderecos_entrega WHERE cliente_id = ? AND id = ?', [clienteId, id], function(err) {
+  const { id } = req.params;
+  db.run('DELETE FROM clientes_enderecos_entrega WHERE id = ?', [id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     if (this.changes === 0) return res.status(404).json({ error: 'Endereço não encontrado.' });
     res.json({ success: true });
@@ -41364,10 +41433,35 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
 
 // DELETE /api/clientes/:id - Excluir cliente
 app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
-  db.run('DELETE FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
+  db.get('SELECT id, codigo FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, cliRow) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
-    res.json({ success: true });
+    if (!cliRow) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+    const targetId = cliRow.id;
+    db.all('SELECT id, r2_key, file_path FROM clientes_anexos WHERE cliente_id = ?', [targetId], async (errAnx, anxRows) => {
+      if (Array.isArray(anxRows) && anxRows.length > 0) {
+        const r2 = require('./utils/r2');
+        for (const anx of anxRows) {
+          try {
+            if (anx.r2_key && r2.isReady()) await r2.deleteFromR2(anx.r2_key);
+            if (anx.file_path && fs.existsSync(anx.file_path)) fs.unlinkSync(anx.file_path);
+          } catch (e) {
+            console.error('[CLIENTES] Erro ao remover anexo na exclusão do cliente:', e);
+          }
+        }
+      }
+
+      db.serialize(() => {
+        db.run('DELETE FROM clientes_anexos WHERE cliente_id = ?', [targetId], () => {});
+        db.run('DELETE FROM clientes_enderecos_entrega WHERE cliente_id = ?', [targetId], () => {});
+        db.run('UPDATE contatos SET cliente_id = NULL WHERE cliente_id = ?', [targetId], () => {});
+        db.run('DELETE FROM clientes WHERE id = ?', [targetId], function(delErr) {
+          if (delErr) return res.status(500).json({ error: delErr.message });
+          if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+          res.json({ success: true });
+        });
+      });
+    });
   });
 });
 

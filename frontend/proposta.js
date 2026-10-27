@@ -3266,26 +3266,6 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Cadastro -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                            <div onclick="window.modalToggleAccordion('modal-acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                                <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
-                                <span id="modal-acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
-                            </div>
-                            <div id="modal-acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                                    <div class="mcli-field">
-                                        <label>Usuário que Cadastrou</label>
-                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? ((client.criado_por && client.criado_por !== 'Administrador') ? client.criado_por : '') : window.obterNomeUsuarioLogado()}" readonly class="mcli-input mcli-readonly">
-                                    </div>
-                                    <div class="mcli-field">
-                                        <label>Data de Cadastro</label>
-                                        <input type="text" id="modal-cli-cad-data" value="${client && client.data_cadastro ? (client.data_cadastro.includes('-') ? client.data_cadastro.split('-').reverse().join('/') : client.data_cadastro) : hoje.split('-').reverse().join('/')}" readonly class="mcli-input mcli-readonly">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Parâmetros (Oculto) -->
                         <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -3360,6 +3340,26 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 </div>
                                 <div id="modal-cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
                                 <div id="modal-cli-anexos-salvos-container" style="margin-top:0.75rem;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Cadastro -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                                <span id="modal-acc-cadastro-arrow" style="transition:transform 0.2s;">▼</span>
+                            </div>
+                            <div id="modal-acc-cadastro" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="mcli-field">
+                                        <label>Usuário que Cadastrou</label>
+                                        <input type="text" id="modal-cli-cad-usuario" value="${client ? ((client.criado_por && client.criado_por !== 'Administrador') ? client.criado_por : '') : window.obterNomeUsuarioLogado()}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                    <div class="mcli-field">
+                                        <label>Data de Cadastro</label>
+                                        <input type="text" id="modal-cli-cad-data" value="${client && client.data_cadastro ? (client.data_cadastro.includes('-') ? client.data_cadastro.split('-').reverse().join('/') : client.data_cadastro) : hoje.split('-').reverse().join('/')}" readonly class="mcli-input mcli-readonly">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -5738,26 +5738,6 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Cadastro -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
-                        <div onclick="toggleAccordion('acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
-                            <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
-                            <span id="acc-cadastro-arrow" style="transition:transform 0.2s;">▶</span>
-                        </div>
-                        <div id="acc-cadastro" style="display:none; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                                <div>
-                                    <label class="prop-lbl">Usuário que Cadastrou</label>
-                                    <input type="text" id="cli-cad-usuario" value="${window.obterNomeUsuarioLogado()}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Data de Cadastro</label>
-                                    <input type="text" id="cli-cad-data" value="${hoje.split('-').reverse().join('/')}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Parâmetros (Oculto) -->
                     <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
@@ -5817,7 +5797,7 @@ function _renderCadastroClienteInt() {
                     <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-anexos')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                             <span>▼ Anexo de Arquivos <i class="ph ph-file-arrow-up"></i></span>
-                            <span id="acc-anexos-arrow" style="transition:transform 0.2s;">▶</span>
+                            <span id="acc-anexos-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
                         </div>
                         <div id="acc-anexos" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
                             <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
@@ -5834,6 +5814,26 @@ function _renderCadastroClienteInt() {
                             </div>
                             <div id="cli-anexos-pendentes-container" style="margin-top:0.5rem;"></div>
                             <div id="cli-anexos-salvos-container" style="margin-top:0.75rem;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Cadastro -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-cadastro')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▼ Cadastro <i class="ph ph-user-circle"></i></span>
+                            <span id="acc-cadastro-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-cadastro" style="display:block; padding:1rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                <div>
+                                    <label class="prop-lbl">Usuário que Cadastrou</label>
+                                    <input type="text" id="cli-cad-usuario" value="${window.obterNomeUsuarioLogado()}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label class="prop-lbl">Data de Cadastro</label>
+                                    <input type="text" id="cli-cad-data" value="${hoje.split('-').reverse().join('/')}" readonly style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;color:#475569;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -8830,14 +8830,14 @@ function _renderCadastroContatosInt() {
                         <div class="cc-grid cc-grid-contact-row1">
                             <div class="cc-field">
                                 <label>Código</label>
-                                <div class="cc-input-group">
-                                    <input type="text" id="con-codigo" readonly placeholder="" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
-                                    <button type="button" id="btn-pesq-contato-standalone" onclick="abrirModalPesquisaContato(this)" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
-                                </div>
+                                <input type="text" id="con-codigo" readonly placeholder="" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8; background: #f8fafc;">
                             </div>
                             <div class="cc-field">
                                 <label>Nome *</label>
-                                <input type="text" id="con-nome" placeholder="Nome Completo" class="cc-input">
+                                <div class="cc-input-group">
+                                    <input type="text" id="con-nome" placeholder="Nome Completo" class="cc-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.abrirModalPesquisaContato(document.getElementById('btn-pesq-contato-standalone'), this.value);}">
+                                    <button type="button" id="btn-pesq-contato-standalone" onclick="window.abrirModalPesquisaContato(this, document.getElementById('con-nome')?.value || '')" class="cc-btn-addon" title="Pesquisar Contato na Base"><i class="ph ph-magnifying-glass"></i></button>
+                                </div>
                             </div>
                             <div class="cc-field">
                                 <label>Celular / WhatsApp *</label>
@@ -9239,9 +9239,10 @@ window.abrirWhatsAppContato = function() {
     window.open(`https://wa.me/55${cleanCel}`, '_blank');
 };
 
-window.abrirModalPesquisaContato = async function(btnEl = null) {
+window.abrirModalPesquisaContato = async function(btnEl = null, initialQuery = null) {
     const btn = btnEl || document.getElementById('btn-pesq-contato-standalone');
     const origHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass"></i>';
+    const qInit = initialQuery !== null ? String(initialQuery).trim() : (document.getElementById('con-nome')?.value || '').trim();
     if (btn) {
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
         btn.disabled = true;
@@ -9274,6 +9275,10 @@ window.abrirModalPesquisaContato = async function(btnEl = null) {
                 normStr(c.cliente_nome).includes(query)
             );
             const exibidos = filtered.slice(0, 150);
+            if (exibidos.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum contato encontrado para a busca informada.</td></tr>`;
+                return;
+            }
             tbody.innerHTML = exibidos.map(c => `
                 <tr onclick="selectContatoPesquisa(${c.id})" class="swal-contato-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
@@ -9285,11 +9290,13 @@ window.abrirModalPesquisaContato = async function(btnEl = null) {
             `).join('');
         };
 
+        const safeQInit = qInit.replace(/"/g, '&quot;');
         Swal.fire({
             title: 'Pesquisar Contato',
+            width: '780px',
             html: `
-                <div style="text-align:left; font-family:'Inter', sans-serif; height:320px; display:flex; flex-direction:column;">
-                    <input type="text" id="swal-busca-contato" oninput="filtrarContatosTabela()" placeholder="Digite para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box; flex-shrink:0;">
+                <div style="text-align:left; font-family:'Inter', sans-serif; height:340px; display:flex; flex-direction:column;">
+                    <input type="text" id="swal-busca-contato" value="${safeQInit}" oninput="filtrarContatosTabela()" placeholder="Digite o nome, código, e-mail, celular ou empresa para filtrar..." style="width:100%; padding:0.5rem; margin-bottom:1rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.875rem; box-sizing:border-box; flex-shrink:0;">
                     <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
                         <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                             <thead>
@@ -9308,7 +9315,14 @@ window.abrirModalPesquisaContato = async function(btnEl = null) {
             `,
             didOpen: () => {
                 window.filtrarContatosTabela();
-                setTimeout(() => document.getElementById('swal-busca-contato')?.focus(), 50);
+                setTimeout(() => {
+                    const inp = document.getElementById('swal-busca-contato');
+                    if (inp) {
+                        inp.focus();
+                        const len = inp.value.length;
+                        try { inp.setSelectionRange(len, len); } catch(e) {}
+                    }
+                }, 50);
             },
             showConfirmButton: false,
             showCancelButton: true,
@@ -10080,22 +10094,19 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.8rem;">
                         <div>
                             <label class="prop-lbl-modal">Código</label>
-                            <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-cli-codigo" readonly class="cc-input-modal" style="text-align:center;">
-                                <button type="button" onclick="window.modalBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
-                            </div>
+                            <input type="text" id="modal-cli-codigo" readonly value="1" class="cc-input-modal" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Razão Social</label>
-                            <input type="text" id="modal-cli-razao" readonly class="cc-input-modal">
+                            <input type="text" id="modal-cli-razao" class="cc-input-modal" placeholder="Razão Social">
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Nome Fantasia</label>
-                            <input type="text" id="modal-cli-fantasia" readonly class="cc-input-modal">
+                            <input type="text" id="modal-cli-fantasia" class="cc-input-modal" placeholder="Nome Fantasia">
                         </div>
                         <div>
                             <label class="prop-lbl-modal">Data de Cadastro</label>
-                            <input type="text" id="modal-cli-data" readonly class="cc-input-modal" style="text-align:center;">
+                            <input type="text" id="modal-cli-data" readonly value="${new Date().toLocaleDateString('pt-BR')}" class="cc-input-modal" style="text-align:center; background:#f8fafc;">
                         </div>
                     </div>
 
@@ -10225,19 +10236,20 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
 
             if (matchedClient) {
                 window._modalSelectedClienteId = matchedClient.id;
-                document.getElementById('modal-cli-codigo').value = matchedClient.codigo || '';
+                document.getElementById('modal-cli-codigo').value = matchedClient.codigo || '1';
                 document.getElementById('modal-cli-razao').value = matchedClient.nome_razao_social || '';
                 document.getElementById('modal-cli-fantasia').value = matchedClient.nome_fantasia || '';
-                document.getElementById('modal-cli-data').value = matchedClient.data_cadastro ? matchedClient.data_cadastro.split('-').reverse().join('/') : '';
+                document.getElementById('modal-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : new Date().toLocaleDateString('pt-BR');
                 window.modalCarregarEnderecos(matchedClient.id);
             } else {
-                window.modalRenderEnderecos();
+                window.modalCarregarEnderecos(0);
             }
         }
     });
 };window.modalCarregarEnderecos = async function(clienteId) {
     try {
-        const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
+        const cid = clienteId || 0;
+        const res = await apiGet(`/clientes/${cid}/enderecos`) || [];
         window._modalEnderecos = res;
         window.modalRenderEnderecos();
         window.modalNovoEndereco();
@@ -10286,7 +10298,20 @@ window.modalCarregarEnderecoForm = function(idx) {
     if (!e) return;
 
     window._modalEnderecoEditandoId = e.id;
-    document.getElementById('modal-end-seq').value = e.sequencia || '1';
+    const seqNum = e.sequencia || (idx + 1);
+    document.getElementById('modal-end-seq').value = seqNum;
+    if (!window._modalSelectedClienteId && document.getElementById('modal-cli-codigo')) {
+        document.getElementById('modal-cli-codigo').value = seqNum;
+    }
+    if (e.razao_social && document.getElementById('modal-cli-razao')) {
+        document.getElementById('modal-cli-razao').value = e.razao_social;
+    }
+    if (e.nome_fantasia && document.getElementById('modal-cli-fantasia')) {
+        document.getElementById('modal-cli-fantasia').value = e.nome_fantasia;
+    }
+    if (e.data_cadastro && document.getElementById('modal-cli-data')) {
+        document.getElementById('modal-cli-data').value = e.data_cadastro;
+    }
     document.getElementById('modal-end-nome').value = e.nome_local || '';
     document.getElementById('modal-end-cnpj').value = e.cpf_cnpj || '';
     document.getElementById('modal-end-ie').value = e.inscricao_estadual || '';
@@ -10307,10 +10332,16 @@ window.modalNovoEndereco = function() {
     window._modalEnderecoEditandoId = null;
     let nextSeq = 1;
     if (window._modalEnderecos && window._modalEnderecos.length > 0) {
-        nextSeq = Math.max(...window._modalEnderecos.map(e => e.sequencia || 0)) + 1;
+        nextSeq = Math.max(...window._modalEnderecos.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
     }
 
     document.getElementById('modal-end-seq').value = nextSeq;
+    if (!window._modalSelectedClienteId && document.getElementById('modal-cli-codigo')) {
+        document.getElementById('modal-cli-codigo').value = nextSeq;
+    }
+    if (document.getElementById('modal-cli-data') && !document.getElementById('modal-cli-data').value) {
+        document.getElementById('modal-cli-data').value = new Date().toLocaleDateString('pt-BR');
+    }
     document.getElementById('modal-end-nome').value = '';
     document.getElementById('modal-end-cnpj').value = '';
     document.getElementById('modal-end-ie').value = '';
@@ -10328,12 +10359,9 @@ window.modalNovoEndereco = function() {
 };
 
 window.modalSalvarEndereco = async function() {
-    if (!window._modalSelectedClienteId) {
-        Swal.fire('Aviso', 'Selecione um cliente primeiro.', 'warning');
-        return;
-    }
+    const cid = window._modalSelectedClienteId || 0;
 
-    const seqVal = parseInt(document.getElementById('modal-end-seq').value);
+    const seqVal = parseInt(document.getElementById('modal-end-seq').value) || 1;
     const nomeVal = document.getElementById('modal-end-nome').value.trim();
     const cepVal = document.getElementById('modal-end-cep').value.trim();
     const ruaVal = document.getElementById('modal-end-rua').value.trim();
@@ -10387,16 +10415,19 @@ window.modalSalvarEndereco = async function() {
         coordenadas: document.getElementById('modal-end-coords').value.trim(),
         contato: document.getElementById('modal-end-contato').value.trim(),
         telefone: document.getElementById('modal-end-fone').value.trim(),
-        ramal: document.getElementById('modal-end-ramal').value.trim()
+        ramal: document.getElementById('modal-end-ramal').value.trim(),
+        razao_social: (document.getElementById('modal-cli-razao')?.value || '').trim(),
+        nome_fantasia: (document.getElementById('modal-cli-fantasia')?.value || '').trim(),
+        data_cadastro: (document.getElementById('modal-cli-data')?.value || '').trim()
     };
 
     try {
-        const res = await apiPost(`/clientes/${window._modalSelectedClienteId}/enderecos`, payload);
+        const res = await apiPost(`/clientes/${cid}/enderecos`, payload);
         if (res && res.success) {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
-            window.modalCarregarEnderecos(window._modalSelectedClienteId);
+            window.modalCarregarEnderecos(cid);
         } else {
             alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
@@ -10735,22 +10766,19 @@ function _renderEnderecosInt() {
                 <div class="cc-grid-end cc-grid-end-row1" style="margin-bottom: 1.5rem;">
                     <div>
                         <label class="prop-lbl-end">Código</label>
-                        <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-cli-codigo" readonly class="cc-input-end" style="text-align:center;">
-                            <button type="button" onclick="window.pageBuscarCliente()" style="background:#334155; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'" title="Buscar Cliente"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
-                        </div>
+                        <input type="text" id="page-cli-codigo" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold; color:#7048e8; background:#f8fafc;">
                     </div>
                     <div>
                         <label class="prop-lbl-end">Razão Social</label>
-                        <input type="text" id="page-cli-razao" readonly class="cc-input-end">
+                        <input type="text" id="page-cli-razao" class="cc-input-end" placeholder="Razão Social">
                     </div>
                     <div>
                         <label class="prop-lbl-end">Nome Fantasia</label>
-                        <input type="text" id="page-cli-fantasia" readonly class="cc-input-end">
+                        <input type="text" id="page-cli-fantasia" class="cc-input-end" placeholder="Nome Fantasia">
                     </div>
                     <div>
                         <label class="prop-lbl-end">Data de Cadastro</label>
-                        <input type="text" id="page-cli-data" readonly class="cc-input-end" style="text-align:center;">
+                        <input type="text" id="page-cli-data" readonly value="${new Date().toLocaleDateString('pt-BR')}" class="cc-input-end" style="text-align:center; background:#f8fafc;">
                     </div>
                 </div>
 
@@ -10882,25 +10910,26 @@ function _renderEnderecosInt() {
             const matchedClient = (clientes || []).find(c => c.nome_razao_social && c.nome_razao_social.trim() === clientName);
             if (matchedClient) {
                 window._pageSelectedClienteId = matchedClient.id;
-                document.getElementById('page-cli-codigo').value = matchedClient.codigo || '';
+                document.getElementById('page-cli-codigo').value = matchedClient.codigo || '1';
                 document.getElementById('page-cli-razao').value = matchedClient.nome_razao_social || '';
                 document.getElementById('page-cli-fantasia').value = matchedClient.nome_fantasia || '';
-                document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? matchedClient.data_cadastro.split('-').reverse().join('/') : '';
+                document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : new Date().toLocaleDateString('pt-BR');
                 window.pageCarregarEnderecos(matchedClient.id);
             } else {
-                window.pageRenderEnderecos();
+                window.pageCarregarEnderecos(0);
             }
         }).catch(err => {
             console.error(err);
-            window.pageRenderEnderecos();
+            window.pageCarregarEnderecos(0);
         });
     } else {
-        window.pageRenderEnderecos();
+        window.pageCarregarEnderecos(0);
     }
 }
 window.pageCarregarEnderecos = async function(clienteId) {
     try {
-        const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
+        const cid = clienteId || 0;
+        const res = await apiGet(`/clientes/${cid}/enderecos`) || [];
         window._pageEnderecos = res;
         window.pageRenderEnderecos();
         window.pageNovoEndereco();
@@ -10944,7 +10973,20 @@ window.pageCarregarEnderecoForm = function(idx) {
     if (!e) return;
 
     window._pageEnderecoEditandoId = e.id;
-    document.getElementById('page-end-seq').value = e.sequencia || '1';
+    const seqNum = e.sequencia || (idx + 1);
+    document.getElementById('page-end-seq').value = seqNum;
+    if (!window._pageSelectedClienteId && document.getElementById('page-cli-codigo')) {
+        document.getElementById('page-cli-codigo').value = seqNum;
+    }
+    if (e.razao_social && document.getElementById('page-cli-razao')) {
+        document.getElementById('page-cli-razao').value = e.razao_social;
+    }
+    if (e.nome_fantasia && document.getElementById('page-cli-fantasia')) {
+        document.getElementById('page-cli-fantasia').value = e.nome_fantasia;
+    }
+    if (e.data_cadastro && document.getElementById('page-cli-data')) {
+        document.getElementById('page-cli-data').value = e.data_cadastro;
+    }
     document.getElementById('page-end-nome').value = e.nome_local || '';
     document.getElementById('page-end-cnpj').value = e.cpf_cnpj || '';
     document.getElementById('page-end-ie').value = e.inscricao_estadual || '';
@@ -10965,10 +11007,16 @@ window.pageNovoEndereco = function() {
     window._pageEnderecoEditandoId = null;
     let nextSeq = 1;
     if (window._pageEnderecos && window._pageEnderecos.length > 0) {
-        nextSeq = Math.max(...window._pageEnderecos.map(e => e.sequencia || 0)) + 1;
+        nextSeq = Math.max(...window._pageEnderecos.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
     }
 
     document.getElementById('page-end-seq').value = nextSeq;
+    if (!window._pageSelectedClienteId && document.getElementById('page-cli-codigo')) {
+        document.getElementById('page-cli-codigo').value = nextSeq;
+    }
+    if (document.getElementById('page-cli-data') && !document.getElementById('page-cli-data').value) {
+        document.getElementById('page-cli-data').value = new Date().toLocaleDateString('pt-BR');
+    }
     document.getElementById('page-end-nome').value = '';
     document.getElementById('page-end-cnpj').value = '';
     document.getElementById('page-end-ie').value = '';
@@ -10986,12 +11034,9 @@ window.pageNovoEndereco = function() {
 };
 
 window.pageSalvarEndereco = async function() {
-    if (!window._pageSelectedClienteId) {
-        Swal.fire('Aviso', 'Selecione um cliente primeiro.', 'warning');
-        return;
-    }
+    const cid = window._pageSelectedClienteId || 0;
 
-    const seqVal = parseInt(document.getElementById('page-end-seq').value);
+    const seqVal = parseInt(document.getElementById('page-end-seq').value) || 1;
     const nomeVal = document.getElementById('page-end-nome').value.trim();
     const cepVal = document.getElementById('page-end-cep').value.trim();
     const ruaVal = document.getElementById('page-end-rua').value.trim();
@@ -11045,16 +11090,19 @@ window.pageSalvarEndereco = async function() {
         coordenadas: document.getElementById('page-end-coords').value.trim(),
         contato: document.getElementById('page-end-contato').value.trim(),
         telefone: document.getElementById('page-end-fone').value.trim(),
-        ramal: document.getElementById('page-end-ramal').value.trim()
+        ramal: document.getElementById('page-end-ramal').value.trim(),
+        razao_social: (document.getElementById('page-cli-razao')?.value || '').trim(),
+        nome_fantasia: (document.getElementById('page-cli-fantasia')?.value || '').trim(),
+        data_cadastro: (document.getElementById('page-cli-data')?.value || '').trim()
     };
 
     try {
-        const res = await apiPost(`/clientes/${window._pageSelectedClienteId}/enderecos`, payload);
+        const res = await apiPost(`/clientes/${cid}/enderecos`, payload);
         if (res && res.success) {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
-            window.pageCarregarEnderecos(window._pageSelectedClienteId);
+            window.pageCarregarEnderecos(cid);
         } else {
             alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
@@ -11073,12 +11121,13 @@ window.pageExcluirEndereco = async function(idx) {
     }
 
     try {
-        const res = await apiDelete(`/clientes/${window._pageSelectedClienteId}/enderecos/${e.id}`);
+        const cid = window._pageSelectedClienteId || 0;
+        const res = await apiDelete(`/clientes/${cid}/enderecos/${e.id}`);
         if (res && res.success) {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Endereço excluído com sucesso!');
             }
-            window.pageCarregarEnderecos(window._pageSelectedClienteId);
+            window.pageCarregarEnderecos(cid);
         }
     } catch(err) {
         console.error(err);
@@ -15234,6 +15283,12 @@ window.pageBuscarPorCNPJLocal = async function() {
 
         if (source === 'cnpjws') {
             document.getElementById('page-end-nome').value = data.estabelecimento?.nome_fantasia || data.razao_social || '';
+            if (document.getElementById('page-cli-razao') && !document.getElementById('page-cli-razao').value) {
+                document.getElementById('page-cli-razao').value = data.razao_social || '';
+            }
+            if (document.getElementById('page-cli-fantasia') && !document.getElementById('page-cli-fantasia').value) {
+                document.getElementById('page-cli-fantasia').value = data.estabelecimento?.nome_fantasia || data.razao_social || '';
+            }
             document.getElementById('page-end-cep').value = formatCEP(data.estabelecimento?.cep) || '';
 
             const logradouro = data.estabelecimento?.logradouro || '';
@@ -15265,7 +15320,13 @@ window.pageBuscarPorCNPJLocal = async function() {
             }
         } else {
             // brasilapi
-            document.getElementById('page-end-nome').value = data.razao_social || '';
+            document.getElementById('page-end-nome').value = data.nome_fantasia || data.razao_social || '';
+            if (document.getElementById('page-cli-razao') && !document.getElementById('page-cli-razao').value) {
+                document.getElementById('page-cli-razao').value = data.razao_social || '';
+            }
+            if (document.getElementById('page-cli-fantasia') && !document.getElementById('page-cli-fantasia').value) {
+                document.getElementById('page-cli-fantasia').value = data.nome_fantasia || data.razao_social || '';
+            }
             document.getElementById('page-end-cep').value = formatCEP(data.cep) || '';
             document.getElementById('page-end-rua').value = data.logradouro || '';
             document.getElementById('page-end-num').value = data.numero || '';
