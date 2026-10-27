@@ -33514,37 +33514,49 @@ app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
 
 // GET /api/estoque-equipamentos/modelo-xlsx
 app.get('/api/estoque-equipamentos/modelo-xlsx', authenticateToken, (req, res) => {
-    try {
-        const XLSX = require('xlsx');
-        const dadosModelo = [
-            {
-                'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
-                'Unidade de medida': 'UNIDADE [UN]',
-                'Grupo': 'PCD',
-                'Fonte de fornecimento': 'PACOTE OBRA',
-                'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.'
-            },
-            {
-                'Nome': 'LAVATÓRIO PORTÁTIL DUPLO',
-                'Unidade de medida': 'UNIDADE [UN]',
-                'Grupo': 'LAVATÓRIOS',
-                'Fonte de fornecimento': 'PRÓPRIO AVULSO',
-                'Texto técnico': 'Lavatório portátil com acionamento por pedal.'
-            }
-        ];
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(dadosModelo);
-        ws['!cols'] = [
-            { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 45 }
-        ];
-        XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
-        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="modelo_importacao_equipamentos.xlsx"');
-        res.send(buf);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+    const sql = 'SELECT * FROM estoque_equipamentos ORDER BY CAST(REPLACE(REPLACE(UPPER(codigo), "EQ-", ""), "EQ", "") AS INTEGER) ASC, id ASC';
+    db.all(sql, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        try {
+            const XLSX = require('xlsx');
+            const lista = Array.isArray(rows) && rows.length > 0
+                ? rows.map(r => ({
+                    'Código': r.codigo || String(r.id || '').padStart(5, '0'),
+                    'Nome': r.nome || '',
+                    'Unidade de medida': r.unidade_medida || 'UNIDADE [UN]',
+                    'Grupo': r.grupo_produto || 'ACESSÓRIO',
+                    'Fonte de fornecimento': r.fonte_fornecimento || 'PACOTE OBRA',
+                    'Texto técnico': r.especificacao_tecnica || '',
+                    'Venda - Sim ou Não': r.produto_venda ? 'Sim' : 'Não',
+                    'Estoque ou Produto': (String(r.tipo_item || 'matriz').trim().toLowerCase() === 'estoque') ? 'Estoque' : 'Produto'
+                }))
+                : [
+                    {
+                        'Código': '00001',
+                        'Nome': 'CABINE SANITÁRIA STANDARD AZUL',
+                        'Unidade de medida': 'UNIDADE [UN]',
+                        'Grupo': 'PCD',
+                        'Fonte de fornecimento': 'PACOTE OBRA',
+                        'Texto técnico': 'Cabine sanitária em polietileno de alta densidade.',
+                        'Venda - Sim ou Não': 'Não',
+                        'Estoque ou Produto': 'Produto'
+                    }
+                ];
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(lista);
+            ws['!cols'] = [
+                { wch: 12 }, { wch: 38 }, { wch: 22 }, { wch: 22 }, { wch: 26 }, { wch: 45 }, { wch: 18 }, { wch: 18 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
+            const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="equipamentos_cadastrados_modelo.xlsx"');
+            res.send(buf);
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
 });
 
 // POST /api/estoque-equipamentos/importar
@@ -33571,14 +33583,30 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
 
         const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
-        // Buscar registros existentes para identificar duplicados e calcular próximo código 00001
+        // Buscar registros existentes para identificar duplicados, calcular próximo código 00001 e apagar os ausentes na planilha
         db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errAll, existentes) => {
             if (errAll) return res.status(500).json({ error: errAll.message });
 
-            const mapaExistentes = new Map();
+            const normalizarCodigoChave = (val) => {
+                const raw = String(val ?? '').trim();
+                if (!raw) return '';
+                const m = raw.match(/(\d+)/);
+                if (m) return String(parseInt(m[1], 10)).padStart(5, '0');
+                return raw.toUpperCase();
+            };
+
+            const mapaPorNome = new Map();
+            const mapaPorCodigo = new Map();
+            const codigosOcupados = new Set();
             let maxNum = 0;
+
             (existentes || []).forEach(r => {
-                if (r.nome) mapaExistentes.set(String(r.nome).trim().toLowerCase(), r);
+                if (r.nome) mapaPorNome.set(String(r.nome).trim().toLowerCase(), r);
+                const codNorm = normalizarCodigoChave(r.codigo);
+                if (codNorm) {
+                    mapaPorCodigo.set(codNorm, r);
+                    codigosOcupados.add(codNorm);
+                }
                 const m = String(r.codigo || '').match(/(\d+)/);
                 if (m) {
                     const n = parseInt(m[1], 10);
@@ -33605,15 +33633,18 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
 
             const mapaNovos = new Map();
             const mapaAtualizar = new Map();
+            const idsPresentesNaPlanilha = new Set();
             let linhasVazias = 0;
 
             for (const row of rawRows) {
+                const codigoRaw = lerColuna(row, ['codigo', 'cod', 'numero de cadastro', 'n cadastro', 'num cadastro', 'cadastro']);
                 const nomeVal = String(lerColuna(row, ['nome', 'equipamento', 'produto', 'descricao', 'nome do equipamento']) || '').trim();
                 if (!nomeVal) {
                     linhasVazias++;
                     continue;
                 }
                 const nomeKey = nomeVal.toLowerCase();
+                const codKey = normalizarCodigoChave(codigoRaw);
 
                 const unidRaw = lerColuna(row, ['unidade de medida', 'unidade', 'unid', 'um', 'medida']);
                 const grupoRaw = lerColuna(row, ['grupo', 'grupo de produto']);
@@ -33632,18 +33663,35 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                     tipo_item: normalizarTipoItemEquipamento(tipoRaw)
                 };
 
-                if (mapaExistentes.has(nomeKey)) {
-                    const regExist = mapaExistentes.get(nomeKey);
-                    mapaAtualizar.set(nomeKey, {
+                // Prioriza vínculo por Nome se já existir; senão tenta pelo Código de cadastro
+                let regExist = mapaPorNome.get(nomeKey) || (codKey ? mapaPorCodigo.get(codKey) : null);
+
+                if (regExist) {
+                    idsPresentesNaPlanilha.add(regExist.id);
+                    mapaAtualizar.set(regExist.id, {
                         id: regExist.id,
                         codigo: regExist.codigo,
                         ...dadosNorm
                     });
                 } else {
                     if (!mapaNovos.has(nomeKey)) {
-                        maxNum++;
-                        const codigo = String(maxNum).padStart(5, '0');
-                        mapaNovos.set(nomeKey, { codigo, ...dadosNorm });
+                        let codigoNovo = '';
+                        if (codKey && !codigosOcupados.has(codKey)) {
+                            codigoNovo = codKey;
+                            codigosOcupados.add(codigoNovo);
+                            const mCod = codigoNovo.match(/(\d+)/);
+                            if (mCod) {
+                                const nCod = parseInt(mCod[1], 10);
+                                if (nCod > maxNum) maxNum = nCod;
+                            }
+                        } else {
+                            do {
+                                maxNum++;
+                                codigoNovo = String(maxNum).padStart(5, '0');
+                            } while (codigosOcupados.has(codigoNovo));
+                            codigosOcupados.add(codigoNovo);
+                        }
+                        mapaNovos.set(nomeKey, { codigo: codigoNovo, ...dadosNorm });
                     } else {
                         const prev = mapaNovos.get(nomeKey);
                         mapaNovos.set(nomeKey, { codigo: prev.codigo, ...dadosNorm });
@@ -33653,7 +33701,9 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
 
             const itensParaInserir = Array.from(mapaNovos.values());
             const itensParaAtualizar = Array.from(mapaAtualizar.values());
+            const itensParaExcluir = (existentes || []).filter(r => !idsPresentesNaPlanilha.has(r.id));
             const duplicadosNomes = itensParaAtualizar.map(x => x.nome);
+            const excluidosNomes = itensParaExcluir.map(x => `${x.codigo ? x.codigo + ' - ' : ''}${x.nome}`);
 
             if (itensParaInserir.length === 0 && itensParaAtualizar.length === 0) {
                 return res.status(400).json({
@@ -33661,30 +33711,23 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                 });
             }
 
-            // Se existem equipamentos com mesmo nome e o usuário ainda não escolheu o que fazer, perguntar primeiro
+            // Se existem equipamentos já cadastrados e o usuário ainda não escolheu o que fazer, perguntar primeiro
             if (itensParaAtualizar.length > 0 && !modoDuplicados) {
                 return res.json({
                     requires_confirmation: true,
                     novos_count: itensParaInserir.length,
                     duplicados_count: itensParaAtualizar.length,
-                    duplicados_nomes: duplicadosNomes.slice(0, 30)
-                });
-            }
-
-            if (modoDuplicados === 'ignorar' && itensParaInserir.length === 0) {
-                return res.json({
-                    success: true,
-                    importados: 0,
-                    atualizados: 0,
-                    ignorados_duplicados: duplicadosNomes.length,
-                    duplicados_nomes: duplicadosNomes.slice(0, 20),
-                    linhas_vazias: linhasVazias
+                    duplicados_nomes: duplicadosNomes.slice(0, 30),
+                    excluidos_count: itensParaExcluir.length,
+                    excluidos_nomes: excluidosNomes.slice(0, 30)
                 });
             }
 
             const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
             let inseridos = 0;
             let atualizados = 0;
+            let excluidos = 0;
+            let idxDel = 0;
             let idxIns = 0;
             let idxUpd = 0;
 
@@ -33693,6 +33736,8 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                     success: true,
                     importados: inseridos,
                     atualizados: atualizados,
+                    excluidos: excluidos,
+                    excluidos_nomes: excluidosNomes.slice(0, 30),
                     ignorados_duplicados: modoDuplicados === 'atualizar' ? 0 : duplicadosNomes.length,
                     duplicados_nomes: modoDuplicados === 'atualizar' ? [] : duplicadosNomes.slice(0, 20),
                     linhas_vazias: linhasVazias
@@ -33706,12 +33751,12 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                 const up = itensParaAtualizar[idxUpd++];
                 db.run(
                     `UPDATE estoque_equipamentos SET
-                        unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                        especificacao_tecnica = ?, updated_at = ?
+                        nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
+                        especificacao_tecnica = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
                      WHERE id = ?`,
                     [
-                        up.unidade_medida, up.fonte_fornecimento, up.grupo_produto,
-                        up.especificacao_tecnica, agora, up.id
+                        up.nome, up.unidade_medida, up.fonte_fornecimento, up.grupo_produto,
+                        up.especificacao_tecnica, up.produto_venda, up.tipo_item, agora, up.id
                     ],
                     function(errUpd) {
                         if (!errUpd) atualizados++;
@@ -33741,7 +33786,22 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
                 );
             };
 
-            inserirProximo();
+            const excluirProximo = () => {
+                if (idxDel >= itensParaExcluir.length) {
+                    return inserirProximo();
+                }
+                const delItem = itensParaExcluir[idxDel++];
+                db.run(
+                    'DELETE FROM estoque_equipamentos WHERE id = ?',
+                    [delItem.id],
+                    function(errDel) {
+                        if (!errDel) excluidos++;
+                        excluirProximo();
+                    }
+                );
+            };
+
+            excluirProximo();
         });
     } catch (err) {
         return res.status(500).json({ error: 'Erro ao processar planilha: ' + err.message });

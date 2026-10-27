@@ -2875,7 +2875,7 @@ window.baixarModeloPlanilhaEquipamentos = async function() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'modelo_importacao_equipamentos.xlsx';
+        a.download = 'equipamentos_cadastrados_modelo.xlsx';
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -2913,11 +2913,15 @@ window._executarUploadPlanilhaEquipamentos = async function(file, modoDuplicados
     if (data.requires_confirmation) {
         const dupCount = data.duplicados_count || 0;
         const novosCount = data.novos_count || 0;
+        const excCount = data.excluidos_count || 0;
         const listaPreview = Array.isArray(data.duplicados_nomes) && data.duplicados_nomes.length > 0
-            ? '<div style="max-height:120px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#92400e;margin-top:8px;text-align:left;">' +
+            ? '<div style="max-height:110px;overflow-y:auto;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;font-size:0.78rem;color:#92400e;margin-top:8px;text-align:left;">' +
                 data.duplicados_nomes.join('<br>') +
                 (dupCount > data.duplicados_nomes.length ? '<br><i>... e mais ' + (dupCount - data.duplicados_nomes.length) + ' equipamento(s)</i>' : '') +
               '</div>'
+            : '';
+        const avisoExcluidos = excCount > 0
+            ? '<p style="margin:8px 0 0;color:#dc2626;font-size:0.84rem;"><b>Equipamentos ausentes na planilha que serão apagados do sistema:</b> ' + excCount + '</p>'
             : '';
 
         const escolha = await Swal.fire({
@@ -2925,13 +2929,14 @@ window._executarUploadPlanilhaEquipamentos = async function(file, modoDuplicados
             title: 'Equipamentos já existentes encontrados',
             width: 560,
             html: '<div style="text-align:left;font-size:0.9rem;color:#334155;line-height:1.5;">' +
-                '<p style="margin:0 0 8px;">Foram encontrados <b>' + dupCount + ' equipamento(s)</b> na planilha com nomes que já estão cadastrados no sistema' +
+                '<p style="margin:0 0 8px;">Foram encontrados <b>' + dupCount + ' equipamento(s)</b> na planilha que já estão cadastrados no sistema' +
                 (novosCount > 0 ? ' (e <b>' + novosCount + ' novo(s)</b>).' : '.') + '</p>' +
-                '<p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Gostaria de editar/atualizar os equipamentos que já existem com as novas informações da planilha?</p>' +
+                avisoExcluidos +
+                '<p style="margin:8px 0 6px;font-weight:700;color:#0f172a;">Gostaria de editar/atualizar os equipamentos que já existem com as novas informações da planilha?</p>' +
                 listaPreview +
                 '</div>',
             showCancelButton: true,
-            showDenyButton: novosCount > 0,
+            showDenyButton: novosCount > 0 || excCount > 0,
             confirmButtonColor: '#0f766e',
             denyButtonColor: '#64748b',
             confirmButtonText: 'Sim, atualizar existentes',
@@ -2954,6 +2959,9 @@ window._executarUploadPlanilhaEquipamentos = async function(file, modoDuplicados
         '<p style="margin:0 0 8px;"><b>Novos equipamentos importados:</b> <span style="color:#16a34a;font-weight:800;">' + (data.importados || 0) + '</span></p>';
     if (data.atualizados > 0) {
         msgHtml += '<p style="margin:0 0 8px;"><b>Equipamentos existentes atualizados:</b> <span style="color:#2563eb;font-weight:800;">' + data.atualizados + '</span></p>';
+    }
+    if (data.excluidos > 0) {
+        msgHtml += '<p style="margin:0 0 8px;"><b>Equipamentos apagados (não estavam na planilha):</b> <span style="color:#dc2626;font-weight:800;">' + data.excluidos + '</span></p>';
     }
     if (data.ignorados_duplicados > 0) {
         msgHtml += '<p style="margin:0 0 6px;color:#b45309;"><b>Ignorados por nome já existente:</b> ' + data.ignorados_duplicados + '</p>';
@@ -2982,12 +2990,16 @@ window.abrirModalImportarEquipamentos = async function() {
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
                     <div style="font-weight:700;color:#166534;margin-bottom:6px;">Colunas esperadas na planilha (.xlsx):</div>
                     <ul style="margin:0;padding-left:18px;color:#15803d;line-height:1.55;font-size:0.82rem;">
+                        <li><b>Código</b> (número de cadastro do equipamento — ex: 00001; deixe em branco para novos)</li>
                         <li><b>Nome</b> (obrigatório — se já existir, o sistema perguntará se deseja atualizar)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
                         <li><b>Grupo</b> (ACESSÓRIO, AVARIA, BRINQUEDOS, CONTAINER, CONTENÇÃO, ESTRUTURAS, LAVATÓRIOS, MICTÓRIO, MOBILIÁRIO, PCD, PISOS, SERVIÇOS, TENDA, VIP)</li>
                         <li><b>Fonte de fornecimento</b> (PACOTE OBRA, PRÓPRIO AVULSO, PARCEIROS)</li>
                         <li><b>Texto técnico</b> (Especificação técnica)</li>
                     </ul>
+                    <div style="margin-top:8px;font-size:0.78rem;color:#b91c1c;font-weight:600;">
+                        * Atenção: Equipamentos cadastrados no sistema que não estiverem na planilha importada serão apagados.
+                    </div>
                     <div style="margin-top:10px;">
                         <button type="button" onclick="window.baixarModeloPlanilhaEquipamentos()" style="background:#fff;color:#0f766e;border:1px solid #0f766e;border-radius:6px;padding:5px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
                             <i class="ph ph-download-simple"></i> Baixar Planilha Modelo (.xlsx)
