@@ -969,8 +969,12 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'cadastro-cliente' && viewCadastroCliente.innerHTML.trim() === '') {
             _renderCadastroClienteInt();
         }
-        if (tab === 'cadastro-contatos' && viewCadastroContatos.innerHTML.trim() === '') {
-            _renderCadastroContatosInt();
+        if (tab === 'cadastro-contatos') {
+            if (viewCadastroContatos.innerHTML.trim() === '') {
+                _renderCadastroContatosInt();
+            } else if (typeof window.limparFormContato === 'function') {
+                window.limparFormContato();
+            }
         }
         if (tab === 'enderecos' && viewEnderecos.innerHTML.trim() === '') {
             _renderEnderecosInt();
@@ -2749,8 +2753,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
         const options = [
             { val: '1 - Diamante', lbl: '💎Diamante' },
             { val: '2 - Ouro', lbl: '🥇Ouro' },
-            { val: '3 - Prata', lbl: 'Prata 🥈' },
-            { val: '4 - Bronze', lbl: 'Bronze🥉' }
+            { val: '3 - Prata', lbl: '🥈Prata' },
+            { val: '4 - Bronze', lbl: '🥉Bronze' }
         ];
         return options.map(opt => `<option value="${opt.val}" ${selectedVal === opt.val || selectedVal === opt.lbl ? 'selected' : ''}>${opt.lbl}</option>`).join('');
     };
@@ -3233,8 +3237,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Parâmetros -->
-                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <!-- Parâmetros (Oculto) -->
+                        <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                             <div onclick="window.modalToggleAccordion('modal-acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                                 <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
                                 <span id="modal-acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
@@ -5500,8 +5504,8 @@ function _renderCadastroClienteInt() {
                                     <option value="">-- Selecione --</option>
                                     <option value="1 - Diamante">💎Diamante</option>
                                     <option value="2 - Ouro">🥇Ouro</option>
-                                    <option value="3 - Prata">Prata 🥈</option>
-                                    <option value="4 - Bronze">Bronze🥉</option>
+                                    <option value="3 - Prata">🥈Prata</option>
+                                    <option value="4 - Bronze">🥉Bronze</option>
                                 </select>
                             </div>
                             <div>
@@ -5668,8 +5672,8 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Parâmetros -->
-                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                    <!-- Parâmetros (Oculto) -->
+                    <div style="display:none; border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
                         <div onclick="toggleAccordion('acc-parametros')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
                             <span>▶ Parâmetros <i class="ph ph-gear-six"></i></span>
                             <span id="acc-parametros-arrow" style="transition:transform 0.2s;">▶</span>
@@ -5761,8 +5765,8 @@ window.formatarGrupoClienteIcone = function(grupo) {
     if (!g) return '—';
     if (g.includes('diamante') || g.startsWith('1')) return '💎Diamante';
     if (g.includes('ouro') || g.startsWith('2')) return '🥇Ouro';
-    if (g.includes('prata') || g.startsWith('3')) return 'Prata 🥈';
-    if (g.includes('bronze') || g.startsWith('4')) return 'Bronze🥉';
+    if (g.includes('prata') || g.startsWith('3')) return '🥈Prata';
+    if (g.includes('bronze') || g.startsWith('4')) return '🥉Bronze';
     return grupo;
 };
 
@@ -8680,7 +8684,7 @@ function _renderCadastroContatosInt() {
                             <div class="cc-field">
                                 <label>Código</label>
                                 <div class="cc-input-group">
-                                    <input type="text" id="con-codigo" readonly placeholder="Auto" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
+                                    <input type="text" id="con-codigo" readonly placeholder="" class="cc-input" style="text-align: center; font-weight: bold; color: #7048e8;">
                                     <button type="button" id="btn-pesq-contato-standalone" onclick="abrirModalPesquisaContato(this)" class="cc-btn-addon" title="Buscar Contato"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
@@ -8823,8 +8827,8 @@ function _renderCadastroContatosInt() {
                                     <option value="">-- Selecione --</option>
                                     <option value="1 - Diamante">💎Diamante</option>
                                     <option value="2 - Ouro">🥇Ouro</option>
-                                    <option value="3 - Prata">Prata 🥈</option>
-                                    <option value="4 - Bronze">Bronze🥉</option>
+                                    <option value="3 - Prata">🥈Prata</option>
+                                    <option value="4 - Bronze">🥉Bronze</option>
                                 </select>
                             </div>
                             <div class="cc-field">
@@ -8888,21 +8892,8 @@ function _renderCadastroContatosInt() {
         </div>
     `;
 
-    // Hook para carregar o registro ativo ou o mais recente ao abrir a tela
-    if (!_contatoEditandoId) {
-        apiGet('/contatos').then(list => {
-            if (list && list.length > 0) {
-                carregarContatoParaEdicao(list[list.length - 1].id); // Carrega o mais recente
-            } else {
-                limparFormContato();
-            }
-        }).catch(e => {
-            console.error(e);
-            limparFormContato();
-        });
-    } else {
-        carregarContatoParaEdicao(_contatoEditandoId);
-    }
+    // Sempre abrir a tela de Cadastro de Contato em branco (nenhum dado preenchido)
+    limparFormContato();
 }
 
 window.buscarCNPJContatos = async function() {
@@ -9357,7 +9348,7 @@ window.limparFormContato = function() {
     document.getElementById('con-inativo').checked = false;
 
     // Clear Contact inputs
-    setVal('con-codigo', 'Auto');
+    setVal('con-codigo', '');
     setVal('con-nome', '');
     setVal('con-celular', '');
     setVal('con-email', '');
