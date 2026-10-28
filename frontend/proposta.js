@@ -10307,10 +10307,12 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
     });
 };window.modalCarregarEnderecos = async function(clienteId) {
     try {
+        const resAll = await apiGet('/enderecos-entrega') || [];
+        window._todosEnderecosCache = Array.isArray(resAll) ? resAll : [];
         if (!clienteId) {
-            const resAll = await apiGet('/enderecos-entrega') || [];
-            window._modalEnderecos = Array.isArray(resAll) ? resAll : [];
+            window._modalEnderecos = window._todosEnderecosCache;
             window.modalRenderEnderecos();
+            window.modalNovoEndereco();
             return;
         }
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
@@ -10411,12 +10413,12 @@ window.modalCarregarEnderecoForm = function(idx) {
 
 window.modalNovoEndereco = function() {
     window._modalEnderecoEditandoId = null;
+    const baseList = (Array.isArray(window._todosEnderecosCache) && window._todosEnderecosCache.length > 0)
+        ? window._todosEnderecosCache
+        : (window._modalEnderecos || []);
     let nextSeq = 1;
-    if (window._modalSelectedClienteId && window._modalEnderecos && window._modalEnderecos.length > 0) {
-        const cliEnds = window._modalEnderecos.filter(e => Number(e.cliente_id) === Number(window._modalSelectedClienteId));
-        if (cliEnds.length > 0) {
-            nextSeq = Math.max(...cliEnds.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
-        }
+    if (baseList.length > 0) {
+        nextSeq = Math.max(...baseList.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
     }
 
     document.getElementById('modal-end-seq').value = nextSeq;
@@ -11037,10 +11039,12 @@ function _renderEnderecosInt() {
 }
 window.pageCarregarEnderecos = async function(clienteId) {
     try {
+        const resAll = await apiGet('/enderecos-entrega') || [];
+        window._todosEnderecosCache = Array.isArray(resAll) ? resAll : [];
         if (!clienteId) {
-            const resAll = await apiGet('/enderecos-entrega') || [];
-            window._pageEnderecos = Array.isArray(resAll) ? resAll : [];
+            window._pageEnderecos = window._todosEnderecosCache;
             window.pageRenderEnderecos();
+            window.pageNovoEndereco();
             return;
         }
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
@@ -11136,12 +11140,12 @@ window.pageCarregarEnderecoForm = function(idx) {
 
 window.pageNovoEndereco = function() {
     window._pageEnderecoEditandoId = null;
+    const baseList = (Array.isArray(window._todosEnderecosCache) && window._todosEnderecosCache.length > 0)
+        ? window._todosEnderecosCache
+        : (window._pageEnderecos || []);
     let nextSeq = 1;
-    if (window._pageSelectedClienteId && window._pageEnderecos && window._pageEnderecos.length > 0) {
-        const cliEnds = window._pageEnderecos.filter(e => Number(e.cliente_id) === Number(window._pageSelectedClienteId));
-        if (cliEnds.length > 0) {
-            nextSeq = Math.max(...cliEnds.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
-        }
+    if (baseList.length > 0) {
+        nextSeq = Math.max(...baseList.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
     }
 
     document.getElementById('page-end-seq').value = nextSeq;
