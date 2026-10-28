@@ -40314,7 +40314,11 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
           agora, idExistente
         ], function(err2) {
           if (err2) return callback(err2);
-          callback(null, idExistente);
+          if (typeof syncEnderecoFaturamentoCliente === 'function') {
+            syncEnderecoFaturamentoCliente(idExistente, () => callback(null, idExistente));
+          } else {
+            callback(null, idExistente);
+          }
         });
       } else {
         // Se a empresa não existe no banco, CPF/CNPJ e Nome são obrigatórios para criá-la
@@ -40336,7 +40340,12 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
             cliData.website || '', cliData.email || '', cliData.criado_por || '', agora, agora
           ], function(err2) {
             if (err2) return callback(err2);
-            callback(null, this.lastID);
+            const newCliId = this.lastID;
+            if (typeof syncEnderecoFaturamentoCliente === 'function') {
+              syncEnderecoFaturamentoCliente(newCliId, () => callback(null, newCliId));
+            } else {
+              callback(null, newCliId);
+            }
           });
         });
       }
@@ -40862,55 +40871,225 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
   });
 }
 
-// GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
-app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
-  const clienteId = req.params.clienteId;
-  if (clienteId === '0' || clienteId === 'all' || clienteId === 'null') {
+let _syncFaturamentoEmAndamento = false;
+function syncTodosEnderecosFaturamentoClientes(doneCb) {
+  const cb = typeof doneCb === 'function' ? doneCb : () => {};
+  if (_syncFaturamentoEmAndamento) return cb({ synced: 0, busy: true });
+  _syncFaturamentoEmAndamento = true;
+
+  db.all(
+    `SELECT * FROM clientes WHERE TRIM(COALESCE(endereco, '')) != '' OR TRIM(COALESCE(cep, '')) != ''`,
+    [],
+    (errCli, clientesRows) => {
+      if (errCli || !Array.isArray(clientesRows) || clientesRows.length === 0) {
+        _syncFaturamentoEmAndamento = false;
+        return cb({ synced: 0 });
+      }
+      db.all('SELECT * FROM clientes_enderecos_entrega ORDER BY cliente_id ASC, sequencia ASC', [], (errEnd, endRows) => {
+        if (errEnd) {
+          _syncFaturamentoEmAndamento = false;
+          return cb({ synced: 0, error: errEnd.message });
+        }
+        const byCliente = new Map();
+        for (const r of (endRows || [])) {
+          const cid = Number(r.cliente_id) || 0;
+          if (!byCliente.has(cid)) byCliente.set(cid, []);
+          byCliente.get(cid).push(r);
+        }
+
+        const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+        let countInsertedOrUpdated = 0;
+
+        db.serialize(() => {
+          db.run('BEGIN TRANSACTION');
+          for (const cli of clientesRows) {
+            const realCid = Number(cli.id);
+            if (!realCid) continue;
+            const { rua, numero } = extrairRuaENumeroCliente(cli.endereco, cli.numero);
+            const list = byCliente.get(realCid) || [];
+            const fatRow = list.find(r =>
+              norm(r.nome_local) === 'ENDERECO DE FATURAMENTO' ||
+              (rua && norm(r.endereco) === norm(rua) && String(r.cep || '').replace(/\D/g, '') === String(cli.cep || '').replace(/\D/g, ''))
+            );
+
+            if (fatRow) {
+              db.run(
+                `UPDATE clientes_enderecos_entrega SET
+                  nome_local = ?, cpf_cnpj = ?, inscricao_estadual = ?, cep = ?,
+                  endereco = ?, numero = ?, complemento = ?, bairro = ?, uf = ?, municipio = ?,
+                  razao_social = ?, nome_fantasia = ?, data_cadastro = ?
+                WHERE id = ?`,
+                [
+                  fatRow.nome_local || 'Endereço de Faturamento',
+                  cli.cpf_cnpj || fatRow.cpf_cnpj || '',
+                  cli.inscricao_estadual || fatRow.inscricao_estadual || '',
+                  cli.cep || fatRow.cep || '',
+                  rua || fatRow.endereco || '',
+                  numero || fatRow.numero || 'S/N',
+                  cli.complemento || fatRow.complemento || '',
+                  cli.bairro || fatRow.bairro || '',
+                  cli.uf || fatRow.uf || '',
+                  cli.municipio || fatRow.municipio || '',
+                  cli.nome_razao_social || fatRow.razao_social || '',
+                  cli.nome_fantasia || fatRow.nome_fantasia || '',
+                  cli.data_cadastro || fatRow.data_cadastro || '',
+                  fatRow.id
+                ]
+              );
+              countInsertedOrUpdated++;
+            } else {
+              const hasSeq1 = list.some(r => Number(r.sequencia) === 1);
+              const seqToUse = !hasSeq1
+                ? 1
+                : (Math.max(...list.map(r => Number(r.sequencia) || 0)) + 1);
+              db.run(
+                `INSERT OR IGNORE INTO clientes_enderecos_entrega (
+                  cliente_id, sequencia, nome_local, cpf_cnpj, inscricao_estadual, cep,
+                  endereco, numero, complemento, bairro, uf, municipio, contato, telefone, ramal, coordenadas,
+                  razao_social, nome_fantasia, data_cadastro
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [
+                  realCid,
+                  seqToUse,
+                  'Endereço de Faturamento',
+                  cli.cpf_cnpj || '',
+                  cli.inscricao_estadual || '',
+                  cli.cep || '',
+                  rua,
+                  numero,
+                  cli.complemento || '',
+                  cli.bairro || '',
+                  cli.uf || '',
+                  cli.municipio || '',
+                  '',
+                  cli.telefone || '',
+                  cli.ramal || '',
+                  '',
+                  cli.nome_razao_social || '',
+                  cli.nome_fantasia || '',
+                  cli.data_cadastro || ''
+                ]
+              );
+              list.push({ sequencia: seqToUse, nome_local: 'Endereço de Faturamento' });
+              byCliente.set(realCid, list);
+              countInsertedOrUpdated++;
+            }
+          }
+          db.run('COMMIT', (commitErr) => {
+            _syncFaturamentoEmAndamento = false;
+            if (commitErr) {
+              console.error('[Endereços Faturamento] Erro ao sincronizar em lote:', commitErr.message);
+            } else if (countInsertedOrUpdated > 0) {
+              console.log(`[Endereços Faturamento] ${countInsertedOrUpdated} endereço(s) de faturamento registrado(s)/atualizado(s) com sucesso.`);
+            }
+            cb({ synced: countInsertedOrUpdated });
+          });
+        });
+      });
+    }
+  );
+}
+
+setTimeout(() => {
+  syncTodosEnderecosFaturamentoClientes();
+}, 2500);
+
+const SELECT_ENDERECOS_COM_CLIENTE_SQL = `
+  SELECT e.*,
+         e.cpf_cnpj AS cpf_cnpj_local,
+         c.codigo AS cliente_codigo,
+         COALESCE(NULLIF(TRIM(e.razao_social), ''), c.nome_razao_social) AS cliente_razao,
+         COALESCE(NULLIF(TRIM(e.nome_fantasia), ''), c.nome_fantasia) AS cliente_fantasia,
+         c.nome_razao_social AS cliente_razao_social,
+         c.nome_fantasia AS cliente_nome_fantasia,
+         COALESCE(NULLIF(TRIM(e.data_cadastro), ''), c.data_cadastro) AS cliente_data_cadastro
+  FROM clientes_enderecos_entrega e
+  LEFT JOIN clientes c ON c.id = e.cliente_id
+`;
+
+// GET /api/enderecos-entrega - Listar todos os endereços cadastrados (incluindo endereços de faturamento de todos os clientes)
+app.get('/api/enderecos-entrega', authenticateToken, (req, res) => {
+  syncTodosEnderecosFaturamentoClientes(() => {
     db.all(
-      `SELECT e.*, c.codigo AS cliente_codigo, c.nome_razao_social AS cliente_razao_social,
-              c.nome_fantasia AS cliente_nome_fantasia, c.data_cadastro AS cliente_data_cadastro
-       FROM clientes_enderecos_entrega e
-       LEFT JOIN clientes c ON c.id = e.cliente_id
-       ORDER BY e.cliente_id DESC, e.sequencia ASC, e.id ASC`,
+      `${SELECT_ENDERECOS_COM_CLIENTE_SQL}
+       ORDER BY COALESCE(c.nome_razao_social, e.razao_social, '') ASC, e.cliente_id DESC, e.sequencia ASC, e.id ASC`,
       [],
       (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
       }
     );
+  });
+});
+
+// POST /api/enderecos-entrega/sincronizar-faturamento - Sincronizar manualmente todos os endereços de faturamento de clientes
+app.post('/api/enderecos-entrega/sincronizar-faturamento', authenticateToken, (req, res) => {
+  syncTodosEnderecosFaturamentoClientes((result) => {
+    res.json({ success: true, ...(result || {}) });
+  });
+});
+
+// GET /api/clientes/:clienteId/enderecos - Listar endereços de entrega do cliente
+app.get('/api/clientes/:clienteId/enderecos', authenticateToken, (req, res) => {
+  const clienteId = req.params.clienteId;
+  if (clienteId === '0' || clienteId === 'all' || clienteId === 'null') {
+    syncTodosEnderecosFaturamentoClientes(() => {
+      db.all(
+        `${SELECT_ENDERECOS_COM_CLIENTE_SQL}
+         ORDER BY COALESCE(c.nome_razao_social, e.razao_social, '') ASC, e.cliente_id DESC, e.sequencia ASC, e.id ASC`,
+        [],
+        (err, rows) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json(rows || []);
+        }
+      );
+    });
   } else {
     syncEnderecoFaturamentoCliente(clienteId, (cliRow) => {
       const targetCid = cliRow && cliRow.id ? cliRow.id : clienteId;
-      db.all('SELECT * FROM clientes_enderecos_entrega WHERE cliente_id = ? ORDER BY sequencia ASC', [targetCid], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const list = Array.isArray(rows) ? rows : [];
-        if (list.length === 0 && cliRow && ((cliRow.endereco && String(cliRow.endereco).trim()) || (cliRow.cep && String(cliRow.cep).trim()))) {
-          const { rua, numero } = extrairRuaENumeroCliente(cliRow.endereco, cliRow.numero);
-          list.push({
-            id: 0,
-            cliente_id: cliRow.id,
-            sequencia: 1,
-            nome_local: 'Endereço de Faturamento',
-            cpf_cnpj: cliRow.cpf_cnpj || '',
-            inscricao_estadual: cliRow.inscricao_estadual || '',
-            cep: cliRow.cep || '',
-            endereco: rua,
-            numero: numero,
-            complemento: cliRow.complemento || '',
-            bairro: cliRow.bairro || '',
-            uf: cliRow.uf || '',
-            municipio: cliRow.municipio || '',
-            contato: '',
-            telefone: cliRow.telefone || '',
-            ramal: cliRow.ramal || '',
-            coordenadas: '',
-            razao_social: cliRow.nome_razao_social || '',
-            nome_fantasia: cliRow.nome_fantasia || '',
-            data_cadastro: cliRow.data_cadastro || ''
-          });
+      db.all(
+        `${SELECT_ENDERECOS_COM_CLIENTE_SQL}
+         WHERE e.cliente_id = ?
+         ORDER BY e.sequencia ASC, e.id ASC`,
+        [targetCid],
+        (err, rows) => {
+          if (err) return res.status(500).json({ error: err.message });
+          const list = Array.isArray(rows) ? rows : [];
+          if (list.length === 0 && cliRow && ((cliRow.endereco && String(cliRow.endereco).trim()) || (cliRow.cep && String(cliRow.cep).trim()))) {
+            const { rua, numero } = extrairRuaENumeroCliente(cliRow.endereco, cliRow.numero);
+            list.push({
+              id: 0,
+              cliente_id: cliRow.id,
+              cliente_codigo: cliRow.codigo || '',
+              sequencia: 1,
+              nome_local: 'Endereço de Faturamento',
+              cpf_cnpj: cliRow.cpf_cnpj || '',
+              cpf_cnpj_local: cliRow.cpf_cnpj || '',
+              inscricao_estadual: cliRow.inscricao_estadual || '',
+              cep: cliRow.cep || '',
+              endereco: rua,
+              numero: numero,
+              complemento: cliRow.complemento || '',
+              bairro: cliRow.bairro || '',
+              uf: cliRow.uf || '',
+              municipio: cliRow.municipio || '',
+              contato: '',
+              telefone: cliRow.telefone || '',
+              ramal: cliRow.ramal || '',
+              coordenadas: '',
+              razao_social: cliRow.nome_razao_social || '',
+              nome_fantasia: cliRow.nome_fantasia || '',
+              data_cadastro: cliRow.data_cadastro || '',
+              cliente_razao: cliRow.nome_razao_social || '',
+              cliente_fantasia: cliRow.nome_fantasia || '',
+              cliente_razao_social: cliRow.nome_razao_social || '',
+              cliente_nome_fantasia: cliRow.nome_fantasia || '',
+              cliente_data_cadastro: cliRow.data_cadastro || ''
+            });
+          }
+          res.json(list);
         }
-        res.json(list);
-      });
+      );
     });
   }
 });
@@ -41718,6 +41897,9 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
                     db.run('COMMIT', (errC2) => {
                       if (errC2) console.error('[Clientes Eloca] Erro ao commitar contatos:', errC2.message);
                       else console.log(`[Clientes Eloca] ${registros.length} clientes e contatos vinculados com sucesso!`);
+                      if (typeof syncTodosEnderecosFaturamentoClientes === 'function') {
+                        syncTodosEnderecosFaturamentoClientes();
+                      }
                     });
                   });
                 });

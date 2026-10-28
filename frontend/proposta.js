@@ -10301,21 +10301,26 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                 document.getElementById('modal-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : '';
                 window.modalCarregarEnderecos(matchedClient.id);
             } else {
-                window.modalRenderEnderecos();
+                window.modalCarregarEnderecos(null);
             }
         }
     });
 };window.modalCarregarEnderecos = async function(clienteId) {
     try {
         if (!clienteId) {
-            window._modalEnderecos = [];
+            const resAll = await apiGet('/enderecos-entrega') || [];
+            window._modalEnderecos = Array.isArray(resAll) ? resAll : [];
             window.modalRenderEnderecos();
             return;
         }
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._modalEnderecos = res;
         window.modalRenderEnderecos();
-        window.modalNovoEndereco();
+        if (window._modalEnderecos.length > 0) {
+            window.modalCarregarEnderecoForm(0);
+        } else {
+            window.modalNovoEndereco();
+        }
     } catch(err) {
         console.error(err);
     }
@@ -10341,10 +10346,16 @@ window.modalRenderEnderecos = function() {
         return;
     }
 
-    tbody.innerHTML = window._modalEnderecos.map((e, idx) => `
+    tbody.innerHTML = window._modalEnderecos.map((e, idx) => {
+        const cliNome = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
+        const showCliSub = !window._modalSelectedClienteId && cliNome;
+        return `
         <tr onclick="window.modalCarregarEnderecoForm(${idx})" ondblclick="window.modalSelecionarEndereco(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:5px 8px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
-            <td style="padding:5px 8px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
+            <td style="padding:5px 8px; color:#1e293b; font-weight:600;">
+                ${e.nome_local || '—'}
+                ${showCliSub ? `<div style="font-size:0.68rem; color:#64748b; font-weight:500;">${cliNome}</div>` : ''}
+            </td>
             <td style="padding:5px 8px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
             <td style="padding:5px 8px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
             <td style="padding:5px 8px; text-align:center;">
@@ -10353,12 +10364,30 @@ window.modalRenderEnderecos = function() {
                 </button>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 };
 
 window.modalCarregarEnderecoForm = function(idx) {
     const e = window._modalEnderecos[idx];
     if (!e) return;
+
+    if (e.cliente_id) {
+        window._modalSelectedClienteId = e.cliente_id;
+        const codEl = document.getElementById('modal-cli-codigo');
+        const razaoEl = document.getElementById('modal-cli-razao');
+        const fantEl = document.getElementById('modal-cli-fantasia');
+        const dataEl = document.getElementById('modal-cli-data');
+        if (codEl && (e.cliente_codigo || !codEl.value)) codEl.value = e.cliente_codigo || codEl.value || '';
+        const razaoVal = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
+        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = razaoVal || razaoEl.value || '';
+        const fantVal = e.cliente_fantasia || e.nome_fantasia || e.cliente_nome_fantasia || '';
+        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = fantVal || fantEl.value || '';
+        const rawData = e.cliente_data_cadastro || e.data_cadastro || '';
+        if (dataEl && (rawData || !dataEl.value)) {
+            dataEl.value = rawData ? (rawData.includes('-') ? rawData.split('-').reverse().join('/') : rawData) : (dataEl.value || '');
+        }
+    }
 
     window._modalEnderecoEditandoId = e.id;
     const seqNum = e.sequencia || (idx + 1);
@@ -10383,8 +10412,11 @@ window.modalCarregarEnderecoForm = function(idx) {
 window.modalNovoEndereco = function() {
     window._modalEnderecoEditandoId = null;
     let nextSeq = 1;
-    if (window._modalEnderecos && window._modalEnderecos.length > 0) {
-        nextSeq = Math.max(...window._modalEnderecos.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
+    if (window._modalSelectedClienteId && window._modalEnderecos && window._modalEnderecos.length > 0) {
+        const cliEnds = window._modalEnderecos.filter(e => Number(e.cliente_id) === Number(window._modalSelectedClienteId));
+        if (cliEnds.length > 0) {
+            nextSeq = Math.max(...cliEnds.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
+        }
     }
 
     document.getElementById('modal-end-seq').value = nextSeq;
@@ -10993,27 +11025,32 @@ function _renderEnderecosInt() {
                 document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : '';
                 window.pageCarregarEnderecos(matchedClient.id);
             } else {
-                window.pageRenderEnderecos();
+                window.pageCarregarEnderecos(null);
             }
         }).catch(err => {
             console.error(err);
-            window.pageRenderEnderecos();
+            window.pageCarregarEnderecos(null);
         });
     } else {
-        window.pageRenderEnderecos();
+        window.pageCarregarEnderecos(null);
     }
 }
 window.pageCarregarEnderecos = async function(clienteId) {
     try {
         if (!clienteId) {
-            window._pageEnderecos = [];
+            const resAll = await apiGet('/enderecos-entrega') || [];
+            window._pageEnderecos = Array.isArray(resAll) ? resAll : [];
             window.pageRenderEnderecos();
             return;
         }
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._pageEnderecos = res;
         window.pageRenderEnderecos();
-        window.pageNovoEndereco();
+        if (window._pageEnderecos.length > 0) {
+            window.pageCarregarEnderecoForm(0);
+        } else {
+            window.pageNovoEndereco();
+        }
     } catch(err) {
         console.error(err);
     }
@@ -11034,10 +11071,16 @@ window.pageRenderEnderecos = function() {
         return;
     }
 
-    tbody.innerHTML = window._pageEnderecos.map((e, idx) => `
+    tbody.innerHTML = window._pageEnderecos.map((e, idx) => {
+        const cliNome = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
+        const showCliSub = !window._pageSelectedClienteId && cliNome;
+        return `
         <tr onclick="window.pageCarregarEnderecoForm(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
-            <td style="padding:10px 12px; color:#1e293b; font-weight:600;">${e.nome_local || '—'}</td>
+            <td style="padding:10px 12px; color:#1e293b; font-weight:600;">
+                ${e.nome_local || '—'}
+                ${showCliSub ? `<div style="font-size:0.72rem; color:#64748b; font-weight:500; margin-top:2px;">${cliNome}</div>` : ''}
+            </td>
             <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
             <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
             <td style="padding:10px 12px; text-align:center;">
@@ -11046,12 +11089,30 @@ window.pageRenderEnderecos = function() {
                 </button>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 };
 
 window.pageCarregarEnderecoForm = function(idx) {
     const e = window._pageEnderecos[idx];
     if (!e) return;
+
+    if (e.cliente_id) {
+        window._pageSelectedClienteId = e.cliente_id;
+        const codEl = document.getElementById('page-cli-codigo');
+        const razaoEl = document.getElementById('page-cli-razao');
+        const fantEl = document.getElementById('page-cli-fantasia');
+        const dataEl = document.getElementById('page-cli-data');
+        if (codEl && (e.cliente_codigo || !codEl.value)) codEl.value = e.cliente_codigo || codEl.value || '';
+        const razaoVal = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
+        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = razaoVal || razaoEl.value || '';
+        const fantVal = e.cliente_fantasia || e.nome_fantasia || e.cliente_nome_fantasia || '';
+        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = fantVal || fantEl.value || '';
+        const rawData = e.cliente_data_cadastro || e.data_cadastro || '';
+        if (dataEl && (rawData || !dataEl.value)) {
+            dataEl.value = rawData ? (rawData.includes('-') ? rawData.split('-').reverse().join('/') : rawData) : (dataEl.value || '');
+        }
+    }
 
     window._pageEnderecoEditandoId = e.id;
     const seqNum = e.sequencia || (idx + 1);
@@ -11076,8 +11137,11 @@ window.pageCarregarEnderecoForm = function(idx) {
 window.pageNovoEndereco = function() {
     window._pageEnderecoEditandoId = null;
     let nextSeq = 1;
-    if (window._pageEnderecos && window._pageEnderecos.length > 0) {
-        nextSeq = Math.max(...window._pageEnderecos.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
+    if (window._pageSelectedClienteId && window._pageEnderecos && window._pageEnderecos.length > 0) {
+        const cliEnds = window._pageEnderecos.filter(e => Number(e.cliente_id) === Number(window._pageSelectedClienteId));
+        if (cliEnds.length > 0) {
+            nextSeq = Math.max(...cliEnds.map(e => parseInt(e.sequencia, 10) || 0)) + 1;
+        }
     }
 
     document.getElementById('page-end-seq').value = nextSeq;
