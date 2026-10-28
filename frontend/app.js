@@ -806,6 +806,7 @@ const BREADCRUMB_MAP = {
     'comercial-enderecos': { path: 'Comercial → Endereços', code: 'COM004' },
     'comercial-clientes': { path: 'Comercial → Clientes', code: 'COM005' },
     'comercial-contatos': { path: 'Comercial → Contatos', code: 'COM006' },
+    'comercial-modelos-propostas': { path: 'Comercial → Modelos Propostas', code: 'COM007' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
@@ -964,6 +965,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-enderecos'] === undefined) mapPerms['comercial-enderecos'] = true;
             if (mapPerms['comercial-clientes'] === undefined) mapPerms['comercial-clientes'] = true;
             if (mapPerms['comercial-contatos'] === undefined) mapPerms['comercial-contatos'] = true;
+            if (mapPerms['comercial-modelos-propostas'] === undefined) mapPerms['comercial-modelos-propostas'] = true;
         }
         window.activeUserPerms = mapPerms;
 
@@ -1229,6 +1231,7 @@ const TAB_META = {
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'comercial-modelos-propostas': { color: '#7048e8', icon: 'ph-files', title: 'Modelos Propostas' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
     'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
     'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },
@@ -1330,6 +1333,7 @@ window.navigateToTab = function (tabId) {
 
     const _comercialSubTabMap = {
         'comercial-proposta': 'form',
+        'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',
@@ -1485,6 +1489,7 @@ function navigateTo(target) {
 
     const _comercialSubTabMap = {
         'comercial-proposta': 'form',
+        'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',

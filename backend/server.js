@@ -42563,10 +42563,684 @@ app.delete('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) 
   });
 });
 
+// ── MODELOS DE PROPOSTAS COMERCIAIS (11 TIPOS PADRÃO) ───────────────────
+db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ordem INTEGER DEFAULT 0,
+  codigo_tipo TEXT UNIQUE,
+  nome TEXT NOT NULL,
+  arquivo_origem TEXT,
+  titulo_documento TEXT,
+  dados_contratada TEXT,
+  titulo_tabela_produtos TEXT,
+  exibir_valores_complementares INTEGER DEFAULT 0,
+  titulo_informacoes TEXT,
+  texto_informacoes TEXT,
+  observacao_padrao TEXT,
+  exemplo_dados TEXT,
+  created_at TEXT,
+  updated_at TEXT
+)`, (err) => {
+  if (err) {
+    console.error('[MODELOS_PROPOSTA] Erro ao criar tabela comercial_modelos_proposta:', err.message);
+    return;
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const contratadaPadrao = JSON.stringify({
+    razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
+    cnpj: '03.434.448/0001-01',
+    ie: '336.715.410.116',
+    endereco: 'RUA SALTO DA DIVISA , 97, CIDADE PARQUE ALVORADA GUARULHOS /SP - CEP: 07242-300',
+    telefone: '(11) 2499-3353',
+    celular: '(11) 99104-2685'
+  });
+
+  const modelosIniciais = [
+    {
+      ordem: 1,
+      codigo_tipo: 'ADITIVO',
+      nome: 'Aditivo',
+      arquivo_origem: 'Adtivo.pdf',
+      titulo_documento: 'CONTRATO BASE {{CONTRATO_BASE}} - ADITIVO Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: '1. Objetivo do Termo Aditivo',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: '2. Condições Comerciais',
+      texto_informacoes: [
+        '2.1. Forma de Pagamento: FATURADO - BOLETO EMITIDO NOS TERMOS DO CONTRATO BASE',
+        '2.2. Custo Reposição Unitário das(s) Cabine(s) R$ 6.700,00 (seis mil e setecentos reais).',
+        '2.3. Reajuste: De acordo com o período mínimo estabelecido por lei, os preços serão ajustados com base na variação do IPC-FIPE ou outro índice oficial (se houver) que reflita a inflação do período. Multa de 2% (dois por cento) será aplicada após o vencimento, acompanhada de juros de mora de 1% (um por cento) sobre o atraso no pagamento. Após 5 (cinco) dias de atraso, o título será encaminhado a um cartório para protesto.',
+        '2.4. Se forem adicionadas manutenções adicionais ao programa contratado e forem executadas dentro de um período já faturado, o valor proporcional correspondente a essas manutenções será adicionado à sua próxima fatura.',
+        '3. O presente termo aditivo tem por objeto a inclusão dos serviços descritos no Quadro Resumo acima (Produtos para Locação), passando a integrar o escopo contratual da contratante a partir da data de assinatura.',
+        '4. As partes ratificam e mantêm integralmente em vigor todas as demais cláusulas, termos e condições do Contrato Principal (citado acima como contrato base), as quais permanecem inalteradas e plenamente aplicáveis a esta nova contratação, inclusive no que tange a foro, rescisão e responsabilidades.'
+      ].join('\n'),
+      observacao_padrao: 'ADITIVO CONTRATUAL - ACRÉSCIMO DE 02 CABINES STANDARD',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14040',
+        contrato_base: '10315',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'CONSTRUTORA E INCORPORADORA EXEMPLO LTDA',
+        cliente_cnpj: '47.921.869/0001-68',
+        cliente_ie: 'ISENTO',
+        cliente_endereco: 'AV PAULISTA, 1000 - BELA VISTA',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '01310-100',
+        contato_nome: 'CARLOS EDUARDO',
+        contato_telefone: '(11) 3333-4444',
+        contato_celular: '(11) 98888-7777',
+        contato_email: 'carlos@exemplo.com.br',
+        periodo_inicio: '28/10/2026',
+        periodo_fim: '28/11/2026',
+        condicao_pagamento: '28 DIAS',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'OBRA CENTRO',
+        endereco_instalacao: 'AV PAULISTA, 1000 - BELA VISTA - SAO PAULO/SP',
+        cep_instalacao: '01310-100',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA STANDARD - OBRA', observacao: 'LIMPEZA 1X POR SEMANA', qtde: 2, valor_unitario: 480.00, total: 960.00 }
+        ],
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 2,
+      codigo_tipo: 'PROPOSTA LOCAÇÃO CONTAINER',
+      nome: 'Proposta Locação Container',
+      arquivo_origem: 'Container.pdf',
+      titulo_documento: 'PROPOSTA LOCAÇÃO CONTAINER Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 1,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Prazo de locação mínima: 3 meses',
+        '2. Frete: FOB - Sob Consulta',
+        '3. Prazo de entrega: 7 dias úteis (Consultar disponibilidade)',
+        '4. Forma de pagamento: À vista antecipado',
+        '5. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '6. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'ENTREGA DE CONTAINER ALMOXARIFADO 6M COM CAMINHÃO MUNCK',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14041',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'ENGENHARIA E OBRAS BRASIL S.A.',
+        cliente_cnpj: '12.345.678/0001-90',
+        cliente_ie: '110.042.490.114',
+        cliente_endereco: 'RUA DAS INDUSTRIAS, 450 - DISTRITO INDUSTRIAL',
+        cliente_municipio: 'GUARULHOS',
+        cliente_uf: 'SP',
+        cliente_cep: '07220-000',
+        contato_nome: 'MARCOS VINICIUS',
+        contato_telefone: '(11) 2400-1122',
+        contato_celular: '(11) 99111-2233',
+        contato_email: 'suprimentos@engenhariabrasil.com.br',
+        periodo_inicio: '01/11/2026',
+        periodo_fim: '30/11/2026',
+        condicao_pagamento: '28 DDL',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'CANTEIRO DE OBRAS DUTRA',
+        endereco_instalacao: 'ROD PRESIDENTE DUTRA, KM 222 - GUARULHOS/SP',
+        cep_instalacao: '07034-000',
+        itens: [
+          { descricao: 'CONTAINER ALMOXARIFADO 6,00 X 2,40M', observacao: 'LOCAÇÃO MENSAL', qtde: 1, valor_unitario: 950.00, total: 950.00 }
+        ],
+        valores_complementares: [
+          { descricao: 'MOBILIZAÇÃO MUNCK', observacao: 'ENTREGA NO LOCAL', valor: 650.00 },
+          { descricao: 'DESMOBILIZAÇÃO MUNCK', observacao: 'RETIRADA NO LOCAL', valor: 650.00 }
+        ]
+      })
+    },
+    {
+      ordem: 3,
+      codigo_tipo: 'EQUIPAMENTOS',
+      nome: 'Equipamentos',
+      arquivo_origem: 'Equipamentos.pdf',
+      titulo_documento: 'EQUIPAMENTOS Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: '',
+      texto_informacoes: [
+        '1. Mesmo que ocorra a devolução de parte dos equipamentos do contrato, o valor estipulado permanecerá inalterado.',
+        '2. O valor apresentando neste orçamento varia de acordo com o endereço de instalação. Manter o equipamento no local exato da instalação.',
+        '3. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '4. Zelar pelos bens e equipamentos deste orçamento é de responsabilidade de quem contrata, sendo que qualquer modificação deverá ser previamente autorizada. Devolução dos equipamentos em perfeitas condições no final do período de locação.',
+        '5. No caso de destruição ou perda dos bens ou equipamentos, será cobrado o valor que ficará estipulado de acordo com o orçamento atualizado do fornecedor.',
+        '6. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'LOCAÇÃO DE PIA PORTÁTIL E LAVATÓRIO PARA EVENTO',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14042',
+        modo_equipamentos: true,
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'PRODUCOES E EVENTOS CULTURAL LTDA',
+        cliente_cnpj: '33.444.555/0001-22',
+        cliente_ie: 'ISENTO',
+        cliente_endereco: 'RUA AUGUSTA, 1500 - CONSOLACAO',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '01304-001',
+        contato_nome: 'FERNANDA LIMA',
+        contato_telefone: '(11) 3055-6677',
+        contato_celular: '(11) 97766-5544',
+        contato_email: 'fernanda@producoes.com.br',
+        periodo_inicio: '05/11/2026',
+        periodo_fim: '07/11/2026',
+        condicao_pagamento: 'À VISTA ANTECIPADO',
+        validade_proposta: '7 DIAS',
+        local_instalacao: 'PARQUE IBIRAPUERA - PORTÃO 3',
+        endereco_instalacao: 'AV PEDRO ALVARES CABRAL, S/N - VILA MARIANA - SAO PAULO/SP',
+        cep_instalacao: '04094-050',
+        itens: [
+          { descricao: 'LAVATÓRIO PORTÁTIL DUPLO COM BOMBA NO PÉ', observacao: 'EVENTO 3 DIAS', qtde: 4, valor_unitario: 250.00, diarias: 2, total_diaria: 500.00, total: 2000.00 }
+        ],
+        desconto: 0,
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 4,
+      codigo_tipo: 'PROPOSTA EVENTO',
+      nome: 'Proposta Evento',
+      arquivo_origem: 'Evento.pdf',
+      titulo_documento: 'PROPOSTA EVENTO Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
+        '2. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
+        '3. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
+        '4. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
+        '5. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '6. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato e pagamento antecipado.'
+      ].join('\n'),
+      observacao_padrao: 'ENTREGA DIA 06/11 ÀS 08H00 E RETIRADA DIA 08/11 ÀS 10H00',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14043',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'ARENA SHOW ENTRETENIMENTO E EVENTOS LTDA',
+        cliente_cnpj: '21.876.543/0001-10',
+        cliente_ie: 'ISENTO',
+        cliente_endereco: 'AV DAS NACOES UNIDAS, 12901 - BROOKLIN',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '04578-910',
+        contato_nome: 'RODRIGO ALVES',
+        contato_telefone: '(11) 3111-2200',
+        contato_celular: '(11) 98111-3344',
+        contato_email: 'rodrigo@arenashow.com.br',
+        periodo_inicio: '06/11/2026',
+        periodo_fim: '08/11/2026',
+        condicao_pagamento: 'PIX ANTECIPADO',
+        validade_proposta: '5 DIAS',
+        local_instalacao: 'ESPAÇO EVENTOS ANHEMBI',
+        endereco_instalacao: 'AV OLAVO FONTOURA, 1209 - SANTANA - SAO PAULO/SP',
+        cep_instalacao: '02012-021',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA LUXO - EVENTO', observacao: 'COM ILUMINAÇÃO E DESCARGA NO PÉ', qtde: 6, valor_unitario: 320.00, total: 1920.00 },
+          { descricao: 'CABINE SANITÁRIA PNE (PCD) - EVENTO', observacao: 'ACESSIBILIDADE', qtde: 1, valor_unitario: 490.00, total: 490.00 }
+        ],
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 5,
+      codigo_tipo: 'PROPOSTA LIMPA FOSSA MENSAL',
+      nome: 'Proposta Limpa Fossa Mensal',
+      arquivo_origem: 'Limpa Fossa Mensal.pdf',
+      titulo_documento: 'PROPOSTA LIMPA FOSSA MENSAL Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Proposta de Limpa Fossa Mensal por medição, sujeito a renovação automática do contrato firmado quando não solicitado a suspensão dos serviços no prazo de término do contrato.',
+        '2. Os serviços contratados serão medidos mensalmente com base na quantidade efetivamente executada no período.',
+        '3. Caso o volume exceda o acordado e seja necessário um esgotamento completo, será aplicada uma taxa dobrada para cobrir os custos da segunda viagem, devido aos custos associados ao deslocamento da equipe até o local de prestação de serviços.',
+        '4. Caso a equipe se desloque até o local para realizar o atendimento e seja impedida por qualquer motivo, será cobrada taxa integral do valor do contrato.',
+        '5. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '6. Esta proposta não constitui uma garantia de reserva do serviço mencionado. A contratação está sujeita à disponibilidade de atendimento logístico no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'ATENDIMENTO MENSAL PROGRAMADO DE SUCÇÃO E ESGOTAMENTO DE FOSSA SÉPTICA',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14044',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'LOGISTICA INTEGRADA GUARULHOS LTDA',
+        cliente_cnpj: '09.112.233/0001-44',
+        cliente_ie: '336.998.771.110',
+        cliente_endereco: 'ESTRADA MUNICIPAL, 800 - BONSUCESSO',
+        cliente_municipio: 'GUARULHOS',
+        cliente_uf: 'SP',
+        cliente_cep: '07175-000',
+        contato_nome: 'PATRICIA SOUZA',
+        contato_telefone: '(11) 2488-9000',
+        contato_celular: '(11) 99222-8899',
+        contato_email: 'manutencao@logisticagru.com.br',
+        periodo_inicio: '01/11/2026',
+        periodo_fim: '30/11/2026',
+        condicao_pagamento: '28 DDL',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'CENTRO DE DISTRIBUIÇÃO BONSUCESSO',
+        endereco_instalacao: 'ESTRADA MUNICIPAL, 800 - BONSUCESSO - GUARULHOS/SP',
+        cep_instalacao: '07175-000',
+        itens: [
+          { descricao: 'SERVIÇO DE LIMPA FOSSA MENSAL (CAMINHÃO ATÉ 08M³)', observacao: '1 VIAGEM POR SEMANA (4 VIAGENS/MÊS)', qtde: 4, valor_unitario: 850.00, total: 3400.00 }
+        ],
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 6,
+      codigo_tipo: 'PROPOSTA LIMPA FOSSA',
+      nome: 'Proposta Limpa Fossa',
+      arquivo_origem: 'Limpa Fossa.pdf',
+      titulo_documento: 'PROPOSTA LIMPA FOSSA Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Caso o volume exceda o acordado e seja necessário um esgotamento completo, será aplicada uma taxa dobrada para cobrir os custos da segunda viagem, devido aos custos associados ao deslocamento da equipe até o local de prestação de serviços.',
+        '2. Caso a equipe se desloque até o local para realizar o atendimento e seja impedida por qualquer motivo, será cobrada taxa de 50% do valor do contrato.',
+        '3. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '4. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de atendimento logístico no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'ESGOTAMENTO AVULSO COM CAMINHÃO À VÁCUO E DESCARTE EM ESTAÇÃO AUTORIZADA',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14045',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'CONDOMINIO INDUSTRIAL PARQUE NORTE',
+        cliente_cnpj: '15.678.901/0001-55',
+        cliente_ie: 'ISENTO',
+        cliente_endereco: 'AV PAPA JOAO PAULO I, 3200 - CUMBICA',
+        cliente_municipio: 'GUARULHOS',
+        cliente_uf: 'SP',
+        cliente_cep: '07170-350',
+        contato_nome: 'RICARDO MENDES',
+        contato_telefone: '(11) 2412-5566',
+        contato_celular: '(11) 99444-1100',
+        contato_email: 'administracao@parquenorte.com.br',
+        periodo_inicio: '29/10/2026',
+        periodo_fim: '29/10/2026',
+        condicao_pagamento: 'À VISTA / PIX',
+        validade_proposta: '7 DIAS',
+        local_instalacao: 'GALPÃO 04 - CUMBICA',
+        endereco_instalacao: 'AV PAPA JOAO PAULO I, 3200 - CUMBICA - GUARULHOS/SP',
+        cep_instalacao: '07170-350',
+        itens: [
+          { descricao: 'SERVIÇO DE LIMPA FOSSA AVULSO (ATÉ 07M³)', observacao: 'INCLUSO DESCARTE AMBIENTAL', qtde: 1, valor_unitario: 980.00, total: 980.00 }
+        ],
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 7,
+      codigo_tipo: 'PROPOSTA OBRA MENSAL',
+      nome: 'Proposta Obra Mensal',
+      arquivo_origem: 'Obra Mensal.pdf',
+      titulo_documento: 'PROPOSTA OBRA MENSAL Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 1,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Proposta de Locação Mensal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
+        '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
+        '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
+        '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
+        '5. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
+        '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'LOCAÇÃO MENSAL COM 01 LIMPEZA SEMANAL INCLUSA',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14046',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'CONSTRUTORA HORIZONTE PAULISTA LTDA',
+        cliente_cnpj: '28.394.501/0001-88',
+        cliente_ie: '148.229.330.119',
+        cliente_endereco: 'AV BRIGADEIRO FARIA LIMA, 3477 - ITAIM BIBI',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '04538-133',
+        contato_nome: 'ENG. LUCAS MARTINS',
+        contato_telefone: '(11) 3077-8899',
+        contato_celular: '(11) 97123-4567',
+        contato_email: 'lucas.martins@horizontepaulista.com.br',
+        periodo_inicio: '01/11/2026',
+        periodo_fim: '30/11/2026',
+        condicao_pagamento: '28 DDL',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'OBRA RESIDENCIAL JARDINS',
+        endereco_instalacao: 'RUA OSCAR FREIRE, 980 - JARDINS - SAO PAULO/SP',
+        cep_instalacao: '01426-001',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - OBRA', observacao: '01 LIMPEZA POR SEMANA', qtde: 3, valor_unitario: 480.00, total: 1440.00 }
+        ],
+        valores_complementares: [
+          { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
+          { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
+        ]
+      })
+    },
+    {
+      ordem: 8,
+      codigo_tipo: 'PROPOSTA OBRA QUINZENAL',
+      nome: 'Proposta Obra Quinzenal',
+      arquivo_origem: 'Obra Quinzenal.pdf',
+      titulo_documento: 'PROPOSTA OBRA QUINZENAL Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 1,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Proposta de Locação Quinzenal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
+        '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
+        '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
+        '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
+        '5. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
+        '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'LOCAÇÃO QUINZENAL COM 01 LIMPEZA SEMANAL INCLUSA',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14047',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'PAVIMENTACAO E TERRAPLENAGEM VIA NOVA LTDA',
+        cliente_cnpj: '19.283.746/0001-02',
+        cliente_ie: '112.334.556.118',
+        cliente_endereco: 'AV MARGINAL TIETE, 5200 - VILA MARIA',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '02117-000',
+        contato_nome: 'HENRIQUE COSTA',
+        contato_telefone: '(11) 2955-4433',
+        contato_celular: '(11) 98456-7890',
+        contato_email: 'compras@vianova.eng.br',
+        periodo_inicio: '01/11/2026',
+        periodo_fim: '15/11/2026',
+        condicao_pagamento: '15 DDL',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'FRENTE DE OBRA MARGINAL',
+        endereco_instalacao: 'AV MARGINAL TIETE, 5200 - VILA MARIA - SAO PAULO/SP',
+        cep_instalacao: '02117-000',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - QUINZENAL', observacao: '01 LIMPEZA POR SEMANA', qtde: 2, valor_unitario: 390.00, total: 780.00 }
+        ],
+        valores_complementares: [
+          { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
+          { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
+        ]
+      })
+    },
+    {
+      ordem: 9,
+      codigo_tipo: 'PROPOSTA OBRA SEMANAL',
+      nome: 'Proposta Obra Semanal',
+      arquivo_origem: 'Semanal.pdf',
+      titulo_documento: 'PROPOSTA OBRA SEMANAL Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 1,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Proposta de Locação Semanal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
+        '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
+        '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
+        '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
+        '5. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
+        '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
+        '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
+      ].join('\n'),
+      observacao_padrao: 'LOCAÇÃO SEMANAL PARA MANUTENÇÃO PREDIAL RÁPIDA',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14048',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'REFORMAS E INSTALACOES EXPRESS LTDA',
+        cliente_cnpj: '31.222.444/0001-77',
+        cliente_ie: 'ISENTO',
+        cliente_endereco: 'RUA VERGUEIRO, 2100 - VILA MARIANA',
+        cliente_municipio: 'SAO PAULO',
+        cliente_uf: 'SP',
+        cliente_cep: '04101-100',
+        contato_nome: 'ANDREIA RAMOS',
+        contato_telefone: '(11) 5571-2020',
+        contato_celular: '(11) 99654-3210',
+        contato_email: 'andreia@reformasexpress.com.br',
+        periodo_inicio: '01/11/2026',
+        periodo_fim: '07/11/2026',
+        condicao_pagamento: 'À VISTA ANTECIPADO',
+        validade_proposta: '7 DIAS',
+        local_instalacao: 'OBRA VILA MARIANA',
+        endereco_instalacao: 'RUA VERGUEIRO, 2100 - VILA MARIANA - SAO PAULO/SP',
+        cep_instalacao: '04101-100',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - SEMANAL', observacao: 'PERÍODO DE 07 DIAS', qtde: 1, valor_unitario: 340.00, total: 340.00 }
+        ],
+        valores_complementares: [
+          { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
+          { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
+        ]
+      })
+    },
+    {
+      ordem: 10,
+      codigo_tipo: 'PROPOSTA VENDA',
+      nome: 'Proposta Venda',
+      arquivo_origem: 'Venda.pdf',
+      titulo_documento: 'PROPOSTA VENDA Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: 'Informações:',
+      texto_informacoes: [
+        '1. Venda mínima: 10 cabines',
+        '2. Frete: FOB - O Cliente coleta diretamente da fábrica localizada em Barueri/SP',
+        '3. Prazo de entrega: 30 dias úteis após a formalização do pedido.',
+        '4. Forma de pagamento: 50% na formalização do pedido / 50% na coleta do material',
+        '5. Valor da proposta já inclui impostos da NF'
+      ].join('\n'),
+      observacao_padrao: 'VENDA DE CABINES SANITÁRIAS NOVAS EM POLIETILENO DE ALTA DENSIDADE',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14049',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'LOCADORA SUL EQUIPAMENTOS LTDA',
+        cliente_cnpj: '05.432.109/0001-66',
+        cliente_ie: '254.118.900.112',
+        cliente_endereco: 'ROD BR-116, KM 102 - CIC',
+        cliente_municipio: 'CURITIBA',
+        cliente_uf: 'PR',
+        cliente_cep: '81690-100',
+        contato_nome: 'EDUARDO ROCHA',
+        contato_telefone: '(41) 3211-4000',
+        contato_celular: '(41) 99988-7766',
+        contato_email: 'diretoria@locadorasul.com.br',
+        periodo_inicio: '28/10/2026',
+        periodo_fim: '28/11/2026',
+        condicao_pagamento: '50% PEDIDO / 50% COLETA',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'RETIRADA FOB - FÁBRICA BARUERI/SP',
+        endereco_instalacao: 'BARUERI / SP',
+        cep_instalacao: '06400-000',
+        itens: [
+          { descricao: 'CABINE SANITÁRIA STANDARD NOVA (VENDA)', observacao: 'COR AZUL - COMPLETA', qtde: 10, valor_unitario: 4650.00, total: 46500.00 }
+        ],
+        valores_complementares: []
+      })
+    },
+    {
+      ordem: 11,
+      codigo_tipo: 'VISITA TÉCNICA',
+      nome: 'Visita Técnica',
+      arquivo_origem: 'Visita técnica.pdf',
+      titulo_documento: 'VISITA TÉCNICA Nº {{NUMERO_PROPOSTA}}',
+      titulo_tabela_produtos: 'Produtos para Locação',
+      exibir_valores_complementares: 0,
+      titulo_informacoes: '',
+      texto_informacoes: '',
+      observacao_padrao: 'VISITA TÉCNICA PARA AVALIAÇÃO DE LOCAL DE INSTALAÇÃO E DIMENSIONAMENTO',
+      exemplo_dados: JSON.stringify({
+        numero_proposta: '14050',
+        representante: 'Gabriela Vasconcelos',
+        email_representante: 'comercial2@americarental.com.br',
+        cliente_razao: 'INDUSTRIA METALURGICA ALFA LTDA',
+        cliente_cnpj: '61.234.567/0001-89',
+        cliente_ie: '336.112.233.115',
+        cliente_endereco: 'AV MONTEIRO LOBATO, 4100 - CUMBICA',
+        cliente_municipio: 'GUARULHOS',
+        cliente_uf: 'SP',
+        cliente_cep: '07180-000',
+        contato_nome: 'PAULO SERGIO',
+        contato_telefone: '(11) 2466-7788',
+        contato_celular: '(11) 98765-4321',
+        contato_email: 'paulo.sergio@metalurgicaalfa.com.br',
+        periodo_inicio: '30/10/2026',
+        periodo_fim: '30/10/2026',
+        condicao_pagamento: 'ISENTO / CORTESIA COMERCIAL',
+        validade_proposta: '10 DIAS',
+        local_instalacao: 'PLANTA INDUSTRIAL CUMBICA',
+        endereco_instalacao: 'AV MONTEIRO LOBATO, 4100 - CUMBICA - GUARULHOS/SP',
+        cep_instalacao: '07180-000',
+        itens: [
+          { descricao: 'VISITA TÉCNICA COMERCIAL / OPERACIONAL', observacao: 'VISTORIA TÉCNICA NO LOCAL', qtde: 1, valor_unitario: 0.00, total: 0.00 }
+        ],
+        valores_complementares: []
+      })
+    }
+  ];
+
+  const stmtSeed = db.prepare(`INSERT OR IGNORE INTO comercial_modelos_proposta (
+    ordem, codigo_tipo, nome, arquivo_origem, titulo_documento, dados_contratada,
+    titulo_tabela_produtos, exibir_valores_complementares, titulo_informacoes,
+    texto_informacoes, observacao_padrao, exemplo_dados, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+  for (const m of modelosIniciais) {
+    stmtSeed.run([
+      m.ordem, m.codigo_tipo, m.nome, m.arquivo_origem, m.titulo_documento, contratadaPadrao,
+      m.titulo_tabela_produtos, m.exibir_valores_complementares, m.titulo_informacoes,
+      m.texto_informacoes, m.observacao_padrao, m.exemplo_dados, agora, agora
+    ]);
+  }
+  stmtSeed.finalize();
+});
+
+// GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta
+app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, nome ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/comercial/modelos-proposta/:id - Obter um modelo de proposta por ID
+app.get('/api/comercial/modelos-proposta/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Modelo de proposta não encontrado' });
+    res.json(row);
+  });
+});
+
+// POST /api/comercial/modelos-proposta - Criar novo modelo de proposta
+app.post('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
+  const d = req.body || {};
+  if (!d.nome || !d.codigo_tipo) {
+    return res.status(400).json({ error: 'Nome e código do tipo de proposta são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(
+    `INSERT INTO comercial_modelos_proposta (
+      ordem, codigo_tipo, nome, arquivo_origem, titulo_documento, dados_contratada,
+      titulo_tabela_produtos, exibir_valores_complementares, titulo_informacoes,
+      texto_informacoes, observacao_padrao, exemplo_dados, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      Number(d.ordem) || 99,
+      String(d.codigo_tipo).trim().toUpperCase(),
+      String(d.nome).trim(),
+      d.arquivo_origem || '',
+      d.titulo_documento || `${String(d.codigo_tipo).trim().toUpperCase()} Nº {{NUMERO_PROPOSTA}}`,
+      typeof d.dados_contratada === 'object' ? JSON.stringify(d.dados_contratada) : (d.dados_contratada || ''),
+      d.titulo_tabela_produtos || 'Produtos para Locação',
+      d.exibir_valores_complementares ? 1 : 0,
+      d.titulo_informacoes !== undefined ? d.titulo_informacoes : 'Informações:',
+      d.texto_informacoes || '',
+      d.observacao_padrao || '',
+      typeof d.exemplo_dados === 'object' ? JSON.stringify(d.exemplo_dados) : (d.exemplo_dados || '{}'),
+      agora,
+      agora
+    ],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe um modelo para este tipo de proposta.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, id: this.lastID });
+    }
+  );
+});
+
+// PUT /api/comercial/modelos-proposta/:id - Atualizar textos e configurações do modelo de proposta
+app.put('/api/comercial/modelos-proposta/:id', authenticateToken, (req, res) => {
+  const d = req.body || {};
+  if (!d.nome || !d.codigo_tipo) {
+    return res.status(400).json({ error: 'Nome e código do tipo de proposta são obrigatórios.' });
+  }
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(
+    `UPDATE comercial_modelos_proposta SET
+      codigo_tipo = ?, nome = ?, titulo_documento = ?, dados_contratada = ?,
+      titulo_tabela_produtos = ?, exibir_valores_complementares = ?,
+      titulo_informacoes = ?, texto_informacoes = ?, observacao_padrao = ?,
+      exemplo_dados = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      String(d.codigo_tipo).trim().toUpperCase(),
+      String(d.nome).trim(),
+      d.titulo_documento || '',
+      typeof d.dados_contratada === 'object' ? JSON.stringify(d.dados_contratada) : (d.dados_contratada || ''),
+      d.titulo_tabela_produtos || 'Produtos para Locação',
+      d.exibir_valores_complementares ? 1 : 0,
+      d.titulo_informacoes !== undefined ? d.titulo_informacoes : 'Informações:',
+      d.texto_informacoes || '',
+      d.observacao_padrao || '',
+      typeof d.exemplo_dados === 'object' ? JSON.stringify(d.exemplo_dados) : (d.exemplo_dados || '{}'),
+      agora,
+      req.params.id
+    ],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Já existe outro modelo com este código de tipo.' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) return res.status(404).json({ error: 'Modelo de proposta não encontrado' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// DELETE /api/comercial/modelos-proposta/:id - Excluir um modelo de proposta
+app.delete('/api/comercial/modelos-proposta/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Modelo de proposta não encontrado' });
+    res.json({ success: true });
+  });
+});
+
 console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 console.log('[COMERCIAL] Módulo de precificação de serviços carregado.');
-console.log('[CONTRATOS] Módulo de gerenciamento de modelos de contratos carregado.');
+console.log('[CONTRATOS] Módulo de gerenciamento de modelos de contratos e propostas carregado.');
 
 
 

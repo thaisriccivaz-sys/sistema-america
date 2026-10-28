@@ -703,6 +703,9 @@ function renderTelaPropostas() {
                             <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                                 <i class="ph ph-calculator"></i> Precificação de Serviços
                             </div>
+                            <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                                <i class="ph ph-files"></i> Modelos Propostas
+                            </div>
                             <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                                 <i class="ph ph-file-text"></i> Modelos de Contrato
                             </div>
@@ -934,6 +937,9 @@ function renderTelaPropostas() {
             <!-- VIEW: MODELOS CONTRATO -->
             <div id="prop-view-modelos-contrato" style="display:${_currentPropostaTab === 'modelos-contrato' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: MODELOS PROPOSTAS -->
+            <div id="prop-view-modelos-propostas" style="display:${_currentPropostaTab === 'modelos-propostas' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -949,6 +955,8 @@ function renderTelaPropostas() {
         _renderServicosPrecificacaoInt();
     } else if (_currentPropostaTab === 'modelos-contrato') {
         _renderModelosContratoInt();
+    } else if (_currentPropostaTab === 'modelos-propostas') {
+        _renderModelosPropostasInt();
     }
 
     setTimeout(() => {
@@ -967,7 +975,8 @@ function renderTelaPropostas() {
             'cadastro-contatos': 'prop-toolbar-contatos',
             'enderecos': 'prop-toolbar-enderecos',
             'servicos-precificacao': 'prop-toolbar-precificacao',
-            'modelos-contrato': 'prop-toolbar-modelos'
+            'modelos-contrato': 'prop-toolbar-modelos',
+            'modelos-propostas': 'prop-toolbar-modelos-propostas'
         };
         const toolbarId = toolbarIdMap[_currentPropostaTab];
         const toolbar = document.getElementById(toolbarId);
@@ -994,6 +1003,7 @@ window.switchPropostaTab = function(tab) {
     const viewEnderecos = document.getElementById('prop-view-enderecos');
     const viewServicosPrecificacao = document.getElementById('prop-view-servicos-precificacao');
     const viewModelosContrato = document.getElementById('prop-view-modelos-contrato');
+    const viewModelosPropostas = document.getElementById('prop-view-modelos-propostas');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
@@ -1001,8 +1011,9 @@ window.switchPropostaTab = function(tab) {
     const tabEnderecos = document.getElementById('tab-prop-enderecos');
     const tabServicosPrecificacao = document.getElementById('tab-prop-servicos-precificacao');
     const tabModelosContrato = document.getElementById('tab-prop-modelos-contrato');
+    const tabModelosPropostas = document.getElementById('tab-prop-modelos-propostas');
 
-    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato;
+    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas;
     if (elementsExist) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
@@ -1026,6 +1037,9 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'modelos-contrato' && viewModelosContrato.innerHTML.trim() === '') {
             _renderModelosContratoInt();
         }
+        if (tab === 'modelos-propostas' && viewModelosPropostas.innerHTML.trim() === '') {
+            _renderModelosPropostasInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
@@ -1034,6 +1048,7 @@ window.switchPropostaTab = function(tab) {
         viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
         viewServicosPrecificacao.style.display = tab === 'servicos-precificacao' ? 'block' : 'none';
         viewModelosContrato.style.display = tab === 'modelos-contrato' ? 'block' : 'none';
+        viewModelosPropostas.style.display = tab === 'modelos-propostas' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
@@ -1054,6 +1069,8 @@ window.switchPropostaTab = function(tab) {
                 document.querySelectorAll('#tab-prop-servicos-precificacao').forEach(el => el.classList.add('active'));
             } else if (tab === 'modelos-contrato') {
                 document.querySelectorAll('#tab-prop-modelos-contrato').forEach(el => el.classList.add('active'));
+            } else if (tab === 'modelos-propostas') {
+                document.querySelectorAll('#tab-prop-modelos-propostas').forEach(el => el.classList.add('active'));
             }
             
             // Highlight dropdown item by matching target tab in any replica
@@ -1798,6 +1815,9 @@ function _renderFormPropostaInt() {
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                             <i class="ph ph-file-text"></i> Modelos de Contrato
@@ -5233,28 +5253,42 @@ async function imprimirProposta(id) {
     });
 
     let modelObj = null;
+    let modeloPropostaObj = null;
     let textosLegais = [];
+    let clientObj = null;
     let cnpj = '—';
 
     try {
-        const models = await apiGet('/comercial/modelos-contrato') || [];
-        modelObj = models.find(m => m.nome === p.modelo_impressao);
-        
+        const [models, modelosProp, clients] = await Promise.all([
+            apiGet('/comercial/modelos-contrato').catch(() => []),
+            apiGet('/comercial/modelos-proposta').catch(() => []),
+            apiGet('/clientes').catch(() => [])
+        ]);
+        modelObj = (models || []).find(m => m.nome === p.modelo_impressao);
+        const tipoNorm = String(p.tipo || '').trim().toUpperCase();
+        modeloPropostaObj = (modelosProp || []).find(m =>
+            String(m.codigo_tipo || '').trim().toUpperCase() === tipoNorm ||
+            String(m.nome || '').trim().toUpperCase() === tipoNorm
+        ) || (modelosProp || [])[0] || null;
+
+        clientObj = (clients || []).find(c =>
+            c.nome_razao_social === p.cliente_nome ||
+            c.nome_fantasia === p.cliente_nome
+        ) || null;
+        if (clientObj) {
+            cnpj = clientObj.cpf_cnpj || '—';
+        }
+
         if (modelObj) {
-            textosLegais = await apiGet('/comercial/textos-legais') || [];
-            const clients = await apiGet('/clientes') || [];
-            const client = clients.find(c => c.nome_razao_social === p.cliente_nome || c.nome_fantasia === p.cliente_nome);
-            if (client) {
-                cnpj = client.cpf_cnpj || '—';
-            }
+            textosLegais = await apiGet('/comercial/textos-legais').catch(() => []) || [];
         }
         Swal.close();
     } catch (err) {
         Swal.close();
-        console.error("Erro ao carregar dados para impressão do contrato:", err);
+        console.error("Erro ao carregar dados para impressão:", err);
     }
 
-    const win = window.open('', '_blank', 'width=900,height=700');
+    const win = window.open('', '_blank', 'width=960,height=780');
     const fmtMoeda = (v) => 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     const fmtData = (s) => _fmtData(s);
 
@@ -5275,7 +5309,6 @@ async function imprimirProposta(id) {
                 text = legal ? legal.texto_legal : '—';
             }
 
-            // Replace placeholders
             text = text.replace(/\{\{CLIENTE_RAZAO\}\}/g, p.cliente_nome || '—')
                        .replace(/\{\{CLIENTE_NOME\}\}/g, p.cliente_nome || '—')
                        .replace(/\{\{CLIENTE_CNPJ\}\}/g, cnpj)
@@ -5334,7 +5367,7 @@ async function imprimirProposta(id) {
                 <div class="sig-box">
                     <p>CONTRATADA</p>
                     <span>AMÉRICA RENTAL EQUIPAMENTOS LTDA</span>
-                    <span>CNPJ: 02.089.969/0001-06</span>
+                    <span>CNPJ: 03.434.448/0001-01</span>
                 </div>
             </div>
 
@@ -5344,102 +5377,80 @@ async function imprimirProposta(id) {
                 </button>
             </div>
         </body></html>`);
-    } else {
-        // Fallback default simple layout
-        win.document.write(`<!DOCTYPE html><html lang="pt-BR">
-        <head>
-            <meta charset="UTF-8">
-            <title>Proposta ${p.codigo}</title>
-            <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                body { font-family: Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 20px; }
-                .header { background: #4c1d95; color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .header h1 { font-size: 16pt; margin-bottom: 4px; }
-                .header .sub { font-size: 10pt; opacity: 0.85; }
-                .badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 10pt; font-weight: bold; }
-                .section { margin-bottom: 18px; }
-                .section h3 { font-size: 10pt; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e7ff; padding-bottom: 5px; margin-bottom: 10px; }
-                .grid { display: grid; gap: 8px; }
-                .grid-2 { grid-template-columns: 1fr 1fr; }
-                .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-                .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-                .field { background: #f8fafc; border-radius: 5px; padding: 8px 10px; }
-                .field label { display: block; font-size: 8pt; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
-                .field span { font-size: 10.5pt; color: #1e293b; font-weight: 600; }
-                .valor-box { background: #4c1d95; color: white; border-radius: 8px; padding: 14px 18px; text-align: center; margin-top: 16px; }
-                .valor-box .label { font-size: 9pt; opacity: 0.8; margin-bottom: 4px; }
-                .valor-box .val { font-size: 22pt; font-weight: 800; }
-                .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 16px; font-size: 8pt; color: #94a3b8; text-align: center; }
-                .obs { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 10px 12px; font-size: 10pt; color: #78350f; }
-                @media print { body { padding: 10px; } .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <div>
-                    <h1>📋 Proposta de Locação</h1>
-                    <div class="sub">América Rental Equipamentos · ${fmtData(p.data_cadastro)}</div>
-                </div>
-                <div class="badge">${p.codigo || 'S/N'}</div>
-            </div>
+    } else if (typeof window.gerarHtmlDocumentoPropostaCompleta === 'function') {
+        let itensProp = [];
+        try {
+            itensProp = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []);
+        } catch (e) { itensProp = []; }
 
-            <div class="section">
-                <h3>Informações Gerais</h3>
-                <div class="grid grid-4">
-                    <div class="field"><label>Tipo</label><span>${p.tipo||'—'}</span></div>
-                    <div class="field"><label>Fase</label><span>${p.fase_negociacao||'—'}</span></div>
-                    <div class="field"><label>Atendente</label><span>${p.atendente||'—'}</span></div>
-                    <div class="field"><label>Previsão Fechamento</label><span>${fmtData(p.previsao_fechamento)||'—'}</span></div>
-                </div>
-            </div>
+        const valoresComp = [];
+        if (Number(p.valor_frete_ida) > 0) {
+            valoresComp.push({ descricao: 'MOBILIZAÇÃO / FRETE ENTREGA', observacao: p.tipo_frete || '', valor: Number(p.valor_frete_ida) });
+        }
+        if (Number(p.valor_frete_volta) > 0) {
+            valoresComp.push({ descricao: 'DESMOBILIZAÇÃO / FRETE RETIRADA', observacao: p.tipo_frete || '', valor: Number(p.valor_frete_volta) });
+        }
 
-            <div class="section">
-                <h3>Cliente</h3>
-                <div class="grid grid-2">
-                    <div class="field"><label>Cliente</label><span>${p.cliente_nome||'—'}</span></div>
-                    <div class="field"><label>Contato</label><span>${p.contato_nome||'—'}</span></div>
-                </div>
-            </div>
+        const dadosRender = {
+            numero_proposta: p.codigo || p.id || 'S/N',
+            contrato_base: p.contrato_base || '—',
+            modo_equipamentos: String(p.tipo || '').toUpperCase().includes('EQUIPAMENTO'),
+            representante: p.representante || p.atendente || 'Comercial',
+            email_representante: 'comercial2@americarental.com.br',
+            cliente_razao: (clientObj && clientObj.nome_razao_social) || p.cliente_nome || '—',
+            cliente_cnpj: (clientObj && clientObj.cpf_cnpj) || cnpj || '—',
+            cliente_ie: (clientObj && clientObj.rg_ie) || 'ISENTO',
+            cliente_endereco: (clientObj && clientObj.endereco ? `${clientObj.endereco}${clientObj.numero ? ', ' + clientObj.numero : ''}${clientObj.bairro ? ' - ' + clientObj.bairro : ''}` : (p.endereco_instalacao || '—')),
+            cliente_municipio: (clientObj && clientObj.municipio) || 'SAO PAULO',
+            cliente_uf: (clientObj && clientObj.uf) || 'SP',
+            cliente_cep: (clientObj && clientObj.cep) || '—',
+            contato_nome: p.contato_nome || (clientObj && clientObj.contato_principal) || '—',
+            contato_telefone: (clientObj && clientObj.telefone) || '—',
+            contato_celular: (clientObj && clientObj.celular) || '—',
+            contato_email: (clientObj && clientObj.email) || '—',
+            periodo_inicio: fmtData(p.periodo_inicio),
+            periodo_fim: fmtData(p.periodo_fim),
+            condicao_pagamento: p.condicao_pagamento || '—',
+            validade_proposta: '10 DIAS',
+            local_instalacao: p.cliente_nome || 'LOCAL DE INSTALAÇÃO',
+            endereco_instalacao: p.endereco_instalacao || '—',
+            cep_instalacao: (clientObj && clientObj.cep) || '—',
+            itens: itensProp.length > 0 ? itensProp.map(it => ({
+                descricao: it.descricao || it.produto || it.nome || 'PRODUTO / SERVIÇO',
+                observacao: it.observacao || it.obs || '',
+                qtde: Number(it.qtde || it.quantidade || 1),
+                valor_unitario: Number(it.valor_unitario || it.preco_unitario || it.valor || p.valor_total || 0),
+                diarias: Number(it.diarias || p.dias_contrato || 1),
+                total_diaria: Number(it.total_diaria || ((Number(it.valor_unitario || 0)) * Number(it.diarias || 1))),
+                total: Number(it.total || it.valor_total || ((Number(it.qtde || 1)) * Number(it.valor_unitario || p.valor_total || 0)))
+            })) : [
+                {
+                    descricao: p.tipo || 'LOCAÇÃO / SERVIÇO',
+                    observacao: p.tabela_precos || '',
+                    qtde: 1,
+                    valor_unitario: Number(p.valor_total || 0),
+                    diarias: Number(p.dias_contrato || 1),
+                    total_diaria: Number(p.valor_total || 0),
+                    total: Number(p.valor_total || 0)
+                }
+            ],
+            desconto: Number(p.desconto_reais || 0),
+            valores_complementares: valoresComp,
+            observacao: p.observacoes || (modeloPropostaObj && modeloPropostaObj.observacao_padrao) || ''
+        };
 
-            <div class="section">
-                <h3>Período e Local</h3>
-                <div class="grid grid-4">
-                    <div class="field"><label>Período Início</label><span>${fmtData(p.periodo_inicio)||'—'}</span></div>
-                    <div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div>
-                    <div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div>
-                    <div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div>
-                </div>
-                <div class="grid grid-1" style="margin-top:8px;">
-                    <div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div>
-                </div>
-            </div>
+        const modeloEfetivo = modeloPropostaObj || {
+            codigo_tipo: p.tipo || 'PROPOSTA COMERCIAL',
+            nome: p.tipo || 'Proposta Comercial',
+            titulo_documento: `${(p.tipo || 'PROPOSTA COMERCIAL').toUpperCase()} Nº {{NUMERO_PROPOSTA}}`,
+            titulo_tabela_produtos: 'Produtos para Locação',
+            exibir_valores_complementares: valoresComp.length > 0 ? 1 : 0,
+            titulo_informacoes: 'Informações:',
+            texto_informacoes: '',
+            observacao_padrao: p.observacoes || ''
+        };
 
-            <div class="section">
-                <h3>Condições Comerciais</h3>
-                <div class="grid grid-4">
-                    <div class="field"><label>Tabela de Preços</label><span>${p.tabela_precos||'—'}</span></div>
-                    <div class="field"><label>Condição Pagamento</label><span>${p.condicao_pagamento||'—'}</span></div>
-                    <div class="field"><label>Desconto (%)</label><span>${Number(p.desconto_percent||0).toFixed(2)}%</span></div>
-                    <div class="field"><label>Desconto (R$)</label><span>${fmtMoeda(p.desconto_reais)}</span></div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>Representante e Frete</h3>
-                <div class="grid grid-4">
-                    <div class="field"><label>Representante</label><span>${p.representante||'—'}</span></div>
-                    <div class="field"><label>Transportadora</label><span>${p.transportadora||'—'}</span></div>
-                    <div class="field"><label>Frete Ida</label><span>${fmtMoeda(p.valor_frete_ida)}</span></div>
-                    <div class="field"><label>Frete Volta</label><span>${fmtMoeda(p.valor_frete_volta)}</span></div>
-                </div>
-            </div>
-
-            <div class="no-print" style="text-align:center; margin-top:20px;">
-                <button onclick="window.print(); window.close();" style="background:#4c1d95;color:white;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:12pt;font-weight:700;">
-                    🖨️ Imprimir / Salvar PDF
-                </button>
-            </div>
-        </body></html>`);
+        win.document.write(window.gerarHtmlDocumentoPropostaCompleta(modeloEfetivo, dadosRender));
     }
 
     win.document.close();
@@ -8825,6 +8836,9 @@ function _renderCadastroContatosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
+                        </div>
                         <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                             <i class="ph ph-file-text"></i> Modelos de Contrato
                         </div>
@@ -10840,6 +10854,9 @@ function _renderEnderecosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
+                        </div>
                         <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                             <i class="ph ph-file-text"></i> Modelos de Contrato
                         </div>
@@ -12491,6 +12508,9 @@ function _renderPrecificacaoBaseLayout() {
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                             <i class="ph ph-file-text"></i> Modelos de Contrato
@@ -16034,6 +16054,9 @@ function _renderModelosContratoBaseLayout() {
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
+                        </div>
                         <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
                             <i class="ph ph-file-text"></i> Modelos de Contrato
                         </div>
@@ -16771,4 +16794,782 @@ window.excluirTextoLegal = async function(id) {
         }
     }
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// MÓDULO: MODELOS DE PROPOSTAS COMERCIAIS (11 TIPOS — LAYOUT PADRÃO PDF)
+// ══════════════════════════════════════════════════════════════════════════
+window._modelosPropostasList = [];
+window._modeloPropostaAtivo = null;
+window._modoEdicaoItensProposta = 'itens'; // 'itens' | 'texto'
+
+function _escHtmlProp(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function _fmtMoedaNumProp(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
+    const m = modelo || {};
+    let contratada = {
+        razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
+        cnpj: '03.434.448/0001-01',
+        ie: '336.715.410.116',
+        endereco: 'RUA SALTO DA DIVISA , 97, CIDADE PARQUE ALVORADA GUARULHOS /SP - CEP: 07242-300',
+        telefone: '(11) 2499-3353',
+        celular: '(11) 99104-2685'
+    };
+    try {
+        if (m.dados_contratada) {
+            const parsedC = typeof m.dados_contratada === 'string' ? JSON.parse(m.dados_contratada) : m.dados_contratada;
+            if (parsedC && typeof parsedC === 'object') contratada = { ...contratada, ...parsedC };
+        }
+    } catch (e) {}
+
+    let ex = {};
+    try {
+        if (dadosCustom && typeof dadosCustom === 'object') {
+            ex = dadosCustom;
+        } else if (m.exemplo_dados) {
+            ex = typeof m.exemplo_dados === 'string' ? JSON.parse(m.exemplo_dados) : m.exemplo_dados;
+        }
+    } catch (e) { ex = {}; }
+
+    const numeroProposta = ex.numero_proposta || '14043';
+    const contratoBase = ex.contrato_base || '10315';
+    const isAditivo = String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO');
+    const isEquipamentos = Boolean(ex.modo_equipamentos) || String(m.codigo_tipo || '').toUpperCase() === 'EQUIPAMENTOS';
+
+    const tituloDoc = String(m.titulo_documento || `${m.codigo_tipo || 'PROPOSTA'} Nº {{NUMERO_PROPOSTA}}`)
+        .replace(/\{\{NUMERO_PROPOSTA\}\}/g, numeroProposta)
+        .replace(/\{\{CONTRATO_BASE\}\}/g, contratoBase);
+
+    const itens = Array.isArray(ex.itens) && ex.itens.length > 0
+        ? ex.itens
+        : [{ descricao: 'CABINE SANITÁRIA STANDARD', observacao: 'LIMPEZA 1X POR SEMANA', qtde: 1, valor_unitario: 480.00, diarias: 1, total_diaria: 480.00, total: 480.00 }];
+
+    const totalProdutos = itens.reduce((acc, it) => acc + Number(it.total !== undefined ? it.total : (Number(it.qtde || 1) * Number(it.valor_unitario || 0))), 0);
+    const descontoVal = Number(ex.desconto || 0);
+    const totalComDesconto = Math.max(0, totalProdutos - descontoVal);
+
+    const valoresComp = Array.isArray(ex.valores_complementares) ? ex.valores_complementares : [];
+    const mostrarValoresComp = Boolean(Number(m.exibir_valores_complementares)) || valoresComp.length > 0;
+    const listaValoresComp = valoresComp.length > 0
+        ? valoresComp
+        : (mostrarValoresComp ? [
+            { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
+            { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
+        ] : []);
+
+    const tituloTabelaProd = m.titulo_tabela_produtos || (isAditivo ? '1. Objetivo do Termo Aditivo' : 'Produtos para Locação');
+    const tituloInfo = m.titulo_informacoes !== undefined ? m.titulo_informacoes : 'Informações:';
+    const textoInfoRaw = String(m.texto_informacoes || '').trim();
+    const linhasInfo = textoInfoRaw ? textoInfoRaw.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : [];
+    const observacaoTexto = (ex.observacao !== undefined ? ex.observacao : m.observacao_padrao) || '';
+
+    let tabelaProdutosHtml = '';
+    if (isEquipamentos) {
+        tabelaProdutosHtml = `
+            <table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">
+                <thead>
+                    <tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">
+                        <th style="text-align:left; padding:5px 6px;">Descrição</th>
+                        <th style="text-align:left; padding:5px 6px;">Observação</th>
+                        <th style="text-align:center; padding:5px 6px; width:55px;">Qtde</th>
+                        <th style="text-align:right; padding:5px 6px; width:85px;">Vlr Diária</th>
+                        <th style="text-align:center; padding:5px 6px; width:60px;">Diárias</th>
+                        <th style="text-align:right; padding:5px 6px; width:95px;">Total da Diária</th>
+                        <th style="text-align:right; padding:5px 6px; width:90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itens.map(it => {
+                        const qt = Number(it.qtde || 1);
+                        const vUnit = Number(it.valor_unitario || 0);
+                        const diar = Number(it.diarias || 1);
+                        const totDiar = Number(it.total_diaria !== undefined ? it.total_diaria : (vUnit * diar));
+                        const tot = Number(it.total !== undefined ? it.total : (qt * totDiar));
+                        return `
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:5px 6px;">${_escHtmlProp(it.descricao)}</td>
+                            <td style="padding:5px 6px;">${_escHtmlProp(it.observacao || '')}</td>
+                            <td style="padding:5px 6px; text-align:center;">${qt}</td>
+                            <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(vUnit)}</td>
+                            <td style="padding:5px 6px; text-align:center;">${diar}</td>
+                            <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(totDiar)}</td>
+                            <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(tot)}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">TOTAL</td>
+                        <td style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalProdutos)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" style="padding:2px 6px; text-align:right; font-weight:700;">DESCONTO</td>
+                        <td style="padding:2px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(descontoVal)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">TOTAL COM DESCONTO</td>
+                        <td style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalComDesconto)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    } else {
+        tabelaProdutosHtml = `
+            <table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">
+                <thead>
+                    <tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">
+                        <th style="text-align:left; padding:5px 6px;">Descrição</th>
+                        <th style="text-align:left; padding:5px 6px;">Observação</th>
+                        <th style="text-align:center; padding:5px 6px; width:65px;">Qtde</th>
+                        <th style="text-align:right; padding:5px 6px; width:105px;">Valor Unitário</th>
+                        <th style="text-align:right; padding:5px 6px; width:105px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itens.map(it => {
+                        const qt = Number(it.qtde || 1);
+                        const vUnit = Number(it.valor_unitario || 0);
+                        const tot = Number(it.total !== undefined ? it.total : (qt * vUnit));
+                        return `
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:5px 6px;">${_escHtmlProp(it.descricao)}</td>
+                            <td style="padding:5px 6px;">${_escHtmlProp(it.observacao || '')}</td>
+                            <td style="padding:5px 6px; text-align:center;">${qt}</td>
+                            <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(vUnit)}</td>
+                            <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(tot)}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="padding:6px; text-align:right; font-weight:700;">TOTAL</td>
+                        <td style="padding:6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalProdutos)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+
+    const valoresCompHtml = mostrarValoresComp ? `
+        <div style="margin-top:10px; border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">
+            Valores Complementares
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">
+            <thead>
+                <tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">
+                    <th style="text-align:left; padding:5px 6px;">Descrição</th>
+                    <th style="text-align:left; padding:5px 6px;">Observação</th>
+                    <th style="text-align:right; padding:5px 6px; width:110px;">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${listaValoresComp.map(vc => `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:5px 6px;">${_escHtmlProp(vc.descricao)}</td>
+                        <td style="padding:5px 6px;">${_escHtmlProp(vc.observacao || '')}</td>
+                        <td style="padding:5px 6px; text-align:right;">${_fmtMoedaNumProp(vc.valor)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '';
+
+    const infoBoxHtml = (tituloInfo || linhasInfo.length > 0) ? `
+        <div style="margin-top:14px; border:1px solid #cbd5e1; border-radius:6px; padding:10px 14px; background:#fff;">
+            ${tituloInfo ? `<div style="font-weight:700; font-size:11.5px; color:#1e293b; margin-bottom:6px;">${_escHtmlProp(tituloInfo)}</div>` : ''}
+            <div style="display:flex; flex-direction:column; gap:5px; font-size:11px; line-height:1.45; color:#1e293b; text-align:justify;">
+                ${linhasInfo.map(linha => `<div>${_escHtmlProp(linha)}</div>`).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    return `
+        <div class="america-proposta-sheet" style="background:#fff; color:#1e293b; font-family:Arial, Helvetica, sans-serif; font-size:11.5px; line-height:1.4; max-width:820px; margin:0 auto; padding:12px 16px; box-sizing:border-box;">
+            <!-- Banner Topo América Rental (idêntico aos PDFs) -->
+            <div style="padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid #cbd5e1;">
+                <img src="/assets/logo-header.png" alt="América Rental" style="width:100%; max-height:92px; object-fit:contain; object-position:left center; display:block;">
+            </div>
+
+            <!-- Moldura Principal da Proposta -->
+            <div style="border:1px solid #cbd5e1; border-radius:4px; padding:12px 14px; box-sizing:border-box;">
+                <!-- Faixa de Título Centralizado -->
+                <div style="border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:700; font-size:13px; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:10px;">
+                    ${_escHtmlProp(tituloDoc)}
+                </div>
+
+                <!-- Dados da Contratada (América Rental) -->
+                <div style="padding-bottom:9px; margin-bottom:9px; border-bottom:1px solid #cbd5e1; font-size:11px; line-height:1.45;">
+                    <div style="font-weight:700; font-size:11.5px; color:#0f172a;">${_escHtmlProp(contratada.razao_social)}</div>
+                    <div><strong>CNPJ:</strong> ${_escHtmlProp(contratada.cnpj)} - <strong>IE:</strong> ${_escHtmlProp(contratada.ie)}</div>
+                    <div><strong>Endereço:</strong> ${_escHtmlProp(contratada.endereco)}</div>
+                    <div>
+                        <strong>Representante:</strong> ${_escHtmlProp(ex.representante || 'Gabriela Vasconcelos')}
+                        - <strong>Telefone:</strong> ${_escHtmlProp(contratada.telefone)}
+                        <strong>Celular:</strong> ${_escHtmlProp(contratada.celular)}
+                        <strong>Email:</strong> ${_escHtmlProp(ex.email_representante || 'comercial2@americarental.com.br')}
+                    </div>
+                </div>
+
+                <!-- Dados do Cliente (Contratante) -->
+                <div style="padding-bottom:9px; margin-bottom:9px; border-bottom:1px solid #cbd5e1; font-size:11px; line-height:1.45;">
+                    <div style="font-weight:700; font-size:11.5px; color:#0f172a;">${_escHtmlProp(ex.cliente_razao || 'CLIENTE EXEMPLO LTDA')}</div>
+                    <div><strong>CNPJ:</strong> ${_escHtmlProp(ex.cliente_cnpj || '00.000.000/0001-00')} &nbsp;&nbsp; <strong>IE:</strong> ${_escHtmlProp(ex.cliente_ie || 'ISENTO')}</div>
+                    <div>
+                        <strong>Endereço:</strong> ${_escHtmlProp(ex.cliente_endereco || '—')}
+                        &nbsp; <strong>Municipio:</strong> ${_escHtmlProp(ex.cliente_municipio || 'SAO PAULO')}
+                        - <strong>UF:</strong> ${_escHtmlProp(ex.cliente_uf || 'SP')}
+                        &nbsp; <strong>CEP:</strong> ${_escHtmlProp(ex.cliente_cep || '00000-000')}
+                    </div>
+                    <div>
+                        <strong>Contato:</strong> ${_escHtmlProp(ex.contato_nome || '—')}
+                        &nbsp; <strong>Telefone:</strong> ${_escHtmlProp(ex.contato_telefone || '—')}
+                        &nbsp; <strong>Celular:</strong> ${_escHtmlProp(ex.contato_celular || '—')}
+                        &nbsp; <strong>E-mail:</strong> ${_escHtmlProp(ex.contato_email || '—')}
+                    </div>
+                    ${isAditivo ? `<div><strong>Contrato Base:</strong> ${_escHtmlProp(contratoBase)}</div>` : ''}
+                </div>
+
+                <!-- Linha Período / Condição de Pagamento / Validade da Proposta -->
+                <div style="display:grid; grid-template-columns:1.2fr 1.1fr 0.9fr; gap:8px; padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #cbd5e1; font-size:11px;">
+                    <div><strong>Período:</strong> ${_escHtmlProp(ex.periodo_inicio || '01/11/2026')} à ${_escHtmlProp(ex.periodo_fim || '30/11/2026')}</div>
+                    <div><strong>Condição de Pagamento:</strong> ${_escHtmlProp(ex.condicao_pagamento || '28 DDL')}</div>
+                    <div style="text-align:right;"><strong>Validade da proposta:</strong> ${_escHtmlProp(ex.validade_proposta || '10 DIAS')}</div>
+                </div>
+
+                <!-- Local de Instalação -->
+                <div style="padding-bottom:9px; margin-bottom:6px; font-size:11px; line-height:1.45;">
+                    <div><strong>Local de instalação:</strong> ${_escHtmlProp(ex.local_instalacao || 'LOCAL DA OBRA / EVENTO')}</div>
+                    <div><strong>Endereço:</strong> ${_escHtmlProp(ex.endereco_instalacao || ex.cliente_endereco || '—')}</div>
+                    <div><strong>CEP:</strong> ${_escHtmlProp(ex.cep_instalacao || ex.cliente_cep || '—')}</div>
+                </div>
+
+                <!-- Cabeçalho e Tabela de Produtos -->
+                <div style="border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">
+                    ${_escHtmlProp(tituloTabelaProd)}
+                </div>
+                ${tabelaProdutosHtml}
+
+                <!-- Tabela Valores Complementares (quando aplicável) -->
+                ${valoresCompHtml}
+
+                <!-- Quadro de Informações / Condições Comerciais Editáveis -->
+                ${infoBoxHtml}
+
+                <!-- Quadro de Observação -->
+                <div style="margin-top:12px;">
+                    <div style="text-align:center; font-weight:700; font-size:11.5px; color:#475569; margin-bottom:4px;">Observação</div>
+                    <div style="border:1px solid #cbd5e1; border-radius:4px; padding:8px 10px; min-height:34px; font-size:11px; color:#1e293b; white-space:pre-wrap;">${_escHtmlProp(observacaoTexto)}</div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+window.gerarHtmlDocumentoPropostaCompleta = function(modelo, dadosCustom) {
+    const bodyHtml = window.gerarHtmlLayoutPropostaPadrao(modelo, dadosCustom);
+    const titulo = (modelo && modelo.nome) ? modelo.nome : 'Proposta Comercial';
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>${_escHtmlProp(titulo)} - América Rental</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 18px; background: #f1f5f9; font-family: Arial, Helvetica, sans-serif; }
+        .print-Wrapper { background: #fff; max-width: 840px; margin: 0 auto; padding: 10px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .no-print-bar { max-width: 840px; margin: 0 auto 14px auto; display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: #fff; padding: 10px 16px; border-radius: 8px; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .print-Wrapper { box-shadow: none; max-width: 100%; padding: 0; }
+            .no-print-bar { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print-bar">
+        <div style="font-size:13px; font-weight:700;">📄 Visualização de Impressão — ${_escHtmlProp(titulo)}</div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="window.print()" style="background:#7048e8; color:#fff; border:none; padding:7px 16px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">🖨️ Imprimir / Salvar PDF</button>
+            <button onclick="window.close()" style="background:#475569; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">Fechar</button>
+        </div>
+    </div>
+    <div class="print-Wrapper">
+        ${bodyHtml}
+    </div>
+</body>
+</html>`;
+};
+
+window._renderModelosPropostasInt = async function() {
+    const container = document.getElementById('prop-view-modelos-propostas');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 0.75rem 0.75rem; border-radius:14px; min-height:820px; box-sizing:border-box;">
+            <!-- Top SaaS Toolbar -->
+            <div id="prop-toolbar-modelos-propostas" style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:0.85rem; background:#fff; padding:0.55rem 1rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
+                <div class="saas-dropdown-container">
+                    <div class="saas-nav-item active" style="display:flex; align-items:center; gap:0.35rem;">
+                        <i class="ph ph-files"></i> Modelos Propostas <i class="ph ph-caret-down" style="font-size:0.8rem; opacity:0.7;"></i>
+                    </div>
+                    <div class="saas-dropdown-menu">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('lista'); event.stopPropagation();">
+                            <i class="ph ph-list-bullets"></i> Lista de Propostas
+                        </div>
+                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
+                            <i class="ph ph-pencil-simple"></i> Nova Proposta
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
+                            <i class="ph ph-user-plus"></i> Clientes
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                            <i class="ph ph-identification-card"></i> Contatos
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
+                            <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
+                            <i class="ph ph-calculator"></i> Precificação de Serviços
+                        </div>
+                        <div class="saas-dropdown-item active" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
+                            <i class="ph ph-files"></i> Modelos Propostas
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="window.novoModeloPropostaModal()" style="background:#fff; color:#7048e8; border:1px solid #d0bfff; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-plus-circle"></i> Novo Tipo de Proposta
+                    </button>
+                    <button onclick="window.imprimirModeloPropostaAtivo()" style="background:#0f172a; color:#fff; border:none; padding:0.45rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-printer"></i> Visualizar / Imprimir PDF
+                    </button>
+                    <button onclick="window.salvarModeloPropostaAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 1rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(22,163,74,0.25);">
+                        <i class="ph ph-floppy-disk"></i> Salvar Alterações
+                    </button>
+                    <button onclick="window._renderModelosPropostasInt()" title="Recarregar Modelos" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Layout Principal: Lista de Tipos à Esquerda + Editor e Preview Fiel à Direita -->
+            <div style="display:grid; grid-template-columns: 270px 1fr; gap:0.85rem; align-items:start;">
+                <!-- Coluna Esquerda: 11 Tipos de Proposta -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:60px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                        <span style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">
+                            <i class="ph ph-folders" style="color:#7048e8;"></i> Tipos de Proposta
+                        </span>
+                        <span id="modelos-prop-count-badge" style="background:#ede9fe; color:#6d28d9; font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:999px;">0</span>
+                    </div>
+                    <input id="modelos-prop-search" type="text" placeholder="🔍 Filtrar tipo de proposta..." oninput="window.filtrarListaModelosProposta()"
+                        style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.8rem; margin-bottom:0.65rem; box-sizing:border-box; outline:none;">
+                    <div id="modelos-prop-sidebar-list" style="display:flex; flex-direction:column; gap:0.35rem; max-height:680px; overflow-y:auto; padding-right:2px;">
+                        <div style="text-align:center; padding:1.5rem; color:#94a3b8; font-size:0.82rem;">Carregando modelos...</div>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Editor dos Textos + Preview Fiel ao PDF -->
+                <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                    <!-- Card Editor de Textos -->
+                    <div id="modelos-prop-editor-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.15rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="text-align:center; padding:2rem; color:#94a3b8;">Selecione um tipo de proposta ao lado para editar seus textos.</div>
+                    </div>
+
+                    <!-- Card Preview Fiel ao Layout dos PDFs em Anexo -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.15rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.55rem; border-bottom:1px solid #f1f5f9;">
+                            <div>
+                                <h4 style="margin:0; font-size:0.9rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                                    <i class="ph ph-eye" style="color:#7048e8;"></i> Pré-visualização Fiel da Proposta (Mesmo Layout dos PDFs)
+                                </h4>
+                                <span style="font-size:0.75rem; color:#64748b;">Qualquer edição nos textos acima atualiza automaticamente o documento abaixo.</span>
+                            </div>
+                            <button onclick="window.imprimirModeloPropostaAtivo()" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                                <i class="ph ph-printer"></i> Abrir em Tela Cheia / PDF
+                            </button>
+                        </div>
+                        <div id="modelos-prop-live-preview" style="background:#eef2f6; padding:18px; border-radius:10px; border:1px solid #cbd5e1; overflow-x:auto;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    try {
+        const rows = await apiGet('/comercial/modelos-proposta');
+        window._modelosPropostasList = Array.isArray(rows) ? rows : [];
+        const badge = document.getElementById('modelos-prop-count-badge');
+        if (badge) badge.textContent = String(window._modelosPropostasList.length);
+
+        if (window._modelosPropostasList.length > 0) {
+            const currentId = window._modeloPropostaAtivo && window._modeloPropostaAtivo.id;
+            const found = window._modelosPropostasList.find(x => x.id === currentId) || window._modelosPropostasList[0];
+            window.selecionarModeloProposta(found.id);
+        } else {
+            window.filtrarListaModelosProposta();
+        }
+    } catch (e) {
+        console.error('[MODELOS_PROPOSTA] Erro ao carregar:', e);
+    }
+};
+
+window.filtrarListaModelosProposta = function() {
+    const listEl = document.getElementById('modelos-prop-sidebar-list');
+    if (!listEl) return;
+    const termo = (document.getElementById('modelos-prop-search')?.value || '').trim().toLowerCase();
+    const filtrados = (window._modelosPropostasList || []).filter(m =>
+        !termo ||
+        String(m.nome || '').toLowerCase().includes(termo) ||
+        String(m.codigo_tipo || '').toLowerCase().includes(termo) ||
+        String(m.arquivo_origem || '').toLowerCase().includes(termo)
+    );
+
+    if (filtrados.length === 0) {
+        listEl.innerHTML = `<div style="text-align:center; padding:1.2rem; color:#94a3b8; font-size:0.8rem;">Nenhum modelo encontrado.</div>`;
+        return;
+    }
+
+    const activeId = window._modeloPropostaAtivo?.id;
+    listEl.innerHTML = filtrados.map(m => {
+        const isAtivo = m.id === activeId;
+        return `
+            <div onclick="window.selecionarModeloProposta(${m.id})"
+                 style="padding:0.6rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:${isAtivo ? '#5b21b6' : '#1e293b'};">${_escHtmlProp(m.nome)}</span>
+                    ${m.arquivo_origem ? `<span style="font-size:0.66rem; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; font-weight:600;">${_escHtmlProp(m.arquivo_origem)}</span>` : ''}
+                </div>
+                <span style="font-size:0.7rem; color:#64748b; font-weight:600;">${_escHtmlProp(m.codigo_tipo)}</span>
+            </div>
+        `;
+    }).join('');
+};
+
+window.selecionarModeloProposta = function(id) {
+    const found = (window._modelosPropostasList || []).find(m => m.id === id);
+    if (!found) return;
+    // Clone to allow live editing before saving
+    window._modeloPropostaAtivo = JSON.parse(JSON.stringify(found));
+    window.filtrarListaModelosProposta();
+    window._renderEditorModeloPropostaAtivo();
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window._renderEditorModeloPropostaAtivo = function() {
+    const card = document.getElementById('modelos-prop-editor-card');
+    const m = window._modeloPropostaAtivo;
+    if (!card || !m) return;
+
+    const linhas = String(m.texto_informacoes || '')
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean);
+
+    const itensHtml = linhas.length > 0 ? linhas.map((linha, idx) => `
+        <div style="display:flex; gap:6px; align-items:flex-start;">
+            <span style="background:#f1f5f9; color:#475569; font-weight:700; font-size:0.74rem; padding:6px 8px; border-radius:6px; border:1px solid #cbd5e1; min-width:32px; text-align:center; margin-top:2px;">
+                #${idx + 1}
+            </span>
+            <textarea class="mp-item-linha" data-idx="${idx}" rows="2"
+                oninput="window._sincronizarItensParaTextoModeloProposta()"
+                style="flex:1; padding:0.45rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; font-family:'Inter', sans-serif; line-height:1.4; resize:vertical;">${_escHtmlProp(linha)}</textarea>
+            <button type="button" onclick="window.removerItemTextoModeloProposta(${idx})" title="Remover este item"
+                style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; width:30px; height:30px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-top:2px;">
+                <i class="ph ph-trash"></i>
+            </button>
+        </div>
+    `).join('') : `
+        <div style="padding:0.85rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; color:#64748b; font-size:0.8rem; text-align:center;">
+            Este modelo não possui itens no quadro de Informações (ex.: Visita Técnica). Clique em <b>+ Adicionar Item / Cláusula</b> se desejar incluir.
+        </div>
+    `;
+
+    card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:0.65rem; margin-bottom:0.85rem; border-bottom:2px solid #f1f5f9; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="background:#7048e8; color:#fff; width:28px; height:28px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center;">
+                    <i class="ph ph-note-pencil"></i>
+                </span>
+                <div>
+                    <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b;">
+                        Editar Textos do Modelo: <span style="color:#7048e8;">${_escHtmlProp(m.nome)}</span>
+                    </h3>
+                    <span style="font-size:0.74rem; color:#64748b;">
+                        Arquivo base: <b>${_escHtmlProp(m.arquivo_origem || 'Personalizado')}</b> · Vinculado ao tipo <b>${_escHtmlProp(m.codigo_tipo)}</b>
+                    </span>
+                </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button type="button" onclick="window.salvarModeloPropostaAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-check-circle"></i> Salvar Textos
+                </button>
+            </div>
+        </div>
+
+        <!-- Campos de Configuração do Cabeçalho e Títulos -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1.3fr; gap:0.75rem; margin-bottom:0.85rem;">
+            <div>
+                <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Nome do Modelo *</label>
+                <input id="mp-edit-nome" type="text" value="${_escHtmlProp(m.nome)}" oninput="window._onInputCampoModeloProposta()"
+                    style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Código do Tipo de Proposta *</label>
+                <input id="mp-edit-codigo-tipo" type="text" value="${_escHtmlProp(m.codigo_tipo)}" oninput="window._onInputCampoModeloProposta()"
+                    style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:700; color:#334155; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Título no Topo do Documento</label>
+                <input id="mp-edit-titulo-doc" type="text" value="${_escHtmlProp(m.titulo_documento)}" oninput="window._onInputCampoModeloProposta()"
+                    style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box;">
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.9rem;">
+            <div>
+                <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Título da Tabela de Produtos</label>
+                <input id="mp-edit-titulo-prod" type="text" value="${_escHtmlProp(m.titulo_tabela_produtos || 'Produtos para Locação')}" oninput="window._onInputCampoModeloProposta()"
+                    style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Título do Quadro de Textos</label>
+                <input id="mp-edit-titulo-info" type="text" value="${_escHtmlProp(m.titulo_informacoes !== undefined ? m.titulo_informacoes : 'Informações:')}" placeholder="Ex: Informações: ou 2. Condições Comerciais" oninput="window._onInputCampoModeloProposta()"
+                    style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box;">
+            </div>
+            <div style="display:flex; align-items:flex-end; padding-bottom:6px;">
+                <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; font-weight:700; color:#334155;">
+                    <input id="mp-edit-valores-comp" type="checkbox" ${Number(m.exibir_valores_complementares) ? 'checked' : ''} onchange="window._onInputCampoModeloProposta()"
+                        style="width:16px; height:16px; accent-color:#7048e8;">
+                    Exibir tabela "Valores Complementares"
+                </label>
+            </div>
+        </div>
+
+        <!-- Editor de Textos / Cláusulas da Proposta -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem; margin-bottom:0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap; gap:6px;">
+                <label style="font-size:0.76rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.03em;">
+                    <i class="ph ph-list-numbers" style="color:#7048e8;"></i> Textos / Condições da Proposta (Editável)
+                </label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button type="button" onclick="window.alternarModoEdicaoTextoProposta('itens')"
+                        style="padding:4px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; border:1px solid ${window._modoEdicaoItensProposta === 'itens' ? '#7048e8' : '#cbd5e1'}; background:${window._modoEdicaoItensProposta === 'itens' ? '#7048e8' : '#fff'}; color:${window._modoEdicaoItensProposta === 'itens' ? '#fff' : '#475569'};">
+                        Editar por Item
+                    </button>
+                    <button type="button" onclick="window.alternarModoEdicaoTextoProposta('texto')"
+                        style="padding:4px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; border:1px solid ${window._modoEdicaoItensProposta === 'texto' ? '#7048e8' : '#cbd5e1'}; background:${window._modoEdicaoItensProposta === 'texto' ? '#7048e8' : '#fff'}; color:${window._modoEdicaoItensProposta === 'texto' ? '#fff' : '#475569'};">
+                        Editar em Bloco Livre
+                    </button>
+                    <button type="button" onclick="window.adicionarItemTextoModeloProposta()"
+                        style="padding:4px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; border:1px solid #bbf7d0; background:#dcfce7; color:#15803d; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="ph ph-plus"></i> Adicionar Item / Cláusula
+                    </button>
+                </div>
+            </div>
+
+            <div id="mp-editor-itens-container" style="display:${window._modoEdicaoItensProposta === 'itens' ? 'flex' : 'none'}; flex-direction:column; gap:8px;">
+                ${itensHtml}
+            </div>
+
+            <div id="mp-editor-texto-container" style="display:${window._modoEdicaoItensProposta === 'texto' ? 'block' : 'none'};">
+                <textarea id="mp-edit-texto-info" rows="8" oninput="window._onInputTextoLivreModeloProposta()"
+                    placeholder="Digite um item por linha..."
+                    style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; font-family:'Inter', sans-serif; line-height:1.5; box-sizing:border-box; resize:vertical;">${_escHtmlProp(m.texto_informacoes || '')}</textarea>
+            </div>
+        </div>
+
+        <!-- Observação Padrão -->
+        <div>
+            <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Observação Padrão do Modelo</label>
+            <textarea id="mp-edit-observacao" rows="2" oninput="window._onInputCampoModeloProposta()"
+                style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; font-family:'Inter', sans-serif; box-sizing:border-box; resize:vertical;">${_escHtmlProp(m.observacao_padrao || '')}</textarea>
+        </div>
+    `;
+};
+
+window.alternarModoEdicaoTextoProposta = function(modo) {
+    window._modoEdicaoItensProposta = modo;
+    window._renderEditorModeloPropostaAtivo();
+};
+
+window._sincronizarItensParaTextoModeloProposta = function() {
+    if (!window._modeloPropostaAtivo) return;
+    const nodes = document.querySelectorAll('.mp-item-linha');
+    const linhas = [];
+    nodes.forEach(n => {
+        if (n.value.trim()) linhas.push(n.value.trim());
+    });
+    window._modeloPropostaAtivo.texto_informacoes = linhas.join('\n');
+    const txtLivre = document.getElementById('mp-edit-texto-info');
+    if (txtLivre) txtLivre.value = window._modeloPropostaAtivo.texto_informacoes;
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window._onInputTextoLivreModeloProposta = function() {
+    if (!window._modeloPropostaAtivo) return;
+    const txtLivre = document.getElementById('mp-edit-texto-info');
+    if (txtLivre) {
+        window._modeloPropostaAtivo.texto_informacoes = txtLivre.value;
+    }
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window._onInputCampoModeloProposta = function() {
+    const m = window._modeloPropostaAtivo;
+    if (!m) return;
+    m.nome = document.getElementById('mp-edit-nome')?.value || '';
+    m.codigo_tipo = document.getElementById('mp-edit-codigo-tipo')?.value || '';
+    m.titulo_documento = document.getElementById('mp-edit-titulo-doc')?.value || '';
+    m.titulo_tabela_produtos = document.getElementById('mp-edit-titulo-prod')?.value || '';
+    m.titulo_informacoes = document.getElementById('mp-edit-titulo-info')?.value || '';
+    m.exibir_valores_complementares = document.getElementById('mp-edit-valores-comp')?.checked ? 1 : 0;
+    m.observacao_padrao = document.getElementById('mp-edit-observacao')?.value || '';
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window.adicionarItemTextoModeloProposta = function() {
+    const m = window._modeloPropostaAtivo;
+    if (!m) return;
+    const linhas = String(m.texto_informacoes || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const proxNum = linhas.length + 1;
+    linhas.push(`${proxNum}. Nova condição ou informação da proposta.`);
+    m.texto_informacoes = linhas.join('\n');
+    window._modoEdicaoItensProposta = 'itens';
+    window._renderEditorModeloPropostaAtivo();
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window.removerItemTextoModeloProposta = function(idx) {
+    const m = window._modeloPropostaAtivo;
+    if (!m) return;
+    const linhas = String(m.texto_informacoes || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    linhas.splice(idx, 1);
+    m.texto_informacoes = linhas.join('\n');
+    window._renderEditorModeloPropostaAtivo();
+    window.atualizarPreviewModeloPropostaAtivo();
+};
+
+window.atualizarPreviewModeloPropostaAtivo = function() {
+    const previewEl = document.getElementById('modelos-prop-live-preview');
+    const m = window._modeloPropostaAtivo;
+    if (!previewEl || !m) return;
+    previewEl.innerHTML = window.gerarHtmlLayoutPropostaPadrao(m);
+};
+
+window.salvarModeloPropostaAtivo = async function() {
+    const m = window._modeloPropostaAtivo;
+    if (!m || !m.id) return;
+
+    if (window._modoEdicaoItensProposta === 'itens') {
+        window._sincronizarItensParaTextoModeloProposta();
+    } else {
+        window._onInputTextoLivreModeloProposta();
+    }
+    window._onInputCampoModeloProposta();
+
+    if (!m.nome.trim() || !m.codigo_tipo.trim()) {
+        Swal.fire('Atenção', 'Nome e Código do Tipo de Proposta são obrigatórios.', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiPut(`/comercial/modelos-proposta/${m.id}`, m);
+        if (res && res.success) {
+            const idx = (window._modelosPropostasList || []).findIndex(x => x.id === m.id);
+            if (idx >= 0) window._modelosPropostasList[idx] = JSON.parse(JSON.stringify(m));
+            window.filtrarListaModelosProposta();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Modelo de proposta salvo com sucesso!');
+            } else {
+                Swal.fire('Salvo!', 'Os textos do modelo de proposta foram atualizados.', 'success');
+            }
+        } else {
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar o modelo.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Falha ao salvar modelo: ' + e.message, 'error');
+    }
+};
+
+window.imprimirModeloPropostaAtivo = function() {
+    const m = window._modeloPropostaAtivo;
+    if (!m) return;
+    const win = window.open('', '_blank', 'width=980,height=820');
+    win.document.write(window.gerarHtmlDocumentoPropostaCompleta(m));
+    win.document.close();
+    win.focus();
+};
+
+window.novoModeloPropostaModal = async function() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Novo Modelo de Proposta',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; gap:10px;">
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569;">Nome do Modelo *</label>
+                    <input id="swal-mp-nome" class="swal2-input" style="width:100%; margin:4px 0 0 0; height:36px; font-size:0.85rem;" placeholder="Ex: Proposta Locação Especial">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569;">Código do Tipo *</label>
+                    <input id="swal-mp-codigo" class="swal2-input" style="width:100%; margin:4px 0 0 0; height:36px; font-size:0.85rem; text-transform:uppercase;" placeholder="Ex: PROPOSTA ESPECIAL">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Criar Modelo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#7048e8',
+        preConfirm: () => {
+            const nome = document.getElementById('swal-mp-nome').value.trim();
+            const codigo_tipo = document.getElementById('swal-mp-codigo').value.trim().toUpperCase();
+            if (!nome || !codigo_tipo) {
+                Swal.showValidationMessage('Informe o Nome e o Código do Tipo.');
+                return false;
+            }
+            return { nome, codigo_tipo };
+        }
+    });
+
+    if (formValues) {
+        try {
+            const base = window._modeloPropostaAtivo || {};
+            const payload = {
+                nome: formValues.nome,
+                codigo_tipo: formValues.codigo_tipo,
+                titulo_documento: `${formValues.codigo_tipo} Nº {{NUMERO_PROPOSTA}}`,
+                dados_contratada: base.dados_contratada || '',
+                titulo_tabela_produtos: 'Produtos para Locação',
+                exibir_valores_complementares: 0,
+                titulo_informacoes: 'Informações:',
+                texto_informacoes: base.texto_informacoes || '1. Condição comercial padrão.',
+                observacao_padrao: '',
+                exemplo_dados: base.exemplo_dados || '{}'
+            };
+            const res = await apiPost('/comercial/modelos-proposta', payload);
+            if (res && res.success) {
+                await window._renderModelosPropostasInt();
+                window.selecionarModeloProposta(res.id);
+                Swal.fire('Sucesso', 'Novo modelo de proposta criado!', 'success');
+            } else {
+                Swal.fire('Erro', (res && res.error) || 'Erro ao criar modelo.', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Erro', e.message, 'error');
+        }
+    }
+};
+
 
