@@ -1897,7 +1897,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Linha 2: Datas cadastro, previsão, fase, modelo -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 2fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
                             <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}" onchange="window.calcularPrevisaoFechamento()"
@@ -1914,7 +1914,7 @@ function _renderFormPropostaInt() {
                                 ${PROP_FASES.map(f => `<option value="${f}" ${v('fase_negociacao')===f?'selected':''}>${f}</option>`).join('')}
                             </select>
                         </div>
-                        <div>
+                        <div style="display:none;">
                             <label class="prop-lbl">Modelo de Impressão</label>
                             <select id="prop-modelo" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 <option value="">-- Selecione --</option>
@@ -1942,10 +1942,11 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Cliente</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
                                         oninput="window.verificarBloqueioFaturamentoProposta(this.value)"
                                         onchange="window.verificarBloqueioFaturamentoProposta(this.value)"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome ou razão do cliente">
-                                    <button type="button" onclick="pesquisarClienteProposta()" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
+                                    <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                     <button type="button" onclick="verDetalhesClienteProposta()" title="Ver Detalhes do Cliente" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
@@ -1957,6 +1958,7 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Contato</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-contato" value="${v('contato_nome')}"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop'));}"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
                                     <button type="button" id="btn-pesq-contato-prop" onclick="pesquisarContatoProposta(this)" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
@@ -2563,22 +2565,51 @@ window.editarContatoDeCliente = async function(id) {
     await window.abrirContatoDeCliente(id);
 };
 
-window.pesquisarClienteProposta = async function() {
-    const query = document.getElementById('prop-cliente')?.value.trim() || '';
+window.pesquisarClienteProposta = async function(btnEl = null) {
+    const inputEl = document.getElementById('prop-cliente');
+    const query = (inputEl?.value || '').trim();
+    const btn = btnEl || document.getElementById('btn-pesq-cliente-prop');
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>';
+        btn.disabled = true;
+    }
+
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const filtrarListaClientes = (lista, termoRaw) => {
+        const qNorm = normStr(termoRaw);
+        const qDigits = String(termoRaw || '').replace(/\D/g, '');
+        const qDigitsNoZero = qDigits.replace(/^0+/, '');
+        if (!qNorm && !qDigits) return lista;
+        return (lista || []).filter(c => {
+            const cod = String(c.codigo || '').toLowerCase().trim();
+            const razao = normStr(c.nome_razao_social);
+            const fant = normStr(c.nome_fantasia);
+            const doc = String(c.cpf_cnpj || '').toLowerCase();
+            const cDoc = doc.replace(/\D/g, '');
+            const cDocNoZero = cDoc.replace(/^0+/, '');
+            return cod === qNorm ||
+                cod.includes(qNorm) ||
+                (razao && razao.includes(qNorm)) ||
+                (fant && fant.includes(qNorm)) ||
+                doc.includes(qNorm) ||
+                (qDigits && cDoc && (
+                    cDoc === qDigits ||
+                    (qDigitsNoZero.length >= 8 && cDocNoZero === qDigitsNoZero) ||
+                    (qDigits.length >= 3 && cDoc.includes(qDigits)) ||
+                    (qDigitsNoZero.length >= 3 && cDocNoZero.includes(qDigitsNoZero))
+                ));
+        });
+    };
 
     try {
-        // Show loading indicator
-        Swal.fire({
-            title: 'Carregando clientes...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
+        await new Promise(r => setTimeout(r, 30));
+        let clientes = await window.obterClientesCache();
+        if (!clientes || clientes.length === 0) {
+            clientes = await apiGet('/clientes') || [];
+            _clientesCache = clientes;
+        }
 
-        // Fetch all clients
-        const clientes = await apiGet('/clientes') || [];
-        Swal.close();
-
-        // If no clients exist at all
         if (clientes.length === 0) {
             const confirmCad = await Swal.fire({
                 title: 'Nenhum cliente cadastrado',
@@ -2596,159 +2627,115 @@ window.pesquisarClienteProposta = async function() {
             return;
         }
 
-        // If there's a search term, let's pre-check if there are any matches
-        if (query) {
-            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-            const queryNorm = normStr(query);
-            const queryClean = query.replace(/\D/g, '');
-            const initialMatches = clientes.filter(c => {
-                const matchNome = normStr(c.nome_razao_social).includes(queryNorm) || normStr(c.nome_fantasia).includes(queryNorm);
-                const matchCodigo = c.codigo && c.codigo.toString() === query;
-                const matchCnpjRaw = c.cpf_cnpj && c.cpf_cnpj.toLowerCase().includes(query.toLowerCase());
-                const matchCnpjClean = c.cpf_cnpj && queryClean && c.cpf_cnpj.replace(/\D/g, '').includes(queryClean);
-                return matchNome || matchCodigo || matchCnpjRaw || matchCnpjClean;
-            });
+        window._tempClientesParaPesquisa = clientes;
 
-            // If no match found for the typed text
-            if (initialMatches.length === 0) {
-                const confirmCad = await Swal.fire({
-                    title: 'Cliente não encontrado',
-                    text: 'Não há cadastro para o cliente. Deseja realizar o cadastro?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sim',
-                    cancelButtonText: 'Não',
-                    confirmButtonColor: '#16a34a',
-                    cancelButtonColor: '#64748b'
-                });
-                if (confirmCad.isConfirmed) {
-                    window.abrirModalCadastroCliente(null, query);
+        // Mesma lógica do campo CPF/CNPJ da tela de Clientes: se digitou algo e encontrou exatamente 1 cliente (diferente do já selecionado), preenche direto
+        if (query) {
+            const initialMatches = filtrarListaClientes(clientes, query);
+            if (initialMatches.length === 1) {
+                const unico = initialMatches[0];
+                const jaSelecionado = normStr(unico.nome_razao_social) === normStr(query);
+                if (!jaSelecionado) {
+                    window.selecionarClienteGrid(unico.nome_razao_social);
+                    return;
                 }
-                return;
             }
         }
 
-        // Render the search modal
-        window._tempClientesParaPesquisa = clientes;
+        window.filtrarClientesGrid = function(termoOverride) {
+            const tbody = document.getElementById('grid-clientes-body');
+            const infoEl = document.getElementById('pesq-cli-prop-info');
+            if (!tbody) return;
+            const rawVal = termoOverride !== undefined
+                ? termoOverride
+                : (document.getElementById('pesq-cli-prop-input')?.value || '');
+            const filtered = filtrarListaClientes(window._tempClientesParaPesquisa || [], rawVal);
+            const exibidos = filtered.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtered.length} clientes`;
+            }
 
+            if (exibidos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="padding:2rem; text-align:center; color:#64748b;">
+                            <div style="font-weight:600; margin-bottom:0.5rem;">Nenhum cliente encontrado para "${_escHtmlProp(rawVal)}".</div>
+                            <button type="button" onclick="window.confirmarCriarNovoClienteFiltro()" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.8rem;">
+                                <i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = exibidos.map(c => `
+                <tr onclick="window.selecionarClienteGrid('${String(c.nome_razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
+                </tr>
+            `).join('');
+        };
+
+        const safeQuery = query.replace(/"/g, '&quot;');
         Swal.fire({
-            title: 'Pesquisa de Clientes',
-            width: '800px',
+            title: 'Pesquisar Cliente',
+            width: '780px',
             html: `
-                <div style="text-align:left; font-family:'Inter', sans-serif;">
-                    <!-- Filtros -->
-                    <div style="display:grid; grid-template-columns: 1fr 1.5fr 2fr; gap:0.5rem; margin-bottom:1rem;">
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">Código</label>
-                            <input type="text" id="filtro-cli-codigo" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por código" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">CNPJ / CPF</label>
-                            <input type="text" id="filtro-cli-cnpj" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por CNPJ/CPF" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:2px;">Razão Social / Nome</label>
-                            <input type="text" id="filtro-cli-razao" oninput="window.filtrarClientesGrid()" placeholder="Filtrar por Razão Social" style="width:100%; padding:0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
-                        </div>
-                    </div>
-
-                    <!-- Tabela Gridview -->
-                    <div style="max-height:350px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; position:sticky; top:0; z-index:1;">
-                                    <th style="padding:0.6rem; width:80px;">Código</th>
-                                    <th style="padding:0.6rem;">Razão Social / Nome</th>
-                                    <th style="padding:0.6rem; width:150px;">CNPJ / CPF</th>
-                                    <th style="padding:0.6rem; width:100px;">Cidade/UF</th>
-                                </tr>
-                            </thead>
-                            <tbody id="grid-clientes-body">
-                                <!-- Dynamic rows -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
+                    <input type="text" id="pesq-cli-prop-input" value="${safeQuery}"
+                        oninput="window.filtrarClientesGrid(this.value)"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault(); const firstRow = document.querySelector('#grid-clientes-body tr[onclick]'); if(firstRow) firstRow.click();}"
+                        placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..."
+                        style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="pesq-cli-prop-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-family:'Inter', sans-serif;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left; width:170px;">CPF / CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grid-clientes-body"></tbody>
+                    </table>
                 </div>
             `,
-            showConfirmButton: false,
+            showConfirmButton: true,
+            confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente',
+            confirmButtonColor: '#16a34a',
             showCancelButton: true,
             cancelButtonText: 'Fechar',
             cancelButtonColor: '#64748b',
             didOpen: () => {
-                const filtroRazao = document.getElementById('filtro-cli-razao');
-                const filtroCnpj = document.getElementById('filtro-cli-cnpj');
-                const filtroCodigo = document.getElementById('filtro-cli-codigo');
-
-                if (query) {
-                    if (/^\d+$/.test(query)) {
-                        if (filtroCodigo) filtroCodigo.value = query;
-                    } else if (query.replace(/\D/g, '').length >= 11) {
-                        if (filtroCnpj) filtroCnpj.value = query;
-                    } else {
-                        if (filtroRazao) filtroRazao.value = query;
+                window.filtrarClientesGrid(query);
+                setTimeout(() => {
+                    const inp = document.getElementById('pesq-cli-prop-input');
+                    if (inp) {
+                        inp.focus();
+                        const len = inp.value.length;
+                        try { inp.setSelectionRange(len, len); } catch (e) {}
                     }
-                }
-                window.filtrarClientesGrid();
+                }, 50);
+            }
+        }).then((res) => {
+            if (res.isConfirmed) {
+                const termoAtual = document.getElementById('pesq-cli-prop-input')?.value.trim() || query;
+                window.abrirModalCadastroCliente(null, termoAtual);
             }
         });
-
     } catch (err) {
         console.error(err);
         Swal.fire('Erro', 'Não foi possível carregar os clientes: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
+        }
     }
-};
-
-window.filtrarClientesGrid = function() {
-    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    const codVal = document.getElementById('filtro-cli-codigo')?.value.trim().toLowerCase() || '';
-    const cnpjVal = document.getElementById('filtro-cli-cnpj')?.value.trim().toLowerCase() || '';
-    const razaoVal = normStr(document.getElementById('filtro-cli-razao')?.value.trim() || '');
-
-    const cleanCnpjVal = cnpjVal.replace(/\D/g, '');
-
-    const filtered = (window._tempClientesParaPesquisa || []).filter(c => {
-        if (codVal) {
-            const codeStr = String(c.codigo || '').toLowerCase();
-            if (!codeStr.includes(codVal)) return false;
-        }
-        if (cnpjVal) {
-            const cnpjStr = String(c.cpf_cnpj || '').toLowerCase();
-            const cleanCnpjStr = cnpjStr.replace(/\D/g, '');
-            if (!cnpjStr.includes(cnpjVal) && !cleanCnpjStr.includes(cleanCnpjVal)) return false;
-        }
-        if (razaoVal) {
-            const nameStr = normStr(c.nome_razao_social || '');
-            const fantStr = normStr(c.nome_fantasia || '');
-            if (!nameStr.includes(razaoVal) && !fantStr.includes(razaoVal)) return false;
-        }
-        return true;
-    });
-
-    const tbody = document.getElementById('grid-clientes-body');
-    if (!tbody) return;
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="4" style="padding:2rem; text-align:center; color:#64748b;">
-                    <div style="font-weight:600; margin-bottom:0.5rem;">Nenhum cliente correspondente aos filtros.</div>
-                    <button type="button" onclick="window.confirmarCriarNovoClienteFiltro()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; font-weight:600; cursor:pointer; font-size:0.75rem;">
-                        <i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente?
-                    </button>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(c => `
-        <tr onclick="window.selecionarClienteGrid('${c.nome_razao_social.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-            <td style="padding:0.55rem; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-            <td style="padding:0.55rem; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
-            <td style="padding:0.55rem; color:#475569;">${c.cpf_cnpj || '—'}</td>
-            <td style="padding:0.55rem; color:#475569;">${c.cidade || '—'}/${c.uf || '—'}</td>
-        </tr>
-    `).join('');
 };
 
 window.selecionarClienteGrid = function(razaoSocial) {
@@ -4111,13 +4098,8 @@ window.modalVerificarCliente = function() {
 };
 
 window.pesquisarContatoProposta = async function(btnEl = null) {
-    const clienteNome = document.getElementById('prop-cliente').value.trim();
-    if (!clienteNome) {
-        Swal.fire('Aviso', 'Por favor, selecione o cliente primeiro para buscar os contatos.', 'warning');
-        return;
-    }
-
-    const query = document.getElementById('prop-contato').value.trim();
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const query = (document.getElementById('prop-contato')?.value || '').trim();
     const btn = btnEl || document.getElementById('btn-pesq-contato-prop');
     const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>';
     if (btn) {
@@ -4125,34 +4107,159 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         btn.disabled = true;
     }
 
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
     try {
         await new Promise(r => setTimeout(r, 30));
-        const contatos = await apiGet('/contatos');
-        const filtrados = contatos.filter(c => {
-            const matchCliente = c.cliente_nome && c.cliente_nome.toLowerCase() === clienteNome.toLowerCase();
-            if (!matchCliente) return false;
-            
-            if (query) {
-                return (c.nome && c.nome.toLowerCase().includes(query.toLowerCase())) ||
-                       (c.codigo && c.codigo.toString() === query);
-            }
-            return true;
+        const [contatosApi, clientesCache] = await Promise.all([
+            apiGet('/contatos').catch(() => []),
+            window.obterClientesCache().catch(() => [])
+        ]);
+        const clientes = Array.isArray(clientesCache) ? clientesCache : [];
+        const mapClientePorId = new Map();
+        clientes.forEach(cl => mapClientePorId.set(Number(cl.id), cl));
+
+        // Identifica o cliente atual (por razão social, nome fantasia ou CPF/CNPJ)
+        const cliNorm = normStr(clienteNome);
+        const cliDigits = clienteNome.replace(/\D/g, '');
+        const cliDigitsNoZero = cliDigits.replace(/^0+/, '');
+        const foundCli = !clienteNome ? null : (clientes.find(c =>
+            normStr(c.nome_razao_social) === cliNorm ||
+            normStr(c.nome_fantasia) === cliNorm ||
+            (cliDigits && String(c.cpf_cnpj || '').replace(/\D/g, '').replace(/^0+/, '') === cliDigitsNoZero)
+        ) || clientes.find(c =>
+            (cliNorm && (normStr(c.nome_razao_social).includes(cliNorm) || normStr(c.nome_fantasia).includes(cliNorm))) ||
+            (cliDigits.length >= 4 && String(c.cpf_cnpj || '').replace(/\D/g, '').includes(cliDigits))
+        ) || null);
+
+        // Unifica contatos da tabela /contatos + contatos embutidos nos clientes
+        const listaUnificada = [];
+        const chavesVistas = new Set();
+
+        (Array.isArray(contatosApi) ? contatosApi : []).forEach(c => {
+            const cliVinc = c.cliente_id ? mapClientePorId.get(Number(c.cliente_id)) : null;
+            const empNome = c.cliente_nome || (cliVinc && cliVinc.nome_razao_social) || '';
+            const empCnpj = (cliVinc && cliVinc.cpf_cnpj) || '';
+            const item = {
+                id: c.id,
+                codigo: c.codigo || c.id || '',
+                nome: c.nome || '',
+                cargo: c.cargo || c.departamento || '',
+                email: c.email || '',
+                celular: c.celular || c.telefone || '',
+                cliente_id: c.cliente_id || (cliVinc && cliVinc.id) || null,
+                cliente_nome: empNome,
+                cliente_cnpj: empCnpj
+            };
+            const key = `${normStr(item.nome)}|${normStr(item.cliente_nome)}`;
+            chavesVistas.add(key);
+            listaUnificada.push(item);
         });
 
-        // Buscar clientes para obter dados do cliente atual
-        const clientes = await window.obterClientesCache();
-        const foundCli = (clientes || []).find(c => c.nome_razao_social && c.nome_razao_social.toLowerCase() === clienteNome.toLowerCase());
+        clientes.forEach(cl => {
+            if (!cl.contatos) return;
+            let arr = [];
+            try { arr = typeof cl.contatos === 'string' ? JSON.parse(cl.contatos) : cl.contatos; } catch (e) { arr = []; }
+            if (!Array.isArray(arr)) return;
+            arr.forEach(ct => {
+                if (!ct || !ct.nome) return;
+                const key = `${normStr(ct.nome)}|${normStr(cl.nome_razao_social)}`;
+                if (chavesVistas.has(key)) return;
+                chavesVistas.add(key);
+                listaUnificada.push({
+                    id: ct.id || '',
+                    codigo: ct.identificacao || ct.codigo || ct.id || '',
+                    nome: ct.nome,
+                    cargo: ct.cargo || ct.departamento || '',
+                    email: ct.email || '',
+                    celular: ct.celular || ct.telefone || ct.telefone_ramal || '',
+                    cliente_id: cl.id,
+                    cliente_nome: cl.nome_razao_social || '',
+                    cliente_cnpj: cl.cpf_cnpj || ''
+                });
+            });
+        });
 
-        const handleRedirecionamentoContato = () => {
+        // Se há cliente selecionado na proposta, prioriza os contatos desse cliente
+        const contatosDoCliente = foundCli
+            ? listaUnificada.filter(c =>
+                (c.cliente_id && Number(c.cliente_id) === Number(foundCli.id)) ||
+                (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social))
+            )
+            : (clienteNome
+                ? listaUnificada.filter(c => normStr(c.cliente_nome).includes(cliNorm))
+                : []);
+
+        const baseInicial = (clienteNome && contatosDoCliente.length > 0) ? contatosDoCliente : listaUnificada;
+
+        const filtrarListaContatos = (lista, termoRaw) => {
+            const qNorm = normStr(termoRaw);
+            const qDigits = String(termoRaw || '').replace(/\D/g, '');
+            const qDigitsNoZero = qDigits.replace(/^0+/, '');
+            if (!qNorm && !qDigits) return lista;
+            return (lista || []).filter(c => {
+                const cod = String(c.codigo || '').toLowerCase().trim();
+                const nome = normStr(c.nome);
+                const cargo = normStr(c.cargo);
+                const email = normStr(c.email);
+                const cel = String(c.celular || '').toLowerCase();
+                const celDigits = cel.replace(/\D/g, '');
+                const emp = normStr(c.cliente_nome);
+                const cnpj = String(c.cliente_cnpj || '').toLowerCase();
+                const cnpjDigits = cnpj.replace(/\D/g, '');
+                const cnpjNoZero = cnpjDigits.replace(/^0+/, '');
+                return cod === qNorm ||
+                    cod.includes(qNorm) ||
+                    (nome && nome.includes(qNorm)) ||
+                    (cargo && cargo.includes(qNorm)) ||
+                    (email && email.includes(qNorm)) ||
+                    (emp && emp.includes(qNorm)) ||
+                    cel.includes(qNorm) ||
+                    cnpj.includes(qNorm) ||
+                    (qDigits && (
+                        (celDigits && celDigits.includes(qDigits)) ||
+                        (cnpjDigits && (
+                            cnpjDigits === qDigits ||
+                            (qDigitsNoZero.length >= 8 && cnpjNoZero === qDigitsNoZero) ||
+                            (qDigits.length >= 3 && cnpjDigits.includes(qDigits))
+                        ))
+                    ));
+            });
+        };
+
+        // Mesma lógica do campo Cliente/CNPJ: se digitou algo e encontrou exatamente 1 contato (diferente do já preenchido), seleciona direto
+        if (query) {
+            let matches = filtrarListaContatos(baseInicial, query);
+            if (matches.length === 0 && baseInicial !== listaUnificada) {
+                matches = filtrarListaContatos(listaUnificada, query);
+            }
+            if (matches.length === 1) {
+                const unico = matches[0];
+                const jaSelecionado = normStr(unico.nome) === normStr(query);
+                if (!jaSelecionado) {
+                    const propContatoEl = document.getElementById('prop-contato');
+                    if (propContatoEl) propContatoEl.value = unico.nome;
+                    const propCliEl = document.getElementById('prop-cliente');
+                    if (propCliEl && !propCliEl.value.trim() && unico.cliente_nome) {
+                        propCliEl.value = unico.cliente_nome;
+                        propCliEl.dispatchEvent(new Event('input'));
+                        propCliEl.dispatchEvent(new Event('change'));
+                    }
+                    return;
+                }
+            }
+        }
+
+        const handleRedirecionamentoContato = (termoDigitado) => {
             _redirectAfterContactSave = true;
             window.switchPropostaTab('cadastro-contatos');
             window.limparFormContato();
             setTimeout(async () => {
                 const nameInput = document.getElementById('con-nome');
-                if (nameInput) nameInput.value = query;
+                if (nameInput) nameInput.value = termoDigitado || query;
                 if (foundCli) {
                     await window.carregarEmpresaSelecionada(foundCli.id);
-                } else {
+                } else if (clienteNome) {
                     const empRazaoInput = document.getElementById('emp-razao-social');
                     if (empRazaoInput) {
                         empRazaoInput.value = clienteNome;
@@ -4162,67 +4269,112 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             }, 300);
         };
 
-        if (filtrados.length >= 1) {
-            const rowsHtml = filtrados.map(c => `
-                <tr onclick="window.selectContatoProposta('${c.nome.replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#2e58a6;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.cargo || '—'}</td>
-                </tr>
-            `).join('');
+        window._tempContatosPropostaBase = baseInicial;
+        window._tempContatosPropostaTodos = listaUnificada;
 
-            window.selectContatoProposta = function(nome) {
-                document.getElementById('prop-contato').value = nome;
-                Swal.close();
-            };
+        window.selectContatoProposta = function(nome, empNome) {
+            const propContatoEl = document.getElementById('prop-contato');
+            if (propContatoEl) propContatoEl.value = nome;
+            const propCliEl = document.getElementById('prop-cliente');
+            if (propCliEl && !propCliEl.value.trim() && empNome) {
+                propCliEl.value = empNome;
+                propCliEl.dispatchEvent(new Event('input'));
+                propCliEl.dispatchEvent(new Event('change'));
+            }
+            Swal.close();
+        };
 
-            Swal.fire({
-                title: 'Selecione o Contato',
-                html: `
-                    <div style="max-height:300px; overflow-y:auto; width:100%;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left; font-family:'Inter', sans-serif;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:0.5rem;">Código</th>
-                                    <th style="padding:0.5rem;">Nome</th>
-                                    <th style="padding:0.5rem;">Cargo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rowsHtml}
-                            </tbody>
-                        </table>
-                    </div>
-                `,
-                showConfirmButton: true,
-                confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo',
-                confirmButtonColor: '#16a34a',
-                showCancelButton: true,
-                cancelButtonText: 'Fechar',
-                cancelButtonColor: '#64748b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    handleRedirecionamentoContato();
-                }
-            });
-        } else {
-            Swal.fire({
-                title: 'Contato não cadastrado',
-                text: query 
-                    ? `Nenhum contato encontrado com "${query}" para o cliente "${clienteNome}". Deseja abrir o Cadastro de Contatos?`
-                    : `Nenhum contato cadastrado para o cliente "${clienteNome}". Deseja abrir o Cadastro de Contatos?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sim, cadastrar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#2e58a6',
-                cancelButtonColor: '#64748b'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    handleRedirecionamentoContato();
-                }
-            });
-        }
+        window.filtrarContatosPropostaGrid = function(termoOverride) {
+            const tbody = document.getElementById('swal-busca-contato-prop-tbody');
+            const infoEl = document.getElementById('swal-busca-contato-prop-info');
+            if (!tbody) return;
+            const rawVal = termoOverride !== undefined
+                ? termoOverride
+                : (document.getElementById('swal-busca-contato-prop')?.value || '');
+            let filtered = filtrarListaContatos(window._tempContatosPropostaBase || [], rawVal);
+            if (filtered.length === 0 && rawVal.trim() && window._tempContatosPropostaBase !== window._tempContatosPropostaTodos) {
+                filtered = filtrarListaContatos(window._tempContatosPropostaTodos || [], rawVal);
+            }
+            const exibidos = filtered.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtered.length} contatos`;
+            }
+            if (exibidos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="padding:1.8rem; text-align:center; color:#64748b;">
+                            Nenhum contato encontrado para a busca informada.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            tbody.innerHTML = exibidos.map(c => {
+                const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `
+                    <tr onclick="window.selectContatoProposta('${safeNome}', '${safeEmp}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${_escHtmlProp(c.codigo)}</td>
+                        <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</td>
+                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cargo || '—')}</td>
+                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.celular || '—')}</td>
+                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cliente_nome || '—')}</td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        const safeQuery = query.replace(/"/g, '&quot;');
+        Swal.fire({
+            title: 'Pesquisar Contato',
+            width: '780px',
+            html: `
+                <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
+                    <input type="text" id="swal-busca-contato-prop" value="${safeQuery}"
+                        oninput="window.filtrarContatosPropostaGrid(this.value)"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault(); const firstRow = document.querySelector('#swal-busca-contato-prop-tbody tr[onclick]'); if(firstRow) firstRow.click();}"
+                        placeholder="Digite o nome, código, cargo, celular, empresa ou CNPJ para filtrar..."
+                        style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="swal-busca-contato-prop-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-family:'Inter', sans-serif;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.5rem; width:75px;">Código</th>
+                                <th style="padding:0.5rem;">Nome</th>
+                                <th style="padding:0.5rem;">Cargo / Depto</th>
+                                <th style="padding:0.5rem;">Celular / Tel</th>
+                                <th style="padding:0.5rem;">Empresa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="swal-busca-contato-prop-tbody"></tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo',
+            confirmButtonColor: '#16a34a',
+            showCancelButton: true,
+            cancelButtonText: 'Fechar',
+            cancelButtonColor: '#64748b',
+            didOpen: () => {
+                window.filtrarContatosPropostaGrid(query);
+                setTimeout(() => {
+                    const inp = document.getElementById('swal-busca-contato-prop');
+                    if (inp) {
+                        inp.focus();
+                        const len = inp.value.length;
+                        try { inp.setSelectionRange(len, len); } catch (e) {}
+                    }
+                }, 50);
+            }
+        }).then((res) => {
+            if (res.isConfirmed) {
+                const termoAtual = document.getElementById('swal-busca-contato-prop')?.value.trim() || query;
+                handleRedirecionamentoContato(termoAtual);
+            }
+        });
     } catch (e) {
         console.error(e);
         Swal.fire('Erro', 'Não foi possível buscar contatos.', 'error');
