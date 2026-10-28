@@ -5376,6 +5376,16 @@ window.abrirLogsAlteracao = async function(id) {
 
 /* ── Excluir proposta ───────────────────────────────────────────────── */
 async function excluirProposta(id) {
+    const senha = window.prompt('Digite a senha para excluir a proposta:');
+    if (senha === null) return;
+    if (senha !== 'comerc123') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
+        } else {
+            alert('Senha incorreta! Exclusão cancelada.');
+        }
+        return;
+    }
     if (!confirm('Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.')) return;
     try {
         const resp = await apiDelete(`/propostas/${id}`);
@@ -14983,9 +14993,14 @@ window.abrirModalBuscaProdutos = async function() {
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
         Swal.close();
 
+        const gruposUnicos = Array.from(new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        const fontesUnicas = Array.from(new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        const codigosUnicos = Array.from(new Set(produtos.map(p => String(p.codigo || p.id || '').trim()).filter(Boolean)));
+        const nomesUnicos = Array.from(new Set(produtos.map(p => String(p.nome || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado na aba Equipamentos.</td></tr>`;
+                return `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado para os filtros selecionados.</td></tr>`;
             }
             return list.map(p => {
                 const codExib = String(p.codigo || p.id || '').replace(/'/g, "\\'");
@@ -14993,8 +15008,9 @@ window.abrirModalBuscaProdutos = async function() {
                 return `
                     <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || p.id}</td>
-                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.nome}</td>
+                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569;">${p.grupo_produto || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; font-weight:600;">${p.fonte_fornecimento || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center;">${p.unidade_medida || '—'}</td>
                     </tr>
                 `;
@@ -15014,26 +15030,47 @@ window.abrirModalBuscaProdutos = async function() {
                     
                     <!-- Body/Filters -->
                     <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
-                        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.75rem;">
+                        <div style="display:grid; grid-template-columns: 0.9fr 1.6fr 1.2fr 1.2fr; gap:0.65rem;">
                             <div>
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
-                                <input type="text" id="modal-prod-search-codigo" placeholder="Ex: 00001..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
+                                <input type="text" id="modal-prod-search-codigo" list="datalist-prod-codigos" placeholder="Digite ou selecione..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
+                                <datalist id="datalist-prod-codigos">
+                                    ${codigosUnicos.map(c => `<option value="${_escHtmlProp(c)}"></option>`).join('')}
+                                </datalist>
                             </div>
                             <div>
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição / Grupo</label>
-                                <input type="text" id="modal-prod-search-descricao" placeholder="Filtrar por nome ou grupo..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome / Descrição</label>
+                                <input type="text" id="modal-prod-search-descricao" list="datalist-prod-nomes" placeholder="Digite ou selecione o nome..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
+                                <datalist id="datalist-prod-nomes">
+                                    ${nomesUnicos.map(n => `<option value="${_escHtmlProp(n)}"></option>`).join('')}
+                                </datalist>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
+                                <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
+                                    <option value="">Todos os Grupos</option>
+                                    ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
+                                <select id="modal-prod-search-fonte" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
+                                    <option value="">Todas as Fontes</option>
+                                    ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}">${_escHtmlProp(f)}</option>`).join('')}
+                                </select>
                             </div>
                         </div>
 
                         <!-- GridView Container -->
-                        <div style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:85px;">Código</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Descrição</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:140px;">Grupo</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px;">Unid. Medida</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:135px;">Grupo</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:155px;">Fonte de Fornecimento</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:115px;">Unid. Medida</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modal-prod-tbody">
@@ -15050,27 +15087,37 @@ window.abrirModalBuscaProdutos = async function() {
                 </div>
             `,
             showConfirmButton: false,
-            width: '700px',
+            width: '880px',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
             didOpen: () => {
                 const inputCodigo = document.getElementById('modal-prod-search-codigo');
                 const inputDescricao = document.getElementById('modal-prod-search-descricao');
+                const selectGrupo = document.getElementById('modal-prod-search-grupo');
+                const selectFonte = document.getElementById('modal-prod-search-fonte');
                 const tbody = document.getElementById('modal-prod-tbody');
                 const countSpan = document.getElementById('modal-prod-count');
 
+                const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
                 const filterProds = () => {
-                    const codVal = (inputCodigo?.value || '').toLowerCase().trim();
-                    const descVal = (inputDescricao?.value || '').toLowerCase().trim();
+                    const codVal = normStr(inputCodigo?.value);
+                    const descVal = normStr(inputDescricao?.value);
+                    const grupoVal = normStr(selectGrupo?.value);
+                    const fonteVal = normStr(selectFonte?.value);
 
                     const filtered = produtos.filter(p => {
-                        const codStr = String(p.codigo || p.id || '').toLowerCase();
-                        const nomeStr = String(p.nome || '').toLowerCase();
-                        const grupoStr = String(p.grupo_produto || '').toLowerCase();
+                        const codStr = normStr(p.codigo || p.id);
+                        const nomeStr = normStr(p.nome);
+                        const grupoStr = normStr(p.grupo_produto);
+                        const fonteStr = normStr(p.fonte_fornecimento);
+
                         const matchCodigo = !codVal || codStr.includes(codVal);
-                        const matchDesc = !descVal || nomeStr.includes(descVal) || grupoStr.includes(descVal);
-                        return matchCodigo && matchDesc;
+                        const matchDesc = !descVal || nomeStr.includes(descVal);
+                        const matchGrupo = !grupoVal || grupoStr === grupoVal;
+                        const matchFonte = !fonteVal || fonteStr === fonteVal;
+                        return matchCodigo && matchDesc && matchGrupo && matchFonte;
                     });
 
                     if (tbody) tbody.innerHTML = renderRows(filtered);
@@ -15079,6 +15126,10 @@ window.abrirModalBuscaProdutos = async function() {
 
                 [inputCodigo, inputDescricao].forEach(input => {
                     input?.addEventListener('input', filterProds);
+                    input?.addEventListener('change', filterProds);
+                });
+                [selectGrupo, selectFonte].forEach(sel => {
+                    sel?.addEventListener('change', filterProds);
                 });
             }
         });
