@@ -59,8 +59,39 @@ const PROP_TABELAS = [
     'PRODUTO VENDA[6]'
 ];
 const PROP_COND_PAG = [
-    'À Vista', 'DD 28 Dias', 'DD 30 Dias', 'DD 45 Dias', 'DD 60 Dias',
-    '30/60 Dias', 'Boleto 30 Dias', 'Boleto 28 Dias', 'Mensal Antecipado'
+    'À VISTA',
+    'BOLETO - DDL 7 DIAS',
+    'BOLETO - DDL 28 DIAS',
+    'BOLETO - DDL 10 DIAS',
+    'BOLETO - DDL 15 DIAS',
+    'BOLETO - DDL 21 DIAS',
+    'BOLETO - DDL 30 DIAS',
+    'BOLETO - DDL 45 DIAS',
+    'BOLETO - DDL 60 DIAS',
+    'CARTÃO DE CRÉDITO',
+    'PARCELAMENTO 2X (BOLETO)',
+    'PARCELAMENTO 2X (DEPÓSITO)',
+    'PARCELAMENTO 3X (BOLETO)',
+    'PARCELAMENTO 3X (DEPÓSITO)',
+    'PARCELAMENTO 4X (BOLETO)',
+    'PARCELAMENTO 4X (DEPÓSITO)',
+    'PARCELAMENTO 5X (BOLETO)',
+    'PARCELAMENTO 5X (DEPÓSITO)',
+    'PARCELAMENTO 6X (BOLETO)',
+    'PIX - DDL 7 DIAS',
+    'PIX - DDL 10 DIAS',
+    'PIX - DDL 15 DIAS',
+    'PIX - DDL 21 DIAS',
+    'PIX - DDL 28 DIAS',
+    'PIX - DDL 30 DIAS',
+    'PIX - DDL 45 DIAS',
+    'PIX - DDL 60 DIAS',
+    'PIX 100% ANTECIPADO',
+    'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
+    'PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA',
+    'REMESSA SEM COBRANCA',
+    'VARIÁVEL BOLETO',
+    'VARIÁVEL DINHEIRO'
 ];
 const PROP_LOCAIS = ['AMERICA RENTAL', 'Filial SP', 'Filial RJ', 'Filial BH', 'Filial Campinas'];
 const PROP_TRANSPORTADORAS = ['', 'América Rental', 'Terceirizado', 'Cliente Retira'];
@@ -2087,7 +2118,12 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Condição de Pagamento *</label>
                                 <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                     <option value="">-- Selecione --</option>
-                                    ${PROP_COND_PAG.map(c => `<option value="${c}" ${v('condicao_pagamento')===c?'selected':''}>${c}</option>`).join('')}
+                                    ${(() => {
+                                        const valAtual = String(v('condicao_pagamento') || '').trim();
+                                        const lista = [...PROP_COND_PAG];
+                                        if (valAtual && !lista.includes(valAtual)) lista.unshift(valAtual);
+                                        return lista.map(c => `<option value="${_escHtmlProp(c)}" ${valAtual===c?'selected':''}>${_escHtmlProp(c)}</option>`).join('');
+                                    })()}
                                 </select>
                             </div>
                         </div>
@@ -12719,7 +12755,11 @@ window.abrirModalPreenchimentoIA = function() {
                     const obsTextarea = document.getElementById('prop-obs');
 
                     if (tipoSelect) {
-                        tipoSelect.value = res.tipo_sugerido;
+                        const tipoSugeridoLimpo = String(res.tipo_sugerido || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                        tipoSelect.value = tipoSugeridoLimpo || res.tipo_sugerido;
+                        if (typeof window.onChangeTipoPropostaPrecos === 'function') {
+                            window.onChangeTipoPropostaPrecos(tipoSelect.value);
+                        }
                     }
                     if (obsTextarea) {
                         obsTextarea.value = res.observacao_formatada;
@@ -15810,11 +15850,38 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
     return itemMatch ? (parseFloat(itemMatch.valor_total) || 0) : null;
 };
 
+window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
+    const t = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (
+        t === 'OBRA MENSAL' ||
+        t === 'OBRA QUINZENAL' ||
+        t === 'OBRA SEMANAL' ||
+        t === 'LIMPA FOSSA' ||
+        t === 'LIMPA FOSSA MENSAL'
+    ) {
+        return 'BOLETO - DDL 28 DIAS';
+    }
+    if (
+        t === 'EQUIPAMENTOS' ||
+        t === 'LOCAÇÃO CONTAINER' ||
+        t === 'LOCACAO CONTAINER' ||
+        t === 'VENDA'
+    ) {
+        return 'PIX 50% RESERVA + 50% ANTES DA ENTREGA';
+    }
+    return '';
+};
+
 window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     const tabelaEl = document.getElementById('prop-tabela');
     const tipoLimpo = String(novoTipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (tabelaEl && tipoLimpo) {
         tabelaEl.value = tipoLimpo;
+    }
+    const condPagEl = document.getElementById('prop-cond-pag');
+    const condPadrao = window.obterCondicaoPagamentoPadraoPorTipo(tipoLimpo);
+    if (condPagEl && condPadrao) {
+        condPagEl.value = condPadrao;
     }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
