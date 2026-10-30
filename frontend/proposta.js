@@ -1868,9 +1868,9 @@ function _renderFormPropostaInt() {
 
             <!-- Corpo do formulário -->
             <div style="padding:1.5rem;">
-                <form id="form-proposta" onsubmit="return false;">
+                <form id="form-proposta" autocomplete="off" onsubmit="return false;">
 
-                    <!-- Linha 1: Código, Tipo, Atendente -->
+                    <!-- Linha 1: Código, Tipo + Botão IA Atendimento, Atendente -->
                     <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Código</label>
@@ -1884,23 +1884,30 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Tipo *</label>
-                            <select id="prop-tipo" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                <option value="">-- Selecione --</option>
-                                ${PROP_TIPOS.map(t => `<option value="${t}" ${v('tipo')===t?'selected':''}>${t}</option>`).join('')}
-                            </select>
-                            <a href="javascript:void(0)" onclick="window.abrirModalPreenchimentoIA()" style="color:#7048e8; font-size:0.75rem; font-weight:700; text-decoration:none; display:flex; align-items:center; gap:2px; margin-top:4px; justify-content:flex-end;">
-                                <i class="ph ph-magic-wand"></i> IA: Atendimento
-                            </a>
+                            <div style="display:flex; gap:0.4rem; align-items:center;">
+                                <select id="prop-tipo" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                    <option value="">-- Selecione --</option>
+                                    ${PROP_TIPOS.map(t => `<option value="${t}" ${v('tipo')===t?'selected':''}>${t}</option>`).join('')}
+                                </select>
+                                <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="background:linear-gradient(135deg,#7048e8,#5f3dc4); color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:0 2px 6px rgba(112,72,232,0.25); transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                                    <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
                             <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;">
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;">
                         </div>
                     </div>
 
-                    <!-- Linha 2: Datas cadastro, previsão, fase, modelo -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr 2fr; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 2: Validade da Proposta, Data Cadastro, Previsão Fechamento, Fase -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                        <div>
+                            <label class="prop-lbl">Validade da Proposta</label>
+                            <input type="date" id="prop-validade-proposta" value="${v('validade_proposta') || umaSemanaDepois}"
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
                             <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}" onchange="window.calcularPrevisaoFechamento()"
@@ -1964,12 +1971,13 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Contato</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div id="prop-contato-combo-wrap" style="position:relative; flex:1;">
-                                        <input type="text" id="prop-contato" value="${v('contato_nome')}" autocomplete="off"
-                                            onfocus="if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(false);"
-                                            onclick="if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(false);"
+                                        <input type="text" id="prop-contato" name="prop_contato_custom_nofill" value="${v('contato_nome')}"
+                                            autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
+                                            onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(true);"
+                                            onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(true);"
                                             oninput="if(typeof window.filtrarDropdownContatosProposta === 'function') window.filtrarDropdownContatosProposta(this.value);"
-                                            onkeydown="if(typeof window.onKeyDownContatoProposta === 'function'){ window.onKeyDownContatoProposta(event); } else if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop')); }"
-                                            style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;" placeholder="Selecione ou digite o nome do contato">
+                                            onkeydown="this.removeAttribute('readonly'); if(typeof window.onKeyDownContatoProposta === 'function'){ window.onKeyDownContatoProposta(event); } else if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop')); }"
+                                            style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;" placeholder="Selecione ou digite o nome do contato">
                                         <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownContatosProposta === 'function') window.toggleDropdownContatosProposta(event);" title="Selecionar contato vinculado ao cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
                                             <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
                                         </button>
@@ -4201,17 +4209,18 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             });
         });
 
-        // Se há cliente selecionado na proposta, prioriza os contatos desse cliente
+        // Filtra estritamente apenas os contatos vinculados ao cliente selecionado
         const contatosDoCliente = foundCli
             ? listaUnificada.filter(c =>
                 (c.cliente_id && Number(c.cliente_id) === Number(foundCli.id)) ||
-                (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social))
+                (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social)) ||
+                (foundCli.nome_fantasia && c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_fantasia))
             )
             : (clienteNome
-                ? listaUnificada.filter(c => normStr(c.cliente_nome).includes(cliNorm))
+                ? listaUnificada.filter(c => normStr(c.cliente_nome) === cliNorm)
                 : []);
 
-        const baseInicial = (clienteNome && contatosDoCliente.length > 0) ? contatosDoCliente : listaUnificada;
+        const baseInicial = contatosDoCliente;
 
         const filtrarListaContatos = (lista, termoRaw) => {
             const qNorm = normStr(termoRaw);
@@ -4251,9 +4260,6 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         // Mesma lógica do campo Cliente/CNPJ: se digitou algo e encontrou exatamente 1 contato (diferente do já preenchido), seleciona direto
         if (query) {
             let matches = filtrarListaContatos(baseInicial, query);
-            if (matches.length === 0 && baseInicial !== listaUnificada) {
-                matches = filtrarListaContatos(listaUnificada, query);
-            }
             if (matches.length === 1) {
                 const unico = matches[0];
                 const jaSelecionado = normStr(unico.nome) === normStr(query);
@@ -4298,9 +4304,6 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                 ? termoOverride
                 : (document.getElementById('swal-busca-contato-prop')?.value || '');
             let filtered = filtrarListaContatos(window._tempContatosPropostaBase || [], rawVal);
-            if (filtered.length === 0 && rawVal.trim() && window._tempContatosPropostaBase !== window._tempContatosPropostaTodos) {
-                filtered = filtrarListaContatos(window._tempContatosPropostaTodos || [], rawVal);
-            }
             const exibidos = filtered.slice(0, 150);
             if (infoEl) {
                 infoEl.textContent = `Exibindo ${exibidos.length} de ${filtered.length} contatos`;
@@ -4462,13 +4465,15 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
     const contatosDoCliente = foundCli
         ? listaUnificada.filter(c =>
             (c.cliente_id && Number(c.cliente_id) === Number(foundCli.id)) ||
-            (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social))
+            (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social)) ||
+            (foundCli.nome_fantasia && c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_fantasia))
         )
         : (clienteNome
-            ? listaUnificada.filter(c => normStr(c.cliente_nome).includes(cliNorm))
+            ? listaUnificada.filter(c => normStr(c.cliente_nome) === cliNorm)
             : []);
     window._contatosDoClientePropostaAtual = contatosDoCliente;
     window._todosContatosPropostaCache = listaUnificada;
+    window._ultimoClienteContatosCarregado = clienteNome;
     return { foundCli, clienteNome, contatosDoCliente, listaUnificada };
 };
 
@@ -4488,22 +4493,16 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     if (!dropEl) return;
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
-    const base = clienteNome
-        ? (window._contatosDoClientePropostaAtual || [])
-        : (window._todosContatosPropostaCache || []);
+    // Sempre exibir APENAS contatos vinculados ao cliente selecionado
+    const base = clienteNome ? (window._contatosDoClientePropostaAtual || []) : [];
     const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
-    let filtrados = !qNorm
+    const filtrados = !qNorm
         ? base
         : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm));
-    if (filtrados.length === 0 && qNorm && base !== window._todosContatosPropostaCache) {
-        filtrados = (window._todosContatosPropostaCache || []).filter(c =>
-            normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm)
-        );
-    }
     if (filtrados.length === 0) {
         const msg = clienteNome
-            ? 'Nenhum contato vinculado a este cliente. Clique no botão + para cadastrar.'
-            : 'Nenhum contato encontrado. Selecione um cliente ou clique no + para cadastrar.';
+            ? 'Nenhum contato vinculado a este cliente encontrado. Clique no botão + para cadastrar.'
+            : 'Selecione um cliente primeiro para listar os contatos vinculados.';
         dropEl.innerHTML = `<div style="padding:0.65rem 0.75rem; font-size:0.78rem; color:#64748b; text-align:center;">${msg}</div>`;
         dropEl.style.display = 'block';
         return;
@@ -4511,7 +4510,7 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     dropEl.innerHTML = filtrados.slice(0, 80).map(c => {
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const subInfo = [c.cargo, c.celular, (!clienteNome && c.cliente_nome ? c.cliente_nome : '')].filter(Boolean).join(' • ');
+        const subInfo = [c.cargo, c.celular].filter(Boolean).join(' • ');
         return `
             <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownContatoProposta('${safeNome}', '${safeEmp}')"
                 style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
@@ -4543,12 +4542,15 @@ window.toggleDropdownContatosProposta = async function(event) {
     }
     await window.abrirDropdownContatosProposta(true);
     const inp = document.getElementById('prop-contato');
-    if (inp) inp.focus();
+    if (inp) {
+        inp.removeAttribute('readonly');
+        inp.focus();
+    }
 };
 
 window.filtrarDropdownContatosProposta = async function(termo) {
-    if (!window._todosContatosPropostaCache || window._todosContatosPropostaCache.length === 0) {
-        const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (window._ultimoClienteContatosCarregado !== clienteNome || !window._todosContatosPropostaCache || window._todosContatosPropostaCache.length === 0) {
         await window._obterDadosContatosClienteProposta(clienteNome);
     }
     window.renderizarDropdownContatosProposta(termo, false);
@@ -5012,14 +5014,17 @@ window.verDetalhesClienteProposta = async function() {
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
 window.calcularPrevisaoFechamento = function() {
     const dataCad = document.getElementById('prop-data-cadastro')?.value;
-    const previsaoEl = document.getElementById('prop-previsao');
-    if (!dataCad || !previsaoEl) return;
+    if (!dataCad) return;
     const date = new Date(dataCad + 'T12:00:00');
     date.setDate(date.getDate() + 7);
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    previsaoEl.value = `${yyyy}-${mm}-${dd}`;
+    const dataMais7 = `${yyyy}-${mm}-${dd}`;
+    const previsaoEl = document.getElementById('prop-previsao');
+    if (previsaoEl) previsaoEl.value = dataMais7;
+    const validadeEl = document.getElementById('prop-validade-proposta');
+    if (validadeEl) validadeEl.value = dataMais7;
 };
 
 window.calcularDiasContrato = function() {
@@ -5170,6 +5175,7 @@ window.salvarPropostaNova = async function() {
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
+        validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
         fase_negociacao: fase,
         modelo_impressao: obter('prop-modelo'),
@@ -5719,6 +5725,7 @@ window.estornarPropostaEdicao = async function() {
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
+        validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
         fase_negociacao: 'Aguardando Aprovação', // Estorna e libera para aprovação novamente
         modelo_impressao: obter('prop-modelo'),

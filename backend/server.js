@@ -39687,6 +39687,7 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
   tipo TEXT,
   atendente TEXT,
   data_cadastro TEXT,
+  validade_proposta TEXT,
   previsao_fechamento TEXT,
   fase_negociacao TEXT,
   modelo_impressao TEXT,
@@ -39717,10 +39718,15 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
   if (err) console.error('[PROPOSTAS] Erro ao criar tabela:', err.message);
   else {
     console.log('[PROPOSTAS] Tabela propostas OK.');
-    // Garantir que a coluna contrato existe em bancos já criados
+    // Garantir que a coluna contrato e validade_proposta existem em bancos já criados
     db.run("ALTER TABLE propostas ADD COLUMN contrato TEXT", (errAlter) => {
       if (errAlter && !errAlter.message.includes('duplicate column name')) {
         console.log('[PROPOSTAS] Alerta ao alterar tabela (pode já existir a coluna):', errAlter.message);
+      }
+    });
+    db.run("ALTER TABLE propostas ADD COLUMN validade_proposta TEXT", (errAlterVal) => {
+      if (errAlterVal && !errAlterVal.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela validade_proposta:', errAlterVal.message);
       }
     });
     
@@ -39805,7 +39811,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
     gerarCodigoContrato((contrato) => {
       const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
       db.run(`INSERT INTO propostas (
-        codigo, contrato, local, tipo, atendente, data_cadastro, previsao_fechamento,
+        codigo, contrato, local, tipo, atendente, data_cadastro, validade_proposta, previsao_fechamento,
         fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
         periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
@@ -39814,9 +39820,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+        codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
         d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
         d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
@@ -39859,7 +39865,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     if (!oldRow) return res.status(404).json({ error: 'Proposta não encontrada' });
 
     db.run(`UPDATE propostas SET
-      local=?, tipo=?, atendente=?, data_cadastro=?, previsao_fechamento=?,
+      local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
@@ -39870,7 +39876,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       atualizado_em=?
       WHERE id=?`,
     [
-      d.local, d.tipo, d.atendente, d.data_cadastro, d.previsao_fechamento,
+      d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
@@ -39897,6 +39903,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'tipo', label: 'Tipo' },
         { field: 'atendente', label: 'Atendente' },
         { field: 'data_cadastro', label: 'Data Cadastro' },
+        { field: 'validade_proposta', label: 'Validade da Proposta' },
         { field: 'previsao_fechamento', label: 'Previsão Fechamento' },
         { field: 'fase_negociacao', label: 'Fase de Negociação' },
         { field: 'modelo_impressao', label: 'Modelo de Impressão' },
