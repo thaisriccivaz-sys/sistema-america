@@ -16128,17 +16128,14 @@ window._renderTabelaPrecosInt = async function() {
                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
                             <th style="padding:10px 12px; width:95px; text-align:center;">Código</th>
                             <th style="padding:10px 12px;">Equipamento (Estoque → Equipamentos)</th>
-                            <th style="padding:10px 12px; width:135px; text-align:right;">Valor Produto (R$)</th>
-                            <th style="padding:10px 12px; width:145px; text-align:right;">Valor Manutenção (R$)</th>
-                            <th style="padding:10px 12px; width:115px; text-align:center;">Qtd. Manut.</th>
-                            <th style="padding:10px 12px; width:145px; text-align:right;">Valor Final / Custo (R$)</th>
+                            <th style="padding:10px 12px; width:165px; text-align:right;">Valor Final (R$)</th>
                             <th style="padding:10px 12px; width:95px; text-align:center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tp-itens-tbody">
                         ${itensAba.length === 0 ? `
                             <tr>
-                                <td colspan="7" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                <td colspan="4" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
                                     Nenhum valor cadastrado para a aba <strong>${_escHtmlProp(aba)}</strong>. Clique em <strong>Anexar Planilha (.xlsx)</strong> ou <strong>+ Equipamento na Tabela</strong>.
                                 </td>
                             </tr>
@@ -16147,20 +16144,8 @@ window._renderTabelaPrecosInt = async function() {
                                 <td style="padding:8px 12px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(item.codigo_equipamento || '—')}</td>
                                 <td style="padding:8px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(item.nome_equipamento)}</td>
                                 <td style="padding:8px 12px; text-align:right;">
-                                    <input type="number" step="0.01" id="tp-vp-${item.id}" value="${Number(item.valor_produto || 0).toFixed(2)}"
-                                        style="width:105px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; text-align:right; font-size:0.8rem;">
-                                </td>
-                                <td style="padding:8px 12px; text-align:right;">
-                                    <input type="number" step="0.01" id="tp-vm-${item.id}" value="${Number(item.valor_manutencao || 0).toFixed(2)}"
-                                        style="width:105px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; text-align:right; font-size:0.8rem;">
-                                </td>
-                                <td style="padding:8px 12px; text-align:center;">
-                                    <input type="number" step="1" id="tp-qm-${item.id}" value="${parseInt(item.qtd_manutencao || 0, 10)}"
-                                        style="width:72px; padding:5px 6px; border:1px solid #cbd5e1; border-radius:6px; text-align:center; font-size:0.8rem;">
-                                </td>
-                                <td style="padding:8px 12px; text-align:right;">
                                     <input type="number" step="0.01" id="tp-vt-${item.id}" value="${Number(item.valor_total || 0).toFixed(2)}"
-                                        style="width:115px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
+                                        style="width:125px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
                                 </td>
                                 <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
                                     <button type="button" onclick="window.salvarLinhaTabelaPreco(${item.id})" title="Salvar Linha"
@@ -16240,9 +16225,10 @@ window.uploadPlanilhaTabelaPrecos = async function(inputEl, tipoProposta) {
 };
 
 window.salvarLinhaTabelaPreco = async function(itemId) {
-    const vp = parseFloat(document.getElementById(`tp-vp-${itemId}`)?.value || 0);
-    const vm = parseFloat(document.getElementById(`tp-vm-${itemId}`)?.value || 0);
-    const qm = parseInt(document.getElementById(`tp-qm-${itemId}`)?.value || 0, 10);
+    const itemAtual = (window._comercialTabelasPrecoData?.itens || []).find(i => Number(i.id) === Number(itemId));
+    const vp = itemAtual ? (parseFloat(itemAtual.valor_produto) || 0) : 0;
+    const vm = itemAtual ? (parseFloat(itemAtual.valor_manutencao) || 0) : 0;
+    const qm = itemAtual ? (parseInt(itemAtual.qtd_manutencao, 10) || 0) : 0;
     const vt = parseFloat(document.getElementById(`tp-vt-${itemId}`)?.value || 0);
     try {
         await apiPut(`/comercial/tabelas-preco/item/${itemId}`, {
@@ -16294,22 +16280,8 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                         ${listaEq.map(e => `<option value="${e.id}" data-cod="${_escHtmlProp(e.codigo || '')}" data-nome="${_escHtmlProp(e.nome || '')}">${_escHtmlProp((e.codigo ? e.codigo + ' - ' : '') + e.nome)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-                    <div>
-                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Valor Produto (R$)</label>
-                        <input type="number" step="0.01" id="swal-tp-vp" value="0" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Valor Manut. (R$)</label>
-                        <input type="number" step="0.01" id="swal-tp-vm" value="0" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Qtd. Manut.</label>
-                        <input type="number" step="1" id="swal-tp-qm" value="1" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
-                    </div>
-                </div>
                 <div>
-                    <label style="font-size:0.78rem; font-weight:700; color:#166534;">Valor Final / Custo Total (R$) *</label>
+                    <label style="font-size:0.78rem; font-weight:700; color:#166534;">Valor Final (R$) *</label>
                     <input type="number" step="0.01" id="swal-tp-vt" value="0" style="width:100%; padding:8px; border:1px solid #86efac; background:#f0fdf4; border-radius:6px; font-size:0.88rem; font-weight:800; margin-top:4px; box-sizing:border-box;">
                 </div>
             </div>
