@@ -1519,7 +1519,7 @@
                 cp.status || '',
                 resp,
                 cp.departamento_colaborador || '',
-                cp.data_atribuicao ? fmtDate(cp.data_atribuicao) : '',
+                cp.data_atribuicao ? fmtData(cp.data_atribuicao) : '',
                 cp.carregador_patrimonio || '',
                 cp.carregador_tensao || '',
                 cp.carregador_corrente || '',

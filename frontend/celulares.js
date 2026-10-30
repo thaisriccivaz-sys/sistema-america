@@ -1109,7 +1109,7 @@
                 a.chip_numero ? fmtTel(a.chip_numero) : '',
                 a.chip_operadora || '',
                 a.chip_numero2 ? fmtTel(a.chip_numero2) : '',
-                a.atrib_data_inicio ? fmtDate(a.atrib_data_inicio) : '',
+                a.atrib_data_inicio ? fmtData(a.atrib_data_inicio) : '',
                 a.observacao || ''
             ]);
         });
@@ -1126,7 +1126,7 @@
                 c.numero ? fmtTel(c.numero) : '',
                 c.operadora || '',
                 '',
-                c.atrib_data_inicio ? fmtDate(c.atrib_data_inicio) : '',
+                c.atrib_data_inicio ? fmtData(c.atrib_data_inicio) : '',
                 c.observacao || ''
             ]);
         });
@@ -1149,7 +1149,7 @@
                 resp,
                 a.chip_numero ? fmtTel(a.chip_numero) : '',
                 a.chip_numero2 ? fmtTel(a.chip_numero2) : '',
-                a.atrib_data_inicio ? fmtDate(a.atrib_data_inicio) : '',
+                a.atrib_data_inicio ? fmtData(a.atrib_data_inicio) : '',
                 a.observacao || ''
             ]);
         });
@@ -1168,7 +1168,7 @@
                 c.status || 'Ativo',
                 sit,
                 resp,
-                c.atrib_data_inicio ? fmtDate(c.atrib_data_inicio) : '',
+                c.atrib_data_inicio ? fmtData(c.atrib_data_inicio) : '',
                 c.observacao || ''
             ]);
         });
