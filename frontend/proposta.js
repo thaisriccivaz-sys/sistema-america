@@ -13015,6 +13015,162 @@ function obterRegiaoLocal(enderecoCompleto) {
     return regiao;
 }
 
+// Base oficial: Rua Salto da Divisa, 97 - Cidade Parque Alvorada, Guarulhos/SP (CEP 07242-300)
+const AMERICA_BASE_LAT = -23.434011;
+const AMERICA_BASE_LON = -46.420038;
+window._osrmDrivingKmCache = window._osrmDrivingKmCache || {};
+window._osrmDrivingKmPending = window._osrmDrivingKmPending || {};
+window._awesomeCepCache = window._awesomeCepCache || {};
+window._cepValidacaoPending = window._cepValidacaoPending || {};
+
+window._obterAnchorCepBrasil = async function(cepRaw) {
+    const cleanCep = String(cepRaw || '').replace(/\D/g, '');
+    if (cleanCep.length !== 8) return null;
+    if (window._awesomeCepCache[cleanCep] !== undefined) {
+        return window._awesomeCepCache[cleanCep];
+    }
+    try {
+        const r = await fetch(`https://cep.awesomeapi.com.br/json/${cleanCep}`);
+        if (r.ok) {
+            const d = await r.json();
+            const lat = parseFloat(d.lat);
+            const lon = parseFloat(d.lng);
+            if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+                const obj = {
+                    lat,
+                    lon,
+                    address: d.address || '',
+                    district: d.district || '',
+                    city: d.city || '',
+                    state: d.state || ''
+                };
+                window._awesomeCepCache[cleanCep] = obj;
+                return obj;
+            }
+        }
+    } catch (err) {}
+    window._awesomeCepCache[cleanCep] = null;
+    return null;
+};
+
+window._calcularRotaRodoviariaOSRM = async function(lat, lon) {
+    if (isNaN(lat) || isNaN(lon)) return null;
+    const key = `${Number(lat).toFixed(5)},${Number(lon).toFixed(5)}`;
+    if (window._osrmDrivingKmCache[key] !== undefined) {
+        return window._osrmDrivingKmCache[key];
+    }
+    if (window._osrmDrivingKmPending[key]) {
+        return window._osrmDrivingKmPending[key];
+    }
+    window._osrmDrivingKmPending[key] = (async () => {
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${AMERICA_BASE_LON},${AMERICA_BASE_LAT};${lon},${lat}?overview=false&alternatives=true`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                const routes = Array.isArray(data?.routes) ? data.routes : [];
+                if (routes.length > 0) {
+                    let chosen = routes[0];
+                    const fastestDur = chosen.duration || 1;
+                    const fastestSpeed = (chosen.distance || 0) / fastestDur;
+                    // Se houver rota alternativa via rodovia com tempo até 5% próximo e maior velocidade média (ex: Rodoanel/Marginal igual ao Google Maps), prioriza a rota principal
+                    for (let i = 1; i < routes.length; i++) {
+                        const r = routes[i];
+                        const dur = r.duration || 1;
+                        const spd = (r.distance || 0) / dur;
+                        if (dur <= fastestDur * 1.05 && spd > fastestSpeed * 1.05) {
+                            chosen = r;
+                        }
+                    }
+                    const km = (chosen.distance || 0) / 1000;
+                    if (km > 0) {
+                        window._osrmDrivingKmCache[key] = km;
+                        if (typeof window.modalRenderEnderecos === 'function' && document.getElementById('modal-end-tbody')) {
+                            window.modalRenderEnderecos();
+                        }
+                        if (typeof window.pageRenderEnderecos === 'function' && document.getElementById('page-end-tbody')) {
+                            window.pageRenderEnderecos();
+                        }
+                        return km;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('Erro ao consultar rota OSRM:', err);
+        } finally {
+            delete window._osrmDrivingKmPending[key];
+        }
+        return null;
+    })();
+    return window._osrmDrivingKmPending[key];
+};
+
+window._validarCoordenadaContraCepEBairroAsync = async function(e) {
+    if (!e) return;
+    const cleanCep = String(e.cep || '').replace(/\D/g, '');
+    const valKey = `${e.id || ''}_${cleanCep}_${e.endereco || ''}_${e.numero || ''}`;
+    if (window._cepValidacaoPending[valKey]) return;
+    window._cepValidacaoPending[valKey] = true;
+
+    try {
+        let curLat = NaN, curLon = NaN;
+        if (e.coordenadas && String(e.coordenadas).includes(',')) {
+            const pts = String(e.coordenadas).split(',');
+            curLat = parseFloat(pts[0].trim());
+            curLon = parseFloat(pts[1].trim());
+        }
+
+        let precisaRegeocodificar = isNaN(curLat) || isNaN(curLon);
+        if (!precisaRegeocodificar && cleanCep.length === 8) {
+            const anchor = await window._obterAnchorCepBrasil(cleanCep);
+            if (anchor && !isNaN(anchor.lat) && !isNaN(anchor.lon)) {
+                const desvioKm = calcularDistanciaHaversine(anchor.lat, anchor.lon, curLat, curLon);
+                if (desvioKm > 4.0) {
+                    precisaRegeocodificar = true;
+                }
+            }
+        }
+
+        if (precisaRegeocodificar && typeof window.geocodificarComEnderecoENumero === 'function') {
+            const parsed = window._separarRuaENumeroEnderecos ? window._separarRuaENumeroEnderecos(e.endereco, e.numero) : { rua: e.endereco || '', numero: e.numero || '' };
+            const novoGeo = await window.geocodificarComEnderecoENumero({
+                rua: parsed.rua,
+                numero: parsed.numero,
+                bairro: e.bairro || '',
+                cidade: e.municipio || '',
+                uf: e.uf || '',
+                cep: cleanCep
+            });
+            if (novoGeo && !isNaN(novoGeo.lat) && !isNaN(novoGeo.lon)) {
+                const novaCoordStr = `${novoGeo.lat.toFixed(6)}, ${novoGeo.lon.toFixed(6)}`;
+                e.coordenadas = novaCoordStr;
+                curLat = novoGeo.lat;
+                curLon = novoGeo.lon;
+
+                // Se este endereço estiver carregado no formulário do modal ou da página, atualiza o campo visualmente também
+                if (window._modalEnderecoEditandoId && Number(window._modalEnderecoEditandoId) === Number(e.id)) {
+                    const elM = document.getElementById('modal-end-coords');
+                    if (elM) elM.value = novaCoordStr;
+                }
+                if (window._pageEnderecoEditandoId && Number(window._pageEnderecoEditandoId) === Number(e.id)) {
+                    const elP = document.getElementById('page-end-coords');
+                    if (elP) elP.value = novaCoordStr;
+                }
+                // Atualiza silenciosamente no banco para corrigir endereços antigos salvos com coordenada de homônimo
+                if (e.id && !String(e.id).startsWith('principal_')) {
+                    apiPut(`/enderecos-entrega/${e.id}`, { ...e, coordenadas: novaCoordStr }).catch(() => {});
+                }
+            }
+        }
+
+        if (!isNaN(curLat) && !isNaN(curLon)) {
+            await window._calcularRotaRodoviariaOSRM(curLat, curLon);
+        }
+    } catch (err) {
+        console.warn('Erro ao validar coordenada/rota do endereço:', err);
+    }
+};
+
 window.obterDadosZonaEKmEndereco = function(e) {
     if (!e) return { regiao: 'Outra', badgeHtml: '—', km: 0, kmFmt: '0.0 km' };
     const textoClassificacao = [e.nome_local, e.endereco, e.numero, e.complemento, e.bairro, e.municipio, e.uf].filter(Boolean).join(' - ');
@@ -13031,19 +13187,31 @@ window.obterDadosZonaEKmEndereco = function(e) {
 
     const badgeHtml = `<span style="background:${bg}; color:${color}; border:1px solid ${border}; padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><span style="width:6px; height:6px; border-radius:50%; background:${dot}; display:inline-block;"></span>${regiao}</span>`;
 
-    const LAT_A = -23.433765;
-    const LON_A = -46.420206;
     let distance = 0;
     let foundCoords = false;
+    let targetLat = NaN;
+    let targetLon = NaN;
+
+    const cleanCep = String(e.cep || '').replace(/\D/g, '');
+    const cachedCepAnchor = cleanCep.length === 8 ? window._awesomeCepCache[cleanCep] : null;
 
     if (e.coordenadas && String(e.coordenadas).includes(',')) {
         const pts = String(e.coordenadas).split(',');
         const lat = parseFloat(pts[0].trim());
         const lon = parseFloat(pts[1].trim());
         if (!isNaN(lat) && !isNaN(lon)) {
-            const d = calcularDistanciaHaversine(LAT_A, LON_A, lat, lon);
-            if (d > 0 && d < 500) {
-                distance = d;
+            // Verifica se a coordenada salva não é de uma rua homônima distante do CEP/Bairro (ex: Marsilac CEP 048xx com lat > -23.68)
+            const isSulExtremoCep = cleanCep.startsWith('0488') || cleanCep.startsWith('0489');
+            const isHomonimoInvalido = (isSulExtremoCep && lat > -23.68) ||
+                (cachedCepAnchor && calcularDistanciaHaversine(cachedCepAnchor.lat, cachedCepAnchor.lon, lat, lon) > 4.0);
+
+            if (!isHomonimoInvalido) {
+                targetLat = lat;
+                targetLon = lon;
+                foundCoords = true;
+            } else if (cachedCepAnchor) {
+                targetLat = cachedCepAnchor.lat;
+                targetLon = cachedCepAnchor.lon;
                 foundCoords = true;
             }
         }
@@ -13052,14 +13220,27 @@ window.obterDadosZonaEKmEndereco = function(e) {
     const fullAddress = `${e.endereco || ''}, ${e.numero || ''} - ${e.bairro || ''} - ${e.municipio || ''}/${e.uf || ''}`.trim();
     if (!foundCoords && window._enderecoCoordenadasCache && window._enderecoCoordenadasCache[fullAddress]) {
         const coords = window._enderecoCoordenadasCache[fullAddress];
-        const d = calcularDistanciaHaversine(LAT_A, LON_A, coords.lat, coords.lon);
-        if (d > 0 && d < 500) {
-            distance = d;
+        if (coords && !isNaN(coords.lat) && !isNaN(coords.lon)) {
+            targetLat = coords.lat;
+            targetLon = coords.lon;
             foundCoords = true;
         }
     }
 
-    if (!foundCoords) {
+    // Dispara validação assíncrona de CEP + cálculo de rota rodoviária real (OSRM) a partir de Rua Salto da Divisa, 97
+    window._validarCoordenadaContraCepEBairroAsync(e);
+
+    if (foundCoords && !isNaN(targetLat) && !isNaN(targetLon)) {
+        const osrmKey = `${Number(targetLat).toFixed(5)},${Number(targetLon).toFixed(5)}`;
+        if (window._osrmDrivingKmCache[osrmKey] !== undefined) {
+            distance = window._osrmDrivingKmCache[osrmKey];
+        } else {
+            // Enquanto a rota rodoviária OSRM carrega, solicita o cálculo e usa estimativa viária provisória
+            window._calcularRotaRodoviariaOSRM(targetLat, targetLon);
+            const dLinear = calcularDistanciaHaversine(AMERICA_BASE_LAT, AMERICA_BASE_LON, targetLat, targetLon);
+            distance = dLinear > 0 && dLinear < 500 ? dLinear * 1.35 : 0;
+        }
+    } else {
         if (regiao === 'Zona Central') {
             distance = textoClassificacao.toLowerCase().includes('guarulhos') ? 7 : 12;
         } else if (regiao === 'Zona Amarela') {
@@ -16289,6 +16470,66 @@ window.pesquisarEnderecoProposta = async function(btnEl = null) {
     }
 };
 
+window.obterFiltroPadraoEquipamentosPorTipo = function(tipoProposta) {
+    const t = String(tipoProposta || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (t === 'EVENTO') {
+        return { grupo: '', fonte: 'PRÓPRIO AVULSO', incluirServicos: true };
+    }
+    if (t === 'OBRA MENSAL' || t === 'OBRA QUINZENAL' || t === 'OBRA SEMANAL') {
+        return { grupo: '', fonte: 'PACOTE OBRA', incluirServicos: true };
+    }
+    if (t === 'LOCAÇÃO CONTAINER' || t === 'LOCACAO CONTAINER' || t === 'CONTAINER') {
+        return { grupo: 'CONTAINER', fonte: '', incluirServicos: false };
+    }
+    if (t === 'LIMPA FOSSA' || t === 'LIMPA FOSSA MENSAL') {
+        return { grupo: 'SERVIÇOS', fonte: '', incluirServicos: false };
+    }
+    return { grupo: '', fonte: '', incluirServicos: false };
+};
+
+window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo = '', fonte = '', incluirServicos = false } = {}) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const qVal = normStr(termo);
+    const grupoVal = normStr(grupo);
+    const fonteVal = normStr(fonte);
+
+    return (produtos || []).filter(p => {
+        const codStr = normStr(p.codigo || p.id);
+        const nomeStr = normStr(p.nome);
+        const comboStr = normStr(`${p.codigo || p.id} - ${p.nome || ''}`);
+        const grupoStr = normStr(p.grupo_produto);
+        const fonteStr = normStr(p.fonte_fornecimento);
+
+        const isServico = (grupoStr === 'servicos' || grupoStr === 'servico');
+        const isContainer = (grupoStr === 'container' || grupoStr === 'containers');
+
+        const matchTermo = !qVal || codStr === qVal || codStr.includes(qVal) || nomeStr.includes(qVal) || comboStr.includes(qVal);
+
+        let matchGrupo = true;
+        if (grupoVal) {
+            if (grupoVal === 'servicos' || grupoVal === 'servico') {
+                matchGrupo = isServico;
+            } else if (grupoVal === 'container' || grupoVal === 'containers') {
+                matchGrupo = isContainer;
+            } else {
+                matchGrupo = grupoStr === grupoVal;
+            }
+        }
+
+        let matchFonte = true;
+        if (fonteVal) {
+            // Produtos do grupo SERVIÇOS aparecem tanto em EVENTO (Próprio Avulso) quanto em OBRA MENSAL/QUINZENAL/SEMANAL (Pacote Obra)
+            if ((incluirServicos || fonteVal === 'proprio avulso' || fonteVal === 'pacote obra') && !grupoVal && isServico) {
+                matchFonte = true;
+            } else {
+                matchFonte = fonteStr === fonteVal;
+            }
+        }
+
+        return matchTermo && matchGrupo && matchFonte;
+    });
+};
+
 window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
     const inputProd = document.getElementById('prop-prod-codigo');
     const termo = (inputProd?.value || '').trim();
@@ -16305,22 +16546,21 @@ window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
             window._garantirTabelasPrecoCarregadas(false)
         ]);
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
-        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+        const filtroPadrao = window.obterFiltroPadraoEquipamentosPorTipo(tipoAtual);
 
         if (termo) {
-            const qNorm = normStr(termo);
-            const matches = produtos.filter(p => {
-                const cod = normStr(p.codigo || p.id);
-                const nome = normStr(p.nome);
-                const combo = normStr(`${p.codigo || p.id} - ${p.nome || ''}`);
-                return cod === qNorm || cod.includes(qNorm) || nome.includes(qNorm) || combo.includes(qNorm);
+            const matches = window.filtrarListaEquipamentosProposta(produtos, {
+                termo,
+                grupo: filtroPadrao.grupo,
+                fonte: filtroPadrao.fonte,
+                incluirServicos: filtroPadrao.incluirServicos
             });
 
             if (matches.length === 1) {
                 const unico = matches[0];
                 const cod = String(unico.codigo || unico.id || '');
                 const nome = String(unico.nome || '');
-                const tipoAtual = document.getElementById('prop-tipo')?.value || '';
                 const valSugerido = window.obterValorTabelaPorTipoEProduto(tipoAtual, unico);
                 window.selecionarProdutoBusca(cod, nome, valSugerido);
                 return;
@@ -16359,9 +16599,32 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
         }
     }
 
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const tipoAtual = document.getElementById('prop-tipo')?.value || '';
-    const gruposUnicos = Array.from(new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const fontesUnicas = Array.from(new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const filtroPadrao = window.obterFiltroPadraoEquipamentosPorTipo(tipoAtual);
+
+    const gruposSet = new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
+    ['CONTAINER', 'SERVIÇOS'].forEach(gPad => {
+        if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
+            gruposSet.add(gPad);
+        }
+    });
+    const gruposUnicos = Array.from(gruposSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+    const fontesSet = new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean));
+    ['PACOTE OBRA', 'PRÓPRIO AVULSO'].forEach(fPad => {
+        if (!Array.from(fontesSet).some(x => normStr(x) === normStr(fPad))) {
+            fontesSet.add(fPad);
+        }
+    });
+    const fontesUnicas = Array.from(fontesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+    const grupoInicialSel = filtroPadrao.grupo
+        ? (gruposUnicos.find(g => normStr(g) === normStr(filtroPadrao.grupo)) || filtroPadrao.grupo)
+        : '';
+    const fonteInicialSel = filtroPadrao.fonte
+        ? (fontesUnicas.find(f => normStr(f) === normStr(filtroPadrao.fonte)) || filtroPadrao.fonte)
+        : '';
 
     const renderRows = (list) => {
         if (list.length === 0) {
@@ -16408,14 +16671,14 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                             <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
                             <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
                                 <option value="">Todos os Grupos</option>
-                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
+                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}" ${g === grupoInicialSel ? 'selected' : ''}>${_escHtmlProp(g)}</option>`).join('')}
                             </select>
                         </div>
                         <div>
                             <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
                             <select id="modal-prod-search-fonte" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
                                 <option value="">Todas as Fontes</option>
-                                ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}">${_escHtmlProp(f)}</option>`).join('')}
+                                ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}" ${f === fonteInicialSel ? 'selected' : ''}>${_escHtmlProp(f)}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -16455,23 +16718,15 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             const tbody = document.getElementById('modal-prod-tbody');
             const countSpan = document.getElementById('modal-prod-count');
 
-            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            if (selectGrupo && grupoInicialSel) selectGrupo.value = grupoInicialSel;
+            if (selectFonte && fonteInicialSel) selectFonte.value = fonteInicialSel;
 
             const filterProds = () => {
-                const qVal = normStr(inputTermo?.value);
-                const grupoVal = normStr(selectGrupo?.value);
-                const fonteVal = normStr(selectFonte?.value);
-
-                const filtered = produtos.filter(p => {
-                    const codStr = normStr(p.codigo || p.id);
-                    const nomeStr = normStr(p.nome);
-                    const grupoStr = normStr(p.grupo_produto);
-                    const fonteStr = normStr(p.fonte_fornecimento);
-
-                    const matchTermo = !qVal || codStr.includes(qVal) || nomeStr.includes(qVal);
-                    const matchGrupo = !grupoVal || grupoStr === grupoVal;
-                    const matchFonte = !fonteVal || fonteStr === fonteVal;
-                    return matchTermo && matchGrupo && matchFonte;
+                const filtered = window.filtrarListaEquipamentosProposta(produtos, {
+                    termo: inputTermo?.value || '',
+                    grupo: selectGrupo?.value || '',
+                    fonte: selectFonte?.value || '',
+                    incluirServicos: filtroPadrao.incluirServicos
                 });
 
                 if (tbody) tbody.innerHTML = renderRows(filtered);
@@ -16998,7 +17253,13 @@ window.geocodificarComEnderecoENumero = async function({ rua = '', numero = '', 
     const cleanNum = parsed.numero && !/^(s\/?n|sem\s*n[uú]mero)$/i.test(parsed.numero) ? parsed.numero : '';
     const cleanCep = String(cep || '').replace(/\D/g, '');
 
-    // 1. ArcGIS World Geocoding Service (interpola número exato na via, ex: Rua Salto da Divisa, 200)
+    // Obtém âncora geográfica exata do CEP (AwesomeAPI / Google Geocoding de CEP) para evitar homônimos de rua em outro bairro
+    let cepAnchor = null;
+    if (!customText && cleanCep.length === 8 && typeof window._obterAnchorCepBrasil === 'function') {
+        cepAnchor = await window._obterAnchorCepBrasil(cleanCep);
+    }
+
+    // 1. ArcGIS World Geocoding Service (interpola número exato na via, validando contra a região do CEP/Bairro)
     try {
         const singleLine = customText || [
             cleanRua ? (cleanNum ? `${cleanRua}, ${cleanNum}` : cleanRua) : '',
@@ -17013,8 +17274,8 @@ window.geocodificarComEnderecoENumero = async function({ rua = '', numero = '', 
             const arcParams = new URLSearchParams({
                 SingleLine: singleLine,
                 countryCode: 'BRA',
-                outFields: 'Addr_type,Match_addr,StAddr,AddNum,City,Region',
-                maxLocations: '5',
+                outFields: 'Addr_type,Match_addr,StAddr,AddNum,Nbrhd,District,City,Region,Postal',
+                maxLocations: '10',
                 f: 'json'
             });
             if (!customText && cleanRua) {
@@ -17029,22 +17290,50 @@ window.geocodificarComEnderecoENumero = async function({ rua = '', numero = '', 
                 const arcData = await arcRes.json();
                 const candidates = Array.isArray(arcData?.candidates) ? arcData.candidates : [];
                 if (candidates.length > 0) {
-                    const best = candidates.find(c =>
+                    const validCandidates = candidates.filter(c => {
+                        const cLat = Number(c?.location?.y);
+                        const cLon = Number(c?.location?.x);
+                        if (isNaN(cLat) || isNaN(cLon)) return false;
+                        // Se temos âncora do CEP, rejeita candidatos de ruas homônimas a mais de 4 km do CEP real
+                        if (cepAnchor && !isNaN(cepAnchor.lat) && !isNaN(cepAnchor.lon)) {
+                            const distCep = calcularDistanciaHaversine(cepAnchor.lat, cepAnchor.lon, cLat, cLon);
+                            if (distCep > 4.0) return false;
+                        }
+                        // Proteção extra para CEPs do extremo sul de SP (0488x / 0489x - Parelheiros / Engenheiro Marsilac)
+                        if ((cleanCep.startsWith('0488') || cleanCep.startsWith('0489')) && cLat > -23.68) {
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    const best = validCandidates.find(c =>
                         c.attributes?.Addr_type === 'PointAddress' ||
                         c.attributes?.Addr_type === 'StreetAddress' ||
                         c.attributes?.Addr_type === 'Subaddress' ||
                         c.attributes?.Addr_type === 'StreetName'
-                    ) || candidates[0];
-                    const lat = Number(best?.location?.y);
-                    const lon = Number(best?.location?.x);
-                    if (!isNaN(lat) && !isNaN(lon)) {
-                        return { lat, lon, display: best.address || '' };
+                    ) || validCandidates[0] || (!cepAnchor ? candidates[0] : null);
+
+                    if (best) {
+                        const lat = Number(best?.location?.y);
+                        const lon = Number(best?.location?.x);
+                        if (!isNaN(lat) && !isNaN(lon)) {
+                            return { lat, lon, display: best.address || '' };
+                        }
                     }
                 }
             }
         }
     } catch (eArc) {
         console.warn('ArcGIS geocode fallback:', eArc);
+    }
+
+    // Se o CEP tem coordenada exata validada na AwesomeAPI e o ArcGIS só retornou homônimos distantes, usa a coordenada exata do CEP
+    if (cepAnchor && !isNaN(cepAnchor.lat) && !isNaN(cepAnchor.lon)) {
+        return {
+            lat: cepAnchor.lat,
+            lon: cepAnchor.lon,
+            display: `${cepAnchor.address || cleanRua}, ${cepAnchor.district || bairro}, ${cepAnchor.city || cidade} - ${cepAnchor.state || uf}`
+        };
     }
 
     // 2. Fallback: Nominatim estruturado com rua + número
