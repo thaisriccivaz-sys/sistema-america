@@ -1933,13 +1933,13 @@ function _renderFormPropostaInt() {
                     <div style="width: 4px;"></div>
 
                     <!-- Text Buttons -->
-                    <button onclick="limparFormPropostaNovo(); if (typeof window.abrirModalPreenchimentoIA === 'function') window.abrirModalPreenchimentoIA();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                    <button onclick="limparFormPropostaNovo();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
                     </button>
                     <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button onclick="fecharFormProposta()" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
+                    <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
                     </button>
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder excluí-la.', 'warning')" : `excluirProposta(${id})`}" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
@@ -2232,6 +2232,7 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Valor Total (R$)</label>
                                 <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
+                                    oninput="window.recalcularPreviewProdutoProposta('total')"
                                     style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
                             </div>
                         </div>
@@ -5347,10 +5348,19 @@ window.calcularValorTotalProposta = function() {
     if (!totalEl) return;
 
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+        if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) {
+            return acc + parseFloat(p.valor_total);
+        }
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         return acc + (q * v);
     }, 0);
+
+    const prodInputAtivo = (document.getElementById('prop-prod-codigo')?.value || '').trim();
+    const unitInputAtivo = parseFloat(document.getElementById('prop-prod-valor')?.value || 0);
+    if (prodInputAtivo || unitInputAtivo > 0) {
+        return;
+    }
 
     if ((!servicoSelect || !servicoSelect.value) && somaProdutos <= 0) {
         totalEl.removeAttribute('readonly');
@@ -5412,12 +5422,15 @@ window.calcularValorTotalProposta = function() {
     }
 
     const totalCalculado = Math.max(0, subtotal - desconto);
-    totalEl.value = totalCalculado.toFixed(2);
+    window._valorTotalPropostaCalculado = totalCalculado;
 };
 
 /* ── Botões CRUD e Envio ─────────────────────────────────────────────── */
 window.limparFormPropostaNovo = function() {
     _propostasEditandoId = null;
+    window._propProdutosAdicionados = [];
+    _propRegiaoIdentificada = '';
+    window._ultimoClienteNomePropostaAtivo = '';
     _renderFormPropostaInt();
     
     // Rolar até o topo do formulário onde a toolbar se torna fixa (sticky)
@@ -5471,7 +5484,16 @@ window.salvarPropostaNova = async function() {
         valor_frete_ida: obterN('prop-frete-ida'),
         valor_frete_volta: obterN('prop-frete-volta'),
         observacoes: obter('prop-obs'),
-        valor_total: obterN('prop-valor-total'),
+        valor_total: (() => {
+            const itensAtuais = window._propProdutosAdicionados || [];
+            if (itensAtuais.length > 0) {
+                return itensAtuais.reduce((acc, p) => {
+                    if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) return acc + parseFloat(p.valor_total);
+                    return acc + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                }, 0);
+            }
+            return obterN('prop-valor-total');
+        })(),
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
@@ -16262,12 +16284,18 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         }
     }
     const diasPadrao = window.obterDiasContratoPadraoPorTipo(tipoLimpo);
+    const diasEl = document.getElementById('prop-dias');
+    const iniEl = document.getElementById('prop-periodo-ini');
+    const fimEl = document.getElementById('prop-periodo-fim');
     if (diasPadrao !== null) {
-        const diasEl = document.getElementById('prop-dias');
         if (diasEl) diasEl.value = diasPadrao;
         if (typeof window.calcularFimContrato === 'function') {
             window.calcularFimContrato();
         }
+    } else {
+        if (diasEl) diasEl.value = '0';
+        if (iniEl) iniEl.value = '';
+        if (fimEl) fimEl.value = '';
     }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
@@ -16559,6 +16587,22 @@ window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coorden
     if (typeof window.classificarRegiaoEDias === 'function') {
         window.classificarRegiaoEDias();
     }
+    const somaGeral = list.reduce((acc, p) => {
+        const q = parseInt(p.quantidade, 10) || 1;
+        const vU = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+        const sub = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vU);
+        return acc + sub;
+    }, 0);
+    tbody.innerHTML += `
+        <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+            <td colspan="5" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
+            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">
+                R$ ${somaGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+            <td></td>
+        </tr>
+    `;
+
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
     }
@@ -16968,7 +17012,6 @@ window.onInputProdutoPropostaTexto = async function() {
 };
 
 window.recalcularPreviewProdutoProposta = function(origem = '') {
-    const inputCodigo = document.getElementById('prop-prod-codigo');
     const qtdEl = document.getElementById('prop-prod-quantidade');
     const descPctEl = document.getElementById('prop-desc-pct');
     const descRsEl = document.getElementById('prop-desc-rs');
@@ -16977,7 +17020,28 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
 
     if (!valUnitEl || !valTotalEl) return;
 
-    const temProdutoSelecionado = Boolean(inputCodigo && inputCodigo.value.trim());
+    const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
+
+    if (origem === 'total') {
+        const totalDigitado = Math.max(0, parseFloat(valTotalEl.value) || 0);
+        const unitCalculado = qtd > 0 ? (totalDigitado / qtd) : 0;
+        valUnitEl.value = unitCalculado.toFixed(2);
+        valUnitEl.setAttribute('data-preco-base', String(unitCalculado));
+        if (descPctEl) descPctEl.value = '0';
+        if (descRsEl) descRsEl.value = '0';
+        valUnitEl.setAttribute('data-desc-mode', '');
+        return;
+    }
+
+    if (origem === 'unit') {
+        const novoUnitDigitado = Math.max(0, parseFloat(valUnitEl.value) || 0);
+        valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
+        if (descPctEl) descPctEl.value = '0';
+        if (descRsEl) descRsEl.value = '0';
+        valUnitEl.setAttribute('data-desc-mode', '');
+        valTotalEl.value = (novoUnitDigitado * qtd).toFixed(2);
+        return;
+    }
 
     if (origem === 'pct') {
         valUnitEl.setAttribute('data-desc-mode', 'pct');
@@ -16986,33 +17050,12 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
         if (descPctEl && parseFloat(descPctEl.value) > 0) {
             descPctEl.value = '0';
         }
-    } else if (origem === 'unit') {
-        const novoUnitDigitado = Math.max(0, parseFloat(valUnitEl.value) || 0);
-        valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
-        if (descPctEl) descPctEl.value = '0';
-        if (descRsEl) descRsEl.value = '0';
-        valUnitEl.setAttribute('data-desc-mode', '');
     }
 
-    if (!temProdutoSelecionado && (!window._propProdutosAdicionados || window._propProdutosAdicionados.length === 0)) {
-        const u = Math.max(0, parseFloat(valUnitEl.value) || 0);
-        const q = Math.max(1, parseFloat(qtdEl?.value) || 1);
-        valTotalEl.value = (u * q).toFixed(2);
-        return;
-    }
-
-    if (!temProdutoSelecionado && window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0) {
-        if (origem === 'pct') {
-            calcularDescontoReais();
-        } else {
-            window.calcularValorTotalProposta();
-        }
-        return;
-    }
-
-    const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
     const precoBaseAttr = valUnitEl.getAttribute('data-preco-base');
-    const precoBase = Math.max(0, parseFloat(precoBaseAttr !== null ? precoBaseAttr : valUnitEl.value) || 0);
+    const precoBaseParsed = (precoBaseAttr !== null && precoBaseAttr !== '') ? parseFloat(precoBaseAttr) : NaN;
+    const unitAtual = parseFloat(valUnitEl.value) || 0;
+    const precoBase = Math.max(0, (!isNaN(precoBaseParsed) && precoBaseParsed > 0) ? precoBaseParsed : unitAtual);
     const brutoTotal = precoBase * qtd;
 
     const descMode = valUnitEl.getAttribute('data-desc-mode') ||
@@ -17037,9 +17080,7 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
         }
     }
 
-    if (origem !== 'unit') {
-        valUnitEl.value = unitLiquido.toFixed(2);
-    }
+    valUnitEl.value = unitLiquido.toFixed(2);
     valTotalEl.value = totalLiquido.toFixed(2);
 };
 
@@ -17104,22 +17145,29 @@ window.adicionarProdutoProposta = function() {
 
     const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo, nome: produtoNome });
+    let unitDigitado = parseFloat(inputValor?.value);
+    if (isNaN(unitDigitado)) unitDigitado = 0;
+    let totalDigitado = parseFloat(valTotalEl?.value);
+    if (isNaN(totalDigitado)) totalDigitado = 0;
+
+    if (unitDigitado <= 0 && totalDigitado > 0) {
+        unitDigitado = quantidade > 0 ? (totalDigitado / quantidade) : 0;
+    } else if (totalDigitado <= 0 && unitDigitado > 0) {
+        totalDigitado = unitDigitado * quantidade;
+    }
+
     const precoBaseAttr = inputValor?.getAttribute('data-preco-base');
-    const precoBase = (precoBaseAttr !== null && precoBaseAttr !== '' && !isNaN(parseFloat(precoBaseAttr)))
-        ? parseFloat(precoBaseAttr)
-        : (!isNaN(parseFloat(inputValor?.value)) ? parseFloat(inputValor.value) : (vTab !== null ? Number(vTab) : 0));
+    const precoBaseParsed = (precoBaseAttr !== null && precoBaseAttr !== '') ? parseFloat(precoBaseAttr) : NaN;
+    const precoBase = (!isNaN(precoBaseParsed) && precoBaseParsed > 0)
+        ? precoBaseParsed
+        : (unitDigitado > 0 ? unitDigitado : (vTab !== null ? Number(vTab) : 0));
 
     const descPct = Math.max(0, parseFloat(descPctEl?.value) || 0);
     const descRs = Math.max(0, parseFloat(descRsEl?.value) || 0);
     const descMode = inputValor?.getAttribute('data-desc-mode') || (descPct > 0 ? 'pct' : (descRs > 0 ? 'rs' : ''));
 
-    let valorUnitarioFinal = parseFloat(inputValor?.value);
-    if (isNaN(valorUnitarioFinal)) valorUnitarioFinal = precoBase;
-
-    let valorTotalFinal = parseFloat(valTotalEl?.value);
-    if (isNaN(valorTotalFinal) || (window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0 && valorTotalFinal > precoBase * quantidade && descPct === 0 && descRs === 0)) {
-        valorTotalFinal = valorUnitarioFinal * quantidade;
-    }
+    let valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
+    let valorTotalFinal = totalDigitado > 0 ? totalDigitado : (valorUnitarioFinal * quantidade);
 
     let descontoTipo = '';
     if (descMode === 'pct' && descPct > 0) {
@@ -17131,8 +17179,8 @@ window.adicionarProdutoProposta = function() {
         valorTotalFinal = Math.max(0, (precoBase * quantidade) - descRs);
         valorUnitarioFinal = quantidade > 0 ? (valorTotalFinal / quantidade) : 0;
     } else {
-        valorUnitarioFinal = parseFloat(inputValor?.value) || precoBase;
-        valorTotalFinal = valorUnitarioFinal * quantidade;
+        valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
+        valorTotalFinal = totalDigitado > 0 ? totalDigitado : (valorUnitarioFinal * quantidade);
     }
 
     if (!window._propProdutosAdicionados) {
@@ -17167,6 +17215,9 @@ window.adicionarProdutoProposta = function() {
         inputValor.value = '0';
         inputValor.removeAttribute('data-preco-base');
         inputValor.removeAttribute('data-desc-mode');
+    }
+    if (valTotalEl) {
+        valTotalEl.value = '0';
     }
 
     window.renderizarProdutosPropostaGrid();
