@@ -105,6 +105,7 @@
             '<div style="display:flex;align-items:center;gap:0.75rem;"><div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#e67700,#f59e0b);display:flex;align-items:center;justify-content:center;"><i class="ph ph-device-mobile" style="font-size:1.5rem;color:#fff;"></i></div>'+
             '<div><h2 style="margin:0;font-size:1.25rem;font-weight:800;color:#0f172a;">Celulares Corporativos</h2><p style="margin:0;font-size:0.8rem;color:#64748b;">'+_aparelhos.length+' aparelhos &middot; '+_chips.length+' chips</p></div></div>'+
             '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">'+
+            '<button onclick="window.celularesExportarExcel()" style="background:#10b981;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:0.35rem;"><i class="ph ph-file-xls"></i> Exportar</button>'+
             '<button onclick="window.celularesOpenModalAparelho()" style="background:#0f172a;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-device-mobile"></i> + Aparelho</button>'+
             '<button onclick="window.celularesOpenModalChip()" style="background:#2563eb;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-sim-card"></i> + Chip</button>'+
             '<button onclick="window.celularesOpenModalAtribuir()" style="background:#e67700;color:#fff;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>'+
@@ -1072,6 +1073,120 @@
     };
     window.celularesDeleteAparelho=async function(id){if(!confirm('Excluir este aparelho?'))return;try{await _apiDelete('/celulares/aparelhos/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
     window.celularesDeleteChip=async function(id){if(!confirm('Excluir este chip?'))return;try{await _apiDelete('/celulares/chips/'+id);await loadAll();}catch(e){alert('Erro: '+(e.message||e));}};
+    window.celularesExportarExcel = async function() {
+        if (typeof ExcelJS === 'undefined') {
+            alert('Biblioteca de exportação Excel não carregada.');
+            return;
+        }
+        var workbook = new ExcelJS.Workbook();
+        function styleHeader(ws, widths) {
+            var hr = ws.getRow(1);
+            hr.eachCell(function(cell) {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE67700' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            });
+            widths.forEach(function(w, i) { if (ws.columns[i]) ws.columns[i].width = w; });
+            ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+        }
+
+        // Aba 1: Colaboradores / Atribuídos
+        var wsAtrib = workbook.addWorksheet('Colaboradores');
+        wsAtrib.addRow(['Colaborador / Responsável', 'Situação Colaborador', 'Aparelho', 'Patrimônio', 'IMEI 1', 'IMEI 2', 'Chip 1', 'Operadora 1', 'Chip 2', 'Desde', 'Observação']);
+        var atribAparelhos = _aparelhos.filter(function(a){ return !!a.atrib_id; });
+        var atribIdsComAparelho = new Set(atribAparelhos.map(function(a){ return a.atrib_id; }));
+        var chipsSemAparelho = _chips.filter(function(c){ return !!c.atrib_id && !atribIdsComAparelho.has(c.atrib_id); });
+        atribAparelhos.forEach(function(a) {
+            var nome = a.colab_nome || a.responsavel_nome || '-';
+            var sit = a.colaborador_id ? (a.colab_status || 'Ativo') : 'Responsável Avulso';
+            wsAtrib.addRow([
+                nome,
+                sit,
+                a.modelo || '',
+                a.patrimonio || '',
+                a.imei1 || '',
+                a.imei2 || '',
+                a.chip_numero ? fmtTel(a.chip_numero) : '',
+                a.chip_operadora || '',
+                a.chip_numero2 ? fmtTel(a.chip_numero2) : '',
+                a.atrib_data_inicio ? fmtDate(a.atrib_data_inicio) : '',
+                a.observacao || ''
+            ]);
+        });
+        chipsSemAparelho.forEach(function(c) {
+            var nome = c.colab_nome || c.responsavel_nome || '-';
+            var sit = c.colaborador_id ? 'Ativo' : 'Responsável Avulso';
+            wsAtrib.addRow([
+                nome,
+                sit,
+                'Sem aparelho (Chip avulso)',
+                '-',
+                '-',
+                '-',
+                c.numero ? fmtTel(c.numero) : '',
+                c.operadora || '',
+                '',
+                c.atrib_data_inicio ? fmtDate(c.atrib_data_inicio) : '',
+                c.observacao || ''
+            ]);
+        });
+        styleHeader(wsAtrib, [32, 20, 26, 15, 20, 20, 18, 15, 18, 15, 35]);
+
+        // Aba 2: Aparelhos
+        var wsAp = workbook.addWorksheet('Aparelhos');
+        wsAp.addRow(['Modelo', 'Patrimônio', 'IMEI 1', 'IMEI 2', 'Status', 'Situação', 'Colaborador / Responsável', 'Chip 1', 'Chip 2', 'Desde', 'Observação']);
+        _aparelhos.forEach(function(a) {
+            var isAtrib = !!a.atrib_id;
+            var sit = a.status === 'Manutenção' ? 'Em Manutenção' : (a.ativo === 0 ? 'Inativo' : (isAtrib ? 'Em uso' : 'Disponível'));
+            var resp = isAtrib ? (a.colab_nome || a.responsavel_nome || '-') : 'Disponível';
+            wsAp.addRow([
+                a.modelo || '',
+                a.patrimonio || '',
+                a.imei1 || '',
+                a.imei2 || '',
+                a.status || 'Ativo',
+                sit,
+                resp,
+                a.chip_numero ? fmtTel(a.chip_numero) : '',
+                a.chip_numero2 ? fmtTel(a.chip_numero2) : '',
+                a.atrib_data_inicio ? fmtDate(a.atrib_data_inicio) : '',
+                a.observacao || ''
+            ]);
+        });
+        styleHeader(wsAp, [26, 15, 20, 20, 15, 16, 32, 18, 18, 15, 35]);
+
+        // Aba 3: Chips
+        var wsCh = workbook.addWorksheet('Chips');
+        wsCh.addRow(['Número', 'Operadora', 'Status', 'Situação', 'Colaborador / Responsável', 'Desde', 'Observação']);
+        _chips.forEach(function(c) {
+            var isAtrib = !!c.atrib_id;
+            var sit = c.status === 'Cancelado' ? 'Cancelado' : (isAtrib ? 'Em uso' : 'Disponível');
+            var resp = isAtrib ? (c.colab_nome || c.responsavel_nome || '-') : 'Disponível';
+            wsCh.addRow([
+                c.numero ? fmtTel(c.numero) : '',
+                c.operadora || '',
+                c.status || 'Ativo',
+                sit,
+                resp,
+                c.atrib_data_inicio ? fmtDate(c.atrib_data_inicio) : '',
+                c.observacao || ''
+            ]);
+        });
+        styleHeader(wsCh, [20, 16, 15, 16, 32, 15, 35]);
+
+        var buffer = await workbook.xlsx.writeBuffer();
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var d = new Date();
+        var fname = 'Celulares_Corporativos_' + String(d.getDate()).padStart(2,'0') + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + d.getFullYear() + '.xlsx';
+        if (typeof saveAs === 'function') {
+            saveAs(blob, fname);
+        } else {
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fname;
+            link.click();
+        }
+    };
     window.initCelularesCorporativos=async function(){_activeTab='atribuidos';_expandedHistorico={};await loadAll();};
     async function _apiGet(p){var r=await fetch(API_URL+p,{headers:{'Authorization':'Bearer '+currentToken}});if(!r.ok)throw new Error(await r.text());return r.json();}
     async function _apiPost(p,b){var r=await fetch(API_URL+p,{method:'POST',headers:{'Authorization':'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json();}

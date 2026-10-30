@@ -168,6 +168,8 @@
 
         // AMBOS botões aparecem em TODAS as abas
         var actionBtns =
+            '<button onclick="window.computadoresExportarExcel()" style="background:#10b981;color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;box-shadow:0 2px 8px rgba(16,185,129,0.3);">' +
+            '<i class="ph ph-file-xls"></i> Exportar</button>' +
             '<button id="btn-novo-computador" onclick="window.computadoresOpenModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;box-shadow:0 2px 8px rgba(99,102,241,0.3);">' +
             '<i class="ph ph-plus"></i> Novo Computador</button>' +
             '<button onclick="window.compEmailOpenModalEmail()" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;padding:0.55rem 1.1rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;box-shadow:0 2px 8px rgba(79,70,229,0.3);">' +
@@ -1432,6 +1434,135 @@
         } catch(e) {
             alert('Erro ao devolver: ' + e.message);
             document.getElementById('modal-devolver-multi').style.opacity = '1';
+        }
+    };
+
+    window.computadoresExportarExcel = async function() {
+        if (typeof ExcelJS === 'undefined') {
+            alert('Biblioteca de exportação Excel não carregada.');
+            return;
+        }
+        var workbook = new ExcelJS.Workbook();
+        function styleHeader(ws, widths) {
+            var hr = ws.getRow(1);
+            hr.eachCell(function(cell) {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            });
+            widths.forEach(function(w, i) { if (ws.columns[i]) ws.columns[i].width = w; });
+            ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+        }
+
+        // Aba 1: Colaboradores
+        var wsColab = workbook.addWorksheet('Colaboradores');
+        wsColab.addRow(['Colaborador', 'Departamento', 'Cargo', 'Equipamento Atribuído', 'Patrimônio', 'Nº de Série', 'Status Equipamento', 'E-mails Vinculados']);
+        var compByColab = {};
+        _computadores.forEach(function(cp) {
+            if (cp.colaborador_id) {
+                if (!compByColab[cp.colaborador_id]) compByColab[cp.colaborador_id] = [];
+                compByColab[cp.colaborador_id].push(cp);
+            }
+        });
+        var emailByColab = {};
+        _emails.forEach(function(em) {
+            if (em.atribuicoes && em.atribuicoes.length > 0) {
+                em.atribuicoes.forEach(function(a) {
+                    if (!emailByColab[a.colaborador_id]) emailByColab[a.colaborador_id] = [];
+                    emailByColab[a.colaborador_id].push(em.endereco);
+                });
+            } else if (em.colaborador_id) {
+                if (!emailByColab[em.colaborador_id]) emailByColab[em.colaborador_id] = [];
+                emailByColab[em.colaborador_id].push(em.endereco);
+            }
+        });
+        _colaboradores.forEach(function(c) {
+            var cps = compByColab[c.id] || [];
+            var ems = emailByColab[c.id] || [];
+            if (cps.length === 0 && ems.length === 0) return;
+            var modelos = cps.map(function(x){ return (x.tipo ? x.tipo + ' ' : '') + (x.modelo || ''); }).join(' / ') || 'Sem computador';
+            var patrs = cps.map(function(x){ return x.patrimonio || '-'; }).join(' / ') || '-';
+            var sns = cps.map(function(x){ return x.numero_serie || '-'; }).join(' / ') || '-';
+            var sts = cps.map(function(x){ return x.status || '-'; }).join(' / ') || '-';
+            wsColab.addRow([
+                c.nome_completo || '',
+                c.departamento || '',
+                c.cargo || '',
+                modelos,
+                patrs,
+                sns,
+                sts,
+                ems.join(', ') || 'Sem e-mail'
+            ]);
+        });
+        styleHeader(wsColab, [32, 20, 22, 28, 16, 20, 18, 40]);
+
+        // Aba 2: Computadores
+        var wsComp = workbook.addWorksheet('Computadores');
+        wsComp.addRow([
+            'Tipo', 'Modelo', 'Patrimônio', 'Nº de Série', 'Processador', 'Memória RAM 1', 'Memória RAM 2',
+            'SSD / Armazenamento', 'Expansível', 'Status', 'Colaborador Vinculado', 'Departamento', 'Data Atribuição',
+            'Patr. Carregador', 'Tensão Carregador', 'Corrente Carregador', 'Potência Carregador', 'Conector Carregador', 'Observações'
+        ]);
+        _computadores.forEach(function(cp) {
+            var resp = cp.nome_colaborador || cp.colaborador_livre || 'Disponível';
+            wsComp.addRow([
+                cp.tipo || '',
+                cp.modelo || '',
+                cp.patrimonio || '',
+                cp.numero_serie || '',
+                cp.processador || '',
+                cp.ram_1 || '',
+                cp.ram_2 || '',
+                cp.ssd || '',
+                cp.expansivel || '',
+                cp.status || '',
+                resp,
+                cp.departamento_colaborador || '',
+                cp.data_atribuicao ? fmtDate(cp.data_atribuicao) : '',
+                cp.carregador_patrimonio || '',
+                cp.carregador_tensao || '',
+                cp.carregador_corrente || '',
+                cp.carregador_potencia || '',
+                cp.carregador_conector || '',
+                cp.observacoes || ''
+            ]);
+        });
+        styleHeader(wsComp, [15, 25, 15, 20, 22, 16, 16, 18, 14, 16, 30, 18, 16, 16, 16, 16, 16, 18, 35]);
+
+        // Aba 3: E-mails
+        var wsEm = workbook.addWorksheet('E-mails');
+        wsEm.addRow(['Endereço de E-mail', 'Plataforma', 'Status', 'Caixa Compartilhada', 'Recebe Cópia', 'Colaboradores Vinculados', 'Observação']);
+        _emails.forEach(function(em) {
+            var atribs = [];
+            if (em.atribuicoes && em.atribuicoes.length > 0) {
+                atribs = em.atribuicoes.map(function(a){ return a.colaborador_nome; });
+            } else if (em.colaborador_nome) {
+                atribs = [em.colaborador_nome];
+            }
+            wsEm.addRow([
+                em.endereco || '',
+                em.plataforma || '',
+                em.status || 'Ativo',
+                em.caixa_compartilhada ? 'Sim' : 'Não',
+                em.recebe_copia || '',
+                atribs.join(', ') || 'Disponível',
+                em.observacao || ''
+            ]);
+        });
+        styleHeader(wsEm, [35, 18, 15, 20, 28, 35, 35]);
+
+        var buffer = await workbook.xlsx.writeBuffer();
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var d = new Date();
+        var fname = 'Computadores_Corporativos_' + String(d.getDate()).padStart(2,'0') + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + d.getFullYear() + '.xlsx';
+        if (typeof saveAs === 'function') {
+            saveAs(blob, fname);
+        } else {
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fname;
+            link.click();
         }
     };
 
