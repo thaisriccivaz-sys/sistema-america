@@ -16616,7 +16616,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
     const gruposSet = new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
-    ['CONTAINER', 'SERVIÇOS'].forEach(gPad => {
+    ['CONTAINER', 'SERVIÇOS', 'VAC'].forEach(gPad => {
         if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
             gruposSet.add(gPad);
         }

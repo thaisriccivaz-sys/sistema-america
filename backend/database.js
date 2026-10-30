@@ -2152,6 +2152,59 @@ db.run("PRAGMA foreign_keys = ON;");
                         db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'QUÍMICOS OBRA' WHERE fonte_fornecimento = 'BANHEIROS QUÍMICOS OBRA'", () => {});
                         db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'QUÍMICOS EVENTO' WHERE fonte_fornecimento = 'BANHEIROS QUÍMICOS EVENTO'", () => {});
                         db.run("UPDATE estoque_equipamentos SET fonte_fornecimento = 'HIDRÁULICOS' WHERE fonte_fornecimento = 'BANHEIROS HIDRÁULICOS'", () => {});
+                        const codigosVac = [
+                            '00048','00049','00050','00051','00052','00053','00054','00055','00056','00057','00058',
+                            '00059','00060','00061','00062','00063','00064','00065','00066','00067','00068','00069',
+                            '00117','00118','00119','00120','00121','00122','00123','00124','00125','00126','00127',
+                            '00128','00129','00130','00131','00132','00133','00134','00135','00136','00137',
+                            '00138','00139','00140','00141','00142','00143','00144','00145','00146','00147','00148',
+                            '00149','00150','00151','00152','00153','00154','00155','00156','00157','00158',
+                            '00159','00160',
+                            '00191','00192','00193','00194','00195','00196','00197','00198','00199','00200','00201',
+                            '00202','00203','00204','00205','00206','00207','00208','00209','00210','00211','00212'
+                        ];
+                        const nomesVac = [
+                            'BANHEIRO QUÍMICO STANDARD VAC O01XZC','BANHEIRO QUÍMICO STANDARD VAC O01XZA','BANHEIRO QUÍMICO STANDARD VAC O01XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O02XZC','BANHEIRO QUÍMICO STANDARD VAC O02XZA','BANHEIRO QUÍMICO STANDARD VAC O02XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O03XZC','BANHEIRO QUÍMICO STANDARD VAC O03XZA','BANHEIRO QUÍMICO STANDARD VAC O03XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O04XZC','BANHEIRO QUÍMICO STANDARD VAC O04XZA','BANHEIRO QUÍMICO STANDARD VAC O04XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O05XZC','BANHEIRO QUÍMICO STANDARD VAC O05XZA','BANHEIRO QUÍMICO STANDARD VAC O05XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O06XZC','BANHEIRO QUÍMICO STANDARD VAC O06XZA','BANHEIRO QUÍMICO STANDARD VAC O06XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC O07XZC','BANHEIRO QUÍMICO STANDARD VAC O07XZA','BANHEIRO QUÍMICO STANDARD VAC O07XZV',
+                            'BANHEIRO QUÍMICO STANDARD VAC',
+                            'BANHEIRO QUÍMICO LUXO VAC O01XZC','BANHEIRO QUÍMICO LUXO VAC O01XZA','BANHEIRO QUÍMICO LUXO VAC O01XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O02XZC','BANHEIRO QUÍMICO LUXO VAC O02XZA','BANHEIRO QUÍMICO LUXO VAC O02XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O03XZC','BANHEIRO QUÍMICO LUXO VAC O03XZA','BANHEIRO QUÍMICO LUXO VAC O03XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O04XZC','BANHEIRO QUÍMICO LUXO VAC O04XZA','BANHEIRO QUÍMICO LUXO VAC O04XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O05XZC','BANHEIRO QUÍMICO LUXO VAC O05XZA','BANHEIRO QUÍMICO LUXO VAC O05XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O06XZC','BANHEIRO QUÍMICO LUXO VAC O06XZA','BANHEIRO QUÍMICO LUXO VAC O06XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC O07XZC','BANHEIRO QUÍMICO LUXO VAC O07XZA','BANHEIRO QUÍMICO LUXO VAC O07XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O01XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O01XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O01XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O02XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O02XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O02XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O03XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O03XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O03XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O04XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O04XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O04XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O05XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O05XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O05XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O06XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O06XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O06XZV',
+                            'BANHEIRO QUÍMICO EXTRA LUXO VAC O07XZC','BANHEIRO QUÍMICO EXTRA LUXO VAC O07XZA','BANHEIRO QUÍMICO EXTRA LUXO VAC O07XZV',
+                            'BANHEIRO QUÍMICO LUXO VAC','BANHEIRO QUÍMICO EXTRA LUXO VAC',
+                            'BANHEIRO QUÍMICO PCD VAC O01XZC','BANHEIRO QUÍMICO PCD VAC O01XZA','BANHEIRO QUÍMICO PCD VAC O01XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O02XZC','BANHEIRO QUÍMICO PCD VAC O02XZA','BANHEIRO QUÍMICO PCD VAC O02XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O03XZC','BANHEIRO QUÍMICO PCD VAC O03XZA','BANHEIRO QUÍMICO PCD VAC O03XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O04XZC','BANHEIRO QUÍMICO PCD VAC O04XZA','BANHEIRO QUÍMICO PCD VAC O04XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O05XZC','BANHEIRO QUÍMICO PCD VAC O05XZA','BANHEIRO QUÍMICO PCD VAC O05XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O06XZC','BANHEIRO QUÍMICO PCD VAC O06XZA','BANHEIRO QUÍMICO PCD VAC O06XZV',
+                            'BANHEIRO QUÍMICO PCD VAC O07XZC','BANHEIRO QUÍMICO PCD VAC O07XZA','BANHEIRO QUÍMICO PCD VAC O07XZV',
+                            'BANHEIRO QUÍMICO PCD VAC'
+                        ];
+                        const phCod = codigosVac.map(() => '?').join(',');
+                        const phNom = nomesVac.map(() => '?').join(',');
+                        db.run(
+                            `UPDATE estoque_equipamentos SET grupo_produto = 'VAC' WHERE (TRIM(codigo) IN (${phCod}) OR UPPER(TRIM(nome)) IN (${phNom})) AND grupo_produto != 'VAC'`,
+                            [...codigosVac, ...nomesVac],
+                            (errVac) => {
+                                if (errVac) console.warn('[ESTOQUE] Aviso ao atualizar grupo VAC:', errVac.message);
+                            }
+                        );
                     });
                 }
             });
