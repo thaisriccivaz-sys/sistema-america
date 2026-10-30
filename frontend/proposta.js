@@ -1981,12 +1981,14 @@ function _renderFormPropostaInt() {
                                 </button>
                             </div>
                         </div>
-                        <div>
+                        <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
                             <label class="prop-lbl">Atendente</label>
                             <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;">
                         </div>
                     </div>
+
+                    <div id="prop-campos-dependentes-tipo" onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
 
                     <!-- Linha 2: Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
@@ -2093,7 +2095,7 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Período Início *</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
-                                    onchange="calcularDiasContrato(); calcularFimContrato();"
+                                    onchange="if(typeof window.onChangePeriodoInicioProposta === 'function'){ window.onChangePeriodoInicioProposta(); } else { calcularDiasContrato(); calcularFimContrato(); }"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
@@ -2341,6 +2343,7 @@ function _renderFormPropostaInt() {
                         <textarea id="prop-obs" rows="3" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;" placeholder="Informações adicionais sobre a proposta...">${v('observacoes')}</textarea>
                     </div>
 
+                    </div>
                 </form>
             </div>
     `;
@@ -2374,6 +2377,9 @@ function _renderFormPropostaInt() {
     }
     if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
         window.carregarEnderecosVinculadosClienteProposta(v('cliente_nome'), false);
+    }
+    if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
+        window.atualizarBloqueioPorTipoProposta();
     }
 }
 
@@ -5175,6 +5181,26 @@ window.calcularPrevisaoFechamento = function() {
     if (previsaoEl) previsaoEl.value = dataMais7;
     const validadeEl = document.getElementById('prop-validade-proposta');
     if (validadeEl) validadeEl.value = dataMais7;
+};
+
+window.onChangePeriodoInicioProposta = function() {
+    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+    const diasPadrao = typeof window.obterDiasContratoPadraoPorTipo === 'function'
+        ? window.obterDiasContratoPadraoPorTipo(tipoAtual)
+        : null;
+    const diasEl = document.getElementById('prop-dias');
+    if (diasPadrao !== null && diasEl) {
+        diasEl.value = diasPadrao;
+        window.calcularFimContrato();
+        return;
+    }
+    const diasVal = parseInt(diasEl?.value || 0, 10);
+    if (diasVal > 0) {
+        window.calcularFimContrato();
+    } else {
+        window.calcularDiasContrato();
+        window.calcularFimContrato();
+    }
 };
 
 window.calcularDiasContrato = function() {
@@ -16065,7 +16091,70 @@ window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
     return '';
 };
 
+window.obterDiasContratoPadraoPorTipo = function(tipo) {
+    const t = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (!t) return null;
+    if (t === 'OBRA MENSAL' || t === 'LIMPA FOSSA MENSAL') return 30;
+    if (t === 'OBRA QUINZENAL') return 15;
+    if (t === 'OBRA SEMANAL') return 7;
+    return null;
+};
+
+window.atualizarBloqueioPorTipoProposta = function() {
+    const tipoEl = document.getElementById('prop-tipo');
+    const wrapEl = document.getElementById('prop-campos-dependentes-tipo');
+    const atendenteEl = document.getElementById('prop-atendente');
+    if (!tipoEl || !wrapEl) return;
+    const liberado = Boolean(String(tipoEl.value || '').trim());
+    if (atendenteEl) {
+        atendenteEl.disabled = !liberado;
+        atendenteEl.style.pointerEvents = liberado ? '' : 'none';
+        atendenteEl.style.opacity = liberado ? '1' : '0.6';
+    }
+    wrapEl.style.opacity = liberado ? '1' : '0.55';
+    wrapEl.style.cursor = liberado ? '' : 'not-allowed';
+    wrapEl.title = liberado ? '' : 'Selecione primeiro o Tipo de Proposta para liberar o preenchimento dos demais campos';
+    const campos = wrapEl.querySelectorAll('input, select, textarea, button');
+    campos.forEach(el => {
+        el.disabled = !liberado;
+        el.style.pointerEvents = liberado ? '' : 'none';
+    });
+};
+
+window.onClickCampoBloqueadoPorTipoProposta = function(event) {
+    const tipoEl = document.getElementById('prop-tipo');
+    if (!tipoEl) return;
+    const liberado = Boolean(String(tipoEl.value || '').trim());
+    if (liberado) return;
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    tipoEl.focus();
+    tipoEl.style.borderColor = '#dc2626';
+    tipoEl.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+    setTimeout(() => {
+        if (tipoEl) {
+            tipoEl.style.borderColor = '#cbd5e1';
+            tipoEl.style.boxShadow = '';
+        }
+    }, 2000);
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: 'Preencha primeiro o Tipo de Proposta (*) para liberar os demais campos.',
+            showConfirmButton: false,
+            timer: 2600
+        });
+    }
+};
+
 window.onChangeTipoPropostaPrecos = async function(novoTipo) {
+    if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
+        window.atualizarBloqueioPorTipoProposta();
+    }
     const tabelaEl = document.getElementById('prop-tabela');
     const tipoLimpo = String(novoTipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (tabelaEl && tipoLimpo) {
@@ -16075,6 +16164,14 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     const condPadrao = window.obterCondicaoPagamentoPadraoPorTipo(tipoLimpo);
     if (condPagEl && condPadrao) {
         condPagEl.value = condPadrao;
+    }
+    const diasPadrao = window.obterDiasContratoPadraoPorTipo(tipoLimpo);
+    if (diasPadrao !== null) {
+        const diasEl = document.getElementById('prop-dias');
+        if (diasEl) diasEl.value = diasPadrao;
+        if (typeof window.calcularFimContrato === 'function') {
+            window.calcularFimContrato();
+        }
     }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
