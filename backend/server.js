@@ -40307,8 +40307,8 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
-  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? OR (cpf_cnpj = ? AND ? IS NOT NULL)', 
-    [lookupId, lookupCodigo, cpfCnpj, cpfCnpj], (err, row) => {
+  db.get('SELECT * FROM clientes WHERE (id = ? AND ? IS NOT NULL) OR (codigo = ? AND ? IS NOT NULL) OR (cpf_cnpj = ? AND ? IS NOT NULL) ORDER BY CASE WHEN id = ? THEN 0 WHEN codigo = ? THEN 1 ELSE 2 END LIMIT 1', 
+    [lookupId, lookupId, lookupCodigo, lookupCodigo, cpfCnpj, cpfCnpj, lookupId, lookupCodigo], (err, row) => {
       if (err) return callback(err);
 
       if (row) {
@@ -40429,7 +40429,7 @@ app.get('/api/clientes', authenticateToken, (req, res) => {
 
 // GET /api/clientes/:id - Buscar cliente por ID ou Código
 app.get('/api/clientes/:id', authenticateToken, (req, res) => {
-  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, row) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
     db.all(
@@ -40701,7 +40701,7 @@ function syncEnderecoFaturamentoCliente(clienteId, doneCb) {
   const cid = Number(clienteId);
   if (!cid || cid <= 0) return cb();
 
-  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ?', [cid, cid], async (err, cli) => {
+  db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [cid, cid, cid], async (err, cli) => {
     if (err || !cli) return cb();
     const realCid = cli.id;
 
@@ -41880,12 +41880,90 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
   const zlib = require('zlib');
   const seedGzPath = path.join(__dirname, 'data', 'clientes_eloca_seed.json.gz');
 
+  const repararClientesSobrescritosPorColisaoIdCodigo = () => {
+    try {
+      if (!fs.existsSync(seedGzPath)) return;
+      const gzBuf = fs.readFileSync(seedGzPath);
+      const registros = JSON.parse(zlib.gunzipSync(gzBuf).toString('utf8'));
+      if (!Array.isArray(registros) || registros.length === 0) return;
+      const seedPorCodigo = new Map();
+      for (const r of registros) {
+        if (r && r[0] != null) seedPorCodigo.set(Number(r[0]), r);
+      }
+      db.all('SELECT id, codigo, nome_razao_social, cpf_cnpj FROM clientes', [], (errRows, rows) => {
+        if (errRows || !Array.isArray(rows) || rows.length === 0) return;
+        const rowPorId = new Map();
+        const countPorNome = new Map();
+        for (const rw of rows) {
+          rowPorId.set(Number(rw.id), rw);
+          const nm = String(rw.nome_razao_social || '').trim().toUpperCase();
+          if (nm) countPorNome.set(nm, (countPorNome.get(nm) || 0) + 1);
+        }
+        const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+        for (const rw of rows) {
+          const codNum = Number(rw.codigo);
+          const idNum = Number(rw.id);
+          if (!codNum || codNum === idNum) continue;
+          const seedRec = seedPorCodigo.get(codNum);
+          if (!seedRec) continue;
+          const [
+            codigo, razao, fantasia, cpf_cnpj, rg, telefone, fax, ie, cidade, uf,
+            rep, obs, dataCadIso, tel2, celular, dataNasc, emailContato, nomeContato,
+            website, classificacao, centralizador
+          ] = seedRec;
+          const nomeAtual = String(rw.nome_razao_social || '').trim().toUpperCase();
+          const nomeSeed = String(razao || '').trim().toUpperCase();
+          if (!nomeSeed || nomeAtual === nomeSeed) continue;
+          const outroClienteNoIdIgualCodigo = rowPorId.get(codNum);
+          const nomeOutro = outroClienteNoIdIgualCodigo ? String(outroClienteNoIdIgualCodigo.nome_razao_social || '').trim().toUpperCase() : '';
+          const colidiuComId = (nomeOutro && nomeAtual === nomeOutro) || (countPorNome.get(nomeAtual) || 0) > 1 || codNum === 6225 || codNum === 6224;
+          if (!colidiuComId) continue;
+
+          const contatosArr = (nomeContato || emailContato) ? [{
+            codigo: codigo,
+            nome: nomeContato || razao,
+            email: emailContato || '',
+            telefone: telefone || '',
+            celular: celular || '',
+            dono: rep || '',
+            representante: rep || '',
+            cargo: '',
+            departamento: ''
+          }] : [];
+
+          console.log(`[Clientes Eloca] Restaurando cliente código ${codNum} (id=${idNum}) sobrescrito por colisão para "${razao}"`);
+          db.run(`
+            UPDATE clientes SET
+              data_cadastro = ?, inativo = 0, cpf_cnpj = ?, inscricao_estadual = ?,
+              rg = ?, data_nascimento = ?, grupo_clientes = ?, cliente_centralizador = ?,
+              nome_razao_social = ?, nome_fantasia = ?, cep = '', endereco = '', numero = '', complemento = '', bairro = '',
+              uf = ?, municipio = ?, pais = 'Brasil',
+              telefone = ?, telefone_2 = ?, fax = ?, website = ?, celular = ?,
+              parametros = '', contatos = ?, observacoes = ?, criado_por = ?, atualizado_em = ?
+            WHERE id = ?
+          `, [
+            dataCadIso || '', cpf_cnpj || '', ie || '',
+            rg || '', dataNasc || '', classificacao || '', centralizador || '',
+            razao || '', fantasia || razao || '',
+            uf || '', cidade || '',
+            telefone || '', tel2 || '', fax || '', website || '', celular || '',
+            JSON.stringify(contatosArr), obs || '', rep || '', agora,
+            idNum
+          ]);
+        }
+      });
+    } catch (eRep) {
+      console.error('[Clientes Eloca] Erro ao verificar colisão de clientes:', eRep.message);
+    }
+  };
+
   const runSeed = () => {
     if (!fs.existsSync(seedGzPath)) return;
     db.get("SELECT COUNT(*) as total FROM clientes WHERE codigo = 7165 AND criado_por = 'THAYNAMARQUES'", [], (errCheck, rowCheck) => {
       db.get("SELECT COUNT(*) as totalAdmin FROM clientes WHERE codigo <= 7165 AND criado_por = 'Administrador'", [], (errAdm, rowAdm) => {
         db.get("SELECT COUNT(*) as totalAll FROM clientes", [], (errAll, rowAll) => {
           if (!errAll && rowAll && rowAll.totalAll >= 6935 && rowCheck && rowCheck.total > 0 && (!rowAdm || rowAdm.totalAdmin === 0)) {
+            repararClientesSobrescritosPorColisaoIdCodigo();
             return; // Já importado completamente com criado_por da planilha
           }
           try {
@@ -42170,74 +42248,76 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
-  const proceedUpdate = () => {
-    db.run(`UPDATE clientes SET
-      data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
-      rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
-      nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
-      pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
-      celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
-      observacoes=?, atualizado_em=?
-      WHERE id=? OR codigo=?`,
-    [
-      d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
-      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
-      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
-      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
-      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-      d.observacoes || '', agora, req.params.id, req.params.id
-    ], function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
-      const razaoSync = String(d.nome_razao_social || '').trim().toUpperCase();
-      if (razaoSync) {
-        db.run(
-          `UPDATE clientes SET grupo_clientes = ?, parametros = ?, atualizado_em = ? WHERE UPPER(TRIM(IFNULL(nome_razao_social, ''))) = ?`,
-          [d.grupo_clientes || '', d.parametros || '', agora, razaoSync],
-          () => {}
-        );
-      }
-      db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (gErr, cRow) => {
-        if (!gErr && cRow && cRow.id) {
-          syncEnderecoFaturamentoCliente(cRow.id, () => res.json({ success: true }));
-        } else {
-          res.json({ success: true });
-        }
-      });
-    });
-  };
+  db.get(
+    'SELECT id, codigo, cpf_cnpj, nome_razao_social FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
+    [req.params.id, req.params.id, req.params.id],
+    (curErr, curRow) => {
+      if (curErr) return res.status(500).json({ error: curErr.message });
+      if (!curRow || !curRow.id) return res.status(404).json({ error: 'Cliente não encontrado' });
+      const targetId = curRow.id;
 
-  if (docLimpo.length > 0) {
-    db.get('SELECT id, codigo, cpf_cnpj, nome_razao_social FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (curErr, curRow) => {
-      const curDocLimpo = String(curRow?.cpf_cnpj || '').replace(/\D/g, '');
-      if (curDocLimpo && curDocLimpo === docLimpo) {
-        return proceedUpdate();
-      }
-      db.get(
-        `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? AND id != ? AND CAST(IFNULL(codigo, '') AS TEXT) != ? LIMIT 1`,
-        [docLimpo, req.params.id, String(req.params.id)],
-        (dupErr, dupRow) => {
-          if (dupErr) return res.status(500).json({ error: dupErr.message });
-          const sameName = dupRow && String(dupRow.nome_razao_social || '').trim().toUpperCase() === String(d.nome_razao_social || '').trim().toUpperCase();
-          if (dupRow && !sameName) {
-            return res.status(400).json({
-              error: `Já existe outro cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
-            });
+      const proceedUpdate = () => {
+        db.run(`UPDATE clientes SET
+          data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
+          rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+          nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
+          pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
+          celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
+          observacoes=?, atualizado_em=?
+          WHERE id=?`,
+        [
+          d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+          d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+          d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+          d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
+          d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+          d.observacoes || '', agora, targetId
+        ], function(err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
           }
-          proceedUpdate();
+          if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+          const razaoSync = String(d.nome_razao_social || '').trim().toUpperCase();
+          if (razaoSync) {
+            db.run(
+              `UPDATE clientes SET grupo_clientes = ?, parametros = ?, atualizado_em = ? WHERE UPPER(TRIM(IFNULL(nome_razao_social, ''))) = ?`,
+              [d.grupo_clientes || '', d.parametros || '', agora, razaoSync],
+              () => {}
+            );
+          }
+          syncEnderecoFaturamentoCliente(targetId, () => res.json({ success: true }));
+        });
+      };
+
+      if (docLimpo.length > 0) {
+        const curDocLimpo = String(curRow?.cpf_cnpj || '').replace(/\D/g, '');
+        if (curDocLimpo && curDocLimpo === docLimpo) {
+          return proceedUpdate();
         }
-      );
-    });
-  } else {
-    proceedUpdate();
-  }
+        db.get(
+          `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? AND id != ? LIMIT 1`,
+          [docLimpo, targetId],
+          (dupErr, dupRow) => {
+            if (dupErr) return res.status(500).json({ error: dupErr.message });
+            const sameName = dupRow && String(dupRow.nome_razao_social || '').trim().toUpperCase() === String(d.nome_razao_social || '').trim().toUpperCase();
+            if (dupRow && !sameName) {
+              return res.status(400).json({
+                error: `Já existe outro cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
+              });
+            }
+            proceedUpdate();
+          }
+        );
+      } else {
+        proceedUpdate();
+      }
+    }
+  );
 });
 
 // DELETE /api/clientes/:id - Excluir cliente
 app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
-  db.get('SELECT id, codigo FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (err, cliRow) => {
+  db.get('SELECT id, codigo FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (err, cliRow) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!cliRow) return res.status(404).json({ error: 'Cliente não encontrado' });
 
@@ -42418,31 +42498,39 @@ app.put('/api/contatos/:id', authenticateToken, (req, res) => {
   salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
     if (err) return res.status(500).json({ error: 'Erro ao salvar empresa cliente: ' + err.message });
 
-    db.run(`UPDATE contatos SET
-      nome=?, tipo=?, representante=?, departamento=?, cargo=?, origem=?, influenciador=?,
-      classificacao=?, data_nascimento=?, ramo_atividade=?, regiao=?, sexo=?, celular=?, telefone=?,
-      ramal=?, nextel=?, email=?, outra_comunicacao=?, inativo=?, email_cobranca=?, email_nfe=?,
-      email_os=?, email_contrato=?, cliente_id=?, atualizado_em=?
-      WHERE id=? OR codigo=?`,
-    [
-      d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
-      d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
-      d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
-      d.email_os||0, d.email_contrato||0, clienteId, agora, req.params.id, req.params.id
-    ], function(err2) {
-      if (err2) return res.status(500).json({ error: err2.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
-      res.json({ success: true, cliente_id: clienteId });
+    db.get('SELECT id FROM contatos WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (errCt, ctRow) => {
+      if (errCt) return res.status(500).json({ error: errCt.message });
+      if (!ctRow || !ctRow.id) return res.status(404).json({ error: 'Contato não encontrado' });
+      db.run(`UPDATE contatos SET
+        nome=?, tipo=?, representante=?, departamento=?, cargo=?, origem=?, influenciador=?,
+        classificacao=?, data_nascimento=?, ramo_atividade=?, regiao=?, sexo=?, celular=?, telefone=?,
+        ramal=?, nextel=?, email=?, outra_comunicacao=?, inativo=?, email_cobranca=?, email_nfe=?,
+        email_os=?, email_contrato=?, cliente_id=?, atualizado_em=?
+        WHERE id=?`,
+      [
+        d.nome, d.tipo, d.representante, d.departamento, d.cargo, d.origem, d.influenciador,
+        d.classificacao, d.data_nascimento, d.ramo_atividade, d.regiao, d.sexo, d.celular, d.telefone,
+        d.ramal, d.nextel, d.email, d.outra_comunicacao, d.inativo||0, d.email_cobranca||0, d.email_nfe||0,
+        d.email_os||0, d.email_contrato||0, clienteId, agora, ctRow.id
+      ], function(err2) {
+        if (err2) return res.status(500).json({ error: err2.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+        res.json({ success: true, cliente_id: clienteId });
+      });
     });
   });
 });
 
 // DELETE /api/contatos/:id - Excluir contato
 app.delete('/api/contatos/:id', authenticateToken, (req, res) => {
-  db.run('DELETE FROM contatos WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
-    res.json({ success: true });
+  db.get('SELECT id FROM contatos WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (errCt, ctRow) => {
+    if (errCt) return res.status(500).json({ error: errCt.message });
+    if (!ctRow || !ctRow.id) return res.status(404).json({ error: 'Contato não encontrado' });
+    db.run('DELETE FROM contatos WHERE id = ?', [ctRow.id], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Contato não encontrado' });
+      res.json({ success: true });
+    });
   });
 });
 

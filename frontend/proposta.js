@@ -2151,15 +2151,33 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
 
-                        <!-- Campo Dias de Evento (Exibido para EVENTO, LOCAÇÃO CONTAINER e EQUIPAMENTOS) -->
-                        <div id="prop-wrapper-dias-evento" style="display:${window.tipoPropostaUsaDiasEvento && window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'block' : 'none'}; margin-bottom:0.55rem; position:relative;">
+                        <!-- Campo Dia de Evento / Sucção (Obrigatório adicionar pelo menos um) -->
+                        <div id="prop-wrapper-dias-evento" style="display:block; margin-bottom:0.55rem; position:relative;">
+                            <style>
+                                #prop-dias-evento-popover .cal-dias-grid {
+                                    display: grid !important;
+                                    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+                                    gap: 4px !important;
+                                    width: 100% !important;
+                                    box-sizing: border-box !important;
+                                }
+                                #prop-dias-evento-popover .cal-dia-btn {
+                                    width: 100% !important;
+                                    min-width: 0 !important;
+                                    height: 32px !important;
+                                    padding: 0 !important;
+                                    box-sizing: border-box !important;
+                                    border-radius: 6px !important;
+                                    font-size: 0.8rem !important;
+                                }
+                            </style>
                             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px;">
                                 <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
                                     <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
-                                    Dias de Evento
+                                    Dia de Evento / Sucção *
                                     <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
                                 </label>
-                                <span style="font-size:0.72rem; color:#64748b;">Selecione 1, 2, 3 ou mais diárias (seguidas ou alternadas)</span>
+                                <span style="font-size:0.72rem; color:#64748b;">Selecione pelo menos 1 dia de evento / sucção (seguidos ou alternados)</span>
                             </div>
                             <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(window._propDiasEventoSelecionados || []))}">
                             <div style="display:flex; gap:0.45rem; align-items:stretch;">
@@ -2179,7 +2197,7 @@ function _renderFormPropostaInt() {
                                 </button>
                             </div>
                             <div id="prop-dias-evento-popover" onclick="event.stopPropagation()"
-                                style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:320px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.75rem; font-family:'Inter',sans-serif;">
+                                style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:360px !important; box-sizing:border-box !important; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.85rem !important; font-family:'Inter',sans-serif;">
                             </div>
                         </div>
 
@@ -5429,12 +5447,7 @@ window.onChangePeriodoInicioProposta = function() {
 };
 
 window.calcularDiasContrato = function() {
-    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
     const diasEl = document.getElementById('prop-dias');
-    if (typeof window.tipoPropostaUsaDiasEvento === 'function' && window.tipoPropostaUsaDiasEvento(tipoAtual) && Array.isArray(window._propDiasEventoSelecionados) && window._propDiasEventoSelecionados.length > 0) {
-        if (diasEl) diasEl.value = window._propDiasEventoSelecionados.length;
-        return;
-    }
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const fim = document.getElementById('prop-periodo-fim')?.value;
     if (!ini || !fim || !diasEl) return;
@@ -5603,6 +5616,28 @@ window.salvarPropostaNova = async function() {
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+
+    const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
+    const itensValidacao = window._propProdutosAdicionados || [];
+    if (itensValidacao.length > 0) {
+        const semDias = itensValidacao.some(p => {
+            const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+            if (dItem.length === 0 && diasGlobais.length > 0) {
+                p.dias_evento = [...diasGlobais];
+                return false;
+            }
+            return dItem.length === 0;
+        });
+        if (semDias) {
+            alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado.');
+            if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+            return;
+        }
+    } else if (diasGlobais.length === 0) {
+        alert('É obrigatório selecionar pelo menos um Dia de Evento / Sucção.');
+        if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+        return;
+    }
 
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
@@ -6163,6 +6198,28 @@ window.estornarPropostaEdicao = async function() {
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+
+    const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
+    const itensValidacao = window._propProdutosAdicionados || [];
+    if (itensValidacao.length > 0) {
+        const semDias = itensValidacao.some(p => {
+            const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+            if (dItem.length === 0 && diasGlobais.length > 0) {
+                p.dias_evento = [...diasGlobais];
+                return false;
+            }
+            return dItem.length === 0;
+        });
+        if (semDias) {
+            alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado.');
+            if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+            return;
+        }
+    } else if (diasGlobais.length === 0) {
+        alert('É obrigatório selecionar pelo menos um Dia de Evento / Sucção.');
+        if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+        return;
+    }
 
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
@@ -16368,28 +16425,18 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
     return null;
 };
 
-window.tipoPropostaUsaDiasEvento = function(tipo) {
-    const t = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    return t === 'EVENTO' || t === 'LOCAÇÃO CONTAINER' || t === 'LOCACAO CONTAINER' || t === 'EQUIPAMENTOS';
+window.tipoPropostaUsaDiasEvento = function() {
+    return true;
 };
 
-window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
+window.atualizarVisibilidadeDiasEventoProposta = function() {
     const wrap = document.getElementById('prop-wrapper-dias-evento');
     if (!wrap) return;
-    const usa = window.tipoPropostaUsaDiasEvento(tipo);
-    wrap.style.display = usa ? 'block' : 'none';
-    if (!usa) {
-        window._propDiasEventoSelecionados = [];
-        const hiddenEl = document.getElementById('prop-dias-evento');
-        if (hiddenEl) hiddenEl.value = '[]';
-        const pop = document.getElementById('prop-dias-evento-popover');
-        if (pop) pop.style.display = 'none';
-    } else {
-        window.renderizarDiasEventoProposta(false);
-    }
+    wrap.style.display = 'block';
+    window.renderizarDiasEventoProposta(false);
 };
 
-window.renderizarDiasEventoProposta = function(syncCamposPeriodo = true) {
+window.renderizarDiasEventoProposta = function() {
     const lista = Array.isArray(window._propDiasEventoSelecionados)
         ? [...new Set(window._propDiasEventoSelecionados.filter(Boolean))].sort()
         : [];
@@ -16417,31 +16464,17 @@ window.renderizarDiasEventoProposta = function(syncCamposPeriodo = true) {
     const chipsEl = document.getElementById('prop-dias-evento-chips');
     if (chipsEl) {
         if (lista.length === 0) {
-            chipsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.82rem; padding:2px 4px;">Clique aqui para selecionar 1, 2, 3 ou mais dias do evento (seguidos ou alternados)...</span>';
+            chipsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.82rem; padding:2px 4px;">Clique aqui para selecionar pelo menos 1 dia de evento / sucção (seguidos ou alternados)...</span>';
         } else {
             chipsEl.innerHTML = lista.map(iso => {
                 const fmt = iso.includes('-') ? iso.split('-').reverse().join('/') : iso;
                 return `
                     <span onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 8px; border-radius:999px; font-size:0.78rem; font-weight:700;">
                         <i class="ph ph-calendar-check" style="font-size:0.85rem;"></i> ${fmt}
-                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
+                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
                     </span>
                 `;
             }).join('');
-        }
-    }
-
-    if (syncCamposPeriodo) {
-        const diasEl = document.getElementById('prop-dias');
-        const iniEl = document.getElementById('prop-periodo-ini');
-        const fimEl = document.getElementById('prop-periodo-fim');
-        if (diasEl) diasEl.value = String(lista.length);
-        if (lista.length > 0) {
-            if (iniEl) iniEl.value = lista[0];
-            if (fimEl) fimEl.value = lista[lista.length - 1];
-        } else {
-            if (iniEl) iniEl.value = '';
-            if (fimEl) fimEl.value = '';
         }
     }
 
@@ -16465,7 +16498,7 @@ window.toggleDiaEventoProposta = function(isoDate, event) {
     } else {
         window._propDiasEventoSelecionados.push(d);
     }
-    window.renderizarDiasEventoProposta(true);
+    window.renderizarDiasEventoProposta(false);
 };
 
 window.adicionarDiaEventoProposta = function(isoDate, event) {
@@ -16484,7 +16517,7 @@ window.adicionarDiaEventoProposta = function(isoDate, event) {
         window._propCalEventoAno = parseInt(parts[0], 10);
         window._propCalEventoMes = parseInt(parts[1], 10) - 1;
     }
-    window.renderizarDiasEventoProposta(true);
+    window.renderizarDiasEventoProposta(false);
 };
 
 window.removerDiaEventoProposta = function(isoDate, event) {
@@ -16494,7 +16527,7 @@ window.removerDiaEventoProposta = function(isoDate, event) {
     }
     if (!Array.isArray(window._propDiasEventoSelecionados)) return;
     window._propDiasEventoSelecionados = window._propDiasEventoSelecionados.filter(x => x !== isoDate);
-    window.renderizarDiasEventoProposta(true);
+    window.renderizarDiasEventoProposta(false);
 };
 
 window.limparDiasEventoProposta = function(event) {
@@ -16503,7 +16536,7 @@ window.limparDiasEventoProposta = function(event) {
         event.stopPropagation();
     }
     window._propDiasEventoSelecionados = [];
-    window.renderizarDiasEventoProposta(true);
+    window.renderizarDiasEventoProposta(false);
 };
 
 window.abrirCalendarioDiasEventoProposta = function(event) {
@@ -16582,8 +16615,8 @@ window._renderCalendarioPopoverDiasEvento = function() {
         const isSel = selecionados.has(iso);
         const isHoje = iso === hojeIso;
         cellsHtml += `
-            <button type="button" onclick="window.toggleDiaEventoProposta('${iso}', event)"
-                style="height:32px; border-radius:6px; border:${isSel ? '1px solid #5b21b6' : (isHoje ? '1px solid #7048e8' : '1px solid #e2e8f0')}; background:${isSel ? '#7048e8' : '#f8fafc'}; color:${isSel ? '#fff' : '#1e293b'}; font-weight:${isSel || isHoje ? '700' : '500'}; font-size:0.8rem; cursor:pointer; transition:all 0.12s;">
+            <button type="button" class="cal-dia-btn" onclick="window.toggleDiaEventoProposta('${iso}', event)"
+                style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:${isSel ? '1px solid #5b21b6' : (isHoje ? '1px solid #7048e8' : '1px solid #e2e8f0')} !important; background:${isSel ? '#7048e8' : '#f8fafc'} !important; color:${isSel ? '#fff' : '#1e293b'} !important; font-weight:${isSel || isHoje ? '700' : '500'} !important; font-size:0.8rem !important; cursor:pointer;">
                 ${dia}
             </button>
         `;
@@ -16592,15 +16625,15 @@ window._renderCalendarioPopoverDiasEvento = function() {
     pop.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.55rem;">
             <button type="button" onclick="window.navegarMesCalendarioDiasEvento(-1, event)"
-                style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px; height:28px; cursor:pointer; font-weight:700; color:#334155;">&lsaquo;</button>
+                style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&lsaquo;</button>
             <div style="font-size:0.86rem; font-weight:800; color:#1e293b;">${nomesMeses[mes]} ${ano}</div>
             <button type="button" onclick="window.navegarMesCalendarioDiasEvento(1, event)"
-                style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px; height:28px; cursor:pointer; font-weight:700; color:#334155;">&rsaquo;</button>
+                style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&rsaquo;</button>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; text-align:center; margin-bottom:4px;">
+        <div class="cal-dias-grid" style="text-align:center; margin-bottom:4px;">
             ${diasSemana.map(d => `<div style="font-size:0.7rem; font-weight:700; color:#64748b;">${d}</div>`).join('')}
         </div>
-        <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; margin-bottom:0.65rem;">
+        <div class="cal-dias-grid" style="margin-bottom:0.65rem;">
             ${cellsHtml}
         </div>
         <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding-top:0.5rem; border-top:1px solid #e2e8f0;">
@@ -16608,7 +16641,7 @@ window._renderCalendarioPopoverDiasEvento = function() {
                 title="Adicionar data específica"
                 style="flex:1; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.76rem;">
             <button type="button" onclick="window.fecharCalendarioDiasEventoProposta(event)"
-                style="background:#16a34a; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                style="background:#16a34a; color:#fff; border:none; padding:5px 12px !important; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer;">
                 Concluir (${selecionados.size})
             </button>
         </div>
@@ -17541,6 +17574,17 @@ window.adicionarProdutoProposta = function() {
         return;
     }
 
+    const diasSelecionados = Array.isArray(window._propDiasEventoSelecionados)
+        ? window._propDiasEventoSelecionados.filter(Boolean)
+        : [];
+    if (diasSelecionados.length === 0) {
+        alert('É obrigatório selecionar pelo menos um Dia de Evento / Sucção para adicionar o produto.');
+        if (typeof window.abrirCalendarioDiasEventoProposta === 'function') {
+            window.abrirCalendarioDiasEventoProposta();
+        }
+        return;
+    }
+
     let codigo = inputCodigo?.getAttribute('data-codigo') || '';
     let produtoNome = inputCodigo?.getAttribute('data-nome') || '';
     if (!produtoNome || !rawProd.includes(produtoNome)) {
@@ -17611,6 +17655,7 @@ window.adicionarProdutoProposta = function() {
         descricao: produtoNome,
         observacao: observacao,
         quantidade: quantidade,
+        dias_evento: [...diasSelecionados],
         valor_base: precoBase,
         desconto_tipo: descontoTipo,
         desconto_pct: descontoTipo === 'pct' ? descPct : 0,
@@ -17710,6 +17755,16 @@ window.renderizarProdutosPropostaGrid = function() {
             ? parseFloat(p.valor_total)
             : (qtd * vUnit);
 
+        const diasProd = Array.isArray(p.dias_evento) && p.dias_evento.length > 0
+            ? p.dias_evento
+            : (Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados : []);
+        const diasChipsHtml = diasProd.length > 0
+            ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">${diasProd.map(d => {
+                const fmt = String(d).includes('-') ? String(d).split('-').reverse().join('/') : d;
+                return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:1px 6px; border-radius:999px; font-size:0.7rem; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-calendar-check" style="font-size:0.75rem;"></i> ${_escHtmlProp(fmt)}</span>`;
+            }).join('')}</div>`
+            : '';
+
         let descHtml = '<span style="color:#94a3b8;">—</span>';
         if (p.desconto_tipo === 'pct' && parseFloat(p.desconto_pct) > 0) {
             const pctStr = Number(p.desconto_pct).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -17721,7 +17776,10 @@ window.renderizarProdutosPropostaGrid = function() {
 
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:8px 10px; font-weight:600; color:#1e293b;">${_escHtmlProp(nomeProd)}</td>
+                <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
+                    <div>${_escHtmlProp(nomeProd)}</div>
+                    ${diasChipsHtml}
+                </td>
                 <td style="padding:8px 10px;">
                     <input type="text" value="${_escHtmlProp(obsProd)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'observacao', this.value)"
                         placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box;">
