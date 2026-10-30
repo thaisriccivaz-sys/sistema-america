@@ -44,8 +44,11 @@ const PROP_TIPOS = [
     'EQUIPAMENTOS'
 ];
 const PROP_FASES = [
-    'Em Elaboração', 'Proposta Enviada', 'Em Negociação',
-    'Aguardando Aprovação', 'Aprovada', 'Reprovada', 'Cancelada', 'Convertida em OS'
+    'Em Elaboração',
+    'Proposta Enviada',
+    'Aprovada',
+    'Reprovada',
+    'Sem Resposta'
 ];
 const PROP_MODELOS = [
     'Locação Obra', 'Locação Evento', 'Proposta Simplificada', 'Proposta Completa'
@@ -106,6 +109,7 @@ const PROP_STATUS_CORES = {
     'Reprovada':            { bg: '#fee2e2', text: '#991b1b', icon: 'ph-x-circle' },
     'Cancelada':            { bg: '#f1f5f9', text: '#64748b', icon: 'ph-prohibit' },
     'Convertida em OS':     { bg: '#dbeafe', text: '#1e40af', icon: 'ph-clipboard-text' },
+    'Sem Resposta':         { bg: '#f1f5f9', text: '#475569', icon: 'ph-clock-countdown' },
 };
 
 let _propostasData = [];
@@ -2174,6 +2178,7 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
                                     <input type="text" id="prop-prod-codigo" placeholder="Digite o código ou nome do produto..."
+                                        oninput="window.onInputProdutoPropostaTexto()"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaProdutoProposta(); }"
                                         style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                                     <button type="button" id="btn-pesq-produto-prop" onclick="window.pesquisarOuAbrirBuscaProdutoProposta()" style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Produto">
@@ -2187,11 +2192,9 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
-                                <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
-                            </div>
-                            <div style="display:none;">
-                                <label class="prop-lbl">Valor (R$)</label>
-                                <input type="number" id="prop-prod-valor" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                <input type="number" id="prop-prod-quantidade" value="1" min="1"
+                                    oninput="window.recalcularPreviewProdutoProposta('qtd')"
+                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
                             <div>
                                 <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
@@ -2200,19 +2203,25 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
 
-                        <!-- Linha abaixo do campo de seleção do produto (e em cima da tabela): Desconto (%), Desconto (R$) e Valor Total (R$) -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
+                        <!-- Linha abaixo do campo de seleção do produto (e em cima da tabela): Desconto (%), Desconto (R$), Valor Unitário (R$) e Valor Total (R$) -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
                             <div>
                                 <label class="prop-lbl">Desconto (%)</label>
                                 <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
-                                    oninput="calcularDescontoReais()"
+                                    oninput="window.recalcularPreviewProdutoProposta('pct')"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Desconto (R$)</label>
                                 <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
-                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
+                                    oninput="window.recalcularPreviewProdutoProposta('rs')"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Valor Unitário (R$)</label>
+                                <input type="number" id="prop-prod-valor" step="0.01" min="0" value="0" placeholder="0,00"
+                                    oninput="window.recalcularPreviewProdutoProposta('unit')"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;background:#fff;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Valor Total (R$)</label>
@@ -2226,12 +2235,12 @@ function _renderFormPropostaInt() {
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Código</th>
                                         <th style="padding:10px 12px; font-weight:700;">Produto</th>
                                         <th style="padding:10px 12px; font-weight:700;">Observação</th>
                                         <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:130px; text-align:center;">Desconto</th>
                                         <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Unit.</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Total</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
                                         <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                                     </tr>
                                 </thead>
@@ -2244,8 +2253,8 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Seção: Adicionais de Logística (Zona & KM) -->
-                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <!-- Seção: Adicionais de Logística (Zona & KM) - Oculta conforme solicitação -->
+                    <div style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#166534; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-map-trifold" style="color:#16a34a;"></i> Adicionais de Logística (Zona & KM)
                         </h4>
@@ -5196,6 +5205,9 @@ function calcularDescontoReais() {
         precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
     }
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+        if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) {
+            return acc + parseFloat(p.valor_total);
+        }
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         return acc + (q * v);
@@ -16071,8 +16083,13 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         const codSel = inputProd.getAttribute('data-codigo') || '';
         const nomeSel = inputProd.getAttribute('data-nome') || inputProd.value.trim();
         const val = window.obterValorTabelaPorTipoEProduto(novoTipo, { codigo: codSel, nome: nomeSel });
-        if (val !== null && inputValor) {
-            inputValor.value = Number(val).toFixed(2);
+        if (inputValor) {
+            const numVal = val !== null ? Number(val) : 0;
+            inputValor.setAttribute('data-preco-base', String(numVal));
+            inputValor.value = numVal.toFixed(2);
+        }
+        if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+            window.recalcularPreviewProdutoProposta('equip');
         }
     }
     if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0) {
@@ -16083,7 +16100,23 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
                 nome: item.produto || item.descricao
             });
             if (valTab !== null) {
-                item.valor = valTab;
+                item.valor_base = Number(valTab);
+                const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+                if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
+                    const pct = parseFloat(item.desconto_pct) || 0;
+                    item.valor = Math.max(0, item.valor_base * (1 - pct / 100));
+                    item.valor_unitario = item.valor;
+                    item.valor_total = item.valor * qtd;
+                } else if (item.desconto_tipo === 'valor' && parseFloat(item.desconto_rs) > 0) {
+                    const rs = parseFloat(item.desconto_rs) || 0;
+                    item.valor_total = Math.max(0, (item.valor_base * qtd) - rs);
+                    item.valor = item.valor_total / qtd;
+                    item.valor_unitario = item.valor;
+                } else {
+                    item.valor = item.valor_base;
+                    item.valor_unitario = item.valor_base;
+                    item.valor_total = item.valor_base * qtd;
+                }
                 mudou = true;
             }
         });
@@ -16106,8 +16139,13 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         const codSel = inputProd.getAttribute('data-codigo') || '';
         const nomeSel = inputProd.getAttribute('data-nome') || inputProd.value.trim();
         const val = window.obterValorTabelaPorTipoEProduto(tabLimpa, { codigo: codSel, nome: nomeSel });
-        if (val !== null && inputValor) {
-            inputValor.value = Number(val).toFixed(2);
+        if (inputValor) {
+            const numVal = val !== null ? Number(val) : 0;
+            inputValor.setAttribute('data-preco-base', String(numVal));
+            inputValor.value = numVal.toFixed(2);
+        }
+        if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+            window.recalcularPreviewProdutoProposta('equip');
         }
     }
     if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0) {
@@ -16118,7 +16156,23 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
                 nome: item.produto || item.descricao
             });
             if (valTab !== null) {
-                item.valor = valTab;
+                item.valor_base = Number(valTab);
+                const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+                if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
+                    const pct = parseFloat(item.desconto_pct) || 0;
+                    item.valor = Math.max(0, item.valor_base * (1 - pct / 100));
+                    item.valor_unitario = item.valor;
+                    item.valor_total = item.valor * qtd;
+                } else if (item.desconto_tipo === 'valor' && parseFloat(item.desconto_rs) > 0) {
+                    const rs = parseFloat(item.desconto_rs) || 0;
+                    item.valor_total = Math.max(0, (item.valor_base * qtd) - rs);
+                    item.valor = item.valor_total / qtd;
+                    item.valor_unitario = item.valor;
+                } else {
+                    item.valor = item.valor_base;
+                    item.valor_unitario = item.valor_base;
+                    item.valor_total = item.valor_base * qtd;
+                }
                 mudou = true;
             }
         });
@@ -16470,24 +16524,12 @@ window.pesquisarEnderecoProposta = async function(btnEl = null) {
     }
 };
 
-window.obterFiltroPadraoEquipamentosPorTipo = function(tipoProposta) {
-    const t = String(tipoProposta || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    if (t === 'EVENTO') {
-        return { grupo: '', fonte: 'PRÓPRIO AVULSO', incluirServicos: true };
-    }
-    if (t === 'OBRA MENSAL' || t === 'OBRA QUINZENAL' || t === 'OBRA SEMANAL') {
-        return { grupo: '', fonte: 'PACOTE OBRA', incluirServicos: true };
-    }
-    if (t === 'LOCAÇÃO CONTAINER' || t === 'LOCACAO CONTAINER' || t === 'CONTAINER') {
-        return { grupo: 'CONTAINER', fonte: '', incluirServicos: false };
-    }
-    if (t === 'LIMPA FOSSA' || t === 'LIMPA FOSSA MENSAL') {
-        return { grupo: 'SERVIÇOS', fonte: '', incluirServicos: false };
-    }
+// Sem filtro automático por tipo de contrato: todos os equipamentos aparecem na busca e o filtro é feito manualmente pelo usuário
+window.obterFiltroPadraoEquipamentosPorTipo = function() {
     return { grupo: '', fonte: '', incluirServicos: false };
 };
 
-window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo = '', fonte = '', incluirServicos = false } = {}) {
+window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo = '', fonte = '' } = {}) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const qVal = normStr(termo);
     const grupoVal = normStr(grupo);
@@ -16500,31 +16542,9 @@ window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo
         const grupoStr = normStr(p.grupo_produto);
         const fonteStr = normStr(p.fonte_fornecimento);
 
-        const isServico = (grupoStr === 'servicos' || grupoStr === 'servico');
-        const isContainer = (grupoStr === 'container' || grupoStr === 'containers');
-
         const matchTermo = !qVal || codStr === qVal || codStr.includes(qVal) || nomeStr.includes(qVal) || comboStr.includes(qVal);
-
-        let matchGrupo = true;
-        if (grupoVal) {
-            if (grupoVal === 'servicos' || grupoVal === 'servico') {
-                matchGrupo = isServico;
-            } else if (grupoVal === 'container' || grupoVal === 'containers') {
-                matchGrupo = isContainer;
-            } else {
-                matchGrupo = grupoStr === grupoVal;
-            }
-        }
-
-        let matchFonte = true;
-        if (fonteVal) {
-            // Produtos do grupo SERVIÇOS aparecem tanto em EVENTO (Próprio Avulso) quanto em OBRA MENSAL/QUINZENAL/SEMANAL (Pacote Obra)
-            if ((incluirServicos || fonteVal === 'proprio avulso' || fonteVal === 'pacote obra') && !grupoVal && isServico) {
-                matchFonte = true;
-            } else {
-                matchFonte = fonteStr === fonteVal;
-            }
-        }
+        const matchGrupo = !grupoVal || grupoStr === grupoVal;
+        const matchFonte = !fonteVal || fonteStr === fonteVal;
 
         return matchTermo && matchGrupo && matchFonte;
     });
@@ -16546,17 +16566,10 @@ window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
             window._garantirTabelasPrecoCarregadas(false)
         ]);
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
-        const tipoAtual = document.getElementById('prop-tipo')?.value || '';
-        const filtroPadrao = window.obterFiltroPadraoEquipamentosPorTipo(tipoAtual);
+        const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
         if (termo) {
-            const matches = window.filtrarListaEquipamentosProposta(produtos, {
-                termo,
-                grupo: filtroPadrao.grupo,
-                fonte: filtroPadrao.fonte,
-                incluirServicos: filtroPadrao.incluirServicos
-            });
-
+            const matches = window.filtrarListaEquipamentosProposta(produtos, { termo });
             if (matches.length === 1) {
                 const unico = matches[0];
                 const cod = String(unico.codigo || unico.id || '');
@@ -16600,8 +16613,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     }
 
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
-    const filtroPadrao = window.obterFiltroPadraoEquipamentosPorTipo(tipoAtual);
+    const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
     const gruposSet = new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
     ['CONTAINER', 'SERVIÇOS'].forEach(gPad => {
@@ -16619,13 +16631,6 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     });
     const fontesUnicas = Array.from(fontesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    const grupoInicialSel = filtroPadrao.grupo
-        ? (gruposUnicos.find(g => normStr(g) === normStr(filtroPadrao.grupo)) || filtroPadrao.grupo)
-        : '';
-    const fonteInicialSel = filtroPadrao.fonte
-        ? (fontesUnicas.find(f => normStr(f) === normStr(filtroPadrao.fonte)) || filtroPadrao.fonte)
-        : '';
-
     const renderRows = (list) => {
         if (list.length === 0) {
             return `<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado para os filtros selecionados.</td></tr>`;
@@ -16640,8 +16645,8 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                 <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${_escHtmlProp(p.codigo || p.id)}</td>
                     <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(p.nome || '—')}</td>
-                    <td style="padding:10px 12px; color:#475569;">${_escHtmlProp(p.grupo_produto || '—')}</td>
                     <td style="padding:10px 12px; color:#475569; font-weight:600;">${_escHtmlProp(p.fonte_fornecimento || '—')}</td>
+                    <td style="padding:10px 12px; color:#475569;">${_escHtmlProp(p.grupo_produto || '—')}</td>
                     <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${valStr}</td>
                     <td style="padding:10px 12px; color:#475569; text-align:center;">${_escHtmlProp(p.unidade_medida || '—')}</td>
                 </tr>
@@ -16668,17 +16673,17 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                             <input type="text" id="modal-prod-search-termo" value="${safeTermo}" placeholder="Digite o código ou nome do equipamento..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
                         </div>
                         <div>
-                            <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
-                            <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
-                                <option value="">Todos os Grupos</option>
-                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}" ${g === grupoInicialSel ? 'selected' : ''}>${_escHtmlProp(g)}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
                             <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
                             <select id="modal-prod-search-fonte" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
                                 <option value="">Todas as Fontes</option>
-                                ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}" ${f === fonteInicialSel ? 'selected' : ''}>${_escHtmlProp(f)}</option>`).join('')}
+                                ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}">${_escHtmlProp(f)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
+                            <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
+                                <option value="">Todos os Grupos</option>
+                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -16689,8 +16694,8 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                                 <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
                                     <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:85px;">Código</th>
                                     <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Equipamento</th>
-                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:120px;">Grupo</th>
                                     <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:145px;">Fonte</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:120px;">Grupo</th>
                                     <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:right; width:115px;">Valor Tabela</th>
                                     <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px;">Unid.</th>
                                 </tr>
@@ -16718,15 +16723,11 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             const tbody = document.getElementById('modal-prod-tbody');
             const countSpan = document.getElementById('modal-prod-count');
 
-            if (selectGrupo && grupoInicialSel) selectGrupo.value = grupoInicialSel;
-            if (selectFonte && fonteInicialSel) selectFonte.value = fonteInicialSel;
-
             const filterProds = () => {
                 const filtered = window.filtrarListaEquipamentosProposta(produtos, {
                     termo: inputTermo?.value || '',
                     grupo: selectGrupo?.value || '',
-                    fonte: selectFonte?.value || '',
-                    incluirServicos: filtroPadrao.incluirServicos
+                    fonte: selectFonte?.value || ''
                 });
 
                 if (tbody) tbody.innerHTML = renderRows(filtered);
@@ -16748,21 +16749,128 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     });
 };
 
-window.selecionarProdutoBusca = function(cod, nome, valorSugerido = null) {
+window.onInputProdutoPropostaTexto = async function() {
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
+    if (!inputCodigo) return;
+    const txt = inputCodigo.value.trim();
+    if (!txt) {
+        inputCodigo.removeAttribute('data-codigo');
+        inputCodigo.removeAttribute('data-nome');
+        if (inputValor) {
+            inputValor.setAttribute('data-preco-base', '0');
+            inputValor.value = '0';
+        }
+        window.recalcularPreviewProdutoProposta('equip');
+        return;
+    }
+    await window._garantirTabelasPrecoCarregadas(false);
+    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: txt, nome: txt });
+    if (vTab !== null && inputValor) {
+        inputCodigo.setAttribute('data-nome', txt);
+        inputValor.setAttribute('data-preco-base', String(Number(vTab)));
+        window.recalcularPreviewProdutoProposta('equip');
+    }
+};
+
+window.recalcularPreviewProdutoProposta = function(origem = '') {
+    const inputCodigo = document.getElementById('prop-prod-codigo');
+    const qtdEl = document.getElementById('prop-prod-quantidade');
+    const descPctEl = document.getElementById('prop-desc-pct');
+    const descRsEl = document.getElementById('prop-desc-rs');
+    const valUnitEl = document.getElementById('prop-prod-valor');
+    const valTotalEl = document.getElementById('prop-valor-total');
+
+    if (!valUnitEl || !valTotalEl) return;
+
+    const temProdutoSelecionado = Boolean(inputCodigo && inputCodigo.value.trim());
+
+    if (origem === 'pct') {
+        valUnitEl.setAttribute('data-desc-mode', 'pct');
+    } else if (origem === 'rs') {
+        valUnitEl.setAttribute('data-desc-mode', 'rs');
+        if (descPctEl && parseFloat(descPctEl.value) > 0) {
+            descPctEl.value = '0';
+        }
+    } else if (origem === 'unit') {
+        const novoUnitDigitado = Math.max(0, parseFloat(valUnitEl.value) || 0);
+        valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
+        if (descPctEl) descPctEl.value = '0';
+        if (descRsEl) descRsEl.value = '0';
+        valUnitEl.setAttribute('data-desc-mode', '');
+    }
+
+    if (!temProdutoSelecionado && (!window._propProdutosAdicionados || window._propProdutosAdicionados.length === 0)) {
+        const u = Math.max(0, parseFloat(valUnitEl.value) || 0);
+        const q = Math.max(1, parseFloat(qtdEl?.value) || 1);
+        valTotalEl.value = (u * q).toFixed(2);
+        return;
+    }
+
+    if (!temProdutoSelecionado && window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0) {
+        if (origem === 'pct') {
+            calcularDescontoReais();
+        } else {
+            window.calcularValorTotalProposta();
+        }
+        return;
+    }
+
+    const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
+    const precoBaseAttr = valUnitEl.getAttribute('data-preco-base');
+    const precoBase = Math.max(0, parseFloat(precoBaseAttr !== null ? precoBaseAttr : valUnitEl.value) || 0);
+    const brutoTotal = precoBase * qtd;
+
+    const descMode = valUnitEl.getAttribute('data-desc-mode') ||
+        (parseFloat(descPctEl?.value) > 0 ? 'pct' : (parseFloat(descRsEl?.value) > 0 ? 'rs' : ''));
+
+    let unitLiquido = precoBase;
+    let totalLiquido = brutoTotal;
+
+    if (descMode === 'pct' && parseFloat(descPctEl?.value) > 0) {
+        const pct = Math.min(100, Math.max(0, parseFloat(descPctEl.value) || 0));
+        const descRsCalc = brutoTotal * (pct / 100);
+        totalLiquido = Math.max(0, brutoTotal - descRsCalc);
+        unitLiquido = Math.max(0, precoBase * (1 - pct / 100));
+        if (descRsEl) descRsEl.value = descRsCalc.toFixed(2);
+    } else if (descMode === 'rs' && parseFloat(descRsEl?.value) > 0) {
+        const descRs = Math.max(0, parseFloat(descRsEl.value) || 0);
+        totalLiquido = Math.max(0, brutoTotal - descRs);
+        unitLiquido = qtd > 0 ? (totalLiquido / qtd) : 0;
+    } else {
+        if (origem === 'pct' && descRsEl) {
+            descRsEl.value = '0';
+        }
+    }
+
+    if (origem !== 'unit') {
+        valUnitEl.value = unitLiquido.toFixed(2);
+    }
+    valTotalEl.value = totalLiquido.toFixed(2);
+};
+
+window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) {
+    const inputCodigo = document.getElementById('prop-prod-codigo');
+    const inputValor = document.getElementById('prop-prod-valor');
+    // Não mostrar o código na frente do nome do produto (ex: apenas "LIMPA FOSSA")
+    const nomeLimpo = String(nome || '').replace(/^\d+\s*-\s*/, '').trim();
     if (inputCodigo) {
-        inputCodigo.value = cod ? `${cod} - ${nome}` : nome;
+        inputCodigo.value = nomeLimpo || cod || '';
         inputCodigo.setAttribute('data-codigo', cod || '');
-        inputCodigo.setAttribute('data-nome', nome || '');
+        inputCodigo.setAttribute('data-nome', nomeLimpo || nome || '');
     }
-    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+    await window._garantirTabelasPrecoCarregadas(false);
+    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
     const valFinal = (valorSugerido !== null && valorSugerido !== undefined)
-        ? valorSugerido
-        : window.obterValorTabelaPorTipoEProduto(tipoAtual, { codigo: cod, nome: nome });
+        ? Number(valorSugerido)
+        : window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: cod, nome: nomeLimpo || nome });
+    const precoBase = (valFinal !== null && valFinal !== undefined && !isNaN(valFinal)) ? Number(valFinal) : 0;
     if (inputValor) {
-        inputValor.value = valFinal !== null && valFinal !== undefined ? Number(valFinal).toFixed(2) : '';
+        inputValor.setAttribute('data-preco-base', String(precoBase));
+        inputValor.value = precoBase.toFixed(2);
     }
+    window.recalcularPreviewProdutoProposta('equip');
     Swal.close();
 };
 
@@ -16771,6 +16879,9 @@ window.adicionarProdutoProposta = function() {
     const inputObservacao = document.getElementById('prop-prod-descricao');
     const inputQuantidade = document.getElementById('prop-prod-quantidade');
     const inputValor = document.getElementById('prop-prod-valor');
+    const descPctEl = document.getElementById('prop-desc-pct');
+    const descRsEl = document.getElementById('prop-desc-rs');
+    const valTotalEl = document.getElementById('prop-valor-total');
 
     const rawProd = inputCodigo?.value?.trim() || '';
     if (!rawProd) {
@@ -16786,23 +16897,49 @@ window.adicionarProdutoProposta = function() {
             codigo = pts[0].trim();
             produtoNome = pts.slice(1).join(' - ').trim();
         } else {
-            codigo = rawProd;
             produtoNome = rawProd;
         }
     }
+    produtoNome = String(produtoNome || '').replace(/^\d+\s*-\s*/, '').trim();
 
     const observacao = inputObservacao?.value?.trim() || '';
     const quantidade = parseInt(inputQuantidade?.value, 10) || 0;
-    let valor = parseFloat(inputValor?.value);
-    if (isNaN(valor)) {
-        const tipoAtual = document.getElementById('prop-tipo')?.value || '';
-        const vTab = window.obterValorTabelaPorTipoEProduto(tipoAtual, { codigo, nome: produtoNome });
-        valor = vTab !== null ? vTab : 0;
-    }
-
     if (quantidade <= 0) {
         alert('A quantidade deve ser maior que zero.');
         return;
+    }
+
+    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo, nome: produtoNome });
+    const precoBaseAttr = inputValor?.getAttribute('data-preco-base');
+    const precoBase = (precoBaseAttr !== null && precoBaseAttr !== '' && !isNaN(parseFloat(precoBaseAttr)))
+        ? parseFloat(precoBaseAttr)
+        : (!isNaN(parseFloat(inputValor?.value)) ? parseFloat(inputValor.value) : (vTab !== null ? Number(vTab) : 0));
+
+    const descPct = Math.max(0, parseFloat(descPctEl?.value) || 0);
+    const descRs = Math.max(0, parseFloat(descRsEl?.value) || 0);
+    const descMode = inputValor?.getAttribute('data-desc-mode') || (descPct > 0 ? 'pct' : (descRs > 0 ? 'rs' : ''));
+
+    let valorUnitarioFinal = parseFloat(inputValor?.value);
+    if (isNaN(valorUnitarioFinal)) valorUnitarioFinal = precoBase;
+
+    let valorTotalFinal = parseFloat(valTotalEl?.value);
+    if (isNaN(valorTotalFinal) || (window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0 && valorTotalFinal > precoBase * quantidade && descPct === 0 && descRs === 0)) {
+        valorTotalFinal = valorUnitarioFinal * quantidade;
+    }
+
+    let descontoTipo = '';
+    if (descMode === 'pct' && descPct > 0) {
+        descontoTipo = 'pct';
+        valorUnitarioFinal = Math.max(0, precoBase * (1 - descPct / 100));
+        valorTotalFinal = Math.max(0, (precoBase * quantidade) * (1 - descPct / 100));
+    } else if (descRs > 0) {
+        descontoTipo = 'valor';
+        valorTotalFinal = Math.max(0, (precoBase * quantidade) - descRs);
+        valorUnitarioFinal = quantidade > 0 ? (valorTotalFinal / quantidade) : 0;
+    } else {
+        valorUnitarioFinal = parseFloat(inputValor?.value) || precoBase;
+        valorTotalFinal = valorUnitarioFinal * quantidade;
     }
 
     if (!window._propProdutosAdicionados) {
@@ -16815,7 +16952,13 @@ window.adicionarProdutoProposta = function() {
         descricao: produtoNome,
         observacao: observacao,
         quantidade: quantidade,
-        valor: valor
+        valor_base: precoBase,
+        desconto_tipo: descontoTipo,
+        desconto_pct: descontoTipo === 'pct' ? descPct : 0,
+        desconto_rs: descontoTipo === 'valor' ? descRs : (descontoTipo === 'pct' ? (precoBase * quantidade * descPct / 100) : 0),
+        valor: valorUnitarioFinal,
+        valor_unitario: valorUnitarioFinal,
+        valor_total: valorTotalFinal
     });
 
     if (inputCodigo) {
@@ -16825,19 +16968,51 @@ window.adicionarProdutoProposta = function() {
     }
     if (inputObservacao) inputObservacao.value = '';
     if (inputQuantidade) inputQuantidade.value = '1';
-    if (inputValor) inputValor.value = '';
+    if (descPctEl) descPctEl.value = '0';
+    if (descRsEl) descRsEl.value = '0';
+    if (inputValor) {
+        inputValor.value = '0';
+        inputValor.removeAttribute('data-preco-base');
+        inputValor.removeAttribute('data-desc-mode');
+    }
 
     window.renderizarProdutosPropostaGrid();
 };
 
 window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
+    const item = window._propProdutosAdicionados[idx];
     if (campo === 'quantidade') {
-        window._propProdutosAdicionados[idx].quantidade = Math.max(1, parseInt(valorNovo, 10) || 1);
+        const qtd = Math.max(1, parseInt(valorNovo, 10) || 1);
+        item.quantidade = qtd;
+        const vBase = parseFloat(item.valor_base ?? item.valor ?? item.valor_unitario ?? 0) || 0;
+        if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
+            const pct = parseFloat(item.desconto_pct) || 0;
+            item.valor = Math.max(0, vBase * (1 - pct / 100));
+            item.valor_unitario = item.valor;
+            item.valor_total = item.valor * qtd;
+            item.desconto_rs = (vBase * qtd) * (pct / 100);
+        } else if (item.desconto_tipo === 'valor' && parseFloat(item.desconto_rs) > 0) {
+            const rs = parseFloat(item.desconto_rs) || 0;
+            item.valor_total = Math.max(0, (vBase * qtd) - rs);
+            item.valor = item.valor_total / qtd;
+            item.valor_unitario = item.valor;
+        } else {
+            const vUnit = parseFloat(item.valor ?? item.valor_unitario ?? 0) || 0;
+            item.valor_total = vUnit * qtd;
+        }
     } else if (campo === 'valor') {
-        window._propProdutosAdicionados[idx].valor = parseFloat(valorNovo) || 0;
+        const vNovo = Math.max(0, parseFloat(valorNovo) || 0);
+        const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+        item.valor = vNovo;
+        item.valor_unitario = vNovo;
+        item.valor_base = vNovo;
+        item.desconto_tipo = '';
+        item.desconto_pct = 0;
+        item.desconto_rs = 0;
+        item.valor_total = vNovo * qtd;
     } else if (campo === 'observacao') {
-        window._propProdutosAdicionados[idx].observacao = String(valorNovo || '');
+        item.observacao = String(valorNovo || '');
     }
     window.renderizarProdutosPropostaGrid();
 };
@@ -16865,14 +17040,25 @@ window.renderizarProdutosPropostaGrid = function() {
     }
 
     tbody.innerHTML = list.map((p, idx) => {
-        const nomeProd = p.produto || p.descricao || '';
+        const nomeProd = String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
         const obsProd = p.observacao !== undefined ? p.observacao : '';
         const qtd = parseInt(p.quantidade, 10) || 1;
         const vUnit = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
-        const subtotal = qtd * vUnit;
+        const subtotal = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+            ? parseFloat(p.valor_total)
+            : (qtd * vUnit);
+
+        let descHtml = '<span style="color:#94a3b8;">—</span>';
+        if (p.desconto_tipo === 'pct' && parseFloat(p.desconto_pct) > 0) {
+            const pctStr = Number(p.desconto_pct).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            descHtml = `<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem; white-space:nowrap;">${pctStr}%</span>`;
+        } else if ((p.desconto_tipo === 'valor' || parseFloat(p.desconto_rs) > 0) && parseFloat(p.desconto_rs) > 0) {
+            const rsStr = Number(p.desconto_rs).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            descHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem; white-space:nowrap;">R$ ${rsStr}</span>`;
+        }
+
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:8px 10px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(p.codigo || '—')}</td>
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">${_escHtmlProp(nomeProd)}</td>
                 <td style="padding:8px 10px;">
                     <input type="text" value="${_escHtmlProp(obsProd)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'observacao', this.value)"
@@ -16882,6 +17068,7 @@ window.renderizarProdutosPropostaGrid = function() {
                     <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
                         style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700;">
                 </td>
+                <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
                     <input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
                         style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">
