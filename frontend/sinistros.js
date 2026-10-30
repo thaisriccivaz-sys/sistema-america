@@ -2659,7 +2659,7 @@ window._sinBaseInicio = function(s, hist) {
         if (isNaN(dt.getTime())) dt = new Date();
         var br = new Date(dt.getTime() - 3 * 3600 * 1000);
         mIni = br.getUTCMonth() + 1; aIni = br.getUTCFullYear();
-        mIni += (br.getUTCDate() <= 25) ? 1 : 2;
+        mIni += (br.getUTCDate() <= 25) ? 0 : 1;
         if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
     }
     return { mes: mIni, ano: aIni };
