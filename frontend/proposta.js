@@ -89,6 +89,7 @@ const PROP_COND_PAG = [
     'PIX - DDL 30 DIAS',
     'PIX - DDL 45 DIAS',
     'PIX - DDL 60 DIAS',
+    'PIX 100% ADIANTADO',
     'PIX 100% ANTECIPADO',
     'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
     'PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA',
@@ -2040,11 +2041,14 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Cliente</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
-                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
-                                        oninput="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
-                                        onchange="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
+                                    <div id="prop-cliente-input-wrap" style="position:relative; flex:1; display:flex; align-items:center;">
+                                        <span id="prop-cliente-grupo-icone" style="display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.05rem; line-height:1; pointer-events:none; z-index:2; user-select:none;"></span>
+                                        <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
+                                            onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
+                                            oninput="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
+                                            onchange="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
+                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
+                                    </div>
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
@@ -2444,6 +2448,11 @@ window.clienteTemFaturamentoBloqueado = function(c) {
                 border-color: #dc2626 !important;
                 font-weight: 700 !important;
             }
+            #prop-cond-pag.cond-pag-faturamento-bloqueado {
+                color: #dc2626 !important;
+                font-weight: 700 !important;
+                border-color: #dc2626 !important;
+            }
         `;
         document.head.appendChild(st);
     }
@@ -2489,6 +2498,72 @@ window.aplicarVisualBloqueioFaturamento = function(bloqueado, escopo = 'main') {
         const fVal = (fantEl?.value || '').trim().toLowerCase();
         if ((rVal && propVal === rVal) || (fVal && propVal === fVal)) {
             window._aplicarEstiloInputBloqueado(propInput, bloqueado);
+            if (typeof window._aplicarEstiloCondPagBloqueado === 'function') {
+                window._aplicarEstiloCondPagBloqueado(bloqueado);
+            }
+        }
+    }
+};
+
+window.obterIconeApenasGrupoCliente = function(grupo) {
+    const g = String(grupo || '').toLowerCase().trim();
+    if (!g) return '';
+    if (g.includes('diamante') || g.startsWith('1') || g.includes('💎')) return '💎';
+    if (g.includes('ouro') || g.startsWith('2') || g.includes('🥇')) return '🥇';
+    if (g.includes('prata') || g.startsWith('3') || g.includes('🥈')) return '🥈';
+    if (g.includes('bronze') || g.startsWith('4') || g.includes('🥉')) return '🥉';
+    return '';
+};
+
+window._aplicarIconeGrupoClienteProposta = function(icone) {
+    const propInput = document.getElementById('prop-cliente');
+    const iconeEl = document.getElementById('prop-cliente-grupo-icone');
+    if (!propInput || !iconeEl) return;
+    const ico = String(icone || '').trim();
+    if (ico) {
+        iconeEl.textContent = ico;
+        iconeEl.style.display = 'inline-flex';
+        propInput.style.paddingLeft = '2rem';
+    } else {
+        iconeEl.textContent = '';
+        iconeEl.style.display = 'none';
+        propInput.style.paddingLeft = '0.55rem';
+    }
+};
+
+window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
+    const condPagEl = document.getElementById('prop-cond-pag');
+    if (!condPagEl) return;
+    if (bloqueado) {
+        const valBloq = 'PIX 100% ADIANTADO';
+        let opt = Array.from(condPagEl.options || []).find(o => o.value === valBloq);
+        if (!opt) {
+            opt = document.createElement('option');
+            opt.value = valBloq;
+            opt.textContent = valBloq;
+            condPagEl.appendChild(opt);
+        }
+        opt.style.color = '#dc2626';
+        opt.style.fontWeight = '700';
+        condPagEl.value = valBloq;
+        condPagEl.setAttribute('data-faturamento-bloqueado', '1');
+        condPagEl.classList.add('cond-pag-faturamento-bloqueado');
+        condPagEl.style.setProperty('color', '#dc2626', 'important');
+        condPagEl.style.setProperty('font-weight', '700', 'important');
+        condPagEl.style.setProperty('border-color', '#dc2626', 'important');
+    } else {
+        const tinhaBloq = condPagEl.getAttribute('data-faturamento-bloqueado') === '1';
+        condPagEl.removeAttribute('data-faturamento-bloqueado');
+        condPagEl.classList.remove('cond-pag-faturamento-bloqueado');
+        condPagEl.style.removeProperty('color');
+        condPagEl.style.removeProperty('font-weight');
+        condPagEl.style.removeProperty('border-color');
+        if (tinhaBloq) {
+            const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+            const condPadrao = typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function'
+                ? window.obterCondicaoPagamentoPadraoPorTipo(tipoAtual)
+                : '';
+            condPagEl.value = condPadrao || '';
         }
     }
 };
@@ -2499,6 +2574,8 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
     const raw = (nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').trim();
     if (!raw) {
         window._aplicarEstiloInputBloqueado(propInput, false);
+        window._aplicarEstiloCondPagBloqueado(false);
+        window._aplicarIconeGrupoClienteProposta('');
         return;
     }
     try {
@@ -2513,7 +2590,10 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
             (qDigits.length >= 11 && String(c.cpf_cnpj || '').replace(/\D/g, '') === qDigits)
         );
         const isBloq = found ? window.clienteTemFaturamentoBloqueado(found) : false;
+        const iconeGrupo = found ? window.obterIconeApenasGrupoCliente(found.grupo_clientes) : '';
         window._aplicarEstiloInputBloqueado(propInput, isBloq);
+        window._aplicarEstiloCondPagBloqueado(isBloq);
+        window._aplicarIconeGrupoClienteProposta(iconeGrupo);
     } catch (e) {
         console.error(e);
     }
@@ -2833,13 +2913,16 @@ window.pesquisarClienteProposta = async function(btnEl = null) {
                 return;
             }
 
-            tbody.innerHTML = exibidos.map(c => `
+            tbody.innerHTML = exibidos.map(c => {
+                const iconeCli = typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '';
+                return `
                 <tr onclick="window.selecionarClienteGrid('${String(c.nome_razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
-                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${iconeCli ? iconeCli + ' ' : ''}${c.nome_razao_social || ''}</td>
                     <td style="padding:0.5rem; text-align:left; color:#475569;">${c.cpf_cnpj || '—'}</td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         };
 
         const safeQuery = query.replace(/"/g, '&quot;');
@@ -15875,18 +15958,24 @@ window.abrirModalPesquisaPropostas = async function() {
 
         // Mapeamento de Razão Social -> CNPJ
         const clientCnpjMap = {};
+        const clientIconMap = {};
         clientes.forEach(c => {
             if (c.nome_razao_social) {
-                clientCnpjMap[c.nome_razao_social.toLowerCase().trim()] = c.cpf_cnpj || '';
+                const key = c.nome_razao_social.toLowerCase().trim();
+                clientCnpjMap[key] = c.cpf_cnpj || '';
+                clientIconMap[key] = typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '';
             }
         });
 
-        // Adiciona CNPJ localmente a cada proposta
+        // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         const propostasComCnpj = _propostasData.map(p => {
-            const cnpj = p.cliente_nome ? (clientCnpjMap[p.cliente_nome.toLowerCase().trim()] || '') : '';
+            const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
+            const cnpj = key ? (clientCnpjMap[key] || '') : '';
+            const icone = key ? (clientIconMap[key] || '') : '';
             return {
                 ...p,
-                cliente_cnpj: cnpj
+                cliente_cnpj: cnpj,
+                cliente_icone: icone
             };
         });
 
@@ -15901,7 +15990,7 @@ window.abrirModalPesquisaPropostas = async function() {
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || '—'}</td>
-                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_nome || '—'}</td>
+                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${dataFmt}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
@@ -16161,9 +16250,16 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         tabelaEl.value = tipoLimpo;
     }
     const condPagEl = document.getElementById('prop-cond-pag');
-    const condPadrao = window.obterCondicaoPagamentoPadraoPorTipo(tipoLimpo);
-    if (condPagEl && condPadrao) {
-        condPagEl.value = condPadrao;
+    const clienteBloqueadoAtivo = condPagEl?.getAttribute('data-faturamento-bloqueado') === '1' || document.getElementById('prop-cliente')?.classList.contains('input-faturamento-bloqueado');
+    if (clienteBloqueadoAtivo) {
+        if (typeof window._aplicarEstiloCondPagBloqueado === 'function') {
+            window._aplicarEstiloCondPagBloqueado(true);
+        }
+    } else {
+        const condPadrao = window.obterCondicaoPagamentoPadraoPorTipo(tipoLimpo);
+        if (condPagEl && condPadrao) {
+            condPagEl.value = condPadrao;
+        }
     }
     const diasPadrao = window.obterDiasContratoPadraoPorTipo(tipoLimpo);
     if (diasPadrao !== null) {
