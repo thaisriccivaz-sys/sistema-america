@@ -39729,6 +39729,11 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         console.log('[PROPOSTAS] Alerta ao alterar tabela validade_proposta:', errAlterVal.message);
       }
     });
+    db.run("ALTER TABLE propostas ADD COLUMN dias_evento TEXT", (errAlterDiasEv) => {
+      if (errAlterDiasEv && !errAlterDiasEv.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela dias_evento:', errAlterDiasEv.message);
+      }
+    });
     
     // Seed automático de propostas se a tabela estiver vazia
     db.get("SELECT COUNT(*) as count FROM propostas", [], (err, rowCount) => {
@@ -39813,19 +39818,21 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
       db.run(`INSERT INTO propostas (
         codigo, contrato, local, tipo, atendente, data_cadastro, validade_proposta, previsao_fechamento,
         fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
-        periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato,
+        periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato, dias_evento,
         tabela_precos, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
         d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
-        d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+        d.dias_contrato||0,
+        d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
+        d.tabela_precos, d.endereco_instalacao,
         d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
         d.representante, d.transportadora, d.tipo_frete,
         d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -39867,7 +39874,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     db.run(`UPDATE propostas SET
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
-      periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?,
+      periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
       tabela_precos=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
@@ -39879,7 +39886,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
-      d.dias_contrato||0, d.tabela_precos, d.endereco_instalacao,
+      d.dias_contrato||0,
+      d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
+      d.tabela_precos, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -39914,6 +39923,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'hora_inicio', label: 'Hora Início' },
         { field: 'hora_fim', label: 'Hora Fim' },
         { field: 'dias_contrato', label: 'Dias Contrato' },
+        { field: 'dias_evento', label: 'Dias de Evento' },
         { field: 'tabela_precos', label: 'Tabela de Preços' },
         { field: 'endereco_instalacao', label: 'Endereço de Instalação' },
         { field: 'desconto_percent', label: 'Desconto (%)' },

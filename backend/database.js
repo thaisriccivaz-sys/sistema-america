@@ -1875,6 +1875,7 @@ db.run("PRAGMA foreign_keys = ON;");
 
             db.run(`ALTER TABLE propostas ADD COLUMN motivo_reprovacao TEXT`, () => {});
             db.run(`ALTER TABLE propostas ADD COLUMN contrato TEXT`, () => {});
+            db.run(`ALTER TABLE propostas ADD COLUMN dias_evento TEXT`, () => {});
             db.run(`ALTER TABLE clientes_enderecos_entrega ADD COLUMN coordenadas TEXT`, () => {});
 
             // Tabela de precificação de serviços
