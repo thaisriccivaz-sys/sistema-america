@@ -1098,8 +1098,12 @@ window.switchPropostaTab = function(tab) {
 
     const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
     if (elementsExist) {
-        if (tab === 'form' && viewForm.innerHTML.trim() === '') {
-            _renderFormPropostaInt();
+        if (tab === 'form') {
+            if (viewForm.innerHTML.trim() === '') {
+                _renderFormPropostaInt();
+            } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+                window.verificarBloqueioFaturamentoProposta();
+            }
         }
         if (tab === 'cadastro-cliente' && viewCadastroCliente.innerHTML.trim() === '') {
             _renderCadastroClienteInt();
@@ -1262,7 +1266,7 @@ function _renderLinhasPropostas(lista) {
                 ${p.codigo || '—'}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.cliente_nome||''}">
-                <div>${p.cliente_nome || '<span style="color:#94a3b8">—</span>'}</div>
+                <div>${(() => { const ic = typeof window.obterIconeGrupoPorNomeCliente === 'function' ? window.obterIconeGrupoPorNomeCliente(p.cliente_nome) : ''; return p.cliente_nome ? (ic ? ic + ' ' : '') + p.cliente_nome : '<span style="color:#94a3b8">—</span>'; })()}</div>
                 ${regiaoHtml}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#475569; font-size:0.83rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.tipo||''}">
@@ -2042,12 +2046,12 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Cliente</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div id="prop-cliente-input-wrap" style="position:relative; flex:1; display:flex; align-items:center;">
-                                        <span id="prop-cliente-grupo-icone" style="display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.05rem; line-height:1; pointer-events:none; z-index:2; user-select:none;"></span>
                                         <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
                                             onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
                                             oninput="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
                                             onchange="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
                                             style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
+                                        <span id="prop-cliente-grupo-icone" style="display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.08rem; line-height:1; pointer-events:none; z-index:20; user-select:none;"></span>
                                     </div>
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
@@ -2516,19 +2520,80 @@ window.obterIconeApenasGrupoCliente = function(grupo) {
     return '';
 };
 
-window._aplicarIconeGrupoClienteProposta = function(icone) {
-    const propInput = document.getElementById('prop-cliente');
-    const iconeEl = document.getElementById('prop-cliente-grupo-icone');
-    if (!propInput || !iconeEl) return;
+window._aplicarIconeEmInput = function(inputEl, spanId, icone, defaultPadLeft = '0.55rem') {
+    if (!inputEl) return;
+    let iconeEl = document.getElementById(spanId);
+    if (!iconeEl && inputEl.parentElement) {
+        inputEl.parentElement.style.position = 'relative';
+        iconeEl = document.createElement('span');
+        iconeEl.id = spanId;
+        iconeEl.style.cssText = 'display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.05rem; line-height:1; pointer-events:none; z-index:20; user-select:none;';
+        inputEl.parentElement.appendChild(iconeEl);
+    }
+    if (!iconeEl) return;
     const ico = String(icone || '').trim();
     if (ico) {
         iconeEl.textContent = ico;
-        iconeEl.style.display = 'inline-flex';
-        propInput.style.paddingLeft = '2rem';
+        iconeEl.style.setProperty('display', 'inline-flex', 'important');
+        iconeEl.style.setProperty('z-index', '20', 'important');
+        inputEl.style.setProperty('padding-left', '2.1rem', 'important');
     } else {
         iconeEl.textContent = '';
-        iconeEl.style.display = 'none';
-        propInput.style.paddingLeft = '0.55rem';
+        iconeEl.style.setProperty('display', 'none', 'important');
+        inputEl.style.setProperty('padding-left', defaultPadLeft, 'important');
+    }
+};
+
+window.obterIconeGrupoPorNomeCliente = function(nomeOuObj, listaClientes) {
+    if (!nomeOuObj) return '';
+    if (typeof nomeOuObj === 'object') {
+        const dir = window.obterIconeApenasGrupoCliente(nomeOuObj.grupo_clientes);
+        if (dir) return dir;
+        nomeOuObj = nomeOuObj.nome_razao_social || nomeOuObj.nome_fantasia || '';
+    }
+    const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const qNorm = normStr(nomeOuObj);
+    if (!qNorm) return '';
+    const lista = listaClientes || _clientesCache || [];
+    for (let i = 0; i < lista.length; i++) {
+        const c = lista[i];
+        if (normStr(c.nome_razao_social) === qNorm || normStr(c.nome_fantasia) === qNorm) {
+            const ico = window.obterIconeApenasGrupoCliente(c.grupo_clientes);
+            if (ico) return ico;
+        }
+    }
+    return '';
+};
+
+window._aplicarIconeGrupoClienteProposta = function(icone) {
+    const propInput = document.getElementById('prop-cliente');
+    window._aplicarIconeEmInput(propInput, 'prop-cliente-grupo-icone', icone, '0.55rem');
+};
+
+window.aplicarVisualGrupoCliente = function(grupoValor, escopo = 'main') {
+    const icone = window.obterIconeApenasGrupoCliente(grupoValor);
+    const razaoEl = document.getElementById(escopo === 'modal' ? 'modal-cli-razao-social' : 'cli-razao-social');
+    const fantEl = document.getElementById(escopo === 'modal' ? 'modal-cli-nome-fantasia' : 'cli-nome-fantasia');
+    window._aplicarIconeEmInput(razaoEl, escopo === 'modal' ? 'modal-cli-razao-grupo-icone' : 'cli-razao-grupo-icone', icone, '0.45rem');
+    const rVal = (razaoEl?.value || '').trim().toLowerCase();
+    const fVal = (fantEl?.value || '').trim().toLowerCase();
+
+    if (Array.isArray(_clientesCache) && (rVal || fVal)) {
+        _clientesCache.forEach(c => {
+            const cr = String(c.nome_razao_social || '').trim().toLowerCase();
+            const cf = String(c.nome_fantasia || '').trim().toLowerCase();
+            if ((rVal && cr === rVal) || (fVal && cf === fVal)) {
+                c.grupo_clientes = grupoValor || '';
+            }
+        });
+    }
+
+    const propInput = document.getElementById('prop-cliente');
+    if (propInput && propInput.value.trim()) {
+        const propVal = propInput.value.replace(/^[💎🥇🥈🥉]\s*/, '').trim().toLowerCase();
+        if ((rVal && propVal === rVal) || (fVal && propVal === fVal)) {
+            window._aplicarIconeGrupoClienteProposta(icone);
+        }
     }
 };
 
@@ -2572,7 +2637,7 @@ window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
 window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
     const propInput = document.getElementById('prop-cliente');
     if (!propInput) return;
-    const raw = (nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').trim();
+    const raw = String(nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
     if (!raw) {
         window._aplicarEstiloInputBloqueado(propInput, false);
         window._aplicarEstiloCondPagBloqueado(false);
@@ -2580,18 +2645,45 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
         return;
     }
     try {
-        const clientes = await window.obterClientesCache();
-        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const qNorm = normStr(raw);
         const qDigits = raw.replace(/\D/g, '');
-        const found = (clientes || []).find(c =>
+        const filtrarMatches = (lista) => (lista || []).filter(c =>
             normStr(c.nome_razao_social) === qNorm ||
             normStr(c.nome_fantasia) === qNorm ||
             String(c.codigo) === raw ||
             (qDigits.length >= 11 && String(c.cpf_cnpj || '').replace(/\D/g, '') === qDigits)
         );
-        const isBloq = found ? window.clienteTemFaturamentoBloqueado(found) : false;
-        const iconeGrupo = found ? window.obterIconeApenasGrupoCliente(found.grupo_clientes) : '';
+
+        let clientes = await window.obterClientesCache();
+        let matches = filtrarMatches(clientes);
+        let iconeGrupo = matches.map(c => window.obterIconeApenasGrupoCliente(c.grupo_clientes)).find(Boolean) || '';
+
+        // Se também estiver aberto na aba/modal de Clientes o mesmo cliente, considerar o grupo selecionado lá
+        if (!iconeGrupo) {
+            const cliRazaoDom = normStr(document.getElementById('cli-razao-social')?.value || '');
+            const cliFantDom = normStr(document.getElementById('cli-nome-fantasia')?.value || '');
+            const cliGrupoDom = document.getElementById('cli-grupo')?.value || '';
+            if (cliGrupoDom && (cliRazaoDom === qNorm || cliFantDom === qNorm)) {
+                iconeGrupo = window.obterIconeApenasGrupoCliente(cliGrupoDom);
+            }
+            const mRazaoDom = normStr(document.getElementById('modal-cli-razao-social')?.value || '');
+            const mFantDom = normStr(document.getElementById('modal-cli-nome-fantasia')?.value || '');
+            const mGrupoDom = document.getElementById('modal-cli-grupo')?.value || '';
+            if (!iconeGrupo && mGrupoDom && (mRazaoDom === qNorm || mFantDom === qNorm)) {
+                iconeGrupo = window.obterIconeApenasGrupoCliente(mGrupoDom);
+            }
+        }
+
+        // Se ainda não encontrou grupo no cache, atualizar do servidor uma vez para garantir dados frescos
+        if (!iconeGrupo && window._ultimoRefreshGrupoCliTermo !== qNorm) {
+            window._ultimoRefreshGrupoCliTermo = qNorm;
+            clientes = await window.obterClientesCache(true);
+            matches = filtrarMatches(clientes);
+            iconeGrupo = matches.map(c => window.obterIconeApenasGrupoCliente(c.grupo_clientes)).find(Boolean) || '';
+        }
+
+        const isBloq = matches.some(c => window.clienteTemFaturamentoBloqueado(c));
         window._aplicarEstiloInputBloqueado(propInput, isBloq);
         window._aplicarEstiloCondPagBloqueado(isBloq);
         window._aplicarIconeGrupoClienteProposta(iconeGrupo);
@@ -2915,7 +3007,9 @@ window.pesquisarClienteProposta = async function(btnEl = null) {
             }
 
             tbody.innerHTML = exibidos.map(c => {
-                const iconeCli = typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '';
+                const iconeCli = typeof window.obterIconeGrupoPorNomeCliente === 'function'
+                    ? window.obterIconeGrupoPorNomeCliente(c, window._tempClientesParaPesquisa)
+                    : (typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '');
                 return `
                 <tr onclick="window.selecionarClienteGrid('${String(c.nome_razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
@@ -3338,7 +3432,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                             <div class="mcli-field">
                                 <label>Grupo de Clientes</label>
-                                <select id="modal-cli-grupo" class="mcli-select">
+                                <select id="modal-cli-grupo" class="mcli-select" onchange="if(typeof window.aplicarVisualGrupoCliente === 'function') window.aplicarVisualGrupoCliente(this.value, 'modal');">
                                     <option value="">-- Selecione --</option>
                                     ${grupoOptions(client ? client.grupo_clientes : '')}
                                 </select>
@@ -4171,10 +4265,13 @@ window.modalSalvarCliente = async function(clientId) {
     if (docDigitsModal.length > 0) {
         try {
             const listaCli = await apiGet('/clientes') || [];
-            const dup = listaCli.find(c => {
+            const currentCliModal = clientId ? listaCli.find(c => String(c.id) === String(clientId) || String(c.codigo) === String(clientId)) : null;
+            const currentDigitsModal = String(currentCliModal?.cpf_cnpj || '').replace(/\D/g, '');
+            const dup = (clientId && currentDigitsModal === docDigitsModal) ? null : listaCli.find(c => {
                 const cDigits = String(c.cpf_cnpj || '').replace(/\D/g, '');
                 if (!cDigits || cDigits !== docDigitsModal) return false;
                 if (clientId && (String(c.id) === String(clientId) || String(c.codigo) === String(clientId))) return false;
+                if (clientId && String(c.nome_razao_social || '').trim().toUpperCase() === razaoSocial.toUpperCase()) return false;
                 return true;
             });
             if (dup) {
@@ -6660,7 +6757,7 @@ function _renderCadastroClienteInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Grupo de Clientes</label>
-                                <select id="cli-grupo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                                <select id="cli-grupo" onchange="if(typeof window.aplicarVisualGrupoCliente === 'function') window.aplicarVisualGrupoCliente(this.value, 'main');" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                                     <option value="">-- Selecione --</option>
                                     <option value="1 - Diamante">💎Diamante</option>
                                     <option value="2 - Ouro">🥇Ouro</option>
@@ -7694,6 +7791,7 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         else if (rawGrupo.includes('prata')) normGrupo = '3 - Prata';
         else if (rawGrupo.includes('bronze')) normGrupo = '4 - Bronze';
         document.getElementById('cli-grupo').value = normGrupo;
+        if (typeof window.aplicarVisualGrupoCliente === 'function') window.aplicarVisualGrupoCliente(normGrupo, 'main');
         await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
         document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || c.nome_razao_social || '';
         document.getElementById('cli-cep').value = c.cep || '';
@@ -7821,6 +7919,9 @@ window.limparFormCliente = function() {
     const chkBloqFat = document.getElementById('cli-bloquear-faturamento');
     if (chkBloqFat) chkBloqFat.checked = false;
     window.aplicarVisualBloqueioFaturamento(false, 'main');
+    if (typeof window.aplicarVisualGrupoCliente === 'function') {
+        window.aplicarVisualGrupoCliente('', 'main');
+    }
     const obsEl = document.getElementById('cli-observacoes');
     if (obsEl) obsEl.value = '';
     const cadUserEl = document.getElementById('cli-cad-usuario');
@@ -9497,10 +9598,13 @@ window.salvarCliente = async function() {
     if (docDigitsCli.length > 0) {
         try {
             const listaCli = await apiGet('/clientes') || [];
-            const dup = listaCli.find(c => {
+            const currentCliMain = _clienteEditandoId ? listaCli.find(c => String(c.id) === String(_clienteEditandoId) || String(c.codigo) === String(_clienteEditandoId)) : null;
+            const currentDigitsMain = String(currentCliMain?.cpf_cnpj || '').replace(/\D/g, '');
+            const dup = (_clienteEditandoId && currentDigitsMain === docDigitsCli) ? null : listaCli.find(c => {
                 const cDigits = String(c.cpf_cnpj || '').replace(/\D/g, '');
                 if (!cDigits || cDigits !== docDigitsCli) return false;
                 if (_clienteEditandoId && (String(c.id) === String(_clienteEditandoId) || String(c.codigo) === String(_clienteEditandoId))) return false;
+                if (_clienteEditandoId && String(c.nome_razao_social || '').trim().toUpperCase() === razaoSocial.toUpperCase()) return false;
                 return true;
             });
             if (dup) {
@@ -15984,8 +16088,9 @@ window.abrirModalPesquisaPropostas = async function() {
         clientes.forEach(c => {
             if (c.nome_razao_social) {
                 const key = c.nome_razao_social.toLowerCase().trim();
-                clientCnpjMap[key] = c.cpf_cnpj || '';
-                clientIconMap[key] = typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '';
+                if (c.cpf_cnpj || !clientCnpjMap[key]) clientCnpjMap[key] = c.cpf_cnpj || '';
+                const ico = typeof window.obterIconeApenasGrupoCliente === 'function' ? window.obterIconeApenasGrupoCliente(c.grupo_clientes) : '';
+                if (ico || !clientIconMap[key]) clientIconMap[key] = ico;
             }
         });
 

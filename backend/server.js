@@ -42181,6 +42181,14 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
       if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+      const razaoSync = String(d.nome_razao_social || '').trim().toUpperCase();
+      if (razaoSync) {
+        db.run(
+          `UPDATE clientes SET grupo_clientes = ?, parametros = ?, atualizado_em = ? WHERE UPPER(TRIM(IFNULL(nome_razao_social, ''))) = ?`,
+          [d.grupo_clientes || '', d.parametros || '', agora, razaoSync],
+          () => {}
+        );
+      }
       db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (gErr, cRow) => {
         if (!gErr && cRow && cRow.id) {
           syncEnderecoFaturamentoCliente(cRow.id, () => res.json({ success: true }));
@@ -42192,19 +42200,26 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   };
 
   if (docLimpo.length > 0) {
-    db.get(
-      `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? AND id != ? AND CAST(IFNULL(codigo, '') AS TEXT) != ? LIMIT 1`,
-      [docLimpo, req.params.id, String(req.params.id)],
-      (dupErr, dupRow) => {
-        if (dupErr) return res.status(500).json({ error: dupErr.message });
-        if (dupRow) {
-          return res.status(400).json({
-            error: `Já existe outro cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
-          });
-        }
-        proceedUpdate();
+    db.get('SELECT id, codigo, cpf_cnpj, nome_razao_social FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (curErr, curRow) => {
+      const curDocLimpo = String(curRow?.cpf_cnpj || '').replace(/\D/g, '');
+      if (curDocLimpo && curDocLimpo === docLimpo) {
+        return proceedUpdate();
       }
-    );
+      db.get(
+        `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? AND id != ? AND CAST(IFNULL(codigo, '') AS TEXT) != ? LIMIT 1`,
+        [docLimpo, req.params.id, String(req.params.id)],
+        (dupErr, dupRow) => {
+          if (dupErr) return res.status(500).json({ error: dupErr.message });
+          const sameName = dupRow && String(dupRow.nome_razao_social || '').trim().toUpperCase() === String(d.nome_razao_social || '').trim().toUpperCase();
+          if (dupRow && !sameName) {
+            return res.status(400).json({
+              error: `Já existe outro cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
+            });
+          }
+          proceedUpdate();
+        }
+      );
+    });
   } else {
     proceedUpdate();
   }
