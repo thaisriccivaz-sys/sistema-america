@@ -1529,3 +1529,15 @@ body.has-open-tabs .page-header {
     font-size: 1rem;
     margin-right: 4px;
 }
+
+/* Deixar a fonte de tudo que está preenchido no sistema em letras maiúsculas (caixa alta) */
+input:not([type="password"]):not([type="email"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not(#login-username):not(#login-password),
+select,
+select option,
+textarea {
+    text-transform: uppercase !important;
+}
+input::placeholder,
+textarea::placeholder {
+    text-transform: none !important;
+}

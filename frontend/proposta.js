@@ -54,12 +54,9 @@ const PROP_MODELOS = [
     'Locação Obra', 'Locação Evento', 'Proposta Simplificada', 'Proposta Completa'
 ];
 const PROP_TABELAS = [
-    'TABELA DE PREÇO[1]',
-    'LOCAÇÃO DIÁRIA EVENTO[2]',
     'LOCAÇÃO SEMANAL OBRA[3]',
     'LOCAÇÃO QUINZENAL OBRA[4]',
-    'LOCAÇÃO MENSAL OBRA[5]',
-    'PRODUTO VENDA[6]'
+    'LOCAÇÃO MENSAL OBRA[5]'
 ];
 const PROP_COND_PAG = [
     'À VISTA',
@@ -577,6 +574,13 @@ function renderTelaPropostas() {
                     font-family: 'Inter', sans-serif !important;
                     outline: none !important;
                     transition: all 0.2s !important;
+                    text-transform: uppercase !important;
+                }
+                [id^="prop-view-"] input::placeholder,
+                [id^="prop-view-"] textarea::placeholder,
+                #form-cadastro-cliente input::placeholder,
+                #form-cadastro-cliente textarea::placeholder {
+                    text-transform: none !important;
                 }
 
                 [id^="prop-view-"] input:not([type="checkbox"]):not([type="radio"]):focus,
@@ -631,6 +635,7 @@ function renderTelaPropostas() {
                     box-sizing: border-box !important;
                     font-family: 'Inter', sans-serif !important;
                     outline: none !important;
+                    text-transform: uppercase !important;
                 }
 
                 /* Alinhamento de botões de busca / addon / whatsapp com a altura de 26px */
@@ -951,7 +956,7 @@ function renderTelaPropostas() {
                             <select id="prop-filtro-fase" onchange="filtrarPropostas()"
                                 style="flex:1; min-width:160px; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
                                 <option value="">Todas as Fases</option>
-                                ${PROP_FASES.map(f => `<option value="${f}">${f}</option>`).join('')}
+                                ${PROP_FASES.map(f => `<option value="${f}">${f.toUpperCase()}</option>`).join('')}
                             </select>
                             <input id="prop-filtro-de" type="date" title="Período de" onchange="filtrarPropostas()"
                                 style="flex:0 0 auto; padding:0.45rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem;">
@@ -1976,7 +1981,7 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Código</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
-                                <input type="text" id="prop-codigo" value="${v('codigo') || (isNovo ? 'Auto' : '')}" readonly
+                                <input type="text" id="prop-codigo" value="${String(v('codigo') || (isNovo ? 'AUTO' : '')).toUpperCase()}" readonly
                                     style="flex:1;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box; height:36px;">
                                 <button type="button" onclick="window.abrirModalPesquisaPropostas()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Proposta">
                                     <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
@@ -1997,7 +2002,7 @@ function _renderFormPropostaInt() {
                         </div>
                         <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}"
+                            <input type="text" id="prop-atendente" value="${String(v('atendente') || window.obterNomeUsuarioLogado() || '').toUpperCase()}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;">
                         </div>
                     </div>
@@ -2024,7 +2029,7 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Fase de Negociação *</label>
                             <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                ${PROP_FASES.map(f => `<option value="${f}" ${v('fase_negociacao')===f?'selected':''}>${f}</option>`).join('')}
+                                ${PROP_FASES.map(f => `<option value="${f}" ${String(v('fase_negociacao')||'').toUpperCase()===f.toUpperCase()?'selected':''}>${f.toUpperCase()}</option>`).join('')}
                             </select>
                         </div>
                         <div style="display:none;">
@@ -16864,7 +16869,7 @@ window._formatarEnderecoEntregaProposta = function(e) {
         ? window._separarRuaENumeroEnderecos(e.endereco, e.numero)
         : { rua: e.endereco || '', numero: e.numero || '' };
     const endComNum = parsedEnd.numero ? `${parsedEnd.rua}, ${parsedEnd.numero}` : parsedEnd.rua;
-    return `${e.nome_local ? e.nome_local + ' - ' : ''}${endComNum}${e.complemento ? ' (' + e.complemento + ')' : ''}${e.bairro ? ' - ' + e.bairro : ''}${e.municipio ? ' - ' + e.municipio : ''}${e.uf ? '/' + e.uf : ''}`.trim();
+    return `${e.nome_local ? e.nome_local + ' - ' : ''}${endComNum}${e.complemento ? ' (' + e.complemento + ')' : ''}${e.bairro ? ' - ' + e.bairro : ''}${e.municipio ? ' - ' + e.municipio : ''}${e.uf ? '/' + e.uf : ''}`.trim().toUpperCase();
 };
 
 window._obterDadosEnderecosClienteProposta = async function(clienteNomeRaw) {
@@ -17212,18 +17217,53 @@ window.pesquisarEnderecoProposta = async function(btnEl = null) {
     }
 };
 
-// Sem filtro automático por tipo de contrato: todos os equipamentos aparecem na busca e o filtro é feito manualmente pelo usuário
 window.obterFiltroPadraoEquipamentosPorTipo = function() {
     return { grupo: '', fonte: '', incluirServicos: false };
 };
 
-window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo = '', fonte = '' } = {}) {
+window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaRaw = null) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const rawTipo = (tipoPropostaRaw !== null && tipoPropostaRaw !== undefined)
+        ? tipoPropostaRaw
+        : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const tipoNorm = normStr(String(rawTipo || '').replace(/^proposta\s+/i, ''));
+
+    return (produtos || []).filter(p => {
+        const fonteNorm = normStr(p.fonte_fornecimento);
+        const grupoNorm = normStr(p.grupo_produto);
+        const nomeNorm = normStr(p.nome);
+
+        if (tipoNorm === 'evento') {
+            // Tipo EVENTO: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos)
+            if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
+                return false;
+            }
+        } else if (tipoNorm === 'venda') {
+            // Tipo VENDA: mostrar apenas PRÓPRIO AVULSO e não mostrar grupos VAC, Guaritas, avarias, serviços, acessórios
+            if (fonteNorm !== 'proprio avulso') {
+                return false;
+            }
+            const gruposExcluidosVenda = ['vac', 'guarita', 'guaritas', 'avaria', 'avarias', 'servico', 'servicos', 'acessorio', 'acessorios'];
+            if (gruposExcluidosVenda.includes(grupoNorm)) {
+                return false;
+            }
+            if (grupoNorm.includes('guarita') || nomeNorm.includes('guarita')) {
+                return false;
+            }
+        }
+        return true;
+    });
+};
+
+window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo = '', fonte = '', tipoProposta = null } = {}) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const qVal = normStr(termo);
     const grupoVal = normStr(grupo);
     const fonteVal = normStr(fonte);
 
-    return (produtos || []).filter(p => {
+    const basePorTipo = window.filtrarEquipamentosBasePorTipoProposta(produtos, tipoProposta);
+
+    return basePorTipo.filter(p => {
         const codStr = normStr(p.codigo || p.id);
         const nomeStr = normStr(p.nome);
         const comboStr = normStr(`${p.codigo || p.id} - ${p.nome || ''}`);
@@ -17301,22 +17341,46 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     }
 
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const tipoPropostaAtivo = document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '';
+    const tipoNorm = normStr(String(tipoPropostaAtivo || '').replace(/^proposta\s+/i, ''));
     const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
-    const gruposSet = new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
-    ['CONTAINER', 'SERVIÇOS', 'VAC'].forEach(gPad => {
-        if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
-            gruposSet.add(gPad);
-        }
-    });
+    const produtosBase = window.filtrarEquipamentosBasePorTipoProposta(produtos, tipoPropostaAtivo);
+
+    const gruposSet = new Set(produtosBase.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
+    if (tipoNorm !== 'venda') {
+        ['CONTAINER', 'SERVIÇOS', 'VAC'].forEach(gPad => {
+            if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
+                gruposSet.add(gPad);
+            }
+        });
+    } else {
+        ['CONTAINER'].forEach(gPad => {
+            if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
+                gruposSet.add(gPad);
+            }
+        });
+    }
     const gruposUnicos = Array.from(gruposSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    const fontesSet = new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean));
-    ['PACOTE OBRA', 'PRÓPRIO AVULSO'].forEach(fPad => {
-        if (!Array.from(fontesSet).some(x => normStr(x) === normStr(fPad))) {
-            fontesSet.add(fPad);
+    const fontesSet = new Set(produtosBase.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean));
+    if (tipoNorm === 'venda') {
+        if (!Array.from(fontesSet).some(x => normStr(x) === 'proprio avulso')) {
+            fontesSet.add('PRÓPRIO AVULSO');
         }
-    });
+    } else if (tipoNorm === 'evento') {
+        ['PRÓPRIO AVULSO', 'PARCEIROS'].forEach(fPad => {
+            if (!Array.from(fontesSet).some(x => normStr(x) === normStr(fPad))) {
+                fontesSet.add(fPad);
+            }
+        });
+    } else {
+        ['PACOTE OBRA', 'PRÓPRIO AVULSO'].forEach(fPad => {
+            if (!Array.from(fontesSet).some(x => normStr(x) === normStr(fPad))) {
+                fontesSet.add(fPad);
+            }
+        });
+    }
     const fontesUnicas = Array.from(fontesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     const renderRows = (list) => {
