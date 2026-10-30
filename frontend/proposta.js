@@ -31,17 +31,17 @@ window.obterNomeUsuarioLogado = function() {
 
 /* ── Dados de configuração ─────────────────────────────────────────── */
 const PROP_TIPOS = [
+    'EVENTO',
+    'OBRA MENSAL',
+    'OBRA QUINZENAL',
+    'OBRA SEMANAL',
+    'LIMPA FOSSA',
+    'LIMPA FOSSA MENSAL',
+    'LOCAÇÃO CONTAINER',
+    'VENDA',
+    'VISITA TÉCNICA',
     'ADITIVO',
-    'EQUIPAMENTOS',
-    'PROPOSTA EVENTO',
-    'PROPOSTA LIMPA FOSSA',
-    'PROPOSTA LIMPA FOSSA MENSAL',
-    'PROPOSTA LOCAÇÃO CONTAINER',
-    'PROPOSTA OBRA MENSAL',
-    'PROPOSTA OBRA QUINZENAL',
-    'PROPOSTA OBRA SEMANAL',
-    'PROPOSTA VENDA',
-    'VISITA TÉCNICA'
+    'EQUIPAMENTOS'
 ];
 const PROP_FASES = [
     'Em Elaboração', 'Proposta Enviada', 'Em Negociação',
@@ -1887,7 +1887,7 @@ function _renderFormPropostaInt() {
                             <div style="display:flex; gap:0.4rem; align-items:center;">
                                 <select id="prop-tipo" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
                                     <option value="">-- Selecione --</option>
-                                    ${PROP_TIPOS.map(t => `<option value="${t}" ${v('tipo')===t?'selected':''}>${t}</option>`).join('')}
+                                    ${PROP_TIPOS.map(t => `<option value="${t}" ${(v('tipo')===t || String(v('tipo')||'').replace(/^PROPOSTA\s+/i,'')===t)?'selected':''}>${t}</option>`).join('')}
                                 </select>
                                 <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="background:linear-gradient(135deg,#7048e8,#5f3dc4); color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:0 2px 6px rgba(112,72,232,0.25); transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                                     <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
@@ -1901,16 +1901,16 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Linha 2: Validade da Proposta, Data Cadastro, Previsão Fechamento, Fase -->
+                    <!-- Linha 2: Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
-                        <div>
-                            <label class="prop-lbl">Validade da Proposta</label>
-                            <input type="date" id="prop-validade-proposta" value="${v('validade_proposta') || umaSemanaDepois}"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                        </div>
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
                             <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}" onchange="window.calcularPrevisaoFechamento()"
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Validade da Proposta</label>
+                            <input type="date" id="prop-validade-proposta" value="${v('validade_proposta') || umaSemanaDepois}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>

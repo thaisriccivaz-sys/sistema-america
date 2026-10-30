@@ -39362,35 +39362,35 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
                 keywords: ["equipamento", "equipamentos", "maquina", "maquinas", "locacao de maquinas"]
             },
             {
-                name: "PROPOSTA EVENTO",
+                name: "EVENTO",
                 keywords: ["evento", "show", "festa", "casamento", "feira", "congresso", "exposicao", "festival", "palco", "aniversario", "fim de semana"]
             },
             {
-                name: "PROPOSTA LIMPA FOSSA",
+                name: "LIMPA FOSSA",
                 keywords: ["limpa fossa", "limpeza de fossa", "esgotamento", "fossa"]
             },
             {
-                name: "PROPOSTA LIMPA FOSSA MENSAL",
+                name: "LIMPA FOSSA MENSAL",
                 keywords: ["limpa fossa mensal", "fossa mensal", "esgotamento mensal"]
             },
             {
-                name: "PROPOSTA LOCAÇÃO CONTAINER",
+                name: "LOCAÇÃO CONTAINER",
                 keywords: ["container", "conteiner", "modulo", "módulo"]
             },
             {
-                name: "PROPOSTA OBRA MENSAL",
+                name: "OBRA MENSAL",
                 keywords: ["mensal", "meses", "mês", "mes", "construcao", "construção", "predial", "edificacao", "longo prazo", "locação mensal"]
             },
             {
-                name: "PROPOSTA OBRA QUINZENAL",
+                name: "OBRA QUINZENAL",
                 keywords: ["quinzenal", "quinzena", "quinzenas", "a cada 15 dias", "quinze dias"]
             },
             {
-                name: "PROPOSTA OBRA SEMANAL",
+                name: "OBRA SEMANAL",
                 keywords: ["semanal", "semana", "semanas", "a cada 7 dias", "a cada semana"]
             },
             {
-                name: "PROPOSTA VENDA",
+                name: "VENDA",
                 keywords: ["venda", "comprar", "compra", "adquirir", "vender"]
             },
             {
@@ -39399,7 +39399,7 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
             }
         ];
 
-        let bestClass = "PROPOSTA OBRA MENSAL"; // default fallback
+        let bestClass = "OBRA MENSAL"; // default fallback
         let maxScore = -1;
 
         classes.forEach(c => {
@@ -39421,11 +39421,11 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
         // Special context sub-rules for co-occurrences
         if (t.includes('obra')) {
             if (t.includes('semanal') || t.includes('semana')) {
-                bestClass = "PROPOSTA OBRA SEMANAL";
+                bestClass = "OBRA SEMANAL";
             } else if (t.includes('quinzenal') || t.includes('quinzena')) {
-                bestClass = "PROPOSTA OBRA QUINZENAL";
+                bestClass = "OBRA QUINZENAL";
             } else if (t.includes('mensal') || t.includes('mes') || t.includes('mês')) {
-                bestClass = "PROPOSTA OBRA MENSAL";
+                bestClass = "OBRA MENSAL";
             }
         }
 
