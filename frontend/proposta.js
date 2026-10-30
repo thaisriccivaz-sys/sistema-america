@@ -2166,7 +2166,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Campo Dia de Evento / Sucção (Obrigatório adicionar pelo menos um) -->
-                        <div id="prop-wrapper-dias-evento" style="display:block; margin-bottom:0.55rem; position:relative;">
+                        <div id="prop-wrapper-dias-evento" style="display:${window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'block' : 'none'}; margin-bottom:0.55rem; position:relative;">
                             <style>
                                 #prop-dias-evento-popover .cal-dias-grid {
                                     display: grid !important;
@@ -2465,8 +2465,8 @@ function _renderFormPropostaInt() {
     if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
         window.carregarEnderecosVinculadosClienteProposta(v('cliente_nome'), false);
     }
-    if (typeof window.renderizarDiasEventoProposta === 'function') {
-        window.renderizarDiasEventoProposta(false);
+    if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
+        window.atualizarVisibilidadeDiasEventoProposta(v('tipo'));
     }
     if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
         window.atualizarBloqueioPorTipoProposta();
@@ -2716,6 +2716,7 @@ window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
 };
 
 window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
+    const reqSeq = (window._verifBloqReqSeq = (window._verifBloqReqSeq || 0) + 1);
     const propInput = document.getElementById('prop-cliente');
     if (!propInput) return;
     const raw = String(nomeOuTermo !== undefined ? nomeOuTermo : propInput.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
@@ -2737,6 +2738,10 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
         );
 
         let clientes = await window.obterClientesCache();
+        if (reqSeq !== window._verifBloqReqSeq) return;
+        const propInputAfterCache = document.getElementById('prop-cliente');
+        if (!propInputAfterCache || normStr(propInputAfterCache.value || '') !== qNorm) return;
+
         let matches = filtrarMatches(clientes);
         let iconeGrupo = matches.map(c => window.obterIconeApenasGrupoCliente(c.grupo_clientes)).find(Boolean) || '';
 
@@ -2756,16 +2761,19 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
             }
         }
 
-        // Se ainda não encontrou grupo no cache, atualizar do servidor uma vez para garantir dados frescos
-        if (!iconeGrupo && window._ultimoRefreshGrupoCliTermo !== qNorm) {
+        // Só buscar do servidor se o cliente já foi localizado exatamente mas estava sem grupo no cache
+        if (matches.length > 0 && !iconeGrupo && window._ultimoRefreshGrupoCliTermo !== qNorm) {
             window._ultimoRefreshGrupoCliTermo = qNorm;
             clientes = await window.obterClientesCache(true);
+            if (reqSeq !== window._verifBloqReqSeq) return;
+            const propInputAfterRefresh = document.getElementById('prop-cliente');
+            if (!propInputAfterRefresh || normStr(propInputAfterRefresh.value || '') !== qNorm) return;
             matches = filtrarMatches(clientes);
             iconeGrupo = matches.map(c => window.obterIconeApenasGrupoCliente(c.grupo_clientes)).find(Boolean) || '';
         }
 
         const isBloq = matches.some(c => window.clienteTemFaturamentoBloqueado(c));
-        window._aplicarEstiloInputBloqueado(propInput, isBloq);
+        window._aplicarEstiloInputBloqueado(propInputAfterCache, isBloq);
         window._aplicarEstiloCondPagBloqueado(isBloq);
         window._aplicarIconeGrupoClienteProposta(iconeGrupo);
     } catch (e) {
@@ -3170,8 +3178,9 @@ window.selecionarClienteGrid = function(razaoSocial) {
     const input = document.getElementById('prop-cliente');
     if (input) {
         input.value = razaoSocial;
-        input.dispatchEvent(new Event('input'));
-        input.dispatchEvent(new Event('change'));
+        if (typeof window.onChangeClientePropostaInput === 'function') {
+            window.onChangeClientePropostaInput(razaoSocial);
+        }
     }
     Swal.close();
 };
@@ -4708,13 +4717,21 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         window._tempContatosPropostaTodos = listaUnificada;
 
         window.selectContatoProposta = function(nome, empNome) {
+            window._dropdownContatoSeq = (window._dropdownContatoSeq || 0) + 1;
+            window._ignorarAberturaDropdownContatoAte = Date.now() + 800;
             const propContatoEl = document.getElementById('prop-contato');
-            if (propContatoEl) propContatoEl.value = nome;
+            if (propContatoEl) {
+                propContatoEl.value = nome;
+                propContatoEl.blur();
+            }
+            const dropEl = document.getElementById('prop-contato-dropdown');
+            if (dropEl) dropEl.style.display = 'none';
             const propCliEl = document.getElementById('prop-cliente');
             if (propCliEl && !propCliEl.value.trim() && empNome) {
                 propCliEl.value = empNome;
-                propCliEl.dispatchEvent(new Event('input'));
-                propCliEl.dispatchEvent(new Event('change'));
+                if (typeof window.onChangeClientePropostaInput === 'function') {
+                    window.onChangeClientePropostaInput(empNome);
+                }
             }
             Swal.close();
         };
@@ -4947,8 +4964,13 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
 };
 
 window.abrirDropdownContatosProposta = async function(mostrarTodos = true) {
+    if (Date.now() < (window._ignorarAberturaDropdownContatoAte || 0)) return;
+    const reqSeq = (window._dropdownContatoSeq = (window._dropdownContatoSeq || 0) + 1);
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
-    await window._obterDadosContatosClienteProposta(clienteNome);
+    if (window._ultimoClienteContatosCarregado !== clienteNome || !Array.isArray(window._contatosDoClientePropostaAtual)) {
+        await window._obterDadosContatosClienteProposta(clienteNome);
+    }
+    if (reqSeq !== window._dropdownContatoSeq || Date.now() < (window._ignorarAberturaDropdownContatoAte || 0)) return;
     const valAtual = (document.getElementById('prop-contato')?.value || '').trim();
     window.renderizarDropdownContatosProposta(valAtual, mostrarTodos);
 };
@@ -4960,36 +4982,46 @@ window.toggleDropdownContatosProposta = async function(event) {
     }
     const dropEl = document.getElementById('prop-contato-dropdown');
     if (dropEl && dropEl.style.display === 'block') {
+        window._dropdownContatoSeq = (window._dropdownContatoSeq || 0) + 1;
         dropEl.style.display = 'none';
         return;
     }
-    await window.abrirDropdownContatosProposta(true);
+    window._ignorarAberturaDropdownContatoAte = 0;
     const inp = document.getElementById('prop-contato');
     if (inp) {
         inp.removeAttribute('readonly');
-        inp.focus();
     }
+    await window.abrirDropdownContatosProposta(true);
 };
 
 window.filtrarDropdownContatosProposta = async function(termo) {
+    if (Date.now() < (window._ignorarAberturaDropdownContatoAte || 0)) return;
+    const reqSeq = (window._dropdownContatoSeq = (window._dropdownContatoSeq || 0) + 1);
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
     if (window._ultimoClienteContatosCarregado !== clienteNome || !window._todosContatosPropostaCache || window._todosContatosPropostaCache.length === 0) {
         await window._obterDadosContatosClienteProposta(clienteNome);
     }
+    if (reqSeq !== window._dropdownContatoSeq || Date.now() < (window._ignorarAberturaDropdownContatoAte || 0)) return;
     window.renderizarDropdownContatosProposta(termo, false);
 };
 
 window.selecionarOpcaoDropdownContatoProposta = function(nome, empNome) {
+    window._dropdownContatoSeq = (window._dropdownContatoSeq || 0) + 1;
+    window._ignorarAberturaDropdownContatoAte = Date.now() + 800;
+    const dropEl = document.getElementById('prop-contato-dropdown');
+    if (dropEl) dropEl.style.display = 'none';
     const inp = document.getElementById('prop-contato');
-    if (inp) inp.value = nome;
+    if (inp) {
+        inp.value = nome;
+        inp.blur();
+    }
     const cliInp = document.getElementById('prop-cliente');
     if (cliInp && !cliInp.value.trim() && empNome) {
         cliInp.value = empNome;
-        cliInp.dispatchEvent(new Event('input'));
-        cliInp.dispatchEvent(new Event('change'));
+        if (typeof window.onChangeClientePropostaInput === 'function') {
+            window.onChangeClientePropostaInput(empNome);
+        }
     }
-    const dropEl = document.getElementById('prop-contato-dropdown');
-    if (dropEl) dropEl.style.display = 'none';
 };
 
 window.onKeyDownContatoProposta = function(event) {
@@ -5643,44 +5675,52 @@ window.salvarPropostaNova = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
-    const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
-    if (diasGlobais.length > 0) {
-        if (!window.validarDiasEHorariosEventoSelecionados()) return;
-    }
-    const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
-        ? window.obterDiasEventoComHorariosAtuais()
-        : [...diasGlobais];
-    const itensValidacao = window._propProdutosAdicionados || [];
-    if (itensValidacao.length > 0) {
-        for (let i = 0; i < itensValidacao.length; i++) {
-            const p = itensValidacao[i];
-            let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-            if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
-                p.dias_evento = [...diasComHorariosGlobais];
-                dItem = p.dias_evento;
+    if (window.tipoPropostaUsaDiasEvento(tipo)) {
+        const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
+        if (diasGlobais.length > 0) {
+            if (!window.validarDiasEHorariosEventoSelecionados()) return;
+        }
+        const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
+            ? window.obterDiasEventoComHorariosAtuais()
+            : [...diasGlobais];
+        const itensValidacao = window._propProdutosAdicionados || [];
+        if (itensValidacao.length > 0) {
+            for (let i = 0; i < itensValidacao.length; i++) {
+                const p = itensValidacao[i];
+                let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+                if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
+                    p.dias_evento = [...diasComHorariosGlobais];
+                    dItem = p.dias_evento;
+                }
+                if (dItem.length === 0) {
+                    alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
+                    if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+                    return;
+                }
+                const faltaHorarioNoItem = dItem.some(entry => {
+                    const parsed = window._parseDiasEventoItem(entry);
+                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
+                });
+                if (faltaHorarioNoItem) {
+                    alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
+                    return;
+                }
+                p.dias_evento = dItem.map(entry => {
+                    const parsed = window._parseDiasEventoItem(entry);
+                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    return hor ? `${parsed.data} ${hor}` : parsed.data;
+                });
             }
-            if (dItem.length === 0) {
-                alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
-                if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
-                return;
-            }
-            const faltaHorarioNoItem = dItem.some(entry => {
-                const parsed = window._parseDiasEventoItem(entry);
-                const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
-                return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
-            });
-            if (faltaHorarioNoItem) {
-                alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
-                return;
-            }
-            p.dias_evento = dItem.map(entry => {
-                const parsed = window._parseDiasEventoItem(entry);
-                const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
-                return hor ? `${parsed.data} ${hor}` : parsed.data;
-            });
+        } else {
+            if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
     } else {
-        if (!window.validarDiasEHorariosEventoSelecionados()) return;
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        if (Array.isArray(window._propProdutosAdicionados)) {
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+        }
     }
 
     const payload = {
@@ -6243,44 +6283,52 @@ window.estornarPropostaEdicao = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
-    const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
-    if (diasGlobais.length > 0) {
-        if (!window.validarDiasEHorariosEventoSelecionados()) return;
-    }
-    const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
-        ? window.obterDiasEventoComHorariosAtuais()
-        : [...diasGlobais];
-    const itensValidacao = window._propProdutosAdicionados || [];
-    if (itensValidacao.length > 0) {
-        for (let i = 0; i < itensValidacao.length; i++) {
-            const p = itensValidacao[i];
-            let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-            if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
-                p.dias_evento = [...diasComHorariosGlobais];
-                dItem = p.dias_evento;
+    if (window.tipoPropostaUsaDiasEvento(tipo)) {
+        const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
+        if (diasGlobais.length > 0) {
+            if (!window.validarDiasEHorariosEventoSelecionados()) return;
+        }
+        const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
+            ? window.obterDiasEventoComHorariosAtuais()
+            : [...diasGlobais];
+        const itensValidacao = window._propProdutosAdicionados || [];
+        if (itensValidacao.length > 0) {
+            for (let i = 0; i < itensValidacao.length; i++) {
+                const p = itensValidacao[i];
+                let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+                if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
+                    p.dias_evento = [...diasComHorariosGlobais];
+                    dItem = p.dias_evento;
+                }
+                if (dItem.length === 0) {
+                    alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
+                    if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+                    return;
+                }
+                const faltaHorarioNoItem = dItem.some(entry => {
+                    const parsed = window._parseDiasEventoItem(entry);
+                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
+                });
+                if (faltaHorarioNoItem) {
+                    alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
+                    return;
+                }
+                p.dias_evento = dItem.map(entry => {
+                    const parsed = window._parseDiasEventoItem(entry);
+                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    return hor ? `${parsed.data} ${hor}` : parsed.data;
+                });
             }
-            if (dItem.length === 0) {
-                alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
-                if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
-                return;
-            }
-            const faltaHorarioNoItem = dItem.some(entry => {
-                const parsed = window._parseDiasEventoItem(entry);
-                const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
-                return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
-            });
-            if (faltaHorarioNoItem) {
-                alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
-                return;
-            }
-            p.dias_evento = dItem.map(entry => {
-                const parsed = window._parseDiasEventoItem(entry);
-                const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
-                return hor ? `${parsed.data} ${hor}` : parsed.data;
-            });
+        } else {
+            if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
     } else {
-        if (!window.validarDiasEHorariosEventoSelecionados()) return;
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        if (Array.isArray(window._propProdutosAdicionados)) {
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+        }
     }
 
     const payload = {
@@ -16680,14 +16728,33 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
     return null;
 };
 
-window.tipoPropostaUsaDiasEvento = function() {
-    return true;
+window.tipoPropostaUsaDiasEvento = function(tipo) {
+    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
+    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'LOCAÇÃO EQUIPAMENTOS' || t === 'LOCACAO EQUIPAMENTOS';
 };
 
-window.atualizarVisibilidadeDiasEventoProposta = function() {
+window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
     const wrap = document.getElementById('prop-wrapper-dias-evento');
-    if (!wrap) return;
-    wrap.style.display = 'block';
+    const usa = window.tipoPropostaUsaDiasEvento(tipo);
+    if (!usa) {
+        if (wrap) wrap.style.display = 'none';
+        const pop = document.getElementById('prop-dias-evento-popover');
+        if (pop) pop.style.display = 'none';
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        window._ultimoHorarioDiaEventoEditado = '';
+        const hiddenEl = document.getElementById('prop-dias-evento');
+        if (hiddenEl) hiddenEl.value = '[]';
+        if (Array.isArray(window._propProdutosAdicionados)) {
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+        }
+        if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+            window.renderizarProdutosPropostaGrid();
+        }
+        return;
+    }
+    if (wrap) wrap.style.display = 'block';
     window.renderizarDiasEventoProposta(false);
 };
 
@@ -17438,8 +17505,13 @@ window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarT
 };
 
 window.abrirDropdownEnderecosProposta = async function(mostrarTodos = true) {
+    if (Date.now() < (window._ignorarAberturaDropdownEnderecoAte || 0)) return;
+    const reqSeq = (window._dropdownEnderecoSeq = (window._dropdownEnderecoSeq || 0) + 1);
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
-    await window._obterDadosEnderecosClienteProposta(clienteNome);
+    if (window._ultimoClienteEnderecosCarregado !== clienteNome || !Array.isArray(window._enderecosDoClientePropostaAtual)) {
+        await window._obterDadosEnderecosClienteProposta(clienteNome);
+    }
+    if (reqSeq !== window._dropdownEnderecoSeq || Date.now() < (window._ignorarAberturaDropdownEnderecoAte || 0)) return;
     const valAtual = (document.getElementById('prop-endereco')?.value || '').trim();
     window.renderizarDropdownEnderecosProposta(valAtual, mostrarTodos);
 };
@@ -17451,29 +17523,38 @@ window.toggleDropdownEnderecosProposta = async function(event) {
     }
     const dropEl = document.getElementById('prop-endereco-dropdown');
     if (dropEl && dropEl.style.display === 'block') {
+        window._dropdownEnderecoSeq = (window._dropdownEnderecoSeq || 0) + 1;
         dropEl.style.display = 'none';
         return;
     }
-    await window.abrirDropdownEnderecosProposta(true);
+    window._ignorarAberturaDropdownEnderecoAte = 0;
     const inp = document.getElementById('prop-endereco');
     if (inp) {
         inp.removeAttribute('readonly');
-        inp.focus();
     }
+    await window.abrirDropdownEnderecosProposta(true);
 };
 
 window.filtrarDropdownEnderecosProposta = async function(termo) {
+    if (Date.now() < (window._ignorarAberturaDropdownEnderecoAte || 0)) return;
+    const reqSeq = (window._dropdownEnderecoSeq = (window._dropdownEnderecoSeq || 0) + 1);
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
     if (window._ultimoClienteEnderecosCarregado !== clienteNome || !window._enderecosDoClientePropostaAtual) {
         await window._obterDadosEnderecosClienteProposta(clienteNome);
     }
+    if (reqSeq !== window._dropdownEnderecoSeq || Date.now() < (window._ignorarAberturaDropdownEnderecoAte || 0)) return;
     window.renderizarDropdownEnderecosProposta(termo, false);
 };
 
 window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coordenadas = '') {
+    window._dropdownEnderecoSeq = (window._dropdownEnderecoSeq || 0) + 1;
+    window._ignorarAberturaDropdownEnderecoAte = Date.now() + 800;
+    const dropEl = document.getElementById('prop-endereco-dropdown');
+    if (dropEl) dropEl.style.display = 'none';
     const inp = document.getElementById('prop-endereco');
     if (inp) {
         inp.value = textoCompleto;
+        inp.blur();
     }
     if (coordenadas && coordenadas.trim() && window._enderecoCoordenadasCache) {
         const parts = coordenadas.split(',');
@@ -17485,27 +17566,9 @@ window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coorden
             }
         }
     }
-    const dropEl = document.getElementById('prop-endereco-dropdown');
-    if (dropEl) dropEl.style.display = 'none';
     if (typeof window.classificarRegiaoEDias === 'function') {
         window.classificarRegiaoEDias();
     }
-    const somaGeral = list.reduce((acc, p) => {
-        const q = parseInt(p.quantidade, 10) || 1;
-        const vU = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
-        const sub = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vU);
-        return acc + sub;
-    }, 0);
-    tbody.innerHTML += `
-        <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-            <td colspan="5" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
-            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">
-                R$ ${somaGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </td>
-            <td></td>
-        </tr>
-    `;
-
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
     }
@@ -18094,10 +18157,13 @@ window.adicionarProdutoProposta = function() {
         return;
     }
 
-    if (!window.validarDiasEHorariosEventoSelecionados()) {
-        return;
+    let diasSelecionados = [];
+    if (window.tipoPropostaUsaDiasEvento()) {
+        if (!window.validarDiasEHorariosEventoSelecionados()) {
+            return;
+        }
+        diasSelecionados = window.obterDiasEventoComHorariosAtuais();
     }
-    const diasSelecionados = window.obterDiasEventoComHorariosAtuais();
 
     let codigo = inputCodigo?.getAttribute('data-codigo') || '';
     let produtoNome = inputCodigo?.getAttribute('data-nome') || '';
@@ -18287,9 +18353,10 @@ window.renderizarProdutosPropostaGrid = function() {
             ? parseFloat(p.valor_total)
             : (qtd * vUnit);
 
-        const diasProd = Array.isArray(p.dias_evento) && p.dias_evento.length > 0
+        const usaDias = typeof window.tipoPropostaUsaDiasEvento === 'function' ? window.tipoPropostaUsaDiasEvento() : false;
+        const diasProd = !usaDias ? [] : (Array.isArray(p.dias_evento) && p.dias_evento.length > 0
             ? p.dias_evento
-            : (typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados : []));
+            : (typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados : [])));
         const diasChipsHtml = diasProd.length > 0
             ? `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">${diasProd.map((d, dIdx) => {
                 const parsed = typeof window._parseDiasEventoItem === 'function' ? window._parseDiasEventoItem(d) : { data: String(d), horario: '' };
