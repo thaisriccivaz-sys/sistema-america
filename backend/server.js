@@ -43262,6 +43262,1797 @@ console.log('[CLIENTES] Módulo de cadastro de clientes carregado.');
 console.log('[COMERCIAL] Módulo de precificação de serviços carregado.');
 console.log('[CONTRATOS] Módulo de gerenciamento de modelos de contratos e propostas carregado.');
 
+// ============================================================
+// MÓDULO: TABELA DE PREÇOS POR TIPO DE PROPOSTA (COMERCIAL)
+// ============================================================
+const SEED_TABELAS_PRECO_2026 = {
+  "OBRA SEMANAL": [
+    {
+      "nome_equipamento": "PACOTE SEMANAL",
+      "valor_produto": 0,
+      "valor_manutencao": 0,
+      "qtd_manutencao": 0,
+      "valor_total": 0
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O00XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 1,
+      "valor_total": 500
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O00XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 1,
+      "valor_total": 520
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O00XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 1,
+      "valor_total": 560
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 2,
+      "valor_total": 610
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 2,
+      "valor_total": 650
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 2,
+      "valor_total": 730
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 720
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 780
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 900
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 830
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 910
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1070
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 940
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1040
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1240
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 6,
+      "valor_total": 1050
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 6,
+      "valor_total": 1170
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 6,
+      "valor_total": 1410
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O00XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 1,
+      "valor_total": 550
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O00XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 1,
+      "valor_total": 570
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O00XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 1,
+      "valor_total": 610
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 2,
+      "valor_total": 660
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 2,
+      "valor_total": 700
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 2,
+      "valor_total": 780
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 770
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 830
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 950
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 880
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 960
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1120
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1090
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1290
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 6,
+      "valor_total": 1100
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 6,
+      "valor_total": 1220
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 6,
+      "valor_total": 1460
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O00XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 1,
+      "valor_total": 660
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O00XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 1,
+      "valor_total": 680
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O00XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 1,
+      "valor_total": 720
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 2,
+      "valor_total": 770
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 2,
+      "valor_total": 810
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 2,
+      "valor_total": 890
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 880
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 940
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 1060
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 1070
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1230
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 1100
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1200
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1400
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 6,
+      "valor_total": 1210
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 6,
+      "valor_total": 1330
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 6,
+      "valor_total": 1570
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O00XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 1,
+      "valor_total": 840
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O00XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 1,
+      "valor_total": 860
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O00XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 1,
+      "valor_total": 900
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 2,
+      "valor_total": 950
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 2,
+      "valor_total": 990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 2,
+      "valor_total": 1070
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 1060
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 1120
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 1240
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 1170
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 1250
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1410
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 1280
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1380
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1580
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 6,
+      "valor_total": 1390
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 6,
+      "valor_total": 1510
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 6,
+      "valor_total": 1750
+    }
+  ],
+  "OBRA QUINZENAL": [
+    {
+      "nome_equipamento": "PACOTE QUINZENAL",
+      "valor_produto": 0,
+      "valor_manutencao": 0,
+      "qtd_manutencao": 0,
+      "valor_total": 0
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 720
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 780
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 900
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 940
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1040
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1240
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 7,
+      "valor_total": 1160
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 7,
+      "valor_total": 1300
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 7,
+      "valor_total": 1580
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 9,
+      "valor_total": 1380
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 9,
+      "valor_total": 1560
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 9,
+      "valor_total": 1920
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 11,
+      "valor_total": 1600
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 11,
+      "valor_total": 1820
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 11,
+      "valor_total": 2260
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 770
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 830
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 950
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1090
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1290
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 7,
+      "valor_total": 1210
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 7,
+      "valor_total": 1350
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 7,
+      "valor_total": 1630
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 9,
+      "valor_total": 1430
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 9,
+      "valor_total": 1610
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 9,
+      "valor_total": 1970
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 11,
+      "valor_total": 1650
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 11,
+      "valor_total": 1870
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 11,
+      "valor_total": 2310
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 880
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 940
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 1060
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 1100
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1200
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1400
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 7,
+      "valor_total": 1320
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 7,
+      "valor_total": 1460
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 7,
+      "valor_total": 1740
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 9,
+      "valor_total": 1540
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 9,
+      "valor_total": 1720
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 9,
+      "valor_total": 2080
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 11,
+      "valor_total": 1760
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 11,
+      "valor_total": 1980
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 11,
+      "valor_total": 2420
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 3,
+      "valor_total": 1060
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 3,
+      "valor_total": 1120
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 3,
+      "valor_total": 1240
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 5,
+      "valor_total": 1280
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 5,
+      "valor_total": 1380
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 5,
+      "valor_total": 1580
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 7,
+      "valor_total": 1500
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 7,
+      "valor_total": 1640
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 7,
+      "valor_total": 1920
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 9,
+      "valor_total": 1720
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 9,
+      "valor_total": 1900
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 9,
+      "valor_total": 2260
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 11,
+      "valor_total": 1940
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 11,
+      "valor_total": 2160
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 11,
+      "valor_total": 2600
+    }
+  ],
+  "OBRA MENSAL": [
+    {
+      "nome_equipamento": "PACOTE MENSAL",
+      "valor_produto": 0,
+      "valor_manutencao": 0,
+      "qtd_manutencao": 0,
+      "valor_total": 0
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 830
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 910
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O01XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1070
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 8,
+      "valor_total": 1270
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 8,
+      "valor_total": 1430
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O02XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 8,
+      "valor_total": 1750
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 12,
+      "valor_total": 1710
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 12,
+      "valor_total": 1950
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O03XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 12,
+      "valor_total": 2430
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 16,
+      "valor_total": 2150
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 16,
+      "valor_total": 2470
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O04XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 16,
+      "valor_total": 3110
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZC",
+      "valor_produto": 390,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 20,
+      "valor_total": 2590
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZA",
+      "valor_produto": 390,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 20,
+      "valor_total": 2990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO STANDARD O05XZV",
+      "valor_produto": 390,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 20,
+      "valor_total": 3790
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 880
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 960
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O01XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1120
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 8,
+      "valor_total": 1320
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 8,
+      "valor_total": 1480
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O02XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 8,
+      "valor_total": 1800
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 12,
+      "valor_total": 1760
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 12,
+      "valor_total": 2000
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O03XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 12,
+      "valor_total": 2480
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 16,
+      "valor_total": 2200
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 16,
+      "valor_total": 2520
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O04XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 16,
+      "valor_total": 3160
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZC",
+      "valor_produto": 440,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 20,
+      "valor_total": 2640
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZA",
+      "valor_produto": 440,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 20,
+      "valor_total": 3040
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO LUXO O05XZV",
+      "valor_produto": 440,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 20,
+      "valor_total": 3840
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 990
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 1070
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O01XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1230
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 8,
+      "valor_total": 1430
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 8,
+      "valor_total": 1590
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O02XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 8,
+      "valor_total": 1910
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 12,
+      "valor_total": 1870
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 12,
+      "valor_total": 2110
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O03XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 12,
+      "valor_total": 2590
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 16,
+      "valor_total": 2310
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 16,
+      "valor_total": 2630
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O04XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 16,
+      "valor_total": 3270
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZC",
+      "valor_produto": 550,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 20,
+      "valor_total": 2750
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZA",
+      "valor_produto": 550,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 20,
+      "valor_total": 3150
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO EXTRA LUXO O05XZV",
+      "valor_produto": 550,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 20,
+      "valor_total": 3950
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 4,
+      "valor_total": 1170
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 4,
+      "valor_total": 1250
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O01XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 4,
+      "valor_total": 1410
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 8,
+      "valor_total": 1610
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 8,
+      "valor_total": 1770
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O02XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 8,
+      "valor_total": 2090
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 12,
+      "valor_total": 2050
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 12,
+      "valor_total": 2290
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O03XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 12,
+      "valor_total": 2770
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 16,
+      "valor_total": 2490
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 16,
+      "valor_total": 2810
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O04XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 16,
+      "valor_total": 3450
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZC",
+      "valor_produto": 730,
+      "valor_manutencao": 110,
+      "qtd_manutencao": 20,
+      "valor_total": 2930
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZA",
+      "valor_produto": 730,
+      "valor_manutencao": 130,
+      "qtd_manutencao": 20,
+      "valor_total": 3330
+    },
+    {
+      "nome_equipamento": "BANHEIRO QUÍMICO PCD O05XZV",
+      "valor_produto": 730,
+      "valor_manutencao": 170,
+      "qtd_manutencao": 20,
+      "valor_total": 4130
+    }
+  ]
+};
+
+const TIPOS_PROPOSTA_PADRAO_PRECOS = [
+  { tipo: 'EVENTO', contrato: 'Locação Evento' },
+  { tipo: 'OBRA MENSAL', contrato: 'Locação Obra Mensal' },
+  { tipo: 'OBRA QUINZENAL', contrato: 'Locação Obra Quinzenal' },
+  { tipo: 'OBRA SEMANAL', contrato: 'Locação Obra Semanal' },
+  { tipo: 'LIMPA FOSSA', contrato: 'Prestação de Serviços Limpa Fossa' },
+  { tipo: 'LIMPA FOSSA MENSAL', contrato: 'Locação / Limpa Fossa Mensal' },
+  { tipo: 'LOCAÇÃO CONTAINER', contrato: 'Locação de Container' },
+  { tipo: 'VENDA', contrato: 'Contrato de Venda' },
+  { tipo: 'VISITA TÉCNICA', contrato: 'Termo de Visita Técnica' },
+  { tipo: 'ADITIVO', contrato: 'Termo Aditivo de Contrato' },
+  { tipo: 'EQUIPAMENTOS', contrato: 'Locação de Equipamentos' }
+];
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS comercial_tabelas_preco_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo_proposta TEXT UNIQUE,
+    tipo_contrato TEXT,
+    arquivo_nome TEXT,
+    r2_key TEXT,
+    atualizado_por TEXT,
+    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS comercial_tabelas_preco_itens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo_proposta TEXT,
+    equipamento_id INTEGER,
+    codigo_equipamento TEXT,
+    nome_equipamento TEXT,
+    valor_produto REAL DEFAULT 0,
+    valor_manutencao REAL DEFAULT 0,
+    qtd_manutencao INTEGER DEFAULT 0,
+    valor_total REAL DEFAULT 0,
+    atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+  )`);
+
+  // Garantir configurações iniciais para todos os tipos de proposta
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  TIPOS_PROPOSTA_PADRAO_PRECOS.forEach(tp => {
+    const arqDefault = SEED_TABELAS_PRECO_2026[tp.tipo] ? '01. Tabela de Preços_2026 1.xlsx' : '';
+    db.run(
+      `INSERT OR IGNORE INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em)
+       VALUES (?, ?, ?, NULL, 'Sistema', ?)`,
+      [tp.tipo, tp.contrato, arqDefault, agora]
+    );
+  });
+
+  // Sincronizar equipamentos da planilha 2026 na tabela estoque_equipamentos e popular comercial_tabelas_preco_itens se vazio
+  db.get('SELECT COUNT(*) as cnt FROM comercial_tabelas_preco_itens', [], (errCnt, rowCnt) => {
+    if (errCnt || (rowCnt && rowCnt.cnt > 0)) return;
+
+    db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
+      if (errEq) return;
+      const mapEqByName = new Map();
+      let maxCod = 0;
+      (eqRows || []).forEach(r => {
+        if (r.nome) mapEqByName.set(String(r.nome).trim().toUpperCase(), r);
+        const m = String(r.codigo || '').match(/(\d+)/);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (n > maxCod) maxCod = n;
+        }
+      });
+
+      const todosNomesUnicos = new Set();
+      Object.values(SEED_TABELAS_PRECO_2026).forEach(lista => {
+        lista.forEach(it => todosNomesUnicos.add(String(it.nome_equipamento).trim()));
+      });
+
+      const nomesArray = Array.from(todosNomesUnicos);
+      const ensureNextEquipamento = (idx, doneCb) => {
+        if (idx >= nomesArray.length) return doneCb();
+        const nomeOriginal = nomesArray[idx];
+        const nomeKey = nomeOriginal.toUpperCase();
+        if (mapEqByName.has(nomeKey)) {
+          return ensureNextEquipamento(idx + 1, doneCb);
+        }
+        maxCod++;
+        const novoCodigo = String(maxCod).padStart(5, '0');
+        const grupo = nomeKey.includes('PCD') ? 'PCD' : (nomeKey.includes('LUXO') ? 'VIP' : 'ESTRUTURAS');
+        db.run(
+          `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
+           VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', 'Sistema', ?, ?)`,
+          [novoCodigo, nomeOriginal, grupo, agora, agora],
+          function(errIns) {
+            if (!errIns && this.lastID) {
+              mapEqByName.set(nomeKey, { id: this.lastID, codigo: novoCodigo, nome: nomeOriginal });
+            }
+            ensureNextEquipamento(idx + 1, doneCb);
+          }
+        );
+      };
+
+      ensureNextEquipamento(0, () => {
+        const stmtItem = db.prepare(`INSERT INTO comercial_tabelas_preco_itens (
+          tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
+          valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+        Object.entries(SEED_TABELAS_PRECO_2026).forEach(([tipoProp, itens]) => {
+          itens.forEach(it => {
+            const eq = mapEqByName.get(String(it.nome_equipamento).trim().toUpperCase());
+            stmtItem.run([
+              tipoProp,
+              eq ? eq.id : null,
+              eq ? eq.codigo : '',
+              String(it.nome_equipamento).trim(),
+              it.valor_produto || 0,
+              it.valor_manutencao || 0,
+              it.qtd_manutencao || 0,
+              it.valor_total || 0,
+              agora
+            ]);
+          });
+        });
+        stmtItem.finalize();
+        console.log('[COMERCIAL] Tabelas de Preços 2026 (OBRA MENSAL, OBRA QUINZENAL, OBRA SEMANAL) carregadas com sucesso.');
+      });
+    });
+  });
+});
+
+// GET /api/comercial/tabelas-preco - Retorna todas as configurações e itens vinculados aos equipamentos
+app.get('/api/comercial/tabelas-preco', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_tabelas_preco_config ORDER BY id ASC', [], (errCfg, configs) => {
+    if (errCfg) return res.status(500).json({ error: errCfg.message });
+    db.all(
+      `SELECT i.*, COALESCE(e.codigo, i.codigo_equipamento) as codigo_atual, COALESCE(e.id, i.equipamento_id) as eq_id_atual
+       FROM comercial_tabelas_preco_itens i
+       LEFT JOIN estoque_equipamentos e ON (e.id = i.equipamento_id OR UPPER(TRIM(e.nome)) = UPPER(TRIM(i.nome_equipamento)))
+       ORDER BY i.id ASC`,
+      [],
+      (errIt, itens) => {
+        if (errIt) return res.status(500).json({ error: errIt.message });
+        res.json({
+          configs: configs || [],
+          itens: (itens || []).map(x => ({
+            ...x,
+            equipamento_id: x.eq_id_atual || x.equipamento_id,
+            codigo_equipamento: x.codigo_atual || x.codigo_equipamento || ''
+          }))
+        });
+      }
+    );
+  });
+});
+
+// PUT /api/comercial/tabelas-preco/config - Editar tipo de contrato vinculado à tabela de preço
+app.put('/api/comercial/tabelas-preco/config', authenticateToken, (req, res) => {
+  const { tipo_proposta, tipo_contrato } = req.body || {};
+  if (!tipo_proposta) return res.status(400).json({ error: 'Tipo de proposta é obrigatório.' });
+  const usuario = req.user?.nome || req.user?.username || 'Sistema';
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+  db.get('SELECT id FROM comercial_tabelas_preco_config WHERE tipo_proposta = ?', [tipo_proposta], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (row) {
+      db.run(
+        'UPDATE comercial_tabelas_preco_config SET tipo_contrato = ?, atualizado_por = ?, atualizado_em = ? WHERE id = ?',
+        [tipo_contrato || '', usuario, agora, row.id],
+        function(errUpd) {
+          if (errUpd) return res.status(500).json({ error: errUpd.message });
+          res.json({ success: true });
+        }
+      );
+    } else {
+      db.run(
+        'INSERT INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em) VALUES (?, ?, "", NULL, ?, ?)',
+        [tipo_proposta, tipo_contrato || '', usuario, agora],
+        function(errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          res.json({ success: true, id: this.lastID });
+        }
+      );
+    }
+  });
+});
+
+// POST /api/comercial/tabelas-preco/upload - Upload de planilha Excel (.xlsx) para um tipo de proposta
+app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportEquipamentos.single('arquivo'), async (req, res) => {
+  try {
+    const tipoProposta = String(req.body?.tipo_proposta || '').trim().toUpperCase();
+    if (!tipoProposta) return res.status(400).json({ error: 'Informe o tipo de proposta.' });
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Selecione um arquivo Excel (.xlsx) válido.' });
+
+    const usuario = req.user?.nome || req.user?.username || 'Sistema';
+    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+    const XLSX = require('xlsx');
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+
+    // Escolhe a aba correspondente ao tipo de proposta (se houver várias abas) ou a primeira aba
+    let targetSheetName = workbook.SheetNames[0];
+    const mapAlias = {
+      'OBRA MENSAL': ['PACOTE MENSAL', 'OBRA MENSAL', 'MENSAL'],
+      'OBRA QUINZENAL': ['PACOTE QUINZENAL', 'OBRA QUINZENAL', 'QUINZENAL'],
+      'OBRA SEMANAL': ['PACOTE SEMANAL', 'OBRA SEMANAL', 'SEMANAL']
+    };
+    const candidatosAba = mapAlias[tipoProposta] || [tipoProposta];
+    for (const sName of workbook.SheetNames) {
+      const sUpper = sName.trim().toUpperCase();
+      if (candidatosAba.some(c => sUpper === c || sUpper.includes(c))) {
+        targetSheetName = sName;
+        break;
+      }
+    }
+
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheetName], { header: 1, defval: '' });
+    if (!rows || rows.length < 2) {
+      return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
+    }
+
+    // Upload para Cloudflare R2 seguindo a regra obrigatória de armazenamento R2
+    let r2KeySaved = null;
+    try {
+      const r2 = require('./utils/r2');
+      if (r2.isReady()) {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const safeTipo = tipoProposta.replace(/[^A-Z0-9_-]/g, '_');
+        const r2Key = `Comercial/TabelasPreco/${yyyy}/${mm}/${Date.now()}_${safeTipo}.xlsx`;
+        await r2.uploadToR2(r2Key, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        r2KeySaved = r2Key;
+      } else {
+        console.warn('[R2] Storage não configurado — planilha processada no banco SQLite.');
+      }
+    } catch (eR2) {
+      console.warn('[R2] Falha ao enviar planilha de preços ao R2:', eR2.message);
+    }
+
+    // Ler linhas da aba
+    const header = (rows[0] || []).map(h => String(h || '').trim().toUpperCase());
+    const parsedItems = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.some(x => x !== '')) continue;
+      // Suporta formato [Nome, ValorProduto, ValorManutencao, QtdManutencao, CustoTotal] ou [Codigo, Nome, Valor]
+      let nome = String(r[0] || '').trim();
+      let valProd = parseFloat(String(r[1] ?? '0').replace(',', '.')) || 0;
+      let valManut = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
+      let qtdManut = parseInt(String(r[3] ?? '0'), 10) || 0;
+      let valTotal = parseFloat(String(r[4] ?? '0').replace(',', '.')) || 0;
+
+      if (header[0] && (header[0].includes('COD') || header[0].includes('CÓD')) && r[1]) {
+        nome = String(r[1] || '').trim();
+        valProd = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
+        valTotal = parseFloat(String(r[5] ?? r[2] ?? '0').replace(',', '.')) || valProd;
+      } else if (!valTotal && valProd > 0 && r.length <= 3) {
+        valTotal = valProd;
+      }
+      if (!nome) continue;
+      parsedItems.push({
+        nome_equipamento: nome,
+        valor_produto: valProd,
+        valor_manutencao: valManut,
+        qtd_manutencao: qtdManut,
+        valor_total: valTotal
+      });
+    }
+
+    if (parsedItems.length === 0) {
+      return res.status(400).json({ error: 'Nenhum produto válido encontrado na planilha.' });
+    }
+
+    // Sincronizar equipamentos com estoque_equipamentos e atualizar comercial_tabelas_preco_itens
+    db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
+      if (errEq) return res.status(500).json({ error: errEq.message });
+      const mapEq = new Map();
+      let maxCod = 0;
+      (eqRows || []).forEach(e => {
+        if (e.nome) mapEq.set(String(e.nome).trim().toUpperCase(), e);
+        const m = String(e.codigo || '').match(/(\d+)/);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (n > maxCod) maxCod = n;
+        }
+      });
+
+      const syncEquip = (idx, cb) => {
+        if (idx >= parsedItems.length) return cb();
+        const it = parsedItems[idx];
+        const key = it.nome_equipamento.toUpperCase();
+        if (mapEq.has(key)) return syncEquip(idx + 1, cb);
+        maxCod++;
+        const novoCod = String(maxCod).padStart(5, '0');
+        const grupo = key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS');
+        db.run(
+          `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
+           VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', ?, ?, ?)`,
+          [novoCod, it.nome_equipamento, grupo, usuario, agora, agora],
+          function(errIns) {
+            if (!errIns && this.lastID) {
+              mapEq.set(key, { id: this.lastID, codigo: novoCod, nome: it.nome_equipamento });
+            }
+            syncEquip(idx + 1, cb);
+          }
+        );
+      };
+
+      syncEquip(0, () => {
+        db.run('DELETE FROM comercial_tabelas_preco_itens WHERE tipo_proposta = ?', [tipoProposta], (errDel) => {
+          if (errDel) return res.status(500).json({ error: errDel.message });
+          const stmt = db.prepare(`INSERT INTO comercial_tabelas_preco_itens (
+            tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
+            valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+          parsedItems.forEach(it => {
+            const eq = mapEq.get(it.nome_equipamento.toUpperCase());
+            stmt.run([
+              tipoProposta,
+              eq ? eq.id : null,
+              eq ? eq.codigo : '',
+              it.nome_equipamento,
+              it.valor_produto,
+              it.valor_manutencao,
+              it.qtd_manutencao,
+              it.valor_total,
+              agora
+            ]);
+          });
+          stmt.finalize(() => {
+            db.get('SELECT id, r2_key FROM comercial_tabelas_preco_config WHERE tipo_proposta = ?', [tipoProposta], async (errC, rowC) => {
+              if (rowC) {
+                if (rowC.r2_key && r2KeySaved) {
+                  try {
+                    const r2 = require('./utils/r2');
+                    if (r2.isReady()) await r2.deleteFromR2(rowC.r2_key);
+                  } catch (e) {}
+                }
+                db.run(
+                  'UPDATE comercial_tabelas_preco_config SET arquivo_nome = ?, r2_key = COALESCE(?, r2_key), atualizado_por = ?, atualizado_em = ? WHERE id = ?',
+                  [req.file.originalname, r2KeySaved, usuario, agora, rowC.id],
+                  () => res.json({ success: true, total_importados: parsedItems.length, sheet: targetSheetName })
+                );
+              } else {
+                db.run(
+                  'INSERT INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em) VALUES (?, "", ?, ?, ?, ?)',
+                  [tipoProposta, req.file.originalname, r2KeySaved, usuario, agora],
+                  () => res.json({ success: true, total_importados: parsedItems.length, sheet: targetSheetName })
+                );
+              }
+            });
+          });
+        });
+      });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/comercial/tabelas-preco/item/:id - Atualizar valores de um item da tabela de preços
+app.put('/api/comercial/tabelas-preco/item/:id', authenticateToken, (req, res) => {
+  const { valor_produto, valor_manutencao, qtd_manutencao, valor_total } = req.body || {};
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(
+    `UPDATE comercial_tabelas_preco_itens SET
+      valor_produto = ?, valor_manutencao = ?, qtd_manutencao = ?, valor_total = ?, atualizado_em = ?
+     WHERE id = ?`,
+    [
+      parseFloat(valor_produto) || 0,
+      parseFloat(valor_manutencao) || 0,
+      parseInt(qtd_manutencao, 10) || 0,
+      parseFloat(valor_total) || 0,
+      agora,
+      req.params.id
+    ],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// POST /api/comercial/tabelas-preco/item - Adicionar equipamento manualmente à tabela de preços
+app.post('/api/comercial/tabelas-preco/item', authenticateToken, (req, res) => {
+  const { tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento, valor_produto, valor_manutencao, qtd_manutencao, valor_total } = req.body || {};
+  if (!tipo_proposta || !nome_equipamento) return res.status(400).json({ error: 'Tipo de proposta e equipamento são obrigatórios.' });
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  db.run(
+    `INSERT INTO comercial_tabelas_preco_itens (
+      tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
+      valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      tipo_proposta,
+      equipamento_id || null,
+      codigo_equipamento || '',
+      nome_equipamento,
+      parseFloat(valor_produto) || 0,
+      parseFloat(valor_manutencao) || 0,
+      parseInt(qtd_manutencao, 10) || 0,
+      parseFloat(valor_total) || 0,
+      agora
+    ],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, id: this.lastID });
+    }
+  );
+});
+
+// DELETE /api/comercial/tabelas-preco/item/:id - Remover item da tabela de preços
+app.delete('/api/comercial/tabelas-preco/item/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_tabelas_preco_itens WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+
 
 
 

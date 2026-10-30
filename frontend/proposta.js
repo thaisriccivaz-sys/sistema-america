@@ -166,6 +166,12 @@ async function carregarPropostas() {
     if (typeof window._carregarServicosPrecificadosList === 'function') {
         await window._carregarServicosPrecificadosList();
     }
+    try {
+        window._comercialTabelasPrecoData = await apiGet('/comercial/tabelas-preco') || { configs: [], itens: [] };
+    } catch (e) {
+        console.error('[TABELAS PRECO] Erro ao carregar:', e);
+        window._comercialTabelasPrecoData = { configs: [], itens: [] };
+    }
 }
 
 /* ── Render da tela principal ───────────────────────────────────────── */
@@ -940,6 +946,9 @@ function renderTelaPropostas() {
             <!-- VIEW: MODELOS PROPOSTAS -->
             <div id="prop-view-modelos-propostas" style="display:${_currentPropostaTab === 'modelos-propostas' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: TABELA DE PREÇOS -->
+            <div id="prop-view-tabela-precos" style="display:${_currentPropostaTab === 'tabela-precos' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -957,6 +966,8 @@ function renderTelaPropostas() {
         _renderModelosContratoInt();
     } else if (_currentPropostaTab === 'modelos-propostas') {
         _renderModelosPropostasInt();
+    } else if (_currentPropostaTab === 'tabela-precos') {
+        window._renderTabelaPrecosInt();
     }
 
     setTimeout(() => {
@@ -1004,6 +1015,7 @@ window.switchPropostaTab = function(tab) {
     const viewServicosPrecificacao = document.getElementById('prop-view-servicos-precificacao');
     const viewModelosContrato = document.getElementById('prop-view-modelos-contrato');
     const viewModelosPropostas = document.getElementById('prop-view-modelos-propostas');
+    const viewTabelaPrecos = document.getElementById('prop-view-tabela-precos');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
@@ -1013,7 +1025,7 @@ window.switchPropostaTab = function(tab) {
     const tabModelosContrato = document.getElementById('tab-prop-modelos-contrato');
     const tabModelosPropostas = document.getElementById('tab-prop-modelos-propostas');
 
-    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas;
+    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
     if (elementsExist) {
         if (tab === 'form' && viewForm.innerHTML.trim() === '') {
             _renderFormPropostaInt();
@@ -1040,6 +1052,9 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'modelos-propostas' && viewModelosPropostas.innerHTML.trim() === '') {
             _renderModelosPropostasInt();
         }
+        if (tab === 'tabela-precos' && viewTabelaPrecos.innerHTML.trim() === '') {
+            window._renderTabelaPrecosInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
@@ -1049,6 +1064,7 @@ window.switchPropostaTab = function(tab) {
         viewServicosPrecificacao.style.display = tab === 'servicos-precificacao' ? 'block' : 'none';
         viewModelosContrato.style.display = tab === 'modelos-contrato' ? 'block' : 'none';
         viewModelosPropostas.style.display = tab === 'modelos-propostas' ? 'block' : 'none';
+        viewTabelaPrecos.style.display = tab === 'tabela-precos' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
@@ -1885,7 +1901,7 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Tipo *</label>
                             <div style="display:flex; gap:0.4rem; align-items:center;">
-                                <select id="prop-tipo" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                <select id="prop-tipo" onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
                                     <option value="">-- Selecione --</option>
                                     ${PROP_TIPOS.map(t => `<option value="${t}" ${(v('tipo')===t || String(v('tipo')||'').replace(/^PROPOSTA\s+/i,'')===t)?'selected':''}>${t}</option>`).join('')}
                                 </select>
@@ -2112,23 +2128,29 @@ function _renderFormPropostaInt() {
                         </h4>
                         
                         <!-- Inputs para adicionar produto -->
-                        <div style="display:grid; grid-template-columns:1.5fr 3fr 1fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.6rem;">
+                        <div style="display:grid; grid-template-columns:2fr 2fr 0.8fr 1fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.6rem;">
                             <div>
-                                <label class="prop-lbl">Código do Produto</label>
+                                <label class="prop-lbl">Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
-                                    <input type="text" id="prop-prod-codigo" placeholder="Código" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
-                                    <button type="button" onclick="window.abrirModalBuscaProdutos()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Produto">
+                                    <input type="text" id="prop-prod-codigo" placeholder="Digite o código ou nome do produto..."
+                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaProdutoProposta(); }"
+                                        style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                    <button type="button" id="btn-pesq-produto-prop" onclick="window.pesquisarOuAbrirBuscaProdutoProposta()" style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Produto">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <label class="prop-lbl">Descrição</label>
-                                <input type="text" id="prop-prod-descricao" placeholder="Descrição do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                <label class="prop-lbl">Observação</label>
+                                <input type="text" id="prop-prod-descricao" placeholder="Observação do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
                                 <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Valor (R$)</label>
+                                <input type="number" id="prop-prod-valor" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
                             <div>
                                 <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
@@ -2142,15 +2164,18 @@ function _renderFormPropostaInt() {
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; width:120px; text-align:center;">Código</th>
-                                        <th style="padding:10px 12px; font-weight:700;">Descrição</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:100px; text-align:center;">Quantidade</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:80px; text-align:center;">Ações</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700;">Produto</th>
+                                        <th style="padding:10px 12px; font-weight:700;">Observação</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Unit.</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Total</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prop-produtos-tbody">
                                     <tr>
-                                        <td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                                        <td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -5078,17 +5103,23 @@ window.calcularValorTotalProposta = function() {
 
     if (!totalEl) return;
 
-    if (!servicoSelect || !servicoSelect.value) {
+    const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+        const q = parseFloat(p.quantidade) || 0;
+        const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+        return acc + (q * v);
+    }, 0);
+
+    if ((!servicoSelect || !servicoSelect.value) && somaProdutos <= 0) {
         totalEl.removeAttribute('readonly');
         totalEl.style.background = '#fff';
         return;
     }
 
-    totalEl.setAttribute('readonly', 'true');
-    totalEl.style.background = '#f1f5f9';
-
-    const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
-    const precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
+    let precoServico = 0;
+    if (servicoSelect && servicoSelect.value && servicoSelect.options[servicoSelect.selectedIndex]) {
+        precoServico = parseFloat(servicoSelect.options[servicoSelect.selectedIndex].getAttribute('data-preco') || 0);
+    }
+    precoServico += somaProdutos;
     const freteIda = parseFloat(freteIdaEl?.value || 0);
     const freteVolta = parseFloat(freteVoltaEl?.value || 0);
 
@@ -15553,192 +15584,344 @@ window.abrirModalPesquisaPropostas = async function() {
     }
 };
 
-/* ── Módulo de Produtos da Proposta (Equipamentos) ───────────────────────── */
-window.abrirModalBuscaProdutos = async function() {
-    Swal.fire({
-        title: 'Carregando equipamentos...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
+/* ── Módulo de Produtos da Proposta (Equipamentos) & Tabela de Preços ───────────────────────── */
+window._garantirTabelasPrecoCarregadas = async function(force = false) {
+    if (force || !window._comercialTabelasPrecoData || !Array.isArray(window._comercialTabelasPrecoData.itens)) {
+        try {
+            window._comercialTabelasPrecoData = await apiGet('/comercial/tabelas-preco') || { configs: [], itens: [] };
+        } catch (e) {
+            window._comercialTabelasPrecoData = { configs: [], itens: [] };
+        }
+    }
+    return window._comercialTabelasPrecoData;
+};
 
-    try {
-        const todosEquipamentos = await apiGet('/estoque-equipamentos') || [];
-        const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
-        Swal.close();
+window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCodeOrName) {
+    const tipo = String(tipoPropostaRaw || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (!tipo || !window._comercialTabelasPrecoData || !Array.isArray(window._comercialTabelasPrecoData.itens)) return null;
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-        const gruposUnicos = Array.from(new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        const fontesUnicas = Array.from(new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        const codigosUnicos = Array.from(new Set(produtos.map(p => String(p.codigo || p.id || '').trim()).filter(Boolean)));
-        const nomesUnicos = Array.from(new Set(produtos.map(p => String(p.nome || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    let codBusca = '';
+    let nomeBusca = '';
+    let idBusca = null;
+    if (prodObjOrCodeOrName && typeof prodObjOrCodeOrName === 'object') {
+        codBusca = norm(prodObjOrCodeOrName.codigo || prodObjOrCodeOrName.codigo_equipamento || '');
+        nomeBusca = norm(prodObjOrCodeOrName.nome || prodObjOrCodeOrName.produto || prodObjOrCodeOrName.descricao || '');
+        idBusca = prodObjOrCodeOrName.id || prodObjOrCodeOrName.equipamento_id || null;
+    } else {
+        const raw = String(prodObjOrCodeOrName || '').trim();
+        if (raw.includes(' - ')) {
+            const parts = raw.split(' - ');
+            codBusca = norm(parts[0]);
+            nomeBusca = norm(parts.slice(1).join(' - '));
+        } else {
+            codBusca = norm(raw);
+            nomeBusca = norm(raw);
+        }
+    }
 
-        const renderRows = (list) => {
-            if (list.length === 0) {
-                return `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado para os filtros selecionados.</td></tr>`;
-            }
-            return list.map(p => {
-                const codExib = String(p.codigo || p.id || '').replace(/'/g, "\\'");
-                const nomeExib = String(p.nome || '').replace(/'/g, "\\'");
-                return `
-                    <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || p.id}</td>
-                        <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.nome || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569;">${p.grupo_produto || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569; font-weight:600;">${p.fonte_fornecimento || '—'}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center;">${p.unidade_medida || '—'}</td>
-                    </tr>
-                `;
-            }).join('');
-        };
+    const itensDoTipo = window._comercialTabelasPrecoData.itens.filter(i => String(i.tipo_proposta || '').trim().toUpperCase() === tipo);
+    if (itensDoTipo.length === 0) return null;
 
-        Swal.fire({
-            title: '',
-            html: `
-                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
-                    <!-- Header -->
-                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-magnifying-glass" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Equipamentos
-                        </div>
-                    </div>
-                    
-                    <!-- Body/Filters -->
-                    <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
-                        <div style="display:grid; grid-template-columns: 0.9fr 1.6fr 1.2fr 1.2fr; gap:0.65rem;">
-                            <div>
-                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
-                                <input type="text" id="modal-prod-search-codigo" list="datalist-prod-codigos" placeholder="Digite ou selecione..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
-                                <datalist id="datalist-prod-codigos">
-                                    ${codigosUnicos.map(c => `<option value="${_escHtmlProp(c)}"></option>`).join('')}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome / Descrição</label>
-                                <input type="text" id="modal-prod-search-descricao" list="datalist-prod-nomes" placeholder="Digite ou selecione o nome..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
-                                <datalist id="datalist-prod-nomes">
-                                    ${nomesUnicos.map(n => `<option value="${_escHtmlProp(n)}"></option>`).join('')}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
-                                <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
-                                    <option value="">Todos os Grupos</option>
-                                    ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
-                                <select id="modal-prod-search-fonte" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
-                                    <option value="">Todas as Fontes</option>
-                                    ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}">${_escHtmlProp(f)}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
+    let itemMatch = null;
+    if (idBusca) {
+        itemMatch = itensDoTipo.find(i => Number(i.equipamento_id) === Number(idBusca));
+    }
+    if (!itemMatch && codBusca) {
+        itemMatch = itensDoTipo.find(i => norm(i.codigo_equipamento) === codBusca);
+    }
+    if (!itemMatch && nomeBusca) {
+        itemMatch = itensDoTipo.find(i => norm(i.nome_equipamento) === nomeBusca);
+    }
+    return itemMatch ? (parseFloat(itemMatch.valor_total) || 0) : null;
+};
 
-                        <!-- GridView Container -->
-                        <div style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
-                                <thead>
-                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:85px;">Código</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Descrição</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:135px;">Grupo</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:155px;">Fonte de Fornecimento</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:115px;">Unid. Medida</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="modal-prod-tbody">
-                                    ${renderRows(produtos)}
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
-                            <span>Dica: Clique em um produto matriz para selecioná-lo.</span>
-                            <span id="modal-prod-count" style="font-weight:700; color:#475569;">Total: ${produtos.length} produto(s) matriz</span>
-                        </div>
-                    </div>
-                </div>
-            `,
-            showConfirmButton: false,
-            width: '880px',
-            customClass: {
-                popup: 'custom-swal-padding-zero'
-            },
-            didOpen: () => {
-                const inputCodigo = document.getElementById('modal-prod-search-codigo');
-                const inputDescricao = document.getElementById('modal-prod-search-descricao');
-                const selectGrupo = document.getElementById('modal-prod-search-grupo');
-                const selectFonte = document.getElementById('modal-prod-search-fonte');
-                const tbody = document.getElementById('modal-prod-tbody');
-                const countSpan = document.getElementById('modal-prod-count');
-
-                const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
-                const filterProds = () => {
-                    const codVal = normStr(inputCodigo?.value);
-                    const descVal = normStr(inputDescricao?.value);
-                    const grupoVal = normStr(selectGrupo?.value);
-                    const fonteVal = normStr(selectFonte?.value);
-
-                    const filtered = produtos.filter(p => {
-                        const codStr = normStr(p.codigo || p.id);
-                        const nomeStr = normStr(p.nome);
-                        const grupoStr = normStr(p.grupo_produto);
-                        const fonteStr = normStr(p.fonte_fornecimento);
-
-                        const matchCodigo = !codVal || codStr.includes(codVal);
-                        const matchDesc = !descVal || nomeStr.includes(descVal);
-                        const matchGrupo = !grupoVal || grupoStr === grupoVal;
-                        const matchFonte = !fonteVal || fonteStr === fonteVal;
-                        return matchCodigo && matchDesc && matchGrupo && matchFonte;
-                    });
-
-                    if (tbody) tbody.innerHTML = renderRows(filtered);
-                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} produto(s) matriz`;
-                };
-
-                [inputCodigo, inputDescricao].forEach(input => {
-                    input?.addEventListener('input', filterProds);
-                    input?.addEventListener('change', filterProds);
-                });
-                [selectGrupo, selectFonte].forEach(sel => {
-                    sel?.addEventListener('change', filterProds);
-                });
+window.onChangeTipoPropostaPrecos = async function(novoTipo) {
+    await window._garantirTabelasPrecoCarregadas(false);
+    const inputProd = document.getElementById('prop-prod-codigo');
+    const inputValor = document.getElementById('prop-prod-valor');
+    if (inputProd && inputProd.value.trim()) {
+        const codSel = inputProd.getAttribute('data-codigo') || '';
+        const nomeSel = inputProd.getAttribute('data-nome') || inputProd.value.trim();
+        const val = window.obterValorTabelaPorTipoEProduto(novoTipo, { codigo: codSel, nome: nomeSel });
+        if (val !== null && inputValor) {
+            inputValor.value = Number(val).toFixed(2);
+        }
+    }
+    if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0) {
+        let mudou = false;
+        window._propProdutosAdicionados.forEach(item => {
+            const valTab = window.obterValorTabelaPorTipoEProduto(novoTipo, {
+                codigo: item.codigo,
+                nome: item.produto || item.descricao
+            });
+            if (valTab !== null) {
+                item.valor = valTab;
+                mudou = true;
             }
         });
-
-        window.selecionarProdutoBusca = function(id, nome) {
-            const inputCodigo = document.getElementById('prop-prod-codigo');
-            const inputDescricao = document.getElementById('prop-prod-descricao');
-            if (inputCodigo) inputCodigo.value = id;
-            if (inputDescricao) inputDescricao.value = nome;
-            Swal.close();
-        };
-
-    } catch (e) {
-        Swal.close();
-        console.error(e);
-        Swal.fire('Erro', 'Houve uma falha ao buscar produtos.', 'error');
+        if (mudou) {
+            window.renderizarProdutosPropostaGrid();
+        }
     }
+};
+
+window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
+    const inputProd = document.getElementById('prop-prod-codigo');
+    const termo = (inputProd?.value || '').trim();
+    const btn = document.getElementById('btn-pesq-produto-prop');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>';
+        btn.disabled = true;
+    }
+
+    try {
+        const [todosEquipamentos] = await Promise.all([
+            apiGet('/estoque-equipamentos').catch(() => []),
+            window._garantirTabelasPrecoCarregadas(false)
+        ]);
+        const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
+        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+        if (termo) {
+            const qNorm = normStr(termo);
+            const matches = produtos.filter(p => {
+                const cod = normStr(p.codigo || p.id);
+                const nome = normStr(p.nome);
+                const combo = normStr(`${p.codigo || p.id} - ${p.nome || ''}`);
+                return cod === qNorm || cod.includes(qNorm) || nome.includes(qNorm) || combo.includes(qNorm);
+            });
+
+            if (matches.length === 1) {
+                const unico = matches[0];
+                const cod = String(unico.codigo || unico.id || '');
+                const nome = String(unico.nome || '');
+                const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+                const valSugerido = window.obterValorTabelaPorTipoEProduto(tipoAtual, unico);
+                window.selecionarProdutoBusca(cod, nome, valSugerido);
+                return;
+            }
+        }
+
+        await window.abrirModalBuscaProdutos(termo, produtos);
+    } finally {
+        if (btn) {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    }
+};
+
+window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCarregados = null) {
+    let produtos = produtosPreCarregados;
+    if (!produtos) {
+        Swal.fire({
+            title: 'Carregando equipamentos...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+        try {
+            const [todosEquipamentos] = await Promise.all([
+                apiGet('/estoque-equipamentos').catch(() => []),
+                window._garantirTabelasPrecoCarregadas(false)
+            ]);
+            produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
+            Swal.close();
+        } catch (e) {
+            Swal.close();
+            console.error(e);
+            Swal.fire('Erro', 'Houve uma falha ao buscar equipamentos.', 'error');
+            return;
+        }
+    }
+
+    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+    const gruposUnicos = Array.from(new Set(produtos.map(p => String(p.grupo_produto || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const fontesUnicas = Array.from(new Set(produtos.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+    const renderRows = (list) => {
+        if (list.length === 0) {
+            return `<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum equipamento encontrado para os filtros selecionados.</td></tr>`;
+        }
+        return list.map(p => {
+            const codExib = String(p.codigo || p.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const nomeExib = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const valTab = window.obterValorTabelaPorTipoEProduto(tipoAtual, p);
+            const valStr = valTab !== null ? `R$ ${Number(valTab).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+            const valParam = valTab !== null ? Number(valTab) : 'null';
+            return `
+                <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${_escHtmlProp(p.codigo || p.id)}</td>
+                    <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(p.nome || '—')}</td>
+                    <td style="padding:10px 12px; color:#475569;">${_escHtmlProp(p.grupo_produto || '—')}</td>
+                    <td style="padding:10px 12px; color:#475569; font-weight:600;">${_escHtmlProp(p.fonte_fornecimento || '—')}</td>
+                    <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${valStr}</td>
+                    <td style="padding:10px 12px; color:#475569; text-align:center;">${_escHtmlProp(p.unidade_medida || '—')}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const safeTermo = String(termoInicial || '').replace(/"/g, '&quot;');
+
+    Swal.fire({
+        title: '',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-magnifying-glass" style="color:#16a34a; font-size:1.3rem;"></i> Pesquisar Equipamentos ${tipoAtual ? `<span style="font-size:0.78rem; background:#ede9fe; color:#6d28d9; padding:2px 8px; border-radius:999px; margin-left:6px;">Tabela: ${_escHtmlProp(tipoAtual)}</span>` : ''}
+                    </div>
+                </div>
+                
+                <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:grid; grid-template-columns: 2fr 1.2fr 1.2fr; gap:0.65rem;">
+                        <div>
+                            <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Produto (Código ou Nome)</label>
+                            <input type="text" id="modal-prod-search-termo" value="${safeTermo}" placeholder="Digite o código ou nome do equipamento..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
+                            <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
+                                <option value="">Todos os Grupos</option>
+                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
+                            <select id="modal-prod-search-fonte" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
+                                <option value="">Todas as Fontes</option>
+                                ${fontesUnicas.map(f => `<option value="${_escHtmlProp(f)}">${_escHtmlProp(f)}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="max-height:320px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:85px;">Código</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Equipamento</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:120px;">Grupo</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:145px;">Fonte</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:right; width:115px;">Valor Tabela</th>
+                                    <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px;">Unid.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-prod-tbody"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Dica: Clique em um equipamento para selecioná-lo e preencher o valor automaticamente.</span>
+                        <span id="modal-prod-count" style="font-weight:700; color:#475569;"></span>
+                    </div>
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        width: '940px',
+        customClass: {
+            popup: 'custom-swal-padding-zero'
+        },
+        didOpen: () => {
+            const inputTermo = document.getElementById('modal-prod-search-termo');
+            const selectGrupo = document.getElementById('modal-prod-search-grupo');
+            const selectFonte = document.getElementById('modal-prod-search-fonte');
+            const tbody = document.getElementById('modal-prod-tbody');
+            const countSpan = document.getElementById('modal-prod-count');
+
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+            const filterProds = () => {
+                const qVal = normStr(inputTermo?.value);
+                const grupoVal = normStr(selectGrupo?.value);
+                const fonteVal = normStr(selectFonte?.value);
+
+                const filtered = produtos.filter(p => {
+                    const codStr = normStr(p.codigo || p.id);
+                    const nomeStr = normStr(p.nome);
+                    const grupoStr = normStr(p.grupo_produto);
+                    const fonteStr = normStr(p.fonte_fornecimento);
+
+                    const matchTermo = !qVal || codStr.includes(qVal) || nomeStr.includes(qVal);
+                    const matchGrupo = !grupoVal || grupoStr === grupoVal;
+                    const matchFonte = !fonteVal || fonteStr === fonteVal;
+                    return matchTermo && matchGrupo && matchFonte;
+                });
+
+                if (tbody) tbody.innerHTML = renderRows(filtered);
+                if (countSpan) countSpan.textContent = `Total: ${filtered.length} equipamento(s)`;
+            };
+
+            filterProds();
+            inputTermo?.addEventListener('input', filterProds);
+            inputTermo?.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    const firstRow = document.querySelector('#modal-prod-tbody tr[onclick]');
+                    if (firstRow) firstRow.click();
+                }
+            });
+            [selectGrupo, selectFonte].forEach(sel => sel?.addEventListener('change', filterProds));
+            setTimeout(() => inputTermo?.focus(), 40);
+        }
+    });
+};
+
+window.selecionarProdutoBusca = function(cod, nome, valorSugerido = null) {
+    const inputCodigo = document.getElementById('prop-prod-codigo');
+    const inputValor = document.getElementById('prop-prod-valor');
+    if (inputCodigo) {
+        inputCodigo.value = cod ? `${cod} - ${nome}` : nome;
+        inputCodigo.setAttribute('data-codigo', cod || '');
+        inputCodigo.setAttribute('data-nome', nome || '');
+    }
+    const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+    const valFinal = (valorSugerido !== null && valorSugerido !== undefined)
+        ? valorSugerido
+        : window.obterValorTabelaPorTipoEProduto(tipoAtual, { codigo: cod, nome: nome });
+    if (inputValor) {
+        inputValor.value = valFinal !== null && valFinal !== undefined ? Number(valFinal).toFixed(2) : '';
+    }
+    Swal.close();
 };
 
 window.adicionarProdutoProposta = function() {
     const inputCodigo = document.getElementById('prop-prod-codigo');
-    const inputDescricao = document.getElementById('prop-prod-descricao');
+    const inputObservacao = document.getElementById('prop-prod-descricao');
     const inputQuantidade = document.getElementById('prop-prod-quantidade');
+    const inputValor = document.getElementById('prop-prod-valor');
 
-    const codigo = inputCodigo?.value?.trim() || '';
-    const descricao = inputDescricao?.value?.trim() || '';
-    const quantidade = parseInt(inputQuantidade?.value) || 0;
-
-    if (!codigo) {
-        alert('Por favor, informe ou selecione o código do produto.');
+    const rawProd = inputCodigo?.value?.trim() || '';
+    if (!rawProd) {
+        alert('Por favor, informe ou selecione o produto.');
         return;
     }
-    if (!descricao) {
-        alert('Por favor, informe a descrição do produto.');
-        return;
+
+    let codigo = inputCodigo?.getAttribute('data-codigo') || '';
+    let produtoNome = inputCodigo?.getAttribute('data-nome') || '';
+    if (!produtoNome || !rawProd.includes(produtoNome)) {
+        if (rawProd.includes(' - ')) {
+            const pts = rawProd.split(' - ');
+            codigo = pts[0].trim();
+            produtoNome = pts.slice(1).join(' - ').trim();
+        } else {
+            codigo = rawProd;
+            produtoNome = rawProd;
+        }
     }
+
+    const observacao = inputObservacao?.value?.trim() || '';
+    const quantidade = parseInt(inputQuantidade?.value, 10) || 0;
+    let valor = parseFloat(inputValor?.value);
+    if (isNaN(valor)) {
+        const tipoAtual = document.getElementById('prop-tipo')?.value || '';
+        const vTab = window.obterValorTabelaPorTipoEProduto(tipoAtual, { codigo, nome: produtoNome });
+        valor = vTab !== null ? vTab : 0;
+    }
+
     if (quantidade <= 0) {
         alert('A quantidade deve ser maior que zero.');
         return;
@@ -15748,19 +15931,36 @@ window.adicionarProdutoProposta = function() {
         window._propProdutosAdicionados = [];
     }
 
-    // Check if product with same code is already added
-    const index = window._propProdutosAdicionados.findIndex(p => p.codigo === codigo);
-    if (index !== -1) {
-        window._propProdutosAdicionados[index].quantidade += quantidade;
-    } else {
-        window._propProdutosAdicionados.push({ codigo, descricao, quantidade });
+    window._propProdutosAdicionados.push({
+        codigo: codigo || '—',
+        produto: produtoNome,
+        descricao: produtoNome,
+        observacao: observacao,
+        quantidade: quantidade,
+        valor: valor
+    });
+
+    if (inputCodigo) {
+        inputCodigo.value = '';
+        inputCodigo.removeAttribute('data-codigo');
+        inputCodigo.removeAttribute('data-nome');
     }
-
-    // Reset inputs
-    if (inputCodigo) inputCodigo.value = '';
-    if (inputDescricao) inputDescricao.value = '';
+    if (inputObservacao) inputObservacao.value = '';
     if (inputQuantidade) inputQuantidade.value = '1';
+    if (inputValor) inputValor.value = '';
 
+    window.renderizarProdutosPropostaGrid();
+};
+
+window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
+    if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
+    if (campo === 'quantidade') {
+        window._propProdutosAdicionados[idx].quantidade = Math.max(1, parseInt(valorNovo, 10) || 1);
+    } else if (campo === 'valor') {
+        window._propProdutosAdicionados[idx].valor = parseFloat(valorNovo) || 0;
+    } else if (campo === 'observacao') {
+        window._propProdutosAdicionados[idx].observacao = String(valorNovo || '');
+    }
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -15779,24 +15979,372 @@ window.renderizarProdutosPropostaGrid = function() {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                <td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
             </tr>
         `;
+        if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
         return;
     }
 
-    tbody.innerHTML = list.map((p, idx) => `
-        <tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:10px 12px; font-weight:700; color:#7048e8; text-align:center;">${p.codigo}</td>
-            <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.descricao}</td>
-            <td style="padding:10px 12px; font-weight:700; color:#475569; text-align:center;">${p.quantidade}</td>
-            <td style="padding:10px 12px; text-align:center;">
-                <button type="button" onclick="window.removerProdutoProposta(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover Produto">
-                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = list.map((p, idx) => {
+        const nomeProd = p.produto || p.descricao || '';
+        const obsProd = p.observacao !== undefined ? p.observacao : '';
+        const qtd = parseInt(p.quantidade, 10) || 1;
+        const vUnit = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+        const subtotal = qtd * vUnit;
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:8px 10px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(p.codigo || '—')}</td>
+                <td style="padding:8px 10px; font-weight:600; color:#1e293b;">${_escHtmlProp(nomeProd)}</td>
+                <td style="padding:8px 10px;">
+                    <input type="text" value="${_escHtmlProp(obsProd)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'observacao', this.value)"
+                        placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box;">
+                </td>
+                <td style="padding:8px 10px; text-align:center;">
+                    <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
+                        style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700;">
+                </td>
+                <td style="padding:8px 10px; text-align:right;">
+                    <input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
+                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">
+                </td>
+                <td style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
+                    R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td style="padding:8px 10px; text-align:center;">
+                    <button type="button" onclick="window.removerProdutoProposta(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover Produto">
+                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (typeof window.calcularValorTotalProposta === 'function') {
+        window.calcularValorTotalProposta();
+    }
+};
+
+/* ── TELA: TABELA DE PREÇOS (Comercial → Administração → Tabela Preços) ── */
+window._abaAtivaTabelaPrecos = 'OBRA MENSAL';
+
+window._renderTabelaPrecosInt = async function() {
+    const container = document.getElementById('prop-view-tabela-precos');
+    if (!container) return;
+
+    await window._garantirTabelasPrecoCarregadas(true);
+    const data = window._comercialTabelasPrecoData || { configs: [], itens: [] };
+    const aba = window._abaAtivaTabelaPrecos || 'OBRA MENSAL';
+    const cfgAtual = (data.configs || []).find(c => String(c.tipo_proposta || '').toUpperCase() === aba) || {
+        tipo_proposta: aba,
+        tipo_contrato: '',
+        arquivo_nome: ''
+    };
+    const itensAba = (data.itens || []).filter(i => String(i.tipo_proposta || '').toUpperCase() === aba);
+    const modelosContratoOpcoes = (window._comercialModelosContrato && window._comercialModelosContrato.length > 0)
+        ? window._comercialModelosContrato.map(m => m.nome)
+        : ['Locação Evento', 'Locação Obra Mensal', 'Locação Obra Quinzenal', 'Locação Obra Semanal', 'Prestação de Serviços Limpa Fossa', 'Locação de Container', 'Contrato de Venda', 'Termo Aditivo de Contrato', 'Locação de Equipamentos'];
+
+    container.innerHTML = `
+        <div style="font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 1.25rem 0.75rem; border-radius:14px; min-height:780px; box-sizing:border-box;">
+            <!-- Toolbar -->
+            <div id="prop-toolbar-tabela-precos" style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:0.85rem; background:#fff; padding:0.65rem 1rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997; flex-wrap:wrap; gap:0.5rem;">
+                <div style="display:flex; align-items:center; gap:0.65rem;">
+                    <div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,#7048e8,#5f3dc4); display:flex; align-items:center; justify-content:center; color:#fff;">
+                        <i class="ph ph-table" style="font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">Tabela de Preços por Tipo de Proposta</h3>
+                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Gerencie as planilhas de valores por equipamento x tipo de proposta e o tipo de contrato vinculado</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <label style="background:#10b981; color:#fff; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.25);">
+                        <i class="ph ph-file-xls" style="font-size:1.05rem;"></i> Anexar Planilha (.xlsx) — ${_escHtmlProp(aba)}
+                        <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window.uploadPlanilhaTabelaPrecos(this, '${aba}')">
+                    </label>
+                    <button type="button" onclick="window.abrirModalNovoItemTabelaPreco('${aba}')" style="background:#7048e8; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-plus-circle"></i> + Equipamento na Tabela
+                    </button>
+                    <button type="button" onclick="window._renderTabelaPrecosInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Abas para cada Tipo de Proposta -->
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.85rem; background:#fff; padding:0.5rem; border-radius:10px; border:1px solid #e2e8f0;">
+                ${PROP_TIPOS.map(tp => {
+                    const qtdTp = (data.itens || []).filter(i => String(i.tipo_proposta || '').toUpperCase() === tp).length;
+                    const isAtiva = tp === aba;
+                    return `
+                        <button type="button" onclick="window._abaAtivaTabelaPrecos='${tp}'; window._renderTabelaPrecosInt();"
+                            style="padding:0.45rem 0.85rem; border-radius:7px; border:${isAtiva ? '1px solid #7048e8' : '1px solid transparent'}; background:${isAtiva ? '#7048e8' : '#f8fafc'}; color:${isAtiva ? '#fff' : '#475569'}; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;">
+                            <span>${_escHtmlProp(tp)}</span>
+                            <span style="background:${isAtiva ? 'rgba(255,255,255,0.22)' : '#e2e8f0'}; color:${isAtiva ? '#fff' : '#475569'}; padding:1px 6px; border-radius:999px; font-size:0.7rem;">${qtdTp}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- Card de Configuração do Tipo de Contrato Vinculado + Busca -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem; display:grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap:1rem; align-items:flex-end;">
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">
+                        <i class="ph ph-file-text" style="color:#7048e8;"></i> Tipo de Contrato Vinculado à Tabela (${_escHtmlProp(aba)})
+                    </label>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <input type="text" id="tp-config-contrato-input" list="tp-datalist-contratos" value="${_escHtmlProp(cfgAtual.tipo_contrato || '')}"
+                            placeholder="Selecione ou digite o tipo de contrato vinculado..."
+                            style="flex:1; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; height:36px;">
+                        <datalist id="tp-datalist-contratos">
+                            ${modelosContratoOpcoes.map(m => `<option value="${_escHtmlProp(m)}"></option>`).join('')}
+                        </datalist>
+                        <button type="button" onclick="window.salvarConfigContratoTabelaPreco('${aba}')"
+                            style="background:#16a34a; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.9rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                            <i class="ph ph-check"></i> Salvar Contrato
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Planilha Vinculada</label>
+                    <div style="height:36px; padding:0 0.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#334155; font-weight:600;">
+                        <i class="ph ph-microsoft-excel-logo" style="color:#16a34a; font-size:1.1rem;"></i>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_escHtmlProp(cfgAtual.arquivo_nome || 'Nenhuma planilha anexada')}</span>
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtrar Equipamento na Aba</label>
+                    <input type="text" id="tp-filtro-equipamento" placeholder="🔍 Filtrar por código ou nome do equipamento..."
+                        oninput="window.filtrarLinhasTabelaPrecos(this.value)"
+                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <!-- Tabela de Equipamentos x Valores -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
+                            <th style="padding:10px 12px; width:95px; text-align:center;">Código</th>
+                            <th style="padding:10px 12px;">Equipamento (Estoque → Equipamentos)</th>
+                            <th style="padding:10px 12px; width:135px; text-align:right;">Valor Produto (R$)</th>
+                            <th style="padding:10px 12px; width:145px; text-align:right;">Valor Manutenção (R$)</th>
+                            <th style="padding:10px 12px; width:115px; text-align:center;">Qtd. Manut.</th>
+                            <th style="padding:10px 12px; width:145px; text-align:right;">Valor Final / Custo (R$)</th>
+                            <th style="padding:10px 12px; width:95px; text-align:center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tp-itens-tbody">
+                        ${itensAba.length === 0 ? `
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                    Nenhum valor cadastrado para a aba <strong>${_escHtmlProp(aba)}</strong>. Clique em <strong>Anexar Planilha (.xlsx)</strong> ou <strong>+ Equipamento na Tabela</strong>.
+                                </td>
+                            </tr>
+                        ` : itensAba.map(item => `
+                            <tr class="tp-row-item" data-search="${_escHtmlProp((item.codigo_equipamento + ' ' + item.nome_equipamento).toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:8px 12px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(item.codigo_equipamento || '—')}</td>
+                                <td style="padding:8px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(item.nome_equipamento)}</td>
+                                <td style="padding:8px 12px; text-align:right;">
+                                    <input type="number" step="0.01" id="tp-vp-${item.id}" value="${Number(item.valor_produto || 0).toFixed(2)}"
+                                        style="width:105px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; text-align:right; font-size:0.8rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:right;">
+                                    <input type="number" step="0.01" id="tp-vm-${item.id}" value="${Number(item.valor_manutencao || 0).toFixed(2)}"
+                                        style="width:105px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; text-align:right; font-size:0.8rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:center;">
+                                    <input type="number" step="1" id="tp-qm-${item.id}" value="${parseInt(item.qtd_manutencao || 0, 10)}"
+                                        style="width:72px; padding:5px 6px; border:1px solid #cbd5e1; border-radius:6px; text-align:center; font-size:0.8rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:right;">
+                                    <input type="number" step="0.01" id="tp-vt-${item.id}" value="${Number(item.valor_total || 0).toFixed(2)}"
+                                        style="width:115px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
+                                    <button type="button" onclick="window.salvarLinhaTabelaPreco(${item.id})" title="Salvar Linha"
+                                        style="background:#dcfce7; color:#166534; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
+                                        <i class="ph ph-check" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.excluirLinhaTabelaPreco(${item.id})" title="Excluir Linha"
+                                        style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+};
+
+window.filtrarLinhasTabelaPrecos = function(termo) {
+    const q = String(termo || '').toLowerCase().trim();
+    document.querySelectorAll('#tp-itens-tbody .tp-row-item').forEach(tr => {
+        const s = tr.getAttribute('data-search') || '';
+        tr.style.display = (!q || s.includes(q)) ? '' : 'none';
+    });
+};
+
+window.salvarConfigContratoTabelaPreco = async function(tipoProposta) {
+    const inp = document.getElementById('tp-config-contrato-input');
+    const tipoContrato = inp ? inp.value.trim() : '';
+    try {
+        await apiPut('/comercial/tabelas-preco/config', { tipo_proposta: tipoProposta, tipo_contrato: tipoContrato });
+        await window._garantirTabelasPrecoCarregadas(true);
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Tipo de contrato vinculado atualizado com sucesso!');
+        } else {
+            Swal.fire('Sucesso', 'Tipo de contrato vinculado atualizado com sucesso!', 'success');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Falha ao salvar tipo de contrato: ' + (e.message || e), 'error');
+    }
+};
+
+window.uploadPlanilhaTabelaPrecos = async function(inputEl, tipoProposta) {
+    const file = inputEl?.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    formData.append('tipo_proposta', tipoProposta);
+
+    Swal.fire({
+        title: 'Importando Planilha...',
+        text: `Processando valores para ${tipoProposta}...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + '/comercial/tabelas-preco/upload', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + tok },
+            body: formData
+        });
+        const resJson = await resp.json();
+        if (!resp.ok) throw new Error(resJson.error || 'Erro ao importar planilha');
+        Swal.close();
+        await window._renderTabelaPrecosInt();
+        Swal.fire('Sucesso', `Planilha importada com sucesso! (${resJson.total_importados} equipamentos carregados na aba ${tipoProposta})`, 'success');
+    } catch (e) {
+        Swal.close();
+        Swal.fire('Erro', e.message || 'Falha ao importar planilha.', 'error');
+    } finally {
+        inputEl.value = '';
+    }
+};
+
+window.salvarLinhaTabelaPreco = async function(itemId) {
+    const vp = parseFloat(document.getElementById(`tp-vp-${itemId}`)?.value || 0);
+    const vm = parseFloat(document.getElementById(`tp-vm-${itemId}`)?.value || 0);
+    const qm = parseInt(document.getElementById(`tp-qm-${itemId}`)?.value || 0, 10);
+    const vt = parseFloat(document.getElementById(`tp-vt-${itemId}`)?.value || 0);
+    try {
+        await apiPut(`/comercial/tabelas-preco/item/${itemId}`, {
+            valor_produto: vp,
+            valor_manutencao: vm,
+            qtd_manutencao: qm,
+            valor_total: vt
+        });
+        await window._garantirTabelasPrecoCarregadas(true);
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Valor atualizado na tabela!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Não foi possível salvar a linha: ' + (e.message || e), 'error');
+    }
+};
+
+window.excluirLinhaTabelaPreco = async function(itemId) {
+    const conf = await Swal.fire({
+        title: 'Remover item da tabela?',
+        text: 'Deseja remover este equipamento desta aba de preço?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, remover',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        await apiDelete(`/comercial/tabelas-preco/item/${itemId}`);
+        await window._renderTabelaPrecosInt();
+    } catch (e) {
+        Swal.fire('Erro', 'Não foi possível remover o item.', 'error');
+    }
+};
+
+window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
+    const equipamentos = await apiGet('/estoque-equipamentos').catch(() => []);
+    const listaEq = Array.isArray(equipamentos) ? equipamentos : [];
+
+    const { value: formValues } = await Swal.fire({
+        title: `Adicionar Equipamento — ${tipoProposta}`,
+        width: '560px',
+        html: `
+            <div style="text-align:left; font-family:'Inter',sans-serif; display:flex; flex-direction:column; gap:10px;">
+                <div>
+                    <label style="font-size:0.78rem; font-weight:700; color:#334155;">Equipamento (Estoque → Equipamentos) *</label>
+                    <select id="swal-tp-eq-select" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px;">
+                        <option value="">-- Selecione um equipamento cadastrado --</option>
+                        ${listaEq.map(e => `<option value="${e.id}" data-cod="${_escHtmlProp(e.codigo || '')}" data-nome="${_escHtmlProp(e.nome || '')}">${_escHtmlProp((e.codigo ? e.codigo + ' - ' : '') + e.nome)}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <div>
+                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Valor Produto (R$)</label>
+                        <input type="number" step="0.01" id="swal-tp-vp" value="0" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Valor Manut. (R$)</label>
+                        <input type="number" step="0.01" id="swal-tp-vm" value="0" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.78rem; font-weight:700; color:#334155;">Qtd. Manut.</label>
+                        <input type="number" step="1" id="swal-tp-qm" value="1" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; margin-top:4px; box-sizing:border-box;">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:0.78rem; font-weight:700; color:#166534;">Valor Final / Custo Total (R$) *</label>
+                    <input type="number" step="0.01" id="swal-tp-vt" value="0" style="width:100%; padding:8px; border:1px solid #86efac; background:#f0fdf4; border-radius:6px; font-size:0.88rem; font-weight:800; margin-top:4px; box-sizing:border-box;">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Salvar na Tabela',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const sel = document.getElementById('swal-tp-eq-select');
+            const opt = sel?.options[sel.selectedIndex];
+            if (!sel || !sel.value) {
+                Swal.showValidationMessage('Selecione um equipamento.');
+                return false;
+            }
+            return {
+                tipo_proposta: tipoProposta,
+                equipamento_id: parseInt(sel.value, 10),
+                codigo_equipamento: opt.getAttribute('data-cod') || '',
+                nome_equipamento: opt.getAttribute('data-nome') || '',
+                valor_produto: parseFloat(document.getElementById('swal-tp-vp')?.value || 0),
+                valor_manutencao: parseFloat(document.getElementById('swal-tp-vm')?.value || 0),
+                qtd_manutencao: parseInt(document.getElementById('swal-tp-qm')?.value || 0, 10),
+                valor_total: parseFloat(document.getElementById('swal-tp-vt')?.value || 0)
+            };
+        }
+    });
+
+    if (formValues) {
+        try {
+            await apiPost('/comercial/tabelas-preco/item', formValues);
+            await window._renderTabelaPrecosInt();
+        } catch (e) {
+            Swal.fire('Erro', 'Falha ao adicionar equipamento na tabela.', 'error');
+        }
+    }
 };
 
 

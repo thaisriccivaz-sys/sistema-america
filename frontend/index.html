@@ -362,9 +362,24 @@
                     <a href="#" class="nav-item" data-target="comercial-proposta"
                         onclick="navigateTo('comercial-proposta'); return false;"><i
                             class="ph ph-file-text"></i> Proposta</a>
-                    <a href="#" class="nav-item" data-target="comercial-modelos-propostas"
-                        onclick="navigateTo('comercial-modelos-propostas'); return false;"><i
-                            class="ph ph-files"></i> Modelos Propostas</a>
+                    <div class="nav-group" id="nav-group-comercial-admin">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-comercial-admin')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-gear-six"></i>
+                                Administração
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-comercial-admin">
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-modelos-propostas"
+                                onclick="navigateTo('comercial-modelos-propostas'); return false;"><i
+                                    class="ph ph-files"></i> Modelo Proposta</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-tabela-precos"
+                                onclick="navigateTo('comercial-tabela-precos'); return false;"><i
+                                    class="ph ph-table"></i> Tabela Preços</a>
+                        </div>
+                    </div>
                     <a href="#" class="nav-item" data-target="comercial-enderecos"
                         onclick="navigateTo('comercial-enderecos'); return false;"><i
                             class="ph ph-map-pin"></i> Endereços</a>
@@ -6656,7 +6671,7 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261021v1"></script>
     <script src="comercial_credenciamento.js"></script>
-    <script src="proposta.js?v=20261030v2"></script>
+    <script src="proposta.js?v=20261030v3"></script>
     <script src="comercial_comissao.js?v=11"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>
@@ -6669,7 +6684,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1791550714718"></script>
-    <script src="app.js?v=20261027v8"></script>
+    <script src="app.js?v=20261030v3"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->
