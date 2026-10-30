@@ -2202,7 +2202,7 @@ function _renderFormPropostaInt() {
                                 <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
                                     title="Replicar o horário preenchido em um dia para todos os dias selecionados"
                                     style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
-                                    <i class="ph ph-copy" style="font-size:0.95rem;"></i> Replicar em todos
+                                    <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
                                 </button>
                                 <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
                                     title="Selecionar diárias no calendário"
