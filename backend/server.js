@@ -39987,6 +39987,30 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/propostas/:id/pdf - Baixar PDF da proposta
+app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
+  db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
+
+    try {
+      const proposalHtml = gerarHtmlProposta(p);
+      const htmlPdf = require('html-pdf-node');
+      const pdfBuffer = await htmlPdf.generatePdf(
+        { content: proposalHtml },
+        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
+      );
+      const fileName = `Proposta_${p.codigo || p.id}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(pdfBuffer);
+    } catch (e) {
+      console.error('[PROPOSTAS] Erro ao gerar PDF para download:', e);
+      res.status(500).json({ error: 'Erro ao gerar PDF: ' + e.message });
+    }
+  });
+});
+
 // POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
 app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
   const { assunto, destinatarios, corpo } = req.body;
@@ -44806,7 +44830,8 @@ const TIPOS_PROPOSTA_PADRAO_PRECOS = [
   { tipo: 'VENDA', contrato: 'Contrato de Venda' },
   { tipo: 'VISITA TÉCNICA', contrato: 'Termo de Visita Técnica' },
   { tipo: 'ADITIVO', contrato: 'Termo Aditivo de Contrato' },
-  { tipo: 'EQUIPAMENTOS', contrato: 'Locação de Equipamentos' }
+  { tipo: 'EQUIPAMENTOS', contrato: 'Locação de Equipamentos' },
+  { tipo: 'AVARIA', contrato: 'Termo de Avaria' }
 ];
 
 db.serialize(() => {

@@ -41,7 +41,8 @@ const PROP_TIPOS = [
     'VENDA',
     'VISITA TÉCNICA',
     'ADITIVO',
-    'EQUIPAMENTOS'
+    'EQUIPAMENTOS',
+    'AVARIA'
 ];
 const PROP_FASES = [
     'Em Elaboração',
@@ -1966,7 +1967,16 @@ function _renderFormPropostaInt() {
                     <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button type="button" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
+                        <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Baixar PDF
+                    </button>
+                    <button type="button" onclick="window.enviarPropostaPorWhatsapp(${id || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                        <i class="ph ph-whatsapp-logo" style="font-size:1rem;"></i> Enviar WhatsApp
+                    </button>
+                    <button type="button" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
+                        <i class="ph ph-envelope-simple" style="font-size:1rem;"></i> Enviar E-mail
+                    </button>
+                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                 </div>
@@ -2760,6 +2770,11 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
 };
 
 window.toggleMotivoReprovacao = function(fase) {
+    const btnEstornar = document.getElementById('btn-prop-estornar');
+    if (btnEstornar) {
+        const isAprovada = String(fase || '').trim().toUpperCase() === 'APROVADA';
+        btnEstornar.style.display = isAprovada ? 'inline-flex' : 'none';
+    }
     const wrapper = document.getElementById('wrapper-motivo-reprovacao');
     if (wrapper) {
         const isReprovada = (fase === 'Reprovada');
@@ -6286,9 +6301,202 @@ window.salvarProposta = function() {
     window.salvarPropostaNova();
 };
 
-window.abrirPopupEmail = function(id) {
+window.obterDadosContatoPropostaAtual = async function(p = null) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const clienteNome = String(document.getElementById('prop-cliente')?.value || (p && p.cliente_nome) || '').trim();
+    const contatoNome = String(document.getElementById('prop-contato')?.value || (p && p.contato_nome) || '').trim();
+
+    let emailContato = '';
+    let celularContato = '';
+    let nomeFinal = contatoNome;
+
+    try {
+        const dados = await window._obterDadosContatosClienteProposta(clienteNome);
+        const lista = [
+            ...(Array.isArray(dados?.contatosDoCliente) ? dados.contatosDoCliente : []),
+            ...(Array.isArray(dados?.listaUnificada) ? dados.listaUnificada : [])
+        ];
+        if (contatoNome) {
+            const cNorm = normStr(contatoNome);
+            const match = lista.find(c => normStr(c.nome) === cNorm) || lista.find(c => normStr(c.nome).includes(cNorm));
+            if (match) {
+                emailContato = String(match.email || '').trim();
+                celularContato = String(match.celular || '').trim();
+                nomeFinal = match.nome || contatoNome;
+            }
+        }
+        if (!emailContato && dados?.foundCli?.email) {
+            emailContato = String(dados.foundCli.email || '').trim();
+        }
+        if (!celularContato && dados?.foundCli) {
+            celularContato = String(dados.foundCli.celular || dados.foundCli.telefone || '').trim();
+        }
+    } catch (e) {
+        console.error('[PROPOSTA] Erro ao buscar dados do contato:', e);
+    }
+
+    return {
+        clienteNome,
+        contatoNome: nomeFinal,
+        email: emailContato,
+        celular: celularContato
+    };
+};
+
+window.baixarPdfProposta = async function(id = null) {
+    const propId = id || _propostasEditandoId;
+    if (!propId) {
+        Swal.fire('Aviso', 'Salve a proposta primeiro para poder baixar o PDF.', 'warning');
+        return;
+    }
+    const p = _propostasData.find(pr => pr.id === propId);
+    const cod = (p && p.codigo) ? p.codigo : propId;
+
+    Swal.fire({
+        title: 'Gerando PDF...',
+        html: 'Preparando arquivo PDF da proposta para download...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const baseApi = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api';
+        const resp = await fetch(`${baseApi}/propostas/${propId}/pdf`, {
+            method: 'GET',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (!resp.ok) {
+            throw new Error('Falha ao gerar PDF direto');
+        }
+        const blob = await resp.blob();
+        Swal.close();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Proposta_${cod}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        }, 1000);
+    } catch (e) {
+        Swal.close();
+        console.warn('[PROPOSTA] Fallback para janela de impressão/PDF:', e);
+        imprimirProposta(propId);
+    }
+};
+
+window.enviarPropostaPorEmail = function(id = null) {
+    const propId = id || _propostasEditandoId;
+    if (!propId) {
+        Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning');
+        return;
+    }
+    window.abrirPopupEmail(propId);
+};
+
+window.enviarPropostaPorWhatsapp = async function(id = null) {
+    const propId = id || _propostasEditandoId;
+    const p = propId ? _propostasData.find(pr => pr.id === propId) : null;
+
+    const dadosCt = await window.obterDadosContatoPropostaAtual(p);
+    const codigoProp = document.getElementById('prop-codigo')?.value || (p && p.codigo) || 'S/N';
+    const tipoProp = document.getElementById('prop-tipo')?.value || (p && p.tipo) || 'LOCAÇÃO';
+    const clienteProp = dadosCt.clienteNome || 'CLIENTE';
+    const contatoProp = dadosCt.contatoNome || 'CLIENTE';
+    const condPag = document.getElementById('prop-cond-pag')?.value || (p && p.condicao_pagamento) || '—';
+
+    const itensAtuais = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
+        ? window._propProdutosAdicionados
+        : (p && p.itens ? (typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : p.itens) : []);
+    const totalCalc = itensAtuais.reduce((acc, it) => acc + (parseFloat(it.valor_total) || ((parseFloat(it.valor || it.valor_unitario) || 0) * (parseInt(it.quantidade, 10) || 1))), 0)
+        || parseFloat(document.getElementById('prop-valor-total')?.value || (p && p.valor_total) || 0);
+    const totalFmt = 'R$ ' + Number(totalCalc || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const resumoItens = itensAtuais.length > 0
+        ? itensAtuais.map(it => `• ${it.quantidade || 1}x ${it.produto || it.descricao || 'EQUIPAMENTO'}`).join('\n')
+        : '';
+
+    const msgPadrao = `OLÁ ${contatoProp.toUpperCase()}, SEGUE A PROPOSTA COMERCIAL Nº ${codigoProp} (${tipoProp}) - AMÉRICA RENTAL:\n\n` +
+        `🏢 CLIENTE: ${clienteProp}\n` +
+        (resumoItens ? `📦 EQUIPAMENTOS:\n${resumoItens}\n` : '') +
+        `💳 CONDIÇÃO DE PAGAMENTO: ${condPag}\n` +
+        `💰 VALOR TOTAL: ${totalFmt}\n\n` +
+        `QUALQUER DÚVIDA ESTAMOS À DISPOSIÇÃO!`;
+
+    const abilUrlSalva = localStorage.getItem('america_crm_abil_url') || 'https://painel.multi360.com.br';
+
+    Swal.fire({
+        title: `<div style="font-size:1.08rem; font-weight:800; color:#15803d; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; display:flex; align-items:center; gap:8px;"><i class="ph ph-whatsapp-logo" style="font-size:1.35rem;"></i> Enviar Proposta por WhatsApp / CRM Abil</div>`,
+        width: '620px',
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:0.75rem; font-family:'Inter', sans-serif; font-size:0.84rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem;">
+                    <div>
+                        <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Contato Cadastrado na Proposta</label>
+                        <input type="text" id="swal-wpp-contato" value="${_escHtmlProp(contatoProp)}" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">WhatsApp do Contato *</label>
+                        <input type="text" id="swal-wpp-numero" value="${_escHtmlProp(dadosCt.celular || '')}" placeholder="(11) 99999-9999" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; box-sizing:border-box; font-weight:700;">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Mensagem da Proposta (será copiada automaticamente ao abrir o CRM da Abil)</label>
+                    <textarea id="swal-wpp-msg" rows="6" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; resize:vertical;">${_escHtmlProp(msgPadrao)}</textarea>
+                </div>
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:0.6rem 0.75rem;">
+                    <label style="font-weight:700; color:#166534; font-size:0.76rem; display:block; margin-bottom:4px;">Link do Sistema CRM da Abil</label>
+                    <input type="text" id="swal-wpp-abil-url" value="${_escHtmlProp(abilUrlSalva)}" style="width:100%; padding:0.42rem 0.6rem; border:1px solid #86efac; border-radius:5px; font-size:0.78rem; box-sizing:border-box; background:#fff; text-transform:none !important;">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="ph ph-chats-circle"></i> Abrir no CRM da Abil',
+        denyButtonText: '<i class="ph ph-whatsapp-logo"></i> Abrir WhatsApp Direto',
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#7048e8',
+        denyButtonColor: '#16a34a',
+        cancelButtonColor: '#64748b'
+    }).then(async (res) => {
+        if (!res.isConfirmed && !res.isDenied) return;
+        const numRaw = document.getElementById('swal-wpp-numero')?.value || '';
+        const msgTxt = document.getElementById('swal-wpp-msg')?.value || '';
+        const abilUrl = (document.getElementById('swal-wpp-abil-url')?.value || 'https://painel.multi360.com.br').trim();
+        if (abilUrl) localStorage.setItem('america_crm_abil_url', abilUrl);
+
+        const digits = numRaw.replace(/\D/g, '');
+        if (!digits) {
+            Swal.fire('Aviso', 'Informe ou cadastre o número de WhatsApp do contato na proposta.', 'warning');
+            return;
+        }
+        const fone55 = digits.startsWith('55') ? digits : '55' + digits;
+
+        try {
+            await navigator.clipboard.writeText(msgTxt);
+        } catch (e) {}
+
+        if (res.isConfirmed) {
+            // Abre direto no CRM da Abil e já deixa a mensagem e número copiados
+            window.open(abilUrl, '_blank');
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`Mensagem copiada! Contato: ${numRaw} — cole no CRM da Abil.`);
+            }
+        } else if (res.isDenied) {
+            window.open(`https://wa.me/${fone55}?text=${encodeURIComponent(msgTxt)}`, '_blank');
+        }
+    });
+};
+
+window.abrirPopupEmail = async function(id) {
     const p = _propostasData.find(pr => pr.id === id);
     if (!p) { alert('Proposta não encontrada.'); return; }
+
+    const dadosCt = await window.obterDadosContatoPropostaAtual(p);
+    const emailContatoPadrao = dadosCt.email || '';
 
     const tipoServico = p.tipo || 'Serviço';
     const codigoProp = p.codigo || '';
@@ -6305,8 +6513,8 @@ window.abrirPopupEmail = function(id) {
                     <input type="text" id="email-assunto" value="${defaultSubject}" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Destinatário(s) - Utilize; para separar destinatários.</label>
-                    <input type="text" id="email-destinatarios" placeholder="email1@empresa.com; email2@empresa.com" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+                    <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Destinatário(s) (Contato: ${_escHtmlProp(dadosCt.contatoNome || '—')}) - Utilize ; para separar destinatários.</label>
+                    <input type="text" id="email-destinatarios" value="${_escHtmlProp(emailContatoPadrao)}" placeholder="email1@empresa.com; email2@empresa.com" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-weight:700; color:#475569; display:block; margin-bottom:4px;">Corpo do email</label>
@@ -17250,6 +17458,11 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (grupoNorm.includes('guarita') || nomeNorm.includes('guarita')) {
                 return false;
             }
+        } else if (tipoNorm === 'avaria') {
+            // Tipo AVARIA: mostrar apenas os produtos do grupo AVARIA
+            if (grupoNorm !== 'avaria' && grupoNorm !== 'avarias' && !grupoNorm.includes('avaria')) {
+                return false;
+            }
         }
         return true;
     });
@@ -17348,7 +17561,11 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     const produtosBase = window.filtrarEquipamentosBasePorTipoProposta(produtos, tipoPropostaAtivo);
 
     const gruposSet = new Set(produtosBase.map(p => String(p.grupo_produto || '').trim()).filter(Boolean));
-    if (tipoNorm !== 'venda') {
+    if (tipoNorm === 'avaria') {
+        if (!Array.from(gruposSet).some(x => normStr(x) === 'avaria')) {
+            gruposSet.add('AVARIA');
+        }
+    } else if (tipoNorm !== 'venda') {
         ['CONTAINER', 'SERVIÇOS', 'VAC'].forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
