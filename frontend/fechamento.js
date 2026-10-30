@@ -756,10 +756,10 @@ function abrirLegenda() {
   
     <!-- Buscar Dropdown -->
     <div style="position:relative;" onmouseleave="document.getElementById('fech-dropdown-buscar').style.display='none'">
-      <button style="background:#fff;border:1px solid #cbd5e1;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="document.getElementById('fech-dropdown-buscar').style.display='flex'">
+      <button style="background:#fff;border:1px solid #cbd5e1;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="document.getElementById('fech-dropdown-buscar').style.display='grid'">
         Buscar: <i class="ph ph-caret-down"></i>
       </button>
-      <div id="fech-dropdown-buscar" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;flex-direction:column;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:200px;">
+      <div id="fech-dropdown-buscar" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;grid-template-columns:1fr 1fr;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:390px;white-space:nowrap;">
         
         <!-- Buscar Ponto RHID -->
         <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
