@@ -13324,18 +13324,18 @@ async function gerarBufferFechamentoXlsx({ mes, ano, rows }) {
         const isIntermitente = (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente';
         const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
         const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
-        const temVt = (r.vt == 1 || r.vt === '1' || r.vt === 'Sim' || r.meio_transporte === 'Vale Transporte');
-        const temPts = (parseInt(r.pts) === 1 || parseFloat(r.pts) > 0 || parseInt(r.folha_pts) === 1);
-        const temInsalub = (r.insalubridade == 1 || r.insalubridade === '1' || r.insalubridade === 'Sim' || r.folha_insalubridade == 1);
-        const temPeric = (r.periculosidade == 1 || r.periculosidade === '1' || r.periculosidade === 'Sim' || r.folha_periculosidade == 1);
+        const temVt = (r.vt !== null && r.vt !== undefined) ? (r.vt == 1 || r.vt === '1' || r.vt === 'Sim' || parseFloat(r.vt) > 0) : (r.meio_transporte === 'Vale Transporte');
+        const temPts = (r.pts !== null && r.pts !== undefined) ? (parseInt(r.pts) === 1 || parseFloat(r.pts) > 0 || r.pts === 'Sim') : (parseInt(r.folha_pts) === 1);
+        const temInsalub = (r.insalubridade !== null && r.insalubridade !== undefined) ? (r.insalubridade == 1 || r.insalubridade === '1' || r.insalubridade === 'Sim' || parseFloat(r.insalubridade) > 0) : (r.folha_insalubridade == 1);
+        const temPeric = (r.periculosidade !== null && r.periculosidade !== undefined) ? (r.periculosidade == 1 || r.periculosidade === '1' || r.periculosidade === 'Sim' || parseFloat(r.periculosidade) > 0) : (r.folha_periculosidade == 1);
 
         const dataFaltasStr = String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim();
 
         const values = [
             r.nome_completo || '',
             r.cargo || '',
-            isIntermitente ? (parseInt(r.dias_intermitente) || '') : '',
-            isIntermitente ? (r.total_trabalhado || '') : '',
+            (parseInt(r.dias_intermitente) || 0) > 0 ? parseInt(r.dias_intermitente) : '',
+            formatHora(r.total_trabalhado),
             formatHora(r.horas_noturnas),
             formatHora(r.extra_60),
             formatHora(r.extra_100),

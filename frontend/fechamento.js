@@ -834,6 +834,11 @@ function abrirLegenda() {
             </div>
     </div>
 
+    <!-- Botão Limpar -->
+    <button type="button" onclick="window._fechamento.limparFechamento()" style="background:#ef4444;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.35rem;margin:0;height:32px;box-sizing:border-box;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'" title="Limpar dados preenchidos na tabela">
+      <i class="ph ph-broom"></i> Limpar
+    </button>
+
     <!-- Botão Comparar Folha -->
     <label style="background:#f59e0b;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.35rem;margin:0;height:32px;box-sizing:border-box;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" title="Anexar folha em PDF da contabilidade para comparar">
       <i class="ph ph-files"></i> Comparar
@@ -1151,6 +1156,7 @@ function abrirLegenda() {
             // Preencher defaults no estado
             if (!_dados[idx].horas_normais) _dados[idx].horas_normais = '220:00';
             if (_dados[idx].vt == null) _dados[idx].vt = defaultVT;
+            if (_dados[idx].pts == null) _dados[idx].pts = (parseInt(row.folha_pts) === 1 ? 1 : 0);
             // (Removido) if (_dados[idx].academia == null) _dados[idx].academia = defaultAcad;
 
             const isFerias = (row.colab_status || '').toLowerCase().includes('férias');
@@ -1172,8 +1178,8 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="display:none;"></td>
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
-<td id="fech-cell-dias-intermitente-${idx}" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;font-weight:600;font-size:.8rem;">${(row.tipo_contrato||"").toLowerCase().trim()==="intermitente" ? (row.dias_intermitente||"") : ""}</td>
-<td id="fech-cell-total-trabalhado-${idx}" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;font-weight:600;font-size:.8rem;">${(row.tipo_contrato||"").toLowerCase().trim()==="intermitente" ? (row.total_trabalhado||"") : ""}</td>
+<td id="fech-cell-dias-intermitente-${idx}" data-original-bg="#d1fae5" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;">${inpNum(idx,'dias_intermitente',row.dias_intermitente||0,'0')}</td>
+<td id="fech-cell-total-trabalhado-${idx}" data-original-bg="#d1fae5" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;">${inpHora(idx,'total_trabalhado',row.total_trabalhado||'')}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
 
 <td id="fech-cell-extra_60-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
@@ -1182,7 +1188,7 @@ function abrirLegenda() {
 <td id="fech-cell-data_faltas-${idx}" style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
 <td id="fech-cell-dsr-${idx}" style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
 <td id="fech-cell-horas_atraso-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
-<td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
+<td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;">${inpFlag(idx,'vt',_dados[idx].vt)}</td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}" title="${(montarTooltipCelula(idx, 'multas')||'').replace(/"/g, '&quot;')}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
@@ -1192,9 +1198,9 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td id="fech-cell-premio-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
-<td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;background:#dbeafe;text-align:center;" data-original-bg="#dbeafe" title="${(montarTooltipCelula(idx, 'pts')||'').replace(/"/g, '&quot;')}"><span style="font-size:.75rem;font-weight:600;pointer-events:none;color:${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? '#16a34a' : '#9ca3af'};">${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? 'Sim' : '-'}</span></td>
+<td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;background:#dbeafe;text-align:center;" data-original-bg="#dbeafe" title="${(montarTooltipCelula(idx, 'pts')||'').replace(/"/g, '&quot;')}">${inpFlag(idx,'pts',_dados[idx].pts)}</td>
 <td id="fech-cell-outros-${idx}" style="padding:.35rem .3rem;" title="${(montarTooltipCelula(idx, 'outros')||'').replace(/"/g, '&quot;')}">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
+<td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" data-original-bg="#d1fae5" id="fech-cell-insalubridade-${idx}">${inpFlag(idx,'insalubridade',row.insalubridade)}</td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
 <td id="fech-cell-sindicato-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
@@ -1243,7 +1249,7 @@ function abrirLegenda() {
             var s = String(val || '').trim().toUpperCase();
             return s.startsWith('S') ? 'S' : (s.startsWith('N') ? 'N' : 'em branco');
         }
-        if (campo === 'dias_falta' || campo === 'dias_ferias') {
+        if (campo === 'dias_falta' || campo === 'dias_ferias' || campo === 'dias_intermitente') {
             return String(parseInt(val) || 0);
         }
         if (campo === 'data_faltas') {
@@ -1253,8 +1259,8 @@ function abrirLegenda() {
             } catch(e) {}
             return val ? String(val) : 'em branco';
         }
-        if (campo === 'vt') {
-            return (val && val != '0') ? 'Sim' : 'em branco';
+        if (campo === 'vt' || campo === 'pts' || campo === 'insalubridade' || campo === 'periculosidade') {
+            return (val && val != '0' && parseFloat(val) > 0) ? 'Sim' : 'em branco';
         }
         return (val !== null && val !== undefined && val !== '') ? String(val) : '—';
     }
@@ -1336,7 +1342,7 @@ function abrirLegenda() {
 
         // 1c. PTS (Prêmio por Tempo de Serviço): mostrar valor cadastrado no sistema quando ativo
         if (fKey === 'pts') {
-            const temPts = parseInt(r.folha_pts) === 1 || parseInt(r.pts) === 1 || parseFloat(r.pts) > 0;
+            const temPts = (r.pts !== null && r.pts !== undefined) ? (parseInt(r.pts) === 1 || parseFloat(r.pts) > 0) : (parseInt(r.folha_pts) === 1);
             const valPtsCad = parseFloat(r.folha_pts_valor) || 0;
             if (temPts) {
                 linhas.push('Valor cadastrado: R$ ' + formatBRL(valPtsCad));
@@ -1373,6 +1379,8 @@ function abrirLegenda() {
 
     function restaurarEstiloPadrao(idx, coluna) {
         var mapIds = {
+            'dias_intermitente': 'dias-intermitente',
+            'total_trabalhado': 'total-trabalhado',
             'horas_noturnas': 'noturno',
             'consignado': 'consig',
             'dias_ferias': 'dias-ferias',
@@ -1403,8 +1411,14 @@ function abrirLegenda() {
             }
             var sel = td.querySelector('select');
             if (sel) {
-                sel.style.color = '';
-                sel.style.fontWeight = '';
+                if (coluna === 'vt' || coluna === 'pts' || coluna === 'insalubridade') {
+                    var isAtivoSel = parseFloat((_dados[idx] || {})[coluna]) > 0;
+                    sel.style.color = isAtivoSel ? '#16a34a' : '#9ca3af';
+                    sel.style.fontWeight = isAtivoSel ? '600' : 'normal';
+                } else {
+                    sel.style.color = '';
+                    sel.style.fontWeight = '';
+                }
                 sel.style.background = '';
                 sel.classList.remove('fech-borda-verde');
                 sel.style.border = '1px solid #e5e7eb';
@@ -1631,8 +1645,14 @@ function abrirLegenda() {
             delete row.edicoes_manuais[campo];
             var fullTitle = montarTooltipCelula(idx, campo);
             if (inputEl) {
-                inputEl.style.color = '';
-                inputEl.style.fontWeight = '';
+                if (inputEl.tagName === 'SELECT' && (campo === 'vt' || campo === 'pts' || campo === 'insalubridade')) {
+                    var isAtivo = parseFloat(novoValor) > 0;
+                    inputEl.style.color = isAtivo ? '#16a34a' : '#9ca3af';
+                    inputEl.style.fontWeight = isAtivo ? '600' : 'normal';
+                } else {
+                    inputEl.style.color = '';
+                    inputEl.style.fontWeight = '';
+                }
                 inputEl.removeAttribute('data-manual-edit');
                 if (td) {
                     td.removeAttribute('data-manual-edit');
@@ -1735,8 +1755,8 @@ function abrirLegenda() {
         var tipCell = montarTooltipCelula(idx, campo);
         var tEdit = tipCell ? ' title="' + String(tipCell).replace(/"/g, '&quot;') + '"' : '';
         var attrEdit = ed ? ' data-manual-edit="true"' : '';
-        var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;' + stEdit;
-        var w = isMoney ? '65px' : '68px';
+        var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:' + (campo === 'dias_intermitente' ? 'center' : 'right') + ';font-size:.8rem;' + stEdit;
+        var w = isMoney ? '65px' : (campo === 'dias_intermitente' ? '48px' : '68px');
         var blurFn = isMoney
             ? "if(this.value){var pv=window._fechamento.parseBRL(this.value);if(pv!==0){this.value=window._fechamento.formatBRL(pv);}else{this.value='';}} window._fechamento.salvarSilencioso();"
             : "if(this.value && parseFloat(this.value)===0){this.value='';} window._fechamento.salvarSilencioso();";
@@ -1770,6 +1790,20 @@ function abrirLegenda() {
             <option value="" ${(!isSim && !isNao)?'selected':''}></option>
             <option value="Não" ${isNao?'selected':''}>N</option>
             <option value="Sim" ${isSim?'selected':''}>S</option>
+        </select>`;
+    }
+    function inpFlag(idx, campo, val) {
+        var ativo = (val == 1 || val === '1' || String(val || '').toLowerCase() === 'sim' || parseFloat(val) > 0);
+        var r = _dados[idx] || {};
+        var ed = (r.edicoes_manuais && r.edicoes_manuais[campo]) ? r.edicoes_manuais[campo] : null;
+        var corPadrao = ativo ? 'color:#16a34a;font-weight:600;' : 'color:#9ca3af;';
+        var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : corPadrao;
+        var tipCell = montarTooltipCelula(idx, campo);
+        var tEdit = tipCell ? ` title="${String(tipCell).replace(/"/g, '&quot;')}"` : '';
+        var attrEdit = ed ? ' data-manual-edit="true"' : '';
+        return `<select ${tEdit}${attrEdit} style="width:52px;padding:.2rem .1rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.75rem;text-align:center;background:#fff;${stEdit}" onchange="this.style.color=this.value=='1'?'#16a34a':'#9ca3af';this.style.fontWeight=this.value=='1'?'600':'normal';window._fechamento.atualizarManual(${idx},'${campo}',parseInt(this.value)||0,this);window._fechamento.salvarSilencioso();">
+            <option value="0" ${!ativo?'selected':''}>—</option>
+            <option value="1" ${ativo?'selected':''}>Sim</option>
         </select>`;
     }
 
@@ -2225,7 +2259,7 @@ function abrirLegenda() {
             _dados[idx].vt = val;
             const cell = document.getElementById('fech-cell-vt-' + idx);
             if (cell) {
-                cell.innerHTML = `<span style="font-size:.75rem;font-weight:600;color:${val ? '#16a34a' : '#9ca3af'};">${val ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${val}">`;
+                cell.innerHTML = inpFlag(idx, 'vt', val);
             }
             atualizar(idx, 'vt', val);
         });
@@ -2244,7 +2278,7 @@ function abrirLegenda() {
             _dados[idx].insalubridade = val;
             const cell = document.getElementById('fech-cell-insalubridade-' + idx);
             if (cell) {
-                cell.innerHTML = '<span style="font-size:.75rem;font-weight:600;color:' + (val ? '#16a34a' : '#9ca3af') + ';">' + (val ? 'Sim' : '-') + '</span>';
+                cell.innerHTML = inpFlag(idx, 'insalubridade', val);
             }
             atualizar(idx, 'insalubridade', val);
         });
@@ -2300,7 +2334,7 @@ function abrirLegenda() {
             _dados[idx].pts = val;
             const cell = document.getElementById('fech-cell-pts-' + idx);
             if (cell) {
-                cell.innerHTML = '<span style="font-size:.75rem;font-weight:600;pointer-events:none;color:' + (ativo ? '#16a34a' : '#9ca3af') + ';">' + (ativo ? 'Sim' : '-') + '</span>';
+                cell.innerHTML = inpFlag(idx, 'pts', val);
                 cell.title = montarTooltipCelula(idx, 'pts');
             }
             atualizar(idx, 'pts', val);
@@ -3406,7 +3440,11 @@ function abrirLegenda() {
         if (_tipoContrato === 'intermitente' && dados.diasTrabalhados !== null && dados.diasTrabalhados !== undefined) {
             _dados[idx].dias_intermitente = dados.diasTrabalhados;
             var cellDI = document.getElementById('fech-cell-dias-intermitente-' + idx);
-            if (cellDI) cellDI.textContent = dados.diasTrabalhados;
+            if (cellDI) {
+                var inpDI = cellDI.querySelector('input');
+                if (inpDI) inpDI.value = dados.diasTrabalhados || '';
+                else cellDI.textContent = dados.diasTrabalhados;
+            }
         }
 
         // Total Trabalhado — apenas para Intermitentes (usa soma real de totalHorasTrabalhadas por dia)
@@ -3416,7 +3454,11 @@ function abrirLegenda() {
             if (_ttStr) {
                 _dados[idx].total_trabalhado = _ttStr;
                 var cellTT = document.getElementById('fech-cell-total-trabalhado-' + idx);
-                if (cellTT) cellTT.textContent = _ttStr;
+                if (cellTT) {
+                    var inpTT = cellTT.querySelector('input');
+                    if (inpTT) inpTT.value = _ttStr;
+                    else cellTT.textContent = _ttStr;
+                }
             }
         }
         if (faltas !== null && faltas !== undefined) _dados[idx].dias_falta = faltas;
@@ -4048,7 +4090,7 @@ function abrirLegenda() {
 
                 const _ehInterm = (row.tipo_contrato || '').toLowerCase().trim() === 'intermitente';
                 mapRubricas.forEach(m => {
-                    if (m.onlyIntermitente && !_ehInterm) return;
+                    if (m.onlyIntermitente && !_ehInterm && !row[m.field]) return;
                     let uiVal = '';
                     if (m.field === 'consignado') uiVal = parseFloat(row.consig_total) || parseFloat(row.consignado) || 0;
                     else if (m.field === 'comissao') uiVal = (parseFloat(row.valor_comissao)||parseFloat(row.comissao)||0) + (parseFloat(row.valor_bonus)||parseFloat(row.bonus_comissao)||0);
@@ -4129,7 +4171,7 @@ function abrirLegenda() {
                         const folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
                         const folhaQtd = rubrica ? parseToFloat(rubrica.qty) : 0;
                         const folhaTem = !!rubrica && (folhaVal > 0 || folhaQtd > 0);
-                        const uiTem = (parseInt(row.folha_pts) === 1 || parseInt(row.pts) === 1 || parseFloat(row.pts) > 0);
+                        const uiTem = (row.pts !== null && row.pts !== undefined) ? (parseInt(row.pts) === 1 || parseFloat(row.pts) > 0) : (parseInt(row.folha_pts) === 1);
                         const valCad = parseFloat(row.folha_pts_valor) || 0;
                         const valCadFmt = 'R$ ' + formatBRL(valCad);
 
@@ -4494,8 +4536,85 @@ function abrirLegenda() {
         }
     }
 
+    async function limparFechamento() {
+        if (!_dados || _dados.length === 0) return;
+        const conf = await Swal.fire({
+            title: 'Limpar tabela de fechamento?',
+            text: 'Todos os valores preenchidos neste mês serão zerados.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sim, limpar tudo',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!conf.isConfirmed) return;
+
+        _dadosPonto = {};
+        try { localStorage.removeItem('_fech_dp_' + _mes + '_' + _ano); } catch(e) {}
+
+        _dados.forEach((row) => {
+            row.horas_normais = '220:00';
+            row.horas_trabalhadas = '';
+            row.dias_intermitente = 0;
+            row.total_trabalhado = '';
+            row.horas_noturnas = '';
+            row.adicional_noturno = 0;
+            row.extra_60 = '';
+            row.extra_100 = '';
+            row.dias_falta = 0;
+            row.data_faltas = '';
+            row.dsr = '';
+            row.horas_atraso = '';
+            row.vt = 0;
+            row.farmacia = 0;
+            row.mercado = 0;
+            row.multas = 0;
+            row.multas_detalhes = [];
+            row.academia = 0;
+            row.adiantamento = 0;
+            row.consignado = 0;
+            row.comissao = 0;
+            row.bonus_comissao = 0;
+            row.plr = 0;
+            row.premio = 0;
+            row.pts = 0;
+            row.outros = 0;
+            row.sinistros_detalhes = [];
+            row.insalubridade = 0;
+            row.periculosidade = 0;
+            row.sindicato = 0;
+            row.pensao = 0;
+            row.dias_ferias = 0;
+            row.valor_tercio_ferias = 0;
+            row.edicoes_manuais = {};
+            row.divergencias_comparacao = {};
+            row.apuracao_ponto = null;
+        });
+
+        _stateArquivos.farmacia = false;
+        _stateArquivos.consignado = false;
+        _stateArquivos.mercado_pdfs = false;
+        const bF = document.getElementById('fech-btn-eye-farmacia'); if (bF) bF.style.display = 'none';
+        const bC = document.getElementById('fech-btn-eye-consignado'); if (bC) bC.style.display = 'none';
+        const bM = document.getElementById('fech-btn-eye-mercado'); if (bM) bM.style.display = 'none';
+        const badge = document.getElementById('fech-badge-ponto'); if (badge) badge.style.display = 'none';
+
+        renderizarTabela(_dados);
+        await salvarSilencioso();
+        try {
+            const itensPonto = _dados.map(r => ({ colaborador_id: r.colaborador_id || r.id, apuracao_ponto: null }));
+            await fetch('/api/fechamento/salvar-ponto', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                body: JSON.stringify({ mes: _mes, ano: _ano, itens: itensPonto })
+            });
+        } catch(e) {}
+        Swal.fire({ icon: 'success', title: 'Tabela limpa!', text: 'Todos os campos foram zerados.', timer: 2000, showConfirmButton: false });
+    }
+
     return {
-        init, buscar, compararFolhaPDF, atualizar, filtrar, salvarTudo,
+        init, buscar, compararFolhaPDF, limparFechamento, atualizar, filtrar, salvarTudo,
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
