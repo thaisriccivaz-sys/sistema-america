@@ -102,19 +102,54 @@ async function inicializarPropostas(defaultTab) {
         _currentPropostaTab = window._pendingPropostaTab;
         window._pendingPropostaTab = null;
     }
-    // Redireciona o alert nativo do navegador para o SweetAlert2 com layout unificado
-    const originalAlert = window.alert;
-    window.alert = function(msg) {
+    // Helper que exibe aviso sem fechar o modal SweetAlert2 que estiver aberto por trás
+    window.mostrarAvisoSemFecharModal = function(titulo, msg, icone = 'warning') {
+        if (typeof Swal !== 'undefined' && Swal.isVisible && Swal.isVisible()) {
+            const existing = document.getElementById('custom-submodal-alert-overlay');
+            if (existing) existing.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'custom-submodal-alert-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:200000;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;animation:fadeIn 0.15s ease;';
+            const isError = icone === 'error';
+            const isSuccess = icone === 'success';
+            const color = isError ? '#dc2626' : (isSuccess ? '#16a34a' : '#f59e0b');
+            const bgIcon = isError ? '#fee2e2' : (isSuccess ? '#dcfce7' : '#fef3c7');
+            const symbol = isError ? '✕' : (isSuccess ? '✓' : '!');
+            const safeTitle = String(titulo || 'Aviso').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const safeMsg = String(msg || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:12px;padding:24px 28px;max-width:440px;width:92%;box-shadow:0 20px 40px rgba(0,0,0,0.28);text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
+                    <div style="width:58px;height:58px;border-radius:50%;background:${bgIcon};color:${color}; border:2px solid ${color};display:flex;align-items:center;justify-content:center;font-size:1.75rem;font-weight:800;">${symbol}</div>
+                    <div style="font-size:1.2rem;font-weight:800;color:#1e293b;">${safeTitle}</div>
+                    <div style="font-size:0.92rem;color:#475569;line-height:1.45;">${safeMsg}</div>
+                    <button type="button" id="btn-close-submodal-alert" style="margin-top:6px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:9px 28px;font-size:0.9rem;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(37,99,235,0.25);">Ok</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const btnOk = document.getElementById('btn-close-submodal-alert');
+            if (btnOk) {
+                btnOk.onclick = () => overlay.remove();
+                setTimeout(() => btnOk.focus(), 30);
+            }
+            overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+            return;
+        }
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: 'Aviso',
+                title: titulo || 'Aviso',
                 text: msg,
-                icon: 'warning',
+                icon: icone || 'warning',
                 confirmButtonText: 'Ok'
             });
-        } else {
+        } else if (typeof originalAlert === 'function') {
             originalAlert(msg);
         }
+    };
+
+    // Redireciona o alert nativo do navegador para o aviso que preserva modais abertos
+    const originalAlert = window.alert;
+    window.alert = function(msg) {
+        window.mostrarAvisoSemFecharModal('Aviso', msg, 'warning');
     };
 
     await carregarPropostas();
@@ -1173,14 +1208,15 @@ function _renderLinhasPropostas(lista) {
         const valorTotal = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
         const valorFmt = valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        const regiaoHtml = p.regiao ? `
+        const regiaoNorm = p.regiao ? String(p.regiao).replace(/Roxa/gi, 'Vermelha') : '';
+        const regiaoHtml = regiaoNorm ? `
             <div style="margin-top: 3px;">
                 <span style="font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; display: inline-block; ${
-                    p.regiao.includes('Central') ? 'background:#cffafe; color:#0891b2;' :
-                    p.regiao.includes('Amarela') ? 'background:#fef9c3; color:#ca8a04;' :
-                    p.regiao.includes('Vermelha') ? 'background:#f3e8ff; color:#7e22ce;' :
+                    regiaoNorm.includes('Central') ? 'background:#cffafe; color:#0891b2;' :
+                    regiaoNorm.includes('Amarela') ? 'background:#fef9c3; color:#ca8a04;' :
+                    regiaoNorm.includes('Vermelha') ? 'background:#fee2e2; color:#dc2626;' :
                     'background:#f1f5f9; color:#475569;'
-                }">${p.regiao}</span>
+                }">${regiaoNorm}</span>
             </div>
         ` : '';
 
@@ -3957,8 +3993,27 @@ window.modalSalvarCliente = async function(clientId) {
     if (!celular) faltantes.push('Celular / WhatsApp');
 
     if (faltantes.length > 0) {
-        Swal.fire('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
+        window.mostrarAvisoSemFecharModal('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
         return;
+    }
+
+    const docDigitsModal = cpfCnpj.replace(/\D/g, '');
+    if (docDigitsModal.length > 0) {
+        try {
+            const listaCli = await apiGet('/clientes') || [];
+            const dup = listaCli.find(c => {
+                const cDigits = String(c.cpf_cnpj || '').replace(/\D/g, '');
+                if (!cDigits || cDigits !== docDigitsModal) return false;
+                if (clientId && (String(c.id) === String(clientId) || String(c.codigo) === String(clientId))) return false;
+                return true;
+            });
+            if (dup) {
+                window.mostrarAvisoSemFecharModal('CPF/CNPJ já cadastrado', `Já existe um cliente cadastrado com este CPF/CNPJ (${dup.codigo ? dup.codigo + ' - ' : ''}${dup.nome_razao_social || ''}).`, 'warning');
+                return;
+            }
+        } catch (errDup) {
+            console.error('Erro ao validar duplicidade de CPF/CNPJ:', errDup);
+        }
     }
 
     const parametros = {
@@ -4082,11 +4137,11 @@ window.modalSalvarCliente = async function(clientId) {
             
             Swal.close();
         } else {
-            Swal.fire('Erro', 'Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'), 'error');
+            window.mostrarAvisoSemFecharModal('Erro', 'Erro ao salvar cliente: ' + (res?.error || 'Erro desconhecido.'), 'error');
         }
     } catch (e) {
         console.error(e);
-        Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
+        window.mostrarAvisoSemFecharModal('Erro', e.message || 'Erro de comunicação com o servidor.', 'error');
     }
 };
 
@@ -4128,15 +4183,15 @@ window.modalVerificarCliente = function() {
     const razaoSocial = document.getElementById('modal-cli-razao-social')?.value || '';
     
     if (!cpfCnpj) {
-        Swal.fire('Aviso', 'Falta preencher: CPF / CNPJ.', 'warning');
+        window.mostrarAvisoSemFecharModal('Aviso', 'Falta preencher: CPF / CNPJ.', 'warning');
         return;
     }
     if (!razaoSocial) {
-        Swal.fire('Aviso', 'Falta preencher: Nome / Razão Social.', 'warning');
+        window.mostrarAvisoSemFecharModal('Aviso', 'Falta preencher: Nome / Razão Social.', 'warning');
         return;
     }
     
-    Swal.fire('Sucesso', 'Campos validados com sucesso! Pronto para salvar.', 'success');
+    window.mostrarAvisoSemFecharModal('Sucesso', 'Campos validados com sucesso! Pronto para salvar.', 'success');
 };
 
 window.pesquisarContatoProposta = async function(btnEl = null) {
@@ -9218,12 +9273,27 @@ window.salvarCliente = async function() {
     if (!celular) faltantes.push('Celular / WhatsApp');
 
     if (faltantes.length > 0) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
-        } else {
-            alert('Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.');
-        }
+        window.mostrarAvisoSemFecharModal('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
         return;
+    }
+
+    const docDigitsCli = cpfCnpj.replace(/\D/g, '');
+    if (docDigitsCli.length > 0) {
+        try {
+            const listaCli = await apiGet('/clientes') || [];
+            const dup = listaCli.find(c => {
+                const cDigits = String(c.cpf_cnpj || '').replace(/\D/g, '');
+                if (!cDigits || cDigits !== docDigitsCli) return false;
+                if (_clienteEditandoId && (String(c.id) === String(_clienteEditandoId) || String(c.codigo) === String(_clienteEditandoId))) return false;
+                return true;
+            });
+            if (dup) {
+                window.mostrarAvisoSemFecharModal('CPF/CNPJ já cadastrado', `Já existe um cliente cadastrado com este CPF/CNPJ (${dup.codigo ? dup.codigo + ' - ' : ''}${dup.nome_razao_social || ''}).`, 'warning');
+                return;
+            }
+        } catch (errDup) {
+            console.error('Erro ao validar duplicidade de CPF/CNPJ:', errDup);
+        }
     }
 
     const parametros = {
@@ -9323,7 +9393,7 @@ window.salvarCliente = async function() {
         }
     } catch (e) {
         console.error(e);
-        alert('Erro de comunicação com o servidor.');
+        alert(e.message || 'Erro de comunicação com o servidor.');
     }
 };
 
@@ -11092,11 +11162,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
         const res = await apiGet(`/clientes/${clienteId}/enderecos`) || [];
         window._modalEnderecos = res;
         window.modalRenderEnderecos();
-        if (window._modalEnderecos.length > 0) {
-            window.modalCarregarEnderecoForm(0);
-        } else {
-            window.modalNovoEndereco();
-        }
+        window.modalNovoEndereco();
     } catch(err) {
         console.error(err);
     }
@@ -11214,7 +11280,7 @@ window.modalNovoEndereco = function() {
 
 window.modalSalvarEndereco = async function() {
     if (!window._modalSelectedClienteId) {
-        Swal.fire('Aviso', 'O cliente deve estar cadastrado no sistema para cadastrar um novo endereço vinculado a ele. Pesquise o cliente na lupa ao lado de Razão Social ou clique no botão + para cadastrá-lo.', 'warning');
+        window.mostrarAvisoSemFecharModal('Aviso', 'O cliente deve estar cadastrado no sistema para cadastrar um novo endereço vinculado a ele. Pesquise o cliente na lupa ao lado de Razão Social ou clique no botão + para cadastrá-lo.', 'warning');
         return;
     }
     const cid = window._modalSelectedClienteId;
@@ -11286,6 +11352,9 @@ window.modalSalvarEndereco = async function() {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
             window.modalCarregarEnderecos(cid);
+            if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
+                window.carregarEnderecosVinculadosClienteProposta(document.getElementById('prop-cliente')?.value || '', false);
+            }
         } else {
             alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
@@ -12675,7 +12744,7 @@ window.classificarRegiaoEDias = async function() {
     try {
         const res = await apiPost('/ia/classificar-regiao', { endereco });
         if (res && res.regiao) {
-            const regiao = res.regiao;
+            const regiao = String(res.regiao).replace(/Roxa/gi, 'Vermelha');
             _propRegiaoIdentificada = regiao;
 
             if (badge) {
@@ -12688,9 +12757,9 @@ window.classificarRegiaoEDias = async function() {
                 } else if (regiao.includes('Amarela')) {
                     badge.style.background = '#fef9c3';
                     badge.style.color = '#ca8a04';
-                } else if (regiao.includes('Vermelha') || regiao.includes('Roxa')) {
-                    badge.style.background = '#f3e8ff';
-                    badge.style.color = '#7e22ce';
+                } else if (regiao.includes('Vermelha')) {
+                    badge.style.background = '#fee2e2';
+                    badge.style.color = '#dc2626';
                 } else {
                     badge.style.background = '#f1f5f9';
                     badge.style.color = '#475569';
@@ -12839,7 +12908,7 @@ function obterRegiaoLocal(enderecoCompleto) {
     const classes = [
         { name: "Zona Central", keywords: centralKw },
         { name: "Zona Amarela", keywords: amarelaKw },
-        { name: "Zona Roxa", keywords: vermelhaKw }
+        { name: "Zona Vermelha", keywords: vermelhaKw }
     ];
 
     let maxScore = -1;
@@ -12952,14 +13021,14 @@ window.atualizarEstatisticasModal = function() {
     const regioesCount = {
         'Zona Central': 0,
         'Zona Amarela': 0,
-        'Zona Roxa': 0,
+        'Zona Vermelha': 0,
         'Outra': 0
     };
 
     const regioesKm = {
         'Zona Central': 0,
         'Zona Amarela': 0,
-        'Zona Roxa': 0,
+        'Zona Vermelha': 0,
         'Outra': 0
     };
 
@@ -13010,8 +13079,8 @@ window.atualizarEstatisticasModal = function() {
                 <span style="display:inline-block; width:6px; height:6px; background:#ca8a04; border-radius:50%;"></span> Zona Amarela: <b>${regioesCount['Zona Amarela']}</b> (${regioesKm['Zona Amarela'].toFixed(1)} km)
             </div>
             
-            <div style="background:#f3e8ff; color:#7e22ce; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #e9d5ff;">
-                <span style="display:inline-block; width:6px; height:6px; background:#7e22ce; border-radius:50%;"></span> Zona Roxa: <b>${regioesCount['Zona Roxa']}</b> (${regioesKm['Zona Roxa'].toFixed(1)} km)
+            <div style="background:#fee2e2; color:#dc2626; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fecaca;">
+                <span style="display:inline-block; width:6px; height:6px; background:#dc2626; border-radius:50%;"></span> Zona Vermelha: <b>${regioesCount['Zona Vermelha']}</b> (${regioesKm['Zona Vermelha'].toFixed(1)} km)
             </div>
             
             <div style="background:#eceff1; color:#37474f; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; border:1px solid #cfd8dc; font-weight:700;">

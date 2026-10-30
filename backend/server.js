@@ -39596,7 +39596,7 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
             ]
         },
         {
-            name: "Zona Roxa",
+            name: "Zona Vermelha",
             keywords: [
                 "osasco", "barueri", "santana de parnaiba", "cajamar", "caieiras", 
                 "franco da rocha", "francisco morato", "mairipora", "santa isabel",
@@ -42096,40 +42096,61 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
 app.post('/api/clientes', authenticateToken, (req, res) => {
   const d = req.body;
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
-  const insertClient = (codigo) => {
-    db.run(`INSERT INTO clientes (
-      codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
-      rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
-      nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
-      pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
-      celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
-      observacoes, criado_por, criado_em, atualizado_em
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [
-      codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
-      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
-      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
-      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
-      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-      d.observacoes || '', d.criado_por, agora, agora
-    ], function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      const newClientId = this.lastID;
-      syncEnderecoFaturamentoCliente(newClientId, () => {
-        res.json({ success: true, id: newClientId, codigo });
+  const proceedCreate = () => {
+    const insertClient = (codigo) => {
+      db.run(`INSERT INTO clientes (
+        codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
+        rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+        nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
+        pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
+        celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
+        observacoes, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+        d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+        d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+        d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
+        d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+        d.observacoes || '', d.criado_por, agora, agora
+      ], function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        const newClientId = this.lastID;
+        syncEnderecoFaturamentoCliente(newClientId, () => {
+          res.json({ success: true, id: newClientId, codigo });
+        });
       });
-    });
+    };
+
+    if (d.codigo) {
+      insertClient(d.codigo);
+    } else {
+      gerarCodigoCliente((codigo) => {
+        insertClient(codigo);
+      });
+    }
   };
 
-  if (d.codigo) {
-    insertClient(d.codigo);
+  if (docLimpo.length > 0) {
+    db.get(
+      `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? LIMIT 1`,
+      [docLimpo],
+      (dupErr, dupRow) => {
+        if (dupErr) return res.status(500).json({ error: dupErr.message });
+        if (dupRow) {
+          return res.status(400).json({
+            error: `Já existe um cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
+          });
+        }
+        proceedCreate();
+      }
+    );
   } else {
-    gerarCodigoCliente((codigo) => {
-      insertClient(codigo);
-    });
+    proceedCreate();
   }
 });
 
@@ -42137,34 +42158,56 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
 app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const d = req.body;
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-  db.run(`UPDATE clientes SET
-    data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
-    rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
-    nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
-    pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
-    celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
-    observacoes=?, atualizado_em=?
-    WHERE id=? OR codigo=?`,
-  [
-    d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
-    d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
-    d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
-    d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
-    d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-    d.observacoes || '', agora, req.params.id, req.params.id
-  ], function(err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
-    db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (gErr, cRow) => {
-      if (!gErr && cRow && cRow.id) {
-        syncEnderecoFaturamentoCliente(cRow.id, () => res.json({ success: true }));
-      } else {
-        res.json({ success: true });
+  const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
+
+  const proceedUpdate = () => {
+    db.run(`UPDATE clientes SET
+      data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
+      rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+      nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
+      pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
+      celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
+      observacoes=?, atualizado_em=?
+      WHERE id=? OR codigo=?`,
+    [
+      d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
+      d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+      d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
+      d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
+      d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
+      d.observacoes || '', agora, req.params.id, req.params.id
+    ], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
+      if (this.changes === 0) return res.status(404).json({ error: 'Cliente não encontrado' });
+      db.get('SELECT id FROM clientes WHERE id = ? OR codigo = ?', [req.params.id, req.params.id], (gErr, cRow) => {
+        if (!gErr && cRow && cRow.id) {
+          syncEnderecoFaturamentoCliente(cRow.id, () => res.json({ success: true }));
+        } else {
+          res.json({ success: true });
+        }
+      });
     });
-  });
+  };
+
+  if (docLimpo.length > 0) {
+    db.get(
+      `SELECT id, codigo, nome_razao_social FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(IFNULL(cpf_cnpj, ''), '.', ''), '-', ''), '/', ''), ' ', '') = ? AND id != ? AND CAST(IFNULL(codigo, '') AS TEXT) != ? LIMIT 1`,
+      [docLimpo, req.params.id, String(req.params.id)],
+      (dupErr, dupRow) => {
+        if (dupErr) return res.status(500).json({ error: dupErr.message });
+        if (dupRow) {
+          return res.status(400).json({
+            error: `Já existe outro cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
+          });
+        }
+        proceedUpdate();
+      }
+    );
+  } else {
+    proceedUpdate();
+  }
 });
 
 // DELETE /api/clientes/:id - Excluir cliente
