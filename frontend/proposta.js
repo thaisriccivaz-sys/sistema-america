@@ -1941,7 +1941,7 @@ function _renderFormPropostaInt() {
                                     <option value="">-- Selecione --</option>
                                     ${PROP_TIPOS.map(t => `<option value="${t}" ${(v('tipo')===t || String(v('tipo')||'').replace(/^PROPOSTA\s+/i,'')===t)?'selected':''}>${t}</option>`).join('')}
                                 </select>
-                                <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="background:linear-gradient(135deg,#7048e8,#5f3dc4); color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:0 2px 6px rgba(112,72,232,0.25); transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                                <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="background:#7048e8; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
                                     <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
                                 </button>
                             </div>
@@ -2005,8 +2005,8 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
-                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false); if(typeof window.carregarEnderecosVinculadosClienteProposta === 'function') window.carregarEnderecosVinculadosClienteProposta(this.value, false);"
-                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false); if(typeof window.carregarEnderecosVinculadosClienteProposta === 'function') window.carregarEnderecosVinculadosClienteProposta(this.value, false);"
+                                        oninput="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
+                                        onchange="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
@@ -2133,7 +2133,7 @@ function _renderFormPropostaInt() {
                         </h4>
                         
                         <!-- Inputs para adicionar produto -->
-                        <div style="display:grid; grid-template-columns:2fr 2fr 0.8fr 1fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.6rem;">
+                        <div style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
                             <div>
                                 <label class="prop-lbl">Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -2153,7 +2153,7 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Quantidade</label>
                                 <input type="number" id="prop-prod-quantidade" value="1" min="1" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
-                            <div>
+                            <div style="display:none;">
                                 <label class="prop-lbl">Valor (R$)</label>
                                 <input type="number" id="prop-prod-valor" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
                             </div>
@@ -2164,8 +2164,29 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
 
+                        <!-- Linha abaixo do campo de seleção do produto (e em cima da tabela): Desconto (%), Desconto (R$) e Valor Total (R$) -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
+                            <div>
+                                <label class="prop-lbl">Desconto (%)</label>
+                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
+                                    oninput="calcularDescontoReais()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Desconto (R$)</label>
+                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
+                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Valor Total (R$)</label>
+                                <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
+                                    style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
+                            </div>
+                        </div>
+
                         <!-- GridView com produtos adicionados -->
-                        <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:0.65rem;">
+                        <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
@@ -2184,27 +2205,6 @@ function _renderFormPropostaInt() {
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
-
-                        <!-- Linha abaixo dos produtos: Desconto (%), Desconto (R$) e Valor (R$) ao lado direito -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end;">
-                            <div>
-                                <label class="prop-lbl">Desconto (%)</label>
-                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
-                                    oninput="calcularDescontoReais()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Desconto (R$)</label>
-                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
-                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Valor Total (R$)</label>
-                                <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
-                                    style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
-                            </div>
                         </div>
                     </div>
 
@@ -2320,6 +2320,7 @@ function _renderFormPropostaInt() {
         window.calcularValorTotalProposta();
     }
 
+    window._ultimoClienteNomePropostaAtivo = String(v('cliente_nome') || '').trim();
     if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
         window.verificarBloqueioFaturamentoProposta(v('cliente_nome'));
     }
@@ -2330,6 +2331,40 @@ function _renderFormPropostaInt() {
         window.carregarEnderecosVinculadosClienteProposta(v('cliente_nome'), false);
     }
 }
+
+window.onChangeClientePropostaInput = function(novoValor) {
+    const valTrim = String(novoValor || '').trim();
+    const antTrim = String(window._ultimoClienteNomePropostaAtivo || '').trim();
+    if (valTrim !== antTrim) {
+        window._ultimoClienteNomePropostaAtivo = valTrim;
+        const contatoEl = document.getElementById('prop-contato');
+        if (contatoEl) contatoEl.value = '';
+        const dropContato = document.getElementById('prop-contato-dropdown');
+        if (dropContato) dropContato.style.display = 'none';
+        const enderecoEl = document.getElementById('prop-endereco');
+        if (enderecoEl) enderecoEl.value = '';
+        const dropEnd = document.getElementById('prop-endereco-dropdown');
+        if (dropEnd) dropEnd.style.display = 'none';
+        const badgeEl = document.getElementById('prop-regiao-ia-badge');
+        if (badgeEl) badgeEl.style.display = 'none';
+        _propRegiaoIdentificada = '';
+        if (typeof window.classificarRegiaoEDias === 'function') {
+            window.classificarRegiaoEDias();
+        }
+        if (typeof window.calcularValorTotalProposta === 'function') {
+            window.calcularValorTotalProposta();
+        }
+    }
+    if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+        window.verificarBloqueioFaturamentoProposta(novoValor);
+    }
+    if (typeof window.carregarContatosVinculadosClienteProposta === 'function') {
+        window.carregarContatosVinculadosClienteProposta(novoValor, false);
+    }
+    if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
+        window.carregarEnderecosVinculadosClienteProposta(novoValor, false);
+    }
+};
 
 window.clienteTemFaturamentoBloqueado = function(c) {
     if (!c) return false;
@@ -4098,7 +4133,9 @@ window.modalSalvarCliente = async function(clientId) {
             const propClienteInput = document.getElementById('prop-cliente');
             if (propClienteInput) {
                 propClienteInput.value = razaoSocial;
-                if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+                if (typeof window.onChangeClientePropostaInput === 'function') {
+                    window.onChangeClientePropostaInput(razaoSocial);
+                } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
                     window.verificarBloqueioFaturamentoProposta(razaoSocial);
                 }
             }
@@ -10962,9 +10999,8 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         Clientes - Endereços Entrega
                     </div>
 
-                    <!-- Estatísticas de Regiões e Quilometragem (Centro) -->
-                    <div id="modal-enderecos-estatisticas" style="display:flex; gap:0.5rem; align-items:center; font-family:'Inter', sans-serif; font-size:0.72rem; color:#475569; font-weight:600; flex:1; justify-content:center; flex-wrap:wrap; margin:0 1rem;">
-                    </div>
+                    <!-- Estatísticas de Regiões ocultas no topo conforme solicitado -->
+                    <div id="modal-enderecos-estatisticas" style="display:none;"></div>
 
                     <!-- Botões de Ação (Lado Direito) -->
                     <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
@@ -11112,11 +11148,13 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                         <table style="width:100%; border-collapse:collapse; font-size:0.76rem; text-align:left;">
                             <thead>
                                 <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
-                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:50px; text-align:center;">#</th>
-                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px;">Nome</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:45px; text-align:center;">#</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:180px;">Nome</th>
                                     <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Endereço</th>
-                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px;">Município / UF</th>
-                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:80px; text-align:center;">Ações</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:135px;">Município / UF</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:125px; text-align:center;">Zona</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:90px; text-align:center;">KM Total</th>
+                                    <th style="padding:6px 8px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:65px; text-align:center;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="modal-end-tbody">
@@ -11172,15 +11210,10 @@ window.modalRenderEnderecos = function() {
     const tbody = document.getElementById('modal-end-tbody');
     if (!tbody) return;
 
-    // Refresh route statistics
-    if (typeof window.atualizarEstatisticasModal === 'function') {
-        window.atualizarEstatisticasModal();
-    }
-
     if (!window._modalEnderecos || window._modalEnderecos.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">
+                <td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">
                     Nenhum endereço de entrega cadastrado.
                 </td>
             </tr>
@@ -11191,6 +11224,7 @@ window.modalRenderEnderecos = function() {
     tbody.innerHTML = window._modalEnderecos.map((e, idx) => {
         const cliNome = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
         const showCliSub = !window._modalSelectedClienteId && cliNome;
+        const infoZonaKm = window.obterDadosZonaEKmEndereco ? window.obterDadosZonaEKmEndereco(e) : { badgeHtml: '—', kmFmt: '—' };
         return `
         <tr onclick="window.modalCarregarEnderecoForm(${idx})" ondblclick="window.modalSelecionarEndereco(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:5px 8px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
@@ -11200,6 +11234,8 @@ window.modalRenderEnderecos = function() {
             </td>
             <td style="padding:5px 8px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
             <td style="padding:5px 8px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
+            <td style="padding:5px 8px; text-align:center;">${infoZonaKm.badgeHtml}</td>
+            <td style="padding:5px 8px; text-align:center; font-weight:700; color:#334155; white-space:nowrap;">${infoZonaKm.kmFmt}</td>
             <td style="padding:5px 8px; text-align:center;">
                 <button type="button" onclick="event.stopPropagation(); window.modalExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:22px; height:22px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
                     <i class="ph ph-trash" style="font-size:0.8rem;"></i>
@@ -11839,10 +11875,12 @@ function _renderEnderecosInt() {
                         <thead>
                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569;">
                                 <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:50px; text-align:center;">#</th>
-                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:200px;">Nome</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:190px;">Nome</th>
                                 <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">Endereço</th>
-                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:150px;">Município / UF</th>
-                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:80px; text-align:center;">Ações</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:145px;">Município / UF</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:135px; text-align:center;">Zona</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:100px; text-align:center;">KM Total</th>
+                                <th style="padding:12px 16px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; width:75px; text-align:center;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="page-end-tbody">
@@ -11913,7 +11951,7 @@ window.pageRenderEnderecos = function() {
     if (!window._pageEnderecos || window._pageEnderecos.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">
+                <td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">
                     Nenhum endereço de entrega cadastrado.
                 </td>
             </tr>
@@ -11924,6 +11962,7 @@ window.pageRenderEnderecos = function() {
     tbody.innerHTML = window._pageEnderecos.map((e, idx) => {
         const cliNome = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
         const showCliSub = !window._pageSelectedClienteId && cliNome;
+        const infoZonaKm = window.obterDadosZonaEKmEndereco ? window.obterDadosZonaEKmEndereco(e) : { badgeHtml: '—', kmFmt: '—' };
         return `
         <tr onclick="window.pageCarregarEnderecoForm(${idx})" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
@@ -11933,6 +11972,8 @@ window.pageRenderEnderecos = function() {
             </td>
             <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
             <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
+            <td style="padding:10px 12px; text-align:center;">${infoZonaKm.badgeHtml}</td>
+            <td style="padding:10px 12px; text-align:center; font-weight:700; color:#334155; white-space:nowrap;">${infoZonaKm.kmFmt}</td>
             <td style="padding:10px 12px; text-align:center;">
                 <button type="button" onclick="event.stopPropagation(); window.pageExcluirEndereco(${idx})" style="background:#fee2e2; color:#ef4444; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" onmouseout="this.style.background='#fee2e2'; this.style.color='#ef4444';" title="Excluir Endereço">
                     <i class="ph ph-trash" style="font-size:0.9rem;"></i>
@@ -12858,7 +12899,7 @@ window._enderecoCoordenadasCache = window._enderecoCoordenadasCache || {};
 window._geocodingQueue = window._geocodingQueue || {};
 
 function obterRegiaoLocal(enderecoCompleto) {
-    const e = enderecoCompleto.toLowerCase();
+    const e = String(enderecoCompleto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     
     const centralKw = [
         "guarulhos", "gopouva", "gopóuva", "cumbica", "pimentas", "macedo", "cecilia", "cecília", 
@@ -12917,7 +12958,9 @@ function obterRegiaoLocal(enderecoCompleto) {
     classes.forEach(c => {
         let score = 0;
         c.keywords.forEach(kw => {
-            const regex = new RegExp(kw, 'gi');
+            const kwNorm = String(kw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (!kwNorm) return;
+            const regex = new RegExp('\\b' + kwNorm + '\\b', 'gi');
             const matches = e.match(regex);
             if (matches) {
                 score += matches.length;
@@ -12931,6 +12974,71 @@ function obterRegiaoLocal(enderecoCompleto) {
 
     return regiao;
 }
+
+window.obterDadosZonaEKmEndereco = function(e) {
+    if (!e) return { regiao: 'Outra', badgeHtml: '—', km: 0, kmFmt: '0.0 km' };
+    const textoClassificacao = [e.nome_local, e.endereco, e.numero, e.complemento, e.bairro, e.municipio, e.uf].filter(Boolean).join(' - ');
+    const regiao = obterRegiaoLocal(textoClassificacao);
+
+    let bg = '#f1f5f9', color = '#475569', border = '#cbd5e1', dot = '#64748b';
+    if (regiao === 'Zona Central') {
+        bg = '#cffafe'; color = '#0891b2'; border = '#a5f3fc'; dot = '#0891b2';
+    } else if (regiao === 'Zona Amarela') {
+        bg = '#fef9c3'; color = '#ca8a04'; border = '#fef08a'; dot = '#ca8a04';
+    } else if (regiao === 'Zona Vermelha') {
+        bg = '#fee2e2'; color = '#dc2626'; border = '#fecaca'; dot = '#dc2626';
+    }
+
+    const badgeHtml = `<span style="background:${bg}; color:${color}; border:1px solid ${border}; padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><span style="width:6px; height:6px; border-radius:50%; background:${dot}; display:inline-block;"></span>${regiao}</span>`;
+
+    const LAT_A = -23.433765;
+    const LON_A = -46.420206;
+    let distance = 0;
+    let foundCoords = false;
+
+    if (e.coordenadas && String(e.coordenadas).includes(',')) {
+        const pts = String(e.coordenadas).split(',');
+        const lat = parseFloat(pts[0].trim());
+        const lon = parseFloat(pts[1].trim());
+        if (!isNaN(lat) && !isNaN(lon)) {
+            const d = calcularDistanciaHaversine(LAT_A, LON_A, lat, lon);
+            if (d > 0 && d < 500) {
+                distance = d;
+                foundCoords = true;
+            }
+        }
+    }
+
+    const fullAddress = `${e.endereco || ''}, ${e.numero || ''} - ${e.bairro || ''} - ${e.municipio || ''}/${e.uf || ''}`.trim();
+    if (!foundCoords && window._enderecoCoordenadasCache && window._enderecoCoordenadasCache[fullAddress]) {
+        const coords = window._enderecoCoordenadasCache[fullAddress];
+        const d = calcularDistanciaHaversine(LAT_A, LON_A, coords.lat, coords.lon);
+        if (d > 0 && d < 500) {
+            distance = d;
+            foundCoords = true;
+        }
+    }
+
+    if (!foundCoords) {
+        if (regiao === 'Zona Central') {
+            distance = textoClassificacao.toLowerCase().includes('guarulhos') ? 7 : 12;
+        } else if (regiao === 'Zona Amarela') {
+            distance = 18;
+        } else if (regiao === 'Zona Vermelha') {
+            distance = 28;
+        } else {
+            distance = 15;
+        }
+        obterCoordenadasEnderecoAsync(fullAddress);
+    }
+
+    return {
+        regiao,
+        badgeHtml,
+        km: distance,
+        kmFmt: `${distance.toFixed(1)} km`
+    };
+};
 
 function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
     const R = 6371; // Earth's radius in kilometers
@@ -12990,8 +13098,11 @@ async function obterCoordenadasEnderecoAsync(enderecoCompleto) {
                 window._enderecoCoordenadasCache[cleanQuery] = coordsObj;
                 
                 // Refresh rendering to calculate real distances
-                if (typeof window.atualizarEstatisticasModal === 'function') {
-                    window.atualizarEstatisticasModal();
+                if (typeof window.modalRenderEnderecos === 'function' && document.getElementById('modal-end-tbody')) {
+                    window.modalRenderEnderecos();
+                }
+                if (typeof window.pageRenderEnderecos === 'function' && document.getElementById('page-end-tbody')) {
+                    window.pageRenderEnderecos();
                 }
                 if (typeof window.calcularValorTotalProposta === 'function') {
                     window.calcularValorTotalProposta();
