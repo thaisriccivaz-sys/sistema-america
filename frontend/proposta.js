@@ -4272,22 +4272,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         }
 
         const handleRedirecionamentoContato = (termoDigitado) => {
-            _redirectAfterContactSave = true;
-            window.switchPropostaTab('cadastro-contatos');
-            window.limparFormContato();
-            setTimeout(async () => {
-                const nameInput = document.getElementById('con-nome');
-                if (nameInput) nameInput.value = termoDigitado || query;
-                if (foundCli) {
-                    await window.carregarEmpresaSelecionada(foundCli.id);
-                } else if (clienteNome) {
-                    const empRazaoInput = document.getElementById('emp-razao-social');
-                    if (empRazaoInput) {
-                        empRazaoInput.value = clienteNome;
-                        empRazaoInput.dispatchEvent(new Event('input'));
-                    }
-                }
-            }, 300);
+            window.cadastrarNovoContatoProposta(termoDigitado || query);
         };
 
         window._tempContatosPropostaBase = baseInicial;
@@ -4607,28 +4592,353 @@ if (!window._propContatoOutsideClickBound) {
     });
 }
 
-window.cadastrarNovoContatoProposta = async function() {
-    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
-    const contatoDigitado = (document.getElementById('prop-contato')?.value || '').trim();
-    const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
-    _redirectAfterContactSave = true;
-    window.switchPropostaTab('cadastro-contatos');
-    if (typeof window.limparFormContato === 'function') {
-        window.limparFormContato();
-    }
-    setTimeout(async () => {
-        const nameInput = document.getElementById('con-nome');
-        if (nameInput && contatoDigitado) nameInput.value = contatoDigitado;
-        if (foundCli && typeof window.carregarEmpresaSelecionada === 'function') {
-            await window.carregarEmpresaSelecionada(foundCli.id);
-        } else if (clienteNome) {
-            const empRazaoInput = document.getElementById('emp-razao-social');
-            if (empRazaoInput) {
-                empRazaoInput.value = clienteNome;
-                empRazaoInput.dispatchEvent(new Event('input'));
-            }
+window.toggleModalConRamoAtividade = function() {
+    const boxes = document.querySelectorAll('.mcon-ramo-chk');
+    const selecionados = [];
+    boxes.forEach(b => {
+        const lbl = b.closest('label');
+        if (b.checked) {
+            selecionados.push(b.value);
+            if (lbl) { lbl.style.background = '#eff6ff'; lbl.style.borderColor = '#3b82f6'; lbl.style.color = '#1d4ed8'; }
+        } else if (lbl) {
+            lbl.style.background = '#fff'; lbl.style.borderColor = '#cbd5e1'; lbl.style.color = '#334155';
         }
-    }, 300);
+    });
+    const hiddenInput = document.getElementById('mcon-ramo-atividade');
+    if (hiddenInput) hiddenInput.value = selecionados.join(', ');
+};
+
+window.buscarCEPModalContatoProposta = async function() {
+    const cepRaw = document.getElementById('mcon-emp-cep')?.value || '';
+    const cep = cepRaw.replace(/\D/g, '');
+    if (cep.length !== 8) { alert('Informe um CEP válido com 8 dígitos.'); return; }
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = await res.json();
+        if (data && !data.erro) {
+            if (document.getElementById('mcon-emp-endereco')) document.getElementById('mcon-emp-endereco').value = data.logradouro || '';
+            if (document.getElementById('mcon-emp-bairro')) document.getElementById('mcon-emp-bairro').value = data.bairro || '';
+            if (document.getElementById('mcon-emp-cidade')) document.getElementById('mcon-emp-cidade').value = data.localidade || '';
+            if (document.getElementById('mcon-emp-uf')) document.getElementById('mcon-emp-uf').value = data.uf || '';
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.salvarNovoContatoModalProposta = async function() {
+    const getVal = (id) => (document.getElementById(id)?.value || '').trim();
+    const conNome = getVal('mcon-nome');
+    const conCelular = getVal('mcon-celular');
+    const conEmail = getVal('mcon-email');
+    const empCnpj = getVal('mcon-emp-cnpj');
+    const empRazao = getVal('mcon-emp-razao-social');
+    const empNomeFantasia = getVal('mcon-emp-nome-fantasia') || empRazao;
+
+    if (!conNome) { alert('Por favor, preencha o Nome do Contato.'); return; }
+    if (!conCelular) { alert('Por favor, preencha o Celular / WhatsApp do Contato.'); return; }
+    if (!empRazao) { alert('Por favor, preencha a Razão Social da Empresa Cliente.'); return; }
+    if (!empCnpj) { alert('Por favor, preencha o CPF/CNPJ da Empresa Cliente.'); return; }
+
+    let resolvedId = window._modalConEmpresaId || null;
+    let resolvedCodigo = getVal('mcon-emp-codigo') || null;
+    if (!resolvedId) {
+        try {
+            const clientes = await window.obterClientesCache();
+            const cleanCnpj = empCnpj.replace(/\D/g, '');
+            const found = (clientes || []).find(c =>
+                (cleanCnpj && c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === cleanCnpj) ||
+                (c.nome_razao_social && c.nome_razao_social.toLowerCase() === empRazao.toLowerCase())
+            );
+            if (found) {
+                resolvedId = found.id;
+                resolvedCodigo = found.codigo;
+            }
+        } catch (e) {}
+    }
+
+    const cargoDepto = getVal('mcon-cargo');
+    const repAuto = getVal('mcon-representante') || window.obterNomeUsuarioLogado();
+    const empresa_cliente = {
+        id: resolvedId,
+        codigo: resolvedCodigo,
+        cpf_cnpj: empCnpj,
+        nome_razao_social: empRazao,
+        nome_fantasia: empNomeFantasia,
+        cep: getVal('mcon-emp-cep'),
+        endereco: getVal('mcon-emp-endereco'),
+        numero: '',
+        bairro: getVal('mcon-emp-bairro'),
+        municipio: getVal('mcon-emp-cidade'),
+        uf: getVal('mcon-emp-uf'),
+        grupo_clientes: getVal('mcon-emp-grupo'),
+        cliente_centralizador: getVal('mcon-emp-centralizador'),
+        telefone: getVal('mcon-emp-telefone'),
+        ramal: '',
+        telefone_2: '',
+        ramal_2: '',
+        fax: '',
+        website: getVal('mcon-emp-site'),
+        email: getVal('mcon-emp-email'),
+        criado_por: repAuto
+    };
+
+    const payload = {
+        codigo: null,
+        nome: conNome,
+        tipo: '',
+        representante: repAuto,
+        departamento: cargoDepto,
+        cargo: cargoDepto,
+        origem: getVal('mcon-origem'),
+        influenciador: getVal('mcon-influenciador'),
+        classificacao: '',
+        data_nascimento: '',
+        ramo_atividade: getVal('mcon-ramo-atividade'),
+        regiao: '',
+        sexo: '',
+        celular: conCelular,
+        telefone: '',
+        ramal: '',
+        nextel: '',
+        email: conEmail,
+        outra_comunicacao: '',
+        inativo: document.getElementById('mcon-inativo')?.checked ? 1 : 0,
+        email_cobranca: document.getElementById('mcon-email-cobranca')?.checked ? 1 : 0,
+        email_nfe: document.getElementById('mcon-email-nfe')?.checked ? 1 : 0,
+        email_os: document.getElementById('mcon-email-os')?.checked ? 1 : 0,
+        email_contrato: document.getElementById('mcon-email-contrato')?.checked ? 1 : 0,
+        criado_por: repAuto,
+        empresa_cliente: empresa_cliente
+    };
+
+    try {
+        const res = await apiPost('/contatos', payload);
+        if (res && res.success) {
+            _clientesCache = [];
+            const propContatoInput = document.getElementById('prop-contato');
+            if (propContatoInput) propContatoInput.value = conNome;
+            const propCliInput = document.getElementById('prop-cliente');
+            if (propCliInput && !propCliInput.value.trim() && empRazao) {
+                propCliInput.value = empRazao;
+                propCliInput.dispatchEvent(new Event('input'));
+                propCliInput.dispatchEvent(new Event('change'));
+            }
+            await window.carregarContatosVinculadosClienteProposta(empRazao, false);
+            Swal.close();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Contato cadastrado e selecionado com sucesso!');
+            }
+        } else {
+            alert('Erro ao salvar contato: ' + (res?.error || 'Erro desconhecido.'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao comunicar com o servidor.');
+    }
+};
+
+window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
+    let fullCli = foundCli;
+    if (foundCli && foundCli.id) {
+        try { fullCli = await apiGet(`/clientes/${foundCli.id}`) || foundCli; } catch (e) {}
+    }
+    window._modalConEmpresaId = fullCli ? fullCli.id : null;
+    const empCod = fullCli ? (fullCli.codigo || '') : '';
+    const empRazao = fullCli ? (fullCli.nome_razao_social || '') : clienteNome;
+    const empFantasia = fullCli ? (fullCli.nome_fantasia || fullCli.nome_razao_social || '') : clienteNome;
+    const empCnpj = fullCli ? (fullCli.cpf_cnpj || '') : '';
+    const empCep = fullCli ? (fullCli.cep || '') : '';
+    const empEnd = fullCli ? ((fullCli.endereco || '') + (fullCli.numero && !(fullCli.endereco || '').includes(fullCli.numero) ? ', ' + fullCli.numero : '')) : '';
+    const empBairro = fullCli ? (fullCli.bairro || '') : '';
+    const empCidade = fullCli ? (fullCli.municipio || fullCli.cidade || '') : '';
+    const empUf = fullCli ? (fullCli.uf || '') : '';
+    const empGrupo = fullCli ? (fullCli.grupo_clientes || '') : '';
+    const empCentral = fullCli ? (fullCli.cliente_centralizador || '') : '';
+    const empTel = fullCli ? (fullCli.telefone || fullCli.celular || '') : '';
+    const empSite = fullCli ? (fullCli.website || '') : '';
+    const empEmail = fullCli ? (fullCli.email || '') : '';
+    const hojeFmt = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
+    const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+    const nomePre = typeof nomeInicial === 'string' ? nomeInicial : '';
+
+    Swal.fire({
+        title: '',
+        width: '1080px',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'custom-swal-padding-zero' },
+        html: `
+            <div style="background:#fff; width:100%; border-radius:12px; overflow:hidden; text-align:left; font-family:'Inter', sans-serif;">
+                <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <div style="background:#7048e8; color:#fff; padding:0.35rem 0.75rem; border-radius:6px; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="ph ph-identification-card" style="font-size:1rem;"></i> Cadastrar Novo Contato
+                        </div>
+                        <button type="button" onclick="window.salvarNovoContatoModalProposta()" style="background:#16a34a; color:#fff; border:none; padding:0.42rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="ph ph-check"></i> Salvar
+                        </button>
+                        <button type="button" onclick="Swal.close()" style="background:#64748b; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px;">
+                            Fechar
+                        </button>
+                    </div>
+                    <div style="display:flex; gap:1rem; align-items:center; font-size:0.8rem; font-weight:600; color:#1e293b; flex-wrap:wrap; margin-right:1.5rem;">
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-nfe"> Envio NFe</label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-cobranca"> Cobrança</label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-os"> OS</label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-contrato"> Contrato</label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; border-left:1px solid #cbd5e1; padding-left:10px;"><input type="checkbox" id="mcon-inativo"> Inativo</label>
+                    </div>
+                </div>
+                <div style="padding:1rem 1.25rem; max-height:76vh; overflow-y:auto;">
+                    <div style="font-size:0.82rem; font-weight:800; color:#475569; text-transform:uppercase; border-bottom:2px solid #e2e8f0; padding-bottom:4px; margin-bottom:0.75rem; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-identification-card" style="color:#7048e8;"></i> Dados do Contato
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 3fr 1.8fr 2.2fr; gap:0.65rem; margin-bottom:0.65rem;">
+                        <div>
+                            <label class="prop-lbl">Código</label>
+                            <input type="text" id="mcon-codigo" readonly value="Auto" style="width:100%; padding:0.48rem; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#7048e8; font-weight:700; text-align:center; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Nome *</label>
+                            <input type="text" id="mcon-nome" value="${_escHtmlProp(nomePre)}" placeholder="Nome Completo" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Celular / WhatsApp *</label>
+                            <input type="text" id="mcon-celular" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">E-mail</label>
+                            <input type="email" id="mcon-email" placeholder="nome@empresa.com" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1.8fr 1.3fr 1.1fr 2.2fr; gap:0.65rem; margin-bottom:1rem;">
+                        <div>
+                            <label class="prop-lbl">Cargo/Departamento</label>
+                            <input type="text" id="mcon-cargo" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Origem</label>
+                            <select id="mcon-origem" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                                <option value="">-- Selecione --</option>
+                                <option value="Google">Google</option>
+                                <option value="Indicação">Indicação</option>
+                                <option value="Instagram">Instagram</option>
+                                <option value="Facebook">Facebook</option>
+                                <option value="ChatGPT">ChatGPT</option>
+                                <option value="Outros anúncios">Outros anúncios</option>
+                                <option value="Prospecção Ativa">Prospecção Ativa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Influenciador</label>
+                            <select id="mcon-influenciador" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                                <option value="">-- Selecione --</option>
+                                <option value="Sim">Sim</option>
+                                <option value="Não">Não</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Ramo de Atividade</label>
+                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
+                                    <label style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.38rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                        <input type="checkbox" class="mcon-ramo-chk" value="${op.val}" onchange="window.toggleModalConRamoAtividade()" style="margin:0;"> ${op.label}
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" id="mcon-ramo-atividade" value="">
+                        </div>
+                    </div>
+
+                    <div style="font-size:0.82rem; font-weight:800; color:#475569; text-transform:uppercase; border-bottom:2px solid #e2e8f0; padding-bottom:4px; margin-bottom:0.75rem; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-buildings" style="color:#7048e8;"></i> Empresa Cliente (Vinculada)
+                    </div>
+                    <div style="display:grid; grid-template-columns:2.8fr 2fr 1.6fr 1.2fr; gap:0.65rem; margin-bottom:0.65rem;">
+                        <div>
+                            <label class="prop-lbl">Cliente (Razão Social) *</label>
+                            <div style="display:flex; gap:0.35rem;">
+                                <input type="text" id="mcon-emp-codigo" readonly value="${_escHtmlProp(empCod)}" placeholder="Cód" style="width:70px; padding:0.48rem; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; font-weight:700; text-align:center; font-size:0.83rem; box-sizing:border-box;">
+                                <input type="text" id="mcon-emp-razao-social" value="${_escHtmlProp(empRazao)}" placeholder="Razão Social" style="flex:1; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Nome Fantasia *</label>
+                            <input type="text" id="mcon-emp-nome-fantasia" value="${_escHtmlProp(empFantasia)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">CNPJ / CPF *</label>
+                            <input type="text" id="mcon-emp-cnpj" value="${_escHtmlProp(empCnpj)}" placeholder="CPF ou CNPJ" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">CEP</label>
+                            <div style="display:flex; gap:0.25rem;">
+                                <input type="text" id="mcon-emp-cep" value="${_escHtmlProp(empCep)}" placeholder="00000-000" style="flex:1; padding:0.48rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; width:100%;">
+                                <button type="button" onclick="window.buscarCEPModalContatoProposta()" style="background:#16a34a; color:#fff; border:none; border-radius:6px; width:32px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:3fr 1.8fr 1.8fr 0.8fr; gap:0.65rem; margin-bottom:0.65rem;">
+                        <div>
+                            <label class="prop-lbl">Endereço</label>
+                            <input type="text" id="mcon-emp-endereco" value="${_escHtmlProp(empEnd)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Bairro</label>
+                            <input type="text" id="mcon-emp-bairro" value="${_escHtmlProp(empBairro)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Cidade</label>
+                            <input type="text" id="mcon-emp-cidade" value="${_escHtmlProp(empCidade)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">UF</label>
+                            <select id="mcon-emp-uf" style="width:100%; padding:0.48rem 0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                                <option value="">--</option>
+                                ${ufs.map(u => `<option value="${u}" ${empUf === u ? 'selected' : ''}>${u}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:0.65rem;">
+                        <div>
+                            <label class="prop-lbl">Grupo de Clientes</label>
+                            <select id="mcon-emp-grupo" style="width:100%; padding:0.48rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                                <option value="">-- Selecione --</option>
+                                <option value="1 - Diamante" ${empGrupo === '1 - Diamante' ? 'selected' : ''}>💎Diamante</option>
+                                <option value="2 - Ouro" ${empGrupo === '2 - Ouro' ? 'selected' : ''}>🥇Ouro</option>
+                                <option value="3 - Prata" ${empGrupo === '3 - Prata' ? 'selected' : ''}>🥈Prata</option>
+                                <option value="4 - Bronze" ${empGrupo === '4 - Bronze' ? 'selected' : ''}>🥉Bronze</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Cliente Centralizador</label>
+                            <input type="text" id="mcon-emp-centralizador" value="${_escHtmlProp(empCentral)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Telefone</label>
+                            <input type="text" id="mcon-emp-telefone" value="${_escHtmlProp(empTel)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Website (Site)</label>
+                            <input type="text" id="mcon-emp-site" value="${_escHtmlProp(empSite)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">E-mail Empresa</label>
+                            <input type="email" id="mcon-emp-email" value="${_escHtmlProp(empEmail)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <input type="hidden" id="mcon-representante" value="${_escHtmlProp(window.obterNomeUsuarioLogado())}">
+                    <input type="hidden" id="mcon-data-cadastro" value="${hojeFmt}">
+                </div>
+            </div>
+        `,
+        didOpen: () => {
+            setTimeout(() => {
+                const inp = document.getElementById('mcon-nome');
+                if (inp) inp.focus();
+            }, 50);
+        }
+    });
 };
 
 window.verDetalhesContatoProposta = async function() {
