@@ -1857,6 +1857,9 @@ function _renderFormPropostaInt() {
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder excluí-la.', 'warning')" : `excluirProposta(${id})`}" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
+                    <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
+                        <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
+                    </button>
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
@@ -1891,8 +1894,8 @@ function _renderFormPropostaInt() {
                         </div>
                         <div>
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}" readonly
-                                style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;">
+                            <input type="text" id="prop-atendente" value="${v('atendente') || window.obterNomeUsuarioLogado()}"
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
 
@@ -1943,28 +1946,43 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
-                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value)"
-                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value)"
+                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false);"
+                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false);"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
-                                    <button type="button" onclick="verDetalhesClienteProposta()" title="Ver Detalhes do Cliente" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                                    <button type="button" onclick="verDetalhesClienteProposta()" title="Ver Detalhes do Cliente" style="display:none; background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
                                         <i class="ph ph-eye" style="font-size:0.95rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.abrirModalCadastroCliente(null, '')" title="Adicionar Novo Cliente" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
                             <div>
                                 <label class="prop-lbl">Contato</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <input type="text" id="prop-contato" value="${v('contato_nome')}"
-                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop'));}"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome do contato">
+                                    <div id="prop-contato-combo-wrap" style="position:relative; flex:1;">
+                                        <input type="text" id="prop-contato" value="${v('contato_nome')}" autocomplete="off"
+                                            onfocus="if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(false);"
+                                            onclick="if(typeof window.abrirDropdownContatosProposta === 'function') window.abrirDropdownContatosProposta(false);"
+                                            oninput="if(typeof window.filtrarDropdownContatosProposta === 'function') window.filtrarDropdownContatosProposta(this.value);"
+                                            onkeydown="if(typeof window.onKeyDownContatoProposta === 'function'){ window.onKeyDownContatoProposta(event); } else if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop')); }"
+                                            style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;" placeholder="Selecione ou digite o nome do contato">
+                                        <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownContatosProposta === 'function') window.toggleDropdownContatosProposta(event);" title="Selecionar contato vinculado ao cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                                        </button>
+                                        <div id="prop-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
+                                    </div>
                                     <button type="button" id="btn-pesq-contato-prop" onclick="pesquisarContatoProposta(this)" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
-                                    <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                                    <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="display:none; background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
                                         <i class="ph ph-eye" style="font-size:0.95rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.cadastrarNovoContatoProposta()" title="Cadastrar Novo Contato" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -2168,7 +2186,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Representante, Frete e Valor -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-user-check" style="color:#7048e8;"></i> Representante e Dados do Pedido
                         </h4>
@@ -2250,6 +2268,9 @@ function _renderFormPropostaInt() {
 
     if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
         window.verificarBloqueioFaturamentoProposta(v('cliente_nome'));
+    }
+    if (typeof window.carregarContatosVinculadosClienteProposta === 'function') {
+        window.carregarContatosVinculadosClienteProposta(v('cliente_nome'), false);
     }
 }
 
@@ -4386,6 +4407,230 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
     }
 };
 
+window._contatosDoClientePropostaAtual = [];
+window._todosContatosPropostaCache = [];
+
+window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
+    const clienteNome = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const [contatosApi, clientesCache] = await Promise.all([
+        apiGet('/contatos').catch(() => []),
+        window.obterClientesCache().catch(() => [])
+    ]);
+    const clientes = Array.isArray(clientesCache) ? clientesCache : [];
+    const mapClientePorId = new Map();
+    clientes.forEach(cl => mapClientePorId.set(Number(cl.id), cl));
+    const cliNorm = normStr(clienteNome);
+    const cliDigits = clienteNome.replace(/\D/g, '');
+    const cliDigitsNoZero = cliDigits.replace(/^0+/, '');
+    const foundCli = !clienteNome ? null : (clientes.find(c =>
+        normStr(c.nome_razao_social) === cliNorm ||
+        normStr(c.nome_fantasia) === cliNorm ||
+        (cliDigits && String(c.cpf_cnpj || '').replace(/\D/g, '').replace(/^0+/, '') === cliDigitsNoZero)
+    ) || clientes.find(c =>
+        (cliNorm && (normStr(c.nome_razao_social).includes(cliNorm) || normStr(c.nome_fantasia).includes(cliNorm))) ||
+        (cliDigits.length >= 4 && String(c.cpf_cnpj || '').replace(/\D/g, '').includes(cliDigits))
+    ) || null);
+    const listaUnificada = [];
+    const chavesVistas = new Set();
+    (Array.isArray(contatosApi) ? contatosApi : []).forEach(c => {
+        if (!c || !c.nome) return;
+        const cliVinc = c.cliente_id ? mapClientePorId.get(Number(c.cliente_id)) : null;
+        const empNome = c.cliente_nome || (cliVinc && cliVinc.nome_razao_social) || '';
+        const item = {
+            id: c.id,
+            codigo: c.codigo || c.id || '',
+            nome: c.nome || '',
+            cargo: c.cargo || c.departamento || '',
+            email: c.email || '',
+            celular: c.celular || c.telefone || '',
+            cliente_id: c.cliente_id || (cliVinc && cliVinc.id) || null,
+            cliente_nome: empNome
+        };
+        const key = `${normStr(item.nome)}|${normStr(item.cliente_nome)}`;
+        if (chavesVistas.has(key)) return;
+        chavesVistas.add(key);
+        listaUnificada.push(item);
+    });
+    clientes.forEach(cl => {
+        if (!cl.contatos) return;
+        let arr = [];
+        try { arr = typeof cl.contatos === 'string' ? JSON.parse(cl.contatos) : cl.contatos; } catch (e) { arr = []; }
+        if (!Array.isArray(arr)) return;
+        arr.forEach(ct => {
+            if (!ct || !ct.nome) return;
+            const key = `${normStr(ct.nome)}|${normStr(cl.nome_razao_social)}`;
+            if (chavesVistas.has(key)) return;
+            chavesVistas.add(key);
+            listaUnificada.push({
+                id: ct.id || '',
+                codigo: ct.identificacao || ct.codigo || ct.id || '',
+                nome: ct.nome,
+                cargo: ct.cargo || ct.departamento || '',
+                email: ct.email || '',
+                celular: ct.celular || ct.telefone || ct.telefone_ramal || '',
+                cliente_id: cl.id,
+                cliente_nome: cl.nome_razao_social || ''
+            });
+        });
+    });
+    const contatosDoCliente = foundCli
+        ? listaUnificada.filter(c =>
+            (c.cliente_id && Number(c.cliente_id) === Number(foundCli.id)) ||
+            (c.cliente_nome && normStr(c.cliente_nome) === normStr(foundCli.nome_razao_social))
+        )
+        : (clienteNome
+            ? listaUnificada.filter(c => normStr(c.cliente_nome).includes(cliNorm))
+            : []);
+    window._contatosDoClientePropostaAtual = contatosDoCliente;
+    window._todosContatosPropostaCache = listaUnificada;
+    return { foundCli, clienteNome, contatosDoCliente, listaUnificada };
+};
+
+window.carregarContatosVinculadosClienteProposta = async function(clienteNomeRaw, openDropdown = false) {
+    try {
+        await window._obterDadosContatosClienteProposta(clienteNomeRaw);
+        if (openDropdown) {
+            window.renderizarDropdownContatosProposta('', true);
+        }
+    } catch (e) {
+        console.error('Erro ao carregar contatos vinculados ao cliente:', e);
+    }
+};
+
+window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTodosDoCliente = false) {
+    const dropEl = document.getElementById('prop-contato-dropdown');
+    if (!dropEl) return;
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const base = clienteNome
+        ? (window._contatosDoClientePropostaAtual || [])
+        : (window._todosContatosPropostaCache || []);
+    const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
+    let filtrados = !qNorm
+        ? base
+        : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm));
+    if (filtrados.length === 0 && qNorm && base !== window._todosContatosPropostaCache) {
+        filtrados = (window._todosContatosPropostaCache || []).filter(c =>
+            normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm)
+        );
+    }
+    if (filtrados.length === 0) {
+        const msg = clienteNome
+            ? 'Nenhum contato vinculado a este cliente. Clique no botão + para cadastrar.'
+            : 'Nenhum contato encontrado. Selecione um cliente ou clique no + para cadastrar.';
+        dropEl.innerHTML = `<div style="padding:0.65rem 0.75rem; font-size:0.78rem; color:#64748b; text-align:center;">${msg}</div>`;
+        dropEl.style.display = 'block';
+        return;
+    }
+    dropEl.innerHTML = filtrados.slice(0, 80).map(c => {
+        const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const subInfo = [c.cargo, c.celular, (!clienteNome && c.cliente_nome ? c.cliente_nome : '')].filter(Boolean).join(' • ');
+        return `
+            <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownContatoProposta('${safeNome}', '${safeEmp}')"
+                style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                <div style="font-size:0.83rem; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</div>
+                ${subInfo ? `<div style="font-size:0.72rem; color:#64748b;">${_escHtmlProp(subInfo)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+    dropEl.style.display = 'block';
+};
+
+window.abrirDropdownContatosProposta = async function(mostrarTodos = true) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    await window._obterDadosContatosClienteProposta(clienteNome);
+    const valAtual = (document.getElementById('prop-contato')?.value || '').trim();
+    window.renderizarDropdownContatosProposta(valAtual, mostrarTodos);
+};
+
+window.toggleDropdownContatosProposta = async function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const dropEl = document.getElementById('prop-contato-dropdown');
+    if (dropEl && dropEl.style.display === 'block') {
+        dropEl.style.display = 'none';
+        return;
+    }
+    await window.abrirDropdownContatosProposta(true);
+    const inp = document.getElementById('prop-contato');
+    if (inp) inp.focus();
+};
+
+window.filtrarDropdownContatosProposta = async function(termo) {
+    if (!window._todosContatosPropostaCache || window._todosContatosPropostaCache.length === 0) {
+        const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+        await window._obterDadosContatosClienteProposta(clienteNome);
+    }
+    window.renderizarDropdownContatosProposta(termo, false);
+};
+
+window.selecionarOpcaoDropdownContatoProposta = function(nome, empNome) {
+    const inp = document.getElementById('prop-contato');
+    if (inp) inp.value = nome;
+    const cliInp = document.getElementById('prop-cliente');
+    if (cliInp && !cliInp.value.trim() && empNome) {
+        cliInp.value = empNome;
+        cliInp.dispatchEvent(new Event('input'));
+        cliInp.dispatchEvent(new Event('change'));
+    }
+    const dropEl = document.getElementById('prop-contato-dropdown');
+    if (dropEl) dropEl.style.display = 'none';
+};
+
+window.onKeyDownContatoProposta = function(event) {
+    const dropEl = document.getElementById('prop-contato-dropdown');
+    if (event.key === 'Escape') {
+        if (dropEl) dropEl.style.display = 'none';
+        return;
+    }
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (dropEl) dropEl.style.display = 'none';
+        window.pesquisarContatoProposta(document.getElementById('btn-pesq-contato-prop'));
+    }
+};
+
+if (!window._propContatoOutsideClickBound) {
+    window._propContatoOutsideClickBound = true;
+    document.addEventListener('mousedown', (ev) => {
+        const wrap = document.getElementById('prop-contato-combo-wrap');
+        const dropEl = document.getElementById('prop-contato-dropdown');
+        if (dropEl && dropEl.style.display === 'block' && wrap && !wrap.contains(ev.target)) {
+            dropEl.style.display = 'none';
+        }
+    });
+}
+
+window.cadastrarNovoContatoProposta = async function() {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const contatoDigitado = (document.getElementById('prop-contato')?.value || '').trim();
+    const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
+    _redirectAfterContactSave = true;
+    window.switchPropostaTab('cadastro-contatos');
+    if (typeof window.limparFormContato === 'function') {
+        window.limparFormContato();
+    }
+    setTimeout(async () => {
+        const nameInput = document.getElementById('con-nome');
+        if (nameInput && contatoDigitado) nameInput.value = contatoDigitado;
+        if (foundCli && typeof window.carregarEmpresaSelecionada === 'function') {
+            await window.carregarEmpresaSelecionada(foundCli.id);
+        } else if (clienteNome) {
+            const empRazaoInput = document.getElementById('emp-razao-social');
+            if (empRazaoInput) {
+                empRazaoInput.value = clienteNome;
+                empRazaoInput.dispatchEvent(new Event('input'));
+            }
+        }
+    }, 300);
+};
+
 window.verDetalhesContatoProposta = async function() {
     const nomeContato = document.getElementById('prop-contato').value.trim();
     if (!nomeContato) {
@@ -5308,20 +5553,25 @@ window.abrirPopupEmail = function(id) {
 };
 
 window.abrirLogsAlteracao = async function(id) {
+    const propId = id || _propostasEditandoId;
+    if (!propId) {
+        Swal.fire('Aviso', 'Salve ou carregue uma proposta primeiro para ver o histórico.', 'warning');
+        return;
+    }
     Swal.fire({
-        title: 'Carregando logs...',
+        title: 'Carregando histórico...',
         html: '<i class="ph ph-spinner ph-spin" style="font-size:2rem; color:#7048e8;"></i>',
         showConfirmButton: false,
         allowOutsideClick: false
     });
 
     try {
-        const logs = await apiGet(`/propostas/${id}/logs`);
+        const logs = await apiGet(`/propostas/${propId}/logs`);
         Swal.close();
 
         if (!logs || logs.length === 0) {
             Swal.fire({
-                title: 'Logs de Alteração',
+                title: 'Histórico de Alterações',
                 text: 'Nenhuma alteração registrada para esta proposta até o momento.',
                 icon: 'info',
                 confirmButtonColor: '#7048e8'
@@ -5330,30 +5580,33 @@ window.abrirLogsAlteracao = async function(id) {
         }
 
         const rowsHtml = logs.map(log => {
-            const dataHora = new Date(log.data_hora).toLocaleString('pt-BR');
+            const rawDt = String(log.data_hora || '').trim();
+            const dtObj = rawDt ? new Date(rawDt.includes('T') ? rawDt : rawDt.replace(' ', 'T') + (rawDt.endsWith('Z') ? '' : 'Z')) : null;
+            const dataHora = (dtObj && !isNaN(dtObj.getTime())) ? dtObj.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : rawDt;
+            const ant = log.conteudo_anterior || '';
+            const atu = log.conteudo_atual || '';
+            const descEdicao = (log.campo === 'Criação' || log.campo === 'Envio de E-mail' || (!ant && atu))
+                ? `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(log.campo || '')}:</span> <span style="color:#16a34a; font-weight:600;">${_escHtmlProp(atu || '—')}</span>`
+                : `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(log.campo || '')}:</span> de <span style="color:#dc2626; font-weight:600;">"${_escHtmlProp(ant || 'vazio')}"</span> para <span style="color:#16a34a; font-weight:600;">"${_escHtmlProp(atu || 'vazio')}"</span>`;
             return `
-                <tr style="border-bottom:1px solid #f1f5f9; font-size:0.75rem;">
-                    <td style="padding:0.4rem; white-space:nowrap;">${dataHora}</td>
-                    <td style="padding:0.4rem; font-weight:600; color:#475569;">${log.usuario}</td>
-                    <td style="padding:0.4rem; font-weight:600; color:#7048e8;">${log.campo}</td>
-                    <td style="padding:0.4rem; color:#dc2626; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.conteudo_anterior||''}">${log.conteudo_anterior || '—'}</td>
-                    <td style="padding:0.4rem; color:#16a34a; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${log.conteudo_atual||''}">${log.conteudo_atual || '—'}</td>
+                <tr style="border-bottom:1px solid #f1f5f9; font-size:0.8rem;">
+                    <td style="padding:0.5rem 0.6rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
+                    <td style="padding:0.5rem 0.6rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
+                    <td style="padding:0.5rem 0.6rem; color:#334155; line-height:1.4;">${descEdicao}</td>
                 </tr>
             `;
         }).join('');
 
         Swal.fire({
-            title: '<div style="font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-list-checks"></i> Histórico de Alterações</div>',
+            title: '<div style="font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Alterações da Proposta</div>',
             html: `
-                <div style="max-height:350px; overflow-y:auto; width:100%; box-sizing:border-box;">
+                <div style="max-height:380px; overflow-y:auto; width:100%; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
                     <table style="width:100%; border-collapse:collapse; text-align:left; font-family:'Inter', sans-serif;">
                         <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.75rem; font-weight:700;">
-                                <th style="padding:0.4rem;">Data/Hora</th>
-                                <th style="padding:0.4rem;">Usuário</th>
-                                <th style="padding:0.4rem;">Campo</th>
-                                <th style="padding:0.4rem;">Anterior</th>
-                                <th style="padding:0.4rem;">Atual</th>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.78rem; font-weight:700; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.55rem 0.6rem;">Usuário</th>
+                                <th style="padding:0.55rem 0.6rem;">Dia e Hora</th>
+                                <th style="padding:0.55rem 0.6rem;">Edição Realizada</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -5362,7 +5615,7 @@ window.abrirLogsAlteracao = async function(id) {
                     </table>
                 </div>
             `,
-            width: '750px',
+            width: '820px',
             confirmButtonText: 'Fechar',
             confirmButtonColor: '#7048e8'
         });
@@ -10105,6 +10358,9 @@ window.salvarContato = async function() {
                 const propContatoInput = document.getElementById('prop-contato');
                 if (propContatoInput) propContatoInput.value = conNome;
                 window.switchPropostaTab('form');
+                if (typeof window.carregarContatosVinculadosClienteProposta === 'function') {
+                    window.carregarContatosVinculadosClienteProposta(document.getElementById('prop-cliente')?.value || '', false);
+                }
             }
         } else {
             alert('Erro ao salvar contato: ' + (res?.error || 'Erro desconhecido.'));

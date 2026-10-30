@@ -39948,6 +39948,23 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         }
       });
 
+      // Comparar alterações nos produtos da proposta (itens)
+      const fmtItensLog = (raw) => {
+        try {
+          const arr = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+          if (!Array.isArray(arr) || arr.length === 0) return 'Nenhum produto';
+          return arr.map(it => `${it.codigo || ''} ${it.descricao || it.nome || ''} (Qtd: ${it.quantidade || 1})`.trim()).join('; ');
+        } catch (e) {
+          return String(raw || '');
+        }
+      };
+      const oldItensFmt = fmtItensLog(oldRow.itens);
+      const newItensFmt = fmtItensLog(d.itens);
+      if (oldItensFmt !== newItensFmt) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
+          [usuarioLog, 'Produtos da Proposta', oldItensFmt, newItensFmt, proposalId]);
+      }
+
       res.json({ success: true });
     });
   });
