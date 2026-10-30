@@ -1969,8 +1969,8 @@ function _renderFormPropostaInt() {
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
-                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false);"
-                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false);"
+                                        oninput="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false); if(typeof window.carregarEnderecosVinculadosClienteProposta === 'function') window.carregarEnderecosVinculadosClienteProposta(this.value, false);"
+                                        onchange="window.verificarBloqueioFaturamentoProposta(this.value); if(typeof window.carregarContatosVinculadosClienteProposta === 'function') window.carregarContatosVinculadosClienteProposta(this.value, false); if(typeof window.carregarEnderecosVinculadosClienteProposta === 'function') window.carregarEnderecosVinculadosClienteProposta(this.value, false);"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
@@ -2013,12 +2013,12 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Seção: Período e Preços -->
+                    <!-- Seção: Período e Condições -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div style="display:grid; grid-template-columns:1.2fr 1.2fr 0.8fr 1.8fr; gap:0.5rem 0.75rem; margin-bottom:0.4rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr 0.7fr 1.5fr 1.4fr; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
                             <div>
                                 <label class="prop-lbl">Período Início *</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
@@ -2039,36 +2039,13 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Tabela de Preços *</label>
-                                <select id="prop-tabela" onchange="window._filtrarServicosPrecificadosPorTabela(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                    <option value="">-- Selecione --</option>
-                                    ${PROP_TABELAS.map(t => `<option value="${t}" ${v('tabela_precos')===t?'selected':''}>${t}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Linha: Serviço Precificado -->
-                        <div style="display:grid; grid-template-columns:1fr; gap:0.5rem 0.75rem; margin-bottom:0.4rem;">
-                            <div>
-                                <label class="prop-lbl">Serviço Precificado (Composição de Custo/Preço)</label>
-                                <select id="prop-servico-precificado" onchange="window.calcularValorTotalProposta()" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;font-weight:600;color:#1e293b;background:#fff;">
-                                    <option value="">-- Nenhum Serviço Precificado Selecionado (Manter Valor Manual) --</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Linha: Desconto %, Desconto R$, Condição Pagamento -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:0.5rem 0.75rem; margin-bottom:0.6rem;">
-                            <div>
-                                <label class="prop-lbl">Desconto (%)</label>
-                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
-                                    oninput="calcularDescontoReais()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Desconto (R$)</label>
-                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
-                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                <input type="text" id="prop-tabela" list="datalist-prop-tabelas" value="${_escHtmlProp(v('tabela_precos') || (v('tipo') ? String(v('tipo')).replace(/^PROPOSTA\\s+/i,'') : ''))}"
+                                    onchange="if(typeof window.onChangeTabelaPrecosManual === 'function') window.onChangeTabelaPrecosManual(this.value);"
+                                    placeholder="Selecione ou digite a tabela..."
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
+                                <datalist id="datalist-prop-tabelas">
+                                    ${[...PROP_TIPOS, ...PROP_TABELAS].map(t => `<option value="${_escHtmlProp(t)}"></option>`).join('')}
+                                </datalist>
                             </div>
                             <div>
                                 <label class="prop-lbl">Condição de Pagamento *</label>
@@ -2079,45 +2056,37 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
 
-                        <!-- Linha: Endereço de Instalação, Manutenções e Dias da Semana (Largura Total da Linha) -->
-                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:0.35rem 0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; margin-bottom:0.6rem;">
-                            
-                            <!-- Endereço de Instalação -->
-                            <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:320px;">
-                                <span style="font-size:0.85rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
-                                <input type="text" id="prop-endereco" value="${v('endereco_instalacao')}"
+                        <!-- Serviço Precificado oculto para compatibilidade -->
+                        <div style="display:none;">
+                            <select id="prop-servico-precificado">
+                                <option value=""></option>
+                            </select>
+                        </div>
+
+                        <!-- Linha: Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
+                        <div style="display:flex; gap:0.4rem; align-items:center; background:#f8fafc; padding:0.4rem 0.65rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%;">
+                            <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
+                            <div id="prop-endereco-combo-wrap" style="position:relative; flex:1;">
+                                <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(v('endereco_instalacao'))}"
+                                    autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
+                                    onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
+                                    onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
+                                    oninput="if(typeof window.filtrarDropdownEnderecosProposta === 'function') window.filtrarDropdownEnderecosProposta(this.value); window.classificarRegiaoEDiasDebounced();"
                                     onchange="window.classificarRegiaoEDias()"
-                                    oninput="window.classificarRegiaoEDiasDebounced()"
-                                    style="flex:1;padding:0 0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:28px;" placeholder="Rua, número, cidade, estado">
-                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#e2e8f0; color:#475569; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'" title="Consultar Endereços de Instalação">
-                                    <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
+                                    onkeydown="this.removeAttribute('readonly'); if(typeof window.onKeyDownEnderecoProposta === 'function'){ window.onKeyDownEnderecoProposta(event); }"
+                                    style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;height:28px;" placeholder="Selecione ou digite o endereço de instalação vinculado ao cliente">
+                                <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownEnderecosProposta === 'function') window.toggleDropdownEnderecosProposta(event);" title="Selecionar endereço cadastrado para este cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                    <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
                                 </button>
-                                <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
+                                <div id="prop-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
                             </div>
-
-                            <!-- Divisor Vertical -->
-                            <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
-
-                            <!-- Manutenção e Dias -->
-                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                                <span class="calendar-badge" style="background:#f59e0b; color:#fff; border-radius:6px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; font-size:1rem; margin-right:4px;">
-                                    <i class="ph ph-calendar-check"></i>
-                                </span>
-                                <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none; margin-right:4px;">
-                                    <option value="1">1 Manut./Semana</option>
-                                    <option value="2">2 Manut./Semana</option>
-                                    <option value="3">3 Manut./Semana</option>
-                                </select>
-                                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-family:'Inter',sans-serif;">
-                                    <label class="day-btn day-btn-seg"><input type="checkbox" id="chk-dia-seg" value="Segunda" onchange="window.atualizarDiasManutencaoObs()">Seg</label>
-                                    <label class="day-btn day-btn-ter"><input type="checkbox" id="chk-dia-ter" value="Terça" onchange="window.atualizarDiasManutencaoObs()">Ter</label>
-                                    <label class="day-btn day-btn-qua"><input type="checkbox" id="chk-dia-qua" value="Quarta" onchange="window.atualizarDiasManutencaoObs()">Qua</label>
-                                    <label class="day-btn day-btn-qui"><input type="checkbox" id="chk-dia-qui" value="Quinta" onchange="window.atualizarDiasManutencaoObs()">Qui</label>
-                                    <label class="day-btn day-btn-sex"><input type="checkbox" id="chk-dia-sex" value="Sexta" onchange="window.atualizarDiasManutencaoObs()">Sex</label>
-                                    <label class="day-btn day-btn-sab"><input type="checkbox" id="chk-dia-sab" value="Sábado" onchange="window.atualizarDiasManutencaoObs()">Sáb</label>
-                                    <label class="day-btn day-btn-dom"><input type="checkbox" id="chk-dia-dom" value="Domingo" onchange="window.atualizarDiasManutencaoObs()">Dom</label>
-                                </div>
-                            </div>
+                            <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Endereço de Instalação">
+                                <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
+                            </button>
+                            <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
+                                <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
+                            </button>
+                            <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
                         </div>
                     </div>
 
@@ -2160,7 +2129,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- GridView com produtos adicionados -->
-                        <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02); margin-bottom:0.65rem;">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
@@ -2179,6 +2148,27 @@ function _renderFormPropostaInt() {
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Linha abaixo dos produtos: Desconto (%), Desconto (R$) e Valor (R$) ao lado direito -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end;">
+                            <div>
+                                <label class="prop-lbl">Desconto (%)</label>
+                                <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
+                                    oninput="calcularDescontoReais()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Desconto (R$)</label>
+                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
+                                    oninput="document.getElementById('prop-desc-pct').value = '0'; window.calcularValorTotalProposta();"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Valor Total (R$)</label>
+                                <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
+                                    style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
+                            </div>
                         </div>
                     </div>
 
@@ -2254,12 +2244,7 @@ function _renderFormPropostaInt() {
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             </div>
                         </div>
-                        <div style="margin-top:0.6rem; display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
-                            <div>
-                                <label class="prop-lbl">Valor Total (R$)</label>
-                                <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
-                                    style="width:100%;padding:0.35rem 0.65rem;border:2px solid #7048e8;border-radius:6px;font-size:0.88rem;font-weight:700;color:#4c1d95;box-sizing:border-box;height:30px;">
-                            </div>
+                        <div style="margin-top:0.6rem; display:grid; grid-template-columns:1fr; gap:0.5rem 0.75rem;">
                             <div>
                                 <label class="prop-lbl">Status</label>
                                 <select id="prop-status" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
@@ -2304,6 +2289,9 @@ function _renderFormPropostaInt() {
     }
     if (typeof window.carregarContatosVinculadosClienteProposta === 'function') {
         window.carregarContatosVinculadosClienteProposta(v('cliente_nome'), false);
+    }
+    if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
+        window.carregarEnderecosVinculadosClienteProposta(v('cliente_nome'), false);
     }
 }
 
@@ -5075,10 +5063,16 @@ function calcularDescontoReais() {
     const pct = parseFloat(document.getElementById('prop-desc-pct')?.value || 0);
     const servicoSelect = document.getElementById('prop-servico-precificado');
     let precoServico = 0;
-    if (servicoSelect && servicoSelect.value) {
+    if (servicoSelect && servicoSelect.value && servicoSelect.options[servicoSelect.selectedIndex]) {
         const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
         precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
     }
+    const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+        const q = parseFloat(p.quantidade) || 0;
+        const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+        return acc + (q * v);
+    }, 0);
+    precoServico += somaProdutos;
     const freteIda = parseFloat(document.getElementById('prop-frete-ida')?.value || 0);
     const freteVolta = parseFloat(document.getElementById('prop-frete-volta')?.value || 0);
     const subtotal = precoServico + freteIda + freteVolta;
@@ -15637,6 +15631,11 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
 };
 
 window.onChangeTipoPropostaPrecos = async function(novoTipo) {
+    const tabelaEl = document.getElementById('prop-tabela');
+    const tipoLimpo = String(novoTipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tabelaEl && tipoLimpo) {
+        tabelaEl.value = tipoLimpo;
+    }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
@@ -15662,6 +15661,383 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         });
         if (mudou) {
             window.renderizarProdutosPropostaGrid();
+        }
+    }
+};
+
+window.onChangeTabelaPrecosManual = async function(novaTabela) {
+    if (typeof window._filtrarServicosPrecificadosPorTabela === 'function') {
+        window._filtrarServicosPrecificadosPorTabela(novaTabela);
+    }
+    const tabLimpa = String(novaTabela || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (!tabLimpa) return;
+    await window._garantirTabelasPrecoCarregadas(false);
+    const inputProd = document.getElementById('prop-prod-codigo');
+    const inputValor = document.getElementById('prop-prod-valor');
+    if (inputProd && inputProd.value.trim()) {
+        const codSel = inputProd.getAttribute('data-codigo') || '';
+        const nomeSel = inputProd.getAttribute('data-nome') || inputProd.value.trim();
+        const val = window.obterValorTabelaPorTipoEProduto(tabLimpa, { codigo: codSel, nome: nomeSel });
+        if (val !== null && inputValor) {
+            inputValor.value = Number(val).toFixed(2);
+        }
+    }
+    if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0) {
+        let mudou = false;
+        window._propProdutosAdicionados.forEach(item => {
+            const valTab = window.obterValorTabelaPorTipoEProduto(tabLimpa, {
+                codigo: item.codigo,
+                nome: item.produto || item.descricao
+            });
+            if (valTab !== null) {
+                item.valor = valTab;
+                mudou = true;
+            }
+        });
+        if (mudou) {
+            window.renderizarProdutosPropostaGrid();
+        }
+    }
+};
+
+/* ── Lista de Seleção e Pesquisa de Endereços de Instalação Vinculados ao Cliente ── */
+window._enderecosDoClientePropostaAtual = [];
+window._ultimoClienteEnderecosCarregado = '';
+
+window._formatarEnderecoEntregaProposta = function(e) {
+    if (!e) return '';
+    const parsedEnd = (typeof window._separarRuaENumeroEnderecos === 'function')
+        ? window._separarRuaENumeroEnderecos(e.endereco, e.numero)
+        : { rua: e.endereco || '', numero: e.numero || '' };
+    const endComNum = parsedEnd.numero ? `${parsedEnd.rua}, ${parsedEnd.numero}` : parsedEnd.rua;
+    return `${e.nome_local ? e.nome_local + ' - ' : ''}${endComNum}${e.complemento ? ' (' + e.complemento + ')' : ''}${e.bairro ? ' - ' + e.bairro : ''}${e.municipio ? ' - ' + e.municipio : ''}${e.uf ? '/' + e.uf : ''}`.trim();
+};
+
+window._obterDadosEnderecosClienteProposta = async function(clienteNomeRaw) {
+    const clienteNome = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const clientesCache = await window.obterClientesCache().catch(() => []);
+    const clientes = Array.isArray(clientesCache) ? clientesCache : [];
+    const cliNorm = normStr(clienteNome);
+    const cliDigits = clienteNome.replace(/\D/g, '');
+    const cliDigitsNoZero = cliDigits.replace(/^0+/, '');
+    const foundCli = !clienteNome ? null : (clientes.find(c =>
+        normStr(c.nome_razao_social) === cliNorm ||
+        normStr(c.nome_fantasia) === cliNorm ||
+        (cliDigits && String(c.cpf_cnpj || '').replace(/\D/g, '').replace(/^0+/, '') === cliDigitsNoZero)
+    ) || clientes.find(c =>
+        (cliNorm && (normStr(c.nome_razao_social).includes(cliNorm) || normStr(c.nome_fantasia).includes(cliNorm))) ||
+        (cliDigits.length >= 4 && String(c.cpf_cnpj || '').replace(/\D/g, '').includes(cliDigits))
+    ) || null);
+
+    let enderecosDoCliente = [];
+    if (foundCli && foundCli.id) {
+        try {
+            const endsApi = await apiGet(`/clientes/${foundCli.id}/enderecos`).catch(() => []);
+            if (Array.isArray(endsApi)) {
+                enderecosDoCliente = endsApi.map(e => ({
+                    ...e,
+                    texto_completo: window._formatarEnderecoEntregaProposta(e)
+                }));
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        // Se o cliente possui endereço principal no cadastro e não está na lista de entrega, inclui também como opção
+        if (foundCli.endereco && String(foundCli.endereco).trim()) {
+            const endCadObj = {
+                id: 'principal_' + foundCli.id,
+                sequencia: 0,
+                nome_local: 'Sede / Faturamento',
+                endereco: foundCli.endereco,
+                numero: foundCli.numero || '',
+                complemento: foundCli.complemento || '',
+                bairro: foundCli.bairro || '',
+                municipio: foundCli.municipio || '',
+                uf: foundCli.uf || '',
+                cep: foundCli.cep || '',
+                coordenadas: ''
+            };
+            endCadObj.texto_completo = window._formatarEnderecoEntregaProposta(endCadObj);
+            const jaExiste = enderecosDoCliente.some(x => normStr(x.endereco) === normStr(foundCli.endereco));
+            if (!jaExiste && endCadObj.texto_completo) {
+                enderecosDoCliente.push(endCadObj);
+            }
+        }
+    }
+
+    window._enderecosDoClientePropostaAtual = enderecosDoCliente;
+    window._ultimoClienteEnderecosCarregado = clienteNome;
+    return { foundCli, clienteNome, enderecosDoCliente };
+};
+
+window.carregarEnderecosVinculadosClienteProposta = async function(clienteNomeRaw, openDropdown = false) {
+    try {
+        await window._obterDadosEnderecosClienteProposta(clienteNomeRaw);
+        if (openDropdown) {
+            window.renderizarDropdownEnderecosProposta('', true);
+        }
+    } catch (e) {
+        console.error('Erro ao carregar endereços vinculados ao cliente:', e);
+    }
+};
+
+window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarTodosDoCliente = false) {
+    const dropEl = document.getElementById('prop-endereco-dropdown');
+    if (!dropEl) return;
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const base = clienteNome ? (window._enderecosDoClientePropostaAtual || []) : [];
+    const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
+    const filtrados = !qNorm
+        ? base
+        : base.filter(e =>
+            normStr(e.texto_completo).includes(qNorm) ||
+            normStr(e.nome_local).includes(qNorm) ||
+            normStr(e.endereco).includes(qNorm) ||
+            normStr(e.bairro).includes(qNorm) ||
+            normStr(e.municipio).includes(qNorm) ||
+            normStr(e.cep).includes(qNorm)
+        );
+
+    if (filtrados.length === 0) {
+        const msg = clienteNome
+            ? 'Nenhum endereço cadastrado para este cliente. Clique no botão + para cadastrar.'
+            : 'Selecione um cliente primeiro para listar os endereços vinculados.';
+        dropEl.innerHTML = `<div style="padding:0.65rem 0.75rem; font-size:0.78rem; color:#64748b; text-align:center;">${msg}</div>`;
+        dropEl.style.display = 'block';
+        return;
+    }
+
+    dropEl.innerHTML = filtrados.slice(0, 80).map(e => {
+        const safeTexto = String(e.texto_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeCoords = String(e.coordenadas || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const titulo = e.nome_local ? `${e.nome_local}` : (e.endereco || 'Endereço');
+        const sub = [
+            e.endereco ? `${e.endereco}${e.numero ? ', ' + e.numero : ''}` : '',
+            e.bairro || '',
+            e.municipio ? `${e.municipio}${e.uf ? '/' + e.uf : ''}` : '',
+            e.cep ? `CEP: ${e.cep}` : ''
+        ].filter(Boolean).join(' • ');
+        return `
+            <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownEnderecoProposta('${safeTexto}', '${safeCoords}')"
+                style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                <div style="font-size:0.82rem; font-weight:700; color:#1e293b;">${_escHtmlProp(titulo)}</div>
+                <div style="font-size:0.73rem; color:#64748b;">${_escHtmlProp(sub || e.texto_completo)}</div>
+            </div>
+        `;
+    }).join('');
+    dropEl.style.display = 'block';
+};
+
+window.abrirDropdownEnderecosProposta = async function(mostrarTodos = true) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    await window._obterDadosEnderecosClienteProposta(clienteNome);
+    const valAtual = (document.getElementById('prop-endereco')?.value || '').trim();
+    window.renderizarDropdownEnderecosProposta(valAtual, mostrarTodos);
+};
+
+window.toggleDropdownEnderecosProposta = async function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const dropEl = document.getElementById('prop-endereco-dropdown');
+    if (dropEl && dropEl.style.display === 'block') {
+        dropEl.style.display = 'none';
+        return;
+    }
+    await window.abrirDropdownEnderecosProposta(true);
+    const inp = document.getElementById('prop-endereco');
+    if (inp) {
+        inp.removeAttribute('readonly');
+        inp.focus();
+    }
+};
+
+window.filtrarDropdownEnderecosProposta = async function(termo) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (window._ultimoClienteEnderecosCarregado !== clienteNome || !window._enderecosDoClientePropostaAtual) {
+        await window._obterDadosEnderecosClienteProposta(clienteNome);
+    }
+    window.renderizarDropdownEnderecosProposta(termo, false);
+};
+
+window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coordenadas = '') {
+    const inp = document.getElementById('prop-endereco');
+    if (inp) {
+        inp.value = textoCompleto;
+    }
+    if (coordenadas && coordenadas.trim() && window._enderecoCoordenadasCache) {
+        const parts = coordenadas.split(',');
+        if (parts.length === 2) {
+            const lat = parseFloat(parts[0].trim());
+            const lon = parseFloat(parts[1].trim());
+            if (!isNaN(lat) && !isNaN(lon)) {
+                window._enderecoCoordenadasCache[textoCompleto.trim()] = { lat, lon };
+            }
+        }
+    }
+    const dropEl = document.getElementById('prop-endereco-dropdown');
+    if (dropEl) dropEl.style.display = 'none';
+    if (typeof window.classificarRegiaoEDias === 'function') {
+        window.classificarRegiaoEDias();
+    }
+    if (typeof window.calcularValorTotalProposta === 'function') {
+        window.calcularValorTotalProposta();
+    }
+};
+
+window.onKeyDownEnderecoProposta = function(event) {
+    const dropEl = document.getElementById('prop-endereco-dropdown');
+    if (event.key === 'Escape') {
+        if (dropEl) dropEl.style.display = 'none';
+        return;
+    }
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (dropEl) dropEl.style.display = 'none';
+        window.pesquisarEnderecoProposta(document.getElementById('btn-pesq-endereco-prop'));
+    }
+};
+
+if (!window._propEnderecoOutsideClickBound) {
+    window._propEnderecoOutsideClickBound = true;
+    document.addEventListener('mousedown', (ev) => {
+        const wrap = document.getElementById('prop-endereco-combo-wrap');
+        const dropEl = document.getElementById('prop-endereco-dropdown');
+        if (dropEl && dropEl.style.display === 'block' && wrap && !wrap.contains(ev.target)) {
+            dropEl.style.display = 'none';
+        }
+    });
+}
+
+window.pesquisarEnderecoProposta = async function(btnEl = null) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const query = (document.getElementById('prop-endereco')?.value || '').trim();
+    const btn = btnEl || document.getElementById('btn-pesq-endereco-prop');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>';
+        btn.disabled = true;
+    }
+
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    try {
+        const { enderecosDoCliente } = await window._obterDadosEnderecosClienteProposta(clienteNome);
+        const base = enderecosDoCliente || [];
+
+        const filtrarListaEnd = (lista, termoRaw) => {
+            const qNorm = normStr(termoRaw);
+            if (!qNorm) return lista;
+            return (lista || []).filter(e =>
+                normStr(e.texto_completo).includes(qNorm) ||
+                normStr(e.nome_local).includes(qNorm) ||
+                normStr(e.endereco).includes(qNorm) ||
+                normStr(e.bairro).includes(qNorm) ||
+                normStr(e.municipio).includes(qNorm) ||
+                normStr(e.cep).includes(qNorm)
+            );
+        };
+
+        if (query) {
+            const matches = filtrarListaEnd(base, query);
+            if (matches.length === 1) {
+                const unico = matches[0];
+                const jaSel = normStr(unico.texto_completo) === normStr(query);
+                if (!jaSel) {
+                    window.selecionarOpcaoDropdownEnderecoProposta(unico.texto_completo, unico.coordenadas || '');
+                    return;
+                }
+            }
+        }
+
+        window._tempEnderecosPropostaBase = base;
+
+        window.filtrarEnderecosPropostaGrid = function(termoOverride) {
+            const tbody = document.getElementById('swal-busca-endereco-prop-tbody');
+            const infoEl = document.getElementById('swal-busca-endereco-prop-info');
+            if (!tbody) return;
+            const rawVal = termoOverride !== undefined
+                ? termoOverride
+                : (document.getElementById('swal-busca-endereco-prop')?.value || '');
+            const filtered = filtrarListaEnd(window._tempEnderecosPropostaBase || [], rawVal);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${filtered.length} endereço(s) vinculado(s) ao cliente`;
+            }
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="padding:1.8rem; text-align:center; color:#64748b;">
+                            ${clienteNome ? 'Nenhum endereço encontrado para este cliente.' : 'Selecione um cliente primeiro para listar os endereços vinculados.'}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            tbody.innerHTML = filtered.map(e => {
+                const safeTexto = String(e.texto_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeCoords = String(e.coordenadas || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `
+                    <tr onclick="window.selecionarOpcaoDropdownEnderecoProposta('${safeTexto}', '${safeCoords}'); Swal.close();" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:0.5rem; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(e.sequencia || '—')}</td>
+                        <td style="padding:0.5rem; font-weight:600; color:#1e293b;">${_escHtmlProp(e.nome_local || '—')}</td>
+                        <td style="padding:0.5rem; color:#475569;">${_escHtmlProp((e.endereco || '') + (e.numero ? ', ' + e.numero : '') + (e.bairro ? ' - ' + e.bairro : ''))}</td>
+                        <td style="padding:0.5rem; color:#475569;">${_escHtmlProp((e.municipio || '') + (e.uf ? '/' + e.uf : ''))}</td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        const safeQuery = query.replace(/"/g, '&quot;');
+        Swal.fire({
+            title: 'Pesquisar Endereço de Instalação',
+            width: '780px',
+            html: `
+                <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
+                    <input type="text" id="swal-busca-endereco-prop" value="${safeQuery}"
+                        oninput="window.filtrarEnderecosPropostaGrid(this.value)"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault(); const firstRow = document.querySelector('#swal-busca-endereco-prop-tbody tr[onclick]'); if(firstRow) firstRow.click();}"
+                        placeholder="Digite nome do local, rua, bairro, município ou CEP..."
+                        style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
+                    <div id="swal-busca-endereco-prop-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-family:'Inter', sans-serif;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.5rem; width:60px; text-align:center;">Seq</th>
+                                <th style="padding:0.5rem; width:180px;">Nome do Local</th>
+                                <th style="padding:0.5rem;">Endereço</th>
+                                <th style="padding:0.5rem; width:160px;">Município / UF</th>
+                            </tr>
+                        </thead>
+                        <tbody id="swal-busca-endereco-prop-tbody"></tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo Endereço',
+            confirmButtonColor: '#16a34a',
+            showCancelButton: true,
+            cancelButtonText: 'Fechar',
+            cancelButtonColor: '#64748b',
+            didOpen: () => {
+                window.filtrarEnderecosPropostaGrid(query);
+                setTimeout(() => document.getElementById('swal-busca-endereco-prop')?.focus(), 50);
+            }
+        }).then((res) => {
+            if (res.isConfirmed) {
+                window.abrirModalEnderecosEntrega();
+            }
+        });
+    } finally {
+        if (btn) {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
         }
     }
 };
