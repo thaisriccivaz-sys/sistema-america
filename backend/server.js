@@ -39734,6 +39734,11 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         console.log('[PROPOSTAS] Alerta ao alterar tabela dias_evento:', errAlterDiasEv.message);
       }
     });
+    db.run("ALTER TABLE propostas ADD COLUMN itens_servicos TEXT", (errAlterServ) => {
+      if (errAlterServ && !errAlterServ.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela itens_servicos:', errAlterServ.message);
+      }
+    });
     
     // Seed automático de propostas se a tabela estiver vazia
     db.get("SELECT COUNT(*) as count FROM propostas", [], (err, rowCount) => {
@@ -39824,8 +39829,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
-        criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        itens_servicos, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -39845,6 +39850,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.distancia_km || 0,
         d.valor_zona_calculado || 0,
         d.valor_distancia_calculado || 0,
+        d.itens_servicos ? (typeof d.itens_servicos === 'string' ? d.itens_servicos : JSON.stringify(d.itens_servicos)) : '[]',
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -39880,7 +39886,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
-      atualizado_em=?
+      itens_servicos=?, atualizado_em=?
       WHERE id=?`,
     [
       d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
@@ -39901,6 +39907,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.distancia_km || 0,
       d.valor_zona_calculado || 0,
       d.valor_distancia_calculado || 0,
+      d.itens_servicos ? (typeof d.itens_servicos === 'string' ? d.itens_servicos : JSON.stringify(d.itens_servicos)) : '[]',
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
@@ -39980,6 +39987,23 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       if (oldItensFmt !== newItensFmt) {
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
           [usuarioLog, 'Produtos da Proposta', oldItensFmt, newItensFmt, proposalId]);
+      }
+
+      // Comparar alteracoes nos servicos da proposta (obra)
+      const fmtServLog = (raw) => {
+        try {
+          const arr = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+          if (!Array.isArray(arr) || arr.length === 0) return 'Nenhum servico';
+          return arr.map(it => `${it.codigo || ''} ${it.servico || it.descricao || ''} (Qtd: ${it.quantidade || 1}${it.frete_fob ? ', FOB' : ''}, R$ ${Number(it.valor_total || 0).toFixed(2)})`.trim()).join('; ');
+        } catch (e) {
+          return String(raw || '');
+        }
+      };
+      const oldServFmt = fmtServLog(oldRow.itens_servicos);
+      const newServFmt = fmtServLog(d.itens_servicos);
+      if (oldServFmt !== newServFmt) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
+          [usuarioLog, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId]);
       }
 
       res.json({ success: true });
@@ -43327,6 +43351,275 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
     ]);
   }
   stmtSeed.finalize();
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: BOXES DE MÍDIA (banners de imagem/vídeo para o modelo de proposta)
+// Armazenamento: Cloudflare R2 (chave Comercial/Boxes/YYYY/MM/DD_nome_hash.ext)
+// ══════════════════════════════════════════════════════════════════════
+db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  tipo TEXT NOT NULL DEFAULT 'imagem',
+  r2_key TEXT,
+  mime_type TEXT,
+  mobile_modo TEXT DEFAULT 'mesma',
+  mobile_tipo TEXT,
+  mobile_r2_key TEXT,
+  mobile_mime_type TEXT,
+  mobile_proporcao TEXT DEFAULT '4:5',
+  foco_x REAL DEFAULT 50,
+  foco_y REAL DEFAULT 50,
+  hotspots_desktop TEXT DEFAULT '[]',
+  hotspots_mobile TEXT DEFAULT '[]',
+  ordem INTEGER DEFAULT 0,
+  ativo INTEGER DEFAULT 1,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (errBox) => {
+  if (errBox) console.error('[BOXES] Erro ao criar tabela comercial_boxes:', errBox.message);
+});
+
+const uploadBoxesMem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 120 * 1024 * 1024 } });
+const boxesUploadFields = uploadBoxesMem.fields([{ name: 'arquivo', maxCount: 1 }, { name: 'arquivo_mobile', maxCount: 1 }]);
+const BOX_MOBILE_MODOS = ['mesma', 'arquivo', 'recorte', 'ocultar'];
+const BOX_PROPORCOES = ['1:1', '4:5', '3:4', '9:16', '16:9', '3:2'];
+
+function boxUrlArquivo(row, variante) {
+  const key = variante === 'mobile' ? row.mobile_r2_key : row.r2_key;
+  if (!key) return null;
+  if (process.env.R2_PUBLIC_URL) return `${process.env.R2_PUBLIC_URL}/${key}`;
+  return `/api/comercial/boxes/${row.id}/arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
+}
+
+function boxParseJson(raw) {
+  try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+
+function boxSanitizeHotspots(raw) {
+  let arr = raw;
+  if (typeof raw === 'string') arr = boxParseJson(raw);
+  if (!Array.isArray(arr)) return '[]';
+  const clamp = (n) => Math.max(0, Math.min(100, Number(n) || 0));
+  const out = [];
+  arr.slice(0, 50).forEach(h => {
+    if (!h) return;
+    let url = String(h.url || '').trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    const x = clamp(h.x), y = clamp(h.y);
+    const w = Math.min(clamp(h.w), 100 - x), hh = Math.min(clamp(h.h), 100 - y);
+    if (w < 0.5 || hh < 0.5) return;
+    out.push({ x, y, w, h: hh, url: url.slice(0, 1000), titulo: String(h.titulo || '').slice(0, 120) });
+  });
+  return JSON.stringify(out);
+}
+
+function boxMontarRespostaRow(row) {
+  return Object.assign({}, row, {
+    url: boxUrlArquivo(row, 'desktop'),
+    mobile_url: boxUrlArquivo(row, 'mobile'),
+    hotspots_desktop: boxParseJson(row.hotspots_desktop),
+    hotspots_mobile: boxParseJson(row.hotspots_mobile)
+  });
+}
+
+function boxExtDoArquivo(file) {
+  const m = String(file.originalname || '').match(/\.([a-zA-Z0-9]{2,5})$/);
+  if (m) return m[1].toLowerCase();
+  const mime = String(file.mimetype || '');
+  return mime.split('/')[1] ? mime.split('/')[1].split(';')[0] : 'bin';
+}
+
+async function boxEnviarArquivoR2(file, nomeBox) {
+  const r2b = require('./utils/r2');
+  const agoraBr = new Date(new Date().getTime() - 3*60*60*1000);
+  const yyyy = agoraBr.getUTCFullYear();
+  const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+  const slug = String(nomeBox || 'box').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 40) || 'BOX';
+  const hash = require('crypto').randomBytes(4).toString('hex');
+  const key = `Comercial/Boxes/${yyyy}/${mm}/${dd}_${slug}_${hash}.${boxExtDoArquivo(file)}`;
+  await r2b.uploadToR2(key, file.buffer, file.mimetype || 'application/octet-stream');
+  return key;
+}
+
+function boxTipoPorMime(mime) {
+  return String(mime || '').startsWith('video/') ? 'video' : 'imagem';
+}
+
+function boxValidarMidia(file) {
+  const mime = String(file.mimetype || '');
+  return mime.startsWith('image/') || mime.startsWith('video/');
+}
+
+// GET /api/comercial/boxes - Listar boxes (ordem de exibicao)
+app.get('/api/comercial/boxes', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json((rows || []).map(boxMontarRespostaRow));
+  });
+});
+
+// GET /api/comercial/boxes/:id/arquivo?v=desktop|mobile - Stream do arquivo (fallback quando R2_PUBLIC_URL nao esta definido)
+app.get('/api/comercial/boxes/:id/arquivo', (req, res) => {
+  db.get('SELECT * FROM comercial_boxes WHERE id = ? AND ativo = 1', [req.params.id], async (err, row) => {
+    if (err || !row) return res.status(404).send('Arquivo nao encontrado');
+    const variante = req.query.v === 'mobile' ? 'mobile' : 'desktop';
+    const key = variante === 'mobile' ? row.mobile_r2_key : row.r2_key;
+    if (!key) return res.status(404).send('Arquivo nao encontrado');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento nao configurado');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(key);
+      res.setHeader('Content-Type', contentType || (variante === 'mobile' ? row.mobile_mime_type : row.mime_type) || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.pipe(res);
+    } catch (e) {
+      res.status(500).send('Erro ao ler arquivo');
+    }
+  });
+});
+
+// POST /api/comercial/boxes - Criar box (multipart: arquivo, arquivo_mobile opcional)
+app.post('/api/comercial/boxes', authenticateToken, boxesUploadFields, async (req, res) => {
+  try {
+    const r2b = require('./utils/r2');
+    if (!r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) nao configurado. Nao e possivel anexar arquivos.' });
+    const d = req.body || {};
+    const arq = req.files && req.files.arquivo && req.files.arquivo[0];
+    const arqMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
+    const nome = String(d.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'Informe o nome do box.' });
+    if (!arq) return res.status(400).json({ error: 'Anexe a imagem ou o video do box.' });
+    if (!boxValidarMidia(arq) || (arqMob && !boxValidarMidia(arqMob))) return res.status(400).json({ error: 'Apenas imagem ou video sao permitidos.' });
+
+    let modo = BOX_MOBILE_MODOS.includes(d.mobile_modo) ? d.mobile_modo : 'mesma';
+    if (modo === 'arquivo' && !arqMob) modo = 'mesma';
+    const proporcao = BOX_PROPORCOES.includes(d.mobile_proporcao) ? d.mobile_proporcao : '4:5';
+    const fx = Math.max(0, Math.min(100, Number(d.foco_x))); const fy = Math.max(0, Math.min(100, Number(d.foco_y)));
+
+    const key = await boxEnviarArquivoR2(arq, nome);
+    const keyMob = arqMob ? await boxEnviarArquivoR2(arqMob, nome + '_mobile') : null;
+    const usuario = req.user?.username || req.user?.nome || 'unknown';
+
+    db.get('SELECT COALESCE(MAX(ordem), 0) AS m FROM comercial_boxes', [], (errMax, rowMax) => {
+      const ordem = ((rowMax && rowMax.m) || 0) + 1;
+      db.run(`INSERT INTO comercial_boxes (
+        nome, tipo, r2_key, mime_type, mobile_modo, mobile_tipo, mobile_r2_key, mobile_mime_type,
+        mobile_proporcao, foco_x, foco_y, hotspots_desktop, hotspots_mobile, ordem, criado_por
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        nome, boxTipoPorMime(arq.mimetype), key, arq.mimetype, modo,
+        arqMob ? boxTipoPorMime(arqMob.mimetype) : null, keyMob, arqMob ? arqMob.mimetype : null,
+        proporcao, isNaN(fx) ? 50 : fx, isNaN(fy) ? 50 : fy,
+        boxSanitizeHotspots(d.hotspots_desktop), boxSanitizeHotspots(d.hotspots_mobile), ordem, usuario
+      ], function(errIns) {
+        if (errIns) return res.status(500).json({ error: errIns.message });
+        res.json({ success: true, id: this.lastID });
+      });
+    });
+  } catch (e) {
+    console.error('[BOXES] Erro ao criar box:', e);
+    res.status(500).json({ error: e.message || 'Erro ao criar box' });
+  }
+});
+
+// PUT /api/comercial/boxes/:id - Atualizar box (multipart; arquivos opcionais para substituir)
+app.put('/api/comercial/boxes/:id', authenticateToken, boxesUploadFields, (req, res) => {
+  db.get('SELECT * FROM comercial_boxes WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Box nao encontrado' });
+    try {
+      const r2b = require('./utils/r2');
+      const d = req.body || {};
+      const arq = req.files && req.files.arquivo && req.files.arquivo[0];
+      const arqMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
+      if ((arq || arqMob) && !r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) nao configurado.' });
+      if ((arq && !boxValidarMidia(arq)) || (arqMob && !boxValidarMidia(arqMob))) return res.status(400).json({ error: 'Apenas imagem ou video sao permitidos.' });
+      const nome = String(d.nome || row.nome || '').trim();
+      if (!nome) return res.status(400).json({ error: 'Informe o nome do box.' });
+
+      let key = row.r2_key, mime = row.mime_type, tipo = row.tipo;
+      let keyMob = row.mobile_r2_key, mimeMob = row.mobile_mime_type, tipoMob = row.mobile_tipo;
+      const apagarDepois = [];
+      if (arq) {
+        key = await boxEnviarArquivoR2(arq, nome); mime = arq.mimetype; tipo = boxTipoPorMime(arq.mimetype);
+        if (row.r2_key) apagarDepois.push(row.r2_key);
+      }
+      if (arqMob) {
+        keyMob = await boxEnviarArquivoR2(arqMob, nome + '_mobile'); mimeMob = arqMob.mimetype; tipoMob = boxTipoPorMime(arqMob.mimetype);
+        if (row.mobile_r2_key) apagarDepois.push(row.mobile_r2_key);
+      } else if (String(d.remover_mobile) === '1' && row.mobile_r2_key) {
+        apagarDepois.push(row.mobile_r2_key); keyMob = null; mimeMob = null; tipoMob = null;
+      }
+
+      let modo = BOX_MOBILE_MODOS.includes(d.mobile_modo) ? d.mobile_modo : (row.mobile_modo || 'mesma');
+      if (modo === 'arquivo' && !keyMob) modo = 'mesma';
+      const proporcao = BOX_PROPORCOES.includes(d.mobile_proporcao) ? d.mobile_proporcao : (row.mobile_proporcao || '4:5');
+      const fxN = Number(d.foco_x), fyN = Number(d.foco_y);
+      const fx = isNaN(fxN) || d.foco_x === undefined ? row.foco_x : Math.max(0, Math.min(100, fxN));
+      const fy = isNaN(fyN) || d.foco_y === undefined ? row.foco_y : Math.max(0, Math.min(100, fyN));
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+      db.run(`UPDATE comercial_boxes SET
+        nome=?, tipo=?, r2_key=?, mime_type=?, mobile_modo=?, mobile_tipo=?, mobile_r2_key=?, mobile_mime_type=?,
+        mobile_proporcao=?, foco_x=?, foco_y=?, hotspots_desktop=?, hotspots_mobile=?, atualizado_em=?
+        WHERE id=?`,
+      [
+        nome, tipo, key, mime, modo, tipoMob, keyMob, mimeMob, proporcao, fx, fy,
+        d.hotspots_desktop !== undefined ? boxSanitizeHotspots(d.hotspots_desktop) : row.hotspots_desktop,
+        d.hotspots_mobile !== undefined ? boxSanitizeHotspots(d.hotspots_mobile) : row.hotspots_mobile,
+        agora, row.id
+      ], async function(errUp) {
+        if (errUp) return res.status(500).json({ error: errUp.message });
+        for (const k of apagarDepois) { try { await r2b.deleteFromR2(k); } catch (e) {} }
+        res.json({ success: true });
+      });
+    } catch (e) {
+      console.error('[BOXES] Erro ao atualizar box:', e);
+      res.status(500).json({ error: e.message || 'Erro ao atualizar box' });
+    }
+  });
+});
+
+// POST /api/comercial/boxes/:id/mover - Subir/descer na ordem { direcao: 'up' | 'down' }
+app.post('/api/comercial/boxes/:id/mover', authenticateToken, (req, res) => {
+  const direcao = req.body && req.body.direcao === 'up' ? 'up' : 'down';
+  db.all('SELECT id FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const ids = (rows || []).map(r => r.id);
+    const idx = ids.indexOf(Number(req.params.id));
+    if (idx < 0) return res.status(404).json({ error: 'Box nao encontrado' });
+    const alvo = direcao === 'up' ? idx - 1 : idx + 1;
+    if (alvo >= 0 && alvo < ids.length) {
+      const tmp = ids[idx]; ids[idx] = ids[alvo]; ids[alvo] = tmp;
+    }
+    db.serialize(() => {
+      ids.forEach((id, i) => db.run('UPDATE comercial_boxes SET ordem = ? WHERE id = ?', [i + 1, id]));
+      db.run('SELECT 1', [], () => res.json({ success: true }));
+    });
+  });
+});
+
+// DELETE /api/comercial/boxes/:id - Exclui do R2 e depois do banco
+app.delete('/api/comercial/boxes/:id', authenticateToken, (req, res) => {
+  db.get('SELECT * FROM comercial_boxes WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Box nao encontrado' });
+    try {
+      const r2b = require('./utils/r2');
+      if (r2b.isReady()) {
+        if (row.r2_key) await r2b.deleteFromR2(row.r2_key);
+        if (row.mobile_r2_key) await r2b.deleteFromR2(row.mobile_r2_key);
+      }
+    } catch (e) { console.error('[BOXES] Erro ao excluir do R2:', e.message); }
+    db.run('DELETE FROM comercial_boxes WHERE id = ?', [row.id], function(errDel) {
+      if (errDel) return res.status(500).json({ error: errDel.message });
+      res.json({ success: true });
+    });
+  });
 });
 
 // GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta

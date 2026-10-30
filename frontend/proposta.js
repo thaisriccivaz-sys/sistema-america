@@ -1883,6 +1883,9 @@ function _renderFormPropostaInt() {
     if (!container) return;
 
     window._propProdutosAdicionados = prop && prop.itens ? (typeof prop.itens === 'string' ? JSON.parse(prop.itens) : prop.itens) : [];
+    window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
+        ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
+        : [];
     (() => {
         const parsedInfo = typeof window._parseDiasEventoLista === 'function'
             ? window._parseDiasEventoLista(prop ? prop.dias_evento : null)
@@ -2342,6 +2345,9 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Serviços da Proposta (somente OBRA MENSAL / QUINZENAL / SEMANAL) -->
+                    ${typeof window.htmlBlocoServicosProposta === 'function' ? window.htmlBlocoServicosProposta(v('tipo')) : ''}
+
                     <!-- Seção: Adicionais de Logística (Zona & KM) - Oculta conforme solicitação -->
                     <div style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#166534; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -2467,6 +2473,9 @@ function _renderFormPropostaInt() {
     }
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
         window.atualizarVisibilidadeDiasEventoProposta(v('tipo'));
+    }
+    if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
+        window.atualizarVisibilidadeServicosProposta(v('tipo'));
     }
     if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
         window.atualizarBloqueioPorTipoProposta();
@@ -5537,7 +5546,7 @@ function calcularDescontoReais() {
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         return acc + (q * v);
     }, 0);
-    precoServico += somaProdutos;
+    precoServico += somaProdutos + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0);
     const freteIda = parseFloat(document.getElementById('prop-frete-ida')?.value || 0);
     const freteVolta = parseFloat(document.getElementById('prop-frete-volta')?.value || 0);
     const subtotal = precoServico + freteIda + freteVolta;
@@ -5587,7 +5596,7 @@ window.calcularValorTotalProposta = function() {
     if (servicoSelect && servicoSelect.value && servicoSelect.options[servicoSelect.selectedIndex]) {
         precoServico = parseFloat(servicoSelect.options[servicoSelect.selectedIndex].getAttribute('data-preco') || 0);
     }
-    precoServico += somaProdutos;
+    precoServico += somaProdutos + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0);
     const freteIda = parseFloat(freteIdaEl?.value || 0);
     const freteVolta = parseFloat(freteVoltaEl?.value || 0);
 
@@ -5647,6 +5656,7 @@ window.limparFormPropostaNovo = function() {
     window._propDiasEventoSelecionados = [];
     window._propDiasEventoHorarios = {};
     window._ultimoHorarioDiaEventoEditado = '';
+    window._propServicosAdicionados = [];
     _propRegiaoIdentificada = '';
     window._ultimoClienteNomePropostaAtivo = '';
     _renderFormPropostaInt();
@@ -5723,6 +5733,10 @@ window.salvarPropostaNova = async function() {
         }
     }
 
+    if (typeof window.validarServicosPropostaObra === 'function') {
+        if (!window.validarServicosPropostaObra(tipo)) return;
+    }
+
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
@@ -5760,11 +5774,12 @@ window.salvarPropostaNova = async function() {
                 }, 0);
             }
             return obterN('prop-valor-total');
-        })(),
+        })() + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0),
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
+        itens_servicos: window._propServicosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
         percentual_zona: obterN('prop-percentual-zona'),
@@ -6331,6 +6346,10 @@ window.estornarPropostaEdicao = async function() {
         }
     }
 
+    if (typeof window.validarServicosPropostaObra === 'function') {
+        if (!window.validarServicosPropostaObra(tipo)) return;
+    }
+
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
@@ -6364,6 +6383,7 @@ window.estornarPropostaEdicao = async function() {
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
+        itens_servicos: window._propServicosAdicionados || [],
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null
     };
@@ -17267,6 +17287,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
         window.atualizarVisibilidadeDiasEventoProposta(tipoLimpo);
     }
+    if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
+        window.atualizarVisibilidadeServicosProposta(tipoLimpo);
+    }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
@@ -17760,6 +17783,11 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (grupoNorm.includes('guarita') || nomeNorm.includes('guarita')) {
                 return false;
             }
+        } else if (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm)) {
+            // Tipo OBRA: os servicos aparecem apenas no quadro "Servicos da Proposta"
+            if (grupoNorm === 'servicos' || grupoNorm === 'servico') {
+                return false;
+            }
         } else if (tipoNorm === 'avaria') {
             // Tipo AVARIA: mostrar apenas os produtos do grupo AVARIA
             if (grupoNorm !== 'avaria' && grupoNorm !== 'avarias' && !grupoNorm.includes('avaria')) {
@@ -17868,7 +17896,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        ['CONTAINER', 'SERVIÇOS', 'VAC'].forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
@@ -20867,6 +20895,9 @@ window._renderModelosPropostasInt = async function() {
                 </div>
 
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes();" title="Banners de imagem e vídeo (Boxes)" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-image-square"></i> Boxes (Banners)
+                    </button>
                     <button onclick="window.novoModeloPropostaModal()" style="background:#fff; color:#7048e8; border:1px solid #d0bfff; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-plus-circle"></i> Novo Tipo de Proposta
                     </button>
