@@ -33676,6 +33676,75 @@ db.run("ALTER TABLE estoque_equipamentos ADD COLUMN descricao_proposta TEXT", (e
         console.log('[EQUIPAMENTOS] Alerta ao adicionar coluna descricao_proposta:', errAltDescProp.message);
     }
 });
+db.run("ALTER TABLE estoque_equipamentos ADD COLUMN r2_key TEXT", () => {});
+db.run("ALTER TABLE estoque_equipamentos ADD COLUMN foto_url TEXT", () => {});
+
+function montarFotoUrlEquipamento(row) {
+    if (!row) return null;
+    if (row.r2_key) {
+        if (process.env.R2_PUBLIC_URL) {
+            return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${row.r2_key}`;
+        }
+        return `/api/public/equipamento-foto/${row.id}?v=${encodeURIComponent(row.updated_at || row.id)}`;
+    }
+    return row.foto_url || null;
+}
+
+async function uploadFotoEquipamentoParaR2(codigoEquip, fotoBase64) {
+    const str = String(fotoBase64 || '').trim();
+    const m = str.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!m) return { r2_key: null, foto_url: null };
+    const contentType = m[1].toLowerCase();
+    const buffer = Buffer.from(m[2], 'base64');
+    const ext = contentType.includes('png') ? 'png' : (contentType.includes('webp') ? 'webp' : 'jpg');
+    const r2 = require('./utils/r2');
+    if (r2.isReady()) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const safeCode = String(codigoEquip || 'EQ').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const hash = require('crypto').randomBytes(4).toString('hex');
+        const r2Key = `Equipamentos/Fotos/${yyyy}/${mm}/${dd}_${safeCode}_${hash}.${ext}`;
+        await r2.uploadToR2(r2Key, buffer, contentType);
+        return { r2_key: r2Key, foto_url: null };
+    } else {
+        console.warn('[R2] Storage não configurado — foto do equipamento mantida em fallback.');
+        return { r2_key: null, foto_url: str };
+    }
+}
+
+// GET público da foto do equipamento (usado no sistema e no link público da proposta)
+app.get('/api/public/equipamento-foto/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(404).end();
+    db.get('SELECT id, r2_key, foto_url FROM estoque_equipamentos WHERE id = ?', [id], async (err, row) => {
+        if (err || !row) return res.status(404).end();
+        if (row.r2_key) {
+            try {
+                const r2 = require('./utils/r2');
+                if (r2.isReady()) {
+                    const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+                    res.setHeader('Content-Type', contentType || 'image/png');
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    return stream.pipe(res);
+                }
+            } catch (e) {
+                console.error('[EQUIPAMENTO-FOTO] Erro ao baixar do R2:', e.message);
+            }
+        }
+        if (row.foto_url && String(row.foto_url).startsWith('data:image/')) {
+            const m = String(row.foto_url).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+            if (m) {
+                const buf = Buffer.from(m[2], 'base64');
+                res.setHeader('Content-Type', m[1]);
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+                return res.send(buf);
+            }
+        }
+        return res.status(404).end();
+    });
+});
 
 // GET /api/estoque-equipamentos
 app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
@@ -33689,7 +33758,11 @@ app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     sql += ' ORDER BY CAST(REPLACE(REPLACE(UPPER(codigo), "EQ-", ""), "EQ", "") AS INTEGER) ASC, id ASC';
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        const lista = (rows || []).map(r => ({
+            ...r,
+            foto_url: montarFotoUrlEquipamento(r)
+        }));
+        res.json(lista);
     });
 });
 
@@ -33998,6 +34071,7 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
+    const foto_base64 = String(d.foto_base64 || '').trim();
     const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
     // Verificar duplicidade exata de nome (case-insensitive)
@@ -34009,19 +34083,31 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
             });
         }
 
-        gerarProximoCodigoEquipamento((codigo) => {
-            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-            db.run(
-                `INSERT INTO estoque_equipamentos (
-                    codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
-                    especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, criado_por, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, criado_por, agora, agora],
-                function(errIns) {
-                    if (errIns) return res.status(500).json({ error: errIns.message });
-                    res.json({ success: true, id: this.lastID, codigo });
+        gerarProximoCodigoEquipamento(async (codigo) => {
+            try {
+                let r2Key = null;
+                let fotoUrlFallback = null;
+                if (foto_base64 && foto_base64.startsWith('data:image/')) {
+                    const up = await uploadFotoEquipamentoParaR2(codigo, foto_base64);
+                    r2Key = up.r2_key;
+                    fotoUrlFallback = up.foto_url;
                 }
-            );
+                const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+                db.run(
+                    `INSERT INTO estoque_equipamentos (
+                        codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
+                        especificacao_tecnica, descricao_proposta, produto_venda, tipo_item,
+                        r2_key, foto_url, criado_por, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, r2Key, fotoUrlFallback, criado_por, agora, agora],
+                    function(errIns) {
+                        if (errIns) return res.status(500).json({ error: errIns.message });
+                        res.json({ success: true, id: this.lastID, codigo, r2_key: r2Key });
+                    }
+                );
+            } catch (errUp) {
+                return res.status(500).json({ error: 'Erro ao salvar foto do equipamento: ' + errUp.message });
+            }
         });
     });
 });
@@ -34042,6 +34128,8 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
+    const foto_base64 = String(d.foto_base64 || '').trim();
+    const remover_foto = Boolean(d.remover_foto);
 
     // Verificar duplicidade exata de nome com outro registro (id != ?)
     db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?', [nome, id], (errDup, rowDup) => {
@@ -34052,19 +34140,47 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
             });
         }
 
-        const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-        db.run(
-            `UPDATE estoque_equipamentos SET
-                nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                especificacao_tecnica = ?, descricao_proposta = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
-             WHERE id = ?`,
-            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, agora, id],
-            function(errUpd) {
-                if (errUpd) return res.status(500).json({ error: errUpd.message });
-                if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
-                res.json({ success: true });
+        db.get('SELECT id, codigo, r2_key, foto_url FROM estoque_equipamentos WHERE id = ?', [id], async (errCur, rowCur) => {
+            if (errCur) return res.status(500).json({ error: errCur.message });
+            if (!rowCur) return res.status(404).json({ error: 'Equipamento não encontrado.' });
+
+            try {
+                let novoR2Key = rowCur.r2_key || null;
+                let novoFotoUrl = rowCur.foto_url || null;
+                const r2 = require('./utils/r2');
+
+                if (remover_foto) {
+                    if (rowCur.r2_key && r2.isReady()) {
+                        await r2.deleteFromR2(rowCur.r2_key).catch(() => {});
+                    }
+                    novoR2Key = null;
+                    novoFotoUrl = null;
+                } else if (foto_base64 && foto_base64.startsWith('data:image/')) {
+                    if (rowCur.r2_key && r2.isReady()) {
+                        await r2.deleteFromR2(rowCur.r2_key).catch(() => {});
+                    }
+                    const up = await uploadFotoEquipamentoParaR2(rowCur.codigo || id, foto_base64);
+                    novoR2Key = up.r2_key;
+                    novoFotoUrl = up.foto_url;
+                }
+
+                const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+                db.run(
+                    `UPDATE estoque_equipamentos SET
+                        nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
+                        especificacao_tecnica = ?, descricao_proposta = ?, produto_venda = ?, tipo_item = ?,
+                        r2_key = ?, foto_url = ?, updated_at = ?
+                     WHERE id = ?`,
+                    [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, novoR2Key, novoFotoUrl, agora, id],
+                    function(errUpd) {
+                        if (errUpd) return res.status(500).json({ error: errUpd.message });
+                        res.json({ success: true, r2_key: novoR2Key });
+                    }
+                );
+            } catch (errUp) {
+                return res.status(500).json({ error: 'Erro ao atualizar foto do equipamento: ' + errUp.message });
             }
-        );
+        });
     });
 });
 
@@ -34073,10 +34189,21 @@ app.delete('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(400).json({ error: 'ID inválido.' });
 
-    db.run('DELETE FROM estoque_equipamentos WHERE id = ?', [id], function(errDel) {
-        if (errDel) return res.status(500).json({ error: errDel.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
-        res.json({ success: true });
+    db.get('SELECT id, r2_key FROM estoque_equipamentos WHERE id = ?', [id], async (errRow, row) => {
+        if (errRow) return res.status(500).json({ error: errRow.message });
+        if (!row) return res.status(404).json({ error: 'Equipamento não encontrado.' });
+
+        try {
+            const r2 = require('./utils/r2');
+            if (row.r2_key && r2.isReady()) {
+                await r2.deleteFromR2(row.r2_key).catch(() => {});
+            }
+        } catch (e) {}
+
+        db.run('DELETE FROM estoque_equipamentos WHERE id = ?', [id], function(errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            res.json({ success: true });
+        });
     });
 });
 

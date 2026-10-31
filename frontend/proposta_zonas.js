@@ -120,7 +120,7 @@
         const grid = document.getElementById('prop-prod-add-grid');
         const usa = window.tipoPropostaUsaManutencoes(tipo);
         if (wrap) wrap.style.display = usa ? 'block' : 'none';
-        if (grid) grid.style.gridTemplateColumns = usa ? '2fr 2.5fr 0.8fr 1fr auto' : '2fr 2.5fr 0.8fr auto';
+        if (grid) grid.style.gridTemplateColumns = usa ? '2fr 2.5fr 0.8fr 1fr' : '2fr 2.5fr 0.8fr';
         if (!usa) {
             const inp = document.getElementById('prop-prod-manut');
             if (inp) inp.value = '';

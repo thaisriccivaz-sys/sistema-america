@@ -214,9 +214,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         }
         if (!celular && cliente) celular = String(cliente.celular || cliente.telefone || '').trim();
 
-        // Endereço de instalação em 2 linhas
+        // Endereço de instalação em 2 linhas (sem prefixo "ENDEREÇO DE FATURAMENTO - ")
         let inst = { linha1: '', linha2: '' };
-        const rawEnd = String(p.endereco_instalacao || '').trim();
+        const rawEnd = String(p.endereco_instalacao || '')
+            .replace(/^\s*(ENDERE[ÇC]O\s+(DE\s+)?(FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*/i, '')
+            .trim();
         if (rawEnd) {
             let match = null;
             if (cliente) {
@@ -235,12 +237,26 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         }
 
         const equip = await dbAll('SELECT * FROM estoque_equipamentos').catch(() => []);
-        const descricaoDe = (it, nomeProd) => {
-            if (it.descricao_proposta && String(it.descricao_proposta).trim()) return String(it.descricao_proposta).trim();
+        const acharEquip = (it, nomeProd) => {
             const cod = norm(it.codigo);
             const nm = norm(String(nomeProd || '').replace(/^\d+\s*-\s*/, ''));
-            const a = equip.find(eq => (cod && cod !== '—' && norm(eq.codigo) === cod) || (nm && norm(eq.nome) === nm));
+            return equip.find(eq => (cod && cod !== '—' && norm(eq.codigo) === cod) || (nm && norm(eq.nome) === nm)) || null;
+        };
+        const descricaoDe = (it, nomeProd) => {
+            if (it.descricao_proposta && String(it.descricao_proposta).trim()) return String(it.descricao_proposta).trim();
+            const a = acharEquip(it, nomeProd);
             return a ? String(a.descricao_proposta || a.especificacao_tecnica || '').trim() : '';
+        };
+        const fotoDe = (it, nomeProd) => {
+            if (it.foto_url && String(it.foto_url).trim()) return String(it.foto_url).trim();
+            const a = acharEquip(it, nomeProd);
+            if (!a) return '';
+            if (a.r2_key) {
+                return process.env.R2_PUBLIC_URL
+                    ? `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${a.r2_key}`
+                    : `/api/public/equipamento-foto/${a.id}`;
+            }
+            return String(a.foto_url || '').trim();
         };
 
         const itensRaw = lerJson(p.itens);
@@ -260,6 +276,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             somaTotalGeral += netDia * nDiarias;
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe(it, nome),
+                foto_url: fotoDe(it, nome),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
                 quant_diarias: nDiarias, unit: base, por_dia: grossDia,
                 desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0

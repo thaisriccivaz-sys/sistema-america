@@ -12,7 +12,9 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const fmtData = (iso) => String(iso).includes('-') ? String(iso).split('-').reverse().join('/') : iso;
     const fmtCurta = (iso) => String(iso).includes('-') ? String(iso).split('-').reverse().slice(0, 2).join('/') : iso;
-    const horaOk = (h) => /^\d{2}:\d{2}$/.test(String(h || ''));
+    const horaOk = (h) => typeof window._horarioEventoIntervaloValido === 'function'
+        ? window._horarioEventoIntervaloValido(h)
+        : /^\d{2}:\d{2}(?:\s*-\s*\d{2}:\d{2})?$/.test(String(h || '').trim());
     const parse = (d) => window._parseDiasEventoItem(d);
     const nomeProduto = (p) => String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
     const lista = () => (window._propProdutosAdicionados || []);
@@ -102,15 +104,20 @@
         if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Diárias replicadas em ${outros} produto(s).`);
     };
 
-    /* Diárias de um produto na tabela: chips com horário editável, remover, + dia e replicar */
+    /* Diárias de um produto na tabela: chips com horário editável (de ... até ...), remover, + dia e replicar */
     window.htmlDiasProdutoGrid = function (p, idx, total) {
         const dias = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
         const chips = dias.map((d, dIdx) => {
             const x = parse(d);
+            const hIni = x.horario_ini || '';
+            const hFim = x.horario_fim || '';
             const ok = horaOk(x.horario);
             return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid ${ok ? '#c4b5fd' : '#fca5a5'}; padding:2px 6px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
                 <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${esc(fmtData(x.data))}
-                <input type="time" value="${esc(x.horario)}" onchange="window.atualizarHorarioDiaProdutoProposta(${idx}, ${dIdx}, this.value)" title="Horário deste dia neste produto" style="border:1px solid ${ok ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:20px; width:auto !important; cursor:pointer;">
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:600;">de</span>
+                <input type="time" value="${esc(hIni)}" onchange="window.atualizarHorarioDiaProdutoProposta(${idx}, ${dIdx}, this.value, 'ini')" title="Horário inicial deste dia neste produto" style="border:1px solid ${/^\d{2}:\d{2}$/.test(hIni) ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:20px; width:auto !important; cursor:pointer;">
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:600;">até</span>
+                <input type="time" value="${esc(hFim)}" onchange="window.atualizarHorarioDiaProdutoProposta(${idx}, ${dIdx}, this.value, 'fim')" title="Horário final deste dia neste produto" style="border:1px solid ${/^\d{2}:\d{2}$/.test(hFim) ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:20px; width:auto !important; cursor:pointer;">
                 <button type="button" onclick="window.removerDiaProdutoProposta(${idx}, ${dIdx})" title="Remover esta diária" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.85rem; line-height:1;">&times;</button>
             </span>`;
         }).join('');

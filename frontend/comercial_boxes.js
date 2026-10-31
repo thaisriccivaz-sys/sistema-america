@@ -77,9 +77,32 @@
         return String(achado.descricao_proposta || achado.especificacao_tecnica || '').trim();
     };
 
+    /* Busca a Foto do Equipamento no cadastro pelo código ou nome */
+    window.obterFotoPropostaEquipamento = function (itemOuProd) {
+        if (!itemOuProd) return '';
+        if (itemOuProd.foto_url && String(itemOuProd.foto_url).trim()) {
+            return String(itemOuProd.foto_url).trim();
+        }
+        const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
+            ? window._boxCacheDadosAux.equipamentos
+            : (window._equipamentosEstoqueData || []);
+        const cod = norm(itemOuProd.codigo);
+        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const achado = lista.find(eq =>
+            (cod && cod !== '—' && norm(eq.codigo) === cod) ||
+            (nome && norm(eq.nome) === nome)
+        );
+        if (!achado) return '';
+        if (achado.foto_url && String(achado.foto_url).trim()) return String(achado.foto_url).trim();
+        if (achado.r2_key && achado.id) return '/api/public/equipamento-foto/' + achado.id;
+        return '';
+    };
+
     /* Separa endereço de instalação em Linha 1 (Rua e Número) e Linha 2 (Bairro - Cidade) */
     function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
-        const rawEnd = String(proposta.endereco_instalacao || '').trim();
+        const rawEnd = String(proposta.endereco_instalacao || '')
+            .replace(/^\s*(ENDERE[ÇC]O\s+(DE\s+)?(FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*/i, '')
+            .trim();
         const c = window._boxCacheDadosAux;
         if (rawEnd && c && Array.isArray(c.enderecos) && c.enderecos.length) {
             const cliId = clienteObj ? Number(clienteObj.id) : 0;
@@ -227,6 +250,7 @@
                 quantidade: qtd,
                 nome: nomeProd,
                 descricao_proposta: window.obterDescricaoPropostaEquipamento(it),
+                foto_url: window.obterFotoPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
                 quant_diarias: nDiarias,
                 unit: base,
@@ -285,7 +309,7 @@
         const d = (dadosCustom && dadosCustom.itens) ? dadosCustom : window.montarDadosQuadroEventoProposta(dadosCustom);
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = '#5c4599';
-        const COLS = '1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
+        const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
 
         const celula = (it, valor, cor) => it.cortesia
@@ -295,7 +319,8 @@
                 : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
         const cabecalhoColunas = (titulo) => `
-            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:end; margin-bottom:${u(14)};">
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:end; margin-bottom:${u(16)};">
+                <div></div>
                 <div style="font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
@@ -307,8 +332,11 @@
             </div>`;
 
         const linhaItem = (it) => `
-            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:start; margin-bottom:${u(26)};">
-                <div style="min-width:0; padding-right:${u(20)};">
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
+                <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${u(84)};">
+                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
+                </div>
+                <div style="min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:baseline; gap:${u(14)}; width:100%;">
                         <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase;">${esc(it.quantidade)} - ${esc(it.nome)}</span>
                         <span style="flex:1; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
@@ -316,11 +344,11 @@
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                 </div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.unit, '#3b3b3b')}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.por_dia, '#3b3b3b')}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.total, ROXO)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b; align-self:start;">${esc(it.quant_diarias)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.unit, '#3b3b3b')}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.por_dia, '#3b3b3b')}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b; align-self:start;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.total, ROXO)}</div>
             </div>`;
 
         const itensHtml = (d.itens && d.itens.length > 0)
@@ -328,7 +356,7 @@
             : `<div style="padding:${u(24)}; text-align:center; color:#94a3b8; font-size:${u(24)}; border:${u(2)} dashed #cbd5e1; border-radius:${u(10)}; margin-bottom:${u(20)};">Nenhum equipamento adicionado nesta proposta ainda.</div>`;
 
         const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
-            <div style="padding:${u(10)} ${u(60)} ${u(10)} ${u(80)};">
+            <div style="padding:${u(10)} ${u(60)} ${u(10)} ${u(50)};">
                 ${cabecalhoColunas('SERVIÇOS:')}
                 ${d.servicos.map(linhaItem).join('')}
             </div>` : '';
@@ -354,29 +382,29 @@
                     <div style="background:${ROXO}; width:${u(413)}; height:${u(258)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                         <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(226)}; width:auto; display:block;">
                     </div>
-                    <div style="flex:1; display:grid; grid-template-columns:1.05fr 1fr; column-gap:${u(40)}; padding:${u(20)} ${u(50)} 0 ${u(140)}; align-items:start; min-width:0;">
+                    <div style="flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(28)}; padding:${u(20)} ${u(36)} 0 ${u(52)}; align-items:start; min-width:0;">
                         <div style="min-width:0;">
                             <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
                                 <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
                             </div>
                             <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
-                                <div style="text-transform:uppercase;">${esc(d.razao_social)}</div>
+                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(d.razao_social)}</div>
                                 <div>CNPJ: ${esc(d.cnpj)}</div>
-                                <div style="text-transform:uppercase;">CONTATO: ${esc(d.contato_nome)}</div>
+                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: ${esc(d.contato_nome)}</div>
                                 <div>CEL.: ${esc(d.contato_celular)}</div>
                             </div>
                         </div>
-                        <div style="min-width:0;">
+                        <div style="min-width:0; overflow:hidden;">
                             <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
                                 <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
                             </div>
-                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
-                                ${d.ocultar_nome_evento ? '' : `<div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>`}
+                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)};">
+                                ${d.ocultar_nome_evento ? '' : `<div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(d.nome_evento)}</div>`}
                                 <div style="text-transform:uppercase;">${esc(d.diarias_contrato)}</div>
-                                <div style="margin-top:${u(8)}; text-transform:uppercase;">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
-                                ${d.instalacao_linha2 ? `<div style="text-transform:uppercase;">${esc(d.instalacao_linha2)}</div>` : ''}
+                                <div style="margin-top:${u(8)}; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
+                                ${d.instalacao_linha2 ? `<div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -384,7 +412,7 @@
 
                 <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
                 <div style="flex:1 0 auto;">
-                    <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(80)};">
+                    <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
                         ${cabecalhoColunas('EQUIPAMENTOS:')}
                         ${itensHtml}
                     </div>
@@ -392,9 +420,9 @@
                 </div>
 
                 <!-- Totais (sem faixa preta): valor total em roxo abaixo da coluna VALOR TOTAL -->
-                <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(80)}; flex-shrink:0;">
+                <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
                     <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                        <div class="bq-d" style="grid-column:1 / 6; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                        <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
                         <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                     </div>
                 </div>

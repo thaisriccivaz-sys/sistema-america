@@ -2614,9 +2614,13 @@ window.renderEquipamentosEstoqueTable = function() {
             ? '<div style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
             : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
 
+        const fotoThumb = item.foto_url
+            ? '<img src="' + esc(item.foto_url) + '" alt="" onclick="if(window.ampliarFotoEstoque) window.ampliarFotoEstoque(\'' + esc(item.foto_url) + '\', \'' + esc(item.nome) + '\')" title="Clique para ampliar foto" style="width:36px;height:36px;object-fit:contain;border-radius:6px;border:1px solid #cbd5e1;background:#fff;padding:2px;cursor:zoom-in;flex-shrink:0;">'
+            : '<div title="Sem foto cadastrada — clique em Editar para adicionar" onclick="window.abrirModalEquipamentoEstoque(' + item.id + ')" style="width:36px;height:36px;border-radius:6px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><i class="ph ph-camera" style="font-size:1rem;"></i></div>';
+
         return '<tr>' +
             '<td><span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-weight:700;font-size:0.78rem;white-space:nowrap;">' + esc(item.codigo) + '</span></td>' +
-            '<td style="font-weight:600;color:#1e293b;">' + esc(item.nome) + '</td>' +
+            '<td style="font-weight:600;color:#1e293b;"><div style="display:flex;align-items:center;gap:10px;">' + fotoThumb + '<span>' + esc(item.nome) + '</span></div></td>' +
             '<td><span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:600;white-space:nowrap;">' + esc(item.unidade_medida) + '</span></td>' +
             '<td style="color:#334155;font-size:0.84rem;font-weight:600;text-transform:uppercase;">' + esc(String(item.fonte_fornecimento || '').toUpperCase()) + '</td>' +
             '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(String(item.grupo_produto || '').toUpperCase()) + '</span></td>' +
@@ -2636,6 +2640,46 @@ window.renderEquipamentosEstoqueTable = function() {
             '</td>' +
         '</tr>';
     }).join('');
+};
+
+window._aplicarPreviewFotoEquipamentoModal = function(srcUrl) {
+    const imgEl = document.getElementById('equipamento-est-foto-preview');
+    const icoEl = document.getElementById('equipamento-est-foto-icon');
+    const btnRem = document.getElementById('btn-remover-foto-equipamento');
+    if (srcUrl) {
+        if (imgEl) { imgEl.src = srcUrl; imgEl.style.display = 'block'; }
+        if (icoEl) icoEl.style.display = 'none';
+        if (btnRem) btnRem.style.display = 'inline-block';
+    } else {
+        if (imgEl) { imgEl.src = ''; imgEl.style.display = 'none'; }
+        if (icoEl) icoEl.style.display = 'flex';
+        if (btnRem) btnRem.style.display = 'none';
+    }
+};
+
+window.previewEquipamentoEstoqueFoto = function(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target?.result || '';
+        const b64El = document.getElementById('equipamento-est-foto-base64');
+        const remEl = document.getElementById('equipamento-est-remover-foto');
+        if (b64El) b64El.value = dataUrl;
+        if (remEl) remEl.value = '0';
+        window._aplicarPreviewFotoEquipamentoModal(dataUrl);
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removerFotoEquipamentoModal = function() {
+    const fileInput = document.getElementById('equipamento-est-foto');
+    const b64El = document.getElementById('equipamento-est-foto-base64');
+    const remEl = document.getElementById('equipamento-est-remover-foto');
+    if (fileInput) fileInput.value = '';
+    if (b64El) b64El.value = '';
+    if (remEl) remEl.value = '1';
+    window._aplicarPreviewFotoEquipamentoModal('');
 };
 
 window._buscarProximoCodigoEquipamento = async function() {
@@ -2673,6 +2717,10 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         if (document.getElementById('equipamento-est-descricao-proposta')) {
             document.getElementById('equipamento-est-descricao-proposta').value = item.descricao_proposta || '';
         }
+        if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
+        if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
+        if (document.getElementById('equipamento-est-remover-foto')) document.getElementById('equipamento-est-remover-foto').value = '0';
+        window._aplicarPreviewFotoEquipamentoModal(item.foto_url || '');
         if (titleEl) titleEl.textContent = 'Editar Equipamento';
         if (subEl) subEl.textContent = 'Edite os dados ou clique em Duplicar para criar uma cópia';
         if (btnDup) btnDup.style.display = 'inline-flex';
@@ -2687,6 +2735,10 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         if (document.getElementById('equipamento-est-descricao-proposta')) {
             document.getElementById('equipamento-est-descricao-proposta').value = '';
         }
+        if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
+        if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
+        if (document.getElementById('equipamento-est-remover-foto')) document.getElementById('equipamento-est-remover-foto').value = '0';
+        window._aplicarPreviewFotoEquipamentoModal('');
         if (titleEl) titleEl.textContent = 'Cadastrar Equipamento';
         if (subEl) subEl.textContent = 'O código é gerado automaticamente';
         if (btnDup) btnDup.style.display = 'none';
@@ -2770,6 +2822,8 @@ window.salvarEquipamentoEstoque = async function(event) {
     const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const descricao_proposta = (document.getElementById('equipamento-est-descricao-proposta')?.value || '').trim();
+    const foto_base64 = (document.getElementById('equipamento-est-foto-base64')?.value || '').trim();
+    const remover_foto = document.getElementById('equipamento-est-remover-foto')?.value === '1';
 
     if (!nome) {
         Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe o nome do equipamento.' });
@@ -2813,7 +2867,9 @@ window.salvarEquipamentoEstoque = async function(event) {
                 fonte_fornecimento,
                 grupo_produto,
                 especificacao_tecnica,
-                descricao_proposta
+                descricao_proposta,
+                foto_base64: foto_base64 || undefined,
+                remover_foto: remover_foto || undefined
             })
         });
         const data = await r.json().catch(() => ({}));
@@ -2823,6 +2879,9 @@ window.salvarEquipamentoEstoque = async function(event) {
 
         window.fecharModalEquipamentoEstoque();
         await window.carregarEquipamentosEstoque();
+        if (window._boxCacheDadosAux) {
+            window._boxCacheDadosAux.equipamentos = window._equipamentosEstoqueData || [];
+        }
         Swal.fire({
             icon: 'success',
             title: id ? 'Equipamento atualizado!' : 'Equipamento cadastrado!',

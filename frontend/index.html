@@ -33,7 +33,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261030v1" defer></script>
+    <script src="estoque.js?v=20261031v4" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
@@ -4073,56 +4073,81 @@
                         <form id="form-estoque-equipamento" onsubmit="window.salvarEquipamentoEstoque(event)">
                             <input type="hidden" id="equipamento-est-id" value="">
 
-                            <div style="display:grid;grid-template-columns:150px 1fr;gap:1rem;margin-bottom:1rem;">
-                                <div>
-                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Código (Automático)</label>
-                                    <input type="text" id="equipamento-est-codigo" readonly class="form-control" style="width:100%;background:#f1f5f9;color:#0f172a;font-weight:700;cursor:not-allowed;" value="00001">
+                            <div style="display:flex;gap:1.5rem;align-items:flex-start;margin-bottom:1rem;">
+                                <!-- Coluna da Foto do Equipamento -->
+                                <div style="width:140px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:0.55rem;">
+                                    <div style="width:140px;height:140px;border-radius:10px;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;background:#f8fafc;overflow:hidden;position:relative;">
+                                        <img id="equipamento-est-foto-preview" src="" onclick="if(this.src && window.ampliarFotoEstoque) window.ampliarFotoEstoque(this.src, document.getElementById('equipamento-est-nome')?.value || 'Foto do Equipamento')" title="Clique para ampliar" style="width:100%;height:100%;object-fit:contain;display:none;cursor:zoom-in;background:#fff;padding:4px;box-sizing:border-box;">
+                                        <div id="equipamento-est-foto-icon" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#94a3b8;">
+                                            <i class="ph ph-camera" style="font-size:2.2rem;"></i>
+                                            <span style="font-size:0.7rem;font-weight:600;">Foto na Proposta</span>
+                                        </div>
+                                    </div>
+                                    <label class="btn btn-sm" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#334155;cursor:pointer;width:100%;text-align:center;font-weight:600;font-size:0.78rem;padding:5px 8px;border-radius:6px;box-sizing:border-box;">
+                                        <i class="ph ph-upload-simple"></i> Escolher Foto
+                                        <input type="file" id="equipamento-est-foto" accept="image/*" style="display:none;" onchange="window.previewEquipamentoEstoqueFoto(event)">
+                                    </label>
+                                    <button type="button" id="btn-remover-foto-equipamento" onclick="window.removerFotoEquipamentoModal()" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;cursor:pointer;width:100%;text-align:center;font-weight:600;font-size:0.75rem;padding:4px 8px;border-radius:6px;">
+                                        <i class="ph ph-trash"></i> Remover Foto
+                                    </button>
+                                    <input type="hidden" id="equipamento-est-foto-base64" value="">
+                                    <input type="hidden" id="equipamento-est-remover-foto" value="0">
                                 </div>
-                                <div>
-                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Nome do Equipamento *</label>
-                                    <input type="text" id="equipamento-est-nome" required class="form-control" style="width:100%;" placeholder="Digite o nome do equipamento...">
-                                </div>
-                            </div>
 
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
-                                <div>
-                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Unidade de Medida *</label>
-                                    <select id="equipamento-est-unidade" required class="form-control" style="width:100%;">
-                                        <option value="CAIXA [CX]">CAIXA [CX]</option>
-                                        <option value="GRAMA [GR]">GRAMA [GR]</option>
-                                        <option value="KILO GRAMA [KG]">KILO GRAMA [KG]</option>
-                                        <option value="LITRO [LT]">LITRO [LT]</option>
-                                        <option value="METRO QUADRADO [M2]">METRO QUADRADO [M2]</option>
-                                        <option value="METRO LINEAR [ML]">METRO LINEAR [ML]</option>
-                                        <option value="PECA [PC]">PECA [PC]</option>
-                                        <option value="PACOTE [PCT]">PACOTE [PCT]</option>
-                                        <option value="ROLO [ROLO]">ROLO [ROLO]</option>
-                                        <option value="UNIDADE [UN]" selected>UNIDADE [UN]</option>
-                                    </select>
-                                </div>
-                                <div style="position:relative;" id="wrap-modal-equip-est-fonte">
-                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Fonte de Fornecimento *</label>
-                                    <div style="position:relative; display:flex; align-items:center;">
-                                        <input type="text" id="equipamento-est-fonte" required class="form-control" style="width:100%; padding-right:32px;" placeholder="Digite ou Selecione" autocomplete="off"
-                                            onfocus="window.abrirComboEquipamento('modal-fonte', false)"
-                                            oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-fonte', true);">
-                                        <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('modal-fonte')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
-                                            <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
-                                        </button>
+                                <!-- Coluna dos Dados Principais -->
+                                <div style="flex:1;min-width:0;">
+                                    <div style="display:grid;grid-template-columns:140px 1fr;gap:1rem;margin-bottom:1rem;">
+                                        <div>
+                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Código (Automático)</label>
+                                            <input type="text" id="equipamento-est-codigo" readonly class="form-control" style="width:100%;background:#f1f5f9;color:#0f172a;font-weight:700;cursor:not-allowed;" value="00001">
+                                        </div>
+                                        <div>
+                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Nome do Equipamento *</label>
+                                            <input type="text" id="equipamento-est-nome" required class="form-control" style="width:100%;" placeholder="Digite o nome do equipamento...">
+                                        </div>
                                     </div>
-                                    <div id="combo-list-modal-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10005; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
-                                </div>
-                                <div style="position:relative;" id="wrap-modal-equip-est-grupo">
-                                    <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Grupo de Produto *</label>
-                                    <div style="position:relative; display:flex; align-items:center;">
-                                        <input type="text" id="equipamento-est-grupo" required class="form-control" style="width:100%; padding-right:32px;" placeholder="Digite ou Selecione" autocomplete="off"
-                                            onfocus="window.abrirComboEquipamento('modal-grupo', false)"
-                                            oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-grupo', true);">
-                                        <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('modal-grupo')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
-                                            <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
-                                        </button>
+
+                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;">
+                                        <div>
+                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Unidade de Medida *</label>
+                                            <select id="equipamento-est-unidade" required class="form-control" style="width:100%;">
+                                                <option value="CAIXA [CX]">CAIXA [CX]</option>
+                                                <option value="GRAMA [GR]">GRAMA [GR]</option>
+                                                <option value="KILO GRAMA [KG]">KILO GRAMA [KG]</option>
+                                                <option value="LITRO [LT]">LITRO [LT]</option>
+                                                <option value="METRO QUADRADO [M2]">METRO QUADRADO [M2]</option>
+                                                <option value="METRO LINEAR [ML]">METRO LINEAR [ML]</option>
+                                                <option value="PECA [PC]">PECA [PC]</option>
+                                                <option value="PACOTE [PCT]">PACOTE [PCT]</option>
+                                                <option value="ROLO [ROLO]">ROLO [ROLO]</option>
+                                                <option value="UNIDADE [UN]" selected>UNIDADE [UN]</option>
+                                            </select>
+                                        </div>
+                                        <div style="position:relative;" id="wrap-modal-equip-est-fonte">
+                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Fonte de Fornecimento *</label>
+                                            <div style="position:relative; display:flex; align-items:center;">
+                                                <input type="text" id="equipamento-est-fonte" required class="form-control" style="width:100%; padding-right:32px;" placeholder="Digite ou Selecione" autocomplete="off"
+                                                    onfocus="window.abrirComboEquipamento('modal-fonte', false)"
+                                                    oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-fonte', true);">
+                                                <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('modal-fonte')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
+                                                    <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
+                                                </button>
+                                            </div>
+                                            <div id="combo-list-modal-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10005; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
+                                        </div>
+                                        <div style="position:relative;" id="wrap-modal-equip-est-grupo">
+                                            <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Grupo de Produto *</label>
+                                            <div style="position:relative; display:flex; align-items:center;">
+                                                <input type="text" id="equipamento-est-grupo" required class="form-control" style="width:100%; padding-right:32px;" placeholder="Digite ou Selecione" autocomplete="off"
+                                                    onfocus="window.abrirComboEquipamento('modal-grupo', false)"
+                                                    oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-grupo', true);">
+                                                <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('modal-grupo')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
+                                                    <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
+                                                </button>
+                                            </div>
+                                            <div id="combo-list-modal-grupo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10005; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
+                                        </div>
                                     </div>
-                                    <div id="combo-list-modal-grupo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10005; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
                                 </div>
                             </div>
 
@@ -6697,12 +6722,12 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261021v1"></script>
     <script src="comercial_credenciamento.js"></script>
-    <script src="proposta.js?v=20261031v3"></script>
-    <script src="proposta_dias_produto.js?v=20261031v3"></script>
-    <script src="proposta_zonas.js?v=20261030v3"></script>
+    <script src="proposta.js?v=20261031v4"></script>
+    <script src="proposta_dias_produto.js?v=20261031v4"></script>
+    <script src="proposta_zonas.js?v=20261031v4"></script>
     <script src="comercial_eventos.js?v=20261030v3"></script>
     <script src="proposta_servicos.js?v=20261030v3"></script>
-    <script src="comercial_boxes.js?v=20261031v1"></script>
+    <script src="comercial_boxes.js?v=20261031v4"></script>
     <script src="comercial_comissao.js?v=11"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>
