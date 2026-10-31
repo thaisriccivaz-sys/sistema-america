@@ -113,7 +113,7 @@
     /* Diárias de um produto na tabela: chips com horário editável (de ... até ... ou Horário comercial), remover, + dia e replicar */
     window.htmlDiasProdutoGrid = function (p, idx, total) {
         const dias = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-        const expandido = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]) || dias.length <= 1;
+        const expandido = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
         const chips = expandido ? dias.map((d, dIdx) => {
             const x = parse(d);
             const isComercial = Boolean(x.comercial || /^comercial$/i.test(String(x.horario || '').trim()));
@@ -132,12 +132,13 @@
                 <button type="button" onclick="window.removerDiaProdutoProposta(${idx}, ${dIdx})" title="Remover esta diária" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.85rem; line-height:1;">&times;</button>
             </span>`;
         }).join('') : (() => {
+            if (!dias.length) return '';
             const datasOrd = dias.map(d => parse(d).data).filter(Boolean);
             const resumo = datasOrd.length > 3
                 ? `${fmtData(datasOrd[0])} até ${fmtData(datasOrd[datasOrd.length - 1])}`
                 : datasOrd.map(fmtData).join(', ');
             return `<span onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="Clique para aumentar os detalhes das diárias deste produto">
-                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${dias.length} diárias (${esc(resumo)}) <i class="ph ph-caret-down" style="font-size:0.78rem;"></i>
+                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${dias.length} diária${dias.length > 1 ? 's' : ''} (${esc(resumo)})
             </span>`;
         })();
         const semDias = dias.length === 0

@@ -2345,16 +2345,12 @@ function _renderFormPropostaInt() {
                                     <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
                                         <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
                                         Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
-                                        <span id="prop-dias-evento-badge" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique para aumentar ou recolher os detalhes das diárias" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; cursor:pointer; user-select:none;"></span>
+                                        <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
                                     </label>
                                     <label style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; user-select:none;" title="Considerar manutenções do primeiro ao último dia de Período Início * até Até *">
                                         <input type="checkbox" id="prop-dias-manut-diarias" onchange="window.toggleManutencoesDiariasEventoProposta(this.checked, event)" style="width:auto; margin:0; accent-color:#7048e8; cursor:pointer;"> Manutenções diárias
                                     </label>
                                 </div>
-                                <button type="button" id="btn-toggle-detalhes-dias-evento" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique para aumentar ou recolher os detalhes das diárias" style="display:none; margin-left:auto; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:0 8px !important; height:22px !important; width:auto !important; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; align-items:center; gap:4px; user-select:none;">
-                                    <i id="ico-toggle-detalhes-dias-evento" class="ph ph-caret-down" style="font-size:0.85rem;"></i>
-                                    <span id="lbl-toggle-detalhes-dias-evento">Aumentar detalhes</span>
-                                </button>
                             </div>
                             <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
                             <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
@@ -17460,40 +17456,22 @@ window.renderizarDiasEventoProposta = function() {
     const hiddenEl = document.getElementById('prop-dias-evento');
     if (hiddenEl) hiddenEl.value = JSON.stringify(window.obterDiasEventoComHorariosAtuais());
 
-    const expandido = Boolean(window._propDiasEventoDetalhesExpandido) || lista.length <= 1;
-
     const badgeEl = document.getElementById('prop-dias-evento-badge');
     if (badgeEl) {
         if (lista.length > 0) {
-            const setaHtml = lista.length > 1
-                ? ` <i class="ph ph-caret-${expandido ? 'up' : 'down'}" style="font-size:0.74rem; vertical-align:middle;"></i>`
-                : '';
-            badgeEl.innerHTML = `${lista.length} diária${lista.length > 1 ? 's' : ''}${setaHtml}`;
+            badgeEl.textContent = `${lista.length} diária${lista.length > 1 ? 's' : ''}`;
             badgeEl.style.display = 'inline-flex';
             badgeEl.style.alignItems = 'center';
             badgeEl.style.gap = '3px';
         } else {
-            badgeEl.innerHTML = '';
+            badgeEl.textContent = '';
             badgeEl.style.display = 'none';
-        }
-    }
-
-    const btnToggleDet = document.getElementById('btn-toggle-detalhes-dias-evento');
-    const icoToggleDet = document.getElementById('ico-toggle-detalhes-dias-evento');
-    const lblToggleDet = document.getElementById('lbl-toggle-detalhes-dias-evento');
-    if (btnToggleDet) {
-        if (lista.length > 1) {
-            btnToggleDet.style.display = 'inline-flex';
-            if (icoToggleDet) icoToggleDet.className = expandido ? 'ph ph-caret-up' : 'ph ph-caret-down';
-            if (lblToggleDet) lblToggleDet.textContent = expandido ? 'Recolher detalhes' : 'Aumentar detalhes';
-        } else {
-            btnToggleDet.style.display = 'none';
         }
     }
 
     const btnReplicar = document.getElementById('btn-replicar-horario-dias-evento');
     if (btnReplicar) {
-        btnReplicar.style.display = (lista.length > 0 && expandido) ? 'inline-flex' : 'none';
+        btnReplicar.style.display = lista.length > 0 ? 'inline-flex' : 'none';
     }
 
     const btnLimpar = document.getElementById('btn-limpar-dias-evento');
@@ -17505,28 +17483,6 @@ window.renderizarDiasEventoProposta = function() {
     if (chipsEl) {
         if (lista.length === 0) {
             chipsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.82rem; padding:2px 4px;">Clique aqui para selecionar pelo menos 1 dia de evento / sucção e informar o horário...</span>';
-        } else if (!expandido) {
-            const fmtData = (iso) => iso.includes('-') ? iso.split('-').reverse().join('/') : iso;
-            const todosComHorario = lista.every(iso => window._horarioEventoIntervaloValido(window._propDiasEventoHorarios[iso]));
-            const pendentes = lista.filter(iso => !window._horarioEventoIntervaloValido(window._propDiasEventoHorarios[iso])).length;
-            const resumoDatas = lista.length > 4
-                ? `${fmtData(lista[0])} até ${fmtData(lista[lista.length - 1])} (${lista.length} diárias)`
-                : lista.map(fmtData).join(', ');
-            const statusBadge = todosComHorario
-                ? `<span style="background:#d1fae5; color:#047857; border:1px solid #6ee7b7; padding:1px 7px; border-radius:999px; font-size:0.7rem; font-weight:700;">Horários definidos</span>`
-                : `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 7px; border-radius:999px; font-size:0.7rem; font-weight:700;">Falta definir horário em ${pendentes} dia(s)</span>`;
-            chipsEl.innerHTML = `
-                <div onclick="window.toggleDetalhesDiasEventoProposta(event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; flex-wrap:wrap; cursor:pointer;">
-                    <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:0.78rem; font-weight:700; color:#5b21b6;">
-                        <i class="ph ph-calendar-check" style="font-size:0.9rem; color:#7048e8;"></i>
-                        <span>${resumoDatas}</span>
-                        ${statusBadge}
-                    </div>
-                    <button type="button" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique para aumentar os detalhes e preencher os horários por dia" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; padding:2px 9px !important; height:24px !important; width:auto !important; font-size:0.73rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
-                        <i class="ph ph-caret-down" style="font-size:0.85rem;"></i> Aumentar detalhes
-                    </button>
-                </div>
-            `;
         } else {
             chipsEl.innerHTML = lista.map(iso => {
                 const fmt = iso.includes('-') ? iso.split('-').reverse().join('/') : iso;
@@ -19037,7 +18993,7 @@ window.renderizarProdutosPropostaGrid = function() {
             : '';
         const qtdDiasProd = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean).length : 0;
         const expandidoProdDias = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
-        const btnToggleDiasAcaoHtml = (usaDias && qtdDiasProd > 1)
+        const btnToggleDiasAcaoHtml = (usaDias && qtdDiasProd >= 1)
             ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandidoProdDias ? 'Recolher detalhes das diárias' : 'Aumentar detalhes das diárias'}" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
                         <i class="ph ph-caret-${expandidoProdDias ? 'up' : 'down'}" style="font-size:0.95rem; font-weight:700;"></i>
                     </button>`
