@@ -98,6 +98,31 @@
         return '';
     };
 
+    /* Busca o Link do Equipamento no cadastro pelo código ou nome */
+    window.obterLinkPropostaEquipamento = function (itemOuProd) {
+        const normalizarUrl = (u) => {
+            const raw = String(u || '').trim();
+            if (!raw) return '';
+            if (/^https?:\/\//i.test(raw) || raw.startsWith('/')) return raw;
+            return 'https://' + raw;
+        };
+        if (!itemOuProd) return '';
+        if (itemOuProd.link_url && String(itemOuProd.link_url).trim()) {
+            return normalizarUrl(itemOuProd.link_url);
+        }
+        const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
+            ? window._boxCacheDadosAux.equipamentos
+            : (window._equipamentosEstoqueData || []);
+        const cod = norm(itemOuProd.codigo);
+        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const achado = lista.find(eq =>
+            (cod && cod !== '—' && norm(eq.codigo) === cod) ||
+            (nome && norm(eq.nome) === nome)
+        );
+        if (!achado || !achado.link_url) return '';
+        return normalizarUrl(achado.link_url);
+    };
+
     /* Separa endereço de instalação em Linha 1 (Rua e Número) e Linha 2 (Bairro - Cidade) */
     function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
         const rawEnd = String(proposta.endereco_instalacao || '')
@@ -187,9 +212,9 @@
                 instalacao_linha1: 'RUA E NUMERO',
                 instalacao_linha2: 'BAIRRO - CIDADE',
                 itens: [
-                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, observacao: obsDemo, quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
-                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, observacao: obsDemo, quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
-                    { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, observacao: '', quant_diarias: 5, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
+                    { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, link_url: '', observacao: '', quant_diarias: 5, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
                 ],
                 servicos: [
                     { quantidade: 1, nome: 'LIMPEZA DURANTE O EVENTO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 350, por_dia: 350, desconto: 50, total: 300 }
@@ -251,6 +276,7 @@
                 nome: nomeProd,
                 descricao_proposta: window.obterDescricaoPropostaEquipamento(it),
                 foto_url: window.obterFotoPropostaEquipamento(it),
+                link_url: window.obterLinkPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
                 quant_diarias: nDiarias,
                 unit: base,
@@ -273,6 +299,7 @@
                 quantidade: qtd,
                 nome: nomeServ,
                 descricao_proposta: window.obterDescricaoPropostaEquipamento({ codigo: s.codigo, produto: nomeServ }),
+                link_url: window.obterLinkPropostaEquipamento({ codigo: s.codigo, produto: nomeServ, link_url: s.link_url }),
                 observacao: String(s.observacao || '').trim().toUpperCase(),
                 quant_diarias: '—',
                 unit: base,
@@ -331,15 +358,26 @@
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>`;
 
+        const svgChainLink = `<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="width:${u(20)}; height:${u(20)}; display:block;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+        const iconeLinkItem = (it) => {
+            const rawUrl = String(it.link_url || '').trim();
+            const urlHref = rawUrl ? (/^https?:\/\//i.test(rawUrl) || rawUrl.startsWith('/') ? rawUrl : 'https://' + rawUrl) : '';
+            const baseStyle = `width:${u(36)}; height:${u(36)}; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; text-decoration:none; box-sizing:border-box;`;
+            if (urlHref) {
+                return `<a href="${esc(urlHref)}" target="_blank" rel="noopener noreferrer" title="Abrir link do equipamento" onclick="event.stopPropagation();" style="${baseStyle} background:${ROXO}; cursor:pointer;">${svgChainLink}</a>`;
+            }
+            return `<span style="${baseStyle} background:#9ca3af; cursor:default; pointer-events:none;">${svgChainLink}</span>`;
+        };
+
         const linhaItem = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
                 <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${u(84)};">
                     ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
                 </div>
                 <div style="min-width:0; padding-right:${u(20)}; align-self:start;">
-                    <div style="display:flex; align-items:baseline; gap:${u(14)}; width:100%;">
-                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase;">${esc(it.quantidade)} - ${esc(it.nome)}</span>
-                        <span style="flex:1; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
+                    <div style="display:flex; align-items:center; gap:${u(12)}; width:100%;">
+                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)};"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
+                        <span style="flex:1; align-self:baseline; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}

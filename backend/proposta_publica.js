@@ -258,6 +258,17 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             }
             return String(a.foto_url || '').trim();
         };
+        const normUrl = (u) => {
+            const s = String(u || '').trim();
+            if (!s) return '';
+            if (/^https?:\/\//i.test(s) || s.startsWith('/')) return s;
+            return 'https://' + s;
+        };
+        const linkDe = (it, nomeProd) => {
+            if (it.link_url && String(it.link_url).trim()) return normUrl(it.link_url);
+            const a = acharEquip(it, nomeProd);
+            return a && a.link_url ? normUrl(a.link_url) : '';
+        };
 
         const itensRaw = lerJson(p.itens);
         const servRaw = lerJson(p.itens_servicos);
@@ -277,6 +288,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe(it, nome),
                 foto_url: fotoDe(it, nome),
+                link_url: linkDe(it, nome),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
                 quant_diarias: nDiarias, unit: base, por_dia: grossDia,
                 desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0
@@ -293,6 +305,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             somaTotalGeral += net;
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe({ codigo: s.codigo }, nome),
+                link_url: linkDe({ codigo: s.codigo, link_url: s.link_url }, nome),
                 observacao: String(s.observacao || '').trim().toUpperCase(),
                 quant_diarias: '—', unit: base, por_dia: gross, desconto: Math.max(0, gross - net), total: net,
                 fob: !!s.frete_fob && net <= 0, cortesia: !s.frete_fob && net <= 0

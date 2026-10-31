@@ -33678,6 +33678,7 @@ db.run("ALTER TABLE estoque_equipamentos ADD COLUMN descricao_proposta TEXT", (e
 });
 db.run("ALTER TABLE estoque_equipamentos ADD COLUMN r2_key TEXT", () => {});
 db.run("ALTER TABLE estoque_equipamentos ADD COLUMN foto_url TEXT", () => {});
+db.run("ALTER TABLE estoque_equipamentos ADD COLUMN link_url TEXT", () => {});
 
 function montarFotoUrlEquipamento(row) {
     if (!row) return null;
@@ -34069,6 +34070,7 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
+    const link_url = String(d.link_url !== undefined ? d.link_url : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const foto_base64 = String(d.foto_base64 || '').trim();
@@ -34096,10 +34098,10 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
                 db.run(
                     `INSERT INTO estoque_equipamentos (
                         codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
-                        especificacao_tecnica, descricao_proposta, produto_venda, tipo_item,
+                        especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item,
                         r2_key, foto_url, criado_por, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, r2Key, fotoUrlFallback, criado_por, agora, agora],
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item, r2Key, fotoUrlFallback, criado_por, agora, agora],
                     function(errIns) {
                         if (errIns) return res.status(500).json({ error: errIns.message });
                         res.json({ success: true, id: this.lastID, codigo, r2_key: r2Key });
@@ -34126,6 +34128,7 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
+    const link_url = String(d.link_url !== undefined ? d.link_url : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const foto_base64 = String(d.foto_base64 || '').trim();
@@ -34168,10 +34171,10 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
                 db.run(
                     `UPDATE estoque_equipamentos SET
                         nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                        especificacao_tecnica = ?, descricao_proposta = ?, produto_venda = ?, tipo_item = ?,
+                        especificacao_tecnica = ?, descricao_proposta = ?, link_url = ?, produto_venda = ?, tipo_item = ?,
                         r2_key = ?, foto_url = ?, updated_at = ?
                      WHERE id = ?`,
-                    [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, novoR2Key, novoFotoUrl, agora, id],
+                    [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item, novoR2Key, novoFotoUrl, agora, id],
                     function(errUpd) {
                         if (errUpd) return res.status(500).json({ error: errUpd.message });
                         res.json({ success: true, r2_key: novoR2Key });

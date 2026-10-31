@@ -2717,6 +2717,9 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         if (document.getElementById('equipamento-est-descricao-proposta')) {
             document.getElementById('equipamento-est-descricao-proposta').value = item.descricao_proposta || '';
         }
+        if (document.getElementById('equipamento-est-link-url')) {
+            document.getElementById('equipamento-est-link-url').value = item.link_url || '';
+        }
         if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
         if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
         if (document.getElementById('equipamento-est-remover-foto')) document.getElementById('equipamento-est-remover-foto').value = '0';
@@ -2734,6 +2737,9 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-especificacao').value = '';
         if (document.getElementById('equipamento-est-descricao-proposta')) {
             document.getElementById('equipamento-est-descricao-proposta').value = '';
+        }
+        if (document.getElementById('equipamento-est-link-url')) {
+            document.getElementById('equipamento-est-link-url').value = '';
         }
         if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
         if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
@@ -2767,6 +2773,9 @@ window.duplicarEquipamentoEstoque = async function(id) {
     document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
     if (document.getElementById('equipamento-est-descricao-proposta')) {
         document.getElementById('equipamento-est-descricao-proposta').value = item.descricao_proposta || '';
+    }
+    if (document.getElementById('equipamento-est-link-url')) {
+        document.getElementById('equipamento-est-link-url').value = item.link_url || '';
     }
 
     const titleEl = document.getElementById('modal-equipamento-estoque-title');
@@ -2822,6 +2831,7 @@ window.salvarEquipamentoEstoque = async function(event) {
     const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const descricao_proposta = (document.getElementById('equipamento-est-descricao-proposta')?.value || '').trim();
+    const link_url = (document.getElementById('equipamento-est-link-url')?.value || '').trim();
     const foto_base64 = (document.getElementById('equipamento-est-foto-base64')?.value || '').trim();
     const remover_foto = document.getElementById('equipamento-est-remover-foto')?.value === '1';
 
@@ -2868,6 +2878,7 @@ window.salvarEquipamentoEstoque = async function(event) {
                 grupo_produto,
                 especificacao_tecnica,
                 descricao_proposta,
+                link_url,
                 foto_base64: foto_base64 || undefined,
                 remover_foto: remover_foto || undefined
             })
