@@ -104,10 +104,17 @@
         if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Diárias replicadas em ${outros} produto(s).`);
     };
 
+    window.toggleDetalhesDiasProdutoGrid = function (pIdx) {
+        if (!window._propDiasProdutoExpandidoMap) window._propDiasProdutoExpandidoMap = {};
+        window._propDiasProdutoExpandidoMap[pIdx] = !Boolean(window._propDiasProdutoExpandidoMap[pIdx]);
+        window.renderizarProdutosPropostaGrid();
+    };
+
     /* Diárias de um produto na tabela: chips com horário editável (de ... até ... ou Horário comercial), remover, + dia e replicar */
     window.htmlDiasProdutoGrid = function (p, idx, total) {
         const dias = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-        const chips = dias.map((d, dIdx) => {
+        const expandido = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]) || dias.length <= 1;
+        const chips = expandido ? dias.map((d, dIdx) => {
             const x = parse(d);
             const isComercial = Boolean(x.comercial || /^comercial$/i.test(String(x.horario || '').trim()));
             const hIni = isComercial ? '' : (x.horario_ini || '');
@@ -124,7 +131,18 @@
                 </label>
                 <button type="button" onclick="window.removerDiaProdutoProposta(${idx}, ${dIdx})" title="Remover esta diária" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.85rem; line-height:1;">&times;</button>
             </span>`;
-        }).join('');
+        }).join('') : (() => {
+            const datasOrd = dias.map(d => parse(d).data).filter(Boolean);
+            const resumo = datasOrd.length > 3
+                ? `${fmtData(datasOrd[0])} até ${fmtData(datasOrd[datasOrd.length - 1])}`
+                : datasOrd.map(fmtData).join(', ');
+            return `<span onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="Clique para aumentar os detalhes das diárias deste produto">
+                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${dias.length} diárias (${esc(resumo)}) <i class="ph ph-caret-down" style="font-size:0.78rem;"></i>
+            </span>`;
+        })();
+        const btnToggle = dias.length > 1
+            ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandido ? 'Recolher detalhes das diárias' : 'Aumentar detalhes das diárias'}" style="background:#f5f3ff; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; padding:1px 7px !important; height:auto !important; width:auto !important; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-caret-${expandido ? 'up' : 'down'}"></i> ${expandido ? 'Recolher' : 'Detalhes'}</button>`
+            : '';
         const semDias = dias.length === 0
             ? '<span style="color:#dc2626; font-size:0.72rem; font-weight:700;"><i class="ph ph-warning"></i> Informe a(s) diária(s) deste produto</span>'
             : '';
@@ -139,7 +157,7 @@
         const replicar = (total > 1 && dias.length)
             ? `<button type="button" onclick="window.replicarDiasProdutoParaTodos(${idx})" title="Aplicar estas diárias a todos os outros produtos" style="background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; width:auto !important; height:auto !important;"><i class="ph ph-copy"></i> Replicar em todos os produtos</button>`
             : '';
-        return `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; align-items:center;">${chips}${semDias}${addDia}${replicar}</div>`;
+        return `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; align-items:center;">${chips}${btnToggle}${semDias}${addDia}${replicar}</div>`;
     };
 
     /* Diárias da proposta = união das diárias de todos os produtos (campo propostas.dias_evento) */

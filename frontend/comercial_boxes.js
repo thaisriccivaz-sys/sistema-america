@@ -123,38 +123,119 @@
         return normalizarUrl(achado.link_url);
     };
 
-    /* Separa endereço de instalação em Linha 1 (Rua e Número) e Linha 2 (Bairro - Cidade) */
+    function formatarNumeroPropostaSequencial(codigoRaw, contratoRaw, idRaw) {
+        const cand = String(codigoRaw || '').trim();
+        if (/^\d+$/.test(cand)) return String(parseInt(cand, 10)).padStart(2, '0');
+        const mPr = cand.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+        if (mPr) return String(parseInt(mPr[1], 10)).padStart(2, '0');
+        const cont = String(contratoRaw || '').trim();
+        const mCt = cont.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+        if (mCt) return String(parseInt(mCt[1], 10)).padStart(2, '0');
+        if (idRaw && /^\d+$/.test(String(idRaw))) return String(parseInt(idRaw, 10)).padStart(2, '0');
+        return (cand && cand.toUpperCase() !== 'AUTO') ? cand : '01';
+    }
+
+    function gerarDatasIntervaloIsoBox(iniIso, fimIso) {
+        const ini = String(iniIso || '').trim().slice(0, 10);
+        const fim = String(fimIso || '').trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(ini) || !/^\d{4}-\d{2}-\d{2}$/.test(fim) || ini > fim) return [];
+        const out = [];
+        const cur = new Date(ini + 'T12:00:00Z');
+        const end = new Date(fim + 'T12:00:00Z');
+        let guard = 0;
+        while (cur <= end && guard < 730) {
+            out.push(cur.toISOString().slice(0, 10));
+            cur.setUTCDate(cur.getUTCDate() + 1);
+            guard++;
+        }
+        return out;
+    }
+
+    function calcularResumoDiariasRodape(proposta, itensRaw) {
+        const datasSet = new Set();
+        let flagManutDiaria = Boolean(proposta && proposta.manutencao_diaria);
+        const extrairDataIso = (entry) => {
+            if (!entry) return '';
+            if (typeof entry === 'object') return String(entry.data || entry.dia || '').trim().slice(0, 10);
+            return String(entry).trim().split(/[\sT]+/)[0].slice(0, 10);
+        };
+        (Array.isArray(itensRaw) ? itensRaw : []).forEach(it => {
+            if (it && it.manutencao_diaria) flagManutDiaria = true;
+            const arr = Array.isArray(it && it.dias_evento) ? it.dias_evento : [];
+            arr.forEach(d => {
+                const iso = extrairDataIso(d);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) datasSet.add(iso);
+            });
+        });
+        if (datasSet.size === 0 && proposta && proposta.dias_evento) {
+            let arrProp = [];
+            if (Array.isArray(proposta.dias_evento)) arrProp = proposta.dias_evento;
+            else {
+                try {
+                    const p = JSON.parse(proposta.dias_evento);
+                    arrProp = Array.isArray(p) ? p : String(proposta.dias_evento).split(',');
+                } catch (e) {
+                    arrProp = String(proposta.dias_evento).split(',');
+                }
+            }
+            arrProp.forEach(d => {
+                const iso = extrairDataIso(d);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) datasSet.add(iso);
+            });
+        }
+        const datasOrdenadas = [...datasSet].sort();
+        if (proposta && proposta.periodo_inicio && proposta.periodo_fim && datasOrdenadas.length > 0) {
+            const todasPeriodo = gerarDatasIntervaloIsoBox(proposta.periodo_inicio, proposta.periodo_fim);
+            if (todasPeriodo.length > 0 && todasPeriodo.length === datasOrdenadas.length && todasPeriodo.every((d, i) => datasOrdenadas[i] === d)) {
+                flagManutDiaria = true;
+            }
+        }
+        if (flagManutDiaria) return 'MANUTENÇÃO DIÁRIA';
+        if (datasOrdenadas.length === 0) return '';
+        return datasOrdenadas.map(iso => fmtDataIso(iso)).join(', ');
+    }
+
+    /* Separa endereço de instalação em Linha 1 (Nome do Local) e Linha 2 (Rua e Número - Bairro - Cidade) */
     function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
-        const rawEnd = String(proposta.endereco_instalacao || '')
-            .replace(/^\s*(ENDERE[ÇC]O\s+(DE\s+)?(FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*/i, '')
-            .trim();
+        const rawOriginal = String(proposta.endereco_instalacao || '').trim();
+        const mPrefixo = rawOriginal.match(/^\s*(ENDERE[ÇC]O\s+(?:DE\s+)?(?:FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*(.*)$/i);
+        const prefixoExplicito = mPrefixo ? String(mPrefixo[1] || '').trim().toUpperCase() : '';
+        const rawEnd = (mPrefixo ? String(mPrefixo[2] || '') : rawOriginal).trim();
+
         const c = window._boxCacheDadosAux;
-        if (rawEnd && c && Array.isArray(c.enderecos) && c.enderecos.length) {
+        if ((rawEnd || rawOriginal) && c && Array.isArray(c.enderecos) && c.enderecos.length) {
             const cliId = clienteObj ? Number(clienteObj.id) : 0;
             const candidatos = cliId ? c.enderecos.filter(e => Number(e.cliente_id) === cliId) : c.enderecos;
-            const endNorm = norm(rawEnd);
+            const endNorm = norm(rawEnd || rawOriginal);
             const match = candidatos.find(e => {
                 const rua = norm(e.endereco);
                 return rua && endNorm.includes(rua);
             });
             if (match) {
-                const l1 = [match.endereco, match.numero, match.complemento].map(x => String(x || '').trim()).filter(Boolean).join(', ');
-                const l2 = [match.bairro, [match.municipio, match.uf].filter(Boolean).join('/')].map(x => String(x || '').trim()).filter(Boolean).join(' - ');
-                return { linha1: l1 || rawEnd, linha2: l2 };
+                const nomeLocal = String(match.nome_local || prefixoExplicito || '').trim();
+                const ruaNum = [match.endereco, match.numero, match.complemento].map(x => String(x || '').trim()).filter(Boolean).join(', ');
+                const bairroCid = [match.bairro, [match.municipio, match.uf].filter(Boolean).join('/')].map(x => String(x || '').trim()).filter(Boolean).join(' - ');
+                const endCompleto = [ruaNum, bairroCid].filter(Boolean).join(' - ');
+                if (nomeLocal) {
+                    return { linha1: nomeLocal, linha2: endCompleto || rawEnd };
+                }
+                return { linha1: ruaNum || rawEnd, linha2: bairroCid };
             }
         }
-        if (!rawEnd) {
-            return { linha1: 'RUA E NUMERO', linha2: 'BAIRRO - CIDADE' };
+        if (!rawOriginal) {
+            return { linha1: 'NOME DO LOCAL', linha2: 'RUA E NUMERO - BAIRRO - CIDADE' };
         }
-        // Se o endereço já contém " - " ou vírgulas separando bairro/cidade, divide de forma inteligente
-        const partesTraco = rawEnd.split(/\s+-\s+/);
+        if (prefixoExplicito) {
+            return { linha1: prefixoExplicito, linha2: rawEnd };
+        }
+        const partesTraco = rawOriginal.split(/\s+-\s+/);
         if (partesTraco.length >= 2) {
             return {
                 linha1: partesTraco[0].trim(),
                 linha2: partesTraco.slice(1).join(' - ').trim()
             };
         }
-        return { linha1: rawEnd, linha2: '' };
+        return { linha1: rawOriginal, linha2: '' };
     }
 
     /* Monta todos os dados estruturados para o Quadro Fixo da Proposta Evento */
@@ -183,6 +264,7 @@
                     }
                 } catch (e) {}
                 prop = {
+                    id: (typeof _propostasEditandoId !== 'undefined' && _propostasEditandoId) ? _propostasEditandoId : null,
                     codigo: document.getElementById('prop-codigo')?.value || 'AUTO',
                     contrato: contratoLive,
                     cliente_nome: cliForm,
@@ -192,6 +274,7 @@
                     periodo_fim: document.getElementById('prop-periodo-fim')?.value || '',
                     dias_contrato: document.getElementById('prop-dias')?.value || 0,
                     endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
+                    manutencao_diaria: Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
                     itens: window._propProdutosAdicionados || [],
                     itens_servicos: window._propServicosAdicionados || []
                 };
@@ -202,15 +285,19 @@
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
             const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
             return {
-                contrato: 'CT20260001',
+                contrato: '01',
+                codigo_proposta: '01',
                 razao_social: 'RAZÃO SOCIAL',
                 cnpj: 'CNPJ AQUI',
                 contato_nome: 'NOME DO CONTATO',
                 contato_celular: 'NUMERO DO CONTATO',
                 nome_evento: 'NOME DO EVENTO',
+                data_inicio: 'DD/MM/AA',
+                data_fim: 'DD/MM/AA',
                 diarias_contrato: 'DIÁRIAS DE CONTRATO',
-                instalacao_linha1: 'RUA E NUMERO',
-                instalacao_linha2: 'BAIRRO - CIDADE',
+                instalacao_linha1: 'NOME DO LOCAL',
+                instalacao_linha2: 'RUA E NUMERO - BAIRRO - CIDADE',
+                resumo_diarias_rodape: 'MANUTENÇÃO DIÁRIA',
                 itens: [
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
@@ -311,16 +398,23 @@
             };
         });
 
+        const numSeq = formatarNumeroPropostaSequencial(prop.codigo, prop.contrato, prop.id);
+        const resumoDiariasRodape = calcularResumoDiariasRodape(prop, itensRaw);
+
         return {
-            contrato: String(prop.contrato || '').trim() || '—',
+            contrato: numSeq,
+            codigo_proposta: numSeq,
             razao_social: cliNomeLimpo || prop.cliente_razao || '—',
             cnpj: cnpj || '—',
             contato_nome: contatoNome || '—',
             contato_celular: celularContato || '—',
             nome_evento: String(prop.nome_evento || '').trim() || '—',
+            data_inicio: iniFmt || '—',
+            data_fim: fimFmt || iniFmt || '—',
             diarias_contrato: diariasContrato,
             instalacao_linha1: inst.linha1,
             instalacao_linha2: inst.linha2,
+            resumo_diarias_rodape: resumoDiariasRodape,
             itens: itensFormatados,
             servicos: servicosFormatados,
             valor_total_por_dia_geral: somaPorDia,
@@ -409,40 +503,41 @@
         </style>
         <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
             <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
-                <!-- Faixa superior: PROPOSTA EVENTO + número do contrato -->
+                <!-- Faixa superior: PROPOSTA EVENTO + número sequencial da proposta -->
                 <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
-                    <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.contrato)}</div>
+                    <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
+                    <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                 </div>
 
                 <!-- Bloco logo + dados do cliente + informações do evento -->
                 <div style="margin-left:${u(122)}; display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="background:${ROXO}; width:${u(413)}; height:${u(258)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(226)}; width:auto; display:block;">
+                    <div style="background:${ROXO}; width:${u(426)}; height:${u(256)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
                     </div>
-                    <div style="flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(28)}; padding:${u(20)} ${u(36)} 0 ${u(52)}; align-items:start; min-width:0;">
+                    <div style="flex:1; display:grid; grid-template-columns:0.78fr 1.22fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(64)}; align-items:start; min-width:0;">
                         <div style="min-width:0;">
-                            <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
+                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                 <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
                             </div>
-                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(d.razao_social)}</div>
-                                <div>CNPJ: ${esc(d.cnpj)}</div>
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: ${esc(d.contato_nome)}</div>
-                                <div>CEL.: ${esc(d.contato_celular)}</div>
+                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
+                                <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
+                                <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
+                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
+                                <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
                             </div>
                         </div>
                         <div style="min-width:0; overflow:hidden;">
-                            <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
+                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                 <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
                             </div>
-                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)};">
-                                ${d.ocultar_nome_evento ? '' : `<div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(d.nome_evento)}</div>`}
-                                <div style="text-transform:uppercase;">${esc(d.diarias_contrato)}</div>
-                                <div style="margin-top:${u(8)}; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
-                                ${d.instalacao_linha2 ? `<div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
+                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
+                                ${d.ocultar_nome_evento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
+                                <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
+                                <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
+                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -457,10 +552,11 @@
                     ${secaoServicos}
                 </div>
 
-                <!-- Totais (sem faixa preta): valor total em roxo abaixo da coluna VALOR TOTAL -->
+                <!-- Totais (sem faixa preta): diárias à esquerda e valor total em roxo abaixo da coluna VALOR TOTAL -->
                 <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
                     <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                        <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                        <div class="bq-d" style="grid-column:1 / 5; text-align:left; font-size:${u(24)}; color:#3b3b3b; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.resumo_diarias_rodape || '')}">${esc(d.resumo_diarias_rodape || '')}</div>
+                        <div class="bq-d" style="grid-column:5 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
                         <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                     </div>
                 </div>

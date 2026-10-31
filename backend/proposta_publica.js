@@ -214,25 +214,38 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         }
         if (!celular && cliente) celular = String(cliente.celular || cliente.telefone || '').trim();
 
-        // Endereço de instalação em 2 linhas (sem prefixo "ENDEREÇO DE FATURAMENTO - ")
+        // Endereço de instalação em 2 linhas: Linha 1 = Nome do Local, Linha 2 = Rua e Número - Bairro - Cidade
         let inst = { linha1: '', linha2: '' };
-        const rawEnd = String(p.endereco_instalacao || '')
-            .replace(/^\s*(ENDERE[ÇC]O\s+(DE\s+)?(FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*/i, '')
-            .trim();
-        if (rawEnd) {
+        const rawOriginal = String(p.endereco_instalacao || '').trim();
+        const mPrefixo = rawOriginal.match(/^\s*(ENDERE[ÇC]O\s+(?:DE\s+)?(?:FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*(.*)$/i);
+        const prefixoExplicito = mPrefixo ? String(mPrefixo[1] || '').trim().toUpperCase() : '';
+        const rawEnd = (mPrefixo ? String(mPrefixo[2] || '') : rawOriginal).trim();
+        if (rawOriginal) {
             let match = null;
             if (cliente) {
                 const ends = await dbAll('SELECT * FROM enderecos_entrega WHERE cliente_id = ?', [cliente.id]).catch(() => []);
-                const en = norm(rawEnd);
+                const en = norm(rawEnd || rawOriginal);
                 match = ends.find(e => { const rua = norm(e.endereco); return rua && en.includes(rua); }) || null;
             }
             if (match) {
                 const j = (a) => a.map(x => String(x || '').trim()).filter(Boolean);
-                inst.linha1 = j([match.endereco, match.numero, match.complemento]).join(', ') || rawEnd;
-                inst.linha2 = j([match.bairro, j([match.municipio, match.uf]).join('/')]).join(' - ');
+                const nomeLocal = String(match.nome_local || prefixoExplicito || '').trim();
+                const ruaNum = j([match.endereco, match.numero, match.complemento]).join(', ');
+                const bairroCid = j([match.bairro, j([match.municipio, match.uf]).join('/')]).join(' - ');
+                const endCompleto = j([ruaNum, bairroCid]).join(' - ');
+                if (nomeLocal) {
+                    inst.linha1 = nomeLocal;
+                    inst.linha2 = endCompleto || rawEnd;
+                } else {
+                    inst.linha1 = ruaNum || rawEnd;
+                    inst.linha2 = bairroCid;
+                }
+            } else if (prefixoExplicito) {
+                inst.linha1 = prefixoExplicito;
+                inst.linha2 = rawEnd;
             } else {
-                const partes = rawEnd.split(/\s+-\s+/);
-                inst = partes.length >= 2 ? { linha1: partes[0].trim(), linha2: partes.slice(1).join(' - ').trim() } : { linha1: rawEnd, linha2: '' };
+                const partes = rawOriginal.split(/\s+-\s+/);
+                inst = partes.length >= 2 ? { linha1: partes[0].trim(), linha2: partes.slice(1).join(' - ').trim() } : { linha1: rawOriginal, linha2: '' };
             }
         }
 
@@ -316,19 +329,75 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         const diarias = (ini && fim) ? (ini === fim ? ini : `${ini} A ${fim}`) : (ini || fim || '—');
         const eventoLike = tipoEhEventoLike(p.tipo);
 
+        const formatarSeq = (codRaw, contRaw, idRaw) => {
+            const c1 = String(codRaw || '').trim();
+            if (/^\d+$/.test(c1)) return String(parseInt(c1, 10)).padStart(2, '0');
+            const m1 = c1.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+            if (m1) return String(parseInt(m1[1], 10)).padStart(2, '0');
+            const c2 = String(contRaw || '').trim();
+            const m2 = c2.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+            if (m2) return String(parseInt(m2[1], 10)).padStart(2, '0');
+            if (idRaw && /^\d+$/.test(String(idRaw))) return String(parseInt(idRaw, 10)).padStart(2, '0');
+            return c1 || '01';
+        };
+        const gerarDatasIntervalo = (iniIso, fimIso) => {
+            const i = isoData(iniIso), f = isoData(fimIso);
+            if (!i || !f || i > f) return [];
+            const out = [];
+            const cur = new Date(i + 'T12:00:00Z'), end = new Date(f + 'T12:00:00Z');
+            let guard = 0;
+            while (cur <= end && guard < 730) { out.push(cur.toISOString().slice(0, 10)); cur.setUTCDate(cur.getUTCDate() + 1); guard++; }
+            return out;
+        };
+        const datasSet = new Set();
+        let flagManutDiaria = false;
+        const extrairDataIso = (entry) => {
+            if (!entry) return '';
+            if (typeof entry === 'object') return String(entry.data || entry.dia || '').trim().slice(0, 10);
+            return String(entry).trim().split(/[\sT]+/)[0].slice(0, 10);
+        };
+        itensRaw.forEach(it => {
+            if (it && it.manutencao_diaria) flagManutDiaria = true;
+            (Array.isArray(it && it.dias_evento) ? it.dias_evento : []).forEach(d => {
+                const dIso = extrairDataIso(d);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dIso)) datasSet.add(dIso);
+            });
+        });
+        if (datasSet.size === 0 && p.dias_evento) {
+            lerJson(p.dias_evento).forEach(d => {
+                const dIso = extrairDataIso(d);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dIso)) datasSet.add(dIso);
+            });
+        }
+        const datasOrd = [...datasSet].sort();
+        if (p.periodo_inicio && p.periodo_fim && datasOrd.length > 0) {
+            const todasPer = gerarDatasIntervalo(p.periodo_inicio, p.periodo_fim);
+            if (todasPer.length > 0 && todasPer.length === datasOrd.length && todasPer.every((d, idx) => datasOrd[idx] === d)) {
+                flagManutDiaria = true;
+            }
+        }
+        const resumoDiariasRodape = flagManutDiaria
+            ? 'MANUTENÇÃO DIÁRIA'
+            : (datasOrd.length > 0 ? datasOrd.map(dIso => fmtDataIso(dIso)).join(', ') : '');
+        const numSeq = formatarSeq(p.codigo, p.contrato, p.id);
+
         return {
             tipo_titulo: tipoLimpo(p.tipo) || 'EVENTO',
             info_rotulo: eventoLike ? 'EVENTO:' : 'DO CONTRATO:',
             ocultar_nome_evento: !eventoLike,
-            contrato: String(p.contrato || '').trim() || '—',
+            contrato: numSeq,
+            codigo_proposta: numSeq,
             razao_social: cliNomeLimpo || '—',
             cnpj: (cliente && cliente.cpf_cnpj) ? String(cliente.cpf_cnpj).trim() : '—',
             contato_nome: contatoNome || '—',
             contato_celular: celular || '—',
             nome_evento: String(p.nome_evento || '').trim() || '—',
+            data_inicio: ini || '—',
+            data_fim: fim || ini || '—',
             diarias_contrato: diarias,
-            instalacao_linha1: inst.linha1 || 'RUA E NUMERO',
+            instalacao_linha1: inst.linha1 || 'NOME DO LOCAL',
             instalacao_linha2: inst.linha2,
+            resumo_diarias_rodape: resumoDiariasRodape,
             itens, servicos,
             valor_total_por_dia_geral: somaPorDia,
             valor_total_geral: somaTotalGeral
@@ -342,7 +411,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         try {
             const { codigo, token } = req.params;
             if (!CODIGO_RE.test(codigo) || !TOKEN_RE.test(token)) return naoEncontrada();
-            const p = await dbGet('SELECT * FROM propostas WHERE codigo = ?', [codigo]);
+            let p = await dbGet('SELECT * FROM propostas WHERE codigo = ?', [codigo]);
+            if (!p && /^\d+$/.test(codigo)) {
+                p = await dbGet('SELECT * FROM propostas WHERE CAST(codigo AS INTEGER) = ?', [parseInt(codigo, 10)]);
+            }
+            if (!p) {
+                p = await dbGet('SELECT * FROM propostas WHERE token_publico = ?', [token]);
+            }
             if (!p || !tokenConfere(token, p.token_publico)) return naoEncontrada();
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado. Solicite uma nova proposta.' });
