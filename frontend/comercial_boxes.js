@@ -493,58 +493,23 @@
                 ${d.servicos.map(linhaItem).join('')}
             </div>` : '';
 
-        const isMobile = (view === 'mobile');
-        const topoQuadroHtml = isMobile ? `
-                <!-- Faixa superior (Mobile): PROPOSTA EVENTO + número sequencial -->
-                <div style="margin-left:${u(95)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(42)} 0 ${u(68)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
-                    <div class="bq-d" style="font-size:${u(38)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
-                </div>
-
-                <!-- Bloco 1 (Mobile): Logo horizontal à esquerda + DADOS DO CLIENTE à direita -->
-                <div style="margin-left:${u(95)}; display:flex; align-items:flex-start; flex-shrink:0;">
-                    <div style="background:${ROXO}; width:${u(840)}; height:${u(365)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <img src="/assets/logo-quadro-evento-mobile.png" alt="América Rental desde 1999" style="width:${u(684)}; height:auto; display:block;">
-                    </div>
-                    <div style="flex:1; padding:${u(42)} ${u(42)} ${u(16)} ${u(160)}; min-width:0;">
-                        <div style="font-size:${u(48)}; color:#333; display:flex; align-items:center; gap:${u(12)}; white-space:nowrap;">
-                            <span style="color:${ROXO}; font-size:${u(34)};">&#9656;</span>
-                            <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
-                        </div>
-                        <div style="font-size:${u(33)}; color:#333; line-height:1.52; margin-top:${u(22)}; word-break:break-word;">
-                            <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(6)};">${esc(d.razao_social)}</div>
-                            <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
-                            <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
-                            <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bloco 2 (Mobile): INFORMAÇÕES EVENTO abaixo com 2 colunas + sombra divisória -->
-                <div style="margin-left:${u(95)}; padding:${u(52)} ${u(42)} ${u(42)} ${u(20)}; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="font-size:${u(48)}; color:#333; display:flex; align-items:center; gap:${u(12)}; white-space:nowrap;">
-                        <span style="color:${ROXO}; font-size:${u(34)};">&#9656;</span>
-                        <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
-                    </div>
-                    <div style="display:grid; grid-template-columns:0.92fr 1.08fr; column-gap:${u(48)}; margin-top:${u(24)}; align-items:start;">
-                        <div style="min-width:0; font-size:${u(33)}; color:#333; line-height:1.48;">
-                            ${d.ocultar_nome_evento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(8)};">${esc(d.nome_evento)}</div>`}
-                            <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
-                            <div style="text-transform:uppercase;">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
-                        </div>
-                        <div style="min-width:0; overflow:hidden; padding-top:${u(4)};">
-                            <div style="font-size:${u(33)}; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.45;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
-                            ${d.instalacao_linha2 ? `<div style="font-size:${u(26)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.45; margin-top:${u(4)};" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
-                        </div>
-                    </div>
-                </div>` : `
-                <!-- Faixa superior (Desktop): PROPOSTA EVENTO + número sequencial da proposta -->
+        return `
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
+            @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
+            @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
+            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; }
+            .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
+        </style>
+        <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+            <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
+                <!-- Faixa superior: PROPOSTA EVENTO + número sequencial da proposta -->
                 <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
                     <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
                     <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                 </div>
 
-                <!-- Bloco logo + dados do cliente + informações do evento (Desktop) -->
+                <!-- Bloco logo + dados do cliente + informações do evento -->
                 <div style="margin-left:${u(122)}; display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
                     <div style="background:${ROXO}; width:${u(426)}; height:${u(256)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                         <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
@@ -576,19 +541,7 @@
                             </div>
                         </div>
                     </div>
-                </div>`;
-
-        return `
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
-            @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
-            @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
-            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; }
-            .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
-        </style>
-        <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
-            <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
-                ${topoQuadroHtml}
+                </div>
 
                 <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
                 <div style="flex:1 0 auto;">
