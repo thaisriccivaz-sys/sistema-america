@@ -110,21 +110,33 @@
     }
 
     /* Monta todos os dados estruturados para o Quadro Fixo da Proposta Evento */
+    function lerServicosProposta(raw) {
+        if (typeof window._parseServicosProposta === 'function') return window._parseServicosProposta(raw);
+        if (Array.isArray(raw)) return raw;
+        try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+    }
+
     window.montarDadosQuadroEventoProposta = function (propostaExplicita) {
         const c = window._boxCacheDadosAux || { clientes: [], contatos: [], enderecos: [], equipamentos: [], propostasEvento: [] };
 
-        // 1. Determinar qual proposta usar (explícita -> selecionada no preview -> aberta na tela de proposta -> exemplo do modelo)
         let prop = propostaExplicita || null;
         if (!prop && window._boxPropostaPreviewId && window._boxPropostaPreviewId !== 'auto' && window._boxPropostaPreviewId !== 'exemplo') {
             prop = (c.propostasEvento || []).find(p => String(p.id) === String(window._boxPropostaPreviewId)) || null;
         }
         if (!prop && window._boxPropostaPreviewId !== 'exemplo') {
-            // Se o formulário de proposta estiver aberto na tela com tipo EVENTO e dados preenchidos, lê em tempo real
             const tipoForm = document.getElementById('prop-tipo')?.value || '';
             const cliForm = document.getElementById('prop-cliente')?.value || '';
             if (norm(String(tipoForm).replace(/^proposta\s+/i, '')) === 'evento' && (cliForm || (window._propProdutosAdicionados && window._propProdutosAdicionados.length))) {
+                let contratoLive = '';
+                try {
+                    if (typeof _propostasEditandoId !== 'undefined' && _propostasEditandoId && typeof _propostasData !== 'undefined') {
+                        const pp = _propostasData.find(x => x.id === _propostasEditandoId);
+                        contratoLive = (pp && pp.contrato) || '';
+                    }
+                } catch (e) {}
                 prop = {
                     codigo: document.getElementById('prop-codigo')?.value || 'AUTO',
+                    contrato: contratoLive,
                     cliente_nome: cliForm,
                     contato_nome: document.getElementById('prop-contato')?.value || '',
                     nome_evento: document.getElementById('prop-nome-evento')?.value || '',
@@ -132,15 +144,17 @@
                     periodo_fim: document.getElementById('prop-periodo-fim')?.value || '',
                     dias_contrato: document.getElementById('prop-dias')?.value || 0,
                     endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
-                    itens: window._propProdutosAdicionados || []
+                    itens: window._propProdutosAdicionados || [],
+                    itens_servicos: window._propServicosAdicionados || []
                 };
             }
         }
 
-        // Caso não haja proposta real selecionada (ex.: visualizando o modelo em branco), retorna os dados de demonstração fiéis à imagem
         if (!prop) {
+            const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
+            const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
             return {
-                codigo: '14076',
+                contrato: 'CT20260001',
                 razao_social: 'RAZÃO SOCIAL',
                 cnpj: 'CNPJ AQUI',
                 contato_nome: 'NOME DO CONTATO',
@@ -150,39 +164,15 @@
                 instalacao_linha1: 'RUA E NUMERO',
                 instalacao_linha2: 'BAIRRO - CIDADE',
                 itens: [
-                    {
-                        quantidade: 5,
-                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
-                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
-                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
-                        quant_diarias: 5,
-                        valor_unitario_diaria: 100,
-                        valor_total_por_dia: 500,
-                        valor_total_item: 2500
-                    },
-                    {
-                        quantidade: 5,
-                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
-                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
-                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
-                        quant_diarias: 6,
-                        valor_unitario_diaria: 100,
-                        valor_total_por_dia: 500,
-                        valor_total_item: 3000
-                    },
-                    {
-                        quantidade: 2,
-                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
-                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
-                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
-                        quant_diarias: 5,
-                        valor_unitario_diaria: 100,
-                        valor_total_por_dia: 200,
-                        valor_total_item: 1000
-                    }
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, observacao: obsDemo, quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, observacao: obsDemo, quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
+                    { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, observacao: '', quant_diarias: 5, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
                 ],
-                valor_total_por_dia_geral: 1200,
-                valor_total_geral: 6500
+                servicos: [
+                    { quantidade: 1, nome: 'LIMPEZA DURANTE O EVENTO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 350, por_dia: 350, desconto: 50, total: 300 }
+                ],
+                valor_total_por_dia_geral: 1000,
+                valor_total_geral: 5500
             };
         }
 
@@ -201,63 +191,77 @@
                 norm(ct.nome || ct.nome_contato) === contNorm &&
                 (!clienteObj || Number(ct.cliente_id) === Number(clienteObj.id) || norm(ct.cliente_nome) === cliNorm)
             ) || c.contatos.find(ct => norm(ct.nome || ct.nome_contato) === contNorm);
-            if (contObj) {
-                celularContato = String(contObj.celular || contObj.telefone || contObj.whatsapp || '').trim();
-            }
+            if (contObj) celularContato = String(contObj.celular || contObj.telefone || contObj.whatsapp || '').trim();
         }
-        if (!celularContato && clienteObj) {
-            celularContato = String(clienteObj.celular || clienteObj.telefone || '').trim();
-        }
+        if (!celularContato && clienteObj) celularContato = String(clienteObj.celular || clienteObj.telefone || '').trim();
 
-        // Período Início * Até * (DIÁRIAS DE CONTRATO)
         const iniFmt = fmtDataIso(prop.periodo_inicio);
         const fimFmt = fmtDataIso(prop.periodo_fim);
         let diariasContrato = '';
-        if (iniFmt && fimFmt) {
-            diariasContrato = iniFmt === fimFmt ? iniFmt : `${iniFmt} A ${fimFmt}`;
-        } else {
-            diariasContrato = iniFmt || fimFmt || '—';
-        }
+        if (iniFmt && fimFmt) diariasContrato = iniFmt === fimFmt ? iniFmt : iniFmt + ' A ' + fimFmt;
+        else diariasContrato = iniFmt || fimFmt || '—';
 
         const inst = formatarInstalacaoDuasLinhas(prop, clienteObj);
 
         let itensRaw = [];
         if (Array.isArray(prop.itens)) itensRaw = prop.itens;
-        else if (prop.itens) {
-            try { itensRaw = JSON.parse(prop.itens); } catch (e) { itensRaw = []; }
-        }
+        else if (prop.itens) { try { itensRaw = JSON.parse(prop.itens); } catch (e) { itensRaw = []; } }
+        const servicosRaw = lerServicosProposta(prop.itens_servicos);
 
         let somaPorDia = 0;
         let somaTotalGeral = 0;
 
         const itensFormatados = (itensRaw || []).map(it => {
-            const qtdEquip = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
+            const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
-            const descProd = window.obterDescricaoPropostaEquipamento(it);
-            const obsItem = String(it.observacao || '').trim().toUpperCase();
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const quantDiarias = diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1);
-            const valUnitDiaria = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
-            const valTotalPorDia = qtdEquip * valUnitDiaria;
-            const valTotalItem = valTotalPorDia * quantDiarias;
-
-            somaPorDia += valTotalPorDia;
-            somaTotalGeral += valTotalItem;
-
+            const nDiarias = diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1);
+            const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
+            const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
+            const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
+            const grossDia = base * qtd;
+            const descDia = Math.max(0, grossDia - netDia);
+            somaPorDia += netDia;
+            somaTotalGeral += netDia * nDiarias;
             return {
-                quantidade: qtdEquip,
+                quantidade: qtd,
                 nome: nomeProd,
-                descricao_proposta: descProd,
-                observacao: obsItem,
-                quant_diarias: quantDiarias,
-                valor_unitario_diaria: valUnitDiaria,
-                valor_total_por_dia: valTotalPorDia,
-                valor_total_item: valTotalItem
+                descricao_proposta: window.obterDescricaoPropostaEquipamento(it),
+                observacao: String(it.observacao || '').trim().toUpperCase(),
+                quant_diarias: nDiarias,
+                unit: base,
+                por_dia: grossDia,
+                desconto: descDia * nDiarias,
+                total: netDia * nDiarias,
+                cortesia: netDia <= 0
+            };
+        });
+
+        const servicosFormatados = (servicosRaw || []).map(s => {
+            const qtd = Math.max(1, Number(s.quantidade ?? 1) || 1);
+            const nomeServ = String(s.servico || s.descricao || s.nome || 'SERVIÇO').replace(/^\d+\s*-\s*/, '').trim();
+            const unitLiq = Number(s.valor_unitario ?? s.valor ?? 0) || 0;
+            const base = Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq;
+            const net = (s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd;
+            const gross = base * qtd;
+            somaTotalGeral += net;
+            return {
+                quantidade: qtd,
+                nome: nomeServ,
+                descricao_proposta: window.obterDescricaoPropostaEquipamento({ codigo: s.codigo, produto: nomeServ }),
+                observacao: String(s.observacao || '').trim().toUpperCase(),
+                quant_diarias: '—',
+                unit: base,
+                por_dia: gross,
+                desconto: Math.max(0, gross - net),
+                total: net,
+                fob: !!s.frete_fob && net <= 0,
+                cortesia: !s.frete_fob && net <= 0
             };
         });
 
         return {
-            codigo: String(prop.codigo || prop.numero_proposta || prop.id || 'AUTO'),
+            contrato: String(prop.contrato || '').trim() || '—',
             razao_social: cliNomeLimpo || prop.cliente_razao || '—',
             cnpj: cnpj || '—',
             contato_nome: contatoNome || '—',
@@ -267,156 +271,128 @@
             instalacao_linha1: inst.linha1,
             instalacao_linha2: inst.linha2,
             itens: itensFormatados,
+            servicos: servicosFormatados,
             valor_total_por_dia_geral: somaPorDia,
             valor_total_geral: somaTotalGeral
         };
     };
 
-    /* Renderiza o HTML fiel ao layout "vALORES copy.jpg" (responsivo para Desktop e Celular) */
+    /* Renderiza o quadro em WIDESCREEN (16:9). O desenho é feito numa tela de 1920 px e escalado
+       por unidades cqw, então Desktop e Celular ficam IDÊNTICOS. Conforme entram produtos/serviços
+       a altura apenas cresce. */
     window.renderBoxQuadroEventoHtml = function (dadosCustom, view) {
         const d = (dadosCustom && dadosCustom.itens) ? dadosCustom : window.montarDadosQuadroEventoProposta(dadosCustom);
-        const isMob = view === 'mobile';
+        const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
+        const ROXO = '#5c4599';
+        const COLS = '1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(165);
+        const GAP = u(10);
 
-        const logoBlocoHtml = `
-            <div style="background:#5c4599; color:#fff; width:${isMob ? '100%' : '215px'}; min-height:${isMob ? '110px' : '155px'}; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px 16px; box-sizing:border-box; flex-shrink:0;">
-                <img src="/logo.png" alt="América Rental" style="width:${isMob ? '48px' : '62px'}; height:auto; filter:brightness(0) invert(1); display:block; margin-bottom:6px;">
-                <div style="font-size:${isMob ? '1rem' : '1.18rem'}; font-weight:300; letter-spacing:0.16em; line-height:1; color:#fff;">AMÉRICA</div>
-                <div style="font-family:'Georgia', 'Times New Roman', serif; font-style:italic; font-size:${isMob ? '0.95rem' : '1.1rem'}; line-height:1.05; color:#fff; margin-top:2px;">Rental</div>
-                <div style="font-size:0.56rem; letter-spacing:0.12em; color:rgba(255,255,255,0.88); margin-top:1px;">desde 1999</div>
-            </div>
-        `;
+        const celula = (it, valor, cor) => it.cortesia
+            ? '<span style="font-size:' + u(22) + '; font-weight:800; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
+            : (it.fob
+                ? '<span style="font-size:' + u(22) + '; font-weight:800; color:#b45309;">FOB</span>'
+                : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
-        const itensHtml = (d.itens && d.itens.length > 0) ? d.itens.map(it => {
-            if (isMob) {
-                return `
-                    <div style="padding:10px 0; border-bottom:1px dashed #cbd5e1;">
-                        <div style="font-weight:800; font-size:0.82rem; color:#334155; text-transform:uppercase;">
-                            ${esc(it.quantidade)} - ${esc(it.nome)}
-                        </div>
-                        ${it.descricao_proposta ? `<div style="font-size:0.74rem; color:#475569; margin-top:3px; line-height:1.35;">${esc(it.descricao_proposta)}</div>` : ''}
-                        ${it.observacao ? `<div style="font-size:0.72rem; color:#334155; margin-top:2px; line-height:1.3;">Obs. se houver: ${esc(it.observacao.toUpperCase())}</div>` : ''}
-                        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:8px; background:#f8fafc; padding:6px; border-radius:6px; text-align:center; font-size:0.7rem;">
-                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">DIÁRIAS</div><b>${esc(it.quant_diarias)}</b></div>
-                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">UNIT./DIA</div><b>${fmtNum(it.valor_unitario_diaria)}</b></div>
-                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">TOTAL/DIA</div><b>${fmtNum(it.valor_total_por_dia)}</b></div>
-                            <div><div style="font-size:0.58rem; color:#5c4599; font-weight:700;">TOTAL R$</div><b style="color:#5c4599;">${fmtNum(it.valor_total_item)}</b></div>
-                        </div>
-                    </div>
-                `;
-            }
-            return `
-                <div style="display:grid; grid-template-columns:minmax(0, 1fr) 74px 112px 104px 96px; column-gap:8px; align-items:start; margin-bottom:14px;">
-                    <div style="min-width:0; padding-right:6px;">
-                        <div style="display:flex; align-items:baseline; gap:6px; width:100%;">
-                            <span style="font-weight:800; font-size:0.86rem; color:#3b3b3b; text-transform:uppercase; white-space:nowrap;">
-                                ${esc(it.quantidade)} - ${esc(it.nome)}
-                            </span>
-                            <span style="flex:1; border-bottom:2px dotted #4b5563; min-width:24px; transform:translateY(-3px);"></span>
-                        </div>
-                        ${it.descricao_proposta ? `
-                            <div style="font-size:0.78rem; color:#4b5563; line-height:1.35; margin-top:4px; word-break:break-word;">
-                                ${esc(it.descricao_proposta)}
-                            </div>
-                        ` : ''}
-                        ${it.observacao ? `
-                            <div style="font-size:0.76rem; color:#3b3b3b; line-height:1.35; margin-top:2px; word-break:break-word;">
-                                Obs. se houver: ${esc(it.observacao.toUpperCase())}
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
-                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${fmtNum(it.valor_unitario_diaria)}</div>
-                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${fmtNum(it.valor_total_por_dia)}</div>
-                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#5c4599;">${fmtNum(it.valor_total_item)}</div>
+        const cabecalhoColunas = (titulo) => `
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:end; margin-bottom:${u(14)};">
+                <div style="font-size:${u(40)}; color:#3b3b3b; font-weight:400; display:flex; align-items:center; gap:${u(10)};">
+                    <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
-            `;
-        }).join('') : `
-            <div style="padding:18px; text-align:center; color:#94a3b8; font-size:0.82rem; border:1px dashed #cbd5e1; border-radius:8px; margin-bottom:12px;">
-                Nenhum equipamento adicionado nesta proposta ainda.
-            </div>
-        `;
+                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
+                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
+                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
+                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
+            </div>`;
+
+        const linhaItem = (it) => `
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:start; margin-bottom:${u(26)};">
+                <div style="min-width:0; padding-right:${u(20)};">
+                    <div style="display:flex; align-items:baseline; gap:${u(14)}; width:100%;">
+                        <span style="font-weight:800; font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase;">${esc(it.quantidade)} - ${esc(it.nome)}</span>
+                        <span style="flex:1; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
+                    </div>
+                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                </div>
+                <div style="text-align:center; font-weight:800; font-size:${u(26)}; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
+                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.unit, '#3b3b3b')}</div>
+                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.por_dia, '#3b3b3b')}</div>
+                <div style="text-align:center; font-weight:800; font-size:${u(26)}; color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.total, ROXO)}</div>
+            </div>`;
+
+        const itensHtml = (d.itens && d.itens.length > 0)
+            ? d.itens.map(linhaItem).join('')
+            : `<div style="padding:${u(24)}; text-align:center; color:#94a3b8; font-size:${u(24)}; border:${u(2)} dashed #cbd5e1; border-radius:${u(10)}; margin-bottom:${u(20)};">Nenhum equipamento adicionado nesta proposta ainda.</div>`;
+
+        const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
+            <div style="padding:${u(10)} ${u(60)} ${u(10)} ${u(80)};">
+                ${cabecalhoColunas('SERVIÇOS:')}
+                ${d.servicos.map(linhaItem).join('')}
+            </div>` : '';
 
         return `
-        <div class="box-quadro-evento-proposta" style="width:100%; background:#fff; color:#1e293b; font-family:'Inter', Arial, Helvetica, sans-serif; box-sizing:border-box; line-height:1.35; overflow:hidden;">
-            <!-- Faixa Superior: PROPOSTA EVENTO + Código -->
-            <div style="padding:${isMob ? '10px 12px 0 12px' : '0 24px 0 42px'};">
-                <div style="border-left:2px solid #5c4599; border-bottom:2px solid #5c4599; padding:${isMob ? '8px 10px' : '12px 18px'}; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-size:${isMob ? '1rem' : '1.22rem'}; letter-spacing:0.03em; color:#222;">
-                        <span style="font-weight:400;">PROPOSTA</span> <span style="font-weight:800;">EVENTO</span>
-                    </div>
-                    <div style="font-size:${isMob ? '1.1rem' : '1.45rem'}; font-weight:800; color:#5c4599;">
-                        ${esc(d.codigo)}
-                    </div>
+        <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; font-family:'Inter', Arial, Helvetica, sans-serif; box-sizing:border-box; line-height:1.35;">
+            <div style="width:100%; aspect-ratio:16 / 9; display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden;">
+                <!-- Faixa superior: PROPOSTA EVENTO + número do contrato -->
+                <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;"><span style="font-weight:300;">PROPOSTA</span> <span style="font-weight:800;">EVENTO</span></div>
+                    <div style="font-size:${u(42)}; font-weight:800; color:${ROXO};">${esc(d.contrato)}</div>
                 </div>
-            </div>
 
-            <!-- Bloco Logo Roxa + DADOS DO CLIENTE + INFORMAÇÕES EVENTO -->
-            <div style="padding:${isMob ? '0 12px' : '0 24px 0 42px'};">
-                <div style="display:flex; flex-direction:${isMob ? 'column' : 'row'}; align-items:stretch; background:#fff; box-shadow:0 8px 16px -10px rgba(15,23,42,0.18); border-bottom:1px solid #e2e8f0;">
-                    ${logoBlocoHtml}
-                    <div style="flex:1; display:grid; grid-template-columns:${isMob ? '1fr' : '1fr 1fr'}; gap:${isMob ? '12px' : '24px'}; padding:${isMob ? '14px 12px' : '18px 28px'}; align-items:start;">
-                        <!-- Coluna 1: DADOS DO CLIENTE -->
-                        <div>
-                            <div style="font-size:${isMob ? '0.95rem' : '1.18rem'}; color:#222; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                                <span style="color:#5c4599; font-size:0.85em;">&#9656;</span>
-                                <span><span style="font-weight:400;">DADOS DO</span> <span style="font-weight:800;">CLIENTE:</span></span>
+                <!-- Bloco logo + dados do cliente + informações do evento -->
+                <div style="margin-left:${u(122)}; display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                    <div style="background:${ROXO}; color:#fff; width:${u(413)}; height:${u(258)}; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0;">
+                        <img src="/logo.png" alt="América Rental" style="width:${u(110)}; height:auto; filter:brightness(0) invert(1); display:block; margin-bottom:${u(8)};">
+                        <div style="font-size:${u(44)}; font-weight:300; letter-spacing:0.16em; line-height:1; color:#fff;">AMÉRICA</div>
+                        <div style="font-family:'Georgia','Times New Roman',serif; font-style:italic; font-size:${u(42)}; line-height:1; color:#fff; margin-top:${u(2)};">Rental</div>
+                        <div style="font-size:${u(15)}; letter-spacing:0.14em; color:rgba(255,255,255,0.9);">desde 1999</div>
+                    </div>
+                    <div style="flex:1; display:grid; grid-template-columns:1.05fr 1fr; column-gap:${u(40)}; padding:${u(20)} ${u(50)} 0 ${u(140)}; align-items:start; min-width:0;">
+                        <div style="min-width:0;">
+                            <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
+                                <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
+                                <span><span style="font-weight:300;">DADOS DO</span> <span style="font-weight:800;">CLIENTE:</span></span>
                             </div>
-                            <div style="font-size:0.78rem; color:#222; line-height:1.55; padding-left:14px;">
+                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
                                 <div style="text-transform:uppercase;">${esc(d.razao_social)}</div>
                                 <div>CNPJ: ${esc(d.cnpj)}</div>
                                 <div style="text-transform:uppercase;">CONTATO: ${esc(d.contato_nome)}</div>
                                 <div>CEL.: ${esc(d.contato_celular)}</div>
                             </div>
                         </div>
-
-                        <!-- Coluna 2: INFORMAÇÕES EVENTO -->
-                        <div>
-                            <div style="font-size:${isMob ? '0.95rem' : '1.18rem'}; color:#222; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                                <span style="color:#5c4599; font-size:0.85em;">&#9656;</span>
-                                <span><span style="font-weight:400;">INFORMAÇÕES</span> <span style="font-weight:800;">EVENTO:</span></span>
+                        <div style="min-width:0;">
+                            <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
+                                <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
+                                <span><span style="font-weight:300;">INFORMAÇÕES</span> <span style="font-weight:800;">EVENTO:</span></span>
                             </div>
-                            <div style="font-size:0.78rem; color:#222; line-height:1.55; padding-left:14px;">
+                            <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
                                 <div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>
                                 <div style="text-transform:uppercase;">${esc(d.diarias_contrato)}</div>
-                                <div style="margin-top:4px; text-transform:uppercase;">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
+                                <div style="margin-top:${u(8)}; text-transform:uppercase;">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
                                 ${d.instalacao_linha2 ? `<div style="text-transform:uppercase;">${esc(d.instalacao_linha2)}</div>` : ''}
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Seção EQUIPAMENTOS -->
-            <div style="padding:${isMob ? '14px 12px 16px 12px' : '22px 24px 18px 28px'};">
-                ${isMob ? `
-                    <div style="font-size:1rem; color:#334155; font-weight:400; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                        <span style="color:#5c4599;">&#9656;</span> EQUIPAMENTOS:
+                <!-- Equipamentos e Serviços (a altura só cresce) -->
+                <div style="flex:1 0 auto;">
+                    <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(80)};">
+                        ${cabecalhoColunas('EQUIPAMENTOS:')}
+                        ${itensHtml}
                     </div>
-                ` : `
-                    <div style="display:grid; grid-template-columns:minmax(0, 1fr) 74px 112px 104px 96px; column-gap:8px; align-items:end; margin-bottom:14px;">
-                        <div style="font-size:1.2rem; color:#3b3b3b; font-weight:400; display:flex; align-items:center; gap:6px;">
-                            <span style="color:#5c4599; font-size:0.85em;">&#9656;</span> EQUIPAMENTOS:
-                        </div>
-                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
-                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
-                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
-                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#5c4599; line-height:1.2;">VALOR<br>TOTAL R$</div>
-                    </div>
-                `}
-                ${itensHtml}
-            </div>
-
-            <!-- Barra Preta Inferior (Totais) -->
-            <div style="background:#0f0f12; color:#fff; padding:${isMob ? '12px 14px' : '12px 28px'}; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:2px;">
-                <div style="font-size:${isMob ? '0.78rem' : '0.88rem'}; font-weight:500; color:#f8fafc; letter-spacing:0.02em;">
-                    VALOR TOTAL POR DIA R$: ${fmtNum(d.valor_total_por_dia_geral)}
+                    ${secaoServicos}
                 </div>
-                <div style="font-size:${isMob ? '1.1rem' : '1.42rem'}; font-weight:800; color:#6d52b8; letter-spacing:0.02em;">
-                    VALOR TOTAL: R$${fmtNum(d.valor_total_geral)}
+
+                <!-- Barra preta de totais -->
+                <div style="background:#191919; color:#fff; height:${u(127)}; min-height:${u(127)}; padding:0 ${u(65)}; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:${u(4)}; box-sizing:border-box; flex-shrink:0;">
+                    <div style="font-size:${u(24)}; font-weight:400; color:#f8fafc;">VALOR TOTAL POR DIA R$: ${fmtNum(d.valor_total_por_dia_geral)}</div>
+                    <div style="font-size:${u(42)}; font-weight:800; color:#6d52b8;">VALOR TOTAL: R$${fmtNum(d.valor_total_geral)}</div>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
     };
 
     async function chamar(metodo, url, body) {
@@ -542,7 +518,7 @@
         const c = window._boxCacheDadosAux || { propostasEvento: [] };
         const opcoes = [
             `<option value="auto" ${window._boxPropostaPreviewId === 'auto' ? 'selected' : ''}>Dados: Proposta aberta / Modelo Exemplo</option>`,
-            `<option value="exemplo" ${window._boxPropostaPreviewId === 'exemplo' ? 'selected' : ''}>Dados: Exemplo Fiel ao Layout (14076)</option>`
+            `<option value="exemplo" ${window._boxPropostaPreviewId === 'exemplo' ? 'selected' : ''}>Dados: Exemplo do Layout (modelo)</option>`
         ];
         (c.propostasEvento || []).slice(0, 40).forEach(p => {
             const label = `${p.codigo || ('#' + p.id)}${p.nome_evento ? ' — ' + p.nome_evento : ''} (${p.cliente_nome || 'Sem cliente'})`;
@@ -579,7 +555,7 @@
             const isQuadroFixo = b.tipo === 'quadro_evento';
             const thumb = isQuadroFixo
                 ? `<div style="width:100%; height:100%; background:#fff; border:1px solid #ddd6fe; display:flex; flex-direction:column; overflow:hidden; font-size:0.48rem;">
-                       <div style="padding:2px 5px; border-bottom:1px solid #5c4599; display:flex; justify-content:space-between; font-weight:800; color:#1e293b;"><span>PROPOSTA EVENTO</span><span style="color:#5c4599;">14076</span></div>
+                       <div style="padding:2px 5px; border-bottom:1px solid #5c4599; display:flex; justify-content:space-between; font-weight:800; color:#1e293b;"><span>PROPOSTA EVENTO</span><span style="color:#5c4599;">CT0001</span></div>
                        <div style="flex:1; display:flex; align-items:stretch;">
                            <div style="width:34px; background:#5c4599; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">A</div>
                            <div style="flex:1; padding:3px 4px; color:#475569; line-height:1.25;"><b>▸ CLIENTE / EVENTO</b><br>▸ EQUIPAMENTOS...</div>
