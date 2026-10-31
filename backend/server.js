@@ -39877,6 +39877,18 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
           [usuarioLog, `Proposta criada com contrato ${contrato}`, this.lastID]);
+        if (typeof evSincronizarPropostaNoEvento === 'function' && d.nome_evento && String(d.nome_evento).trim()) {
+          evSincronizarPropostaNoEvento({
+            cliente_nome: d.cliente_nome,
+            nome_evento: d.nome_evento,
+            periodo_inicio: d.periodo_inicio,
+            periodo_fim: d.periodo_fim,
+            proposta_id: this.lastID,
+            codigo,
+            contrato,
+            usuario: usuarioLog
+          });
+        }
 
         res.json({ success: true, id: this.lastID, codigo, contrato });
       });
@@ -39930,6 +39942,18 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+      if (typeof evSincronizarPropostaNoEvento === 'function' && d.nome_evento && String(d.nome_evento).trim()) {
+        evSincronizarPropostaNoEvento({
+          cliente_nome: d.cliente_nome,
+          nome_evento: d.nome_evento,
+          periodo_inicio: d.periodo_inicio,
+          periodo_fim: d.periodo_fim,
+          proposta_id: Number(proposalId),
+          codigo: oldRow.codigo,
+          contrato: oldRow.contrato,
+          usuario: usuarioLog
+        });
+      }
 
       // Auditoria: comparar campos alterados
       const fieldsToCompare = [
@@ -43677,9 +43701,67 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_eventos (
   if (errEv) console.error('[EVENTOS] Erro ao criar tabela comercial_eventos:', errEv.message);
 });
 db.run('CREATE INDEX IF NOT EXISTS idx_comercial_eventos_cliente ON comercial_eventos (cliente_id)');
+db.run("ALTER TABLE comercial_eventos ADD COLUMN ultimo_periodo_inicio TEXT", () => {});
+db.run("ALTER TABLE comercial_eventos ADD COLUMN ultimo_periodo_fim TEXT", () => {});
+db.run("ALTER TABLE comercial_eventos ADD COLUMN historico_datas TEXT DEFAULT '[]'", () => {});
 
 function evNormTxt(s) {
   return String(s || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+function evParseHistorico(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function evNormalizarDataIso(d) {
+  const s = String(d || '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return '';
+}
+
+function evMesclarENormalizarHistorico(listaExistente, novasEntradas) {
+  const todos = [...evParseHistorico(listaExistente), ...(Array.isArray(novasEntradas) ? novasEntradas : [])];
+  const mapa = new Map();
+  todos.forEach(item => {
+    if (!item || typeof item !== 'object') return;
+    const ini = evNormalizarDataIso(item.periodo_inicio);
+    const fim = evNormalizarDataIso(item.periodo_fim) || ini;
+    if (!ini && !fim) return;
+    const iniFinal = ini || fim;
+    const fimFinal = fim || ini;
+    const propId = Number(item.proposta_id) || null;
+    const chave = propId ? `prop:${propId}` : `dt:${iniFinal}|${fimFinal}`;
+    const prev = mapa.get(chave) || {};
+    mapa.set(chave, {
+      periodo_inicio: iniFinal,
+      periodo_fim: fimFinal,
+      proposta_id: propId || prev.proposta_id || null,
+      proposta_codigo: item.proposta_codigo || prev.proposta_codigo || null,
+      contrato: item.contrato || prev.contrato || null,
+      registrado_em: item.registrado_em || prev.registrado_em || new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19)
+    });
+  });
+  const ordenado = Array.from(mapa.values()).sort((a, b) => {
+    const cmpIni = String(b.periodo_inicio || '').localeCompare(String(a.periodo_inicio || ''));
+    if (cmpIni !== 0) return cmpIni;
+    return String(b.periodo_fim || '').localeCompare(String(a.periodo_fim || ''));
+  });
+  const ultimo = ordenado[0] || null;
+  return {
+    historico: ordenado,
+    ultimo_periodo_inicio: ultimo ? ultimo.periodo_inicio : null,
+    ultimo_periodo_fim: ultimo ? ultimo.periodo_fim : null
+  };
 }
 
 // Resolve o cliente (id + nome oficial) pelo id ou pelo nome (razao social / fantasia)
@@ -43697,6 +43779,54 @@ function evResolverCliente(clienteId, clienteNome, cb) {
   });
 }
 
+// Sincroniza automaticamente o nome do evento e o período (Período Início / Até) ao salvar/editar uma proposta
+function evSincronizarPropostaNoEvento(dados, cb) {
+  const done = typeof cb === 'function' ? cb : () => {};
+  const nome = String(dados?.nome_evento || '').trim();
+  const rawCli = String(dados?.cliente_nome || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').trim();
+  if (!nome || !rawCli) return done();
+  const ini = evNormalizarDataIso(dados.periodo_inicio);
+  const fim = evNormalizarDataIso(dados.periodo_fim) || ini;
+  const novaEntrada = (ini || fim) ? [{
+    periodo_inicio: ini || fim,
+    periodo_fim: fim || ini,
+    proposta_id: Number(dados.proposta_id) || null,
+    proposta_codigo: dados.codigo || null,
+    contrato: dados.contrato || null
+  }] : [];
+  const agora = new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+  evResolverCliente(null, rawCli, (cli) => {
+    const clienteId = cli ? cli.id : null;
+    const clienteNome = cli ? cli.nome : rawCli;
+    db.all('SELECT * FROM comercial_eventos WHERE ativo = 1', [], (err, rows) => {
+      if (err) return done(err);
+      const existente = (rows || []).find(r =>
+        evNormTxt(r.nome) === evNormTxt(nome) &&
+        ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome))
+      );
+      if (existente) {
+        const calc = evMesclarENormalizarHistorico(existente.historico_datas, [
+          ...(existente.ultimo_periodo_inicio ? [{ periodo_inicio: existente.ultimo_periodo_inicio, periodo_fim: existente.ultimo_periodo_fim || existente.ultimo_periodo_inicio }] : []),
+          ...novaEntrada
+        ]);
+        db.run(
+          'UPDATE comercial_eventos SET ultimo_periodo_inicio=?, ultimo_periodo_fim=?, historico_datas=?, atualizado_em=? WHERE id=?',
+          [calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), agora, existente.id],
+          () => done()
+        );
+      } else {
+        const calc = evMesclarENormalizarHistorico([], novaEntrada);
+        db.run(
+          'INSERT INTO comercial_eventos (cliente_id, cliente_nome, nome, ultimo_periodo_inicio, ultimo_periodo_fim, historico_datas, criado_por, criado_em, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?)',
+          [clienteId, clienteNome, nome, calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), dados.usuario || 'sistema', agora, agora],
+          () => done()
+        );
+      }
+    });
+  });
+}
+
 // GET /api/comercial/eventos?cliente_id=&cliente_nome=&q=
 app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
   const cid = Number(req.query.cliente_id) || 0;
@@ -43704,44 +43834,121 @@ app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
   const q = evNormTxt(req.query.q);
   db.all('SELECT * FROM comercial_eventos WHERE ativo = 1 ORDER BY cliente_nome COLLATE NOCASE ASC, nome COLLATE NOCASE ASC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    let lista = rows || [];
-    if (cid || cnome) {
-      lista = lista.filter(r => (cid && Number(r.cliente_id) === cid) || (cnome && evNormTxt(r.cliente_nome) === cnome));
-    }
-    if (q) {
-      lista = lista.filter(r => evNormTxt(r.nome).includes(q) || evNormTxt(r.cliente_nome).includes(q));
-    }
-    res.json(lista);
+    db.all(
+      "SELECT id, codigo, contrato, cliente_nome, nome_evento, periodo_inicio, periodo_fim, criado_em FROM propostas WHERE nome_evento IS NOT NULL AND TRIM(nome_evento) != '' AND (status IS NULL OR status != 'Excluída')",
+      [],
+      (errP, propRows) => {
+        const eventos = (rows || []).map(r => ({ ...r }));
+        const propostas = (!errP && Array.isArray(propRows)) ? propRows : [];
+
+        propostas.forEach(p => {
+          const pCli = String(p.cliente_nome || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').trim();
+          const pNome = String(p.nome_evento || '').trim();
+          if (!pCli || !pNome) return;
+          const ini = evNormalizarDataIso(p.periodo_inicio);
+          const fim = evNormalizarDataIso(p.periodo_fim) || ini;
+          const entrada = (ini || fim) ? [{
+            periodo_inicio: ini || fim,
+            periodo_fim: fim || ini,
+            proposta_id: p.id,
+            proposta_codigo: p.codigo || null,
+            contrato: p.contrato || null,
+            registrado_em: p.criado_em || null
+          }] : [];
+          let ev = eventos.find(e => evNormTxt(e.nome) === evNormTxt(pNome) && evNormTxt(e.cliente_nome) === evNormTxt(pCli));
+          if (ev) {
+            const calc = evMesclarENormalizarHistorico(ev.historico_datas, [
+              ...(ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []),
+              ...entrada
+            ]);
+            ev._histCalc = calc.historico;
+            ev.ultimo_periodo_inicio = calc.ultimo_periodo_inicio;
+            ev.ultimo_periodo_fim = calc.ultimo_periodo_fim;
+          }
+        });
+
+        let lista = eventos.map(ev => {
+          const calc = ev._histCalc
+            ? { historico: ev._histCalc, ultimo_periodo_inicio: ev.ultimo_periodo_inicio, ultimo_periodo_fim: ev.ultimo_periodo_fim }
+            : evMesclarENormalizarHistorico(ev.historico_datas, ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []);
+          return {
+            id: ev.id,
+            cliente_id: ev.cliente_id,
+            cliente_nome: ev.cliente_nome,
+            nome: ev.nome,
+            ativo: ev.ativo,
+            criado_por: ev.criado_por,
+            criado_em: ev.criado_em,
+            atualizado_em: ev.atualizado_em,
+            ultimo_periodo_inicio: calc.ultimo_periodo_inicio || null,
+            ultimo_periodo_fim: calc.ultimo_periodo_fim || null,
+            historico_datas: calc.historico
+          };
+        });
+
+        if (cid || cnome) {
+          lista = lista.filter(r => (cid && Number(r.cliente_id) === cid) || (cnome && evNormTxt(r.cliente_nome) === cnome));
+        }
+        if (q) {
+          lista = lista.filter(r => evNormTxt(r.nome).includes(q) || evNormTxt(r.cliente_nome).includes(q));
+        }
+        res.json(lista);
+      }
+    );
   });
 });
 
-// POST /api/comercial/eventos { cliente_id?, cliente_nome, nome }
+// POST /api/comercial/eventos { cliente_id?, cliente_nome, nome, periodo_inicio?, periodo_fim? }
 app.post('/api/comercial/eventos', authenticateToken, (req, res) => {
   const d = req.body || {};
   const nome = String(d.nome || '').trim();
   if (!nome) return res.status(400).json({ error: 'Informe o nome do evento.' });
   if (!d.cliente_id && !String(d.cliente_nome || '').trim()) return res.status(400).json({ error: 'Informe o cliente do evento.' });
   const usuario = req.user?.username || req.user?.nome || 'unknown';
+  const ini = evNormalizarDataIso(d.periodo_inicio);
+  const fim = evNormalizarDataIso(d.periodo_fim) || ini;
+  const novaData = (ini || fim) ? [{ periodo_inicio: ini || fim, periodo_fim: fim || ini }] : [];
+
   evResolverCliente(d.cliente_id, d.cliente_nome, (cli) => {
     const clienteId = cli ? cli.id : (Number(d.cliente_id) || null);
     const clienteNome = cli ? cli.nome : String(d.cliente_nome || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').trim();
-    db.all('SELECT id, cliente_id, cliente_nome, nome FROM comercial_eventos WHERE ativo = 1', [], (errD, rowsD) => {
+    db.all('SELECT * FROM comercial_eventos WHERE ativo = 1', [], (errD, rowsD) => {
       if (errD) return res.status(500).json({ error: errD.message });
       const dup = (rowsD || []).find(r =>
         evNormTxt(r.nome) === evNormTxt(nome) &&
         ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome)));
-      if (dup) return res.status(400).json({ error: 'Já existe um evento com este nome para este cliente.', id: dup.id });
       const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-      db.run(`INSERT INTO comercial_eventos (cliente_id, cliente_nome, nome, criado_por, criado_em, atualizado_em) VALUES (?,?,?,?,?,?)`,
-        [clienteId, clienteNome, nome, usuario, agora, agora], function(errIns) {
+      if (dup) {
+        if (novaData.length > 0) {
+          const calc = evMesclarENormalizarHistorico(dup.historico_datas, [
+            ...(dup.ultimo_periodo_inicio ? [{ periodo_inicio: dup.ultimo_periodo_inicio, periodo_fim: dup.ultimo_periodo_fim || dup.ultimo_periodo_inicio }] : []),
+            ...novaData
+          ]);
+          return db.run(
+            'UPDATE comercial_eventos SET ultimo_periodo_inicio=?, ultimo_periodo_fim=?, historico_datas=?, atualizado_em=? WHERE id=?',
+            [calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), agora, dup.id],
+            function(errUp) {
+              if (errUp) return res.status(500).json({ error: errUp.message });
+              res.json({ success: true, id: dup.id, updated_history: true, cliente_id: clienteId, cliente_nome: clienteNome, nome, ultimo_periodo_inicio: calc.ultimo_periodo_inicio, ultimo_periodo_fim: calc.ultimo_periodo_fim, historico_datas: calc.historico });
+            }
+          );
+        }
+        return res.status(400).json({ error: 'Já existe um evento com este nome para este cliente.', id: dup.id });
+      }
+      const calc = evMesclarENormalizarHistorico(d.historico_datas, novaData);
+      db.run(
+        `INSERT INTO comercial_eventos (cliente_id, cliente_nome, nome, ultimo_periodo_inicio, ultimo_periodo_fim, historico_datas, criado_por, criado_em, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [clienteId, clienteNome, nome, calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), usuario, agora, agora],
+        function(errIns) {
           if (errIns) return res.status(500).json({ error: errIns.message });
-          res.json({ success: true, id: this.lastID, cliente_id: clienteId, cliente_nome: clienteNome, nome });
-        });
+          res.json({ success: true, id: this.lastID, cliente_id: clienteId, cliente_nome: clienteNome, nome, ultimo_periodo_inicio: calc.ultimo_periodo_inicio, ultimo_periodo_fim: calc.ultimo_periodo_fim, historico_datas: calc.historico });
+        }
+      );
     });
   });
 });
 
-// PUT /api/comercial/eventos/:id { nome, cliente_id?, cliente_nome? }
+// PUT /api/comercial/eventos/:id { nome, cliente_id?, cliente_nome?, periodo_inicio?, periodo_fim?, historico_datas? }
 app.put('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   const d = req.body || {};
   const id = Number(req.params.id);
@@ -43760,12 +43967,23 @@ app.put('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
           evNormTxt(r.nome) === evNormTxt(nome) &&
           ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome)));
         if (dup) return res.status(400).json({ error: 'Já existe um evento com este nome para este cliente.' });
+        const ini = evNormalizarDataIso(d.periodo_inicio);
+        const fim = evNormalizarDataIso(d.periodo_fim) || ini;
+        const novaData = (ini || fim) ? [{ periodo_inicio: ini || fim, periodo_fim: fim || ini }] : [];
+        const baseHist = d.historico_datas !== undefined ? d.historico_datas : row.historico_datas;
+        const calc = evMesclarENormalizarHistorico(baseHist, [
+          ...(d.historico_datas === undefined && row.ultimo_periodo_inicio ? [{ periodo_inicio: row.ultimo_periodo_inicio, periodo_fim: row.ultimo_periodo_fim || row.ultimo_periodo_inicio }] : []),
+          ...novaData
+        ]);
         const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-        db.run('UPDATE comercial_eventos SET nome=?, cliente_id=?, cliente_nome=?, atualizado_em=? WHERE id=?',
-          [nome, clienteId, clienteNome, agora, id], function(errUp) {
+        db.run(
+          'UPDATE comercial_eventos SET nome=?, cliente_id=?, cliente_nome=?, ultimo_periodo_inicio=?, ultimo_periodo_fim=?, historico_datas=?, atualizado_em=? WHERE id=?',
+          [nome, clienteId, clienteNome, calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), agora, id],
+          function(errUp) {
             if (errUp) return res.status(500).json({ error: errUp.message });
-            res.json({ success: true });
-          });
+            res.json({ success: true, ultimo_periodo_inicio: calc.ultimo_periodo_inicio, ultimo_periodo_fim: calc.ultimo_periodo_fim, historico_datas: calc.historico });
+          }
+        );
       });
     });
   });
