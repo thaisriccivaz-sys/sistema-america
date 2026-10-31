@@ -1956,16 +1956,16 @@ function _renderFormPropostaInt() {
                 <!-- Botões de Ação (Lado Direito) -->
                 <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
                     <!-- Icon buttons -->
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-envelope-simple" style="font-size:1.15rem;"></i>
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-printer" style="font-size:1.15rem;"></i>
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1.15rem;"></i>
                     </button>
-                    <button onclick="recarregarPropostaForm(${id || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="recarregarPropostaForm(_propostasEditandoId || null)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
 
@@ -1988,19 +1988,19 @@ function _renderFormPropostaInt() {
                     <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
                     </button>
-                    <button type="button" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-baixar-pdf" class="prop-btn-pos-salvo" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
                         <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Baixar PDF
                     </button>
-                    <button type="button" onclick="window.enviarPropostaPorWhatsapp(${id || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-enviar-whatsapp" class="prop-btn-pos-salvo" onclick="window.enviarPropostaPorWhatsapp(${id || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-whatsapp-logo" style="font-size:1rem;"></i> Enviar WhatsApp
                     </button>
-                    <button type="button" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-enviar-email" class="prop-btn-pos-salvo" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
                         <i class="ph ph-envelope-simple" style="font-size:1rem;"></i> Enviar E-mail
                     </button>
-                    <button type="button" id="btn-prop-copiar-link" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-copiar-link" class="prop-btn-pos-salvo" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
                         <i class="ph ph-link" style="font-size:1rem;"></i> Copiar Link
                     </button>
-                    <button type="button" id="btn-prop-desativar-link" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
                     <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
@@ -2011,7 +2011,7 @@ function _renderFormPropostaInt() {
 
             <!-- Corpo do formulário -->
             <div style="padding:1.5rem;">
-                <form id="form-proposta" autocomplete="off" onsubmit="return false;">
+                <form id="form-proposta" autocomplete="off" onsubmit="return false;" oninput="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)" onchange="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)">
 
                     <!-- Linha 1: Código, Tipo + Botão IA Atendimento, Atendente -->
                     <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
@@ -2559,7 +2559,31 @@ function _renderFormPropostaInt() {
     if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
         window.atualizarBloqueioPorTipoProposta();
     }
+    window._propFormEditadoNaoSalvo = false;
+    if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+        window.atualizarVisibilidadeBotoesPosSalvoProposta();
+    }
 }
+
+window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
+    const mostrar = Boolean(_propostasEditandoId) && !Boolean(window._propFormEditadoNaoSalvo);
+    document.querySelectorAll('#prop-toolbar-form .prop-btn-pos-salvo').forEach(btn => {
+        btn.style.display = mostrar ? 'inline-flex' : 'none';
+    });
+};
+
+window.marcarPropostaComoEditada = function() {
+    if (!_propostasEditandoId) return;
+    window._propFormEditadoNaoSalvo = true;
+    window.atualizarVisibilidadeBotoesPosSalvoProposta();
+};
+
+window._onEdicaoCampoFormProposta = function(event) {
+    const t = event && event.target;
+    if (!t) return;
+    if (t.id === 'prop-codigo') return;
+    window.marcarPropostaComoEditada();
+};
 
 window.onChangeClientePropostaInput = function(novoValor) {
     const valTrim = String(novoValor || '').trim();
@@ -5606,8 +5630,11 @@ window.onChangePeriodoInicioProposta = function() {
         if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
         return;
     }
+    const fimEl = document.getElementById('prop-periodo-fim');
     const diasVal = parseInt(diasEl?.value || 0, 10);
-    if (diasVal > 0) {
+    if (fimEl && fimEl.value) {
+        window.calcularDiasContrato();
+    } else if (diasVal > 0) {
         window.calcularFimContrato();
     } else {
         window.calcularDiasContrato();
@@ -5625,7 +5652,7 @@ window.calcularDiasContrato = function() {
         return;
     }
     const diff = Math.ceil((new Date(fim + 'T12:00:00') - new Date(ini + 'T12:00:00')) / (1000 * 60 * 60 * 24));
-    if (diff >= 0) diasEl.value = diff;
+    if (diff >= 0) diasEl.value = Math.max(1, diff);
     if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
 };
 
@@ -18887,6 +18914,7 @@ window.adicionarProdutoProposta = function() {
         if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
     }
 
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -18925,6 +18953,7 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
     } else if (campo === 'observacao') {
         item.observacao = String(valorNovo || '');
     }
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -18943,6 +18972,7 @@ window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorari
     const novoFim = campo === 'fim' ? h : (parsed.horario_fim || '');
     const horarioFinal = (novoIni || novoFim) ? `${novoIni}-${novoFim}` : '';
     item.dias_evento[diaIdx] = horarioFinal ? `${parsed.data} ${horarioFinal}` : parsed.data;
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -18952,12 +18982,14 @@ window.toggleHorarioComercialDiaProdutoProposta = function(prodIdx, diaIdx, chec
     if (!Array.isArray(item.dias_evento) || !item.dias_evento[diaIdx]) return;
     const parsed = window._parseDiasEventoItem(item.dias_evento[diaIdx]);
     item.dias_evento[diaIdx] = checked ? `${parsed.data} COMERCIAL` : parsed.data;
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     window.renderizarProdutosPropostaGrid();
 };
 
 window.removerProdutoProposta = function(idx) {
     if (window._propProdutosAdicionados && window._propProdutosAdicionados[idx]) {
         window._propProdutosAdicionados.splice(idx, 1);
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarProdutosPropostaGrid();
     }
 };

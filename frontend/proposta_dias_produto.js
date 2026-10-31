@@ -66,6 +66,7 @@
             return;
         }
         p.dias_evento.splice(dIdx, 1);
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarProdutosPropostaGrid();
     };
 
@@ -88,6 +89,7 @@
         const base = p.dias_evento.map(parse).find(x => horaOk(x.horario));
         p.dias_evento.push(base ? `${iso} ${base.horario}` : iso);
         p.dias_evento.sort((a, b) => parse(a).data.localeCompare(parse(b).data));
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarProdutosPropostaGrid();
     };
 

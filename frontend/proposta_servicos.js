@@ -464,6 +464,7 @@
         const fobEl = document.getElementById('prop-serv-fob'); if (fobEl) fobEl.checked = false;
         window.alternarFreteFobServicoProposta();
 
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarServicosPropostaGrid();
     };
 
@@ -503,12 +504,14 @@
         } else if (campo === 'frete_fob') {
             item.frete_fob = !!valorNovo;
         }
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarServicosPropostaGrid();
     };
 
     window.removerServicoProposta = function (idx) {
         if (window._propServicosAdicionados && window._propServicosAdicionados[idx]) {
             window._propServicosAdicionados.splice(idx, 1);
+            if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
             window.renderizarServicosPropostaGrid();
         }
     };
