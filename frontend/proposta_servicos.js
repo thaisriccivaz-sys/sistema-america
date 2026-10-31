@@ -12,11 +12,41 @@
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;';
 
     window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EVENTO'];
 
-    window.tipoPropostaUsaServicos = function (tipo) {
+    const tipoLimpo = (tipo) => {
         const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-        const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t);
+        return String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    };
+
+    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal */
+    window.tipoPropostaServicoObrigatorio = function (tipo) {
+        return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tipoLimpo(tipo));
+    };
+
+    /* O quadro de Serviços aparece em OBRA (obrigatório) e EVENTO (opcional) */
+    window.tipoPropostaUsaServicos = function (tipo) {
+        const t = tipoLimpo(tipo);
+        return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
+    };
+
+    /* Frete FOB da proposta (dispensa o serviço obrigatório na obra). Persistido em propostas.servico_frete_fob */
+    window.obterFreteFobPropostaObra = function () {
+        if (!window.tipoPropostaUsaServicos()) return 0;
+        const chk = !!document.getElementById('prop-serv-fob')?.checked;
+        const emServico = (window._propServicosAdicionados || []).some(s => !!s.frete_fob);
+        return (chk || emServico) ? 1 : 0;
+    };
+
+    window._atualizarTituloServicosProposta = function (tipo) {
+        const obrig = window.tipoPropostaServicoObrigatorio(tipo);
+        const tit = document.getElementById('prop-servicos-titulo');
+        const hint = document.getElementById('prop-servicos-hint');
+        if (tit) tit.textContent = obrig ? 'Serviços da Proposta *' : 'Serviços da Proposta';
+        if (hint) hint.textContent = obrig
+            ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB'
+            : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)';
+        window.alternarFreteFobServicoProposta();
     };
 
     window._parseServicosProposta = function (raw) {
@@ -39,11 +69,13 @@
 
     window.htmlBlocoServicosProposta = function (tipo) {
         const visivel = window.tipoPropostaUsaServicos(tipo);
+        const obrigatorio = window.tipoPropostaServicoObrigatorio(tipo);
+        const fobInicial = !!window._propFreteFobInicial && !(window._propServicosAdicionados || []).length;
         return `
         <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <i class="ph ph-wrench" style="color:#7048e8;"></i> Serviços da Proposta *
-                <span style="font-size:0.72rem; font-weight:500; color:#64748b;">Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS)</span>
+                <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços da Proposta *' : 'Serviços da Proposta'}</span>
+                <span id="prop-servicos-hint" style="font-size:0.72rem; font-weight:500; color:#64748b;">${obrigatorio ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB' : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)'}</span>
             </h4>
 
             <div style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
@@ -97,8 +129,9 @@
                 </div>
                 <div>
                     <label class="prop-lbl" style="display:block;">Frete</label>
-                    <label style="display:flex; align-items:center; gap:6px; height:36px; padding:0 0.6rem; border:1px solid #fde68a; background:#fffbeb; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#b45309;">
-                        <input type="checkbox" id="prop-serv-fob" onchange="window.alternarFreteFobServicoProposta()" style="width:auto; margin:0;"> Frete FOB
+                    <label style="display:flex !important; align-items:center !important; justify-content:center; gap:8px; height:36px; box-sizing:border-box; margin:0; padding:0 0.6rem; border:1px solid #fde68a; background:#fffbeb; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#b45309; line-height:1;">
+                        <input type="checkbox" id="prop-serv-fob" ${fobInicial ? 'checked' : ''} onchange="window.alternarFreteFobServicoProposta()" style="width:15px; height:15px; margin:0; padding:0; flex:none; align-self:center;">
+                        <span style="display:inline-block; line-height:1; margin:0; padding:0;">Frete FOB</span>
                     </label>
                 </div>
             </div>
@@ -133,13 +166,18 @@
         } else if (wrap) {
             wrap.style.display = 'block';
         }
+        window._atualizarTituloServicosProposta(tipo);
+        if (typeof window.atualizarVisibilidadeManutencoesProposta === 'function') {
+            window.atualizarVisibilidadeManutencoesProposta(tipo);
+        }
         window.renderizarServicosPropostaGrid();
     };
 
     window.alternarFreteFobServicoProposta = function () {
         const fob = document.getElementById('prop-serv-fob')?.checked;
         const lbl = document.getElementById('prop-serv-valor-lbl');
-        if (lbl) lbl.textContent = fob ? 'Valor Unitário (R$) — opcional (FOB)' : 'Valor Unitário (R$) *';
+        const obrig = window.tipoPropostaServicoObrigatorio();
+        if (lbl) lbl.textContent = fob ? 'Valor Unitário (R$) — opcional (FOB)' : (obrig ? 'Valor Unitário (R$) *' : 'Valor Unitário (R$)');
     };
 
     window.onInputServicoPropostaTexto = async function () {
@@ -269,7 +307,7 @@
                 const v = window.obterValorTabelaPorTipoEProduto(tipoRef, p);
                 const vStr = v !== null && v !== undefined ? `R$ ${fmtBRL(v)}` : '—';
                 const vParam = v !== null && v !== undefined ? Number(v) : 'null';
-                return `<tr onclick="window.selecionarServicoBusca('${cod}', '${nome}', ${vParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                return `<tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome) : ''}" onclick="window.selecionarServicoBusca('${cod}', '${nome}', ${vParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${esc(p.codigo || p.id)}</td>
                     <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(p.nome || '—')}</td>
                     <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${vStr}</td>
@@ -311,7 +349,8 @@
                 const tbody = document.getElementById('modal-serv-tbody');
                 const cnt = document.getElementById('modal-serv-count');
                 const filtra = () => {
-                    const f = window._filtrarServicosPorTermo(servicos, inp.value);
+                    let f = window._filtrarServicosPorTermo(servicos, inp.value);
+                    if (typeof window.ordenarPorDestaqueZona === 'function') f = window.ordenarPorDestaqueZona(f);
                     tbody.innerHTML = rows(f);
                     cnt.textContent = `Total: ${f.length} serviço(s)`;
                 };
@@ -378,7 +417,7 @@
         if (unit <= 0 && total > 0) unit = total / qtd;
         if (total <= 0 && unit > 0) total = unit * qtd;
 
-        if (!fob && total <= 0) {
+        if (!fob && total <= 0 && window.tipoPropostaServicoObrigatorio()) {
             alert('Informe o valor do serviço ou marque a opção Frete FOB (valor do frete não obrigatório).');
             unitEl?.focus();
             return;
@@ -537,9 +576,13 @@
             window._propServicosAdicionados = [];
             return true;
         }
+        // Serviço nunca é obrigatório em EVENTO (nem o valor: 0,00 vira CORTESIA)
+        if (!window.tipoPropostaServicoObrigatorio(tipo)) return true;
         const lista = window._propServicosAdicionados || [];
         if (lista.length === 0) {
-            alert('Em propostas de obra (mensal, quinzenal ou semanal) é obrigatório adicionar pelo menos um Serviço.');
+            // Com Frete FOB marcado, o serviço deixa de ser obrigatório na obra
+            if (document.getElementById('prop-serv-fob')?.checked) return true;
+            alert('Em propostas de obra (mensal, quinzenal ou semanal) é obrigatório adicionar pelo menos um Serviço (ou marcar Frete FOB).');
             document.getElementById('prop-serv-codigo')?.focus();
             return false;
         }

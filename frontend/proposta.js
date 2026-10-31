@@ -1886,6 +1886,7 @@ function _renderFormPropostaInt() {
     window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
+    window._propFreteFobInicial = prop ? (Number(prop.servico_frete_fob) ? 1 : 0) : 0;
     (() => {
         // Cada produto guarda as suas diárias; o seletor começa vazio (produtos antigos herdam as da proposta)
         if (typeof window.migrarDiasEventoLegadoParaProdutos === 'function') window.migrarDiasEventoLegadoParaProdutos(prop);
@@ -2215,7 +2216,7 @@ function _renderFormPropostaInt() {
                         </h4>
                         
                         <!-- Inputs para adicionar produto -->
-                        <div style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
+                        <div id="prop-prod-add-grid" style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
                             <div>
                                 <label class="prop-lbl">Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -2237,6 +2238,11 @@ function _renderFormPropostaInt() {
                                 <input type="number" id="prop-prod-quantidade" value="1" min="1"
                                     oninput="window.recalcularPreviewProdutoProposta('qtd')"
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                            </div>
+                            <div id="prop-wrapper-manut" style="display:none;">
+                                <label class="prop-lbl" title="Quantidade de manutenções por semana (1x, 2x, 3x...). Destaca em vermelho os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
+                                <input type="number" id="prop-prod-manut" min="1" max="7" step="1" placeholder="Ex.: 1" title="1x, 2x, 3x..."
+                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700;">
                             </div>
                             <div>
                                 <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
@@ -5777,6 +5783,7 @@ window.salvarPropostaNova = async function() {
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
         nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -6394,6 +6401,7 @@ window.estornarPropostaEdicao = async function() {
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
         nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -17816,6 +17824,10 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
                 return false;
             }
+            // Serviços aparecem apenas no quadro "Serviços da Proposta"
+            if (grupoNorm === 'servicos' || grupoNorm === 'servico') {
+                return false;
+            }
         } else if (tipoNorm === 'venda') {
             // Tipo VENDA: mostrar apenas PRÓPRIO AVULSO e não mostrar grupos VAC, Guaritas, avarias, serviços, acessórios
             if (fonteNorm !== 'proprio avulso') {
@@ -17945,7 +17957,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal', 'evento'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
@@ -17990,7 +18002,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             const valStr = valTab !== null ? `R$ ${Number(valTab).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
             const valParam = valTab !== null ? Number(valTab) : 'null';
             return `
-                <tr onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome) : ''}" onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${_escHtmlProp(p.codigo || p.id)}</td>
                     <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(p.nome || '—')}</td>
                     <td style="padding:10px 12px; color:#475569; font-weight:600;">${_escHtmlProp(p.fonte_fornecimento || '—')}</td>
@@ -18078,7 +18090,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                     fonte: selectFonte?.value || ''
                 });
 
-                if (tbody) tbody.innerHTML = renderRows(filtered);
+                if (tbody) tbody.innerHTML = renderRows(typeof window.ordenarPorDestaqueZona === 'function' ? window.ordenarPorDestaqueZona(filtered) : filtered);
                 if (countSpan) countSpan.textContent = `Total: ${filtered.length} equipamento(s)`;
             };
 
@@ -18313,6 +18325,7 @@ window.adicionarProdutoProposta = function() {
         descricao_proposta: (typeof window.obterDescricaoPropostaEquipamento === 'function')
             ? window.obterDescricaoPropostaEquipamento({ codigo, produto: produtoNome })
             : '',
+        manut_semana: (typeof window.obterManutSemanaSelecionada === 'function') ? window.obterManutSemanaSelecionada() : 0,
         observacao: observacao,
         quantidade: quantidade,
         dias_evento: [...diasSelecionados],
@@ -18455,7 +18468,7 @@ window.renderizarProdutosPropostaGrid = function() {
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div>${_escHtmlProp(nomeProd)}</div>
+                    <div>${_escHtmlProp(nomeProd)} ${(parseInt(p.manut_semana, 10) > 0) ? `<span style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px; white-space:nowrap;">${parseInt(p.manut_semana, 10)}x manut./sem.</span>` : ''}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 10px;">
