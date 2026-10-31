@@ -287,6 +287,25 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         const servRaw = lerJson(p.itens_servicos);
         let somaPorDia = 0, somaTotalGeral = 0;
 
+        const formatarDiasCurtoItem = (it) => {
+            let diasArr = Array.isArray(it && it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
+            if (diasArr.length === 0 && p && p.dias_evento) {
+                diasArr = lerJson(p.dias_evento);
+                if (!diasArr.length && typeof p.dias_evento === 'string') {
+                    diasArr = String(p.dias_evento).split(',').filter(Boolean);
+                }
+            }
+            const datasIso = [];
+            diasArr.forEach(entry => {
+                const s = (entry && typeof entry === 'object') ? String(entry.data || entry.iso || '') : String(entry || '');
+                const iso = s.trim().split(/[\sT]+/)[0].slice(0, 10);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(iso) && !datasIso.includes(iso)) datasIso.push(iso);
+            });
+            datasIso.sort();
+            if (datasIso.length === 0) return '';
+            return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
+        };
+
         const itens = itensRaw.map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
@@ -303,6 +322,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
                 foto_url: fotoDe(it, nome),
                 link_url: linkDe(it, nome),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
+                dias_evento_texto: formatarDiasCurtoItem(it),
                 quant_diarias: nDiarias, unit: base, por_dia: grossDia,
                 desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0
             };

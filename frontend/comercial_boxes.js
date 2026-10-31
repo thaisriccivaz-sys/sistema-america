@@ -195,6 +195,30 @@
         return datasOrdenadas.map(iso => fmtDataIso(iso)).join(', ');
     }
 
+    function formatarDiasEventoProdutoCurto(it, proposta) {
+        let diasArr = Array.isArray(it && it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
+        if (diasArr.length === 0 && proposta && proposta.dias_evento) {
+            if (Array.isArray(proposta.dias_evento)) diasArr = proposta.dias_evento.filter(Boolean);
+            else {
+                try {
+                    const p = JSON.parse(proposta.dias_evento);
+                    diasArr = Array.isArray(p) ? p.filter(Boolean) : String(proposta.dias_evento).split(',');
+                } catch (e) {
+                    diasArr = String(proposta.dias_evento).split(',');
+                }
+            }
+        }
+        const datasIso = [];
+        diasArr.forEach(entry => {
+            const s = (entry && typeof entry === 'object') ? String(entry.data || entry.iso || '') : String(entry || '');
+            const iso = s.trim().split(/[\sT]+/)[0].slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(iso) && !datasIso.includes(iso)) datasIso.push(iso);
+        });
+        datasIso.sort();
+        if (datasIso.length === 0) return '';
+        return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
+    }
+
     /* Separa endereço de instalação em Linha 1 (Nome do Local) e Linha 2 (Rua e Número - Bairro - Cidade) */
     function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
         const rawOriginal = String(proposta.endereco_instalacao || '').trim();
@@ -299,9 +323,9 @@
                 instalacao_linha2: 'RUA E NUMERO - BAIRRO - CIDADE',
                 resumo_diarias_rodape: 'MANUTENÇÃO DIÁRIA',
                 itens: [
-                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
-                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
-                    { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, link_url: '', observacao: '', quant_diarias: 5, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11', quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
+                    { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11, 07/11', quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
+                    { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, link_url: '', observacao: '', dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11', quant_diarias: 5, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
                 ],
                 servicos: [
                     { quantidade: 1, nome: 'LIMPEZA DURANTE O EVENTO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 350, por_dia: 350, desconto: 50, total: 300 }
@@ -365,6 +389,7 @@
                 foto_url: window.obterFotoPropostaEquipamento(it),
                 link_url: window.obterLinkPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
+                dias_evento_texto: formatarDiasEventoProdutoCurto(it, prop),
                 quant_diarias: nDiarias,
                 unit: base,
                 por_dia: grossDia,
@@ -475,6 +500,7 @@
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${it.dias_evento_texto ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Dia de Evento / Sucção: ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
                 <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b; align-self:start;">${esc(it.quant_diarias)}</div>
                 <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.unit, '#3b3b3b')}</div>
@@ -552,11 +578,10 @@
                     ${secaoServicos}
                 </div>
 
-                <!-- Totais (sem faixa preta): diárias à esquerda e valor total em roxo abaixo da coluna VALOR TOTAL -->
+                <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
                 <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
                     <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                        <div class="bq-d" style="grid-column:1 / 5; text-align:left; font-size:${u(24)}; color:#3b3b3b; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.resumo_diarias_rodape || '')}">${esc(d.resumo_diarias_rodape || '')}</div>
-                        <div class="bq-d" style="grid-column:5 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                        <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
                         <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                     </div>
                 </div>
