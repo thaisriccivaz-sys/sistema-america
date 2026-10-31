@@ -5589,6 +5589,7 @@ window.onChangePeriodoInicioProposta = function() {
     if (diasPadrao !== null && diasEl) {
         diasEl.value = diasPadrao;
         window.calcularFimContrato();
+        if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
         return;
     }
     const diasVal = parseInt(diasEl?.value || 0, 10);
@@ -5598,15 +5599,20 @@ window.onChangePeriodoInicioProposta = function() {
         window.calcularDiasContrato();
         window.calcularFimContrato();
     }
+    if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
 };
 
 window.calcularDiasContrato = function() {
     const diasEl = document.getElementById('prop-dias');
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const fim = document.getElementById('prop-periodo-fim')?.value;
-    if (!ini || !fim || !diasEl) return;
+    if (!ini || !fim || !diasEl) {
+        if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
+        return;
+    }
     const diff = Math.ceil((new Date(fim + 'T12:00:00') - new Date(ini + 'T12:00:00')) / (1000 * 60 * 60 * 24));
     if (diff >= 0) diasEl.value = diff;
+    if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
 };
 
 window.calcularFimContrato = function() {
@@ -5617,6 +5623,7 @@ window.calcularFimContrato = function() {
     const date = new Date(ini + 'T12:00:00');
     date.setDate(date.getDate() + dias);
     fimEl.value = date.toISOString().split('T')[0];
+    if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
 };
 
 function calcularDescontoReais() {
@@ -17033,7 +17040,75 @@ window.obterDiasEventoComHorariosAtuais = function() {
     });
 };
 
+window.obterIntervaloPeriodoProposta = function() {
+    const ini = String(document.getElementById('prop-periodo-ini')?.value || '').trim();
+    const fim = String(document.getElementById('prop-periodo-fim')?.value || '').trim();
+    const iniValido = /^\d{4}-\d{2}-\d{2}$/.test(ini);
+    const fimValido = /^\d{4}-\d{2}-\d{2}$/.test(fim);
+    return {
+        ini: iniValido ? ini : '',
+        fim: fimValido ? fim : '',
+        valido: Boolean(iniValido && fimValido && ini <= fim)
+    };
+};
+
+window.diaEstaDentroDoPeriodoProposta = function(isoDate) {
+    const d = String(isoDate || '').trim().split(' ')[0];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+    if (!valido) return false;
+    return d >= ini && d <= fim;
+};
+
+window.sincronizarDiasEventoComPeriodoProposta = function() {
+    const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+    if (ini) {
+        const parts = ini.split('-');
+        if (parts.length === 3) {
+            const anoIni = parseInt(parts[0], 10);
+            const mesIni = parseInt(parts[1], 10) - 1;
+            const ymAtual = (window._propCalEventoAno !== undefined && window._propCalEventoMes !== undefined)
+                ? `${window._propCalEventoAno}-${String(window._propCalEventoMes + 1).padStart(2, '0')}`
+                : '';
+            const ymIni = ini.slice(0, 7);
+            const ymFim = fim ? fim.slice(0, 7) : ymIni;
+            if (!ymAtual || ymAtual < ymIni || ymAtual > ymFim) {
+                window._propCalEventoAno = anoIni;
+                window._propCalEventoMes = mesIni;
+            }
+        }
+    }
+    if (valido && Array.isArray(window._propDiasEventoSelecionados) && window._propDiasEventoSelecionados.length > 0) {
+        const filtrados = window._propDiasEventoSelecionados.filter(iso => {
+            const d = String(iso || '').trim().split(' ')[0];
+            return d >= ini && d <= fim;
+        });
+        if (filtrados.length !== window._propDiasEventoSelecionados.length) {
+            window._propDiasEventoSelecionados = filtrados;
+            if (typeof window.renderizarDiasEventoProposta === 'function') {
+                window.renderizarDiasEventoProposta(false);
+            }
+        }
+    }
+    const pop = document.getElementById('prop-dias-evento-popover');
+    if (pop && pop.style.display === 'block' && typeof window._renderCalendarioPopoverDiasEvento === 'function') {
+        window._renderCalendarioPopoverDiasEvento();
+    }
+    if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0 && typeof window.renderizarProdutosPropostaGrid === 'function') {
+        window.renderizarProdutosPropostaGrid();
+    }
+};
+
 window.validarDiasEHorariosEventoSelecionados = function() {
+    const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+    if (!valido) {
+        alert('Preencha primeiro os campos Período Início * e Até * antes de selecionar o(s) Dia(s) de Evento / Sucção.');
+        const iniEl = document.getElementById('prop-periodo-ini');
+        const fimEl = document.getElementById('prop-periodo-fim');
+        if (iniEl && !iniEl.value) iniEl.focus();
+        else if (fimEl && !fimEl.value) fimEl.focus();
+        return false;
+    }
     const lista = Array.isArray(window._propDiasEventoSelecionados)
         ? [...new Set(window._propDiasEventoSelecionados.filter(Boolean))].sort()
         : [];
@@ -17042,6 +17117,14 @@ window.validarDiasEHorariosEventoSelecionados = function() {
         if (typeof window.abrirCalendarioDiasEventoProposta === 'function') {
             window.abrirCalendarioDiasEventoProposta();
         }
+        return false;
+    }
+    const diaForaPeriodo = lista.find(iso => !window.diaEstaDentroDoPeriodoProposta(iso));
+    if (diaForaPeriodo) {
+        const fmt = diaForaPeriodo.includes('-') ? diaForaPeriodo.split('-').reverse().join('/') : diaForaPeriodo;
+        const iniFmt = ini.split('-').reverse().join('/');
+        const fimFmt = fim.split('-').reverse().join('/');
+        alert(`O Dia de Evento / Sucção (${fmt}) deve estar dentro do Período Início (${iniFmt}) Até (${fimFmt}).`);
         return false;
     }
     if (!window._propDiasEventoHorarios) window._propDiasEventoHorarios = {};
@@ -17231,6 +17314,15 @@ window.toggleDiaEventoProposta = function(isoDate, event) {
     if (idx >= 0) {
         window._propDiasEventoSelecionados.splice(idx, 1);
     } else {
+        if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(d)) {
+            const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+            if (!valido) {
+                alert('Preencha primeiro os campos Período Início * e Até * antes de selecionar os dias de evento / sucção.');
+            } else {
+                alert(`O Dia de Evento / Sucção deve estar dentro do Período Início (${ini.split('-').reverse().join('/')}) Até (${fim.split('-').reverse().join('/')}).`);
+            }
+            return;
+        }
         window._propDiasEventoSelecionados.push(d);
     }
     window.renderizarDiasEventoProposta(false);
@@ -17243,6 +17335,15 @@ window.adicionarDiaEventoProposta = function(isoDate, event) {
     }
     const { data: d } = window._parseDiasEventoItem(isoDate);
     if (!d) return;
+    if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(d)) {
+        const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+        if (!valido) {
+            alert('Preencha primeiro os campos Período Início * e Até * antes de selecionar os dias de evento / sucção.');
+        } else {
+            alert(`O Dia de Evento / Sucção deve estar dentro do Período Início (${ini.split('-').reverse().join('/')}) Até (${fim.split('-').reverse().join('/')}).`);
+        }
+        return;
+    }
     if (!Array.isArray(window._propDiasEventoSelecionados)) window._propDiasEventoSelecionados = [];
     if (!window._propDiasEventoSelecionados.includes(d)) {
         window._propDiasEventoSelecionados.push(d);
@@ -17286,7 +17387,21 @@ window.abrirCalendarioDiasEventoProposta = function(event) {
     }
     const pop = document.getElementById('prop-dias-evento-popover');
     if (!pop) return;
-    if (window._propCalEventoAno === undefined || window._propCalEventoMes === undefined) {
+    const { ini, fim } = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: '', fim: '' };
+    if (ini && /^\d{4}-\d{2}-\d{2}$/.test(ini)) {
+        const ymIni = ini.slice(0, 7);
+        const ymFim = (fim && /^\d{4}-\d{2}-\d{2}$/.test(fim)) ? fim.slice(0, 7) : ymIni;
+        const ymAtual = (window._propCalEventoAno !== undefined && window._propCalEventoMes !== undefined)
+            ? `${window._propCalEventoAno}-${String(window._propCalEventoMes + 1).padStart(2, '0')}`
+            : '';
+        if (!ymAtual || ymAtual < ymIni || ymAtual > ymFim) {
+            const parts = ini.split('-');
+            window._propCalEventoAno = parseInt(parts[0], 10);
+            window._propCalEventoMes = parseInt(parts[1], 10) - 1;
+        }
+    } else if (window._propCalEventoAno === undefined || window._propCalEventoMes === undefined) {
         const refDate = (window._propDiasEventoSelecionados && window._propDiasEventoSelecionados[0])
             ? new Date(window._propDiasEventoSelecionados[0] + 'T12:00:00')
             : new Date();
@@ -17343,6 +17458,9 @@ window._renderCalendarioPopoverDiasEvento = function() {
     const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
     const selecionados = new Set(window._propDiasEventoSelecionados || []);
     const hojeIso = new Date().toISOString().split('T')[0];
+    const { ini, fim, valido } = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: '', fim: '', valido: false };
 
     let cellsHtml = '';
     for (let i = 0; i < primeiroDiaSemana; i++) {
@@ -17354,22 +17472,40 @@ window._renderCalendarioPopoverDiasEvento = function() {
         const iso = `${ano}-${mm}-${dd}`;
         const isSel = selecionados.has(iso);
         const isHoje = iso === hojeIso;
-        cellsHtml += `
-            <button type="button" class="cal-dia-btn" onclick="window.toggleDiaEventoProposta('${iso}', event)"
-                style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:${isSel ? '1px solid #5b21b6' : (isHoje ? '1px solid #7048e8' : '1px solid #e2e8f0')} !important; background:${isSel ? '#7048e8' : '#f8fafc'} !important; color:${isSel ? '#fff' : '#1e293b'} !important; font-weight:${isSel || isHoje ? '700' : '500'} !important; font-size:0.8rem !important; cursor:pointer;">
-                ${dia}
-            </button>
-        `;
+        const permitido = Boolean(valido && iso >= ini && iso <= fim);
+        if (permitido) {
+            cellsHtml += `
+                <button type="button" class="cal-dia-btn" onclick="window.toggleDiaEventoProposta('${iso}', event)"
+                    style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:${isSel ? '1px solid #5b21b6' : (isHoje ? '1px solid #7048e8' : '1px solid #e2e8f0')} !important; background:${isSel ? '#7048e8' : '#f8fafc'} !important; color:${isSel ? '#fff' : '#1e293b'} !important; font-weight:${isSel || isHoje ? '700' : '500'} !important; font-size:0.8rem !important; cursor:pointer;">
+                    ${dia}
+                </button>
+            `;
+        } else {
+            const msgTitle = valido
+                ? `Data fora do período permitido (${ini.split('-').reverse().join('/')} até ${fim.split('-').reverse().join('/')})`
+                : 'Preencha primeiro Período Início * e Até * para liberar os dias';
+            cellsHtml += `
+                <button type="button" class="cal-dia-btn" disabled title="${msgTitle}"
+                    style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:1px solid #f1f5f9 !important; background:#f1f5f9 !important; color:#cbd5e1 !important; font-weight:400 !important; font-size:0.8rem !important; cursor:not-allowed !important; opacity:0.55 !important; pointer-events:none !important;">
+                    ${dia}
+                </button>
+            `;
+        }
     }
 
+    const avisoPeriodoHtml = valido
+        ? `<div style="background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe; border-radius:6px; padding:4px 8px; font-size:0.71rem; font-weight:600; margin-bottom:0.5rem; text-align:center;">Período permitido: <b>${ini.split('-').reverse().join('/')}</b> até <b>${fim.split('-').reverse().join('/')}</b></div>`
+        : `<div style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:6px; padding:5px 8px; font-size:0.72rem; font-weight:600; margin-bottom:0.5rem; text-align:center;">Preencha <b>Período Início *</b> e <b>Até *</b> para liberar os dias.</div>`;
+
     pop.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.55rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.45rem;">
             <button type="button" onclick="window.navegarMesCalendarioDiasEvento(-1, event)"
                 style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&lsaquo;</button>
             <div style="font-size:0.86rem; font-weight:800; color:#1e293b;">${nomesMeses[mes]} ${ano}</div>
             <button type="button" onclick="window.navegarMesCalendarioDiasEvento(1, event)"
                 style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&rsaquo;</button>
         </div>
+        ${avisoPeriodoHtml}
         <div class="cal-dias-grid" style="text-align:center; margin-bottom:4px;">
             ${diasSemana.map(d => `<div style="font-size:0.7rem; font-weight:700; color:#64748b;">${d}</div>`).join('')}
         </div>
@@ -17377,9 +17513,9 @@ window._renderCalendarioPopoverDiasEvento = function() {
             ${cellsHtml}
         </div>
         <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding-top:0.5rem; border-top:1px solid #e2e8f0;">
-            <input type="date" onchange="window.adicionarDiaEventoProposta(this.value, event); this.value='';"
-                title="Adicionar data específica"
-                style="flex:1; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.76rem;">
+            <input type="date" ${valido ? `min="${ini}" max="${fim}"` : 'disabled'} onchange="window.adicionarDiaEventoProposta(this.value, event); this.value='';"
+                title="${valido ? 'Adicionar data específica dentro do período' : 'Preencha primeiro Período Início * e Até *'}"
+                style="flex:1; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.76rem; ${valido ? '' : 'background:#f1f5f9; cursor:not-allowed; opacity:0.6;'}">
             <button type="button" onclick="window.fecharCalendarioDiasEventoProposta(event)"
                 style="background:#16a34a; color:#fff; border:none; padding:5px 12px !important; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer;">
                 Concluir (${selecionados.size})

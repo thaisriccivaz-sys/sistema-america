@@ -2606,6 +2606,17 @@ const uploadFoto = multer({ storage: storageFoto });
 
 
 // --- CONFIGURA?????????O DE MIDDLEWARES ---
+// Helper oficial para links enviados por e-mail / notificações (usa sempre https://fluxoar.com.br em produção sem exigir alteração de variáveis no Render)
+const URL_PUBLICA_SISTEMA = 'https://fluxoar.com.br';
+function obterUrlPublicaSistema(customVal) {
+    const raw = String(customVal || '').trim().replace(/\/+$/, '');
+    if (raw && !raw.includes('onrender.com') && !raw.includes('localhost') && !raw.includes('127.0.0.1')) {
+        return raw;
+    }
+    return URL_PUBLICA_SISTEMA;
+}
+global.obterUrlPublicaSistema = obterUrlPublicaSistema;
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
@@ -3241,7 +3252,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
-                    const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+                    const apiBase = obterUrlPublicaSistema(process.env.BASE_URL);
                     const logoUrl = `${apiBase}/assets/logo-header.png`;
                     const html = `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
@@ -5754,7 +5765,7 @@ async function checkColaboradorDesligado(colaboradorId) {
             + '</tr></thead><tbody>' + deptosRows + '</tbody></table>'
             + '<p style="margin-top:20px;color:#334155;">Acesse o sistema e defina um novo responsavel para cada departamento acima, garantindo a continuidade do fluxo de comunicação.</p>'
             + '<div style="text-align:center;margin:24px 0;">'
-            + '<a href="https://sistema-america.onrender.com/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestao de Departamentos</a>'
+            + '<a href="https://fluxoar.com.br/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestao de Departamentos</a>'
             + '</div>'
             + '<p style="margin-top:30px;font-size:0.9em;color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - America Rental</p>'
             + '<p style="margin-top:10px;font-size:0.8em;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;">Este e um e-mail automatico do sistema America Rental. Nao responda diretamente.</p>'
@@ -9251,7 +9262,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                     imgSrc = 'cid:' + cidName;
                 }
             } else if (cRow.foto_path) {
-                imgSrc = 'https://sistema-america.onrender.com/api/colaboradores/foto/' + cRow.id;
+                imgSrc = 'https://fluxoar.com.br/api/colaboradores/foto/' + cRow.id;
             }
         }
 
@@ -11077,7 +11088,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
                                                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                                             </div>
                                                             <div style="text-align:center;margin-top:20px;">
-                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontu&aacute;rio Digital</a>
+                                                                <a href="${obterUrlPublicaSistema(process.env.PUBLIC_URL)}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontu&aacute;rio Digital</a>
                                                             </div>
                                                             <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
                                                         </div>
@@ -19701,7 +19712,7 @@ const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
 
 // Helper para Layout de e-mail padronizado
 function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, diasRestantes, formLink, tipo, temRascunho = false }) {
-    const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+    const apiBase = obterUrlPublicaSistema(process.env.BASE_URL);
     const logoUrl = `${apiBase}/assets/logo-header.png`;
     const prazoFimFormatado = prazos ? prazos.prazo2_fim.split('-').reverse().join('/') : '';
     const mensagem = tipo === 'automatico'
@@ -19968,7 +19979,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 }
             }
 
-            const apiBase = (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+            const apiBase = obterUrlPublicaSistema(process.env.BASE_URL);
             const logoUrl = `${apiBase}/assets/logo-header.png`;
             const htmlMessage = `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
@@ -21551,7 +21562,7 @@ function verificarExperienciasVencendo() {
                     form_id: r.form_id || null
                 }, SECRET_KEY, { expiresIn: expiresInSeconds });
 
-                const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+                const baseUrl = obterUrlPublicaSistema(process.env.BASE_URL);
                 const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
                 const tipoAviso = deveEnviar7d ? '?????? URGENTE ??? 7 dias' : '15 dias';
 
@@ -22492,7 +22503,7 @@ function verificarSatisfacaoPendentes() {
             }
 
             const subject = `Lembrete: Pendências da Pesquisa de Satisfação - ${expectedTrim}º Trim. ${expectedAno}`;
-            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
+            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://fluxoar.com.br' : 'http://localhost:3000';
             const link = `${baseUrl}/?t=rh&tab=avaliacoes`;
             
             // Generate list of employees
@@ -22600,7 +22611,7 @@ function verificarDesempenhosPendentes() {
         for (const [emailDestino, dados] of Object.entries(pendenciasPorGestor)) {
             if (dados.colaboradores.length === 0) continue;
 
-            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
+            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://fluxoar.com.br' : 'http://localhost:3000';
             const link = `${baseUrl}/#feedback-gestor`;
             const subject = `Pesquisas de Desempenho Pendentes - ${expectedTrim}º Trim. ${expectedAno}`;
             
@@ -22934,7 +22945,7 @@ cron.schedule('0 8 * * *', () => {
                         if (errN || !rowsN || rowsN.length === 0) return;
                         
                         const requireCrypto = require('crypto');
-                        const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
+                        const urlFrontend = obterUrlPublicaSistema(process.env.URL_FRONTEND);
 
                         for (const cnd of cndsVencidas) {
                             const token = requireCrypto.randomBytes(24).toString('hex');
@@ -28856,7 +28867,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         db.all(getSACUsersQ, [], async (errQ, sacUsers) => {
                             if (!errQ && sacUsers && sacUsers.length > 0) {
                                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                                const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+                                const systemUrl = `https://fluxoar.com.br/?sac_ticket_id=${ticketId}`;
                                 const subject = `🪪 Novo SAC Credenciamento: Chamado Nº ${protocol}`;
                                 const htmlSac = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;"><div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div><div style="padding:24px;"><h2 style="color:#7048e8;text-align:center;margin-top:0;">🪪 Novo Chamado SAC &mdash; CREDENCIAMENTO</h2><p>Um novo chamado foi criado automaticamente.</p><div style="background:#f5f3ff;padding:16px;border-radius:8px;border-left:4px solid #7048e8;"><p><strong>Protocolo:</strong> Nº ${protocol}</p><p><strong>Cliente:</strong> ${cliente_nome}</p><p><strong>OS:</strong> ${os || 'Não informado'}</p><p><strong>Data Limite:</strong> ${data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada'}</p><p><strong>Solicitado por:</strong> ${req.user ? req.user.username : 'Comercial'}</p></div><div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#7048e8;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Acessar o Sistema</a></div></div></div>`;
                                 for (const u of sacUsers) {
@@ -28951,7 +28962,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 if (emails.size > 0) enviarEmailLogistica([...emails]);
 
                 function enviarEmailLogistica(destinatarios) {
-                    const baseUrl = process.env.PUBLIC_URL || 'https://sistema-america-homologacao.onrender.com';
+                    const baseUrl = obterUrlPublicaSistema(process.env.PUBLIC_URL);
                     const dtLimite = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Nao informada';
 
                     // Agrupar licenças por empresa
@@ -35290,7 +35301,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 
                       const sendSurveyEmail = () => {
                       if (!colab || !colab.email || !colab.email.includes('@')) return;
-                      const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+                      const baseUrl = obterUrlPublicaSistema(process.env.BASE_URL);
                       const link = `${baseUrl}/pesquisa-treinamento.html?token=${finalToken}`;
                       const nomeFirst = colabNome.split(' ')[0];
                       const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -35851,7 +35862,7 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
                                         <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
                                         <p>responsavel pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
-                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                            <a href="https://fluxoar.com.br" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
                                     </div>
                                 </div>`
@@ -35913,7 +35924,7 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
                                         <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
                                         <p>responsavel pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
-                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                            <a href="https://fluxoar.com.br" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
                                     </div>
                                 </div>`
@@ -36077,7 +36088,7 @@ function _condicaoAplicavel(colab, condicao) {
 }
 
 function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador, passos, baseUrl, dataAdmissao }) {
-    const apiBase = baseUrl || (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+    const apiBase = obterUrlPublicaSistema(baseUrl || process.env.BASE_URL);
     const logoUrl = `${apiBase}/assets/logo-header.png`;
     const gruposMap = { todos: 'Geral', administrativo: 'Administrativo', motorista: 'Motorista', operacional: 'Operacional', acompanhamento: 'Acompanhamento' };
     const passosHtml = passos.map(p => `
@@ -36346,7 +36357,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 responsaveisMapa[p.responsavel_user_id].passos.push(p);
             }
         }
-        const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+        const baseUrl = obterUrlPublicaSistema(process.env.BASE_URL);
         for (const resp of Object.values(responsaveisMapa)) {
             try {
                 await sendMailHelper({
@@ -37059,7 +37070,7 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
                     if (errN || !rowsN || rowsN.length === 0) return res.json({ msg: 'Ninguém configurado para receber' });
                     
                     const requireCrypto = require('crypto');
-                    const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
+                    const urlFrontend = obterUrlPublicaSistema(process.env.URL_FRONTEND);
 
                     for (const cnd of cndsVencidas) {
                         const token = requireCrypto.randomBytes(24).toString('hex');
@@ -38438,7 +38449,7 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
                             ${payload.local ? `<p style="margin:4px 0;"><strong>Local:</strong> ${payload.local}</p>` : ''}
                         </div>
                         <div style="text-align:center;margin-top:20px;">
-                            <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=logistica" style="display:inline-block;padding:12px 24px;background:#2d9e5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Controle de Multas</a>
+                            <a href="${obterUrlPublicaSistema(process.env.PUBLIC_URL)}/?app=logistica" style="display:inline-block;padding:12px 24px;background:#2d9e5f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Controle de Multas</a>
                         </div>
                         <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
                     </div>
@@ -47922,7 +47933,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         db.all(getSACUsersQuery, [], async (errQ, users) => {
             if (!errQ && users && users.length > 0) {
                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${t.id}`;
+                const systemUrl = `https://fluxoar.com.br/?sac_ticket_id=${t.id}`;
                 const subject = `📢 Novo SAC Registrado: Chamado Nº ${protocol}`;
                 
                 const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -48255,7 +48266,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
     const sectorMap = { logisticsTask: 'Logística', commercialTask: 'Comercial', financialTask: 'Financeiro',
                         'Logística': 'Logística', 'Comercial': 'Comercial', 'Financeiro': 'Financeiro' };
     const sectorName = sectorMap[setor] || setor || 'SAC';
-    const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+    const systemUrl = `https://fluxoar.com.br/?sac_ticket_id=${ticketId}`;
 
     const cleanClientName = (clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
 
@@ -48376,7 +48387,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
 app.post('/api/sac/notificar-novo-chamado', authenticateToken, async (req, res) => {
     const { ticketId, protocol, client } = req.body;
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const systemUrl = ticketId ? `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}` : 'https://sistema-america.onrender.com/';
+    const systemUrl = ticketId ? `https://fluxoar.com.br/?sac_ticket_id=${ticketId}` : 'https://fluxoar.com.br/';
 
     // 1. Notificação interna (popup/sino)
     const msgNotif = `Novo chamado SAC aberto: <strong>Nº ${protocol}</strong> — ${client}. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
@@ -48658,7 +48669,7 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
     console.log(`[SAC notif] Enviando aviso de prazo vencido (${kind}) ticket=${ticketId} Nº ${protocol} prazo=${cfg.deadline} solicitado por ${(req.user && (req.user.username || req.user.nome)) || '?'}`);
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+    const systemUrl = `https://fluxoar.com.br/?sac_ticket_id=${ticketId}`;
     // O servidor roda em UTC: formatar SEMPRE no fuso de Brasília (antes o e-mail mostrava +3h, ex.: 16:30 em vez de 13:30)
     const prazoFmt = new Date(cfg.deadline).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -48727,7 +48738,7 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
         }
 
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+        const systemUrl = `https://fluxoar.com.br/?sac_ticket_id=${ticketId}`;
         const abertoFmt = openDate ? new Date(openDate).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 
         const subject = `🔴 SAC — SLA Estourado: Chamado Nº ${protocol}`;

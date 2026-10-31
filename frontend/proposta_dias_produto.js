@@ -72,6 +72,15 @@
         const p = lista()[pIdx];
         iso = String(iso || '').trim();
         if (!p || !iso) return;
+        if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(iso)) {
+            const per = typeof window.obterIntervaloPeriodoProposta === 'function' ? window.obterIntervaloPeriodoProposta() : { ini: '', fim: '', valido: false };
+            if (!per.valido) {
+                alert('Preencha primeiro os campos Período Início * e Até * antes de selecionar os dias de evento / sucção.');
+            } else {
+                alert(`O Dia de Evento / Sucção deve estar dentro do Período Início (${fmtData(per.ini)}) Até (${fmtData(per.fim)}).`);
+            }
+            return;
+        }
         if (!Array.isArray(p.dias_evento)) p.dias_evento = [];
         if (p.dias_evento.some(d => parse(d).data === iso)) { alert('Esta diária já está neste produto.'); return; }
         const base = p.dias_evento.map(parse).find(x => horaOk(x.horario));
@@ -108,9 +117,13 @@
         const semDias = dias.length === 0
             ? '<span style="color:#dc2626; font-size:0.72rem; font-weight:700;"><i class="ph ph-warning"></i> Informe a(s) diária(s) deste produto</span>'
             : '';
-        const addDia = `<label title="Adicionar outra diária a este produto" onclick="const i=this.querySelector('input'); try{ i.showPicker(); }catch(e){}" style="position:relative; display:inline-flex; align-items:center; gap:3px; border:1px dashed #a78bfa; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; color:#6d28d9; cursor:pointer; overflow:hidden;">
+        const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+            ? window.obterIntervaloPeriodoProposta()
+            : { ini: '', fim: '', valido: false };
+        const minMaxAttr = `${per.ini ? `min="${esc(per.ini)}"` : ''} ${per.fim ? `max="${esc(per.fim)}"` : ''}`.trim();
+        const addDia = `<label title="Adicionar outra diária a este produto (dentro do Período Início / Até)" onclick="const i=this.querySelector('input'); try{ i.showPicker(); }catch(e){}" style="position:relative; display:inline-flex; align-items:center; gap:3px; border:1px dashed #a78bfa; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; color:#6d28d9; cursor:pointer; overflow:hidden;">
                 <i class="ph ph-plus"></i> dia
-                <input type="date" onchange="window.adicionarDiaProdutoProposta(${idx}, this.value); this.value='';" style="position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; cursor:pointer; padding:0; margin:0; border:none;">
+                <input type="date" ${minMaxAttr} onchange="window.adicionarDiaProdutoProposta(${idx}, this.value); this.value='';" style="position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; cursor:pointer; padding:0; margin:0; border:none;">
             </label>`;
         const replicar = (total > 1 && dias.length)
             ? `<button type="button" onclick="window.replicarDiasProdutoParaTodos(${idx})" title="Aplicar estas diárias a todos os outros produtos" style="background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; width:auto !important; height:auto !important;"><i class="ph ph-copy"></i> Replicar em todos os produtos</button>`

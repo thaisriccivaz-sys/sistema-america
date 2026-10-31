@@ -83,7 +83,10 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
     }
 
 
-    const logoSrc = `${baseUrl || 'https://sistema-america.onrender.com'}/assets/logo-header.png`;
+    const resolvedBaseUrl = (typeof global.obterUrlPublicaSistema === 'function')
+        ? global.obterUrlPublicaSistema(baseUrl)
+        : ((baseUrl && !String(baseUrl).includes('onrender.com')) ? baseUrl : 'https://fluxoar.com.br');
+    const logoSrc = `${resolvedBaseUrl}/assets/logo-header.png`;
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">

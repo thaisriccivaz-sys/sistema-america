@@ -165,7 +165,9 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
 
         db.get(`SELECT id, token, status FROM rota_sucesso_respostas WHERE colaborador_id = ? AND tipo = ? ORDER BY id DESC LIMIT 1`, [colaborador_id, tipo], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
-            const base = process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com";
+            const base = (typeof global.obterUrlPublicaSistema === "function")
+                ? global.obterUrlPublicaSistema(process.env.RENDER_EXTERNAL_URL)
+                : "https://fluxoar.com.br";
             // Se existir e ainda não respondido, retornar token existente
             if (row && row.status !== "respondido") {
                 return res.json({ token: row.token, url: `${base}/rota-sucesso/formulario/${row.token}`, status: row.status, id: row.id });
@@ -274,8 +276,9 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
                     <div style="font-size:0.95rem;color:#1e293b;background:#f0f4ff;border-radius:6px;padding:10px 14px;border-left:3px solid #1d4ed8;">${r || "-"}</div>
                 </div>`).join("");
 
-            const fotoUrl = `${process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com"}/api/colaboradores/foto/${row.colab_id}`;
-            const logoUrl = `${process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com"}/assets/logo-header.png`;
+            const baseRotaUrl = (typeof global.obterUrlPublicaSistema === "function") ? global.obterUrlPublicaSistema(process.env.RENDER_EXTERNAL_URL) : "https://fluxoar.com.br";
+            const fotoUrl = `${baseRotaUrl}/api/colaboradores/foto/${row.colab_id}`;
+            const logoUrl = `${baseRotaUrl}/assets/logo-header.png`;
             const ini = (row.nome_completo || "?").split(" ").filter(Boolean).slice(0,2).map(p => p[0]).join("").toUpperCase();
 
             const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${tipoLabel} — ${row.nome_completo}</title>

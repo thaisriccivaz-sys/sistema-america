@@ -13215,7 +13215,7 @@ window.openContratoViewerPopup = function (pdfUrl, nomeDoc) {
     if (!pdfUrl || pdfUrl.endsWith('undefined')) { alert('URL do documento não encontrada.'); return; }
     var token = window.currentToken || localStorage.getItem('erp_token') || '';
     var finalUrl = pdfUrl;
-    if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
+    if ((pdfUrl.indexOf('onrender.com') >= 0 || pdfUrl.indexOf('fluxoar.com.br') >= 0 || pdfUrl.indexOf(window.location.hostname) >= 0) && pdfUrl.indexOf('token=') === -1) {
         finalUrl = (pdfUrl.indexOf('?') >= 0 ? pdfUrl + '&token=' + token : pdfUrl + '?token=' + token);
     }
     var nomeSafe = (nomeDoc || 'Documento');
@@ -21505,7 +21505,7 @@ window.enviarFichaContabilidade = async function (btn) {
     btn.disabled = true;
 
     try {
-        const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://sistema-america.onrender.com/api') + `/colaboradores/${colabId}/enviar-ficha-contabilidade`;
+        const url = (typeof API_URL !== 'undefined' ? API_URL : 'https://fluxoar.com.br/api') + `/colaboradores/${colabId}/enviar-ficha-contabilidade`;
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` },
