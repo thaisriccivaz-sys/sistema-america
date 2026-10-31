@@ -165,13 +165,86 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         return `/api/comercial/boxes/${row.id}/arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
     }
     const parseJson = (raw) => { try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+    const parseObjJson = (raw) => {
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+        try { const v = JSON.parse(raw || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; }
+    };
 
-    async function listarBoxesPublicos() {
-        const rows = await dbAll('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC');
-        const lista = rows.map(r => ({
+    const MODELOS_PADRAO_CODIGOS = [
+        'EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL',
+        'LIMPA FOSSA', 'LIMPA FOSSA MENSAL', 'LOCAÇÃO CONTAINER',
+        'EQUIPAMENTOS', 'VENDA', 'VISITA TÉCNICA', 'AVARIA', 'ADITIVO'
+    ];
+    function normalizarModeloTipoPublico(raw) {
+        const limpo = norm(raw).toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
+        if (!limpo) return 'EVENTO';
+        const exato = MODELOS_PADRAO_CODIGOS.find(c => norm(c).toUpperCase() === limpo);
+        if (exato) return exato;
+        if (limpo.includes('ADITIVO')) return 'ADITIVO';
+        if (limpo.includes('OBRA') && limpo.includes('QUINZ')) return 'OBRA QUINZENAL';
+        if (limpo.includes('OBRA') && limpo.includes('SEMAN')) return 'OBRA SEMANAL';
+        if (limpo.includes('OBRA')) return 'OBRA MENSAL';
+        if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
+        if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
+        if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';
+        if (limpo.includes('EQUIPAMENTO')) return 'EQUIPAMENTOS';
+        if (limpo.includes('VENDA')) return 'VENDA';
+        if (limpo.includes('VISITA')) return 'VISITA TÉCNICA';
+        if (limpo.includes('AVARIA')) return 'AVARIA';
+        return 'EVENTO';
+    }
+
+    async function resolverModeloOriginarioAditivoPublico(p) {
+        if (!p) return 'EVENTO';
+        if (p.contrato_vinculado_tipo) {
+            const tExplicito = normalizarModeloTipoPublico(p.contrato_vinculado_tipo);
+            if (tExplicito && tExplicito !== 'ADITIVO') return tExplicito;
+        }
+        const cvId = Number(p.contrato_vinculado_id) || 0;
+        if (cvId > 0) {
+            const ctRow = await dbGet('SELECT * FROM contratos WHERE id = ?', [cvId]).catch(() => null);
+            if (ctRow && ctRow.tipo && normalizarModeloTipoPublico(ctRow.tipo) !== 'ADITIVO') {
+                return normalizarModeloTipoPublico(ctRow.tipo);
+            }
+            const propIdRef = (ctRow && ctRow.proposta_id) ? ctRow.proposta_id : cvId;
+            const prRow = await dbGet('SELECT tipo, tabela_precos FROM propostas WHERE id = ?', [propIdRef]).catch(() => null);
+            if (prRow) {
+                const tPr = normalizarModeloTipoPublico(prRow.tipo || prRow.tabela_precos);
+                if (tPr && tPr !== 'ADITIVO') return tPr;
+            }
+        }
+        const cvNum = String(p.contrato_vinculado || '').trim();
+        if (cvNum) {
+            const ctNumRow = await dbGet('SELECT * FROM contratos WHERE UPPER(TRIM(numero_contrato)) = UPPER(TRIM(?))', [cvNum]).catch(() => null);
+            if (ctNumRow && ctNumRow.tipo && normalizarModeloTipoPublico(ctNumRow.tipo) !== 'ADITIVO') {
+                return normalizarModeloTipoPublico(ctNumRow.tipo);
+            }
+            const prNumRow = await dbGet(
+                `SELECT tipo, tabela_precos FROM propostas
+                 WHERE (UPPER(TRIM(contrato)) = UPPER(TRIM(?)) OR UPPER(TRIM(codigo)) = UPPER(TRIM(?)))
+                   AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
+                 ORDER BY id DESC LIMIT 1`,
+                [cvNum, cvNum]
+            ).catch(() => null);
+            if (prNumRow) {
+                const tPr2 = normalizarModeloTipoPublico(prNumRow.tipo || prNumRow.tabela_precos);
+                if (tPr2 && tPr2 !== 'ADITIVO') return tPr2;
+            }
+        }
+        if (p.tabela_precos) {
+            const tTab = normalizarModeloTipoPublico(p.tabela_precos);
+            if (tTab && tTab !== 'ADITIVO') return tTab;
+        }
+        return 'EVENTO';
+    }
+
+    function mapearRowBoxPublico(r, modeloForcado) {
+        return {
             id: r.id,
             nome: r.nome,
             tipo: r.tipo,
+            modelo_tipo: normalizarModeloTipoPublico(modeloForcado || r.modelo_tipo || 'EVENTO'),
+            config_quadro: parseObjJson(r.config_quadro),
             url: urlBox(r, 'desktop'),
             mobile_url: urlBox(r, 'mobile'),
             mobile_tipo: r.mobile_tipo || null,
@@ -180,9 +253,47 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             foco_x: r.foco_x, foco_y: r.foco_y,
             hotspots_desktop: parseJson(r.hotspots_desktop),
             hotspots_mobile: parseJson(r.hotspots_mobile)
-        }));
+        };
+    }
+
+    async function listarBoxesPublicos(p) {
+        const tipoPropNorm = normalizarModeloTipoPublico(p && p.tipo);
+        const ehAditivo = tipoPropNorm === 'ADITIVO';
+        const modeloBase = ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm;
+
+        let rowsBase = await dbAll(
+            'SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC',
+            [modeloBase]
+        );
+        if (!rowsBase.length) {
+            rowsBase = await dbAll(
+                "SELECT * FROM comercial_boxes WHERE ativo = 1 AND (modelo_tipo = 'EVENTO' OR modelo_tipo IS NULL OR TRIM(modelo_tipo) = '') ORDER BY ordem ASC, id ASC"
+            );
+        }
+        const lista = rowsBase.map(r => mapearRowBoxPublico(r, modeloBase));
         if (!lista.some(b => b.tipo === 'quadro_evento')) {
-            lista.push({ id: 0, nome: 'Quadro de Valores', tipo: 'quadro_evento', mobile_modo: 'mesma', hotspots_desktop: [], hotspots_mobile: [] });
+            lista.push({
+                id: 0,
+                nome: 'Quadro de Valores',
+                tipo: 'quadro_evento',
+                modelo_tipo: modeloBase,
+                config_quadro: { modelo_tipo: modeloBase, titulo_topo: modeloBase },
+                mobile_modo: 'mesma',
+                hotspots_desktop: [],
+                hotspots_mobile: []
+            });
+        }
+
+        if (ehAditivo) {
+            const rowsAditivo = await dbAll(
+                "SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = 'ADITIVO' AND tipo != 'quadro_evento' ORDER BY ordem ASC, id ASC"
+            );
+            const boxesAditivo = rowsAditivo.map(r => Object.assign(mapearRowBoxPublico(r, 'ADITIVO'), { origem_aditivo: true }));
+            if (boxesAditivo.length > 0) {
+                const idxQuadro = lista.findIndex(b => b.tipo === 'quadro_evento');
+                const posInserir = idxQuadro >= 0 ? idxQuadro + 1 : lista.length;
+                lista.splice(posInserir, 0, ...boxesAditivo);
+            }
         }
         return lista;
     }
@@ -401,11 +512,18 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             ? 'MANUTENÇÃO DIÁRIA'
             : (datasOrd.length > 0 ? datasOrd.map(dIso => fmtDataIso(dIso)).join(', ') : '');
         const numSeq = formatarSeq(p.codigo, p.contrato, p.id);
+        const tipoPropNorm = normalizarModeloTipoPublico(p.tipo);
+        const ehAditivo = tipoPropNorm === 'ADITIVO';
+        const modeloEfetivo = ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm;
+        const eventoLikeEfetivo = tipoEhEventoLike(modeloEfetivo);
 
         return {
-            tipo_titulo: tipoLimpo(p.tipo) || 'EVENTO',
-            info_rotulo: eventoLike ? 'EVENTO:' : 'DO CONTRATO:',
-            ocultar_nome_evento: !eventoLike,
+            tipo_titulo: modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO',
+            modelo_tipo: modeloEfetivo || 'EVENTO',
+            eh_aditivo: ehAditivo,
+            contrato_vinculado: String(p.contrato_vinculado || '').trim(),
+            info_rotulo: eventoLikeEfetivo ? 'EVENTO:' : 'EVENTO:',
+            ocultar_nome_evento: false,
             contrato: numSeq,
             codigo_proposta: numSeq,
             razao_social: cliNomeLimpo || '—',
@@ -443,7 +561,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado. Solicite uma nova proposta.' });
 
-            const [dados, boxes] = await Promise.all([montarDadosQuadro(p), listarBoxesPublicos()]);
+            const [dados, boxes] = await Promise.all([montarDadosQuadro(p), listarBoxesPublicos(p)]);
             const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
             db.run('UPDATE propostas SET visualizacoes_publicas = COALESCE(visualizacoes_publicas,0) + 1, ultima_visualizacao_publica = ? WHERE id = ?', [agora, p.id], () => {});
             res.json({ dados, boxes });

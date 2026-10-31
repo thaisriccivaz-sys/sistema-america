@@ -2046,6 +2046,7 @@ function _renderFormPropostaInt() {
                             <div style="display:flex; gap:0.25rem; align-items:center;">
                                 <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(v('contrato_vinculado') || '')}"
                                     data-contrato-id="${_escHtmlProp(v('contrato_vinculado_id') || '')}"
+                                    data-contrato-tipo="${_escHtmlProp(v('contrato_vinculado_tipo') || '')}"
                                     placeholder="Nº do contrato ou cliente..."
                                     title="Digite o número do contrato ou nome do cliente e pressione Enter ou clique na lupa para pesquisar (apenas contratos ativos)"
                                     onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaContratoAditivo(); }"
@@ -5912,6 +5913,7 @@ window.salvarPropostaNova = async function() {
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
+        contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -6427,6 +6429,7 @@ window.estornarPropostaEdicao = async function() {
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
+        contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -6951,10 +6954,13 @@ async function imprimirProposta(id) {
             apiGet('/clientes').catch(() => [])
         ]);
         modelObj = (models || []).find(m => m.nome === p.modelo_impressao);
-        const tipoNorm = String(p.tipo || '').trim().toUpperCase();
+        const tipoBruto = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const tipoNorm = (tipoBruto === 'ADITIVO' || tipoBruto === 'ADTIVO')
+            ? (typeof window.resolverModeloOrigemAditivo === 'function' ? window.resolverModeloOrigemAditivo(p) : String(p.contrato_vinculado_tipo || p.tabela_precos || 'EVENTO').trim().toUpperCase())
+            : String(p.tipo || '').trim().toUpperCase();
         modeloPropostaObj = (modelosProp || []).find(m =>
-            String(m.codigo_tipo || '').trim().toUpperCase() === tipoNorm ||
-            String(m.nome || '').trim().toUpperCase() === tipoNorm
+            String(m.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === tipoNorm.replace(/^PROPOSTA\s+/i, '') ||
+            String(m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === tipoNorm.replace(/^PROPOSTA\s+/i, '')
         ) || (modelosProp || [])[0] || null;
 
         clientObj = (clients || []).find(c =>
@@ -17777,6 +17783,7 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
         if (inp) {
             inp.value = '';
             inp.removeAttribute('data-contrato-id');
+            inp.removeAttribute('data-contrato-tipo');
         }
     }
 };
@@ -17820,7 +17827,8 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
                 window.selecionarContratoAditivoBusca(
                     String(c.numero_contrato || c.contrato || c.codigo || ''),
                     String(c.id || ''),
-                    String(c.cliente_nome || c.razao_social || '')
+                    String(c.cliente_nome || c.razao_social || ''),
+                    String(c.tipo || '')
                 );
                 return;
             }
@@ -17831,12 +17839,14 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     }
 };
 
-window.selecionarContratoAditivoBusca = function(numContrato, idContrato, clienteNome) {
+window.selecionarContratoAditivoBusca = function(numContrato, idContrato, clienteNome, tipoContrato) {
     const inp = document.getElementById('prop-contrato-aditivo');
     if (inp) {
         inp.value = String(numContrato || '').trim();
         if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
         else inp.removeAttribute('data-contrato-id');
+        if (tipoContrato) inp.setAttribute('data-contrato-tipo', String(tipoContrato).trim());
+        else inp.removeAttribute('data-contrato-tipo');
     }
     const cliEl = document.getElementById('prop-cliente');
     if (cliEl && !cliEl.value.trim() && clienteNome) {
@@ -17861,8 +17871,9 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const num = String(c.numero_contrato || c.contrato || c.codigo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const id = String(c.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const cli = String(c.cliente_nome || c.razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const per = (c.periodo_inicio || c.periodo_fim) ? `${fmtData(c.periodo_inicio)} a ${fmtData(c.periodo_fim)}` : '—';
-            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
                 <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(c.cliente_nome || c.razao_social || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center;">${esc(c.tipo || '—')}</td>
@@ -21281,9 +21292,17 @@ function _fmtMoedaNumProp(v) {
 window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
     const m = modelo || {};
     const codTipoLimpo = String(m.codigo_tipo || m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    if (codTipoLimpo === 'EVENTO' && typeof window.renderBoxQuadroEventoHtml === 'function') {
+    if (typeof window.renderBoxQuadroEventoHtml === 'function') {
+        const isAdt = codTipoLimpo === 'ADITIVO' || codTipoLimpo === 'ADTIVO';
+        const modEfetivo = isAdt
+            ? (typeof window.resolverModeloOrigemAditivo === 'function' ? window.resolverModeloOrigemAditivo(dadosCustom) : 'EVENTO')
+            : (codTipoLimpo || 'EVENTO');
+        const htmlQuadro = window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop', { modelo_tipo: modEfetivo });
+        const extrasAdt = (Array.isArray(window._boxesAditivoCache) && window._boxesAditivoCache.length > 0 && typeof window.boxRenderHtml === 'function')
+            ? window._boxesAditivoCache.filter(b => b && b.tipo !== 'quadro_evento').map(b => window.boxRenderHtml(b, 'desktop')).join('')
+            : '';
         return '<div style="max-width:960px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">' +
-            window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop') +
+            htmlQuadro + extrasAdt +
             '</div>';
     }
     let contratada = {
@@ -21620,8 +21639,8 @@ window._renderModelosPropostasInt = async function() {
                 </div>
 
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                    <button onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes();" title="Banners de imagem e vídeo (Boxes)" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
-                        <i class="ph ph-image-square"></i> Boxes (Banners)
+                    <button onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes(window._modeloPropostaAtivo?.codigo_tipo || 'EVENTO');" title="Banners de imagem, vídeo e Quadro de Valores por Modelo (Boxes)" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-image-square"></i> Boxes (Banners + Quadro de Valores)
                     </button>
                     <button onclick="window.novoModeloPropostaModal()" style="background:#fff; color:#7048e8; border:1px solid #d0bfff; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-plus-circle"></i> Novo Tipo de Proposta
@@ -21684,8 +21703,12 @@ window._renderModelosPropostasInt = async function() {
     `;
 
     try {
-        const rows = await apiGet('/comercial/modelos-proposta');
+        const [rows, boxesAdt] = await Promise.all([
+            apiGet('/comercial/modelos-proposta'),
+            apiGet('/comercial/boxes?modelo_tipo=ADITIVO').catch(() => [])
+        ]);
         window._modelosPropostasList = Array.isArray(rows) ? rows : [];
+        window._boxesAditivoCache = Array.isArray(boxesAdt) ? boxesAdt : [];
         const badge = document.getElementById('modelos-prop-count-badge');
         if (badge) badge.textContent = String(window._modelosPropostasList.length);
 
@@ -21787,12 +21810,25 @@ window._renderEditorModeloPropostaAtivo = function() {
                     </span>
                 </div>
             </div>
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" style="background:#7048e8; color:#fff; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-image-square"></i> Boxes e Quadro de Valores (${_escHtmlProp(m.codigo_tipo || m.nome)})
+                </button>
                 <button type="button" onclick="window.salvarModeloPropostaAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
                     <i class="ph ph-check-circle"></i> Salvar Textos
                 </button>
             </div>
         </div>
+        ${String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO') ? `
+        <div style="background:#f5f3ff; border:1.5px dashed #8b5cf6; border-radius:10px; padding:0.75rem 0.95rem; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div style="font-size:0.78rem; color:#4c1d95; line-height:1.4;">
+                <b><i class="ph ph-link"></i> Modelo Aditivo vinculado ao Contrato Originário:</b> Se o contrato vinculado for Obra, usa o modelo de Obra; se for Evento, usa o modelo de Evento, e assim por diante.<br>
+                <b><i class="ph ph-image-square"></i> Imagens do Aditivo:</b> As imagens incluídas aqui aparecem automaticamente <b>abaixo do campo #2 Quadro de Valores — Proposta Evento (Fixo)</b> (ou do modelo vinculado ao contrato).
+            </div>
+            <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.78rem; white-space:nowrap; display:inline-flex; align-items:center; gap:5px;">
+                <i class="ph ph-plus-circle"></i> Incluir Imagens no Aditivo (abaixo do #2 Quadro de Valores)
+            </button>
+        </div>` : ''}
 
         <!-- Campos de Configuração do Cabeçalho e Títulos -->
         <div style="display:grid; grid-template-columns: 1fr 1fr 1.3fr; gap:0.75rem; margin-bottom:0.85rem;">

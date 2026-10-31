@@ -39910,6 +39910,11 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         console.log('[PROPOSTAS] Alerta ao alterar tabela contrato_vinculado_id:', errAlterContVincId.message);
       }
     });
+    db.run("ALTER TABLE propostas ADD COLUMN contrato_vinculado_tipo TEXT", (errAlterContVincTipo) => {
+      if (errAlterContVincTipo && !errAlterContVincTipo.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela contrato_vinculado_tipo:', errAlterContVincTipo.message);
+      }
+    });
     db.run(`CREATE TABLE IF NOT EXISTS contratos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       numero_contrato TEXT,
@@ -39987,18 +39992,53 @@ app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
     [],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
-      let lista = (rows || []).filter(c => {
-        const sit = String(c.situacao || c.status || '').trim().toUpperCase();
-        return sit === 'ATIVO' || sit === 'ATIVA';
-      });
-      if (q) {
-        lista = lista.filter(c => {
-          const num = String(c.numero_contrato || c.contrato || c.codigo || '').toLowerCase();
-          const cli = String(c.cliente_nome || c.razao_social || '').toLowerCase();
-          return num.includes(q) || cli.includes(q);
-        });
-      }
-      res.json(lista);
+      db.all(
+        `SELECT id, codigo, contrato, cliente_nome, contato_nome, tipo, tabela_precos, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, status
+         FROM propostas
+         WHERE UPPER(TRIM(COALESCE(status, 'ATIVA'))) IN ('ATIVO', 'ATIVA', 'APROVADA')
+           AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
+         ORDER BY id DESC`,
+        [],
+        (errProp, rowsProp) => {
+          let lista = (rows || []).filter(c => {
+            const sit = String(c.situacao || c.status || '').trim().toUpperCase();
+            return sit === 'ATIVO' || sit === 'ATIVA';
+          });
+          const vistos = new Set(lista.map(c => String(c.numero_contrato || c.contrato || c.codigo || '').trim().toUpperCase()).filter(Boolean));
+          if (!errProp && Array.isArray(rowsProp)) {
+            rowsProp.forEach(p => {
+              const numRef = String(p.contrato || p.codigo || '').trim();
+              if (!numRef || vistos.has(numRef.toUpperCase())) return;
+              vistos.add(numRef.toUpperCase());
+              lista.push({
+                id: p.id,
+                proposta_id: p.id,
+                numero_contrato: numRef,
+                codigo: p.codigo,
+                contrato: p.contrato,
+                cliente_nome: p.cliente_nome,
+                contato_nome: p.contato_nome,
+                tipo: p.tipo || p.tabela_precos || 'EVENTO',
+                periodo_inicio: p.periodo_inicio,
+                periodo_fim: p.periodo_fim,
+                endereco_instalacao: p.endereco_instalacao,
+                valor_total: p.valor_total,
+                situacao: 'ATIVO',
+                status: 'ATIVO'
+              });
+            });
+          }
+          if (q) {
+            lista = lista.filter(c => {
+              const num = String(c.numero_contrato || c.contrato || c.codigo || '').toLowerCase();
+              const cli = String(c.cliente_nome || c.razao_social || '').toLowerCase();
+              const cod = String(c.codigo || '').toLowerCase();
+              return num.includes(q) || cli.includes(q) || cod.includes(q);
+            });
+          }
+          res.json(lista);
+        }
+      );
     }
   );
 });
@@ -40041,20 +40081,20 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         codigo, contrato, local, tipo, atendente, data_cadastro, validade_proposta, previsao_fechamento,
         fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
         periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato, dias_evento,
-        tabela_precos, nome_evento, servico_frete_fob, contrato_vinculado, contrato_vinculado_id, endereco_instalacao, desconto_percent, desconto_reais,
+        tabela_precos, nome_evento, servico_frete_fob, contrato_vinculado, contrato_vinculado_id, contrato_vinculado_tipo, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         itens_servicos, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
         d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
         d.dias_contrato||0,
         d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
-        d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.endereco_instalacao,
+        d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.contrato_vinculado_tipo || null, d.endereco_instalacao,
         d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
         d.representante, d.transportadora, d.tipo_frete,
         d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -40110,7 +40150,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
-      tabela_precos=?, nome_evento=?, servico_frete_fob=?, contrato_vinculado=?, contrato_vinculado_id=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+      tabela_precos=?, nome_evento=?, servico_frete_fob=?, contrato_vinculado=?, contrato_vinculado_id=?, contrato_vinculado_tipo=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
@@ -40123,7 +40163,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0,
       d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
-      d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.endereco_instalacao,
+      d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.contrato_vinculado_tipo || null, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -43605,6 +43645,8 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome TEXT NOT NULL,
   tipo TEXT NOT NULL DEFAULT 'imagem',
+  modelo_tipo TEXT DEFAULT 'EVENTO',
+  config_quadro TEXT DEFAULT '{}',
   r2_key TEXT,
   mime_type TEXT,
   mobile_modo TEXT DEFAULT 'mesma',
@@ -43623,12 +43665,66 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
   atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
 )`, (errBox) => {
   if (errBox) console.error('[BOXES] Erro ao criar tabela comercial_boxes:', errBox.message);
+  db.run("ALTER TABLE comercial_boxes ADD COLUMN modelo_tipo TEXT DEFAULT 'EVENTO'", (errAlt1) => {
+    if (errAlt1 && !String(errAlt1.message).includes('duplicate column name')) {
+      console.error('[BOXES] Aviso migration modelo_tipo:', errAlt1.message);
+    }
+    db.run("UPDATE comercial_boxes SET modelo_tipo = 'EVENTO' WHERE modelo_tipo IS NULL OR TRIM(modelo_tipo) = ''", () => {});
+  });
+  db.run("ALTER TABLE comercial_boxes ADD COLUMN config_quadro TEXT DEFAULT '{}'", (errAlt2) => {
+    if (errAlt2 && !String(errAlt2.message).includes('duplicate column name')) {
+      console.error('[BOXES] Aviso migration config_quadro:', errAlt2.message);
+    }
+  });
 });
 
 const uploadBoxesMem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 120 * 1024 * 1024 } });
 const boxesUploadFields = uploadBoxesMem.fields([{ name: 'arquivo', maxCount: 1 }, { name: 'arquivo_mobile', maxCount: 1 }]);
 const BOX_MOBILE_MODOS = ['mesma', 'arquivo', 'recorte', 'ocultar'];
 const BOX_PROPORCOES = ['1:1', '4:5', '3:4', '9:16', '16:9', '3:2'];
+
+const BOX_MODELOS_PADRAO = [
+  { codigo: 'EVENTO', nome: 'Proposta Evento', quadroNome: 'Quadro de Valores — Proposta Evento (Fixo)' },
+  { codigo: 'OBRA MENSAL', nome: 'Proposta Obra Mensal', quadroNome: 'Quadro de Valores — Proposta Obra Mensal (Fixo)' },
+  { codigo: 'OBRA QUINZENAL', nome: 'Proposta Obra Quinzenal', quadroNome: 'Quadro de Valores — Proposta Obra Quinzenal (Fixo)' },
+  { codigo: 'OBRA SEMANAL', nome: 'Proposta Obra Semanal', quadroNome: 'Quadro de Valores — Proposta Obra Semanal (Fixo)' },
+  { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa (Fixo)' },
+  { codigo: 'LIMPA FOSSA MENSAL', nome: 'Proposta Limpa Fossa Mensal', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa Mensal (Fixo)' },
+  { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', quadroNome: 'Quadro de Valores — Proposta Locação Container (Fixo)' },
+  { codigo: 'EQUIPAMENTOS', nome: 'Equipamentos', quadroNome: 'Quadro de Valores — Equipamentos (Fixo)' },
+  { codigo: 'VENDA', nome: 'Proposta Venda', quadroNome: 'Quadro de Valores — Proposta Venda (Fixo)' },
+  { codigo: 'VISITA TÉCNICA', nome: 'Visita Técnica', quadroNome: 'Quadro de Valores — Visita Técnica (Fixo)' },
+  { codigo: 'AVARIA', nome: 'Proposta Avaria', quadroNome: 'Quadro de Valores — Proposta Avaria (Fixo)' },
+  { codigo: 'ADITIVO', nome: 'Aditivo', quadroNome: null, isAditivo: true }
+];
+
+function boxSemAcento(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+}
+
+function boxNormalizarModeloTipo(raw) {
+  const limpo = boxSemAcento(raw).replace(/^PROPOSTA\s+/i, '').trim();
+  if (!limpo) return 'EVENTO';
+  const achado = BOX_MODELOS_PADRAO.find(m => boxSemAcento(m.codigo) === limpo || boxSemAcento(m.nome).replace(/^PROPOSTA\s+/i, '') === limpo);
+  if (achado) return achado.codigo;
+  if (limpo.includes('ADITIVO')) return 'ADITIVO';
+  if (limpo.includes('OBRA') && limpo.includes('QUINZ')) return 'OBRA QUINZENAL';
+  if (limpo.includes('OBRA') && limpo.includes('SEMAN')) return 'OBRA SEMANAL';
+  if (limpo.includes('OBRA')) return 'OBRA MENSAL';
+  if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
+  if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
+  if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';
+  if (limpo.includes('EQUIPAMENTO')) return 'EQUIPAMENTOS';
+  if (limpo.includes('VENDA')) return 'VENDA';
+  if (limpo.includes('VISITA')) return 'VISITA TÉCNICA';
+  if (limpo.includes('AVARIA')) return 'AVARIA';
+  return 'EVENTO';
+}
+
+function boxMetaPorModelo(modeloTipo) {
+  const norm = boxNormalizarModeloTipo(modeloTipo);
+  return BOX_MODELOS_PADRAO.find(m => m.codigo === norm) || BOX_MODELOS_PADRAO[0];
+}
 
 function boxUrlArquivo(row, variante) {
   const key = variante === 'mobile' ? row.mobile_r2_key : row.r2_key;
@@ -43639,6 +43735,11 @@ function boxUrlArquivo(row, variante) {
 
 function boxParseJson(raw) {
   try { const v = JSON.parse(raw || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+
+function boxParseObjJson(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  try { const v = JSON.parse(raw || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; } catch (e) { return {}; }
 }
 
 function boxSanitizeHotspots(raw) {
@@ -43662,6 +43763,8 @@ function boxSanitizeHotspots(raw) {
 
 function boxMontarRespostaRow(row) {
   return Object.assign({}, row, {
+    modelo_tipo: boxNormalizarModeloTipo(row.modelo_tipo || 'EVENTO'),
+    config_quadro: boxParseObjJson(row.config_quadro),
     url: boxUrlArquivo(row, 'desktop'),
     mobile_url: boxUrlArquivo(row, 'mobile'),
     hotspots_desktop: boxParseJson(row.hotspots_desktop),
@@ -43689,6 +43792,22 @@ async function boxEnviarArquivoR2(file, nomeBox) {
   return key;
 }
 
+async function boxApagarR2SeSemReferencia(key, ignoreId) {
+  if (!key) return;
+  const r2b = require('./utils/r2');
+  if (!r2b.isReady()) return;
+  const cnt = await new Promise((resolve) => {
+    db.get(
+      'SELECT COUNT(*) AS c FROM comercial_boxes WHERE id != ? AND (r2_key = ? OR mobile_r2_key = ?)',
+      [Number(ignoreId) || 0, key, key],
+      (err, row) => resolve((row && Number(row.c)) || 0)
+    );
+  });
+  if (cnt === 0) {
+    try { await r2b.deleteFromR2(key); } catch (e) { console.error('[BOXES] Aviso ao excluir chave R2:', e.message); }
+  }
+}
+
 function boxTipoPorMime(mime) {
   return String(mime || '').startsWith('video/') ? 'video' : 'imagem';
 }
@@ -43698,27 +43817,108 @@ function boxValidarMidia(file) {
   return mime.startsWith('image/') || mime.startsWith('video/');
 }
 
-// GET /api/comercial/boxes - Listar boxes (ordem de exibicao), garantindo o Box Fixo da Proposta Evento
-app.get('/api/comercial/boxes', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    const lista = rows || [];
-    const temQuadroEvento = lista.some(r => r.tipo === 'quadro_evento');
-    if (temQuadroEvento) {
-      return res.json(lista.map(boxMontarRespostaRow));
-    }
-    const maxOrdem = lista.reduce((acc, r) => Math.max(acc, Number(r.ordem) || 0), 0);
-    db.run(
-      `INSERT INTO comercial_boxes (nome, tipo, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', 'mesma', ?, 1, 'Sistema')`,
-      ['Quadro de Valores — Proposta Evento (Fixo)', maxOrdem + 1],
-      function(errIns) {
-        if (errIns) return res.json(lista.map(boxMontarRespostaRow));
-        db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err2, rows2) => {
-          if (err2) return res.json(lista.map(boxMontarRespostaRow));
-          res.json((rows2 || []).map(boxMontarRespostaRow));
-        });
-      }
+function boxGarantirModeloInicializado(modeloTipoRaw, cb) {
+  const modeloTipo = boxNormalizarModeloTipo(modeloTipoRaw);
+  const meta = boxMetaPorModelo(modeloTipo);
+
+  // ADITIVO nao tem quadro fixo proprio obrigatorio (ele herda o modelo do contrato vinculado e adiciona imagens abaixo do quadro)
+  if (meta.isAditivo) {
+    return db.all(
+      'SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC',
+      ['ADITIVO'],
+      (err, rows) => cb(err, rows || [])
     );
+  }
+
+  db.get('SELECT COUNT(*) AS total FROM comercial_boxes WHERE modelo_tipo = ?', [modeloTipo], (errCnt, rowCnt) => {
+    const totalExistente = (rowCnt && Number(rowCnt.total)) || 0;
+    const cfgPadraoStr = JSON.stringify({ modelo_tipo: modeloTipo, titulo_topo: meta.codigo });
+
+    if (totalExistente === 0 && modeloTipo !== 'EVENTO') {
+      // Primeira vez abrindo este modelo: clona o padrao atual de EVENTO (incluindo o Quadro de Valores separado deste modelo)
+      db.all("SELECT * FROM comercial_boxes WHERE ativo = 1 AND (modelo_tipo = 'EVENTO' OR modelo_tipo IS NULL OR TRIM(modelo_tipo) = '') ORDER BY ordem ASC, id ASC", [], (errEv, rowsEv) => {
+        const listaEv = Array.isArray(rowsEv) ? rowsEv : [];
+        if (listaEv.length === 0) {
+          db.run(
+            `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', 1, 1, 'Sistema')`,
+            [meta.quadroNome, modeloTipo, cfgPadraoStr],
+            () => {
+              db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (e2, r2) => cb(e2, r2 || []));
+            }
+          );
+          return;
+        }
+        db.serialize(() => {
+          let temQuadroClonado = false;
+          listaEv.forEach((r, idx) => {
+            const isQuadro = r.tipo === 'quadro_evento';
+            if (isQuadro) temQuadroClonado = true;
+            db.run(
+              `INSERT INTO comercial_boxes (
+                nome, tipo, modelo_tipo, config_quadro, r2_key, mime_type, mobile_modo, mobile_tipo,
+                mobile_r2_key, mobile_mime_type, mobile_proporcao, foco_x, foco_y,
+                hotspots_desktop, hotspots_mobile, ordem, ativo, criado_por
+              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              [
+                isQuadro ? meta.quadroNome : r.nome,
+                r.tipo,
+                modeloTipo,
+                isQuadro ? cfgPadraoStr : (r.config_quadro || '{}'),
+                isQuadro ? null : r.r2_key,
+                isQuadro ? null : r.mime_type,
+                r.mobile_modo || 'mesma',
+                isQuadro ? null : r.mobile_tipo,
+                isQuadro ? null : r.mobile_r2_key,
+                isQuadro ? null : r.mobile_mime_type,
+                r.mobile_proporcao || '4:5',
+                r.foco_x ?? 50,
+                r.foco_y ?? 50,
+                isQuadro ? '[]' : (r.hotspots_desktop || '[]'),
+                isQuadro ? '[]' : (r.hotspots_mobile || '[]'),
+                idx + 1,
+                1,
+                'Sistema'
+              ]
+            );
+          });
+          if (!temQuadroClonado) {
+            db.run(
+              `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', ?, 1, 'Sistema')`,
+              [meta.quadroNome, modeloTipo, cfgPadraoStr, listaEv.length + 1]
+            );
+          }
+          db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (e2, r2) => cb(e2, r2 || []));
+        });
+      });
+      return;
+    }
+
+    db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err, rows) => {
+      if (err) return cb(err, []);
+      const lista = rows || [];
+      if (lista.some(r => r.tipo === 'quadro_evento')) {
+        return cb(null, lista);
+      }
+      const maxOrdem = lista.reduce((acc, r) => Math.max(acc, Number(r.ordem) || 0), 0);
+      db.run(
+        `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', ?, 1, 'Sistema')`,
+        [meta.quadroNome, modeloTipo, cfgPadraoStr, maxOrdem + 1],
+        function() {
+          db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err2, rows2) => {
+            cb(err2, rows2 || lista);
+          });
+        }
+      );
+    });
+  });
+}
+
+// GET /api/comercial/boxes - Listar boxes por modelo_tipo (padrao: EVENTO)
+app.get('/api/comercial/boxes', authenticateToken, (req, res) => {
+  const modeloTipo = boxNormalizarModeloTipo(req.query.modelo_tipo || 'EVENTO');
+  boxGarantirModeloInicializado(modeloTipo, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json((rows || []).map(boxMontarRespostaRow));
   });
 });
 
@@ -43742,12 +43942,13 @@ app.get('/api/comercial/boxes/:id/arquivo', (req, res) => {
   });
 });
 
-// POST /api/comercial/boxes - Criar box (multipart: arquivo, arquivo_mobile opcional)
+// POST /api/comercial/boxes - Criar box (multipart: arquivo, arquivo_mobile opcional, modelo_tipo opcional)
 app.post('/api/comercial/boxes', authenticateToken, boxesUploadFields, async (req, res) => {
   try {
     const r2b = require('./utils/r2');
     if (!r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) nao configurado. Nao e possivel anexar arquivos.' });
     const d = req.body || {};
+    const modeloTipo = boxNormalizarModeloTipo(d.modelo_tipo || 'EVENTO');
     const arq = req.files && req.files.arquivo && req.files.arquivo[0];
     const arqMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
     const nome = String(d.nome || '').trim();
@@ -43764,20 +43965,20 @@ app.post('/api/comercial/boxes', authenticateToken, boxesUploadFields, async (re
     const keyMob = arqMob ? await boxEnviarArquivoR2(arqMob, nome + '_mobile') : null;
     const usuario = req.user?.username || req.user?.nome || 'unknown';
 
-    db.get('SELECT COALESCE(MAX(ordem), 0) AS m FROM comercial_boxes', [], (errMax, rowMax) => {
+    db.get('SELECT COALESCE(MAX(ordem), 0) AS m FROM comercial_boxes WHERE modelo_tipo = ?', [modeloTipo], (errMax, rowMax) => {
       const ordem = ((rowMax && rowMax.m) || 0) + 1;
       db.run(`INSERT INTO comercial_boxes (
-        nome, tipo, r2_key, mime_type, mobile_modo, mobile_tipo, mobile_r2_key, mobile_mime_type,
-        mobile_proporcao, foco_x, foco_y, hotspots_desktop, hotspots_mobile, ordem, criado_por
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        nome, tipo, modelo_tipo, config_quadro, r2_key, mime_type, mobile_modo, mobile_tipo, mobile_r2_key, mobile_mime_type,
+        mobile_proporcao, foco_x, foco_y, hotspots_desktop, hotspots_mobile, ordem, ativo, criado_por
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        nome, boxTipoPorMime(arq.mimetype), key, arq.mimetype, modo,
+        nome, boxTipoPorMime(arq.mimetype), modeloTipo, '{}', key, arq.mimetype, modo,
         arqMob ? boxTipoPorMime(arqMob.mimetype) : null, keyMob, arqMob ? arqMob.mimetype : null,
         proporcao, isNaN(fx) ? 50 : fx, isNaN(fy) ? 50 : fy,
-        boxSanitizeHotspots(d.hotspots_desktop), boxSanitizeHotspots(d.hotspots_mobile), ordem, usuario
+        boxSanitizeHotspots(d.hotspots_desktop), boxSanitizeHotspots(d.hotspots_mobile), ordem, 1, usuario
       ], function(errIns) {
         if (errIns) return res.status(500).json({ error: errIns.message });
-        res.json({ success: true, id: this.lastID });
+        res.json({ success: true, id: this.lastID, modelo_tipo: modeloTipo });
       });
     });
   } catch (e) {
@@ -43786,14 +43987,31 @@ app.post('/api/comercial/boxes', authenticateToken, boxesUploadFields, async (re
   }
 });
 
-// PUT /api/comercial/boxes/:id - Atualizar box (multipart; arquivos opcionais para substituir)
+// PUT /api/comercial/boxes/:id - Atualizar box (multipart ou JSON para quadro_evento)
 app.put('/api/comercial/boxes/:id', authenticateToken, boxesUploadFields, (req, res) => {
   db.get('SELECT * FROM comercial_boxes WHERE id = ?', [req.params.id], async (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Box nao encontrado' });
     try {
-      const r2b = require('./utils/r2');
       const d = req.body || {};
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+
+      if (row.tipo === 'quadro_evento') {
+        const nomeQuadro = String(d.nome || row.nome || '').trim() || row.nome;
+        const cfgAtual = boxParseObjJson(row.config_quadro);
+        const cfgNovo = d.config_quadro !== undefined ? Object.assign({}, cfgAtual, boxParseObjJson(d.config_quadro)) : cfgAtual;
+        db.run(
+          `UPDATE comercial_boxes SET nome=?, config_quadro=?, atualizado_em=? WHERE id=?`,
+          [nomeQuadro, JSON.stringify(cfgNovo), agora, row.id],
+          function(errUpQ) {
+            if (errUpQ) return res.status(500).json({ error: errUpQ.message });
+            res.json({ success: true });
+          }
+        );
+        return;
+      }
+
+      const r2b = require('./utils/r2');
       const arq = req.files && req.files.arquivo && req.files.arquivo[0];
       const arqMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
       if ((arq || arqMob) && !r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) nao configurado.' });
@@ -43821,7 +44039,6 @@ app.put('/api/comercial/boxes/:id', authenticateToken, boxesUploadFields, (req, 
       const fxN = Number(d.foco_x), fyN = Number(d.foco_y);
       const fx = isNaN(fxN) || d.foco_x === undefined ? row.foco_x : Math.max(0, Math.min(100, fxN));
       const fy = isNaN(fyN) || d.foco_y === undefined ? row.foco_y : Math.max(0, Math.min(100, fyN));
-      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
       db.run(`UPDATE comercial_boxes SET
         nome=?, tipo=?, r2_key=?, mime_type=?, mobile_modo=?, mobile_tipo=?, mobile_r2_key=?, mobile_mime_type=?,
@@ -43834,7 +44051,7 @@ app.put('/api/comercial/boxes/:id', authenticateToken, boxesUploadFields, (req, 
         agora, row.id
       ], async function(errUp) {
         if (errUp) return res.status(500).json({ error: errUp.message });
-        for (const k of apagarDepois) { try { await r2b.deleteFromR2(k); } catch (e) {} }
+        for (const k of apagarDepois) { await boxApagarR2SeSemReferencia(k, row.id); }
         res.json({ success: true });
       });
     } catch (e) {
@@ -43844,42 +44061,43 @@ app.put('/api/comercial/boxes/:id', authenticateToken, boxesUploadFields, (req, 
   });
 });
 
-// POST /api/comercial/boxes/:id/mover - Subir/descer na ordem { direcao: 'up' | 'down' }
+// POST /api/comercial/boxes/:id/mover - Subir/descer na ordem dentro do mesmo modelo_tipo
 app.post('/api/comercial/boxes/:id/mover', authenticateToken, (req, res) => {
   const direcao = req.body && req.body.direcao === 'up' ? 'up' : 'down';
-  db.all('SELECT id FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    const ids = (rows || []).map(r => r.id);
-    const idx = ids.indexOf(Number(req.params.id));
-    if (idx < 0) return res.status(404).json({ error: 'Box nao encontrado' });
-    const alvo = direcao === 'up' ? idx - 1 : idx + 1;
-    if (alvo >= 0 && alvo < ids.length) {
-      const tmp = ids[idx]; ids[idx] = ids[alvo]; ids[alvo] = tmp;
-    }
-    db.serialize(() => {
-      ids.forEach((id, i) => db.run('UPDATE comercial_boxes SET ordem = ? WHERE id = ?', [i + 1, id]));
-      db.run('SELECT 1', [], () => res.json({ success: true }));
+  db.get('SELECT id, modelo_tipo FROM comercial_boxes WHERE id = ?', [req.params.id], (errRow, rowAlvo) => {
+    if (errRow || !rowAlvo) return res.status(404).json({ error: 'Box nao encontrado' });
+    const modeloTipo = boxNormalizarModeloTipo(rowAlvo.modelo_tipo || 'EVENTO');
+    db.all('SELECT id FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const ids = (rows || []).map(r => r.id);
+      const idx = ids.indexOf(Number(req.params.id));
+      if (idx < 0) return res.status(404).json({ error: 'Box nao encontrado' });
+      const alvo = direcao === 'up' ? idx - 1 : idx + 1;
+      if (alvo >= 0 && alvo < ids.length) {
+        const tmp = ids[idx]; ids[idx] = ids[alvo]; ids[alvo] = tmp;
+      }
+      db.serialize(() => {
+        ids.forEach((id, i) => db.run('UPDATE comercial_boxes SET ordem = ? WHERE id = ?', [i + 1, id]));
+        db.run('SELECT 1', [], () => res.json({ success: true }));
+      });
     });
   });
 });
 
-// DELETE /api/comercial/boxes/:id - Exclui do R2 e depois do banco
+// DELETE /api/comercial/boxes/:id - Exclui do R2 (se nao usado por outro modelo) e depois do banco
 app.delete('/api/comercial/boxes/:id', authenticateToken, (req, res) => {
   db.get('SELECT * FROM comercial_boxes WHERE id = ?', [req.params.id], async (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Box nao encontrado' });
     if (row.tipo === 'quadro_evento') {
-      return res.status(400).json({ error: 'Este box é fixo da Proposta Evento e não pode ser excluído. Use as setas ▲ ▼ para mudar a posição dele.' });
+      return res.status(400).json({ error: 'Este Quadro de Valores é fixo do modelo de proposta e não pode ser excluído. Use as setas ▲ ▼ para mudar a posição dele ou clique no lápis para editá-lo.' });
     }
-    try {
-      const r2b = require('./utils/r2');
-      if (r2b.isReady()) {
-        if (row.r2_key) await r2b.deleteFromR2(row.r2_key);
-        if (row.mobile_r2_key) await r2b.deleteFromR2(row.mobile_r2_key);
-      }
-    } catch (e) { console.error('[BOXES] Erro ao excluir do R2:', e.message); }
-    db.run('DELETE FROM comercial_boxes WHERE id = ?', [row.id], function(errDel) {
+    const r2Key = row.r2_key;
+    const mobKey = row.mobile_r2_key;
+    db.run('DELETE FROM comercial_boxes WHERE id = ?', [row.id], async function(errDel) {
       if (errDel) return res.status(500).json({ error: errDel.message });
+      await boxApagarR2SeSemReferencia(r2Key, row.id);
+      await boxApagarR2SeSemReferencia(mobKey, row.id);
       res.json({ success: true });
     });
   });
