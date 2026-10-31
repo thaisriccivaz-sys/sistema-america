@@ -525,14 +525,15 @@
             @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
             @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
             @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
-            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; }
+            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; background:#fff; }
             .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
-            .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; }
-            .box-quadro-evento-proposta.bq-mobile { min-height:844px; display:flex; flex-direction:column; justify-content:center; }
-            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:auto; }
+            .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
+            .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; background:#fff; }
+            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:844px; }
+            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
             @media (max-width: 768px) {
-                .box-quadro-evento-proposta { min-height:844px; display:flex; flex-direction:column; justify-content:center; }
-                .box-quadro-evento-proposta .bq-inner { min-height:auto; }
+                .box-quadro-evento-proposta .bq-inner { min-height:844px; }
+                .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
             }
         </style>
         <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
@@ -577,20 +578,22 @@
                     </div>
                 </div>
 
-                <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
-                <div style="flex:1 0 auto;">
-                    <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
-                        ${cabecalhoColunas('EQUIPAMENTOS:')}
-                        ${itensHtml}
+                <div class="bq-body-wrap">
+                    <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
+                    <div>
+                        <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
+                            ${cabecalhoColunas('EQUIPAMENTOS:')}
+                            ${itensHtml}
+                        </div>
+                        ${secaoServicos}
                     </div>
-                    ${secaoServicos}
-                </div>
 
-                <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
-                <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
-                    <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                        <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
-                        <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
+                    <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
+                    <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
+                        <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                            <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                            <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
+                        </div>
                     </div>
                 </div>
             </div>
