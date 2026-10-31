@@ -4848,7 +4848,7 @@
                                     style="font-size:0.82rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Senha
                                     do Certificado</label>
                                 <div style="position:relative;">
-                                    <input type="password" id="cert-view-senha" placeholder="Senha do arquivo .pfx"
+                                    <input type="password" id="cert-view-senha" autocomplete="new-password" placeholder="Senha do arquivo .pfx"
                                         style="width:100%;padding:0.65rem 2.5rem 0.65rem 0.85rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;outline:none;box-sizing:border-box;"
                                         onfocus="this.style.borderColor='#a78bfa'"
                                         onblur="this.style.borderColor='#e2e8f0'">
@@ -5454,14 +5454,14 @@
 
                                 <div class="input-group mb-3">
                                     <label>Username / Login *</label>
-                                    <input id="fu-username" type="text" placeholder="ex: joao.silva">
+                                    <input id="fu-username" type="text" autocomplete="off" placeholder="ex: joao.silva">
                                 </div>
                                 <div class="input-group">
                                     <label>Senha <span id="fu-senha-desc"
                                             style="font-weight:normal;color:#64748b;">(Obrigatória para
                                             novos)</span></label>
                                     <div style="position:relative;">
-                                        <input id="fu-password" type="password" placeholder="Senha de acesso"
+                                        <input id="fu-password" type="password" autocomplete="new-password" placeholder="Senha de acesso"
                                             style="width:100%;padding:0.6rem 2.5rem 0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                                         <button type="button"
                                             onclick="const i=document.getElementById('fu-password'); const icon=this.querySelector('i'); if(i.type==='password'){i.type='text';icon.className='ph ph-eye-slash'}else{i.type='password';icon.className='ph ph-eye'}"
@@ -5705,7 +5705,7 @@
                                 <div>
                                     <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Senha</label>
                                     <div style="position:relative;">
-                                        <input id="hom-senha" type="password" placeholder="••••••••" style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                        <input id="hom-senha" type="password" autocomplete="new-password" placeholder="••••••••" style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                         <button type="button" onclick="window.toggleSenhaSigor('hom-senha')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;padding:0;font-size:1rem;"><i class="ph ph-eye"></i></button>
                                     </div>
                                 </div>
@@ -5737,7 +5737,7 @@
                                 <div>
                                     <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Senha</label>
                                     <div style="position:relative;">
-                                        <input id="prod-senha" type="password" placeholder="••••••••" style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                        <input id="prod-senha" type="password" autocomplete="new-password" placeholder="••••••••" style="width:100%;padding:0.55rem 2.5rem 0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                         <button type="button" onclick="window.toggleSenhaSigor('prod-senha')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;padding:0;font-size:1rem;"><i class="ph ph-eye"></i></button>
                                     </div>
                                 </div>
@@ -6694,10 +6694,10 @@
     <script src="comercial_credenciamento.js"></script>
     <script src="proposta.js?v=20261030v29"></script>
     <script src="proposta_dias_produto.js?v=20261030v1"></script>
-    <script src="proposta_zonas.js?v=20261030v2"></script>
-    <script src="comercial_eventos.js?v=20261030v1"></script>
+    <script src="proposta_zonas.js?v=20261030v3"></script>
+    <script src="comercial_eventos.js?v=20261030v2"></script>
     <script src="proposta_servicos.js?v=20261030v3"></script>
-    <script src="comercial_boxes.js?v=20261030v5"></script>
+    <script src="comercial_boxes.js?v=20261030v6"></script>
     <script src="comercial_comissao.js?v=11"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>

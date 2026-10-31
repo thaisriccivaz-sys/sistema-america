@@ -116,7 +116,7 @@
                     <i class="ph ph-calendar-star" style="color:#7048e8;"></i> Eventos de ${esc(nomeCli)}
                 </div>
                 <div style="padding:14px 16px; background:#f1f5f9;">
-                    <input id="modal-ev-busca" type="text" placeholder="Digite para filtrar o nome do evento..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px; outline:none; background:#fff; margin-bottom:10px;">
+                    <input id="modal-ev-busca" type="search" name="modal_ev_busca_nofill" autocomplete="off" data-lpignore="true" data-form-type="other" placeholder="Digite para filtrar o nome do evento..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px; outline:none; background:#fff; margin-bottom:10px;">
                     <div id="modal-ev-lista" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;"></div>
                     <div id="modal-ev-count" style="font-size:0.75rem; color:#475569; font-weight:700; text-align:right; margin-top:6px;"></div>
                 </div>
@@ -236,13 +236,13 @@
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Cliente *</label>
                         <div id="ev-cad-cli-wrap" style="position:relative;">
-                            <input type="text" id="ev-cad-cliente" autocomplete="off" placeholder="Digite o nome ou CNPJ do cliente..." oninput="window.filtrarClientesEventoCad()" onfocus="window.abrirClientesEventoCad(true)" onclick="window.abrirClientesEventoCad(true)" style="${inp}">
+                            <input type="text" id="ev-cad-cliente" name="ev_cad_cliente_nofill" autocomplete="new-password" data-lpignore="true" data-form-type="other" readonly onmousedown="this.removeAttribute('readonly')" placeholder="Digite o nome ou CNPJ do cliente..." oninput="window.filtrarClientesEventoCad()" onfocus="this.removeAttribute('readonly'); window.abrirClientesEventoCad(true)" onclick="this.removeAttribute('readonly'); window.abrirClientesEventoCad(true)" style="${inp}">
                             <div id="ev-cad-cli-dd" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050;"></div>
                         </div>
                     </div>
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome do Evento *</label>
-                        <input type="text" id="ev-cad-nome" autocomplete="off" placeholder="Digite o nome do evento..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.salvarEventoCad(); }" style="${inp}">
+                        <input type="text" id="ev-cad-nome" name="ev_cad_nome_nofill" autocomplete="new-password" data-lpignore="true" data-form-type="other" readonly onmousedown="this.removeAttribute('readonly')" onfocus="this.removeAttribute('readonly')" onclick="this.removeAttribute('readonly')" placeholder="Digite o nome do evento..." onkeydown="this.removeAttribute('readonly'); if(event.key==='Enter'){ event.preventDefault(); window.salvarEventoCad(); }" style="${inp}">
                     </div>
                     <div>
                         <button type="button" onclick="window.salvarEventoCad()" style="background:#7048e8; color:#fff; border:none; border-radius:7px; padding:0 1.3rem; height:36px; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ph ph-plus-circle"></i> <span id="ev-cad-btn-txt">Cadastrar</span></button>
@@ -253,7 +253,7 @@
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.15rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:0.6rem; margin-bottom:0.7rem; flex-wrap:wrap;">
                     <div style="font-size:0.9rem; font-weight:800; color:#1e293b;"><i class="ph ph-list-bullets" style="color:#7048e8;"></i> Eventos Cadastrados <span id="ev-cad-count" style="background:#ede9fe; color:#6d28d9; padding:1px 9px; border-radius:999px; font-size:0.72rem; margin-left:4px;">0</span></div>
-                    <input type="text" id="ev-cad-busca" placeholder="🔍 Filtrar por cliente ou evento..." oninput="window.filtrarListaEventosCad(this.value)" style="width:320px; max-width:100%; padding:0 0.7rem; height:34px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; box-sizing:border-box;">
+                    <input type="search" id="ev-cad-busca" name="ev_cad_busca_nofill" autocomplete="new-password" data-lpignore="true" data-form-type="other" readonly onmousedown="this.removeAttribute('readonly')" onfocus="this.removeAttribute('readonly')" onclick="this.removeAttribute('readonly')" placeholder="🔍 Filtrar por cliente ou evento..." oninput="window.filtrarListaEventosCad(this.value)" style="width:320px; max-width:100%; padding:0 0.7rem; height:34px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; box-sizing:border-box;">
                 </div>
                 <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.84rem; text-align:left;">

@@ -126,4 +126,110 @@
             if (inp) inp.value = '';
         }
     };
+
+    /* ══════════════════════════════════════════════════════════════════════
+       PROTEÇÃO GLOBAL CONTRA AUTOFILL DO NOME DE USUÁRIO EM CAMPOS DE FILTRO/BUSCA
+       Impede que o gerenciador de senhas do navegador preencha campos de filtro/pesquisa
+       com o login salvo (ex: Thais.Ricci).
+       ══════════════════════════════════════════════════════════════════════ */
+    const IDS_LOGIN_REAIS = new Set(['login-user', 'login-pass', 'login-username', 'login-password', 'fu-username']);
+    const RE_FILTRO = /(filtro|filtrar|busca|buscar|pesq|pesquisar|search|localizar)/i;
+
+    function obterLoginsUsuarioAtivo() {
+        const set = new Set();
+        const add = (v) => { const s = norm(v); if (s && s.length >= 3) set.add(s); };
+        try { if (typeof window.obterNomeUsuarioLogado === 'function') add(window.obterNomeUsuarioLogado()); } catch (e) {}
+        try { add(document.getElementById('user-name-display')?.textContent); } catch (e) {}
+        try {
+            ['erp_user', 'user', 'currentUser', 'username'].forEach(k => {
+                const raw = localStorage.getItem(k);
+                if (!raw) return;
+                add(raw);
+                try {
+                    const obj = JSON.parse(raw);
+                    if (obj && typeof obj === 'object') {
+                        add(obj.username); add(obj.nome); add(obj.name); add(obj.login); add(obj.email);
+                    }
+                } catch (e) {}
+            });
+        } catch (e) {}
+        return set;
+    }
+
+    function ehInputFiltroOuBusca(el) {
+        if (!el || el.tagName !== 'INPUT') return false;
+        if (IDS_LOGIN_REAIS.has(el.id)) return false;
+        const t = String(el.type || 'text').toLowerCase();
+        if (t === 'search') return true;
+        if (t !== 'text') return false;
+        const meta = `${el.id || ''} ${el.name || ''} ${el.className || ''} ${el.placeholder || ''}`;
+        return RE_FILTRO.test(meta);
+    }
+
+    window.protegerCampoContraAutofill = function (el) {
+        if (!el || el.tagName !== 'INPUT' || IDS_LOGIN_REAIS.has(el.id)) return;
+        const t = String(el.type || 'text').toLowerCase();
+        if (t === 'password') {
+            el.setAttribute('autocomplete', 'new-password');
+            el.setAttribute('data-lpignore', 'true');
+            if (!el.dataset.pwdNofillBound) {
+                el.dataset.pwdNofillBound = '1';
+                if (document.activeElement !== el) el.readOnly = true;
+                const unlockPwd = () => { el.readOnly = false; };
+                ['mousedown', 'touchstart', 'focus', 'click', 'keydown'].forEach(ev => el.addEventListener(ev, unlockPwd, { passive: true }));
+            }
+            return;
+        }
+        if (!ehInputFiltroOuBusca(el)) return;
+        el.setAttribute('autocomplete', 'new-password');
+        el.setAttribute('autocorrect', 'off');
+        el.setAttribute('autocapitalize', 'off');
+        el.setAttribute('spellcheck', 'false');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-1p-ignore', 'true');
+        el.setAttribute('data-form-type', 'other');
+        if (!el.name) el.name = 'nofill_' + (el.id || Math.random().toString(36).slice(2, 8));
+
+        const limparSeAutofillUsuario = () => {
+            const val = norm(el.value);
+            if (!val) return;
+            const logins = obterLoginsUsuarioAtivo();
+            if (logins.has(val) && document.activeElement !== el) {
+                el.value = '';
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+
+        if (!el.dataset.nofillFiltroBound) {
+            el.dataset.nofillFiltroBound = '1';
+            if (document.activeElement !== el && !el.readOnly) {
+                el.readOnly = true;
+            }
+            const unlock = () => { if (el.readOnly) el.readOnly = false; };
+            ['mousedown', 'touchstart', 'focus', 'click', 'keydown'].forEach(ev => el.addEventListener(ev, unlock, { passive: true }));
+            el.addEventListener('input', limparSeAutofillUsuario);
+            el.addEventListener('change', limparSeAutofillUsuario);
+        }
+        limparSeAutofillUsuario();
+        setTimeout(limparSeAutofillUsuario, 120);
+        setTimeout(limparSeAutofillUsuario, 450);
+    };
+
+    function varrerInputsAutofill(root) {
+        if (!root || !root.querySelectorAll) return;
+        if (root.tagName === 'INPUT') window.protegerCampoContraAutofill(root);
+        root.querySelectorAll('input').forEach(window.protegerCampoContraAutofill);
+    }
+
+    if (document.body) {
+        varrerInputsAutofill(document.body);
+        const obs = new MutationObserver((muts) => {
+            for (const m of muts) {
+                m.addedNodes.forEach(n => { if (n.nodeType === 1) varrerInputsAutofill(n); });
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', () => varrerInputsAutofill(document.body));
+    }
 })();

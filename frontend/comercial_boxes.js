@@ -393,10 +393,6 @@
 
                 <!-- Totais (sem faixa preta): valor total em roxo abaixo da coluna VALOR TOTAL -->
                 <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(80)}; flex-shrink:0;">
-                    <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline;">
-                        <div class="bq-d" style="grid-column:1 / 4; text-align:right; font-size:${u(24)}; color:#3b3b3b;">VALOR TOTAL POR DIA R$:</div>
-                        <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${fmtNum(d.valor_total_por_dia_geral)}</div>
-                    </div>
                     <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
                         <div class="bq-d" style="grid-column:1 / 6; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
                         <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
