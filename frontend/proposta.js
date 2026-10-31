@@ -2174,30 +2174,37 @@ function _renderFormPropostaInt() {
                             </select>
                         </div>
 
-                        <!-- Linha: Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
-                        <div style="display:flex; gap:0.4rem; align-items:center; background:#f8fafc; padding:0.4rem 0.65rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%;">
-                            <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
-                            <div id="prop-endereco-combo-wrap" style="position:relative; flex:1;">
-                                <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(v('endereco_instalacao'))}"
-                                    autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
-                                    onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
-                                    onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
-                                    oninput="if(typeof window.filtrarDropdownEnderecosProposta === 'function') window.filtrarDropdownEnderecosProposta(this.value); window.classificarRegiaoEDiasDebounced();"
-                                    onchange="window.classificarRegiaoEDias()"
-                                    onkeydown="this.removeAttribute('readonly'); if(typeof window.onKeyDownEnderecoProposta === 'function'){ window.onKeyDownEnderecoProposta(event); }"
-                                    style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;height:28px;" placeholder="Selecione ou digite o endereço de instalação vinculado ao cliente">
-                                <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownEnderecosProposta === 'function') window.toggleDropdownEnderecosProposta(event);" title="Selecionar endereço cadastrado para este cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
-                                    <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
-                                </button>
-                                <div id="prop-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
+                        <!-- Linha: Nome do Evento (quando EVENTO) + Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
+                        <div style="display:flex; gap:0.75rem; align-items:center; background:#f8fafc; padding:0.4rem 0.65rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
+                            <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 260px; max-width:420px;">
+                                <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento <span style="color:#dc2626;">*</span>:</span>
+                                <input type="text" id="prop-nome-evento" value="${_escHtmlProp(v('nome_evento'))}"
+                                    style="width:100%;padding:0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:28px;" placeholder="Digite o nome do evento...">
                             </div>
-                            <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Endereço de Instalação">
-                                <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
-                            </button>
-                            <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
-                                <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
-                            </button>
-                            <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
+                            <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
+                                <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
+                                <div id="prop-endereco-combo-wrap" style="position:relative; flex:1;">
+                                    <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(v('endereco_instalacao'))}"
+                                        autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
+                                        onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
+                                        onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
+                                        oninput="if(typeof window.filtrarDropdownEnderecosProposta === 'function') window.filtrarDropdownEnderecosProposta(this.value); window.classificarRegiaoEDiasDebounced();"
+                                        onchange="window.classificarRegiaoEDias()"
+                                        onkeydown="this.removeAttribute('readonly'); if(typeof window.onKeyDownEnderecoProposta === 'function'){ window.onKeyDownEnderecoProposta(event); }"
+                                        style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;height:28px;" placeholder="Selecione ou digite o endereço de instalação vinculado ao cliente">
+                                    <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownEnderecosProposta === 'function') window.toggleDropdownEnderecosProposta(event);" title="Selecionar endereço cadastrado para este cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                                    </button>
+                                    <div id="prop-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
+                                </div>
+                                <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Endereço de Instalação">
+                                    <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
+                                </button>
+                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
+                                    <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
+                                </button>
+                                <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
+                            </div>
                         </div>
                     </div>
 
@@ -5696,6 +5703,16 @@ window.salvarPropostaNova = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
+    if (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) {
+        const nomeEventoVal = obter('prop-nome-evento').trim();
+        if (!nomeEventoVal) {
+            alert('Informe o Nome do Evento.');
+            const inpNomeEv = document.getElementById('prop-nome-evento');
+            if (inpNomeEv) inpNomeEv.focus();
+            return;
+        }
+    }
+
     if (window.tipoPropostaUsaDiasEvento(tipo)) {
         const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
         if (diasGlobais.length > 0) {
@@ -5759,6 +5776,7 @@ window.salvarPropostaNova = async function() {
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
+        nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -6302,6 +6320,16 @@ window.estornarPropostaEdicao = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
+    if (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) {
+        const nomeEventoVal = obter('prop-nome-evento').trim();
+        if (!nomeEventoVal) {
+            alert('Informe o Nome do Evento.');
+            const inpNomeEv = document.getElementById('prop-nome-evento');
+            if (inpNomeEv) inpNomeEv.focus();
+            return;
+        }
+    }
+
     if (window.tipoPropostaUsaDiasEvento(tipo)) {
         const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
         if (diasGlobais.length > 0) {
@@ -6365,6 +6393,7 @@ window.estornarPropostaEdicao = async function() {
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
+        nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
@@ -16745,13 +16774,32 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
     return null;
 };
 
-window.tipoPropostaUsaDiasEvento = function(tipo) {
+window.tipoPropostaEhEvento = function(tipo) {
     const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
     const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'LOCAÇÃO EQUIPAMENTOS' || t === 'LOCACAO EQUIPAMENTOS';
+    return t === 'EVENTO';
+};
+
+window.atualizarVisibilidadeNomeEventoProposta = function(tipo) {
+    const wrap = document.getElementById('prop-wrapper-nome-evento');
+    const ehEv = window.tipoPropostaEhEvento(tipo);
+    if (!ehEv) {
+        if (wrap) wrap.style.display = 'none';
+        const inp = document.getElementById('prop-nome-evento');
+        if (inp) inp.value = '';
+        return;
+    }
+    if (wrap) wrap.style.display = 'flex';
+};
+
+window.tipoPropostaUsaDiasEvento = function(tipo) {
+    return window.tipoPropostaEhEvento(tipo);
 };
 
 window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
+    if (typeof window.atualizarVisibilidadeNomeEventoProposta === 'function') {
+        window.atualizarVisibilidadeNomeEventoProposta(tipo);
+    }
     const wrap = document.getElementById('prop-wrapper-dias-evento');
     const usa = window.tipoPropostaUsaDiasEvento(tipo);
     if (!usa) {
