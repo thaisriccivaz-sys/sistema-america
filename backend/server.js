@@ -39826,6 +39826,9 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+// Link público seguro da proposta (/proposta/:codigo/:token) — módulo isolado
+require('./proposta_publica')(app, db, authenticateToken);
+
 // GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
 app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
   db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY data_hora DESC", [req.params.id], (err, rows) => {

@@ -1996,6 +1996,12 @@ function _renderFormPropostaInt() {
                     <button type="button" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
                         <i class="ph ph-envelope-simple" style="font-size:1rem;"></i> Enviar E-mail
                     </button>
+                    <button type="button" id="btn-prop-copiar-link" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
+                        <i class="ph ph-link" style="font-size:1rem;"></i> Copiar Link
+                    </button>
+                    <button type="button" id="btn-prop-desativar-link" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center;" onfocus="this.blur()">
+                        <i class="ph ph-link-break" style="font-size:1rem;"></i>
+                    </button>
                     <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
@@ -6588,6 +6594,74 @@ window.baixarPdfProposta = async function(id = null) {
         Swal.close();
         console.warn('[PROPOSTA] Fallback para janela de impressão/PDF:', e);
         imprimirProposta(propId);
+    }
+};
+
+/* ── Link público seguro da proposta (/proposta/CODIGO/TOKEN) ───────────────── */
+window._copiarTextoClipboard = async function(texto) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(texto); return true; }
+    } catch (e) { /* tenta o fallback */ }
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = texto; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    } catch (e) { return false; }
+};
+
+window.copiarLinkProposta = async function(id) {
+    const propId = id || _propostasEditandoId;
+    if (!propId) {
+        Swal.fire('Aviso', 'Salve a proposta primeiro para poder copiar o link.', 'warning');
+        return;
+    }
+    const btn = document.getElementById('btn-prop-copiar-link');
+    const htmlOrig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Gerando...'; }
+    try {
+        const resp = await apiPost('/propostas/' + propId + '/link-publico', {});
+        if (!resp || !resp.url) {
+            Swal.fire('Erro', (resp && resp.error) || 'Não foi possível gerar o link da proposta.', 'error');
+            return;
+        }
+        const ok = await window._copiarTextoClipboard(resp.url);
+        const validade = resp.expira_em ? String(resp.expira_em).split('-').reverse().join('/') : '';
+        const aviso = resp.ativo === false
+            ? '<div style="margin-top:8px;color:#b91c1c;font-size:0.82rem;">Atenção: pela Validade da Proposta, este link já está expirado' + (validade ? ' (' + validade + ')' : '') + '. Ajuste a validade e salve para reativá-lo.</div>'
+            : (validade ? '<div style="margin-top:8px;color:#475569;font-size:0.82rem;">Link válido até <b>' + validade + '</b>. Mostra sempre a proposta atualizada (salve as alterações antes de enviar).</div>' : '');
+        Swal.fire({
+            icon: ok ? 'success' : 'info',
+            title: ok ? 'Link copiado!' : 'Copie o link abaixo',
+            html: '<input type="text" readonly onclick="this.select()" value="' + String(resp.url).replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;">' + aviso,
+            confirmButtonText: 'OK'
+        });
+    } catch (e) {
+        console.error('[PROPOSTA] Erro ao gerar link público:', e);
+        Swal.fire('Erro', 'Falha de comunicação ao gerar o link.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = htmlOrig; }
+    }
+};
+
+window.desativarLinkProposta = async function(id) {
+    const propId = id || _propostasEditandoId;
+    if (!propId) { Swal.fire('Aviso', 'Salve a proposta primeiro.', 'warning'); return; }
+    const conf = await Swal.fire({
+        title: 'Desativar o link da proposta?',
+        text: 'O link que já foi enviado deixará de funcionar. Para ativar de novo, clique em Copiar Link (será gerado um link novo).',
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Desativar link', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626'
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        const res = await fetch(`${API_URL}/propostas/${propId}/link-publico`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { Swal.fire('Erro', j.error || 'Não foi possível desativar o link.', 'error'); return; }
+        Swal.fire('Pronto', 'Link desativado.', 'success');
+    } catch (e) {
+        Swal.fire('Erro', 'Falha de comunicação ao desativar o link.', 'error');
     }
 };
 

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <title>Proposta | Fluxo AR</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=1">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=1">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=1">
+    <style>
+        html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: Arial, Helvetica, sans-serif; }
+        #proposta-raiz { max-width: 1920px; margin: 0 auto; background: #fff; }
+        .pp-msg { max-width: 520px; margin: 18vh auto 0; padding: 32px 24px; text-align: center; color: #334155; background: #fff; border-radius: 12px; box-shadow: 0 6px 24px rgba(15,23,42,.08); }
+        .pp-msg h1 { font-size: 1.15rem; margin: 0 0 8px; color: #5c4599; }
+        .pp-msg p { margin: 0; font-size: .95rem; line-height: 1.5; }
+        .pp-load { text-align: center; padding: 30vh 0; color: #64748b; font-size: .95rem; }
+    </style>
+</head>
+<body>
+    <div id="proposta-raiz"><div class="pp-load">Carregando proposta…</div></div>
+
+    <script src="/comercial_boxes.js"></script>
+    <script>
+    (function () {
+        var raiz = document.getElementById('proposta-raiz');
+        var partes = location.pathname.replace(/\/+$/, '').split('/');
+        var token = partes.pop();
+        var codigo = partes.pop();
+        var estado = { dados: null, boxes: null, view: null };
+
+        function mensagem(titulo, texto) {
+            raiz.style.background = 'transparent';
+            raiz.innerHTML = '<div class="pp-msg"><h1></h1><p></p></div>';
+            raiz.querySelector('h1').textContent = titulo;
+            raiz.querySelector('p').textContent = texto;
+        }
+
+        function visao() { return window.innerWidth <= 768 ? 'mobile' : 'desktop'; }
+
+        function desenhar() {
+            if (!estado.dados) return;
+            var v = visao();
+            estado.view = v;
+            raiz.innerHTML = estado.boxes.map(function (b) {
+                return window.boxRenderHtml(b, v, { proposta: estado.dados });
+            }).join('');
+        }
+
+        var ultimaVisao = null;
+        window.addEventListener('resize', function () {
+            if (estado.dados && visao() !== ultimaVisao) { ultimaVisao = visao(); desenhar(); }
+        });
+
+        if (!codigo || !token) { mensagem('Link inválido', 'Confira o endereço recebido ou solicite um novo link.'); return; }
+
+        fetch('/api/public/proposta/' + encodeURIComponent(codigo) + '/' + encodeURIComponent(token), {
+            headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'
+        }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, body: j }; });
+        }).then(function (r) {
+            if (r.status === 200 && r.body && r.body.dados) {
+                estado.dados = r.body.dados;
+                estado.boxes = r.body.boxes || [{ tipo: 'quadro_evento' }];
+                ultimaVisao = visao();
+                desenhar();
+            } else if (r.status === 410) {
+                mensagem('Proposta expirada', 'Este link não está mais ativo. Entre em contato com a América Rental para receber uma nova proposta.');
+            } else if (r.status === 429) {
+                mensagem('Muitas tentativas', 'Aguarde alguns minutos e tente novamente.');
+            } else {
+                mensagem('Link inválido ou expirado', 'Confira o endereço recebido ou solicite um novo link à América Rental.');
+            }
+        }).catch(function () {
+            mensagem('Não foi possível carregar', 'Verifique sua conexão e atualize a página.');
+        });
+    })();
+    </script>
+</body>
+</html>

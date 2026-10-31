@@ -345,7 +345,7 @@
             <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
                 <!-- Faixa superior: PROPOSTA EVENTO + número do contrato -->
                 <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;">PROPOSTA <span class="bq-d">EVENTO</span></div>
+                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
                     <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.contrato)}</div>
                 </div>
 
@@ -370,10 +370,10 @@
                         <div style="min-width:0;">
                             <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
-                                <span>INFORMAÇÕES <span class="bq-d">EVENTO:</span></span>
+                                <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
                             </div>
                             <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
-                                <div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>
+                                ${d.ocultar_nome_evento ? '' : `<div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>`}
                                 <div style="text-transform:uppercase;">${esc(d.diarias_contrato)}</div>
                                 <div style="margin-top:${u(8)}; text-transform:uppercase;">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
                                 ${d.instalacao_linha2 ? `<div style="text-transform:uppercase;">${esc(d.instalacao_linha2)}</div>` : ''}
