@@ -1887,11 +1887,10 @@ function _renderFormPropostaInt() {
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
     (() => {
-        const parsedInfo = typeof window._parseDiasEventoLista === 'function'
-            ? window._parseDiasEventoLista(prop ? prop.dias_evento : null)
-            : { datas: [], horarios: {} };
-        window._propDiasEventoSelecionados = parsedInfo.datas;
-        window._propDiasEventoHorarios = parsedInfo.horarios;
+        // Cada produto guarda as suas diárias; o seletor começa vazio (produtos antigos herdam as da proposta)
+        if (typeof window.migrarDiasEventoLegadoParaProdutos === 'function') window.migrarDiasEventoLegadoParaProdutos(prop);
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
         window._ultimoHorarioDiaEventoEditado = '';
     })();
 
@@ -2168,61 +2167,6 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
 
-                        <!-- Campo Dia de Evento / Sucção (Obrigatório adicionar pelo menos um) -->
-                        <div id="prop-wrapper-dias-evento" style="display:${window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'block' : 'none'}; margin-bottom:0.55rem; position:relative;">
-                            <style>
-                                #prop-dias-evento-popover .cal-dias-grid {
-                                    display: grid !important;
-                                    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
-                                    gap: 4px !important;
-                                    width: 100% !important;
-                                    box-sizing: border-box !important;
-                                }
-                                #prop-dias-evento-popover .cal-dia-btn {
-                                    width: 100% !important;
-                                    min-width: 0 !important;
-                                    height: 32px !important;
-                                    padding: 0 !important;
-                                    box-sizing: border-box !important;
-                                    border-radius: 6px !important;
-                                    font-size: 0.8rem !important;
-                                }
-                            </style>
-                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; flex-wrap:wrap; gap:4px;">
-                                <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
-                                    <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
-                                    Dia de Evento / Sucção *
-                                    <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
-                                </label>
-                                <span style="font-size:0.72rem; color:#64748b;">Obrigatório selecionar dia e preencher horário em cada dia selecionado</span>
-                            </div>
-                            <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
-                            <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
-                                <div id="prop-dias-evento-box" onclick="window.abrirCalendarioDiasEventoProposta(event)"
-                                    style="flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
-                                    <div id="prop-dias-evento-chips" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;"></div>
-                                </div>
-                                <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
-                                    title="Replicar o horário preenchido em um dia para todos os dias selecionados"
-                                    style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
-                                    <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
-                                </button>
-                                <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
-                                    title="Selecionar diárias no calendário"
-                                    style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                                    <i class="ph ph-calendar-blank" style="font-size:0.98rem;"></i> Selecionar Diárias
-                                </button>
-                                <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
-                                    title="Limpar todos os dias selecionados"
-                                    style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
-                                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
-                                </button>
-                            </div>
-                            <div id="prop-dias-evento-popover" onclick="event.stopPropagation()"
-                                style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:360px !important; box-sizing:border-box !important; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.85rem !important; font-family:'Inter',sans-serif;">
-                            </div>
-                        </div>
-
                         <!-- Serviço Precificado oculto para compatibilidade -->
                         <div style="display:none;">
                             <select id="prop-servico-precificado">
@@ -2319,6 +2263,73 @@ function _renderFormPropostaInt() {
                                 <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
                                     oninput="window.recalcularPreviewProdutoProposta('total')"
                                     style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
+                            </div>
+                        </div>
+
+                        <!-- Dia de Evento / Sucção do PRODUTO que será adicionado (somente tipo EVENTO) -->
+                        <div id="prop-wrapper-dias-evento" style="display:${window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'block' : 'none'}; margin:0 0 0.65rem 0; padding:0.55rem 0.7rem; background:#faf5ff; border:1px solid #ddd6fe; border-radius:8px; position:relative;">
+                            <style>
+                                #prop-dias-evento-popover .cal-dias-grid {
+                                    display: grid !important;
+                                    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+                                    gap: 4px !important;
+                                    width: 100% !important;
+                                    box-sizing: border-box !important;
+                                }
+                                #prop-dias-evento-popover .cal-dia-btn {
+                                    width: 100% !important;
+                                    min-width: 0 !important;
+                                    height: 32px !important;
+                                    padding: 0 !important;
+                                    box-sizing: border-box !important;
+                                    border-radius: 6px !important;
+                                    font-size: 0.8rem !important;
+                                }
+                            </style>
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; flex-wrap:wrap; gap:4px;">
+                                <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
+                                    <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
+                                    Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
+                                    <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
+                                </label>
+                                <span style="font-size:0.72rem; color:#64748b;">Obrigatório: selecione o(s) dia(s) e o horário de cada dia para este produto</span>
+                            </div>
+                            <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
+                            <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
+                                <div id="prop-dias-evento-box" onclick="window.abrirCalendarioDiasEventoProposta(event)"
+                                    style="flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
+                                    <div id="prop-dias-evento-chips" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;"></div>
+                                </div>
+                                <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
+                                    title="Replicar o horário preenchido em um dia para todos os dias selecionados"
+                                    style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
+                                    <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
+                                </button>
+                                <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
+                                    title="Selecionar diárias no calendário"
+                                    style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                    <i class="ph ph-calendar-blank" style="font-size:0.98rem;"></i> Selecionar Diárias
+                                </button>
+                                <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
+                                    title="Limpar todos os dias selecionados"
+                                    style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
+                                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                </button>
+                            </div>
+                            <div id="prop-dias-replicar-bar" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-top:0.45rem;">
+                                <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.76rem; font-weight:700; color:#5b21b6; cursor:pointer;">
+                                    <input type="checkbox" id="prop-dias-manter" checked style="width:auto; margin:0;"> Manter estas diárias para o próximo produto
+                                </label>
+                                <div id="prop-dias-copiar-wrap" style="display:none; align-items:center; gap:6px; margin-left:auto;">
+                                    <span style="font-size:0.74rem; font-weight:700; color:#475569;">Copiar diárias de:</span>
+                                    <select id="prop-dias-copiar-de" onchange="window.copiarDiasDeProdutoProposta(this.value); this.value='';"
+                                        style="padding:4px 8px; border:1px solid #c4b5fd; border-radius:6px; font-size:0.76rem; background:#fff; max-width:360px;">
+                                        <option value="">Selecione um produto...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="prop-dias-evento-popover" onclick="event.stopPropagation()"
+                                style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:360px !important; box-sizing:border-box !important; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.85rem !important; font-family:'Inter',sans-serif;">
                             </div>
                         </div>
 
@@ -5697,33 +5708,26 @@ window.salvarPropostaNova = async function() {
         if (itensValidacao.length > 0) {
             for (let i = 0; i < itensValidacao.length; i++) {
                 const p = itensValidacao[i];
-                let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-                if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
-                    p.dias_evento = [...diasComHorariosGlobais];
-                    dItem = p.dias_evento;
-                }
+                const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
                 if (dItem.length === 0) {
-                    alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
-                    if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário. Use "+ dia" na linha do produto ou copie as diárias de outro produto.');
                     return;
                 }
                 const faltaHorarioNoItem = dItem.some(entry => {
                     const parsed = window._parseDiasEventoItem(entry);
-                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    const hor = parsed.horario || '';
                     return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
                 });
                 if (faltaHorarioNoItem) {
-                    alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário. Preencha o horário de cada dia na linha do produto (Dia de Evento / Sucção).');
                     return;
                 }
                 p.dias_evento = dItem.map(entry => {
                     const parsed = window._parseDiasEventoItem(entry);
-                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    const hor = parsed.horario || '';
                     return hor ? `${parsed.data} ${hor}` : parsed.data;
                 });
             }
-        } else {
-            if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
     } else {
         window._propDiasEventoSelecionados = [];
@@ -5753,7 +5757,7 @@ window.salvarPropostaNova = async function() {
         hora_inicio: obter('prop-hora-ini') || '00:00',
         hora_fim: obter('prop-hora-fim') || '00:00',
         dias_contrato: parseInt(obter('prop-dias') || 0),
-        dias_evento: JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])),
+        dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
@@ -6310,33 +6314,26 @@ window.estornarPropostaEdicao = async function() {
         if (itensValidacao.length > 0) {
             for (let i = 0; i < itensValidacao.length; i++) {
                 const p = itensValidacao[i];
-                let dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
-                if (dItem.length === 0 && diasComHorariosGlobais.length > 0) {
-                    p.dias_evento = [...diasComHorariosGlobais];
-                    dItem = p.dias_evento;
-                }
+                const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
                 if (dItem.length === 0) {
-                    alert('Todo produto deve ter pelo menos um Dia de Evento / Sucção selecionado com horário.');
-                    if (typeof window.abrirCalendarioDiasEventoProposta === 'function') window.abrirCalendarioDiasEventoProposta();
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário. Use "+ dia" na linha do produto ou copie as diárias de outro produto.');
                     return;
                 }
                 const faltaHorarioNoItem = dItem.some(entry => {
                     const parsed = window._parseDiasEventoItem(entry);
-                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    const hor = parsed.horario || '';
                     return !parsed.data || !/^\d{2}:\d{2}$/.test(hor);
                 });
                 if (faltaHorarioNoItem) {
-                    alert('É obrigatório preencher o dia e o horário do evento em cada dia selecionado em Dia de Evento / Sucção *.');
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário. Preencha o horário de cada dia na linha do produto (Dia de Evento / Sucção).');
                     return;
                 }
                 p.dias_evento = dItem.map(entry => {
                     const parsed = window._parseDiasEventoItem(entry);
-                    const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[parsed.data]) || '';
+                    const hor = parsed.horario || '';
                     return hor ? `${parsed.data} ${hor}` : parsed.data;
                 });
             }
-        } else {
-            if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
     } else {
         window._propDiasEventoSelecionados = [];
@@ -6366,7 +6363,7 @@ window.estornarPropostaEdicao = async function() {
         hora_inicio: obter('prop-hora-ini') || '00:00',
         hora_fim: obter('prop-hora-fim') || '00:00',
         dias_contrato: parseInt(obter('prop-dias') || 0),
-        dias_evento: JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])),
+        dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
@@ -18291,6 +18288,13 @@ window.adicionarProdutoProposta = function() {
         valTotalEl.value = '0';
     }
 
+    if (window.tipoPropostaUsaDiasEvento() && typeof window.manterDiasProximoProduto === 'function' && !window.manterDiasProximoProduto()) {
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        window._ultimoHorarioDiaEventoEditado = '';
+        if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
+    }
+
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -18344,10 +18348,7 @@ window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorari
         return;
     }
     item.dias_evento[diaIdx] = `${parsed.data} ${h}`;
-    if (window._propDiasEventoHorarios && parsed.data) {
-        window._propDiasEventoHorarios[parsed.data] = h;
-    }
-    window.renderizarDiasEventoProposta(false);
+    window.renderizarProdutosPropostaGrid();
 };
 
 window.removerProdutoProposta = function(idx) {
@@ -18362,6 +18363,7 @@ window.renderizarProdutosPropostaGrid = function() {
     if (!tbody) return;
 
     const list = window._propProdutosAdicionados || [];
+    if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -18382,20 +18384,8 @@ window.renderizarProdutosPropostaGrid = function() {
             : (qtd * vUnit);
 
         const usaDias = typeof window.tipoPropostaUsaDiasEvento === 'function' ? window.tipoPropostaUsaDiasEvento() : false;
-        const diasProd = !usaDias ? [] : (Array.isArray(p.dias_evento) && p.dias_evento.length > 0
-            ? p.dias_evento
-            : (typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados : [])));
-        const diasChipsHtml = diasProd.length > 0
-            ? `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">${diasProd.map((d, dIdx) => {
-                const parsed = typeof window._parseDiasEventoItem === 'function' ? window._parseDiasEventoItem(d) : { data: String(d), horario: '' };
-                const iso = parsed.data;
-                const hor = parsed.horario || (window._propDiasEventoHorarios && window._propDiasEventoHorarios[iso]) || '';
-                const fmt = String(iso).includes('-') ? String(iso).split('-').reverse().join('/') : iso;
-                return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 6px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${_escHtmlProp(fmt)}
-                    <input type="time" value="${_escHtmlProp(hor)}" onchange="window.atualizarHorarioDiaProdutoProposta(${idx}, ${dIdx}, this.value)" title="Editar horário deste dia no produto" style="border:1px solid #a78bfa; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:20px; width:auto !important; cursor:pointer;">
-                </span>`;
-            }).join('')}</div>`
+        const diasChipsHtml = (usaDias && typeof window.htmlDiasProdutoGrid === 'function')
+            ? window.htmlDiasProdutoGrid(p, idx, list.length)
             : '';
 
         let descHtml = '<span style="color:#94a3b8;">—</span>';
