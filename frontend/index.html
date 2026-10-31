@@ -380,15 +380,30 @@
                     <a href="#" class="nav-item" data-target="comercial-proposta"
                         onclick="navigateTo('comercial-proposta'); return false;"><i
                             class="ph ph-file-text"></i> Proposta</a>
-                    <a href="#" class="nav-item" data-target="comercial-enderecos"
-                        onclick="navigateTo('comercial-enderecos'); return false;"><i
-                            class="ph ph-map-pin"></i> Endereços</a>
-                    <a href="#" class="nav-item" data-target="comercial-clientes"
-                        onclick="navigateTo('comercial-clientes'); return false;"><i
-                            class="ph ph-user-plus"></i> Clientes</a>
-                    <a href="#" class="nav-item" data-target="comercial-contatos"
-                        onclick="navigateTo('comercial-contatos'); return false;"><i
-                            class="ph ph-address-book"></i> Contatos</a>
+                    <div class="nav-group" id="nav-group-comercial-cadastros">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-comercial-cadastros')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-folders"></i>
+                                Cadastros
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-comercial-cadastros">
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-contatos"
+                                onclick="navigateTo('comercial-contatos'); return false;"><i
+                                    class="ph ph-address-book"></i> Cadastro Contatos</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-clientes"
+                                onclick="navigateTo('comercial-clientes'); return false;"><i
+                                    class="ph ph-user-plus"></i> Cadastro Clientes</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-enderecos"
+                                onclick="navigateTo('comercial-enderecos'); return false;"><i
+                                    class="ph ph-map-pin"></i> Cadastro Endereço</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-eventos"
+                                onclick="navigateTo('comercial-eventos'); return false;"><i
+                                    class="ph ph-calendar-star"></i> Cadastro Evento</a>
+                        </div>
+                    </div>
                     <a href="#" class="nav-item" data-target="comercial-comissao"
                         onclick="navigateTo('comercial-comissao'); return false;"><i
                             class="ph ph-currency-circle-dollar"></i> Comissão</a>
@@ -6677,11 +6692,12 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261021v1"></script>
     <script src="comercial_credenciamento.js"></script>
-    <script src="proposta.js?v=20261030v27"></script>
+    <script src="proposta.js?v=20261030v28"></script>
     <script src="proposta_dias_produto.js?v=20261030v1"></script>
     <script src="proposta_zonas.js?v=20261030v1"></script>
+    <script src="comercial_eventos.js?v=20261030v1"></script>
     <script src="proposta_servicos.js?v=20261030v2"></script>
-    <script src="comercial_boxes.js?v=20261030v4"></script>
+    <script src="comercial_boxes.js?v=20261030v5"></script>
     <script src="comercial_comissao.js?v=11"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>

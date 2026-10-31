@@ -68,6 +68,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-enderecos', pagina_nome: 'Endereços', icone: 'ph-map-pin' },
     { modulo: 'Comercial', pagina_id: 'comercial-clientes', pagina_nome: 'Cadastro de Cliente', icone: 'ph-user-plus' },
     { modulo: 'Comercial', pagina_id: 'comercial-contatos', pagina_nome: 'Cadastro de Contato', icone: 'ph-address-book' },
+    { modulo: 'Comercial', pagina_id: 'comercial-eventos', pagina_nome: 'Cadastro de Evento', icone: 'ph-calendar-star' },
     { modulo: 'Comercial', pagina_id: 'comercial-comissao', pagina_nome: 'Comissão', icone: 'ph-currency-circle-dollar' },
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
@@ -654,7 +655,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-comissao'] }]
+        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-eventos', 'comercial-comissao'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',

@@ -783,6 +783,9 @@ function renderTelaPropostas() {
                             <div class="saas-dropdown-item" id="tab-prop-enderecos" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                                 <i class="ph ph-map-pin"></i> Endereços
                             </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
+                        </div>
                             <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                                 <i class="ph ph-calculator"></i> Precificação de Serviços
                             </div>
@@ -1014,6 +1017,9 @@ function renderTelaPropostas() {
             <!-- VIEW: ENDEREÇOS ENTREGA -->
             <div id="prop-view-enderecos" style="display:${_currentPropostaTab === 'enderecos' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: CADASTRO EVENTOS -->
+            <div id="prop-view-cadastro-eventos" style="display:${_currentPropostaTab === 'cadastro-eventos' ? 'block' : 'none'};"></div>
+
             <!-- VIEW: PRECIFICACAO SERVICOS -->
             <div id="prop-view-servicos-precificacao" style="display:${_currentPropostaTab === 'servicos-precificacao' ? 'block' : 'none'};"></div>
 
@@ -1037,6 +1043,8 @@ function renderTelaPropostas() {
         _renderCadastroContatosInt();
     } else if (_currentPropostaTab === 'enderecos') {
         _renderEnderecosInt();
+    } else if (_currentPropostaTab === 'cadastro-eventos') {
+        if (typeof window._renderCadastroEventosInt === 'function') window._renderCadastroEventosInt();
     } else if (_currentPropostaTab === 'servicos-precificacao') {
         _renderServicosPrecificacaoInt();
     } else if (_currentPropostaTab === 'modelos-contrato') {
@@ -1062,6 +1070,7 @@ function renderTelaPropostas() {
             'cadastro-cliente': 'prop-toolbar-cliente',
             'cadastro-contatos': 'prop-toolbar-contatos',
             'enderecos': 'prop-toolbar-enderecos',
+            'cadastro-eventos': 'prop-toolbar-eventos',
             'servicos-precificacao': 'prop-toolbar-precificacao',
             'modelos-contrato': 'prop-toolbar-modelos',
             'modelos-propostas': 'prop-toolbar-modelos-propostas'
@@ -1089,6 +1098,7 @@ window.switchPropostaTab = function(tab) {
     const viewCadastroCliente = document.getElementById('prop-view-cadastro-cliente');
     const viewCadastroContatos = document.getElementById('prop-view-cadastro-contatos');
     const viewEnderecos = document.getElementById('prop-view-enderecos');
+    const viewCadastroEventos = document.getElementById('prop-view-cadastro-eventos');
     const viewServicosPrecificacao = document.getElementById('prop-view-servicos-precificacao');
     const viewModelosContrato = document.getElementById('prop-view-modelos-contrato');
     const viewModelosPropostas = document.getElementById('prop-view-modelos-propostas');
@@ -1102,7 +1112,7 @@ window.switchPropostaTab = function(tab) {
     const tabModelosContrato = document.getElementById('tab-prop-modelos-contrato');
     const tabModelosPropostas = document.getElementById('tab-prop-modelos-propostas');
 
-    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
+    const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewCadastroEventos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
     if (elementsExist) {
         if (tab === 'form') {
             if (viewForm.innerHTML.trim() === '') {
@@ -1124,6 +1134,9 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'enderecos' && viewEnderecos.innerHTML.trim() === '') {
             _renderEnderecosInt();
         }
+        if (tab === 'cadastro-eventos' && typeof window._renderCadastroEventosInt === 'function') {
+            window._renderCadastroEventosInt();
+        }
         if (tab === 'servicos-precificacao' && viewServicosPrecificacao.innerHTML.trim() === '') {
             _renderServicosPrecificacaoInt();
         }
@@ -1142,6 +1155,7 @@ window.switchPropostaTab = function(tab) {
         viewCadastroCliente.style.display = tab === 'cadastro-cliente' ? 'block' : 'none';
         viewCadastroContatos.style.display = tab === 'cadastro-contatos' ? 'block' : 'none';
         viewEnderecos.style.display = tab === 'enderecos' ? 'block' : 'none';
+        viewCadastroEventos.style.display = tab === 'cadastro-eventos' ? 'block' : 'none';
         viewServicosPrecificacao.style.display = tab === 'servicos-precificacao' ? 'block' : 'none';
         viewModelosContrato.style.display = tab === 'modelos-contrato' ? 'block' : 'none';
         viewModelosPropostas.style.display = tab === 'modelos-propostas' ? 'block' : 'none';
@@ -1199,6 +1213,7 @@ window.switchPropostaTab = function(tab) {
                 'cadastro-cliente': 'prop-toolbar-cliente',
                 'cadastro-contatos': 'prop-toolbar-contatos',
                 'enderecos': 'prop-toolbar-enderecos',
+            'cadastro-eventos': 'prop-toolbar-eventos',
                 'servicos-precificacao': 'prop-toolbar-precificacao',
                 'modelos-contrato': 'prop-toolbar-modelos'
             };
@@ -1922,6 +1937,9 @@ function _renderFormPropostaInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
+                        </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
@@ -2177,10 +2195,26 @@ function _renderFormPropostaInt() {
 
                         <!-- Linha: Nome do Evento (quando EVENTO) + Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
                         <div style="display:flex; gap:0.75rem; align-items:center; background:#f8fafc; padding:0.4rem 0.65rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
-                            <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 260px; max-width:420px;">
+                            <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 320px; max-width:600px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento <span style="color:#dc2626;">*</span>:</span>
-                                <input type="text" id="prop-nome-evento" value="${_escHtmlProp(v('nome_evento'))}"
-                                    style="width:100%;padding:0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:28px;" placeholder="Digite o nome do evento...">
+                                <div id="prop-evento-combo-wrap" style="position:relative; flex:1;">
+                                    <input type="text" id="prop-nome-evento" value="${_escHtmlProp(v('nome_evento'))}" autocomplete="off"
+                                        onfocus="if(typeof window.abrirDropdownEventosProposta === 'function') window.abrirDropdownEventosProposta(true);"
+                                        onclick="if(typeof window.abrirDropdownEventosProposta === 'function') window.abrirDropdownEventosProposta(true);"
+                                        oninput="if(typeof window.filtrarDropdownEventosProposta === 'function') window.filtrarDropdownEventosProposta();"
+                                        onkeydown="if(typeof window.onKeyDownEventoProposta === 'function') window.onKeyDownEventoProposta(event);"
+                                        style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:28px;" placeholder="Selecione ou digite o nome do evento...">
+                                    <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownEventosProposta === 'function') window.toggleDropdownEventosProposta(event);" title="Mostrar eventos do cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                                    </button>
+                                    <div id="prop-evento-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
+                                </div>
+                                <button type="button" onclick="if(typeof window.pesquisarEventoProposta === 'function') window.pesquisarEventoProposta()" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar evento vinculado ao cliente">
+                                    <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
+                                </button>
+                                <button type="button" onclick="if(typeof window.novoEventoProposta === 'function') window.novoEventoProposta()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar novo evento para o cliente">
+                                    <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
+                                </button>
                             </div>
                             <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
@@ -10446,6 +10480,9 @@ function _renderCadastroContatosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
+                        </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
@@ -12465,6 +12502,9 @@ function _renderEnderecosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
+                        </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
@@ -14379,6 +14419,9 @@ function _renderPrecificacaoBaseLayout() {
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
                         </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
@@ -19857,6 +19900,9 @@ function _renderModelosContratoBaseLayout() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
                         </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
+                        </div>
                         <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços
                         </div>
@@ -20948,6 +20994,9 @@ window._renderModelosPropostasInt = async function() {
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
                             <i class="ph ph-map-pin"></i> Endereços
+                        </div>
+                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
+                            <i class="ph ph-calendar-star"></i> Eventos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
                             <i class="ph ph-calculator"></i> Precificação de Serviços

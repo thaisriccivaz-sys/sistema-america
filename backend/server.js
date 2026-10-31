@@ -43661,6 +43661,127 @@ app.delete('/api/comercial/boxes/:id', authenticateToken, (req, res) => {
   });
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// MÓDULO: CADASTRO DE EVENTOS (nomes de eventos vinculados a clientes)
+// ══════════════════════════════════════════════════════════════════════
+db.run(`CREATE TABLE IF NOT EXISTS comercial_eventos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cliente_id INTEGER,
+  cliente_nome TEXT NOT NULL,
+  nome TEXT NOT NULL,
+  ativo INTEGER DEFAULT 1,
+  criado_por TEXT,
+  criado_em TEXT DEFAULT (datetime('now', '-3 hours')),
+  atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+)`, (errEv) => {
+  if (errEv) console.error('[EVENTOS] Erro ao criar tabela comercial_eventos:', errEv.message);
+});
+db.run('CREATE INDEX IF NOT EXISTS idx_comercial_eventos_cliente ON comercial_eventos (cliente_id)');
+
+function evNormTxt(s) {
+  return String(s || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+// Resolve o cliente (id + nome oficial) pelo id ou pelo nome (razao social / fantasia)
+function evResolverCliente(clienteId, clienteNome, cb) {
+  db.all('SELECT id, nome_razao_social, nome_fantasia FROM clientes', [], (err, rows) => {
+    if (err) return cb(null);
+    const lista = rows || [];
+    const idNum = Number(clienteId) || 0;
+    let achado = idNum ? lista.find(c => Number(c.id) === idNum) : null;
+    if (!achado && clienteNome) {
+      const n = evNormTxt(clienteNome);
+      achado = lista.find(c => evNormTxt(c.nome_razao_social) === n || evNormTxt(c.nome_fantasia) === n) || null;
+    }
+    cb(achado ? { id: achado.id, nome: achado.nome_razao_social || achado.nome_fantasia || clienteNome } : null);
+  });
+}
+
+// GET /api/comercial/eventos?cliente_id=&cliente_nome=&q=
+app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
+  const cid = Number(req.query.cliente_id) || 0;
+  const cnome = evNormTxt(req.query.cliente_nome);
+  const q = evNormTxt(req.query.q);
+  db.all('SELECT * FROM comercial_eventos WHERE ativo = 1 ORDER BY cliente_nome COLLATE NOCASE ASC, nome COLLATE NOCASE ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    let lista = rows || [];
+    if (cid || cnome) {
+      lista = lista.filter(r => (cid && Number(r.cliente_id) === cid) || (cnome && evNormTxt(r.cliente_nome) === cnome));
+    }
+    if (q) {
+      lista = lista.filter(r => evNormTxt(r.nome).includes(q) || evNormTxt(r.cliente_nome).includes(q));
+    }
+    res.json(lista);
+  });
+});
+
+// POST /api/comercial/eventos { cliente_id?, cliente_nome, nome }
+app.post('/api/comercial/eventos', authenticateToken, (req, res) => {
+  const d = req.body || {};
+  const nome = String(d.nome || '').trim();
+  if (!nome) return res.status(400).json({ error: 'Informe o nome do evento.' });
+  if (!d.cliente_id && !String(d.cliente_nome || '').trim()) return res.status(400).json({ error: 'Informe o cliente do evento.' });
+  const usuario = req.user?.username || req.user?.nome || 'unknown';
+  evResolverCliente(d.cliente_id, d.cliente_nome, (cli) => {
+    const clienteId = cli ? cli.id : (Number(d.cliente_id) || null);
+    const clienteNome = cli ? cli.nome : String(d.cliente_nome || '').replace(/^[^A-Za-z0-9\u00C0-\u00FF]+/, '').trim();
+    db.all('SELECT id, cliente_id, cliente_nome, nome FROM comercial_eventos WHERE ativo = 1', [], (errD, rowsD) => {
+      if (errD) return res.status(500).json({ error: errD.message });
+      const dup = (rowsD || []).find(r =>
+        evNormTxt(r.nome) === evNormTxt(nome) &&
+        ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome)));
+      if (dup) return res.status(400).json({ error: 'Já existe um evento com este nome para este cliente.', id: dup.id });
+      const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+      db.run(`INSERT INTO comercial_eventos (cliente_id, cliente_nome, nome, criado_por, criado_em, atualizado_em) VALUES (?,?,?,?,?,?)`,
+        [clienteId, clienteNome, nome, usuario, agora, agora], function(errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          res.json({ success: true, id: this.lastID, cliente_id: clienteId, cliente_nome: clienteNome, nome });
+        });
+    });
+  });
+});
+
+// PUT /api/comercial/eventos/:id { nome, cliente_id?, cliente_nome? }
+app.put('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
+  const d = req.body || {};
+  const id = Number(req.params.id);
+  const nome = String(d.nome || '').trim();
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  if (!nome) return res.status(400).json({ error: 'Informe o nome do evento.' });
+  db.get('SELECT * FROM comercial_eventos WHERE id = ?', [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Evento não encontrado.' });
+    evResolverCliente(d.cliente_id || row.cliente_id, d.cliente_nome || row.cliente_nome, (cli) => {
+      const clienteId = cli ? cli.id : row.cliente_id;
+      const clienteNome = cli ? cli.nome : row.cliente_nome;
+      db.all('SELECT id, cliente_id, cliente_nome, nome FROM comercial_eventos WHERE ativo = 1 AND id != ?', [id], (errD, rowsD) => {
+        if (errD) return res.status(500).json({ error: errD.message });
+        const dup = (rowsD || []).find(r =>
+          evNormTxt(r.nome) === evNormTxt(nome) &&
+          ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome)));
+        if (dup) return res.status(400).json({ error: 'Já existe um evento com este nome para este cliente.' });
+        const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+        db.run('UPDATE comercial_eventos SET nome=?, cliente_id=?, cliente_nome=?, atualizado_em=? WHERE id=?',
+          [nome, clienteId, clienteNome, agora, id], function(errUp) {
+            if (errUp) return res.status(500).json({ error: errUp.message });
+            res.json({ success: true });
+          });
+      });
+    });
+  });
+});
+
+// DELETE /api/comercial/eventos/:id
+app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  db.run('DELETE FROM comercial_eventos WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Evento não encontrado.' });
+    res.json({ success: true });
+  });
+});
+
 // GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta
 app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, nome ASC', [], (err, rows) => {

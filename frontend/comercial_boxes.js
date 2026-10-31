@@ -277,49 +277,50 @@
         };
     };
 
-    /* Renderiza o quadro em WIDESCREEN (16:9). O desenho é feito numa tela de 1920 px e escalado
-       por unidades cqw, então Desktop e Celular ficam IDÊNTICOS. Conforme entram produtos/serviços
-       a altura apenas cresce. */
+    /* Renderiza o quadro em WIDESCREEN (16:9 no mínimo). O desenho é feito numa tela de 1920 px e escalado
+       por unidades cqw, então Desktop e Celular ficam IDÊNTICOS. Conforme entram produtos/serviços a altura
+       cresce (a proposta continua rolando para baixo até o final do conteúdo, sem cortes).
+       Fontes: Franklin Gothic Book (texto) e Franklin Gothic Demi (destaques). */
     window.renderBoxQuadroEventoHtml = function (dadosCustom, view) {
         const d = (dadosCustom && dadosCustom.itens) ? dadosCustom : window.montarDadosQuadroEventoProposta(dadosCustom);
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = '#5c4599';
-        const COLS = '1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(165);
+        const COLS = '1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
 
         const celula = (it, valor, cor) => it.cortesia
-            ? '<span style="font-size:' + u(22) + '; font-weight:800; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
+            ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
             : (it.fob
-                ? '<span style="font-size:' + u(22) + '; font-weight:800; color:#b45309;">FOB</span>'
+                ? '<span class="bq-d" style="font-size:' + u(22) + '; color:#b45309;">FOB</span>'
                 : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
         const cabecalhoColunas = (titulo) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:end; margin-bottom:${u(14)};">
-                <div style="font-size:${u(40)}; color:#3b3b3b; font-weight:400; display:flex; align-items:center; gap:${u(10)};">
+                <div style="font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
-                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
-                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
-                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
-                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
-                <div style="text-align:center; font-size:${u(18)}; font-weight:800; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>`;
 
         const linhaItem = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:start; margin-bottom:${u(26)};">
                 <div style="min-width:0; padding-right:${u(20)};">
                     <div style="display:flex; align-items:baseline; gap:${u(14)}; width:100%;">
-                        <span style="font-weight:800; font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase;">${esc(it.quantidade)} - ${esc(it.nome)}</span>
+                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase;">${esc(it.quantidade)} - ${esc(it.nome)}</span>
                         <span style="flex:1; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                 </div>
-                <div style="text-align:center; font-weight:800; font-size:${u(26)}; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
-                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.unit, '#3b3b3b')}</div>
-                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.por_dia, '#3b3b3b')}</div>
-                <div style="text-align:center; font-weight:800; font-size:${u(26)}; color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
-                <div style="text-align:center; font-weight:800; font-size:${u(26)};">${celula(it, it.total, ROXO)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.unit, '#3b3b3b')}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.por_dia, '#3b3b3b')}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(26)};">${celula(it, it.total, ROXO)}</div>
             </div>`;
 
         const itensHtml = (d.itens && d.itens.length > 0)
@@ -333,27 +334,31 @@
             </div>` : '';
 
         return `
-        <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; font-family:'Inter', Arial, Helvetica, sans-serif; box-sizing:border-box; line-height:1.35;">
-            <div style="width:100%; aspect-ratio:16 / 9; display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden;">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
+            @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
+            @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
+            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; }
+            .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
+        </style>
+        <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+            <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
                 <!-- Faixa superior: PROPOSTA EVENTO + número do contrato -->
                 <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;"><span style="font-weight:300;">PROPOSTA</span> <span style="font-weight:800;">EVENTO</span></div>
-                    <div style="font-size:${u(42)}; font-weight:800; color:${ROXO};">${esc(d.contrato)}</div>
+                    <div style="font-size:${u(34)}; letter-spacing:0.02em; color:#222;">PROPOSTA <span class="bq-d">EVENTO</span></div>
+                    <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.contrato)}</div>
                 </div>
 
                 <!-- Bloco logo + dados do cliente + informações do evento -->
                 <div style="margin-left:${u(122)}; display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="background:${ROXO}; color:#fff; width:${u(413)}; height:${u(258)}; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0;">
-                        <img src="/logo.png" alt="América Rental" style="width:${u(110)}; height:auto; filter:brightness(0) invert(1); display:block; margin-bottom:${u(8)};">
-                        <div style="font-size:${u(44)}; font-weight:300; letter-spacing:0.16em; line-height:1; color:#fff;">AMÉRICA</div>
-                        <div style="font-family:'Georgia','Times New Roman',serif; font-style:italic; font-size:${u(42)}; line-height:1; color:#fff; margin-top:${u(2)};">Rental</div>
-                        <div style="font-size:${u(15)}; letter-spacing:0.14em; color:rgba(255,255,255,0.9);">desde 1999</div>
+                    <div style="background:${ROXO}; width:${u(413)}; height:${u(258)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(226)}; width:auto; display:block;">
                     </div>
                     <div style="flex:1; display:grid; grid-template-columns:1.05fr 1fr; column-gap:${u(40)}; padding:${u(20)} ${u(50)} 0 ${u(140)}; align-items:start; min-width:0;">
                         <div style="min-width:0;">
                             <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
-                                <span><span style="font-weight:300;">DADOS DO</span> <span style="font-weight:800;">CLIENTE:</span></span>
+                                <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
                             </div>
                             <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
                                 <div style="text-transform:uppercase;">${esc(d.razao_social)}</div>
@@ -365,7 +370,7 @@
                         <div style="min-width:0;">
                             <div style="font-size:${u(40)}; color:#222; display:flex; align-items:center; gap:${u(10)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span>
-                                <span><span style="font-weight:300;">INFORMAÇÕES</span> <span style="font-weight:800;">EVENTO:</span></span>
+                                <span>INFORMAÇÕES <span class="bq-d">EVENTO:</span></span>
                             </div>
                             <div style="font-size:${u(23)}; color:#222; line-height:1.6; margin-top:${u(14)}; word-break:break-word;">
                                 <div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>
@@ -377,7 +382,7 @@
                     </div>
                 </div>
 
-                <!-- Equipamentos e Serviços (a altura só cresce) -->
+                <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
                 <div style="flex:1 0 auto;">
                     <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(80)};">
                         ${cabecalhoColunas('EQUIPAMENTOS:')}
@@ -386,10 +391,16 @@
                     ${secaoServicos}
                 </div>
 
-                <!-- Barra preta de totais -->
-                <div style="background:#191919; color:#fff; height:${u(127)}; min-height:${u(127)}; padding:0 ${u(65)}; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:${u(4)}; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(24)}; font-weight:400; color:#f8fafc;">VALOR TOTAL POR DIA R$: ${fmtNum(d.valor_total_por_dia_geral)}</div>
-                    <div style="font-size:${u(42)}; font-weight:800; color:#6d52b8;">VALOR TOTAL: R$${fmtNum(d.valor_total_geral)}</div>
+                <!-- Totais (sem faixa preta): valor total em roxo abaixo da coluna VALOR TOTAL -->
+                <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(80)}; flex-shrink:0;">
+                    <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline;">
+                        <div class="bq-d" style="grid-column:1 / 4; text-align:right; font-size:${u(24)}; color:#3b3b3b;">VALOR TOTAL POR DIA R$:</div>
+                        <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b;">${fmtNum(d.valor_total_por_dia_geral)}</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                        <div class="bq-d" style="grid-column:1 / 6; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                        <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
+                    </div>
                 </div>
             </div>
         </div>`;

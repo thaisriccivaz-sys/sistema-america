@@ -806,6 +806,7 @@ const BREADCRUMB_MAP = {
     'comercial-enderecos': { path: 'Comercial → Endereços', code: 'COM004' },
     'comercial-clientes': { path: 'Comercial → Clientes', code: 'COM005' },
     'comercial-contatos': { path: 'Comercial → Contatos', code: 'COM006' },
+    'comercial-eventos': { path: 'Comercial → Cadastros → Evento', code: 'COM009' },
     'comercial-modelos-propostas': { path: 'Comercial → Administração → Modelo Proposta', code: 'COM007' },
     'comercial-tabela-precos': { path: 'Comercial → Administração → Tabela Preços', code: 'COM008' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
@@ -966,6 +967,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-enderecos'] === undefined) mapPerms['comercial-enderecos'] = true;
             if (mapPerms['comercial-clientes'] === undefined) mapPerms['comercial-clientes'] = true;
             if (mapPerms['comercial-contatos'] === undefined) mapPerms['comercial-contatos'] = true;
+            if (mapPerms['comercial-eventos'] === undefined) mapPerms['comercial-eventos'] = true;
             if (mapPerms['comercial-modelos-propostas'] === undefined) mapPerms['comercial-modelos-propostas'] = true;
             if (mapPerms['comercial-tabela-precos'] === undefined) mapPerms['comercial-tabela-precos'] = true;
         }
@@ -1238,6 +1240,7 @@ const TAB_META = {
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
     'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
     'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },
+    'comercial-eventos': { color: '#7048e8', icon: 'ph-calendar-star', title: 'Eventos' },
     'comercial-comissao': { color: '#7048e8', icon: 'ph-currency-circle-dollar', title: 'Comissão' },
     'comercial-servicos-precificacao': { color: '#d9480f', icon: 'ph-calculator', title: 'Precificação de Serviços' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
@@ -1341,6 +1344,7 @@ window.navigateToTab = function (tabId) {
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',
+        'comercial-eventos': 'cadastro-eventos',
         'comercial-servicos-precificacao': 'servicos-precificacao'
     };
     const actualTarget = _comercialSubTabMap[tab.target]
@@ -1498,6 +1502,7 @@ function navigateTo(target) {
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',
+        'comercial-eventos': 'cadastro-eventos',
         'comercial-servicos-precificacao': 'servicos-precificacao'
     };
     const actualTarget = _comercialSubTabMap[target]
