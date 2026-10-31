@@ -33658,6 +33658,12 @@ const uploadImportEquipamentos = multer({
     limits: { fileSize: 20 * 1024 * 1024 }
 });
 
+db.run("ALTER TABLE estoque_equipamentos ADD COLUMN descricao_proposta TEXT", (errAltDescProp) => {
+    if (errAltDescProp && !errAltDescProp.message.includes('duplicate column name')) {
+        console.log('[EQUIPAMENTOS] Alerta ao adicionar coluna descricao_proposta:', errAltDescProp.message);
+    }
+});
+
 // GET /api/estoque-equipamentos
 app.get('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const tipoFiltro = String(req.query.tipo_item || '').trim().toLowerCase();
@@ -33976,6 +33982,7 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const fonte_fornecimento = String(d.fonte_fornecimento || 'PACOTE OBRA').trim().toUpperCase();
     const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
+    const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const criado_por = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
@@ -33994,9 +34001,9 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
             db.run(
                 `INSERT INTO estoque_equipamentos (
                     codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
-                    especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, agora, agora],
+                    especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, criado_por, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, criado_por, agora, agora],
                 function(errIns) {
                     if (errIns) return res.status(500).json({ error: errIns.message });
                     res.json({ success: true, id: this.lastID, codigo });
@@ -34019,6 +34026,7 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const fonte_fornecimento = String(d.fonte_fornecimento || 'PACOTE OBRA').trim().toUpperCase();
     const grupo_produto = String(d.grupo_produto || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
+    const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
 
@@ -34035,9 +34043,9 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
         db.run(
             `UPDATE estoque_equipamentos SET
                 nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                especificacao_tecnica = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
+                especificacao_tecnica = ?, descricao_proposta = ?, produto_venda = ?, tipo_item = ?, updated_at = ?
              WHERE id = ?`,
-            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, agora, id],
+            [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, produto_venda, tipo_item, agora, id],
             function(errUpd) {
                 if (errUpd) return res.status(500).json({ error: errUpd.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Equipamento não encontrado.' });
@@ -43460,11 +43468,27 @@ function boxValidarMidia(file) {
   return mime.startsWith('image/') || mime.startsWith('video/');
 }
 
-// GET /api/comercial/boxes - Listar boxes (ordem de exibicao)
+// GET /api/comercial/boxes - Listar boxes (ordem de exibicao), garantindo o Box Fixo da Proposta Evento
 app.get('/api/comercial/boxes', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json((rows || []).map(boxMontarRespostaRow));
+    const lista = rows || [];
+    const temQuadroEvento = lista.some(r => r.tipo === 'quadro_evento');
+    if (temQuadroEvento) {
+      return res.json(lista.map(boxMontarRespostaRow));
+    }
+    const maxOrdem = lista.reduce((acc, r) => Math.max(acc, Number(r.ordem) || 0), 0);
+    db.run(
+      `INSERT INTO comercial_boxes (nome, tipo, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', 'mesma', ?, 1, 'Sistema')`,
+      ['Quadro de Valores — Proposta Evento (Fixo)', maxOrdem + 1],
+      function(errIns) {
+        if (errIns) return res.json(lista.map(boxMontarRespostaRow));
+        db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 ORDER BY ordem ASC, id ASC', [], (err2, rows2) => {
+          if (err2) return res.json(lista.map(boxMontarRespostaRow));
+          res.json((rows2 || []).map(boxMontarRespostaRow));
+        });
+      }
+    );
   });
 });
 
@@ -43614,6 +43638,9 @@ app.delete('/api/comercial/boxes/:id', authenticateToken, (req, res) => {
   db.get('SELECT * FROM comercial_boxes WHERE id = ?', [req.params.id], async (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Box nao encontrado' });
+    if (row.tipo === 'quadro_evento') {
+      return res.status(400).json({ error: 'Este box é fixo da Proposta Evento e não pode ser excluído. Use as setas ▲ ▼ para mudar a posição dele.' });
+    }
     try {
       const r2b = require('./utils/r2');
       if (r2b.isReady()) {

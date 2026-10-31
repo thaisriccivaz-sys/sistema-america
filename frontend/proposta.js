@@ -17882,6 +17882,8 @@ window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
             window._garantirTabelasPrecoCarregadas(false)
         ]);
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
+        window._equipamentosEstoqueData = produtos;
+        if (window._boxCacheDadosAux) window._boxCacheDadosAux.equipamentos = produtos;
         const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
         if (termo) {
@@ -17919,6 +17921,8 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                 window._garantirTabelasPrecoCarregadas(false)
             ]);
             produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
+            window._equipamentosEstoqueData = produtos;
+            if (window._boxCacheDadosAux) window._boxCacheDadosAux.equipamentos = produtos;
             Swal.close();
         } catch (e) {
             Swal.close();
@@ -18306,6 +18310,9 @@ window.adicionarProdutoProposta = function() {
         codigo: codigo || '—',
         produto: produtoNome,
         descricao: produtoNome,
+        descricao_proposta: (typeof window.obterDescricaoPropostaEquipamento === 'function')
+            ? window.obterDescricaoPropostaEquipamento({ codigo, produto: produtoNome })
+            : '',
         observacao: observacao,
         quantidade: quantidade,
         dias_evento: [...diasSelecionados],
@@ -20602,6 +20609,12 @@ function _fmtMoedaNumProp(v) {
 
 window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
     const m = modelo || {};
+    const codTipoLimpo = String(m.codigo_tipo || m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (codTipoLimpo === 'EVENTO' && typeof window.renderBoxQuadroEventoHtml === 'function') {
+        return '<div style="max-width:960px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">' +
+            window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop') +
+            '</div>';
+    }
     let contratada = {
         razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
         cnpj: '03.434.448/0001-01',

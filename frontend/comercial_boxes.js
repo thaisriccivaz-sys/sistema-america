@@ -1,13 +1,11 @@
 /* ══════════════════════════════════════════════════════════════════════
-   BOXES DE MÍDIA — banners de imagem/vídeo em largura total para o modelo de proposta
+   BOXES DE MÍDIA + QUADRO FIXO DA PROPOSTA EVENTO
    - Biblioteca: anexar, renomear, subir/descer, excluir (arquivos no Cloudflare R2)
+   - Box Fixo da Proposta Evento (tipo = 'quadro_evento'):
+       • Puxa automaticamente os dados da Proposta, Cliente, Contato, Endereço e Cadastro de Equipamentos
+       • Pode subir/descer na ordem dos boxes, mas é fixo (não pode ser excluído)
    - Responsivo: cada box define como aparece no CELULAR
-       mesma    → mesma mídia, largura total, altura proporcional
-       arquivo  → outra imagem/vídeo exclusivo para o celular
-       recorte  → enquadra a mídia numa proporção (1:1, 4:5, 9:16...) com ponto de foco
-       ocultar  → não aparece no celular
-   - Áreas clicáveis (hiperlink) desenhadas sobre a imagem, abrindo em nova página
-   - window.boxRenderHtml(box, 'desktop'|'mobile') é reutilizável (preview e página pública)
+   - Áreas clicáveis (hiperlink) em desktop e celular
    ══════════════════════════════════════════════════════════════════════ */
 (function () {
     const esc = (s) => String(s === undefined || s === null ? '' : s)
@@ -22,6 +20,404 @@
     ];
     const PROPORCOES = ['1:1', '4:5', '3:4', '9:16', '16:9', '3:2'];
     const ROTULO_MODO = { mesma: 'Celular: mesma mídia', arquivo: 'Celular: mídia própria', recorte: 'Celular: recortada', ocultar: 'Celular: oculto' };
+
+    const fmtNum = (n) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDataIso = (d) => {
+        const s = String(d || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.split('-').reverse().join('/');
+        return s;
+    };
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    /* Cache leve de clientes, contatos, endereços e equipamentos para enriquecer o Quadro Fixo */
+    window._boxCacheDadosAux = { carregado: false, clientes: [], contatos: [], enderecos: [], equipamentos: [], propostasEvento: [] };
+    window._boxPropostaPreviewId = 'auto';
+
+    window.carregarCacheDadosQuadroEvento = async function (forcar) {
+        const c = window._boxCacheDadosAux;
+        if (c.carregado && !forcar) return c;
+        try {
+            const [clientes, contatos, enderecos, equipamentos, propostas] = await Promise.all([
+                typeof apiGet === 'function' ? apiGet('/clientes').catch(() => []) : [],
+                typeof apiGet === 'function' ? apiGet('/contatos').catch(() => []) : [],
+                typeof apiGet === 'function' ? apiGet('/enderecos-entrega').catch(() => []) : [],
+                typeof apiGet === 'function' ? apiGet('/estoque-equipamentos').catch(() => []) : [],
+                typeof apiGet === 'function' ? apiGet('/propostas').catch(() => []) : []
+            ]);
+            c.clientes = Array.isArray(clientes) ? clientes : [];
+            c.contatos = Array.isArray(contatos) ? contatos : [];
+            c.enderecos = Array.isArray(enderecos) ? enderecos : [];
+            c.equipamentos = Array.isArray(equipamentos) ? equipamentos : [];
+            c.propostasEvento = (Array.isArray(propostas) ? propostas : []).filter(p =>
+                norm(String(p.tipo || '').replace(/^proposta\s+/i, '')) === 'evento'
+            );
+            c.carregado = true;
+        } catch (e) {
+            console.warn('[BOXES] Aviso ao carregar cache auxiliar:', e);
+        }
+        return c;
+    };
+
+    /* Busca a "Descrição para Proposta" no cadastro do equipamento pelo código ou nome */
+    window.obterDescricaoPropostaEquipamento = function (itemOuProd) {
+        if (!itemOuProd) return '';
+        if (itemOuProd.descricao_proposta && String(itemOuProd.descricao_proposta).trim()) {
+            return String(itemOuProd.descricao_proposta).trim();
+        }
+        const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
+            ? window._boxCacheDadosAux.equipamentos
+            : (window._equipamentosEstoqueData || []);
+        const cod = norm(itemOuProd.codigo);
+        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const achado = lista.find(eq =>
+            (cod && cod !== '—' && norm(eq.codigo) === cod) ||
+            (nome && norm(eq.nome) === nome)
+        );
+        if (!achado) return '';
+        return String(achado.descricao_proposta || achado.especificacao_tecnica || '').trim();
+    };
+
+    /* Separa endereço de instalação em Linha 1 (Rua e Número) e Linha 2 (Bairro - Cidade) */
+    function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
+        const rawEnd = String(proposta.endereco_instalacao || '').trim();
+        const c = window._boxCacheDadosAux;
+        if (rawEnd && c && Array.isArray(c.enderecos) && c.enderecos.length) {
+            const cliId = clienteObj ? Number(clienteObj.id) : 0;
+            const candidatos = cliId ? c.enderecos.filter(e => Number(e.cliente_id) === cliId) : c.enderecos;
+            const endNorm = norm(rawEnd);
+            const match = candidatos.find(e => {
+                const rua = norm(e.endereco);
+                return rua && endNorm.includes(rua);
+            });
+            if (match) {
+                const l1 = [match.endereco, match.numero, match.complemento].map(x => String(x || '').trim()).filter(Boolean).join(', ');
+                const l2 = [match.bairro, [match.municipio, match.uf].filter(Boolean).join('/')].map(x => String(x || '').trim()).filter(Boolean).join(' - ');
+                return { linha1: l1 || rawEnd, linha2: l2 };
+            }
+        }
+        if (!rawEnd) {
+            return { linha1: 'RUA E NUMERO', linha2: 'BAIRRO - CIDADE' };
+        }
+        // Se o endereço já contém " - " ou vírgulas separando bairro/cidade, divide de forma inteligente
+        const partesTraco = rawEnd.split(/\s+-\s+/);
+        if (partesTraco.length >= 2) {
+            return {
+                linha1: partesTraco[0].trim(),
+                linha2: partesTraco.slice(1).join(' - ').trim()
+            };
+        }
+        return { linha1: rawEnd, linha2: '' };
+    }
+
+    /* Monta todos os dados estruturados para o Quadro Fixo da Proposta Evento */
+    window.montarDadosQuadroEventoProposta = function (propostaExplicita) {
+        const c = window._boxCacheDadosAux || { clientes: [], contatos: [], enderecos: [], equipamentos: [], propostasEvento: [] };
+
+        // 1. Determinar qual proposta usar (explícita -> selecionada no preview -> aberta na tela de proposta -> exemplo do modelo)
+        let prop = propostaExplicita || null;
+        if (!prop && window._boxPropostaPreviewId && window._boxPropostaPreviewId !== 'auto' && window._boxPropostaPreviewId !== 'exemplo') {
+            prop = (c.propostasEvento || []).find(p => String(p.id) === String(window._boxPropostaPreviewId)) || null;
+        }
+        if (!prop && window._boxPropostaPreviewId !== 'exemplo') {
+            // Se o formulário de proposta estiver aberto na tela com tipo EVENTO e dados preenchidos, lê em tempo real
+            const tipoForm = document.getElementById('prop-tipo')?.value || '';
+            const cliForm = document.getElementById('prop-cliente')?.value || '';
+            if (norm(String(tipoForm).replace(/^proposta\s+/i, '')) === 'evento' && (cliForm || (window._propProdutosAdicionados && window._propProdutosAdicionados.length))) {
+                prop = {
+                    codigo: document.getElementById('prop-codigo')?.value || 'AUTO',
+                    cliente_nome: cliForm,
+                    contato_nome: document.getElementById('prop-contato')?.value || '',
+                    nome_evento: document.getElementById('prop-nome-evento')?.value || '',
+                    periodo_inicio: document.getElementById('prop-periodo-ini')?.value || '',
+                    periodo_fim: document.getElementById('prop-periodo-fim')?.value || '',
+                    dias_contrato: document.getElementById('prop-dias')?.value || 0,
+                    endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
+                    itens: window._propProdutosAdicionados || []
+                };
+            }
+        }
+
+        // Caso não haja proposta real selecionada (ex.: visualizando o modelo em branco), retorna os dados de demonstração fiéis à imagem
+        if (!prop) {
+            return {
+                codigo: '14076',
+                razao_social: 'RAZÃO SOCIAL',
+                cnpj: 'CNPJ AQUI',
+                contato_nome: 'NOME DO CONTATO',
+                contato_celular: 'NUMERO DO CONTATO',
+                nome_evento: 'NOME DO EVENTO',
+                diarias_contrato: 'DIÁRIAS DE CONTRATO',
+                instalacao_linha1: 'RUA E NUMERO',
+                instalacao_linha2: 'BAIRRO - CIDADE',
+                itens: [
+                    {
+                        quantidade: 5,
+                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
+                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
+                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
+                        quant_diarias: 5,
+                        valor_unitario_diaria: 100,
+                        valor_total_por_dia: 500,
+                        valor_total_item: 2500
+                    },
+                    {
+                        quantidade: 5,
+                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
+                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
+                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
+                        quant_diarias: 6,
+                        valor_unitario_diaria: 100,
+                        valor_total_por_dia: 500,
+                        valor_total_item: 3000
+                    },
+                    {
+                        quantidade: 2,
+                        nome: 'BANHEIRO QUÍMICO STANDARD 002XZV',
+                        descricao_proposta: 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada',
+                        observacao: 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA',
+                        quant_diarias: 5,
+                        valor_unitario_diaria: 100,
+                        valor_total_por_dia: 200,
+                        valor_total_item: 1000
+                    }
+                ],
+                valor_total_por_dia_geral: 1200,
+                valor_total_geral: 6500
+            };
+        }
+
+        const cliNomeLimpo = String(prop.cliente_nome || '').replace(/^[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF]+\s*/, '').trim();
+        const cliNorm = norm(cliNomeLimpo);
+        const clienteObj = (c.clientes || []).find(cl =>
+            norm(cl.nome_razao_social) === cliNorm || norm(cl.nome_fantasia) === cliNorm
+        ) || null;
+
+        const cnpj = (clienteObj && clienteObj.cpf_cnpj) ? String(clienteObj.cpf_cnpj).trim() : (prop.cliente_cnpj || '—');
+        const contatoNome = String(prop.contato_nome || '').trim();
+        let celularContato = prop.contato_celular || prop.contato_telefone || '';
+        if (!celularContato && contatoNome && Array.isArray(c.contatos)) {
+            const contNorm = norm(contatoNome);
+            const contObj = c.contatos.find(ct =>
+                norm(ct.nome || ct.nome_contato) === contNorm &&
+                (!clienteObj || Number(ct.cliente_id) === Number(clienteObj.id) || norm(ct.cliente_nome) === cliNorm)
+            ) || c.contatos.find(ct => norm(ct.nome || ct.nome_contato) === contNorm);
+            if (contObj) {
+                celularContato = String(contObj.celular || contObj.telefone || contObj.whatsapp || '').trim();
+            }
+        }
+        if (!celularContato && clienteObj) {
+            celularContato = String(clienteObj.celular || clienteObj.telefone || '').trim();
+        }
+
+        // Período Início * Até * (DIÁRIAS DE CONTRATO)
+        const iniFmt = fmtDataIso(prop.periodo_inicio);
+        const fimFmt = fmtDataIso(prop.periodo_fim);
+        let diariasContrato = '';
+        if (iniFmt && fimFmt) {
+            diariasContrato = iniFmt === fimFmt ? iniFmt : `${iniFmt} A ${fimFmt}`;
+        } else {
+            diariasContrato = iniFmt || fimFmt || '—';
+        }
+
+        const inst = formatarInstalacaoDuasLinhas(prop, clienteObj);
+
+        let itensRaw = [];
+        if (Array.isArray(prop.itens)) itensRaw = prop.itens;
+        else if (prop.itens) {
+            try { itensRaw = JSON.parse(prop.itens); } catch (e) { itensRaw = []; }
+        }
+
+        let somaPorDia = 0;
+        let somaTotalGeral = 0;
+
+        const itensFormatados = (itensRaw || []).map(it => {
+            const qtdEquip = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
+            const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
+            const descProd = window.obterDescricaoPropostaEquipamento(it);
+            const obsItem = String(it.observacao || '').trim().toUpperCase();
+            const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
+            const quantDiarias = diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1);
+            const valUnitDiaria = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
+            const valTotalPorDia = qtdEquip * valUnitDiaria;
+            const valTotalItem = valTotalPorDia * quantDiarias;
+
+            somaPorDia += valTotalPorDia;
+            somaTotalGeral += valTotalItem;
+
+            return {
+                quantidade: qtdEquip,
+                nome: nomeProd,
+                descricao_proposta: descProd,
+                observacao: obsItem,
+                quant_diarias: quantDiarias,
+                valor_unitario_diaria: valUnitDiaria,
+                valor_total_por_dia: valTotalPorDia,
+                valor_total_item: valTotalItem
+            };
+        });
+
+        return {
+            codigo: String(prop.codigo || prop.numero_proposta || prop.id || 'AUTO'),
+            razao_social: cliNomeLimpo || prop.cliente_razao || '—',
+            cnpj: cnpj || '—',
+            contato_nome: contatoNome || '—',
+            contato_celular: celularContato || '—',
+            nome_evento: String(prop.nome_evento || '').trim() || '—',
+            diarias_contrato: diariasContrato,
+            instalacao_linha1: inst.linha1,
+            instalacao_linha2: inst.linha2,
+            itens: itensFormatados,
+            valor_total_por_dia_geral: somaPorDia,
+            valor_total_geral: somaTotalGeral
+        };
+    };
+
+    /* Renderiza o HTML fiel ao layout "vALORES copy.jpg" (responsivo para Desktop e Celular) */
+    window.renderBoxQuadroEventoHtml = function (dadosCustom, view) {
+        const d = (dadosCustom && dadosCustom.itens) ? dadosCustom : window.montarDadosQuadroEventoProposta(dadosCustom);
+        const isMob = view === 'mobile';
+
+        const logoBlocoHtml = `
+            <div style="background:#5c4599; color:#fff; width:${isMob ? '100%' : '215px'}; min-height:${isMob ? '110px' : '155px'}; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px 16px; box-sizing:border-box; flex-shrink:0;">
+                <img src="/logo.png" alt="América Rental" style="width:${isMob ? '48px' : '62px'}; height:auto; filter:brightness(0) invert(1); display:block; margin-bottom:6px;">
+                <div style="font-size:${isMob ? '1rem' : '1.18rem'}; font-weight:300; letter-spacing:0.16em; line-height:1; color:#fff;">AMÉRICA</div>
+                <div style="font-family:'Georgia', 'Times New Roman', serif; font-style:italic; font-size:${isMob ? '0.95rem' : '1.1rem'}; line-height:1.05; color:#fff; margin-top:2px;">Rental</div>
+                <div style="font-size:0.56rem; letter-spacing:0.12em; color:rgba(255,255,255,0.88); margin-top:1px;">desde 1999</div>
+            </div>
+        `;
+
+        const itensHtml = (d.itens && d.itens.length > 0) ? d.itens.map(it => {
+            if (isMob) {
+                return `
+                    <div style="padding:10px 0; border-bottom:1px dashed #cbd5e1;">
+                        <div style="font-weight:800; font-size:0.82rem; color:#334155; text-transform:uppercase;">
+                            ${esc(it.quantidade)} - ${esc(it.nome)}
+                        </div>
+                        ${it.descricao_proposta ? `<div style="font-size:0.74rem; color:#475569; margin-top:3px; line-height:1.35;">${esc(it.descricao_proposta)}</div>` : ''}
+                        ${it.observacao ? `<div style="font-size:0.72rem; color:#334155; margin-top:2px; line-height:1.3;">Obs. se houver: ${esc(it.observacao.toUpperCase())}</div>` : ''}
+                        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:8px; background:#f8fafc; padding:6px; border-radius:6px; text-align:center; font-size:0.7rem;">
+                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">DIÁRIAS</div><b>${esc(it.quant_diarias)}</b></div>
+                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">UNIT./DIA</div><b>${fmtNum(it.valor_unitario_diaria)}</b></div>
+                            <div><div style="font-size:0.58rem; color:#64748b; font-weight:700;">TOTAL/DIA</div><b>${fmtNum(it.valor_total_por_dia)}</b></div>
+                            <div><div style="font-size:0.58rem; color:#5c4599; font-weight:700;">TOTAL R$</div><b style="color:#5c4599;">${fmtNum(it.valor_total_item)}</b></div>
+                        </div>
+                    </div>
+                `;
+            }
+            return `
+                <div style="display:grid; grid-template-columns:minmax(0, 1fr) 74px 112px 104px 96px; column-gap:8px; align-items:start; margin-bottom:14px;">
+                    <div style="min-width:0; padding-right:6px;">
+                        <div style="display:flex; align-items:baseline; gap:6px; width:100%;">
+                            <span style="font-weight:800; font-size:0.86rem; color:#3b3b3b; text-transform:uppercase; white-space:nowrap;">
+                                ${esc(it.quantidade)} - ${esc(it.nome)}
+                            </span>
+                            <span style="flex:1; border-bottom:2px dotted #4b5563; min-width:24px; transform:translateY(-3px);"></span>
+                        </div>
+                        ${it.descricao_proposta ? `
+                            <div style="font-size:0.78rem; color:#4b5563; line-height:1.35; margin-top:4px; word-break:break-word;">
+                                ${esc(it.descricao_proposta)}
+                            </div>
+                        ` : ''}
+                        ${it.observacao ? `
+                            <div style="font-size:0.76rem; color:#3b3b3b; line-height:1.35; margin-top:2px; word-break:break-word;">
+                                Obs. se houver: ${esc(it.observacao.toUpperCase())}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${esc(it.quant_diarias)}</div>
+                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${fmtNum(it.valor_unitario_diaria)}</div>
+                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#3b3b3b;">${fmtNum(it.valor_total_por_dia)}</div>
+                    <div style="text-align:center; font-weight:800; font-size:0.84rem; color:#5c4599;">${fmtNum(it.valor_total_item)}</div>
+                </div>
+            `;
+        }).join('') : `
+            <div style="padding:18px; text-align:center; color:#94a3b8; font-size:0.82rem; border:1px dashed #cbd5e1; border-radius:8px; margin-bottom:12px;">
+                Nenhum equipamento adicionado nesta proposta ainda.
+            </div>
+        `;
+
+        return `
+        <div class="box-quadro-evento-proposta" style="width:100%; background:#fff; color:#1e293b; font-family:'Inter', Arial, Helvetica, sans-serif; box-sizing:border-box; line-height:1.35; overflow:hidden;">
+            <!-- Faixa Superior: PROPOSTA EVENTO + Código -->
+            <div style="padding:${isMob ? '10px 12px 0 12px' : '0 24px 0 42px'};">
+                <div style="border-left:2px solid #5c4599; border-bottom:2px solid #5c4599; padding:${isMob ? '8px 10px' : '12px 18px'}; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:${isMob ? '1rem' : '1.22rem'}; letter-spacing:0.03em; color:#222;">
+                        <span style="font-weight:400;">PROPOSTA</span> <span style="font-weight:800;">EVENTO</span>
+                    </div>
+                    <div style="font-size:${isMob ? '1.1rem' : '1.45rem'}; font-weight:800; color:#5c4599;">
+                        ${esc(d.codigo)}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloco Logo Roxa + DADOS DO CLIENTE + INFORMAÇÕES EVENTO -->
+            <div style="padding:${isMob ? '0 12px' : '0 24px 0 42px'};">
+                <div style="display:flex; flex-direction:${isMob ? 'column' : 'row'}; align-items:stretch; background:#fff; box-shadow:0 8px 16px -10px rgba(15,23,42,0.18); border-bottom:1px solid #e2e8f0;">
+                    ${logoBlocoHtml}
+                    <div style="flex:1; display:grid; grid-template-columns:${isMob ? '1fr' : '1fr 1fr'}; gap:${isMob ? '12px' : '24px'}; padding:${isMob ? '14px 12px' : '18px 28px'}; align-items:start;">
+                        <!-- Coluna 1: DADOS DO CLIENTE -->
+                        <div>
+                            <div style="font-size:${isMob ? '0.95rem' : '1.18rem'}; color:#222; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                                <span style="color:#5c4599; font-size:0.85em;">&#9656;</span>
+                                <span><span style="font-weight:400;">DADOS DO</span> <span style="font-weight:800;">CLIENTE:</span></span>
+                            </div>
+                            <div style="font-size:0.78rem; color:#222; line-height:1.55; padding-left:14px;">
+                                <div style="text-transform:uppercase;">${esc(d.razao_social)}</div>
+                                <div>CNPJ: ${esc(d.cnpj)}</div>
+                                <div style="text-transform:uppercase;">CONTATO: ${esc(d.contato_nome)}</div>
+                                <div>CEL.: ${esc(d.contato_celular)}</div>
+                            </div>
+                        </div>
+
+                        <!-- Coluna 2: INFORMAÇÕES EVENTO -->
+                        <div>
+                            <div style="font-size:${isMob ? '0.95rem' : '1.18rem'}; color:#222; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                                <span style="color:#5c4599; font-size:0.85em;">&#9656;</span>
+                                <span><span style="font-weight:400;">INFORMAÇÕES</span> <span style="font-weight:800;">EVENTO:</span></span>
+                            </div>
+                            <div style="font-size:0.78rem; color:#222; line-height:1.55; padding-left:14px;">
+                                <div style="text-transform:uppercase;">${esc(d.nome_evento)}</div>
+                                <div style="text-transform:uppercase;">${esc(d.diarias_contrato)}</div>
+                                <div style="margin-top:4px; text-transform:uppercase;">INSTALAÇÃO: ${esc(d.instalacao_linha1)}</div>
+                                ${d.instalacao_linha2 ? `<div style="text-transform:uppercase;">${esc(d.instalacao_linha2)}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção EQUIPAMENTOS -->
+            <div style="padding:${isMob ? '14px 12px 16px 12px' : '22px 24px 18px 28px'};">
+                ${isMob ? `
+                    <div style="font-size:1rem; color:#334155; font-weight:400; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                        <span style="color:#5c4599;">&#9656;</span> EQUIPAMENTOS:
+                    </div>
+                ` : `
+                    <div style="display:grid; grid-template-columns:minmax(0, 1fr) 74px 112px 104px 96px; column-gap:8px; align-items:end; margin-bottom:14px;">
+                        <div style="font-size:1.2rem; color:#3b3b3b; font-weight:400; display:flex; align-items:center; gap:6px;">
+                            <span style="color:#5c4599; font-size:0.85em;">&#9656;</span> EQUIPAMENTOS:
+                        </div>
+                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
+                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
+                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
+                        <div style="text-align:center; font-size:0.64rem; font-weight:800; color:#5c4599; line-height:1.2;">VALOR<br>TOTAL R$</div>
+                    </div>
+                `}
+                ${itensHtml}
+            </div>
+
+            <!-- Barra Preta Inferior (Totais) -->
+            <div style="background:#0f0f12; color:#fff; padding:${isMob ? '12px 14px' : '12px 28px'}; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:2px;">
+                <div style="font-size:${isMob ? '0.78rem' : '0.88rem'}; font-weight:500; color:#f8fafc; letter-spacing:0.02em;">
+                    VALOR TOTAL POR DIA R$: ${fmtNum(d.valor_total_por_dia_geral)}
+                </div>
+                <div style="font-size:${isMob ? '1.1rem' : '1.42rem'}; font-weight:800; color:#6d52b8; letter-spacing:0.02em;">
+                    VALOR TOTAL: R$${fmtNum(d.valor_total_geral)}
+                </div>
+            </div>
+        </div>
+        `;
+    };
 
     async function chamar(metodo, url, body) {
         const headers = { 'Authorization': 'Bearer ' + tok() };
@@ -62,16 +458,17 @@
             return { src: box.mobile_url, tipo: box.mobile_tipo || 'imagem', hotspots: box.hotspots_mobile || [], recorte: false };
         }
         if (modo === 'recorte') {
-            // Coordenadas em % do quadro recortado (o que aparece no celular)
             return { src: box.url, tipo: box.tipo, hotspots: box.hotspots_mobile || [], recorte: true };
         }
-        // Mesma midia: usa as areas do celular; se nao houver nenhuma, mantem as do desktop (mesma imagem)
         const hotMob = box.hotspots_mobile || [];
         return { src: box.url, tipo: box.tipo, hotspots: hotMob.length ? hotMob : (box.hotspots_desktop || []), recorte: false };
     }
 
     window.boxRenderHtml = function (box, view, opts) {
         opts = opts || {};
+        if (box && box.tipo === 'quadro_evento') {
+            return window.renderBoxQuadroEventoHtml(opts.proposta || null, view);
+        }
         const v = resolverVisao(box, view);
         if (!v) {
             return opts.mostrarOculto
@@ -103,25 +500,30 @@
         ov.id = 'boxes-manager-overlay';
         ov.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:99990; display:flex; align-items:center; justify-content:center; font-family:Inter, sans-serif;';
         ov.innerHTML = `
-        <div style="background:#f8fafc; width:min(1280px, 96vw); height:92vh; border-radius:14px; box-shadow:0 25px 50px rgba(0,0,0,0.35); display:flex; flex-direction:column; overflow:hidden;">
+        <div style="background:#f8fafc; width:min(1340px, 97vw); height:92vh; border-radius:14px; box-shadow:0 25px 50px rgba(0,0,0,0.35); display:flex; flex-direction:column; overflow:hidden;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:0.8rem 1.2rem; background:#fff; border-bottom:1px solid #e2e8f0; flex-wrap:wrap;">
                 <div>
-                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;"><i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes (Banners de Imagem e Vídeo)</div>
-                    <div style="font-size:0.74rem; color:#64748b;">Cada box ocupa a largura total da página, com altura proporcional à mídia. Use ▲ ▼ para definir a ordem.</div>
+                    <div style="font-size:1.05rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;"><i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes da Proposta Evento (Banners + Quadro Fixo de Valores)</div>
+                    <div style="font-size:0.74rem; color:#64748b;">O <b>Quadro de Valores — Proposta Evento</b> é fixo e puxa os dados automaticamente da proposta. Use ▲ ▼ para definir a posição dele entre os banners.</div>
                 </div>
-                <div style="display:flex; gap:8px;">
-                    <button onclick="window.abrirEditorBox(null)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1rem; border-radius:7px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ph ph-plus-circle"></i> Anexar Box</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button onclick="window.abrirEditorBox(null)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1rem; border-radius:7px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ph ph-plus-circle"></i> Anexar Box (Imagem / Vídeo)</button>
                     <button onclick="document.getElementById('boxes-manager-overlay')?.remove()" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0.5rem 1rem; border-radius:7px; font-weight:700; font-size:0.8rem; cursor:pointer;">Fechar</button>
                 </div>
             </div>
-            <div style="flex:1; min-height:0; display:grid; grid-template-columns:minmax(380px, 0.9fr) 1.1fr; gap:0.9rem; padding:0.9rem;">
+            <div style="flex:1; min-height:0; display:grid; grid-template-columns:minmax(360px, 0.78fr) 1.22fr; gap:0.9rem; padding:0.9rem;">
                 <div style="display:flex; flex-direction:column; min-height:0;">
-                    <div style="font-size:0.74rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Biblioteca <span id="boxes-count" style="background:#ede9fe; color:#6d28d9; padding:1px 8px; border-radius:999px; margin-left:4px;">0</span></div>
+                    <div style="font-size:0.74rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Ordem dos Boxes <span id="boxes-count" style="background:#ede9fe; color:#6d28d9; padding:1px 8px; border-radius:999px; margin-left:4px;">0</span></div>
                     <div id="boxes-lista" style="flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:4px;"></div>
                 </div>
                 <div style="display:flex; flex-direction:column; min-height:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <div style="font-size:0.74rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">Pré-visualização da página</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div style="font-size:0.74rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">Pré-visualização</div>
+                            <select id="boxes-prop-preview-sel" onchange="window._setBoxPropostaPreview(this.value)" style="padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.74rem; background:#fff; color:#334155; font-weight:600; cursor:pointer;">
+                                <option value="auto">Dados: Proposta aberta / Modelo Exemplo</option>
+                            </select>
+                        </div>
                         <div id="boxes-toggle-view" style="display:inline-flex; background:#e2e8f0; border-radius:8px; padding:3px; gap:2px;"></div>
                     </div>
                     <div id="boxes-preview" style="flex:1; min-height:0; overflow-y:auto; background:#e2e8f0; border-radius:10px; border:1px solid #cbd5e1; padding:14px;"></div>
@@ -129,7 +531,29 @@
             </div>
         </div>`;
         document.body.appendChild(ov);
+        await window.carregarCacheDadosQuadroEvento(true);
+        window._popularSelectPropostasPreviewBoxes();
         await window.carregarBoxes();
+    };
+
+    window._popularSelectPropostasPreviewBoxes = function () {
+        const sel = document.getElementById('boxes-prop-preview-sel');
+        if (!sel) return;
+        const c = window._boxCacheDadosAux || { propostasEvento: [] };
+        const opcoes = [
+            `<option value="auto" ${window._boxPropostaPreviewId === 'auto' ? 'selected' : ''}>Dados: Proposta aberta / Modelo Exemplo</option>`,
+            `<option value="exemplo" ${window._boxPropostaPreviewId === 'exemplo' ? 'selected' : ''}>Dados: Exemplo Fiel ao Layout (14076)</option>`
+        ];
+        (c.propostasEvento || []).slice(0, 40).forEach(p => {
+            const label = `${p.codigo || ('#' + p.id)}${p.nome_evento ? ' — ' + p.nome_evento : ''} (${p.cliente_nome || 'Sem cliente'})`;
+            opcoes.push(`<option value="${esc(p.id)}" ${String(window._boxPropostaPreviewId) === String(p.id) ? 'selected' : ''}>Proposta: ${esc(label)}</option>`);
+        });
+        sel.innerHTML = opcoes.join('');
+    };
+
+    window._setBoxPropostaPreview = function (val) {
+        window._boxPropostaPreviewId = val || 'auto';
+        window._renderBoxesPreview();
     };
 
     window.carregarBoxes = async function () {
@@ -152,15 +576,25 @@
             return;
         }
         el.innerHTML = lista.map((b, i) => {
-            const thumb = b.tipo === 'video'
-                ? `<video src="${esc(b.url)}#t=0.5" muted preload="metadata" style="width:100%; height:100%; object-fit:cover;"></video>`
-                : `<img src="${esc(b.url)}" alt="" style="width:100%; height:100%; object-fit:cover;">`;
+            const isQuadroFixo = b.tipo === 'quadro_evento';
+            const thumb = isQuadroFixo
+                ? `<div style="width:100%; height:100%; background:#fff; border:1px solid #ddd6fe; display:flex; flex-direction:column; overflow:hidden; font-size:0.48rem;">
+                       <div style="padding:2px 5px; border-bottom:1px solid #5c4599; display:flex; justify-content:space-between; font-weight:800; color:#1e293b;"><span>PROPOSTA EVENTO</span><span style="color:#5c4599;">14076</span></div>
+                       <div style="flex:1; display:flex; align-items:stretch;">
+                           <div style="width:34px; background:#5c4599; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">A</div>
+                           <div style="flex:1; padding:3px 4px; color:#475569; line-height:1.25;"><b>▸ CLIENTE / EVENTO</b><br>▸ EQUIPAMENTOS...</div>
+                       </div>
+                       <div style="background:#0f0f12; color:#a78bfa; padding:1px 5px; text-align:right; font-weight:800;">VALOR TOTAL</div>
+                   </div>`
+                : (b.tipo === 'video'
+                    ? `<video src="${esc(b.url)}#t=0.5" muted preload="metadata" style="width:100%; height:100%; object-fit:cover;"></video>`
+                    : `<img src="${esc(b.url)}" alt="" style="width:100%; height:100%; object-fit:cover;">`);
             const nHot = (b.hotspots_desktop || []).length + (b.hotspots_mobile || []).length;
             return `
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:8px; display:flex; gap:10px; align-items:center;">
+            <div style="background:${isQuadroFixo ? '#faf5ff' : '#fff'}; border:${isQuadroFixo ? '2px solid #8b5cf6' : '1px solid #e2e8f0'}; border-radius:10px; padding:8px; display:flex; gap:10px; align-items:center;">
                 <div style="display:flex; flex-direction:column; gap:3px;">
-                    <button title="Subir" ${i === 0 ? 'disabled' : ''} onclick="window.moverBox(${b.id}, 'up')" style="width:26px; height:26px; border:1px solid #cbd5e1; background:${i === 0 ? '#f1f5f9' : '#fff'}; border-radius:6px; cursor:${i === 0 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center; padding:0;"><i class="ph ph-arrow-up"></i></button>
-                    <button title="Descer" ${i === lista.length - 1 ? 'disabled' : ''} onclick="window.moverBox(${b.id}, 'down')" style="width:26px; height:26px; border:1px solid #cbd5e1; background:${i === lista.length - 1 ? '#f1f5f9' : '#fff'}; border-radius:6px; cursor:${i === lista.length - 1 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center; padding:0;"><i class="ph ph-arrow-down"></i></button>
+                    <button title="Subir posição" ${i === 0 ? 'disabled' : ''} onclick="window.moverBox(${b.id}, 'up')" style="width:26px; height:26px; border:1px solid #cbd5e1; background:${i === 0 ? '#f1f5f9' : '#fff'}; border-radius:6px; cursor:${i === 0 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center; padding:0;"><i class="ph ph-arrow-up"></i></button>
+                    <button title="Descer posição" ${i === lista.length - 1 ? 'disabled' : ''} onclick="window.moverBox(${b.id}, 'down')" style="width:26px; height:26px; border:1px solid #cbd5e1; background:${i === lista.length - 1 ? '#f1f5f9' : '#fff'}; border-radius:6px; cursor:${i === lista.length - 1 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center; padding:0;"><i class="ph ph-arrow-down"></i></button>
                 </div>
                 <div style="width:120px; height:72px; border-radius:7px; overflow:hidden; background:#0f172a; flex-shrink:0; position:relative;">
                     ${thumb}
@@ -169,14 +603,21 @@
                 <div style="flex:1; min-width:0;">
                     <div style="font-weight:800; font-size:0.85rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:#7048e8;">#${i + 1}</span> ${esc(b.nome)}</div>
                     <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
-                        <span style="background:#f1f5f9; color:#475569; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${b.tipo === 'video' ? 'Vídeo' : 'Imagem'}</span>
-                        <span style="background:#ede9fe; color:#6d28d9; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${esc(ROTULO_MODO[b.mobile_modo] || ROTULO_MODO.mesma)}</span>
-                        ${nHot ? `<span style="background:#fef3c7; color:#b45309; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${nHot} link(s)</span>` : ''}
+                        ${isQuadroFixo ? `
+                            <span style="background:#5c4599; color:#fff; font-size:0.66rem; font-weight:800; padding:1px 8px; border-radius:999px;"><i class="ph ph-lock-key"></i> FIXO · PROPOSTA EVENTO</span>
+                            <span style="background:#ede9fe; color:#5b21b6; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">Puxa dados da Proposta</span>
+                        ` : `
+                            <span style="background:#f1f5f9; color:#475569; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${b.tipo === 'video' ? 'Vídeo' : 'Imagem'}</span>
+                            <span style="background:#ede9fe; color:#6d28d9; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${esc(ROTULO_MODO[b.mobile_modo] || ROTULO_MODO.mesma)}</span>
+                            ${nHot ? `<span style="background:#fef3c7; color:#b45309; font-size:0.66rem; font-weight:700; padding:1px 7px; border-radius:999px;">${nHot} link(s)</span>` : ''}
+                        `}
                     </div>
                 </div>
                 <div style="display:flex; gap:5px;">
-                    <button title="Editar" onclick="window.abrirEditorBox(${b.id})" style="width:32px; height:32px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                    <button title="Excluir" onclick="window.excluirBox(${b.id})" style="width:32px; height:32px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-trash"></i></button>
+                    ${isQuadroFixo ? '' : `
+                        <button title="Editar" onclick="window.abrirEditorBox(${b.id})" style="width:32px; height:32px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
+                        <button title="Excluir" onclick="window.excluirBox(${b.id})" style="width:32px; height:32px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-trash"></i></button>
+                    `}
                 </div>
             </div>`;
         }).join('');
@@ -221,6 +662,10 @@
 
     window.excluirBox = async function (id) {
         const b = window._boxesLista.find(x => x.id === id);
+        if (b && b.tipo === 'quadro_evento') {
+            alert('Este box é fixo da Proposta Evento e não pode ser excluído.');
+            return;
+        }
         if (!confirm(`Excluir o box "${b ? b.nome : ''}"? O arquivo será removido definitivamente.`)) return;
         const r = await chamar('DELETE', `/comercial/boxes/${id}`);
         if (r && r.error) { alert(r.error); return; }
@@ -236,7 +681,6 @@
     const edSrcMobile = () => ed.localMobileUrl || (ed.removerMobile ? '' : (ed.mobile_url || ''));
     const edTipoMobile = () => ed.localMobileUrl ? ed.localMobileTipo : (ed.mobile_tipo || 'imagem');
 
-    /* Qual lista de áreas clicáveis está sendo editada agora (ou null se não é possível) */
     function edHotAtiva() {
         if (ed.view === 'desktop') return edTipoDesktop() === 'video' ? null : ed.hotspots_desktop;
         if (ed.mobile_modo === 'ocultar') return null;
@@ -246,6 +690,7 @@
 
     window.abrirEditorBox = function (id) {
         const b = id ? window._boxesLista.find(x => x.id === id) : null;
+        if (b && b.tipo === 'quadro_evento') return;
         ed = {
             id: b ? b.id : null,
             nome: b ? b.nome : '',
@@ -381,7 +826,6 @@
 
     window._boxEdModo = function (v) {
         ed.mobile_modo = v;
-        if (v !== 'mesma' || ed.view === 'mobile') { /* mantém a visão atual */ }
         window._boxEdRenderTudo();
     };
 
@@ -433,7 +877,6 @@
         } else if (ed.view === 'mobile' && ed.mobile_modo === 'arquivo' && !box.mobile_url) {
             conteudo = '<div style="padding:2.2rem 1rem; text-align:center; color:#b45309; font-size:0.8rem;">Anexe a imagem ou vídeo do celular.</div>';
         } else {
-            // Mídia sem hotspots; a camada de desenho/overlay é montada em seguida
             const semHot = Object.assign({}, box, { hotspots_desktop: [], hotspots_mobile: [] });
             conteudo = window.boxRenderHtml(semHot, ed.view, { mostrarOculto: true });
         }
@@ -442,7 +885,6 @@
         prev.innerHTML = moldura(ed.view, conteudo, 'Anexe uma imagem ou vídeo para ver a pré-visualização.') +
             (nota ? `<div style="font-size:0.72rem; color:#475569; margin-top:8px; text-align:center;">${nota}</div>` : '');
 
-        // Camada das áreas clicáveis (visíveis sempre; editável só quando permitido)
         const wrapper = prev.querySelector('div[style*="position:relative"][style*="line-height:0"]');
         if (!wrapper) return;
         const ativa = edHotAtiva();

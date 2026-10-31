@@ -2670,6 +2670,9 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'PACOTE OBRA').toUpperCase();
         document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'ACESSÓRIO').toUpperCase();
         document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
+        if (document.getElementById('equipamento-est-descricao-proposta')) {
+            document.getElementById('equipamento-est-descricao-proposta').value = item.descricao_proposta || '';
+        }
         if (titleEl) titleEl.textContent = 'Editar Equipamento';
         if (subEl) subEl.textContent = 'Edite os dados ou clique em Duplicar para criar uma cópia';
         if (btnDup) btnDup.style.display = 'inline-flex';
@@ -2681,6 +2684,9 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         document.getElementById('equipamento-est-fonte').value = 'PACOTE OBRA';
         document.getElementById('equipamento-est-grupo').value = 'ACESSÓRIO';
         document.getElementById('equipamento-est-especificacao').value = '';
+        if (document.getElementById('equipamento-est-descricao-proposta')) {
+            document.getElementById('equipamento-est-descricao-proposta').value = '';
+        }
         if (titleEl) titleEl.textContent = 'Cadastrar Equipamento';
         if (subEl) subEl.textContent = 'O código é gerado automaticamente';
         if (btnDup) btnDup.style.display = 'none';
@@ -2707,6 +2713,9 @@ window.duplicarEquipamentoEstoque = async function(id) {
     document.getElementById('equipamento-est-fonte').value = String(item.fonte_fornecimento || 'PACOTE OBRA').toUpperCase();
     document.getElementById('equipamento-est-grupo').value = String(item.grupo_produto || 'ACESSÓRIO').toUpperCase();
     document.getElementById('equipamento-est-especificacao').value = item.especificacao_tecnica || '';
+    if (document.getElementById('equipamento-est-descricao-proposta')) {
+        document.getElementById('equipamento-est-descricao-proposta').value = item.descricao_proposta || '';
+    }
 
     const titleEl = document.getElementById('modal-equipamento-estoque-title');
     const subEl   = document.getElementById('modal-equipamento-estoque-subtitle');
@@ -2760,6 +2769,7 @@ window.salvarEquipamentoEstoque = async function(event) {
     const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'PACOTE OBRA').trim().toUpperCase();
     const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
+    const descricao_proposta = (document.getElementById('equipamento-est-descricao-proposta')?.value || '').trim();
 
     if (!nome) {
         Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe o nome do equipamento.' });
@@ -2802,7 +2812,8 @@ window.salvarEquipamentoEstoque = async function(event) {
                 unidade_medida,
                 fonte_fornecimento,
                 grupo_produto,
-                especificacao_tecnica
+                especificacao_tecnica,
+                descricao_proposta
             })
         });
         const data = await r.json().catch(() => ({}));
