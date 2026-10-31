@@ -2081,7 +2081,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Cliente e Contato -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente
                         </h4>
@@ -2094,7 +2094,7 @@ function _renderFormPropostaInt() {
                                             onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); pesquisarClienteProposta(document.getElementById('btn-pesq-cliente-prop'));}"
                                             oninput="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
                                             onchange="if(typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput(this.value);"
-                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;" placeholder="Nome, razão social ou CPF/CNPJ">
+                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;" placeholder="Nome, razão social ou CPF/CNPJ">
                                         <span id="prop-cliente-grupo-icone" style="display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.08rem; line-height:1; pointer-events:none; z-index:20; user-select:none;"></span>
                                     </div>
                                     <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
@@ -2139,7 +2139,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Período e Condições -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
@@ -2148,19 +2148,19 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Período Início *</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
                                     onchange="if(typeof window.onChangePeriodoInicioProposta === 'function'){ window.onChangePeriodoInicioProposta(); } else { calcularDiasContrato(); calcularFimContrato(); }"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Até *</label>
                                 <input type="date" id="prop-periodo-fim" value="${v('periodo_fim')}"
                                     onchange="calcularDiasContrato()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Dias Contrato</label>
                                 <input type="number" id="prop-dias" value="${vn('dias_contrato','0')}" min="0"
                                     oninput="calcularFimContrato()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Tabela de Preços *</label>
@@ -2174,7 +2174,7 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Condição de Pagamento *</label>
-                                <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                                     <option value="">-- Selecione --</option>
                                     ${(() => {
                                         const valAtual = String(v('condicao_pagamento') || '').trim();
@@ -2194,7 +2194,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Linha: Nome do Evento (quando EVENTO) + Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
-                        <div style="display:flex; gap:0.75rem; align-items:center; background:#f8fafc; padding:0.4rem 0.65rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
+                        <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.65); padding:0.4rem 0.65rem; border:1px solid #bbf7d0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
                             <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 320px; max-width:600px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento <span style="color:#dc2626;">*</span>:</span>
                                 <div id="prop-evento-combo-wrap" style="position:relative; flex:1;">
@@ -2244,7 +2244,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Produtos da Proposta -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
                         </h4>
@@ -2257,7 +2257,7 @@ function _renderFormPropostaInt() {
                                     <input type="text" id="prop-prod-codigo" placeholder="Digite o código ou nome do produto..."
                                         oninput="window.onInputProdutoPropostaTexto()"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaProdutoProposta(); }"
-                                        style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                        style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                                     <button type="button" id="btn-pesq-produto-prop" onclick="window.pesquisarOuAbrirBuscaProdutoProposta()" style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Produto">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
@@ -2265,18 +2265,19 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Observação</label>
-                                <input type="text" id="prop-prod-descricao" placeholder="Observação do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                <input type="text" id="prop-prod-descricao" placeholder="Observação do produto..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
                                 <input type="number" id="prop-prod-quantidade" value="1" min="1"
                                     oninput="window.recalcularPreviewProdutoProposta('qtd')"
-                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                             </div>
                             <div id="prop-wrapper-manut" style="display:none;">
-                                <label class="prop-lbl" title="Quantidade de manutenções por semana (1x, 2x, 3x...). Destaca em vermelho os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
-                                <input type="number" id="prop-prod-manut" min="1" max="7" step="1" placeholder="Ex.: 1" title="1x, 2x, 3x..."
-                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700;">
+                                <label class="prop-lbl" title="Quantidade de manutenções por semana (1 x, 2 x, 3 x...). Destaca em azul os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
+                                <input type="text" id="prop-prod-manut" inputmode="numeric" placeholder="1 x" title="1 x, 2 x, 3 x..."
+                                    oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
+                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
                             </div>
                             <div>
                                 <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
@@ -2291,13 +2292,13 @@ function _renderFormPropostaInt() {
                                 <label class="prop-lbl">Desconto (%)</label>
                                 <input type="number" id="prop-desc-pct" value="${vn('desconto_percent','0')}" min="0" max="100" step="0.01"
                                     oninput="window.recalcularPreviewProdutoProposta('pct')"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Desconto (R$)</label>
                                 <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
                                     oninput="window.recalcularPreviewProdutoProposta('rs')"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Valor Unitário (R$)</label>
@@ -17934,7 +17935,8 @@ window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
     try {
         const [todosEquipamentos] = await Promise.all([
             apiGet('/estoque-equipamentos').catch(() => []),
-            window._garantirTabelasPrecoCarregadas(false)
+            window._garantirTabelasPrecoCarregadas(false),
+            typeof window.garantirRegiaoPropostaIdentificada === 'function' ? window.garantirRegiaoPropostaIdentificada() : Promise.resolve()
         ]);
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
         window._equipamentosEstoqueData = produtos;

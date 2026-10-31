@@ -9,7 +9,7 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;';
+    const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
     window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
     window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EVENTO'];
@@ -72,7 +72,7 @@
         const obrigatorio = window.tipoPropostaServicoObrigatorio(tipo);
         const fobInicial = !!window._propFreteFobInicial && !(window._propServicosAdicionados || []).length;
         return `
-        <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+        <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços da Proposta *' : 'Serviços da Proposta'}</span>
                 <span id="prop-servicos-hint" style="font-size:0.72rem; font-weight:500; color:#64748b;">${obrigatorio ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB' : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)'}</span>
@@ -85,7 +85,7 @@
                         <input type="text" id="prop-serv-codigo" placeholder="Digite o código ou nome do serviço..."
                             oninput="window.onInputServicoPropostaTexto()"
                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaServicoProposta(); }"
-                            style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px;">
+                            style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                         <button type="button" id="btn-pesq-servico-prop" onclick="window.pesquisarOuAbrirBuscaServicoProposta()" title="Pesquisar Serviço"
                             style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; flex-shrink:0;">
                             <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
@@ -280,7 +280,10 @@
         const orig = btn ? btn.innerHTML : '';
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>'; btn.disabled = true; }
         try {
-            const servicos = await window._listarServicosEstoque();
+            const [servicos] = await Promise.all([
+                window._listarServicosEstoque(),
+                typeof window.garantirRegiaoPropostaIdentificada === 'function' ? window.garantirRegiaoPropostaIdentificada() : Promise.resolve()
+            ]);
             const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
             if (termo) {
                 const matches = window._filtrarServicosPorTermo(servicos, termo);
@@ -307,7 +310,7 @@
                 const v = window.obterValorTabelaPorTipoEProduto(tipoRef, p);
                 const vStr = v !== null && v !== undefined ? `R$ ${fmtBRL(v)}` : '—';
                 const vParam = v !== null && v !== undefined ? Number(v) : 'null';
-                return `<tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome) : ''}" onclick="window.selecionarServicoBusca('${cod}', '${nome}', ${vParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                return `<tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome, 0) : ''}" onclick="window.selecionarServicoBusca('${cod}', '${nome}', ${vParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${esc(p.codigo || p.id)}</td>
                     <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(p.nome || '—')}</td>
                     <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${vStr}</td>
@@ -350,7 +353,7 @@
                 const cnt = document.getElementById('modal-serv-count');
                 const filtra = () => {
                     let f = window._filtrarServicosPorTermo(servicos, inp.value);
-                    if (typeof window.ordenarPorDestaqueZona === 'function') f = window.ordenarPorDestaqueZona(f);
+                    if (typeof window.ordenarPorDestaqueZona === 'function') f = window.ordenarPorDestaqueZona(f, 0);
                     tbody.innerHTML = rows(f);
                     cnt.textContent = `Total: ${f.length} serviço(s)`;
                 };

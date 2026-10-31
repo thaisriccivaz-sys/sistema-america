@@ -10,15 +10,13 @@
 (function () {
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-    /* CSS do destaque (aplicado por classe para sobreviver ao hover das linhas) */
+    /* CSS do destaque: apenas fundo azul claro, mantendo a fonte original (cinza) e o valor em verde */
     if (!document.getElementById('prop-zonas-css')) {
         const st = document.createElement('style');
         st.id = 'prop-zonas-css';
         st.textContent = `
-            tr.prop-zona-destaque { background:#fee2e2 !important; }
-            tr.prop-zona-destaque td { color:#b91c1c !important; font-weight:800 !important; }
-            tr.prop-zona-destaque td:first-child { border-left:4px solid #dc2626; }
-            tr.prop-zona-destaque:hover { background:#fecaca !important; }
+            tr.prop-zona-destaque { background:#dbeafe !important; }
+            tr.prop-zona-destaque:hover { background:#bfdbfe !important; }
         `;
         document.head.appendChild(st);
     }
@@ -26,7 +24,11 @@
     /* Letra da zona da proposta (V / A / C) a partir da região identificada pelo endereço */
     window.obterZonaPropostaLetra = function () {
         let r = '';
-        try { r = (typeof _propRegiaoIdentificada !== 'undefined') ? _propRegiaoIdentificada : ''; } catch (e) { r = ''; }
+        try { r = (typeof _propRegiaoIdentificada !== 'undefined' && _propRegiaoIdentificada) ? _propRegiaoIdentificada : (window._propRegiaoIdentificada || ''); } catch (e) { r = window._propRegiaoIdentificada || ''; }
+        if (!r) {
+            const badge = document.getElementById('prop-regiao-ia-badge');
+            if (badge && badge.style.display !== 'none') r = badge.innerText || badge.textContent || '';
+        }
         const n = norm(r);
         if (!n) return '';
         if (n.includes('vermelha') || n.includes('roxa')) return 'V';
@@ -35,42 +37,74 @@
         return '';
     };
 
-    /* Extrai { zona, manut } do final do nome. Retorna null se não houver código de zona. */
+    /* Garante que a região do endereço da proposta foi classificada antes de abrir modais de produtos/serviços */
+    window.garantirRegiaoPropostaIdentificada = async function () {
+        if (window.obterZonaPropostaLetra()) return;
+        const end = (document.getElementById('prop-endereco')?.value || '').trim();
+        if (end && typeof window.classificarRegiaoEDias === 'function') {
+            try { await window.classificarRegiaoEDias(); } catch (e) {}
+        }
+    };
+
+    /* Extrai { zona, manut } do nome do produto ou serviço (ex: O01XZV, 002XZC, O01ZC, ZV, ZA, ZC). */
     window.extrairCodigoZonaProduto = function (nome) {
         const s = String(nome || '').trim();
-        const m = s.match(/(?:^|[^A-Za-z0-9])(?:[Oo0](\d{1,2})\s*[Xx]?)?Z([VvAaCc])\s*$/);
-        if (!m) return null;
-        return { zona: m[2].toUpperCase(), manut: m[1] !== undefined ? parseInt(m[1], 10) : null };
+        const re = /(?:^|[^A-Za-z0-9])(?:[Oo0](\d{1,2})\s*[Xx]?)?Z([VvAaCc])(?=$|[^A-Za-z0-9])/g;
+        let m, last = null;
+        while ((m = re.exec(s)) !== null) {
+            last = { zona: m[2].toUpperCase(), manut: m[1] !== undefined ? parseInt(m[1], 10) : null };
+        }
+        return last;
+    };
+
+    window.formatarManutSemanaInput = function (el) {
+        if (!el) return;
+        const raw = String(el.value || '');
+        const prev = el.dataset.prevManut || '';
+        if (prev && raw === prev.slice(0, -1)) {
+            el.value = '';
+            el.dataset.prevManut = '';
+            return;
+        }
+        const d = raw.replace(/\D+/g, '').slice(-1);
+        if (!d || d === '0') {
+            el.value = '';
+            el.dataset.prevManut = '';
+            return;
+        }
+        el.value = `${d} x`;
+        el.dataset.prevManut = el.value;
     };
 
     window.obterManutSemanaSelecionada = function () {
         const el = document.getElementById('prop-prod-manut');
         if (!el) return 0;
-        const n = parseInt(el.value, 10);
+        const digits = String(el.value || '').replace(/\D+/g, '');
+        const n = parseInt(digits, 10);
         return (!isNaN(n) && n > 0) ? n : 0;
     };
 
-    /* true quando o item deve ficar em vermelho para a proposta atual */
+    /* true quando o item deve ficar destacado em azul para a proposta atual */
     window.itemDestacadoPorZona = function (nome, manutFiltro) {
         const zonaProp = window.obterZonaPropostaLetra();
         if (!zonaProp) return false;
         const cod = window.extrairCodigoZonaProduto(nome);
         if (!cod || cod.zona !== zonaProp) return false;
         const manut = manutFiltro !== undefined ? manutFiltro : window.obterManutSemanaSelecionada();
-        if (manut > 0) return cod.manut === manut;
+        if (manut > 0 && cod.manut !== null) return cod.manut === manut;
         return true;
     };
 
-    window.classeDestaqueZona = function (nome) {
-        return window.itemDestacadoPorZona(nome) ? 'prop-zona-destaque' : '';
+    window.classeDestaqueZona = function (nome, manutFiltro) {
+        return window.itemDestacadoPorZona(nome, manutFiltro) ? 'prop-zona-destaque' : '';
     };
 
     /* Itens destacados primeiro (ordem original mantida dentro de cada grupo) */
-    window.ordenarPorDestaqueZona = function (lista) {
+    window.ordenarPorDestaqueZona = function (lista, manutFiltro) {
         const arr = Array.isArray(lista) ? lista : [];
         if (!window.obterZonaPropostaLetra()) return arr;
         const dest = [], resto = [];
-        arr.forEach(p => (window.itemDestacadoPorZona(p.nome) ? dest : resto).push(p));
+        arr.forEach(p => (window.itemDestacadoPorZona(p.nome, manutFiltro) ? dest : resto).push(p));
         return dest.concat(resto);
     };
 
