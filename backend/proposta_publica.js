@@ -331,17 +331,18 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         const servicos = servRaw.map(s => {
             const qtd = Math.max(1, Number(s.quantidade ?? 1) || 1);
             const nome = String(s.servico || s.descricao || s.nome || 'SERVIÇO').replace(/^\d+\s*-\s*/, '').trim();
-            const unitLiq = Number(s.valor_unitario ?? s.valor ?? 0) || 0;
-            const base = Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq;
-            const net = (s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd;
-            const gross = base * qtd;
-            somaTotalGeral += net;
+            const isFob = !!s.frete_fob;
+            const unitLiq = isFob ? 0 : (Number(s.valor_unitario ?? s.valor ?? 0) || 0);
+            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
+            const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
+            const gross = isFob ? 0 : (base * qtd);
+            if (!isFob) somaTotalGeral += net;
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe({ codigo: s.codigo }, nome),
                 link_url: linkDe({ codigo: s.codigo, link_url: s.link_url }, nome),
                 observacao: String(s.observacao || '').trim().toUpperCase(),
-                quant_diarias: '—', unit: base, por_dia: gross, desconto: Math.max(0, gross - net), total: net,
-                fob: !!s.frete_fob && net <= 0, cortesia: !s.frete_fob && net <= 0
+                quant_diarias: '—', unit: base, por_dia: gross, desconto: isFob ? 0 : Math.max(0, gross - net), total: net,
+                fob: isFob, cortesia: !isFob && net <= 0
             };
         });
 

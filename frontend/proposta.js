@@ -2036,7 +2036,7 @@ function _renderFormPropostaInt() {
                                     <option value="">-- Selecione --</option>
                                     ${PROP_TIPOS.map(t => `<option value="${t}" ${(v('tipo')===t || String(v('tipo')||'').replace(/^PROPOSTA\s+/i,'')===t)?'selected':''}>${t}</option>`).join('')}
                                 </select>
-                                <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="background:#7048e8; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                                <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="display:none; background:#7048e8; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
                                     <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
                                 </button>
                             </div>
@@ -5959,13 +5959,29 @@ window.salvarPropostaNova = async function() {
             const custosFixosTotais = dre.custoFixo + dre.despesaFixa + dre.rateioDespesasFixas;
             const lucroLiquido = margemContrib - custosFixosTotais;
 
-            const itensHtml = (payload.itens || []).map((item, idx) => `
+            const _itensResumoLista = [
+                ...(payload.itens || []).map(item => ({
+                    nome: item.descricao || item.produto || item.nome || 'Item',
+                    qtd: item.quantidade || 1,
+                    fob: false,
+                    unit: item.valor_unitario ?? item.valor ?? 0,
+                    total: (item.valor_total !== undefined && !isNaN(parseFloat(item.valor_total))) ? parseFloat(item.valor_total) : ((item.quantidade || 1) * (item.valor_unitario ?? item.valor ?? 0))
+                })),
+                ...(payload.itens_servicos || []).map(s => ({
+                    nome: s.servico || s.descricao || s.nome || 'Serviço',
+                    qtd: s.quantidade || 1,
+                    fob: !!s.frete_fob,
+                    unit: s.frete_fob ? 0 : (s.valor_unitario ?? s.valor ?? 0),
+                    total: s.frete_fob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : ((s.quantidade || 1) * (s.valor_unitario ?? s.valor ?? 0)))
+                }))
+            ];
+            const itensHtml = _itensResumoLista.map((item, idx) => `
                 <tr style="border-bottom:1px solid #cbd5e1;">
                     <td style="text-align:center; padding:0.35rem 0.6rem;">${idx + 1}</td>
-                    <td style="padding:0.35rem 0.6rem;">${item.descricao || item.nome || 'Item'}</td>
-                    <td style="text-align:center; padding:0.35rem 0.6rem;">${item.quantidade || 1}</td>
-                    <td style="text-align:right; padding:0.35rem 0.6rem;">${fmt(item.valor_unitario)}</td>
-                    <td style="text-align:right; font-weight:bold; padding:0.35rem 0.6rem;">${fmt((item.quantidade || 1) * (item.valor_unitario || 0))}</td>
+                    <td style="padding:0.35rem 0.6rem;">${item.nome}</td>
+                    <td style="text-align:center; padding:0.35rem 0.6rem;">${item.qtd}</td>
+                    <td style="text-align:right; padding:0.35rem 0.6rem;">${item.fob ? 'FOB' : fmt(item.unit)}</td>
+                    <td style="text-align:right; font-weight:bold; padding:0.35rem 0.6rem;">${item.fob ? 'FOB' : fmt(item.total)}</td>
                 </tr>
             `).join('');
 
@@ -6061,8 +6077,7 @@ window.salvarPropostaNova = async function() {
                     <div style="text-align:left; font-family:'Inter', sans-serif; background:#fff; border-radius:12px; overflow:hidden;">
                         <!-- Header Tabs -->
                         <div style="display:flex; border-bottom: 2px solid #cbd5e1; background:#f8fafc;">
-                            <button type="button" onclick="window.toggleResumoModalTab('simplificado')" id="btn-resumo-simplificado" style="flex:1; padding: 0.8rem; background: #f1f5f9; border: none; border-bottom: 3px solid #3b82f6; font-weight: bold; cursor: pointer; font-size: 0.9rem; outline:none; font-family:'Inter', sans-serif;">Resumo Simplificado</button>
-                            <button type="button" onclick="window.toggleResumoModalTab('detalhado')" id="btn-resumo-detalhado" style="flex:1; padding: 0.8rem; background: transparent; border: none; font-weight: normal; cursor: pointer; font-size: 0.9rem; color: #64748b; outline:none; font-family:'Inter', sans-serif;">Resumo Detalhado (DRE)</button>
+                            <button type="button" id="btn-resumo-simplificado" style="flex:1; padding: 0.8rem; background: #f1f5f9; border: none; border-bottom: 3px solid #3b82f6; font-weight: bold; cursor: default; font-size: 0.9rem; outline:none; font-family:'Inter', sans-serif;">Resumo Simplificado</button>
                         </div>
 
                         <div style="padding: 1.2rem 1.5rem; max-height:550px; overflow-y:auto;">
@@ -6130,128 +6145,10 @@ window.salvarPropostaNova = async function() {
                                 </div>
                             </div>
 
-                            <!-- BOX RECEITA FEDERAL DETALHADO (DRE) -->
-                            <div id="panel-resumo-detalhado" style="display:none;">
-                                <div class="rf-box" style="border-color:#1e3a8a;">
-                                    <div class="rf-header" style="background:#1e3a8a;">
-                                        <div class="rf-header-title">AMERICA RENTAL LOCAÇÃO DE EQUIPAMENTOS</div>
-                                        <div>DEMONSTRATIVO DE VIABILIDADE FINANCEIRA (DRE OPERACIONAL)</div>
-                                    </div>
-                                    
-                                    <div class="rf-section-title" style="background:#eff6ff; color:#1e40af; border-top-color:#1e3a8a;">Seção I - Detalhes de Rateio e Ficha Técnica</div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell"><span class="rf-label">Código Ficha</span><span class="rf-value">${code}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Tempo Execução</span><span class="rf-value">${dre.tempoExecucao} h</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Despesas Fixas Mensais</span><span class="rf-value">${fmt(dre.despesasFixasMensais)}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Modelo de Cálculo</span><span class="rf-value" style="text-transform:uppercase;">${dre.modeloCalculo.replace('_', ' ')}</span></div>
-                                    </div>
-
-                                    <div class="rf-section-title" style="background:#eff6ff; color:#1e40af; border-top-color:#1e3a8a;">Seção II - Estrutura de Custos, Despesas e Margem (DRE)</div>
-                                    
-                                    <table class="rf-table" style="font-size:0.8rem;">
-                                        <thead>
-                                            <tr style="background:#f1f5f9; border-bottom: 2px solid #cbd5e1;">
-                                                <th style="text-align:left;">Conta / Descritivo do DRE</th>
-                                                <th style="text-align:right; width:130px;">Valor</th>
-                                                <th style="text-align:right; width:80px;">% Part.</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td style="font-weight:bold; color:#0f172a;">(+) RECEITA OPERACIONAL BRUTA (Serviços/Equipamentos)</td>
-                                                <td style="text-align:right; font-weight:bold; color:#0f172a;">${fmt(precoServico)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(precoServico, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(+) Adicional de Zona (Região de Instalação)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_zona_calculado)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_zona_calculado, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(+) Transporte e Deslocamento (Distância KM)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_distancia_calculado)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_distancia_calculado, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(+) Frete de Ida / Volta</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_frete_ida + payload.valor_frete_volta)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_frete_ida + payload.valor_frete_volta, totalReceita)}</td>
-                                            </tr>
-                                            <tr style="background:#f8fafc; border-top:1px solid #cbd5e1; border-bottom:1.5px solid #94a3b8;">
-                                                <td style="font-weight:bold; color:#0f172a;">(=) RECEITA BRUTA OPERACIONAL TOTAL</td>
-                                                <td style="text-align:right; font-weight:bold; color:#0f172a;">${fmt(totalReceita)}</td>
-                                                <td style="text-align:right; color:#64748b;">100,00%</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="font-weight:bold; color:#b91c1c;">(-) DEDUÇÕES DA RECEITA (Descontos)</td>
-                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(desconto)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(desconto, totalReceita)}</td>
-                                            </tr>
-                                            <tr style="background:#f1f5f9; border-top:1.5px solid #cbd5e1; border-bottom:1.5px solid #cbd5e1;">
-                                                <td style="font-weight:bold; color:#1e3a8a;">(=) RECEITA LÍQUIDA OPERACIONAL</td>
-                                                <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${fmt(receitaLiquida)}</td>
-                                                <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${pctPart(receitaLiquida, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="font-weight:bold; color:#b91c1c;">(-) CUSTOS VARIÁVEIS OPERACIONAIS</td>
-                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(custoVariavelTotal)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(custoVariavelTotal, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custos Variáveis de Ficha (MDO/Insumo)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(dre.custoVariavel)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.custoVariavel, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Despesas Variáveis de Ficha</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(dre.despesaVariavel)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.despesaVariavel, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custo Variável de Transporte (KM)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(payload.valor_distancia_calculado)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(payload.valor_distancia_calculado, totalReceita)}</td>
-                                            </tr>
-                                            <tr style="background:#f0fdf4; border-top:1px solid #cbd5e1; border-bottom:1.5px solid #cbd5e1;">
-                                                <td style="font-weight:bold; color:#15803d;">(=) MARGEM DE CONTRIBUIÇÃO LÍQUIDA</td>
-                                                <td style="text-align:right; font-weight:bold; color:#15803d;">${fmt(margemContrib)}</td>
-                                                <td style="text-align:right; font-weight:bold; color:#15803d;">${pctPart(margemContrib, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="font-weight:bold; color:#b91c1c;">(-) CUSTOS E DESPESAS FIXAS PROPORCIONAIS</td>
-                                                <td style="text-align:right; font-weight:bold; color:#b91c1c;">${fmt(custosFixosTotais)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(custosFixosTotais, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Custos Fixos de Ficha (MDO/Insumo)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(dre.custoFixo)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.custoFixo, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Despesas Fixas Ficha (Administrativo)</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(dre.despesaFixa)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.despesaFixa, totalReceita)}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left:1.5rem; color:#475569;">(-) Rateio de Despesas Fixas do Período</td>
-                                                <td style="text-align:right; color:#475569;">${fmt(dre.rateioDespesasFixas)}</td>
-                                                <td style="text-align:right; color:#64748b;">${pctPart(dre.rateioDespesasFixas, totalReceita)}</td>
-                                            </tr>
-                                            <tr style="background:#ecfdf5; border-top:2px solid #065f46; border-bottom:2px solid #065f46;">
-                                                <td style="font-weight:bold; color:#065f46; font-size:0.85rem;">(=) RESULTADO OPERACIONAL LÍQUIDO (Lucro Estimado)</td>
-                                                <td style="text-align:right; font-weight:bold; color:#065f46; font-size:0.85rem;">${fmt(lucroLiquido)}</td>
-                                                <td style="text-align:right; font-weight:bold; color:#065f46; font-size:0.85rem;">${pctPart(lucroLiquido, totalReceita)}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
                         </div>
 
                         <!-- Footer Actions -->
                         <div style="display:flex; justify-content: flex-end; gap:0.55rem; padding: 0.75rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
-                            <button type="button" onclick="window.imprimirPropostaResumo()" style="background:#3b82f6; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; outline:none;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'"><i class="ph ph-printer"></i> Salvar e Imprimir</button>
                             <button type="button" onclick="Swal.close()" style="background:#94a3b8; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; outline:none;" onmouseover="this.style.background='#64748b'" onmouseout="this.style.background='#94a3b8'">Cancelar</button>
                             <button type="button" onclick="window.confirmarSalvarProposta(false)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'"><i class="ph ph-check"></i> Confirmar e Salvar</button>
                         </div>

@@ -402,11 +402,12 @@
         const servicosFormatados = (servicosRaw || []).map(s => {
             const qtd = Math.max(1, Number(s.quantidade ?? 1) || 1);
             const nomeServ = String(s.servico || s.descricao || s.nome || 'SERVIÇO').replace(/^\d+\s*-\s*/, '').trim();
-            const unitLiq = Number(s.valor_unitario ?? s.valor ?? 0) || 0;
-            const base = Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq;
-            const net = (s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd;
-            const gross = base * qtd;
-            somaTotalGeral += net;
+            const isFob = !!s.frete_fob;
+            const unitLiq = isFob ? 0 : (Number(s.valor_unitario ?? s.valor ?? 0) || 0);
+            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
+            const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
+            const gross = isFob ? 0 : (base * qtd);
+            if (!isFob) somaTotalGeral += net;
             return {
                 quantidade: qtd,
                 nome: nomeServ,
@@ -416,10 +417,10 @@
                 quant_diarias: '—',
                 unit: base,
                 por_dia: gross,
-                desconto: Math.max(0, gross - net),
+                desconto: isFob ? 0 : Math.max(0, gross - net),
                 total: net,
-                fob: !!s.frete_fob && net <= 0,
-                cortesia: !s.frete_fob && net <= 0
+                fob: isFob,
+                cortesia: !isFob && net <= 0
             };
         });
 
@@ -458,10 +459,10 @@
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
 
-        const celula = (it, valor, cor) => it.cortesia
-            ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
-            : (it.fob
-                ? '<span class="bq-d" style="font-size:' + u(22) + '; color:#b45309;">FOB</span>'
+        const celula = (it, valor, cor) => it.fob
+            ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">FOB</span>'
+            : (it.cortesia
+                ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
                 : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
         const cabecalhoColunas = (titulo) => `
