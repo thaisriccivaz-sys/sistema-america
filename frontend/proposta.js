@@ -1956,13 +1956,13 @@ function _renderFormPropostaInt() {
                 <!-- Botões de Ação (Lado Direito) -->
                 <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
                     <!-- Icon buttons -->
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-envelope-simple" style="font-size:1.15rem;"></i>
                     </button>
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder imprimi-la.', 'warning')" : `imprimirProposta(${id})`}" title="Imprimir" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-printer" style="font-size:1.15rem;"></i>
                     </button>
-                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1.15rem;"></i>
                     </button>
                     <button onclick="recarregarPropostaForm(${id || 'null'})" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
@@ -1985,22 +1985,22 @@ function _renderFormPropostaInt() {
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder excluí-la.', 'warning')" : `excluirProposta(${id})`}" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
-                    <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
+                    <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
                     </button>
-                    <button type="button" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
+                    <button type="button" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
                         <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Baixar PDF
                     </button>
-                    <button type="button" onclick="window.enviarPropostaPorWhatsapp(${id || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button type="button" onclick="window.enviarPropostaPorWhatsapp(${id || 'null'})" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-whatsapp-logo" style="font-size:1rem;"></i> Enviar WhatsApp
                     </button>
-                    <button type="button" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
+                    <button type="button" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
                         <i class="ph ph-envelope-simple" style="font-size:1rem;"></i> Enviar E-mail
                     </button>
-                    <button type="button" id="btn-prop-copiar-link" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-copiar-link" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
                         <i class="ph ph-link" style="font-size:1rem;"></i> Copiar Link
                     </button>
-                    <button type="button" id="btn-prop-desativar-link" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center;" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-desativar-link" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
                     <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
@@ -2347,15 +2347,14 @@ function _renderFormPropostaInt() {
                                         Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
                                         <span id="prop-dias-evento-badge" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique para aumentar ou recolher os detalhes das diárias" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; cursor:pointer; user-select:none;"></span>
                                     </label>
-                                    <button type="button" id="btn-toggle-detalhes-dias-evento" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique na seta para aumentar ou recolher os detalhes das diárias" style="display:none; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:0 8px !important; height:22px !important; width:auto !important; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; align-items:center; gap:4px; user-select:none;">
-                                        <i id="ico-toggle-detalhes-dias-evento" class="ph ph-caret-down" style="font-size:0.85rem;"></i>
-                                        <span id="lbl-toggle-detalhes-dias-evento">Aumentar detalhes</span>
-                                    </button>
                                     <label style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; user-select:none;" title="Considerar manutenções do primeiro ao último dia de Período Início * até Até *">
                                         <input type="checkbox" id="prop-dias-manut-diarias" onchange="window.toggleManutencoesDiariasEventoProposta(this.checked, event)" style="width:auto; margin:0; accent-color:#7048e8; cursor:pointer;"> Manutenções diárias
                                     </label>
                                 </div>
-                                <span style="font-size:0.72rem; color:#64748b;">Obrigatório: informe o horário (de ... até ...) ou marque "Horário comercial" em cada dia</span>
+                                <button type="button" id="btn-toggle-detalhes-dias-evento" onclick="window.toggleDetalhesDiasEventoProposta(event)" title="Clique para aumentar ou recolher os detalhes das diárias" style="display:none; margin-left:auto; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:0 8px !important; height:22px !important; width:auto !important; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; align-items:center; gap:4px; user-select:none;">
+                                    <i id="ico-toggle-detalhes-dias-evento" class="ph ph-caret-down" style="font-size:0.85rem;"></i>
+                                    <span id="lbl-toggle-detalhes-dias-evento">Aumentar detalhes</span>
+                                </button>
                             </div>
                             <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
                             <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
@@ -19036,6 +19035,13 @@ window.renderizarProdutosPropostaGrid = function() {
         const diasChipsHtml = (usaDias && typeof window.htmlDiasProdutoGrid === 'function')
             ? window.htmlDiasProdutoGrid(p, idx, list.length)
             : '';
+        const qtdDiasProd = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean).length : 0;
+        const expandidoProdDias = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
+        const btnToggleDiasAcaoHtml = (usaDias && qtdDiasProd > 1)
+            ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandidoProdDias ? 'Recolher detalhes das diárias' : 'Aumentar detalhes das diárias'}" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+                        <i class="ph ph-caret-${expandidoProdDias ? 'up' : 'down'}" style="font-size:0.95rem; font-weight:700;"></i>
+                    </button>`
+            : '';
 
         let descHtml = '<span style="color:#94a3b8;">—</span>';
         if (p.desconto_tipo === 'pct' && parseFloat(p.desconto_pct) > 0) {
@@ -19068,10 +19074,13 @@ window.renderizarProdutosPropostaGrid = function() {
                 <td style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td style="padding:8px 10px; text-align:center;">
-                    <button type="button" onclick="window.removerProdutoProposta(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover Produto">
-                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
-                    </button>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
+                    <div style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
+                        ${btnToggleDiasAcaoHtml}
+                        <button type="button" onclick="window.removerProdutoProposta(${idx})" style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover Produto">
+                            <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;

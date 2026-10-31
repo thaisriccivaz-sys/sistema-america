@@ -140,9 +140,6 @@
                 <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${dias.length} diárias (${esc(resumo)}) <i class="ph ph-caret-down" style="font-size:0.78rem;"></i>
             </span>`;
         })();
-        const btnToggle = dias.length > 1
-            ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandido ? 'Recolher detalhes das diárias' : 'Aumentar detalhes das diárias'}" style="background:#f5f3ff; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; padding:1px 7px !important; height:auto !important; width:auto !important; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-caret-${expandido ? 'up' : 'down'}"></i> ${expandido ? 'Recolher' : 'Detalhes'}</button>`
-            : '';
         const semDias = dias.length === 0
             ? '<span style="color:#dc2626; font-size:0.72rem; font-weight:700;"><i class="ph ph-warning"></i> Informe a(s) diária(s) deste produto</span>'
             : '';
@@ -154,10 +151,7 @@
                 <i class="ph ph-plus"></i> dia
                 <input type="date" ${minMaxAttr} onchange="window.adicionarDiaProdutoProposta(${idx}, this.value); this.value='';" style="position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; cursor:pointer; padding:0; margin:0; border:none;">
             </label>`;
-        const replicar = (total > 1 && dias.length)
-            ? `<button type="button" onclick="window.replicarDiasProdutoParaTodos(${idx})" title="Aplicar estas diárias a todos os outros produtos" style="background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; width:auto !important; height:auto !important;"><i class="ph ph-copy"></i> Replicar em todos os produtos</button>`
-            : '';
-        return `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; align-items:center;">${chips}${btnToggle}${semDias}${addDia}${replicar}</div>`;
+        return `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; align-items:center;">${chips}${semDias}${addDia}</div>`;
     };
 
     /* Diárias da proposta = união das diárias de todos os produtos (campo propostas.dias_evento) */
