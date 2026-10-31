@@ -62,9 +62,12 @@
             return { src: box.mobile_url, tipo: box.mobile_tipo || 'imagem', hotspots: box.hotspots_mobile || [], recorte: false };
         }
         if (modo === 'recorte') {
-            return { src: box.url, tipo: box.tipo, hotspots: [], recorte: true };
+            // Coordenadas em % do quadro recortado (o que aparece no celular)
+            return { src: box.url, tipo: box.tipo, hotspots: box.hotspots_mobile || [], recorte: true };
         }
-        return { src: box.url, tipo: box.tipo, hotspots: box.hotspots_desktop || [], recorte: false };
+        // Mesma midia: usa as areas do celular; se nao houver nenhuma, mantem as do desktop (mesma imagem)
+        const hotMob = box.hotspots_mobile || [];
+        return { src: box.url, tipo: box.tipo, hotspots: hotMob.length ? hotMob : (box.hotspots_desktop || []), recorte: false };
     }
 
     window.boxRenderHtml = function (box, view, opts) {
@@ -80,6 +83,7 @@
             const fx = Number(box.foco_x ?? 50), fy = Number(box.foco_y ?? 50);
             return `<div style="position:relative; width:100%; aspect-ratio:${a || 4} / ${b || 5}; overflow:hidden; line-height:0;">` +
                 midiaHtml(v.src, v.tipo, `width:100%; height:100%; object-fit:cover; object-position:${fx}% ${fy}%; display:block;`) +
+                (v.tipo === 'video' ? '' : hotspotsHtml(v.hotspots)) +
                 `</div>`;
         }
         return `<div style="position:relative; width:100%; line-height:0;">` +
@@ -235,8 +239,9 @@
     /* Qual lista de áreas clicáveis está sendo editada agora (ou null se não é possível) */
     function edHotAtiva() {
         if (ed.view === 'desktop') return edTipoDesktop() === 'video' ? null : ed.hotspots_desktop;
-        if (ed.mobile_modo === 'arquivo' && edSrcMobile() && edTipoMobile() !== 'video') return ed.hotspots_mobile;
-        return null;
+        if (ed.mobile_modo === 'ocultar') return null;
+        if (ed.mobile_modo === 'arquivo') return (edSrcMobile() && edTipoMobile() !== 'video') ? ed.hotspots_mobile : null;
+        return edTipoDesktop() === 'video' ? null : ed.hotspots_mobile;
     }
 
     window.abrirEditorBox = function (id) {
@@ -359,6 +364,7 @@
             if (ed.localUrl) URL.revokeObjectURL(ed.localUrl);
             ed.file = f; ed.localUrl = u; ed.localTipo = tipoDe(f);
             ed.hotspots_desktop = [];
+            if (ed.mobile_modo !== 'arquivo') ed.hotspots_mobile = [];
             const info = document.getElementById('box-ed-file-info');
             if (info) info.textContent = `Novo arquivo: ${f.name} (${(f.size / 1048576).toFixed(1)} MB)` + (ed.id ? ' — as áreas clicáveis anteriores foram limpas.' : '');
             if (!ed.nome) { ed.nome = f.name.replace(/\.[^.]+$/, ''); const n = document.getElementById('box-ed-nome'); if (n) n.value = ed.nome; }
@@ -431,8 +437,8 @@
             const semHot = Object.assign({}, box, { hotspots_desktop: [], hotspots_mobile: [] });
             conteudo = window.boxRenderHtml(semHot, ed.view, { mostrarOculto: true });
         }
-        if (ed.view === 'mobile' && ed.mobile_modo === 'mesma') nota = 'No celular, o box usa a mesma mídia e as mesmas áreas clicáveis do desktop (edite-as na visão Desktop).';
-        if (ed.view === 'mobile' && ed.mobile_modo === 'recorte') nota = 'Quadro recortado: ajuste o ponto de foco e a proporção no painel à esquerda. Áreas clicáveis não se aplicam a mídia recortada.';
+        if (ed.view === 'mobile' && ed.mobile_modo === 'mesma') nota = 'Arraste sobre a imagem para criar as áreas clicáveis do celular. Se não desenhar nenhuma, valem as do desktop (em azul).';
+        if (ed.view === 'mobile' && ed.mobile_modo === 'recorte') nota = 'Quadro recortado: ajuste a proporção e o ponto de foco (painel à esquerda) antes de desenhar as áreas clicáveis do celular.';
         prev.innerHTML = moldura(ed.view, conteudo, 'Anexe uma imagem ou vídeo para ver a pré-visualização.') +
             (nota ? `<div style="font-size:0.72rem; color:#475569; margin-top:8px; text-align:center;">${nota}</div>` : '');
 
@@ -440,17 +446,21 @@
         const wrapper = prev.querySelector('div[style*="position:relative"][style*="line-height:0"]');
         if (!wrapper) return;
         const ativa = edHotAtiva();
-        let listaMostrar = ativa;
-        if (!listaMostrar && ed.view === 'mobile' && ed.mobile_modo === 'mesma' && edTipoDesktop() !== 'video') listaMostrar = ed.hotspots_desktop;
+        const listaMostrar = ativa;
         if (!listaMostrar) return;
+        const fantasma = (ed.view === 'mobile' && ed.mobile_modo === 'mesma' && listaMostrar.length === 0) ? (ed.hotspots_desktop || []) : [];
+        const fantasmaHtml = fantasma.map((h) =>
+            `<div title="Área do desktop (vale no celular enquanto você não desenhar as suas)" style="position:absolute; left:${h.x}%; top:${h.y}%; width:${h.w}%; height:${h.h}%; border:2px dashed #3b82f6; background:rgba(59,130,246,0.16); pointer-events:none; box-sizing:border-box;">
+                <span style="position:absolute; left:0; top:0; background:#3b82f6; color:#fff; font-size:0.6rem; font-weight:800; padding:0 5px; line-height:1.5;">D</span></div>`
+        ).join('');
         const layer = document.createElement('div');
-        layer.style.cssText = `position:absolute; inset:0; ${ativa ? 'cursor:crosshair; touch-action:none;' : 'pointer-events:none;'}`;
-        layer.innerHTML = listaMostrar.map((h, i) =>
+        layer.style.cssText = `position:absolute; inset:0; cursor:crosshair; touch-action:none;`;
+        layer.innerHTML = fantasmaHtml + listaMostrar.map((h, i) =>
             `<div style="position:absolute; left:${h.x}%; top:${h.y}%; width:${h.w}%; height:${h.h}%; border:2px dashed #f59e0b; background:rgba(245,158,11,0.22); pointer-events:none; box-sizing:border-box;">
                 <span style="position:absolute; left:0; top:0; background:#f59e0b; color:#fff; font-size:0.62rem; font-weight:800; padding:0 5px; line-height:1.5;">${i + 1}</span></div>`
         ).join('');
         wrapper.appendChild(layer);
-        if (ativa) attachDraw(layer, ativa);
+        attachDraw(layer, ativa);
     };
 
     function attachDraw(layer, lista) {
@@ -499,9 +509,7 @@
         const ativa = edHotAtiva();
         if (!ativa) {
             let msg = 'Áreas clicáveis estão disponíveis para imagens.';
-            if (ed.view === 'mobile' && ed.mobile_modo === 'mesma') msg = 'No celular este box usa as mesmas áreas clicáveis do desktop. Troque para a visão Desktop para editá-las.';
-            else if (ed.view === 'mobile' && ed.mobile_modo === 'recorte') msg = 'Mídia recortada não possui áreas clicáveis.';
-            else if (ed.view === 'mobile' && ed.mobile_modo === 'ocultar') msg = 'Box oculto no celular.';
+            if (ed.view === 'mobile' && ed.mobile_modo === 'ocultar') msg = 'Box oculto no celular.';
             else if (ed.view === 'mobile' && ed.mobile_modo === 'arquivo') msg = 'Anexe uma imagem para o celular para desenhar áreas clicáveis nela.';
             else if (edTipoDesktop() === 'video') msg = 'Áreas clicáveis não estão disponíveis para vídeo.';
             if (ajuda) ajuda.textContent = msg;
@@ -509,8 +517,13 @@
             return;
         }
         if (ajuda) ajuda.textContent = (ed.view === 'mobile' ? 'Visão CELULAR: ' : 'Visão DESKTOP: ') + 'arraste sobre a imagem na pré-visualização para desenhar uma área e informe o link. Ele abrirá em uma nova página.';
-        if (!ativa.length) { el.innerHTML = '<div style="font-size:0.74rem; color:#a16207; font-style:italic;">Nenhuma área desenhada ainda.</div>'; return; }
-        el.innerHTML = ativa.map((h, i) => `
+        const podeCopiar = ed.view === 'mobile' && ed.mobile_modo === 'mesma' && (ed.hotspots_desktop || []).length > 0;
+        const btnCopiar = podeCopiar
+            ? '<button onclick="window._boxEdCopiarDesktop()" style="align-self:flex-start; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; font-size:0.72rem; font-weight:700; padding:4px 10px; cursor:pointer;"><i class="ph ph-copy"></i> Copiar áreas do desktop para o celular</button>'
+            : '';
+        if (ajuda && ed.view === 'mobile' && ed.mobile_modo === 'mesma') ajuda.textContent += ' Se nenhuma área for criada no celular, valem as do desktop (em azul).';
+        if (!ativa.length) { el.innerHTML = btnCopiar + '<div style="font-size:0.74rem; color:#a16207; font-style:italic;">Nenhuma área desenhada ainda.</div>'; return; }
+        el.innerHTML = btnCopiar + ativa.map((h, i) => `
             <div style="display:grid; grid-template-columns:24px 1.6fr 1fr 28px; gap:5px; align-items:center;">
                 <span style="background:#f59e0b; color:#fff; font-weight:800; font-size:0.68rem; text-align:center; border-radius:5px; padding:4px 0;">${i + 1}</span>
                 <input type="text" data-hot-url="${i}" value="${esc(h.url)}" placeholder="https://..." oninput="window._boxEdHot(${i}, 'url', this.value)" style="padding:5px 7px; border:1px solid #fcd34d; border-radius:6px; font-size:0.76rem; box-sizing:border-box; width:100%;">
@@ -521,6 +534,12 @@
             const f = el.querySelector(`input[data-hot-url="${focarIdx}"]`);
             if (f) f.focus();
         }
+    };
+
+    window._boxEdCopiarDesktop = function () {
+        ed.hotspots_mobile = JSON.parse(JSON.stringify(ed.hotspots_desktop || []));
+        window._boxEdRenderPreview();
+        window._boxEdRenderHotLista();
     };
 
     window._boxEdHot = function (i, campo, valor) {
