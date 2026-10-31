@@ -2195,7 +2195,7 @@ function _renderFormPropostaInt() {
 
                         <!-- Linha: Nome do Evento (quando EVENTO) + Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
                         <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.65); padding:0.4rem 0.65rem; border:1px solid #bbf7d0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
-                            <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 320px; max-width:600px;">
+                            <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 320px; max-width:600px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento <span style="color:#dc2626;">*</span>:</span>
                                 <div id="prop-evento-combo-wrap" style="position:relative; flex:1;">
                                     <input type="text" id="prop-nome-evento" value="${_escHtmlProp(v('nome_evento'))}" autocomplete="off"
@@ -5535,6 +5535,25 @@ window.verDetalhesClienteProposta = async function() {
 };
 
 /* ── Cálculos auxiliares ────────────────────────────────────────────── */
+// Validade da proposta por tipo: Evento / Locação Container / Equipamentos = até o Período Início;
+// demais tipos = 30 dias após a emissão (Data Cadastro).
+window.calcularValidadePropostaPorTipo = function() {
+    const validadeEl = document.getElementById('prop-validade-proposta');
+    if (!validadeEl) return;
+    const tipo = document.getElementById('prop-tipo')?.value || '';
+    if (!tipo) return;
+    if (typeof window.tipoPropostaExigeNomeEvento === 'function' && window.tipoPropostaExigeNomeEvento(tipo)) {
+        const ini = document.getElementById('prop-periodo-ini')?.value || '';
+        if (ini) validadeEl.value = ini;
+        return;
+    }
+    const dataCad = document.getElementById('prop-data-cadastro')?.value;
+    if (!dataCad) return;
+    const d = new Date(dataCad + 'T12:00:00');
+    d.setDate(d.getDate() + 30);
+    validadeEl.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+
 window.calcularPrevisaoFechamento = function() {
     const dataCad = document.getElementById('prop-data-cadastro')?.value;
     if (!dataCad) return;
@@ -5547,10 +5566,15 @@ window.calcularPrevisaoFechamento = function() {
     const previsaoEl = document.getElementById('prop-previsao');
     if (previsaoEl) previsaoEl.value = dataMais7;
     const validadeEl = document.getElementById('prop-validade-proposta');
-    if (validadeEl) validadeEl.value = dataMais7;
+    if (typeof window.calcularValidadePropostaPorTipo === 'function' && (document.getElementById('prop-tipo')?.value || '')) {
+        window.calcularValidadePropostaPorTipo();
+    } else if (validadeEl) {
+        validadeEl.value = dataMais7;
+    }
 };
 
 window.onChangePeriodoInicioProposta = function() {
+    if (typeof window.calcularValidadePropostaPorTipo === 'function') window.calcularValidadePropostaPorTipo();
     const tipoAtual = document.getElementById('prop-tipo')?.value || '';
     const diasPadrao = typeof window.obterDiasContratoPadraoPorTipo === 'function'
         ? window.obterDiasContratoPadraoPorTipo(tipoAtual)
@@ -5744,7 +5768,7 @@ window.salvarPropostaNova = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
-    if (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) {
+    if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();
         if (!nomeEventoVal) {
             alert('Informe o Nome do Evento.');
@@ -5817,7 +5841,7 @@ window.salvarPropostaNova = async function() {
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
-        nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
@@ -6362,7 +6386,7 @@ window.estornarPropostaEdicao = async function() {
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
 
-    if (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) {
+    if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();
         if (!nomeEventoVal) {
             alert('Informe o Nome do Evento.');
@@ -6435,7 +6459,7 @@ window.estornarPropostaEdicao = async function() {
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
         tabela_precos: obter('prop-tabela'),
-        nome_evento: (window.tipoPropostaEhEvento && window.tipoPropostaEhEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         endereco_instalacao: obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
@@ -16832,9 +16856,15 @@ window.tipoPropostaEhEvento = function(tipo) {
     return t === 'EVENTO';
 };
 
+window.tipoPropostaExigeNomeEvento = function(tipo) {
+    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
+    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return t === 'EVENTO' || t === 'LOCACAO CONTAINER' || t === 'EQUIPAMENTOS';
+};
+
 window.atualizarVisibilidadeNomeEventoProposta = function(tipo) {
     const wrap = document.getElementById('prop-wrapper-nome-evento');
-    const ehEv = window.tipoPropostaEhEvento(tipo);
+    const ehEv = window.tipoPropostaExigeNomeEvento(tipo);
     if (!ehEv) {
         if (wrap) wrap.style.display = 'none';
         const inp = document.getElementById('prop-nome-evento');
@@ -17381,6 +17411,7 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         if (iniEl) iniEl.value = '';
         if (fimEl) fimEl.value = '';
     }
+    if (typeof window.calcularValidadePropostaPorTipo === 'function') window.calcularValidadePropostaPorTipo();
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
         window.atualizarVisibilidadeDiasEventoProposta(tipoLimpo);
     }
