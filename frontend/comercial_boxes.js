@@ -455,7 +455,7 @@
     window.renderBoxQuadroEventoHtml = function (dadosCustom, view) {
         const d = (dadosCustom && dadosCustom.itens) ? dadosCustom : window.montarDadosQuadroEventoProposta(dadosCustom);
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
-        const ROXO = '#5c4599';
+        const ROXO = '#7b4195';
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
 
@@ -531,17 +531,17 @@
         <div class="box-quadro-evento-proposta" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
             <div style="width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box;">
                 <!-- Faixa superior: PROPOSTA EVENTO + número sequencial da proposta -->
-                <div style="margin-left:${u(122)}; border-left:${u(3)} solid ${ROXO}; border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
                     <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
                     <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                 </div>
 
                 <!-- Bloco logo + dados do cliente + informações do evento -->
-                <div style="margin-left:${u(122)}; display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="background:${ROXO}; width:${u(426)}; height:${u(256)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                    <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                         <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
                     </div>
-                    <div style="flex:1; display:grid; grid-template-columns:0.78fr 1.22fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(64)}; align-items:start; min-width:0;">
+                    <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
                         <div style="min-width:0;">
                             <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                 <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
