@@ -2023,7 +2023,7 @@ function _renderFormPropostaInt() {
                                     onfocus="if(this.value.trim().toUpperCase()==='AUTO') this.select();"
                                     onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarPropostaPorCodigoInput(); }"
                                     style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-weight:700;font-size:0.85rem;box-sizing:border-box; height:36px;">
-                                <button type="button" onclick="window.pesquisarPropostaPorCodigoInput()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#475569; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Pesquisar Proposta pelo número/código ou abrir lista">
+                                <button type="button" onclick="window.pesquisarPropostaPorCodigoInput()" style="background:#2563eb; border:none; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Proposta pelo número/código ou abrir lista">
                                     <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
                                 </button>
                             </div>
@@ -2107,7 +2107,7 @@ function _renderFormPropostaInt() {
                                             style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;" placeholder="Nome, razão social ou CPF/CNPJ">
                                         <span id="prop-cliente-grupo-icone" style="display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.08rem; line-height:1; pointer-events:none; z-index:20; user-select:none;"></span>
                                     </div>
-                                    <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <button type="button" id="btn-pesq-cliente-prop" onclick="pesquisarClienteProposta(this)" title="Pesquisar Cliente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                     <button type="button" onclick="verDetalhesClienteProposta()" title="Ver Detalhes do Cliente" style="display:none; background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
@@ -2134,7 +2134,7 @@ function _renderFormPropostaInt() {
                                         </button>
                                         <div id="prop-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
                                     </div>
-                                    <button type="button" id="btn-pesq-contato-prop" onclick="pesquisarContatoProposta(this)" title="Pesquisar Contato" style="background:#16a34a; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                    <button type="button" id="btn-pesq-contato-prop" onclick="pesquisarContatoProposta(this)" title="Pesquisar Contato" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                     <button type="button" onclick="verDetalhesContatoProposta()" title="Ver Detalhes do Contato" style="display:none; background:#0ea5e9; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
@@ -2219,7 +2219,7 @@ function _renderFormPropostaInt() {
                                     </button>
                                     <div id="prop-evento-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
                                 </div>
-                                <button type="button" onclick="if(typeof window.pesquisarEventoProposta === 'function') window.pesquisarEventoProposta()" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar evento vinculado ao cliente">
+                                <button type="button" onclick="if(typeof window.pesquisarEventoProposta === 'function') window.pesquisarEventoProposta()" style="background:#2563eb; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar evento vinculado ao cliente">
                                     <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                                 <button type="button" onclick="if(typeof window.novoEventoProposta === 'function') window.novoEventoProposta()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar novo evento para o cliente">
@@ -2242,7 +2242,7 @@ function _renderFormPropostaInt() {
                                     </button>
                                     <div id="prop-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
                                 </div>
-                                <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#16a34a; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Endereço de Instalação">
+                                <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#2563eb; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Endereço de Instalação">
                                     <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                                 <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
@@ -2268,7 +2268,7 @@ function _renderFormPropostaInt() {
                                         oninput="window.onInputProdutoPropostaTexto()"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaProdutoProposta(); }"
                                         style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
-                                    <button type="button" id="btn-pesq-produto-prop" onclick="window.pesquisarOuAbrirBuscaProdutoProposta()" style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Produto">
+                                    <button type="button" id="btn-pesq-produto-prop" onclick="window.pesquisarOuAbrirBuscaProdutoProposta()" style="background:#2563eb; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Produto">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
@@ -2339,13 +2339,18 @@ function _renderFormPropostaInt() {
                                     font-size: 0.8rem !important;
                                 }
                             </style>
-                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; flex-wrap:wrap; gap:4px;">
-                                <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
-                                    <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
-                                    Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
-                                    <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
-                                </label>
-                                <span style="font-size:0.72rem; color:#64748b;">Obrigatório: selecione o(s) dia(s) e o horário de cada dia para este produto</span>
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:6px;">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
+                                        <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
+                                        Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
+                                        <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
+                                    </label>
+                                    <label style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; user-select:none;" title="Considerar manutenções do primeiro ao último dia de Período Início * até Até *">
+                                        <input type="checkbox" id="prop-dias-manut-diarias" onchange="window.toggleManutencoesDiariasEventoProposta(this.checked, event)" style="width:auto; margin:0; accent-color:#7048e8; cursor:pointer;"> Manutenções diárias
+                                    </label>
+                                </div>
+                                <span style="font-size:0.72rem; color:#64748b;">Obrigatório: informe o horário (de ... até ...) ou marque "Horário comercial" em cada dia</span>
                             </div>
                             <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
                             <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
@@ -2382,7 +2387,7 @@ function _renderFormPropostaInt() {
                                         </select>
                                     </div>
                                 </div>
-                                <button type="button" onclick="window.adicionarProdutoProposta()" style="margin-left:auto; background:#7048e8; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                                <button type="button" onclick="window.adicionarProdutoProposta()" style="margin-left:auto; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                     <i class="ph ph-plus-circle" style="font-size:0.98rem;"></i> Adicionar
                                 </button>
                             </div>
@@ -2391,7 +2396,7 @@ function _renderFormPropostaInt() {
                             </div>
                         </div>
                         <div id="prop-wrapper-btn-add-sem-dias" style="display:${window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'none' : 'flex'}; justify-content:flex-end; margin:0 0 0.65rem 0;">
-                            <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#7048e8; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
+                            <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                                 <i class="ph ph-plus-circle" style="font-size:0.98rem;"></i> Adicionar
                             </button>
                         </div>
@@ -3490,7 +3495,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     width: 100%;
                 }
                 .mcli-btn-addon {
-                    background: #16a34a;
+                    background: #2563eb;
                     color: #fff;
                     border: none;
                     padding: 0.2rem 0.5rem;
@@ -3506,7 +3511,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     box-sizing: border-box;
                 }
                 .mcli-btn-addon:hover {
-                    background: #15803d;
+                    background: #1d4ed8;
                 }
                 .mcli-btn-addon.secondary {
                     background: #475569;
@@ -3587,7 +3592,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <label>Código</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="modal-cli-codigo" readonly value="${client ? (client.codigo || '') : ''}" placeholder="Auto" class="mcli-input" style="max-width:68px;">
-                                    <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="display:none; background:#16a34a;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="window.modalAbrirPesquisaCliente()" title="Buscar Cliente" class="mcli-btn-addon" style="display:none; background:#2563eb;"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="window.modalLimparFormCliente()" title="Limpar/Novo" class="mcli-btn-addon" style="background:#475569;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
                             </div>
@@ -3619,7 +3624,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <label>Cliente Centralizador</label>
                                 <div class="mcli-input-group">
                                     <input type="text" id="modal-cli-centralizador" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarCentralizadorCNPJ('modal-cli-centralizador', document.getElementById('modal-btn-busca-cent'));}" value="${client ? (client.cliente_centralizador || '') : ''}" placeholder="CPF, CNPJ ou Nome..." class="mcli-input">
-                                    <button type="button" id="modal-btn-busca-cent" onclick="window.buscarCentralizadorCNPJ('modal-cli-centralizador', this)" title="Buscar CNPJ Centralizador" class="mcli-btn-addon" style="background:#16a34a;">
+                                    <button type="button" id="modal-btn-busca-cent" onclick="window.buscarCentralizadorCNPJ('modal-cli-centralizador', this)" title="Buscar CNPJ Centralizador" class="mcli-btn-addon" style="background:#2563eb;">
                                         <i class="ph ph-magnifying-glass"></i>
                                     </button>
                                 </div>
@@ -3738,7 +3743,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                         <span>dias após o vencimento</span>
                                     </div>
                                     <div style="display:flex; gap:0.5rem; align-items:center;">
-                                        <button type="button" id="modal-btn-pesq-contato-cli" onclick="window.modalAbrirPesquisaContatoCliente(this)" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                        <button type="button" id="modal-btn-pesq-contato-cli" onclick="window.modalAbrirPesquisaContatoCliente(this)" style="background:#2563eb; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                             <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                         </button>
                                         <button type="button" onclick="document.getElementById('modal-cli-contato-form').style.display='flex'" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s; height:28px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
@@ -5414,7 +5419,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                             <label class="prop-lbl">CEP</label>
                             <div style="display:flex; gap:0.25rem;">
                                 <input type="text" id="mcon-emp-cep" value="${_escHtmlProp(empCep)}" placeholder="00000-000" style="flex:1; padding:0.48rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; width:100%;">
-                                <button type="button" onclick="window.buscarCEPModalContatoProposta()" style="background:#16a34a; color:#fff; border:none; border-radius:6px; width:32px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                <button type="button" onclick="window.buscarCEPModalContatoProposta()" style="background:#2563eb; color:#fff; border:none; border-radius:6px; width:32px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
                     </div>
@@ -5822,7 +5827,7 @@ window.salvarPropostaNova = async function() {
                     return !parsed.data || !window._horarioEventoIntervaloValido(parsed.horario);
                 });
                 if (faltaHorarioNoItem) {
-                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário completo (de ... até ...). Preencha o horário inicial e final de cada dia na linha do produto.');
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário completo (de ... até ...) ou "Horário comercial". Preencha o horário ou marque "Horário comercial" em cada dia na linha do produto.');
                     return;
                 }
                 p.dias_evento = dItem.map(entry => {
@@ -6438,7 +6443,7 @@ window.estornarPropostaEdicao = async function() {
                     return !parsed.data || !window._horarioEventoIntervaloValido(parsed.horario);
                 });
                 if (faltaHorarioNoItem) {
-                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário completo (de ... até ...). Preencha o horário inicial e final de cada dia na linha do produto.');
+                    alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário completo (de ... até ...) ou "Horário comercial". Preencha o horário ou marque "Horário comercial" em cada dia na linha do produto.');
                     return;
                 }
                 p.dias_evento = dItem.map(entry => {
@@ -7350,7 +7355,7 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">Código</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="cli-codigo" readonly placeholder="Auto" maxlength="6" style="width:100%;max-width:68px;padding:0.45rem 0.35rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;background:#f1f5f9;color:#64748b;box-sizing:border-box;text-align:center;">
-                                    <button type="button" onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="display:none;background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="abrirModalPesquisaCliente()" title="Buscar Cliente" style="display:none;background:#2563eb;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;align-items:center;justify-content:center;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-magnifying-glass"></i></button>
                                     <button type="button" onclick="limparFormCliente()" title="Limpar/Novo" style="background:#495057;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-counter-clockwise"></i></button>
                                 </div>
                             </div>
@@ -7358,7 +7363,7 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">CPF / CNPJ *</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="cli-cpf-cnpj" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); buscarCNPJ();}" placeholder="Apenas números" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                    <button type="button" onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" onclick="buscarCNPJ()" id="btn-busca-cnpj" title="Buscar CNPJ" style="background:#2563eb;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                             <div>
@@ -7383,7 +7388,7 @@ function _renderCadastroClienteInt() {
                                 <label class="prop-lbl">Cliente Centralizador</label>
                                 <div style="display:flex; gap:3px;">
                                     <input type="text" id="cli-centralizador" onkeydown="if(event.key==='Enter'){event.preventDefault(); event.stopPropagation(); window.buscarCentralizadorCNPJ('cli-centralizador', document.getElementById('btn-busca-centralizador'));}" placeholder="CPF, CNPJ ou Nome..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
-                                    <button type="button" id="btn-busca-centralizador" onclick="window.buscarCentralizadorCNPJ('cli-centralizador', this)" title="Buscar CNPJ Centralizador" style="background:#82c91e;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;"><i class="ph ph-magnifying-glass"></i></button>
+                                    <button type="button" id="btn-busca-centralizador" onclick="window.buscarCentralizadorCNPJ('cli-centralizador', this)" title="Buscar CNPJ Centralizador" style="background:#2563eb;color:white;border:none;padding:0.45rem 0.6rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;gap:3px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -7407,7 +7412,7 @@ function _renderCadastroClienteInt() {
                             <label class="prop-lbl">CEP</label>
                             <div style="display:flex; gap:3px;">
                                 <input type="text" id="cli-cep" placeholder="00000-000" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;" onkeydown="if(event.key==='Enter'){event.preventDefault(); buscarCEP();}">
-                                <button type="button" onclick="buscarCEP()" title="Buscar CEP" style="background:#82c91e;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-magnifying-glass"></i></button>
+                                <button type="button" onclick="buscarCEP()" title="Buscar CEP" style="background:#2563eb;color:white;border:none;padding:0.45rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'"><i class="ph ph-magnifying-glass"></i></button>
                             </div>
                         </div>
                         <div>
@@ -7502,7 +7507,7 @@ function _renderCadastroClienteInt() {
                                     <span>dias após o vencimento</span>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center;">
-                                    <button type="button" id="btn-pesq-contato-cli" onclick="abrirModalPesquisaContatoCliente(this)" style="background:#e2e8f0; color:#475569; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    <button type="button" id="btn-pesq-contato-cli" onclick="abrirModalPesquisaContatoCliente(this)" style="background:#2563eb; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                         <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i> Pesquisar Contato
                                     </button>
                                     <button type="button" id="btn-novo-contato-cli" onclick="encaminharNovoContato(this)" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
@@ -10529,7 +10534,7 @@ function _renderCadastroContatosInt() {
                 width: 100%;
             }
             .cc-btn-addon {
-                background: #16a34a;
+                background: #2563eb;
                 color: #fff;
                 border: none;
                 padding: 0.5rem 0.75rem;
@@ -10544,7 +10549,7 @@ function _renderCadastroContatosInt() {
                 box-sizing: border-box;
             }
             .cc-btn-addon:hover {
-                background: #15803d;
+                background: #1d4ed8;
             }
             .cc-btn-addon.secondary {
                 background: #eab308;
@@ -11935,7 +11940,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <label class="prop-lbl-modal">Razão Social</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-cli-razao" class="cc-input-modal" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCliente(this.value);}">
-                                <button type="button" onclick="window.modalBuscarCliente(document.getElementById('modal-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCliente(document.getElementById('modal-cli-razao')?.value || '')" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                                 <button type="button" onclick="window.modalCadastrarNovoClienteEnderecos()" style="background:#eab308; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar Novo Cliente"><i class="ph ph-plus" style="font-size:0.95rem;"></i></button>
                             </div>
                         </div>
@@ -11962,14 +11967,14 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <label class="prop-lbl-modal">Nome do Local *</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorNomeLocal();}">
-                                <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
                             <label class="prop-lbl-modal">CPF/CNPJ</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-cnpj" class="cc-input-modal" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorCNPJLocal();}">
-                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -11983,7 +11988,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <label class="prop-lbl-modal">CEP *</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-cep" class="cc-input-modal" placeholder="00000-000" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarCEPEntrega();}">
-                                <button type="button" onclick="window.modalBuscarCEPEntrega()" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.modalBuscarCEPEntrega()" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                         <div>
@@ -12002,7 +12007,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                             <label class="prop-lbl-modal">Lat/Long (Google Maps)</label>
                             <div style="display:flex; gap:0.35rem;">
                                 <input type="text" id="modal-end-coords" class="cc-input-modal" placeholder="-23.55052, -46.633308" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.abrirMapaSelecaoLatLong('modal');}">
-                                <button type="button" onclick="window.abrirMapaSelecaoLatLong('modal')" style="background:#16a34a; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
+                                <button type="button" onclick="window.abrirMapaSelecaoLatLong('modal')" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
                         </div>
                     </div>
@@ -12664,7 +12669,7 @@ function _renderEnderecosInt() {
                         <label class="prop-lbl-end">Razão Social</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-cli-razao" class="cc-input-end" placeholder="Pesquisar Razão Social..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarCliente(this.value);}">
-                            <button type="button" onclick="window.pageBuscarCliente(document.getElementById('page-cli-razao')?.value || '')" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarCliente(document.getElementById('page-cli-razao')?.value || '')" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Cliente na Base"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                             <button type="button" onclick="window.pageCadastrarNovoClienteEnderecos()" style="background:#eab308; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar Novo Cliente"><i class="ph ph-plus" style="font-size:1.05rem;"></i></button>
                         </div>
                     </div>
@@ -12691,14 +12696,14 @@ function _renderEnderecosInt() {
                         <label class="prop-lbl-end">Nome do Local *</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorNomeLocal();}">
-                            <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
                         <label class="prop-lbl-end">CPF/CNPJ</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-end-cnpj" class="cc-input-end" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorCNPJLocal();}">
-                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
@@ -12712,7 +12717,7 @@ function _renderEnderecosInt() {
                         <label class="prop-lbl-end">CEP *</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-end-cep" class="cc-input-end" placeholder="00000-000" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarCEP();}">
-                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.pageBuscarCEP()" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CEP"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                     <div>
@@ -12731,7 +12736,7 @@ function _renderEnderecosInt() {
                         <label class="prop-lbl-end">Lat/Long (Google Maps)</label>
                         <div style="display:flex; gap:0.35rem;">
                             <input type="text" id="page-end-coords" class="cc-input-end" placeholder="-23.55052, -46.633308" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.abrirMapaSelecaoLatLong('page');}">
-                            <button type="button" onclick="window.abrirMapaSelecaoLatLong('page')" style="background:#16a34a; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+                            <button type="button" onclick="window.abrirMapaSelecaoLatLong('page')" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Abrir Mapa para Selecionar Latitude/Longitude"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
                     </div>
                 </div>
@@ -17034,10 +17039,13 @@ window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
 
 window._parseHorarioIntervaloEvento = function(rawHorario) {
     const s = String(rawHorario || '').trim();
-    if (!s) return { ini: '', fim: '', formatado: '' };
+    if (!s) return { ini: '', fim: '', comercial: false, formatado: '' };
+    if (/^(?:hor[aá]rio\s+)?comercial$/i.test(s)) {
+        return { ini: '', fim: '', comercial: true, formatado: 'COMERCIAL' };
+    }
     const mRange = s.match(/^(\d{2}:\d{2})\s*(?:-|a|até|ate)\s*(\d{2}:\d{2})$/i);
     if (mRange) {
-        return { ini: mRange[1], fim: mRange[2], formatado: `${mRange[1]}-${mRange[2]}` };
+        return { ini: mRange[1], fim: mRange[2], comercial: false, formatado: `${mRange[1]}-${mRange[2]}` };
     }
     const mPartial = s.match(/^(\d{2}:\d{2})?\s*-\s*(\d{2}:\d{2})?$/);
     if (mPartial) {
@@ -17046,36 +17054,77 @@ window._parseHorarioIntervaloEvento = function(rawHorario) {
         return {
             ini,
             fim,
+            comercial: false,
             formatado: (ini && fim) ? `${ini}-${fim}` : (ini || fim ? `${ini}-${fim}` : '')
         };
     }
     const mSingle = s.match(/^(\d{2}:\d{2})$/);
     if (mSingle) {
-        return { ini: mSingle[1], fim: '', formatado: mSingle[1] };
+        return { ini: mSingle[1], fim: '', comercial: false, formatado: mSingle[1] };
     }
-    return { ini: '', fim: '', formatado: '' };
+    return { ini: '', fim: '', comercial: false, formatado: '' };
 };
 
 window._horarioEventoIntervaloValido = function(rawHorario) {
     const p = window._parseHorarioIntervaloEvento(rawHorario);
-    return /^\d{2}:\d{2}$/.test(p.ini) && /^\d{2}:\d{2}$/.test(p.fim);
+    return Boolean(p.comercial || (/^\d{2}:\d{2}$/.test(p.ini) && /^\d{2}:\d{2}$/.test(p.fim)));
 };
 
 window._parseDiasEventoItem = function(rawEntry) {
-    if (!rawEntry) return { data: '', horario: '', horario_ini: '', horario_fim: '' };
+    if (!rawEntry) return { data: '', horario: '', horario_ini: '', horario_fim: '', comercial: false };
     if (typeof rawEntry === 'object') {
         const dObj = String(rawEntry.data || rawEntry.dia || '').trim();
         const hObj = String(rawEntry.horario || rawEntry.hora || '').trim();
         const hp = window._parseHorarioIntervaloEvento(hObj);
-        return { data: dObj, horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim };
+        return { data: dObj, horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim, comercial: Boolean(hp.comercial) };
     }
     const str = String(rawEntry).trim();
     const m = str.match(/^(\d{4}-\d{2}-\d{2})(?:[\sT]+(.+))?$/);
     if (m) {
         const hp = window._parseHorarioIntervaloEvento(m[2] || '');
-        return { data: m[1], horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim };
+        return { data: m[1], horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim, comercial: Boolean(hp.comercial) };
     }
-    return { data: str, horario: '', horario_ini: '', horario_fim: '' };
+    return { data: str, horario: '', horario_ini: '', horario_fim: '', comercial: false };
+};
+
+window._gerarDatasIntervaloIso = function(iniIso, fimIso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iniIso || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(String(fimIso || ''))) return [];
+    if (iniIso > fimIso) return [];
+    const datas = [];
+    const cur = new Date(iniIso + 'T12:00:00Z');
+    const end = new Date(fimIso + 'T12:00:00Z');
+    let guard = 0;
+    while (cur <= end && guard < 730) {
+        datas.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+        guard++;
+    }
+    return datas;
+};
+
+window.toggleManutencoesDiariasEventoProposta = function(checked, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    const chkEl = document.getElementById('prop-dias-manut-diarias');
+    if (checked) {
+        const { ini, fim, valido } = window.obterIntervaloPeriodoProposta();
+        if (!valido) {
+            alert('Preencha primeiro os campos Período Início * e Até * para selecionar Manutenções diárias.');
+            if (chkEl) chkEl.checked = false;
+            const iniEl = document.getElementById('prop-periodo-ini');
+            const fimEl = document.getElementById('prop-periodo-fim');
+            if (iniEl && !iniEl.value) iniEl.focus();
+            else if (fimEl && !fimEl.value) fimEl.focus();
+            return;
+        }
+        const todasDatas = window._gerarDatasIntervaloIso(ini, fim);
+        if (!window._propDiasEventoHorarios) window._propDiasEventoHorarios = {};
+        window._propDiasEventoSelecionados = todasDatas;
+        window.renderizarDiasEventoProposta(false);
+    } else {
+        window.renderizarDiasEventoProposta(false);
+    }
 };
 
 window._parseDiasEventoLista = function(rawList) {
@@ -17155,7 +17204,13 @@ window.sincronizarDiasEventoComPeriodoProposta = function() {
             }
         }
     }
-    if (valido && Array.isArray(window._propDiasEventoSelecionados) && window._propDiasEventoSelecionados.length > 0) {
+    const chkManutDiarias = document.getElementById('prop-dias-manut-diarias');
+    if (valido && chkManutDiarias && chkManutDiarias.checked) {
+        window._propDiasEventoSelecionados = window._gerarDatasIntervaloIso(ini, fim);
+        if (typeof window.renderizarDiasEventoProposta === 'function') {
+            window.renderizarDiasEventoProposta(false);
+        }
+    } else if (valido && Array.isArray(window._propDiasEventoSelecionados) && window._propDiasEventoSelecionados.length > 0) {
         const filtrados = window._propDiasEventoSelecionados.filter(iso => {
             const d = String(iso || '').trim().split(' ')[0];
             return d >= ini && d <= fim;
@@ -17205,8 +17260,13 @@ window.validarDiasEHorariosEventoSelecionados = function() {
         return false;
     }
     if (!window._propDiasEventoHorarios) window._propDiasEventoHorarios = {};
-    // Sincronizar eventuais valores nos inputs DOM (de / até) antes de validar
+    // Sincronizar eventuais valores nos inputs DOM (de / até / Horário comercial) antes de validar
     lista.forEach(iso => {
+        const chkCom = document.querySelector(`input[data-dia-evento-comercial="${iso}"]`);
+        if (chkCom && chkCom.checked) {
+            window._propDiasEventoHorarios[iso] = 'COMERCIAL';
+            return;
+        }
         const inpIni = document.querySelector(`input[data-dia-evento-iso="${iso}"][data-dia-evento-campo="ini"]`);
         const inpFim = document.querySelector(`input[data-dia-evento-iso="${iso}"][data-dia-evento-campo="fim"]`);
         const iniVal = inpIni ? inpIni.value.trim() : '';
@@ -17218,11 +17278,11 @@ window.validarDiasEHorariosEventoSelecionados = function() {
     const diaSemHorario = lista.find(iso => !window._horarioEventoIntervaloValido(window._propDiasEventoHorarios[iso]));
     if (diaSemHorario) {
         const fmt = diaSemHorario.includes('-') ? diaSemHorario.split('-').reverse().join('/') : diaSemHorario;
-        alert(`É obrigatório preencher o horário inicial e final (de ... até ...) em cada dia selecionado em Dia de Evento / Sucção * (faltando horário no dia ${fmt}).`);
+        alert(`É obrigatório preencher o horário (de ... até ...) ou marcar "Horário comercial" em cada dia selecionado em Dia de Evento / Sucção * (faltando no dia ${fmt}).`);
         const hp = window._parseHorarioIntervaloEvento(window._propDiasEventoHorarios[diaSemHorario]);
         const campoFaltando = !/^\d{2}:\d{2}$/.test(hp.ini) ? 'ini' : 'fim';
         const inpFoco = document.querySelector(`input[data-dia-evento-iso="${diaSemHorario}"][data-dia-evento-campo="${campoFaltando}"]`);
-        if (inpFoco) {
+        if (inpFoco && !inpFoco.disabled) {
             inpFoco.focus();
             inpFoco.style.borderColor = '#dc2626';
             inpFoco.style.boxShadow = '0 0 0 2px rgba(220,38,38,0.25)';
@@ -17248,6 +17308,10 @@ window.atualizarHorarioDiaEventoProposta = function(isoDate, horarioNovo, event,
     if (window._horarioEventoIntervaloValido(combinado)) {
         window._ultimoHorarioDiaEventoEditado = `${novoIni}-${novoFim}`;
     }
+    const chkCom = document.querySelector(`input[data-dia-evento-comercial="${iso}"]`);
+    if (chkCom && chkCom.checked && (novoIni || novoFim)) {
+        chkCom.checked = false;
+    }
     const hiddenEl = document.getElementById('prop-dias-evento');
     if (hiddenEl) {
         hiddenEl.value = JSON.stringify(window.obterDiasEventoComHorariosAtuais());
@@ -17268,6 +17332,28 @@ window.atualizarHorarioDiaEventoProposta = function(isoDate, horarioNovo, event,
     }
 };
 
+window.toggleHorarioComercialDiaEventoProposta = function(isoDate, checked, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    const iso = String(isoDate || '').trim();
+    if (!iso) return;
+    if (!window._propDiasEventoHorarios) window._propDiasEventoHorarios = {};
+    if (checked) {
+        window._propDiasEventoHorarios[iso] = 'COMERCIAL';
+        window._ultimoHorarioDiaEventoEditado = 'COMERCIAL';
+    } else {
+        window._propDiasEventoHorarios[iso] = '';
+    }
+    window.renderizarDiasEventoProposta(false);
+    if (!checked) {
+        setTimeout(() => {
+            const inpIni = document.querySelector(`input[data-dia-evento-iso="${iso}"][data-dia-evento-campo="ini"]`);
+            if (inpIni) inpIni.focus();
+        }, 20);
+    }
+};
+
 window.replicarHorarioDiasEventoProposta = function(event) {
     if (event) {
         event.preventDefault();
@@ -17282,6 +17368,11 @@ window.replicarHorarioDiasEventoProposta = function(event) {
     }
     if (!window._propDiasEventoHorarios) window._propDiasEventoHorarios = {};
     lista.forEach(iso => {
+        const chkCom = document.querySelector(`input[data-dia-evento-comercial="${iso}"]`);
+        if (chkCom && chkCom.checked) {
+            window._propDiasEventoHorarios[iso] = 'COMERCIAL';
+            return;
+        }
         const inpIni = document.querySelector(`input[data-dia-evento-iso="${iso}"][data-dia-evento-campo="ini"]`);
         const inpFim = document.querySelector(`input[data-dia-evento-iso="${iso}"][data-dia-evento-campo="fim"]`);
         const iniVal = inpIni ? inpIni.value.trim() : '';
@@ -17299,13 +17390,13 @@ window.replicarHorarioDiasEventoProposta = function(event) {
             const h = String(window._propDiasEventoHorarios[iso] || '').trim();
             if (window._horarioEventoIntervaloValido(h)) {
                 const hp = window._parseHorarioIntervaloEvento(h);
-                horarioRef = `${hp.ini}-${hp.fim}`;
+                horarioRef = hp.comercial ? 'COMERCIAL' : `${hp.ini}-${hp.fim}`;
                 break;
             }
         }
     }
     if (!horarioRef) {
-        alert('Preencha o horário completo (de ... até ...) em pelo menos um dia selecionado para replicar em todos.');
+        alert('Preencha o horário completo (de ... até ...) ou marque "Horário comercial" em pelo menos um dia selecionado para replicar em todos.');
         const primeiroInput = document.querySelector('input[data-dia-evento-iso]');
         if (primeiroInput) primeiroInput.focus();
         return;
@@ -17316,7 +17407,8 @@ window.replicarHorarioDiasEventoProposta = function(event) {
     window.renderizarDiasEventoProposta(false);
     if (typeof mostrarToastSucesso === 'function') {
         const hp = window._parseHorarioIntervaloEvento(horarioRef);
-        mostrarToastSucesso(`Horário de ${hp.ini} até ${hp.fim} replicado para todos os ${lista.length} dias selecionados!`);
+        const desc = hp.comercial ? 'Horário comercial' : `Horário de ${hp.ini} até ${hp.fim}`;
+        mostrarToastSucesso(`${desc} replicado para todos os ${lista.length} dias selecionados!`);
     }
 };
 
@@ -17335,6 +17427,17 @@ window.renderizarDiasEventoProposta = function() {
     });
     const lista = [...new Set(normDatas)].sort();
     window._propDiasEventoSelecionados = lista;
+
+    const chkManutEl = document.getElementById('prop-dias-manut-diarias');
+    if (chkManutEl && typeof window.obterIntervaloPeriodoProposta === 'function') {
+        const per = window.obterIntervaloPeriodoProposta();
+        if (per.valido && typeof window._gerarDatasIntervaloIso === 'function') {
+            const todas = window._gerarDatasIntervaloIso(per.ini, per.fim);
+            chkManutEl.checked = todas.length > 0 && todas.length === lista.length && todas.every((d, i) => lista[i] === d);
+        } else if (lista.length === 0) {
+            chkManutEl.checked = false;
+        }
+    }
 
     const hiddenEl = document.getElementById('prop-dias-evento');
     if (hiddenEl) hiddenEl.value = JSON.stringify(window.obterDiasEventoComHorariosAtuais());
@@ -17368,33 +17471,45 @@ window.renderizarDiasEventoProposta = function() {
             chipsEl.innerHTML = lista.map(iso => {
                 const fmt = iso.includes('-') ? iso.split('-').reverse().join('/') : iso;
                 const hp = window._parseHorarioIntervaloEvento(window._propDiasEventoHorarios[iso]);
+                const isComercial = Boolean(hp.comercial);
                 const iniOk = /^\d{2}:\d{2}$/.test(hp.ini);
                 const fimOk = /^\d{2}:\d{2}$/.test(hp.fim);
-                const temHorario = iniOk && fimOk;
+                const temHorario = isComercial || (iniOk && fimOk);
                 return `
-                    <span class="prop-chip-dia-evento" onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid ${temHorario ? '#c4b5fd' : '#fca5a5'}; padding:3px 8px; border-radius:8px; font-size:0.78rem; font-weight:700;">
+                    <span class="prop-chip-dia-evento" onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; background:#ede9fe; color:#5b21b6; border:1px solid ${temHorario ? '#c4b5fd' : '#fca5a5'}; padding:3px 8px; border-radius:8px; font-size:0.78rem; font-weight:700;">
                         <i class="ph ph-calendar-check" style="font-size:0.85rem;"></i>
                         <span>${fmt}</span>
-                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600;">de</span>
+                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">de</span>
                         <input type="time"
                             data-dia-evento-iso="${iso}"
                             data-dia-evento-campo="ini"
-                            value="${_escHtmlProp(hp.ini)}"
+                            value="${isComercial ? '' : _escHtmlProp(hp.ini)}"
+                            ${isComercial ? 'disabled' : ''}
                             onclick="event.stopPropagation();"
                             oninput="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'ini')"
                             onchange="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'ini')"
                             title="Horário inicial do evento / sucção para o dia ${fmt}"
-                            style="border:1px solid ${iniOk ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:pointer; outline:none;">
-                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600;">até</span>
+                            style="border:1px solid ${isComercial ? '#cbd5e1' : (iniOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none; ${isComercial ? 'opacity:0.55;' : ''}">
+                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">até</span>
                         <input type="time"
                             data-dia-evento-iso="${iso}"
                             data-dia-evento-campo="fim"
-                            value="${_escHtmlProp(hp.fim)}"
+                            value="${isComercial ? '' : _escHtmlProp(hp.fim)}"
+                            ${isComercial ? 'disabled' : ''}
                             onclick="event.stopPropagation();"
                             oninput="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'fim')"
                             onchange="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'fim')"
                             title="Horário final do evento / sucção para o dia ${fmt}"
-                            style="border:1px solid ${fimOk ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:pointer; outline:none;">
+                            style="border:1px solid ${isComercial ? '#cbd5e1' : (fimOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none; ${isComercial ? 'opacity:0.55;' : ''}">
+                        <label onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; color:${isComercial ? '#047857' : '#5b21b6'}; background:${isComercial ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isComercial ? '#6ee7b7' : '#ddd6fe'}; padding:2px 6px; border-radius:5px; cursor:pointer; font-weight:700; user-select:none;" title="Indicar que a manutenção neste dia pode ser feita em horário comercial (sem horário fixo)">
+                            <input type="checkbox"
+                                data-dia-evento-comercial="${iso}"
+                                ${isComercial ? 'checked' : ''}
+                                onclick="event.stopPropagation();"
+                                onchange="window.toggleHorarioComercialDiaEventoProposta('${iso}', this.checked, event)"
+                                style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;">
+                            Horário comercial
+                        </label>
                         <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
                     </span>
                 `;
@@ -18803,7 +18918,7 @@ window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorari
     const parsed = window._parseDiasEventoItem(item.dias_evento[diaIdx]);
     const h = String(novoHorario || '').trim();
     if (!h) {
-        alert('O horário inicial e final do evento são obrigatórios em cada dia selecionado.');
+        alert('Informe o horário (de ... até ...) ou marque "Horário comercial" neste dia.');
         window.renderizarProdutosPropostaGrid();
         return;
     }
@@ -18811,6 +18926,15 @@ window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorari
     const novoFim = campo === 'fim' ? h : (parsed.horario_fim || '');
     const horarioFinal = (novoIni || novoFim) ? `${novoIni}-${novoFim}` : '';
     item.dias_evento[diaIdx] = horarioFinal ? `${parsed.data} ${horarioFinal}` : parsed.data;
+    window.renderizarProdutosPropostaGrid();
+};
+
+window.toggleHorarioComercialDiaProdutoProposta = function(prodIdx, diaIdx, checked) {
+    if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[prodIdx]) return;
+    const item = window._propProdutosAdicionados[prodIdx];
+    if (!Array.isArray(item.dias_evento) || !item.dias_evento[diaIdx]) return;
+    const parsed = window._parseDiasEventoItem(item.dias_evento[diaIdx]);
+    item.dias_evento[diaIdx] = checked ? `${parsed.data} COMERCIAL` : parsed.data;
     window.renderizarProdutosPropostaGrid();
 };
 
@@ -19791,7 +19915,7 @@ window.abrirMapaSelecaoLatLong = async function(escopo = 'page') {
             <div style="padding:0.85rem 1.25rem; display:flex; flex-direction:column; gap:0.65rem;">
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="mapa-latlong-search-input" placeholder="Endereço e número para localizar no mapa..." style="flex:1; min-width:260px; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; outline:none;">
-                    <button type="button" id="btn-mapa-latlong-buscar" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 0.95rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                    <button type="button" id="btn-mapa-latlong-buscar" style="background:#2563eb; color:#fff; border:none; padding:0.5rem 0.95rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-magnifying-glass"></i> Localizar Endereço
                     </button>
                 </div>

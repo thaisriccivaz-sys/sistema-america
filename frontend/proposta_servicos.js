@@ -87,7 +87,7 @@
                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaServicoProposta(); }"
                             style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                         <button type="button" id="btn-pesq-servico-prop" onclick="window.pesquisarOuAbrirBuscaServicoProposta()" title="Pesquisar Serviço"
-                            style="background:#16a34a; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; flex-shrink:0;">
+                            style="background:#2563eb; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; flex-shrink:0; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                             <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                         </button>
                     </div>
@@ -102,7 +102,7 @@
                 </div>
                 <div>
                     <button type="button" onclick="window.adicionarServicoProposta()"
-                        style="background:#7048e8; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                        style="background:#16a34a; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                         <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
                     </button>
                 </div>
