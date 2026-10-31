@@ -39900,6 +39900,32 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         console.log('[PROPOSTAS] Alerta ao alterar tabela servico_frete_fob:', errAlterFobProp.message);
       }
     });
+    db.run("ALTER TABLE propostas ADD COLUMN contrato_vinculado TEXT", (errAlterContVinc) => {
+      if (errAlterContVinc && !errAlterContVinc.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela contrato_vinculado:', errAlterContVinc.message);
+      }
+    });
+    db.run("ALTER TABLE propostas ADD COLUMN contrato_vinculado_id INTEGER", (errAlterContVincId) => {
+      if (errAlterContVincId && !errAlterContVincId.message.includes('duplicate column name')) {
+        console.log('[PROPOSTAS] Alerta ao alterar tabela contrato_vinculado_id:', errAlterContVincId.message);
+      }
+    });
+    db.run(`CREATE TABLE IF NOT EXISTS contratos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      numero_contrato TEXT,
+      proposta_id INTEGER,
+      cliente_nome TEXT,
+      contato_nome TEXT,
+      tipo TEXT,
+      periodo_inicio TEXT,
+      periodo_fim TEXT,
+      endereco_instalacao TEXT,
+      valor_total REAL DEFAULT 0,
+      situacao TEXT DEFAULT 'ATIVO',
+      status TEXT DEFAULT 'ATIVO',
+      criado_em TEXT,
+      atualizado_em TEXT
+    )`);
     
     // Migração: remover propostas fictícias do seed legado e garantir numeração sequencial 01, 02...
     db.run(
@@ -39951,6 +39977,32 @@ function gerarCodigoContrato(cb) {
   });
 }
 
+// GET /api/contratos/ativos - Listar apenas contratos com situação ATIVA (para vínculo de Aditivo)
+app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  db.all(
+    `SELECT * FROM contratos
+     WHERE UPPER(TRIM(COALESCE(situacao, status, ''))) IN ('ATIVO', 'ATIVA')
+     ORDER BY id DESC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      let lista = (rows || []).filter(c => {
+        const sit = String(c.situacao || c.status || '').trim().toUpperCase();
+        return sit === 'ATIVO' || sit === 'ATIVA';
+      });
+      if (q) {
+        lista = lista.filter(c => {
+          const num = String(c.numero_contrato || c.contrato || c.codigo || '').toLowerCase();
+          const cli = String(c.cliente_nome || c.razao_social || '').toLowerCase();
+          return num.includes(q) || cli.includes(q);
+        });
+      }
+      res.json(lista);
+    }
+  );
+});
+
 // GET /api/propostas - Listar todas
 app.get('/api/propostas', authenticateToken, (req, res) => {
   db.all('SELECT * FROM propostas ORDER BY criado_em DESC', [], (err, rows) => {
@@ -39989,20 +40041,20 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         codigo, contrato, local, tipo, atendente, data_cadastro, validade_proposta, previsao_fechamento,
         fase_negociacao, modelo_impressao, cliente_nome, contato_nome,
         periodo_inicio, periodo_fim, hora_inicio, hora_fim, dias_contrato, dias_evento,
-        tabela_precos, nome_evento, servico_frete_fob, endereco_instalacao, desconto_percent, desconto_reais,
+        tabela_precos, nome_evento, servico_frete_fob, contrato_vinculado, contrato_vinculado_id, endereco_instalacao, desconto_percent, desconto_reais,
         condicao_pagamento, representante, transportadora, tipo_frete,
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         itens_servicos, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
         d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
         d.dias_contrato||0,
         d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
-        d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.endereco_instalacao,
+        d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.endereco_instalacao,
         d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
         d.representante, d.transportadora, d.tipo_frete,
         d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -40058,7 +40110,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
-      tabela_precos=?, nome_evento=?, servico_frete_fob=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
+      tabela_precos=?, nome_evento=?, servico_frete_fob=?, contrato_vinculado=?, contrato_vinculado_id=?, endereco_instalacao=?, desconto_percent=?, desconto_reais=?,
       condicao_pagamento=?, representante=?, transportadora=?, tipo_frete=?,
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
@@ -40071,7 +40123,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
       d.dias_contrato||0,
       d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
-      d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.endereco_instalacao,
+      d.tabela_precos, d.nome_evento || null, d.servico_frete_fob ? 1 : 0, d.contrato_vinculado || null, d.contrato_vinculado_id || null, d.endereco_instalacao,
       d.desconto_percent||0, d.desconto_reais||0, d.condicao_pagamento,
       d.representante, d.transportadora, d.tipo_frete,
       d.valor_frete_ida||0, d.valor_frete_volta||0, d.observacoes,
@@ -40123,6 +40175,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'tabela_precos', label: 'Tabela de Preços' },
         { field: 'nome_evento', label: 'Nome do Evento' },
         { field: 'servico_frete_fob', label: 'Frete FOB (Serviços)' },
+        { field: 'contrato_vinculado', label: 'Nº do Contrato (Aditivo)' },
         { field: 'endereco_instalacao', label: 'Endereço de Instalação' },
         { field: 'desconto_percent', label: 'Desconto (%)' },
         { field: 'desconto_reais', label: 'Desconto (R$)' },
