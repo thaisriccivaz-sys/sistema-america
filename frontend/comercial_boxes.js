@@ -525,72 +525,101 @@
             @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
             @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
             @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
-            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; }
+            .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; background:#fff; }
             .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
             .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; }
-            .box-quadro-evento-proposta.bq-mobile { min-height:844px; display:flex; flex-direction:column; justify-content:center; }
-            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:auto; }
+            .box-quadro-evento-proposta .bq-header-wrap { background:#fff; width:100%; flex-shrink:0; position:relative; z-index:2; }
+            .box-quadro-evento-proposta .bq-middle-area { flex:1 0 auto; display:flex; flex-direction:column; width:100%; }
+            .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; background:#fff; width:100%; box-sizing:border-box; }
+            .box-quadro-evento-proposta.bq-mobile {
+                min-height:844px;
+                display:flex;
+                flex-direction:column;
+                background:
+                    radial-gradient(circle at 72% 22%, rgba(220,220,220,0.95) 0%, rgba(195,195,195,0.6) 38%, transparent 70%),
+                    radial-gradient(circle at 28% 78%, rgba(218,218,218,0.9) 0%, rgba(190,190,190,0.55) 40%, transparent 72%),
+                    linear-gradient(135deg, #969696 0%, #bdbdbd 35%, #cfcfcf 52%, #b5b5b5 75%, #949494 100%);
+            }
+            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:844px; flex:1 0 auto; }
+            .box-quadro-evento-proposta.bq-mobile .bq-middle-area { justify-content:center; }
+            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { flex:0 0 auto; justify-content:flex-start; }
             @media (max-width: 768px) {
-                .box-quadro-evento-proposta { min-height:844px; display:flex; flex-direction:column; justify-content:center; }
-                .box-quadro-evento-proposta .bq-inner { min-height:auto; }
+                .box-quadro-evento-proposta {
+                    min-height:844px;
+                    display:flex;
+                    flex-direction:column;
+                    background:
+                        radial-gradient(circle at 72% 22%, rgba(220,220,220,0.95) 0%, rgba(195,195,195,0.6) 38%, transparent 70%),
+                        radial-gradient(circle at 28% 78%, rgba(218,218,218,0.9) 0%, rgba(190,190,190,0.55) 40%, transparent 72%),
+                        linear-gradient(135deg, #969696 0%, #bdbdbd 35%, #cfcfcf 52%, #b5b5b5 75%, #949494 100%);
+                }
+                .box-quadro-evento-proposta .bq-inner { min-height:844px; flex:1 0 auto; }
+                .box-quadro-evento-proposta .bq-middle-area { justify-content:center; }
+                .box-quadro-evento-proposta .bq-body-wrap { flex:0 0 auto; justify-content:flex-start; }
             }
         </style>
-        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; color:#1e293b; box-sizing:border-box; line-height:1.35;">
             <div class="bq-inner">
-                <!-- Faixa superior: PROPOSTA EVENTO + número sequencial da proposta -->
-                <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
-                    <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
-                </div>
-
-                <!-- Bloco logo + dados do cliente + informações do evento -->
-                <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
+                <div class="bq-header-wrap">
+                    <!-- Faixa superior: PROPOSTA EVENTO + número sequencial da proposta -->
+                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                        <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(d.tipo_titulo || 'EVENTO')}</span></div>
+                        <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                     </div>
-                    <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
-                        <div style="min-width:0;">
-                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
-                                <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
+
+                    <!-- Bloco logo + dados do cliente + informações do evento -->
+                    <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                        <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
+                        </div>
+                        <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
+                            <div style="min-width:0;">
+                                <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
+                                </div>
+                                <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
+                                    <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
+                                    <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
+                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
+                                    <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                                </div>
                             </div>
-                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
-                                <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
-                                <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
-                                <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                            <div style="min-width:0; overflow:hidden;">
+                                <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
+                                </div>
+                                <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
+                                    ${d.ocultar_nome_evento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
+                                    <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
+                                    <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
+                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
+                                </div>
                             </div>
                         </div>
-                        <div style="min-width:0; overflow:hidden;">
-                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
-                                <span>INFORMAÇÕES <span class="bq-d">${esc(d.info_rotulo || 'EVENTO:')}</span></span>
+                    </div>
+                </div>
+
+                <div class="bq-middle-area">
+                    <div class="bq-body-wrap">
+                        <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
+                        <div style="flex:1 0 auto;">
+                            <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
+                                ${cabecalhoColunas('EQUIPAMENTOS:')}
+                                ${itensHtml}
                             </div>
-                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
-                                ${d.ocultar_nome_evento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
-                                <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
-                                <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
-                                ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
+                            ${secaoServicos}
+                        </div>
+
+                        <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
+                        <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
+                            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                                <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                                <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
-                <div style="flex:1 0 auto;">
-                    <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
-                        ${cabecalhoColunas('EQUIPAMENTOS:')}
-                        ${itensHtml}
-                    </div>
-                    ${secaoServicos}
-                </div>
-
-                <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
-                <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
-                    <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                        <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
-                        <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                     </div>
                 </div>
             </div>
