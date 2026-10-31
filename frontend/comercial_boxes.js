@@ -666,12 +666,38 @@
 
     /* Renderiza o Quadro de Valores (todos os modelos começam com o mesmo padrão criado para Proposta Evento,
        podendo ser personalizados separadamente via CONFIG_QUADRO_POR_MODELO / config_quadro do box) */
+    /* Verifica em tempo real se a altura natural dos produtos/serviços + cabeçalho atingiu o mínimo de 600px:
+       - Se NÃO atingir 600px de altura, exibe o texto introdutório (12px) abaixo do campo do topo.
+       - Se atingir ou passar de 600px, oculta o texto introdutório. */
+    window.ajustarAlturaQuadroValoresBoxes = function (root) {
+        const escopo = root && root.classList && root.classList.contains('box-quadro-evento-proposta')
+            ? [root]
+            : Array.from((root && root.querySelectorAll ? root : document).querySelectorAll('.box-quadro-evento-proposta'));
+        escopo.forEach(q => {
+            const topo = q.querySelector('.bq-topo-bloco');
+            const equip = q.querySelector('.bq-equipamentos-bloco');
+            const totais = q.querySelector('.bq-totais-bloco');
+            const intro = q.querySelector('.bq-texto-intro-curto');
+            if (!topo || !equip || !totais || !intro) return;
+            const alturaNatural = topo.offsetHeight + equip.offsetHeight + totais.offsetHeight;
+            if (alturaNatural > 0) {
+                intro.style.display = alturaNatural < 600 ? 'block' : 'none';
+            }
+        });
+    };
+    window.addEventListener('resize', () => {
+        if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') window.ajustarAlturaQuadroValoresBoxes();
+    });
+
+    /* Renderiza o Quadro de Valores (todos os modelos começam com o mesmo padrão criado para Proposta Evento,
+       podendo ser personalizados separadamente via CONFIG_QUADRO_POR_MODELO / config_quadro do box) */
     window.renderBoxQuadroEventoHtml = function (dadosCustom, view, configQuadroBox) {
         const modeloRef = (configQuadroBox && configQuadroBox.modelo_tipo) || (dadosCustom && dadosCustom.modelo_tipo) || (dadosCustom && dadosCustom.tipo) || window._boxesModeloAtivo || 'EVENTO';
         const d = (dadosCustom && dadosCustom.itens && Array.isArray(dadosCustom.itens) && dadosCustom.razao_social !== undefined)
             ? dadosCustom
             : window.montarDadosQuadroEventoProposta(dadosCustom, modeloRef);
         const cfg = window.obterConfigQuadroModelo(d.modelo_tipo || modeloRef, configQuadroBox);
+        const aditivoHtml = (configQuadroBox && configQuadroBox.aditivo_html) || '';
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = cfg.cor_primaria || '#7b4195';
         const tituloTopo = d.tipo_titulo || cfg.tipo_titulo || 'EVENTO';
@@ -680,6 +706,10 @@
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
+
+        const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
+        const isMobileInit = view === 'mobile' || (typeof window !== 'undefined' && window.innerWidth <= 768);
+        const mostrarIntroInicial = isMobileInit ? (qtdTotalLinhas < 14) : (qtdTotalLinhas < 3);
 
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
@@ -717,7 +747,7 @@
         const linhaItem = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
                 <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${u(84)};">
-                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
+                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
                 </div>
                 <div style="min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:center; gap:${u(12)}; width:100%;">
@@ -754,58 +784,68 @@
             .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
             .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
             .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; background:#fff; }
-            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:844px; }
+            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:600px; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
+            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             @media (max-width: 768px) {
-                .box-quadro-evento-proposta .bq-inner { min-height:844px; }
+                .box-quadro-evento-proposta .bq-inner { min-height:600px; }
                 .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
+                .box-quadro-evento-proposta .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             }
         </style>
         <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="display:none;">
             <div class="bq-inner">
-                <!-- Faixa superior: PROPOSTA [MODELO] + número sequencial da proposta -->
-                <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
-                    <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(tituloTopo)}</span></div>
-                    <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
-                </div>
-
-                <!-- Bloco logo + dados do cliente + informações do evento -->
-                <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                    <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
+                <div class="bq-topo-bloco" style="flex-shrink:0;">
+                    <!-- Faixa superior: PROPOSTA [MODELO] + número sequencial da proposta -->
+                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                        <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(tituloTopo)}</span></div>
+                        <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                     </div>
-                    <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
-                        <div style="min-width:0;">
-                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
-                                <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
+
+                    <!-- Bloco logo + dados do cliente + informações do evento -->
+                    <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                        <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
+                        </div>
+                        <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
+                            <div style="min-width:0;">
+                                <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
+                                </div>
+                                <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
+                                    <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
+                                    <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
+                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
+                                    <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                                </div>
                             </div>
-                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
-                                <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
-                                <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
-                                <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                            <div style="min-width:0; overflow:hidden;">
+                                <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>INFORMAÇÕES <span class="bq-d">${esc(infoRotulo)}</span></span>
+                                </div>
+                                <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
+                                    ${ocultarNomeEvento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
+                                    <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
+                                    <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
+                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
+                                </div>
                             </div>
                         </div>
-                        <div style="min-width:0; overflow:hidden;">
-                            <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
-                                <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
-                                <span>INFORMAÇÕES <span class="bq-d">${esc(infoRotulo)}</span></span>
-                            </div>
-                            <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
-                                ${ocultarNomeEvento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
-                                <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
-                                <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
-                                <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
-                                ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <div class="bq-body-wrap">
+                <!-- Texto abaixo do campo do topo (fonte 12px) exibido apenas quando a quantidade de produtos não atingir o mínimo de 600px de altura -->
+                <div class="bq-texto-intro-curto" style="display:${mostrarIntroInicial ? 'block' : 'none'}; font-size:12px; color:#3b3b3b; padding:${u(18)} ${u(60)} ${u(4)} ${u(52)}; line-height:1.45; flex-shrink:0;">
+                    Apresentamos a seguir nossa proposta comercial, desenvolvida para atender às suas necessidades com qualidade, eficiência e pontualidade. Confira as condições e os valores dos serviços e equipamentos oferecidos pela América Rental.
+                </div>
+
+                <div class="bq-body-wrap${aditivoHtml ? ' bq-has-aditivo' : ''}">
                     <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
-                    <div>
+                    <div class="bq-equipamentos-bloco">
                         <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
                             ${cabecalhoColunas(esc(tituloEquip))}
                             ${itensHtml}
@@ -814,12 +854,15 @@
                     </div>
 
                     <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
-                    <div style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
+                    <div class="bq-totais-bloco" style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
                         <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
                             <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
                             <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                         </div>
                     </div>
+
+                    <!-- Quadro de Aditivo posicionado dentro do espaço de 600px mínimo quando o Quadro de Valores for menor que 600px (podendo passar) -->
+                    ${aditivoHtml ? `<div class="bq-aditivo-inside" style="width:100%; flex-shrink:0;">${aditivoHtml}</div>` : ''}
                 </div>
             </div>
         </div>`;
@@ -873,7 +916,10 @@
     window.boxRenderHtml = function (box, view, opts) {
         opts = opts || {};
         if (box && box.tipo === 'quadro_evento') {
-            const cfgBox = Object.assign({ modelo_tipo: box.modelo_tipo || opts.modelo_tipo || window._boxesModeloAtivo || 'EVENTO' }, box.config_quadro || {});
+            const cfgBox = Object.assign(
+                { modelo_tipo: box.modelo_tipo || opts.modelo_tipo || window._boxesModeloAtivo || 'EVENTO', aditivo_html: opts.aditivo_html || '' },
+                box.config_quadro || {}
+            );
             return window.renderBoxQuadroEventoHtml(opts.proposta || null, view, cfgBox);
         }
         const v = resolverVisao(box, view);
@@ -1282,6 +1328,30 @@
         return out;
     };
 
+    /* Renderiza a lista completa de boxes garantindo que, quando houver boxes de Aditivo logo após o
+       Quadro de Valores, eles entrem dentro do mesmo container de 600px mínimos no celular (podendo passar). */
+    window.renderListaBoxesCompletaHtml = function (listaBoxes, view, opts) {
+        opts = opts || {};
+        const arr = Array.isArray(listaBoxes) ? listaBoxes : [];
+        const partes = [];
+        const ehBoxAditivo = (bx) => Boolean(bx && bx.tipo !== 'quadro_evento' && (bx.origem_aditivo || String(bx.modelo_tipo || '').toUpperCase() === 'ADITIVO'));
+        for (let i = 0; i < arr.length; i++) {
+            const b = arr[i];
+            if (!b) continue;
+            if (b.tipo === 'quadro_evento') {
+                const aditivoHtmlArr = [];
+                while (i + 1 < arr.length && ehBoxAditivo(arr[i + 1])) {
+                    i++;
+                    aditivoHtmlArr.push(window.boxRenderHtml(arr[i], view, opts));
+                }
+                partes.push(window.boxRenderHtml(b, view, Object.assign({}, opts, { aditivo_html: aditivoHtmlArr.join('') })));
+            } else {
+                partes.push(window.boxRenderHtml(b, view, opts));
+            }
+        }
+        return partes.join('');
+    };
+
     window._renderBoxesPreview = function () {
         const prev = document.getElementById('boxes-preview');
         const tog = document.getElementById('boxes-toggle-view');
@@ -1299,8 +1369,11 @@
             listaParaRender = window.combinarBoxesComAditivo(window._boxesLista, window._boxesAditivoCache);
         }
 
-        const html = listaParaRender.map(b => window.boxRenderHtml(b, view, { mostrarOculto: true, modelo_tipo: modRef })).join('');
+        const html = window.renderListaBoxesCompletaHtml(listaParaRender, view, { mostrarOculto: true, modelo_tipo: modRef });
         prev.innerHTML = moldura(view, html, 'Os boxes aparecem aqui, empilhados na ordem da biblioteca.');
+        if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
+            requestAnimationFrame(() => window.ajustarAlturaQuadroValoresBoxes(prev));
+        }
     };
 
     window.moverBox = async function (id, direcao) {

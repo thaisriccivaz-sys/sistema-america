@@ -21297,12 +21297,12 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
         const modEfetivo = isAdt
             ? (typeof window.resolverModeloOrigemAditivo === 'function' ? window.resolverModeloOrigemAditivo(dadosCustom) : 'EVENTO')
             : (codTipoLimpo || 'EVENTO');
-        const htmlQuadro = window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop', { modelo_tipo: modEfetivo });
         const extrasAdt = (Array.isArray(window._boxesAditivoCache) && window._boxesAditivoCache.length > 0 && typeof window.boxRenderHtml === 'function')
             ? window._boxesAditivoCache.filter(b => b && b.tipo !== 'quadro_evento').map(b => window.boxRenderHtml(b, 'desktop')).join('')
             : '';
+        const htmlQuadro = window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop', { modelo_tipo: modEfetivo, aditivo_html: extrasAdt });
         return '<div style="max-width:960px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">' +
-            htmlQuadro + extrasAdt +
+            htmlQuadro +
             '</div>';
     }
     let contratada = {

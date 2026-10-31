@@ -21,7 +21,7 @@
 <body>
     <div id="proposta-raiz"><div class="pp-load">Carregando proposta…</div></div>
 
-    <script src="/comercial_boxes.js?v=20261031v17"></script>
+    <script src="/comercial_boxes.js?v=20261031v18"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -43,9 +43,16 @@
             if (!estado.dados) return;
             var v = visao();
             estado.view = v;
-            raiz.innerHTML = estado.boxes.map(function (b) {
-                return window.boxRenderHtml(b, v, { proposta: estado.dados });
-            }).join('');
+            if (typeof window.renderListaBoxesCompletaHtml === 'function') {
+                raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
+            } else {
+                raiz.innerHTML = estado.boxes.map(function (b) {
+                    return window.boxRenderHtml(b, v, { proposta: estado.dados });
+                }).join('');
+            }
+            if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
+                requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(raiz); });
+            }
         }
 
         var ultimaVisao = null;
