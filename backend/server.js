@@ -44242,9 +44242,175 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   });
 });
 
+// Migrations para imagem de Aceite em comercial_modelos_proposta (Cloudflare R2)
+['aceite_r2_key TEXT', 'aceite_mime_type TEXT', 'aceite_mobile_r2_key TEXT', 'aceite_mobile_mime_type TEXT'].forEach(col => {
+  db.run(`ALTER TABLE comercial_modelos_proposta ADD COLUMN ${col}`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('[MODELOS_PROPOSTA] Aviso migration aceite:', err.message);
+    }
+  });
+});
+
+function aceiteUrlDoModelo(row, variante) {
+  if (!row) return null;
+  const key = variante === 'mobile' ? (row.aceite_mobile_r2_key || row.aceite_r2_key) : row.aceite_r2_key;
+  if (!key) return null;
+  if (process.env.R2_PUBLIC_URL) return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
+  return `/api/public/modelos-proposta/${row.id}/aceite-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
+}
+
+function montarModeloPropostaRow(row) {
+  if (!row) return row;
+  return Object.assign({}, row, {
+    aceite_url: aceiteUrlDoModelo(row, 'desktop'),
+    aceite_mobile_url: row.aceite_mobile_r2_key ? aceiteUrlDoModelo(row, 'mobile') : null
+  });
+}
+
+async function aceiteApagarR2SeSemReferencia(key, ignoreIds) {
+  if (!key) return;
+  const r2b = require('./utils/r2');
+  if (!r2b.isReady()) return;
+  const ids = Array.isArray(ignoreIds) ? ignoreIds.map(n => Number(n) || 0) : [Number(ignoreIds) || 0];
+  const placeholders = ids.map(() => '?').join(',');
+  const cnt = await new Promise((resolve) => {
+    db.get(
+      `SELECT COUNT(*) AS c FROM comercial_modelos_proposta WHERE id NOT IN (${placeholders}) AND (aceite_r2_key = ? OR aceite_mobile_r2_key = ?)`,
+      [...ids, key, key],
+      (err, row) => resolve((row && Number(row.c)) || 0)
+    );
+  });
+  if (cnt === 0) {
+    try { await r2b.deleteFromR2(key); } catch (e) { console.error('[ACEITE] Aviso ao excluir chave R2:', e.message); }
+  }
+}
+
+app.get('/api/public/modelos-proposta/:id/aceite-arquivo', (req, res) => {
+  db.get('SELECT id, aceite_r2_key, aceite_mime_type, aceite_mobile_r2_key, aceite_mobile_mime_type FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err || !row) return res.status(404).send('Arquivo não encontrado');
+    const variante = req.query.v === 'mobile' ? 'mobile' : 'desktop';
+    const key = variante === 'mobile' ? (row.aceite_mobile_r2_key || row.aceite_r2_key) : row.aceite_r2_key;
+    if (!key) return res.status(404).send('Arquivo não encontrado');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento não configurado');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(key);
+      res.setHeader('Content-Type', contentType || (variante === 'mobile' ? row.aceite_mobile_mime_type : row.aceite_mime_type) || 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.pipe(res);
+    } catch (e) {
+      res.status(500).send('Erro ao ler arquivo de aceite');
+    }
+  });
+});
+
+app.post('/api/comercial/modelos-proposta/:id/aceite', authenticateToken, boxesUploadFields, async (req, res) => {
+  try {
+    const r2b = require('./utils/r2');
+    if (!r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) não configurado.' });
+    const rowAtual = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
+    });
+    if (!rowAtual) return res.status(404).json({ error: 'Modelo de proposta não encontrado.' });
+
+    const fDesk = req.files && req.files.arquivo && req.files.arquivo[0];
+    const fMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
+    if (!fDesk && !fMob) {
+      return res.status(400).json({ error: 'Selecione a imagem de Aceite para enviar.' });
+    }
+    const agoraBr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
+    const yyyy = agoraBr.getUTCFullYear();
+    const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+    const slug = String(rowAtual.codigo_tipo || rowAtual.nome || 'PROPOSTA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 30) || 'PROPOSTA';
+
+    let novaKey = rowAtual.aceite_r2_key || null;
+    let novoMime = rowAtual.aceite_mime_type || null;
+    let novaMobKey = rowAtual.aceite_mobile_r2_key || null;
+    let novoMobMime = rowAtual.aceite_mobile_mime_type || null;
+
+    if (fDesk) {
+      const hash = require('crypto').randomBytes(4).toString('hex');
+      novaKey = `Comercial/Aceite/${yyyy}/${mm}/${dd}_ACEITE_${slug}_${hash}.${boxExtDoArquivo(fDesk)}`;
+      novoMime = fDesk.mimetype || 'image/png';
+      await r2b.uploadToR2(novaKey, fDesk.buffer, novoMime);
+    }
+    if (fMob) {
+      const hashM = require('crypto').randomBytes(4).toString('hex');
+      novaMobKey = `Comercial/Aceite/${yyyy}/${mm}/${dd}_ACEITE_MOBILE_${slug}_${hashM}.${boxExtDoArquivo(fMob)}`;
+      novoMobMime = fMob.mimetype || 'image/png';
+      await r2b.uploadToR2(novaMobKey, fMob.buffer, novoMobMime);
+    }
+
+    const aplicarTodos = req.body && (req.body.aplicar_todos === '1' || req.body.aplicar_todos === 'true');
+    if (aplicarTodos) {
+      const todasRows = await new Promise((resolve) => db.all('SELECT id, aceite_r2_key, aceite_mobile_r2_key FROM comercial_modelos_proposta', [], (e, r) => resolve(r || [])));
+      const todosIds = todasRows.map(x => x.id);
+      for (const rOld of todasRows) {
+        if (fDesk && rOld.aceite_r2_key && rOld.aceite_r2_key !== novaKey) await aceiteApagarR2SeSemReferencia(rOld.aceite_r2_key, todosIds);
+        if (fMob && rOld.aceite_mobile_r2_key && rOld.aceite_mobile_r2_key !== novaMobKey) await aceiteApagarR2SeSemReferencia(rOld.aceite_mobile_r2_key, todosIds);
+      }
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE comercial_modelos_proposta SET aceite_r2_key = ?, aceite_mime_type = ?, aceite_mobile_r2_key = ?, aceite_mobile_mime_type = ?',
+          [novaKey, novoMime, novaMobKey, novoMobMime],
+          (e) => e ? reject(e) : resolve()
+        );
+      });
+    } else {
+      if (fDesk && rowAtual.aceite_r2_key && rowAtual.aceite_r2_key !== novaKey) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_r2_key, [rowAtual.id]);
+      if (fMob && rowAtual.aceite_mobile_r2_key && rowAtual.aceite_mobile_r2_key !== novaMobKey) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_mobile_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE comercial_modelos_proposta SET aceite_r2_key = ?, aceite_mime_type = ?, aceite_mobile_r2_key = ?, aceite_mobile_mime_type = ? WHERE id = ?',
+          [novaKey, novoMime, novaMobKey, novoMobMime, rowAtual.id],
+          (e) => e ? reject(e) : resolve()
+        );
+      });
+    }
+
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [rowAtual.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloPropostaRow(rowFinal) });
+  } catch (e) {
+    console.error('[ACEITE] Erro ao salvar imagem de aceite:', e);
+    res.status(500).json({ error: e.message || 'Erro ao salvar imagem de aceite.' });
+  }
+});
+
+app.delete('/api/comercial/modelos-proposta/:id/aceite', authenticateToken, async (req, res) => {
+  try {
+    const rowAtual = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
+    });
+    if (!rowAtual) return res.status(404).json({ error: 'Modelo de proposta não encontrado.' });
+    const removerTodos = req.query.todos === '1' || (req.body && (req.body.aplicar_todos === '1' || req.body.aplicar_todos === true));
+    if (removerTodos) {
+      const todasRows = await new Promise((resolve) => db.all('SELECT id, aceite_r2_key, aceite_mobile_r2_key FROM comercial_modelos_proposta', [], (e, r) => resolve(r || [])));
+      const todosIds = todasRows.map(x => x.id);
+      for (const rOld of todasRows) {
+        if (rOld.aceite_r2_key) await aceiteApagarR2SeSemReferencia(rOld.aceite_r2_key, todosIds);
+        if (rOld.aceite_mobile_r2_key) await aceiteApagarR2SeSemReferencia(rOld.aceite_mobile_r2_key, todosIds);
+      }
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aceite_r2_key = NULL, aceite_mime_type = NULL, aceite_mobile_r2_key = NULL, aceite_mobile_mime_type = NULL', [], (e) => e ? reject(e) : resolve());
+      });
+    } else {
+      if (rowAtual.aceite_r2_key) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_r2_key, [rowAtual.id]);
+      if (rowAtual.aceite_mobile_r2_key) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_mobile_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aceite_r2_key = NULL, aceite_mime_type = NULL, aceite_mobile_r2_key = NULL, aceite_mobile_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
+      });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao remover imagem de aceite.' });
+  }
+});
+
 // GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta
 app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, nome ASC', [], (err, rows) => {
+  db.all('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, nome ASC', [], (err, rawRows) => {
+    const rows = (rawRows || []).map(montarModeloPropostaRow);
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
   });
@@ -44252,7 +44418,8 @@ app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
 
 // GET /api/comercial/modelos-proposta/:id - Obter um modelo de proposta por ID
 app.get('/api/comercial/modelos-proposta/:id', authenticateToken, (req, res) => {
-  db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (err, row) => {
+  db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (err, rawRow) => {
+    const row = montarModeloPropostaRow(rawRow);
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Modelo de proposta não encontrado' });
     res.json(row);

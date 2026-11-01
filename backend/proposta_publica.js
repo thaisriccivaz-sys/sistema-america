@@ -41,7 +41,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         'token_publico_criado_em TEXT',
         'token_publico_revogado INTEGER DEFAULT 0',
         'visualizacoes_publicas INTEGER DEFAULT 0',
-        'ultima_visualizacao_publica TEXT'
+        'ultima_visualizacao_publica TEXT',
+        'aceite_publico_em TEXT'
     ].forEach(col => {
         db.run(`ALTER TABLE propostas ADD COLUMN ${col}`, (err) => {
             if (err && !String(err.message).includes('duplicate column name')) {
@@ -638,11 +639,81 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
                 ? await resolverSubtituloLimpaFossaPublico(p)
                 : (modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO'));
 
+        const modelosProp = await dbAll('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, id ASC').catch(() => []);
+        const acharModeloRow = (codAlvo) => {
+            const cNorm = norm(codAlvo).replace(/^proposta\s+/i, '').trim();
+            return modelosProp.find(m => {
+                const mCod = norm(m.codigo_tipo).replace(/^proposta\s+/i, '').trim();
+                const mNom = norm(m.nome).replace(/^proposta\s+/i, '').trim();
+                if (mCod === cNorm || mNom === cNorm) return true;
+                if (cNorm.startsWith('obra') && (mCod === 'obra' || mCod.startsWith('obra'))) return true;
+                if (cNorm.includes('fossa') && (mCod === 'limpa fossa' || mCod.includes('fossa'))) return true;
+                return false;
+            }) || null;
+        };
+        const modeloRow = acharModeloRow(modeloEfetivo) || acharModeloRow(p.tipo) || modelosProp[0] || null;
+        const aceiteRow = (modeloRow && modeloRow.aceite_r2_key) ? modeloRow : (modelosProp.find(m => m && m.aceite_r2_key) || null);
+        const montarUrlAceite = (row, variante) => {
+            if (!row) return null;
+            const key = variante === 'mobile' ? (row.aceite_mobile_r2_key || row.aceite_r2_key) : row.aceite_r2_key;
+            if (!key) return null;
+            if (process.env.R2_PUBLIC_URL) return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
+            return `/api/public/modelos-proposta/${row.id}/aceite-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
+        };
+        let contratadaPadrao = {
+            razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
+            cnpj: '03.434.448/0001-01',
+            ie: '336.715.410.116',
+            endereco: 'RUA SALTO DA DIVISA , 97, CIDADE PARQUE ALVORADA GUARULHOS /SP - CEP: 07242-300',
+            telefone: '(11) 2499-3353',
+            celular: '(11) 99104-2685',
+            representante: String(p.representante || p.atendente || 'Comercial').trim(),
+            email_representante: 'comercial2@americarental.com.br'
+        };
+        try {
+            if (modeloRow && modeloRow.dados_contratada) {
+                const parsedC = parseObjJson(modeloRow.dados_contratada);
+                if (parsedC && Object.keys(parsedC).length) contratadaPadrao = Object.assign({}, contratadaPadrao, parsedC);
+            }
+        } catch (e) {}
+        const tituloDocSimples = String((modeloRow && modeloRow.titulo_documento) || (`PROPOSTA ${tituloTopoFinal} Nº {{NUMERO_PROPOSTA}}`))
+            .replace(/\{\{NUMERO_PROPOSTA\}\}/g, numSeq)
+            .replace(/\{\{CONTRATO_BASE\}\}/g, String(p.contrato_vinculado || '—'));
+
         return {
             tipo_titulo: tituloTopoFinal,
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
             eh_demo: false,
+            aceite_publico_em: p.aceite_publico_em || null,
+            aceite: {
+                url: montarUrlAceite(aceiteRow, 'desktop'),
+                mobile_url: (aceiteRow && aceiteRow.aceite_mobile_r2_key) ? montarUrlAceite(aceiteRow, 'mobile') : null
+            },
+            impressao_simples: {
+                titulo_documento: tituloDocSimples,
+                contratada: contratadaPadrao,
+                cliente: {
+                    razao_social: (cliente && cliente.nome_razao_social) || cliNomeLimpo || '—',
+                    cnpj: (cliente && cliente.cpf_cnpj) ? String(cliente.cpf_cnpj).trim() : '—',
+                    ie: (cliente && cliente.rg_ie) ? String(cliente.rg_ie).trim() : 'ISENTO',
+                    endereco: (cliente && cliente.endereco) ? `${cliente.endereco}${cliente.numero ? ', ' + cliente.numero : ''}${cliente.bairro ? ' - ' + cliente.bairro : ''}` : (rawOriginal || '—'),
+                    municipio: (cliente && cliente.municipio) || 'SAO PAULO',
+                    uf: (cliente && cliente.uf) || 'SP',
+                    cep: (cliente && cliente.cep) || '—',
+                    contato_nome: contatoNome || '—',
+                    contato_telefone: (cliente && cliente.telefone) || '—',
+                    contato_celular: celular || '—',
+                    contato_email: (cliente && cliente.email) || '—'
+                },
+                local_instalacao: inst.linha1 || cliNomeLimpo || '—',
+                endereco_instalacao: inst.linha2 || rawOriginal || '—',
+                cep_instalacao: (cliente && cliente.cep) || '—',
+                titulo_tabela_produtos: (modeloRow && modeloRow.titulo_tabela_produtos) || (ehAditivo ? '1. Objetivo do Termo Aditivo' : 'Produtos para Locação'),
+                titulo_informacoes: (modeloRow && modeloRow.titulo_informacoes !== undefined) ? modeloRow.titulo_informacoes : 'Informações:',
+                linhas_informacoes: String((modeloRow && modeloRow.texto_informacoes) || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+                observacao: String(p.observacoes || (modeloRow && modeloRow.observacao_padrao) || '').trim()
+            },
             contrato_vinculado: String(p.contrato_vinculado || '').trim(),
             info_rotulo: ehFossaLike ? 'DA FOSSA:' : (ehObraLike ? 'DA OBRA:' : 'EVENTO:'),
             rotulo_instalacao: ehFossaLike ? 'ENDEREÇO:' : 'INSTALAÇÃO:',
@@ -695,6 +766,31 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro:', e.message);
             res.status(500).json({ error: 'Não foi possível carregar a proposta agora.' });
+        }
+    });
+
+    app.post('/api/public/proposta/:codigo/:token/aprovar', limiteGeral, limiteFalhas, async (req, res) => {
+        cabecalhosPublicos(res);
+        const naoEncontrada = () => res.status(404).json({ error: 'Link inválido ou expirado.' });
+        try {
+            const { codigo, token } = req.params;
+            if (!CODIGO_RE.test(codigo) || !TOKEN_RE.test(token)) return naoEncontrada();
+            let p = await dbGet('SELECT * FROM propostas WHERE codigo = ?', [codigo]);
+            if (!p && /^\d+$/.test(codigo)) {
+                p = await dbGet('SELECT * FROM propostas WHERE CAST(codigo AS INTEGER) = ?', [parseInt(codigo, 10)]);
+            }
+            if (!p) {
+                p = await dbGet('SELECT * FROM propostas WHERE token_publico = ?', [token]);
+            }
+            if (!p || !tokenConfere(token, p.token_publico)) return naoEncontrada();
+            const st = statusLink(p);
+            if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado.' });
+            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+            await dbRun('UPDATE propostas SET aceite_publico_em = ? WHERE id = ?', [agora, p.id]);
+            res.json({ success: true, aceite_publico_em: agora });
+        } catch (e) {
+            console.error('[PROPOSTA-PUBLICA] Erro ao aprovar:', e.message);
+            res.status(500).json({ error: 'Não foi possível registrar o aceite agora.' });
         }
     });
 

@@ -12,23 +12,301 @@
     <style>
         html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: Arial, Helvetica, sans-serif; }
         #proposta-raiz { max-width: 1920px; margin: 0 auto; background: #fff; }
+        #proposta-aceite-secao { max-width: 1920px; margin: 0 auto; background: #fff; display: none; }
+        #proposta-aceite-secao img { width: 100%; height: auto; display: block; }
+        #proposta-impressao-simples { display: none; }
         .pp-msg { max-width: 520px; margin: 18vh auto 0; padding: 32px 24px; text-align: center; color: #334155; background: #fff; border-radius: 12px; box-shadow: 0 6px 24px rgba(15,23,42,.08); }
         .pp-msg h1 { font-size: 1.15rem; margin: 0 0 8px; color: #5c4599; }
         .pp-msg p { margin: 0; font-size: .95rem; line-height: 1.5; }
         .pp-load { text-align: center; padding: 30vh 0; color: #64748b; font-size: .95rem; }
+        .pp-fab-bar { position: fixed; right: 20px; bottom: 20px; z-index: 9990; display: none; flex-direction: column; align-items: flex-end; gap: 10px; }
+        .pp-fab-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+        .pp-btn-flutuante { border: none; border-radius: 999px; padding: 12px 20px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(15,23,42,.24); text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+        .pp-btn-flutuante:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,23,42,.32); }
+        .pp-btn-aprovar { background: #16a34a; }
+        .pp-btn-imprimir { background: #1e293b; }
+        .pp-btn-whatsapp { background: #25D366; width: 56px; height: 56px; padding: 0; border-radius: 50%; justify-content: center; box-shadow: 0 6px 20px rgba(37,211,102,.42); }
+        .pp-modal-aceite { position: fixed; inset: 0; z-index: 9999; background: rgba(15,23,42,.82); display: none; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; overflow-y: auto; }
+        .pp-modal-aceite-card { position: relative; max-width: 1120px; width: 100%; max-height: 92vh; background: #fff; border-radius: 12px; overflow: auto; box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+        .pp-modal-aceite-card img { width: 100%; height: auto; display: block; }
+        .pp-modal-aceite-close { position: sticky; top: 10px; float: right; margin: 10px 10px -42px 0; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(15,23,42,.75); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        @media (max-width: 768px) {
+            .pp-fab-bar { right: 12px; bottom: 12px; gap: 8px; }
+            .pp-btn-flutuante { padding: 10px 15px; font-size: 13px; }
+            .pp-btn-whatsapp { width: 50px; height: 50px; padding: 0; }
+        }
+        @media print {
+            html, body { background: #fff !important; }
+            #proposta-raiz, #proposta-aceite-secao, .pp-fab-bar, .pp-modal-aceite { display: none !important; }
+            #proposta-impressao-simples { display: block !important; width: 100%; background: #fff; }
+        }
     </style>
 </head>
 <body>
     <div id="proposta-raiz"><div class="pp-load">Carregando proposta…</div></div>
+    <div id="proposta-aceite-secao"></div>
+    <div id="proposta-impressao-simples"></div>
+
+    <div id="pp-fab-bar" class="pp-fab-bar">
+        <a href="https://api.whatsapp.com/send/?phone=5511991042685&text&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" class="pp-btn-flutuante pp-btn-whatsapp" title="Falar no WhatsApp" aria-label="WhatsApp">
+            <svg viewBox="0 0 32 32" width="30" height="30" fill="#ffffff"><path d="M16.004 3.2c-7.068 0-12.8 5.732-12.8 12.8 0 2.256.589 4.46 1.708 6.404L3.2 28.8l6.564-1.721a12.742 12.742 0 0 0 6.24 1.625h.005c7.068 0 12.8-5.732 12.8-12.8 0-3.42-1.332-6.636-3.75-9.054A12.716 12.716 0 0 0 16.004 3.2zm0 23.344h-.004a10.59 10.59 0 0 1-5.398-1.478l-.387-.23-3.895 1.021 1.04-3.796-.252-.401a10.575 10.575 0 0 1-1.628-5.66c0-5.854 4.764-10.618 10.624-10.618 2.837 0 5.504 1.105 7.51 3.112a10.553 10.553 0 0 1 3.11 7.51c0 5.856-4.766 10.54-10.72 10.54zm5.826-7.954c-.319-.16-1.889-.932-2.182-1.039-.292-.106-.505-.16-.718.16-.212.319-.824 1.038-1.01 1.251-.186.213-.372.24-.691.08-.319-.16-1.347-.497-2.566-1.584-.949-.846-1.589-1.892-1.775-2.211-.186-.319-.02-.492.14-.651.143-.143.319-.372.478-.559.16-.186.213-.319.319-.532.106-.213.053-.399-.027-.559-.08-.16-.718-1.73-.984-2.369-.259-.622-.522-.538-.718-.548l-.612-.01c-.213 0-.558.08-.851.399-.292.319-1.117 1.091-1.117 2.661s1.144 3.087 1.303 3.3c.16.213 2.251 3.437 5.454 4.82.762.329 1.357.525 1.821.672.765.243 1.462.209 2.013.127.614-.092 1.889-.772 2.155-1.517.266-.745.266-1.384.186-1.517-.08-.133-.292-.213-.612-.373z"/></svg>
+        </a>
+        <div class="pp-fab-actions">
+            <button type="button" id="pp-btn-imprimir" class="pp-btn-flutuante pp-btn-imprimir" title="Imprimir versão simples da proposta">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimir</span>
+            </button>
+            <button type="button" id="pp-btn-aprovar" class="pp-btn-flutuante pp-btn-aprovar" title="Aprovar proposta">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Aprovar</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="pp-modal-aceite" class="pp-modal-aceite" onclick="if(event.target===this)this.style.display='none'">
+        <div class="pp-modal-aceite-card">
+            <button type="button" class="pp-modal-aceite-close" onclick="document.getElementById('pp-modal-aceite').style.display='none'" title="Fechar">&times;</button>
+            <div id="pp-modal-aceite-body"></div>
+        </div>
+    </div>
 
     <script src="/comercial_boxes.js?v=20261101v13"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
+        var fabBar = document.getElementById('pp-fab-bar');
+        var secaoAceite = document.getElementById('proposta-aceite-secao');
+        var containerSimples = document.getElementById('proposta-impressao-simples');
+        var modalAceite = document.getElementById('pp-modal-aceite');
+        var modalAceiteBody = document.getElementById('pp-modal-aceite-body');
         var partes = location.pathname.replace(/\/+$/, '').split('/');
         var token = partes.pop();
         var codigo = partes.pop();
-        var estado = { dados: null, boxes: null, view: null };
+        var estado = { dados: null, boxes: null, view: null, aprovado: false };
+
+        function esc(s) {
+            return String(s === null || s === undefined ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+        function fmtMoeda(v) {
+            return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function gerarHtmlVersaoSimples(d) {
+            if (!d) return '';
+            var imp = d.impressao_simples || {};
+            var c = imp.contratada || {
+                razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
+                cnpj: '03.434.448/0001-01',
+                ie: '336.715.410.116',
+                endereco: 'RUA SALTO DA DIVISA , 97, CIDADE PARQUE ALVORADA GUARULHOS /SP - CEP: 07242-300',
+                telefone: '(11) 2499-3353',
+                celular: '(11) 99104-2685',
+                representante: 'Comercial',
+                email_representante: 'comercial2@americarental.com.br'
+            };
+            var cli = imp.cliente || {
+                razao_social: d.razao_social || '—',
+                cnpj: d.cnpj || '—',
+                ie: 'ISENTO',
+                endereco: d.instalacao_linha2 || '—',
+                municipio: 'SAO PAULO',
+                uf: 'SP',
+                cep: '—',
+                contato_nome: d.contato_nome || '—',
+                contato_telefone: '—',
+                contato_celular: d.contato_celular || '—',
+                contato_email: '—'
+            };
+            var tituloDoc = imp.titulo_documento || ('PROPOSTA ' + (d.tipo_titulo || 'COMERCIAL') + ' Nº ' + (d.codigo_proposta || d.contrato || '01'));
+            var itens = Array.isArray(d.itens) ? d.itens : [];
+            var servicos = Array.isArray(d.servicos) ? d.servicos : [];
+            var isEquip = String(d.modelo_tipo || '').toUpperCase().indexOf('EQUIPAMENTO') >= 0;
+            var somaBrutaItens = 0;
+            var somaDescontoItens = 0;
+            itens.forEach(function (it) {
+                var qt = Number(it.quantidade || 1);
+                var diar = Number(it.quant_diarias || 1) || 1;
+                var unit = Number(it.unit || 0);
+                var bruto = qt * unit * diar;
+                var liq = Number(it.total !== undefined ? it.total : bruto);
+                var desc = Number(it.desconto || Math.max(0, bruto - liq));
+                somaBrutaItens += bruto;
+                somaDescontoItens += desc;
+            });
+            var totalLiquidoItens = Math.max(0, somaBrutaItens - somaDescontoItens);
+
+            var tabelaProdutosHtml = '';
+            if (isEquip) {
+                tabelaProdutosHtml = '<table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">' +
+                    '<thead><tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">' +
+                    '<th style="text-align:left; padding:5px 6px;">Descrição</th>' +
+                    '<th style="text-align:left; padding:5px 6px;">Observação</th>' +
+                    '<th style="text-align:center; padding:5px 6px; width:55px;">Qtde</th>' +
+                    '<th style="text-align:right; padding:5px 6px; width:85px;">Vlr Diária</th>' +
+                    '<th style="text-align:center; padding:5px 6px; width:60px;">Diárias</th>' +
+                    '<th style="text-align:right; padding:5px 6px; width:95px;">Total da Diária</th>' +
+                    '<th style="text-align:right; padding:5px 6px; width:90px;">Total</th>' +
+                    '</tr></thead><tbody>' +
+                    itens.map(function (it) {
+                        var qt = Number(it.quantidade || 1);
+                        var vUnit = Number(it.unit || 0);
+                        var diar = Number(it.quant_diarias || 1) || 1;
+                        var totDiar = vUnit * diar;
+                        var tot = Number(it.total !== undefined ? it.total : (qt * totDiar));
+                        return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                            '<td style="padding:5px 6px;">' + esc(it.nome) + '</td>' +
+                            '<td style="padding:5px 6px;">' + esc(it.observacao || '') + '</td>' +
+                            '<td style="padding:5px 6px; text-align:center;">' + qt + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + fmtMoeda(vUnit) + '</td>' +
+                            '<td style="padding:5px 6px; text-align:center;">' + diar + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + fmtMoeda(totDiar) + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + (it.cortesia ? 'CORTESIA' : fmtMoeda(tot)) + '</td>' +
+                            '</tr>';
+                    }).join('') +
+                    '</tbody><tfoot>' +
+                    '<tr><td colspan="6" style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">TOTAL</td><td style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaBrutaItens) + '</td></tr>' +
+                    (somaDescontoItens > 0 ? '<tr><td colspan="6" style="padding:2px 6px; text-align:right; font-weight:700;">DESCONTO</td><td style="padding:2px 6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaDescontoItens) + '</td></tr>' : '') +
+                    (somaDescontoItens > 0 ? '<tr><td colspan="6" style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">TOTAL COM DESCONTO</td><td style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(totalLiquidoItens) + '</td></tr>' : '') +
+                    '</tfoot></table>';
+            } else {
+                tabelaProdutosHtml = '<table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">' +
+                    '<thead><tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">' +
+                    '<th style="text-align:left; padding:5px 6px;">Descrição</th>' +
+                    '<th style="text-align:left; padding:5px 6px;">Observação</th>' +
+                    '<th style="text-align:center; padding:5px 6px; width:55px;">Qtde</th>' +
+                    '<th style="text-align:center; padding:5px 6px; width:60px;">Diárias</th>' +
+                    '<th style="text-align:right; padding:5px 6px; width:95px;">Valor Unitário</th>' +
+                    '<th style="text-align:right; padding:5px 6px; width:95px;">Total</th>' +
+                    '</tr></thead><tbody>' +
+                    itens.map(function (it) {
+                        var qt = Number(it.quantidade || 1);
+                        var diar = Number(it.quant_diarias || 1) || 1;
+                        var vUnit = Number(it.unit || 0);
+                        var tot = Number(it.total !== undefined ? it.total : (qt * vUnit * diar));
+                        return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                            '<td style="padding:5px 6px;">' + esc(it.nome) + '</td>' +
+                            '<td style="padding:5px 6px;">' + esc(it.observacao || '') + '</td>' +
+                            '<td style="padding:5px 6px; text-align:center;">' + qt + '</td>' +
+                            '<td style="padding:5px 6px; text-align:center;">' + diar + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + fmtMoeda(vUnit) + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + (it.cortesia ? 'CORTESIA' : fmtMoeda(tot)) + '</td>' +
+                            '</tr>';
+                    }).join('') +
+                    '</tbody><tfoot>' +
+                    (somaDescontoItens > 0 ? '<tr><td colspan="5" style="padding:4px 6px 2px 6px; text-align:right; font-weight:700;">DESCONTO</td><td style="padding:4px 6px 2px 6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaDescontoItens) + '</td></tr>' : '') +
+                    '<tr><td colspan="5" style="padding:6px; text-align:right; font-weight:700;">TOTAL EQUIPAMENTOS</td><td style="padding:6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(totalLiquidoItens) + '</td></tr>' +
+                    '</tfoot></table>';
+            }
+
+            var valoresCompHtml = servicos.length > 0 ? (
+                '<div style="margin-top:10px; border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">Serviços / Valores Complementares</div>' +
+                '<table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">' +
+                '<thead><tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">' +
+                '<th style="text-align:left; padding:5px 6px;">Descrição</th>' +
+                '<th style="text-align:left; padding:5px 6px;">Observação</th>' +
+                '<th style="text-align:center; padding:5px 6px; width:55px;">Qtde</th>' +
+                '<th style="text-align:right; padding:5px 6px; width:110px;">Valor</th>' +
+                '</tr></thead><tbody>' +
+                servicos.map(function (sv) {
+                    var valExib = sv.fob ? 'FOB' : (sv.cortesia ? 'CORTESIA' : ('R$ ' + fmtMoeda(sv.total)));
+                    return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                        '<td style="padding:5px 6px;">' + esc(sv.nome) + '</td>' +
+                        '<td style="padding:5px 6px;">' + esc(sv.observacao || '') + '</td>' +
+                        '<td style="padding:5px 6px; text-align:center;">' + esc(sv.quantidade || 1) + '</td>' +
+                        '<td style="padding:5px 6px; text-align:right;">' + valExib + '</td>' +
+                        '</tr>';
+                }).join('') +
+                '</tbody></table>'
+            ) : '';
+
+            var linhasInfo = Array.isArray(imp.linhas_informacoes) ? imp.linhas_informacoes : [];
+            var tituloInfo = imp.titulo_informacoes !== undefined ? imp.titulo_informacoes : 'Informações:';
+            var infoBoxHtml = (tituloInfo || linhasInfo.length > 0) ? (
+                '<div style="margin-top:14px; border:1px solid #cbd5e1; border-radius:6px; padding:10px 14px; background:#fff;">' +
+                (tituloInfo ? '<div style="font-weight:700; font-size:11.5px; color:#1e293b; margin-bottom:6px;">' + esc(tituloInfo) + '</div>' : '') +
+                '<div style="display:flex; flex-direction:column; gap:5px; font-size:11px; line-height:1.45; color:#1e293b; text-align:justify;">' +
+                linhasInfo.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') +
+                '</div></div>'
+            ) : '';
+
+            return '<div class="america-proposta-sheet" style="background:#fff; color:#1e293b; font-family:Arial, Helvetica, sans-serif; font-size:11.5px; line-height:1.4; max-width:820px; margin:0 auto; padding:12px 16px; box-sizing:border-box;">' +
+                '<div style="padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid #cbd5e1;">' +
+                '<img src="/assets/logo-header.png" alt="América Rental" style="width:100%; max-height:92px; object-fit:contain; object-position:left center; display:block;">' +
+                '</div>' +
+                '<div style="border:1px solid #cbd5e1; border-radius:4px; padding:12px 14px; box-sizing:border-box;">' +
+                '<div style="border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:700; font-size:13px; color:#1e293b; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:10px;">' + esc(tituloDoc) + '</div>' +
+                '<div style="padding-bottom:9px; margin-bottom:9px; border-bottom:1px solid #cbd5e1; font-size:11px; line-height:1.45;">' +
+                '<div style="font-weight:700; font-size:11.5px; color:#0f172a;">' + esc(c.razao_social) + '</div>' +
+                '<div><strong>CNPJ:</strong> ' + esc(c.cnpj) + ' - <strong>IE:</strong> ' + esc(c.ie) + '</div>' +
+                '<div><strong>Endereço:</strong> ' + esc(c.endereco) + '</div>' +
+                '<div><strong>Representante:</strong> ' + esc(c.representante) + ' - <strong>Telefone:</strong> ' + esc(c.telefone) + ' <strong>Celular:</strong> ' + esc(c.celular) + ' <strong>Email:</strong> ' + esc(c.email_representante) + '</div>' +
+                '</div>' +
+                '<div style="padding-bottom:9px; margin-bottom:9px; border-bottom:1px solid #cbd5e1; font-size:11px; line-height:1.45;">' +
+                '<div style="font-weight:700; font-size:11.5px; color:#0f172a;">' + esc(cli.razao_social) + '</div>' +
+                '<div><strong>CNPJ:</strong> ' + esc(cli.cnpj) + ' &nbsp;&nbsp; <strong>IE:</strong> ' + esc(cli.ie) + '</div>' +
+                '<div><strong>Endereço:</strong> ' + esc(cli.endereco) + ' &nbsp; <strong>Município:</strong> ' + esc(cli.municipio) + ' - <strong>UF:</strong> ' + esc(cli.uf) + ' &nbsp; <strong>CEP:</strong> ' + esc(cli.cep) + '</div>' +
+                '<div><strong>Contato:</strong> ' + esc(cli.contato_nome) + ' &nbsp; <strong>Telefone:</strong> ' + esc(cli.contato_telefone) + ' &nbsp; <strong>Celular:</strong> ' + esc(cli.contato_celular) + ' &nbsp; <strong>E-mail:</strong> ' + esc(cli.contato_email) + '</div>' +
+                (d.eh_aditivo || d.contrato_vinculado ? '<div><strong>Contrato Base:</strong> ' + esc(d.contrato_vinculado || '—') + '</div>' : '') +
+                '</div>' +
+                '<div style="display:grid; grid-template-columns:1.2fr 1.1fr 0.9fr; gap:8px; padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #cbd5e1; font-size:11px;">' +
+                '<div><strong>Período:</strong> ' + esc(d.data_inicio || '—') + (d.data_fim && d.data_fim !== d.data_inicio ? ' à ' + esc(d.data_fim) : '') + '</div>' +
+                '<div><strong>Condição de Pagamento:</strong> ' + esc(d.condicao_pagamento || '—') + '</div>' +
+                '<div style="text-align:right;"><strong>Validade da proposta:</strong> ' + esc(d.validade_proposta || '—') + '</div>' +
+                '</div>' +
+                '<div style="padding-bottom:9px; margin-bottom:6px; font-size:11px; line-height:1.45;">' +
+                '<div><strong>Local de instalação:</strong> ' + esc(imp.local_instalacao || d.instalacao_linha1 || '—') + '</div>' +
+                '<div><strong>Endereço:</strong> ' + esc(imp.endereco_instalacao || d.instalacao_linha2 || '—') + '</div>' +
+                '<div><strong>CEP:</strong> ' + esc(imp.cep_instalacao || cli.cep || '—') + '</div>' +
+                '</div>' +
+                '<div style="border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">' + esc(imp.titulo_tabela_produtos || 'Produtos para Locação') + '</div>' +
+                tabelaProdutosHtml +
+                valoresCompHtml +
+                '<div style="margin-top:8px; padding:6px 8px; background:#f8fafc; border:1px solid #cbd5e1; text-align:right; font-weight:700; font-size:12px; color:#0f172a;">VALOR TOTAL DA PROPOSTA: R$ ' + fmtMoeda(d.valor_total_geral) + '</div>' +
+                infoBoxHtml +
+                (imp.observacao ? '<div style="margin-top:12px;"><div style="text-align:center; font-weight:700; font-size:11.5px; color:#475569; margin-bottom:4px;">Observação</div><div style="border:1px solid #cbd5e1; border-radius:4px; padding:8px 10px; min-height:34px; font-size:11px; color:#1e293b; white-space:pre-wrap;">' + esc(imp.observacao) + '</div></div>' : '') +
+                '</div></div>';
+        }
+
+        function obterUrlImagemAceite() {
+            if (!estado.dados || !estado.dados.aceite) return null;
+            if (visao() === 'mobile' && estado.dados.aceite.mobile_url) return estado.dados.aceite.mobile_url;
+            return estado.dados.aceite.url || null;
+        }
+
+        function exibirImagemAceite() {
+            var urlImg = obterUrlImagemAceite();
+            if (urlImg) {
+                secaoAceite.innerHTML = '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta">';
+                secaoAceite.style.display = 'block';
+                modalAceiteBody.innerHTML = '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta">';
+                modalAceite.style.display = 'flex';
+            } else {
+                modalAceiteBody.innerHTML = '<div style="padding:36px 28px; text-align:center; color:#1e293b;"><h2 style="margin:0 0 10px; color:#16a34a;">Proposta Aprovada!</h2><p style="margin:0; color:#475569; font-size:15px;">Recebemos a sua aprovação. Nossa equipe comercial entrará em contato para dar andamento.</p></div>';
+                modalAceite.style.display = 'flex';
+            }
+        }
+
+        document.getElementById('pp-btn-imprimir').addEventListener('click', function () {
+            if (!estado.dados) return;
+            containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
+            window.print();
+        });
+
+        document.getElementById('pp-btn-aprovar').addEventListener('click', function () {
+            if (!estado.dados) return;
+            estado.aprovado = true;
+            fetch('/api/public/proposta/' + encodeURIComponent(codigo) + '/' + encodeURIComponent(token) + '/aprovar', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer'
+            }).catch(function () {});
+            exibirImagemAceite();
+        });
 
         function mensagem(titulo, texto) {
             raiz.style.background = 'transparent';
@@ -50,6 +328,8 @@
                     return window.boxRenderHtml(b, v, { proposta: estado.dados });
                 }).join('');
             }
+            if (fabBar) fabBar.style.display = 'flex';
+            if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
             if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
                 requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(raiz); });
             }

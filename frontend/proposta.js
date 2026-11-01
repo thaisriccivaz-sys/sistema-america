@@ -21340,7 +21340,7 @@ function _fmtMoedaNumProp(v) {
 window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
     const m = modelo || {};
     const codTipoLimpo = String(m.codigo_tipo || m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    if (typeof window.renderBoxQuadroEventoHtml === 'function') {
+    if (!(dadosCustom && dadosCustom._modoSimples) && typeof window.renderBoxQuadroEventoHtml === 'function') {
         const isAdt = codTipoLimpo === 'ADITIVO' || codTipoLimpo === 'ADTIVO';
         const modEfetivo = isAdt
             ? (typeof window.resolverModeloOrigemAditivo === 'function' ? window.resolverModeloOrigemAditivo(dadosCustom) : 'EVENTO')
@@ -21612,7 +21612,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
 };
 
 window.gerarHtmlDocumentoPropostaCompleta = function(modelo, dadosCustom) {
-    const bodyHtml = window.gerarHtmlLayoutPropostaPadrao(modelo, dadosCustom);
+    const bodyHtml = window.gerarHtmlLayoutPropostaPadrao(modelo, Object.assign({}, dadosCustom || {}, { _modoSimples: true }));
     const titulo = (modelo && modelo.nome) ? modelo.nome : 'Proposta Comercial';
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -21863,6 +21863,9 @@ window._renderEditorModeloPropostaAtivo = function() {
                 </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" title="Adicionar / Editar imagem de Aceite exibida ao clicar em Aprovar no link da proposta" style="background:${m.aceite_r2_key ? '#0d9488' : '#0284c7'}; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
+                    <i class="ph ${m.aceite_r2_key ? 'ph-seal-check' : 'ph-file-plus'}"></i> Adicionar Aceite${m.aceite_r2_key ? ' ✓' : ''}
+                </button>
                 <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" title="Editar Boxes (Banners) deste modelo: ${_escHtmlProp(m.nome)}" style="background:#7048e8; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
                     <i class="ph ph-image-square"></i> Boxes (Banners)
                 </button>
@@ -22075,6 +22078,112 @@ window.imprimirModeloPropostaAtivo = function() {
     win.document.write(window.gerarHtmlDocumentoPropostaCompleta(m));
     win.document.close();
     win.focus();
+};
+
+window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
+    const idAlvo = modeloId || (window._modeloPropostaAtivo && window._modeloPropostaAtivo.id);
+    if (!idAlvo) return;
+    let m = (window._modelosPropostasList || []).find(x => x.id === idAlvo) || window._modeloPropostaAtivo || {};
+    const urlAtual = m.aceite_url || (m.aceite_r2_key ? `/api/public/modelos-proposta/${idAlvo}/aceite-arquivo?v=desktop&t=${Date.now()}` : '');
+    const urlMobAtual = m.aceite_mobile_url || (m.aceite_mobile_r2_key ? `/api/public/modelos-proposta/${idAlvo}/aceite-arquivo?v=mobile&t=${Date.now()}` : '');
+
+    const { value: acao } = await Swal.fire({
+        title: `Imagem de Aceite — ${_escHtmlProp(m.nome || 'Proposta')}`,
+        width: '620px',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; gap:12px;">
+                <div style="font-size:0.82rem; color:#475569; line-height:1.45; background:#f0f9ff; border:1px solid #bae6fd; padding:10px 12px; border-radius:8px;">
+                    Esta imagem será exibida ao cliente quando ele clicar no botão <b>Aprovar</b> no link público da proposta.
+                </div>
+                ${urlAtual ? `
+                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#f8fafc; text-align:center;">
+                    <div style="font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:6px; text-transform:uppercase;">Imagem de Aceite Atual</div>
+                    <img src="${_escHtmlProp(urlAtual)}" alt="Aceite Atual" style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #cbd5e1; object-fit:contain;">
+                    ${urlMobAtual ? `<div style="margin-top:6px; font-size:0.72rem; color:#0d9488; font-weight:700;">✓ Versão Celular (Mobile) personalizada também configurada</div>` : ''}
+                </div>` : ''}
+                <div>
+                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Imagem de Aceite (Computador / Geral) *</label>
+                    <input type="file" id="swal-aceite-file-desk" accept="image/*" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; background:#fff; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Imagem de Aceite para Celular (Opcional — se vazio, usa a mesma acima)</label>
+                    <input type="file" id="swal-aceite-file-mob" accept="image/*" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; background:#fff; box-sizing:border-box;">
+                </div>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; font-weight:600; color:#1e293b; cursor:pointer; margin-top:2px;">
+                    <input type="checkbox" id="swal-aceite-aplicar-todos" checked style="width:16px; height:16px; accent-color:#0284c7;">
+                    Aplicar esta imagem de Aceite em todos os modelos de proposta
+                </label>
+                ${urlAtual ? `
+                <div style="text-align:right; margin-top:4px;">
+                    <button type="button" id="btn-remover-aceite-atual" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 12px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer;">
+                        Remover Imagem de Aceite Atual
+                    </button>
+                </div>` : ''}
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Salvar Imagem de Aceite',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0284c7',
+        didOpen: () => {
+            const btnRem = document.getElementById('btn-remover-aceite-atual');
+            if (btnRem) {
+                btnRem.onclick = async () => {
+                    const aplicarTodos = document.getElementById('swal-aceite-aplicar-todos')?.checked ? '1' : '0';
+                    try {
+                        btnRem.disabled = true;
+                        btnRem.textContent = 'Removendo...';
+                        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                        const resp = await fetch(`/api/comercial/modelos-proposta/${idAlvo}/aceite?todos=${aplicarTodos}`, {
+                            method: 'DELETE',
+                            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                        });
+                        const j = await resp.json().catch(() => ({}));
+                        if (!resp.ok || !j.success) throw new Error(j.error || 'Erro ao remover imagem de aceite.');
+                        Swal.close();
+                        await window._renderModelosPropostasInt();
+                        Swal.fire('Removido', 'A imagem de Aceite foi removida.', 'success');
+                    } catch (err) {
+                        Swal.fire('Erro', err.message, 'error');
+                    }
+                };
+            }
+        },
+        preConfirm: async () => {
+            const fDesk = document.getElementById('swal-aceite-file-desk')?.files?.[0] || null;
+            const fMob = document.getElementById('swal-aceite-file-mob')?.files?.[0] || null;
+            const aplicarTodos = document.getElementById('swal-aceite-aplicar-todos')?.checked ? '1' : '0';
+            if (!fDesk && !fMob) {
+                Swal.showValidationMessage('Selecione um arquivo de imagem para enviar.');
+                return false;
+            }
+            const fd = new FormData();
+            if (fDesk) fd.append('arquivo', fDesk);
+            if (fMob) fd.append('arquivo_mobile', fMob);
+            fd.append('aplicar_todos', aplicarTodos);
+            try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                const resp = await fetch(`/api/comercial/modelos-proposta/${idAlvo}/aceite`, {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+                    body: fd
+                });
+                const j = await resp.json().catch(() => ({}));
+                if (!resp.ok || !j.success) {
+                    throw new Error(j.error || 'Não foi possível enviar a imagem de Aceite.');
+                }
+                return j;
+            } catch (err) {
+                Swal.showValidationMessage(err.message || 'Erro ao enviar imagem.');
+                return false;
+            }
+        }
+    });
+
+    if (acao && acao.success) {
+        await window._renderModelosPropostasInt();
+        Swal.fire('Sucesso', 'Imagem de Aceite salva com sucesso!', 'success');
+    }
 };
 
 window.novoModeloPropostaModal = async function() {
