@@ -2113,7 +2113,7 @@ function _renderFormPropostaInt() {
                         </h4>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
                             <div>
-                                <label class="prop-lbl">Cliente</label>
+                                <label class="prop-lbl">Cliente <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div id="prop-cliente-input-wrap" style="position:relative; flex:1; display:flex; align-items:center;">
                                         <input type="text" id="prop-cliente" value="${v('cliente_nome')}"
@@ -2135,7 +2135,7 @@ function _renderFormPropostaInt() {
                                 </div>
                             </div>
                             <div>
-                                <label class="prop-lbl">Contato</label>
+                                <label class="prop-lbl">Contato <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div id="prop-contato-combo-wrap" style="position:relative; flex:1;">
                                         <input type="text" id="prop-contato" name="prop_contato_custom_nofill" value="${v('contato_nome')}"
@@ -5837,6 +5837,8 @@ window.salvarPropostaNova = async function() {
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+    if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
+    if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
 
     if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();
@@ -6353,6 +6355,8 @@ window.estornarPropostaEdicao = async function() {
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+    if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
+    if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
 
     if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();

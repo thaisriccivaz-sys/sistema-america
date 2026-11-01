@@ -738,7 +738,7 @@
                 : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
         const cabecalhoColunas = (titulo) => `
-            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:end; margin-bottom:${u(16)};">
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
                 <div></div>
                 <div style="font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
@@ -761,25 +761,26 @@
             return `<span style="${baseStyle} background:#9ca3af; cursor:default; pointer-events:none;">${svgChainLink}</span>`;
         };
 
+        const celulaLinhaStyle = `text-align:center; font-size:${u(26)}; align-self:start; min-height:${u(36)}; display:flex; align-items:center; justify-content:center; line-height:1;`;
         const linhaItem = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
-                <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${u(84)};">
+                <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${it.foto_url ? u(84) : u(36)};">
                     ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
                 </div>
                 <div style="min-width:0; padding-right:${u(20)}; align-self:start;">
-                    <div style="display:flex; align-items:center; gap:${u(12)}; width:100%;">
-                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)};"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
-                        <span style="flex:1; align-self:baseline; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; transform:translateY(-${u(6)});"></span>
+                    <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
+                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
+                        <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                     ${(mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Dia de Evento / Sucção: ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b; align-self:start;">${esc(it.quant_diarias)}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.unit, '#3b3b3b')}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.por_dia, '#3b3b3b')}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; color:#3b3b3b; align-self:start;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(26)}; align-self:start;">${celula(it, it.total, ROXO)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${esc(it.quant_diarias)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>
+                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.por_dia, '#3b3b3b')}</div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
 
         const itensHtml = (d.itens && d.itens.length > 0)

@@ -30,12 +30,39 @@
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
     };
 
+    /* A opção de Frete FOB apenas deve aparecer nos serviços do tipo mobilização ou desmobilização
+       com todos os códigos no final ZC, ZV ou ZA (ex: MOBILIZAÇÃO ZC, DESMOBILIZAÇÃO O02XZV, etc.) */
+    window.servicoPermiteFreteFob = function (nomeServico, codigoServico) {
+        const s = norm(String(nomeServico || '').trim());
+        const c = norm(String(codigoServico || '').trim());
+        const combinado = (s + ' ' + c).trim();
+        if (!/(des)?mobilizac/.test(combinado)) return false;
+        return /z[cva]\s*$/i.test(s) || /z[cva]\s*$/i.test(c);
+    };
+
+    window.atualizarVisibilidadeFobServicoInput = function () {
+        const inp = document.getElementById('prop-serv-codigo');
+        const nomeAtual = (inp?.getAttribute('data-nome') || inp?.value || '').trim();
+        const codAtual = (inp?.getAttribute('data-codigo') || '').trim();
+        const permite = window.servicoPermiteFreteFob(nomeAtual, codAtual);
+        const wrapFob = document.getElementById('prop-serv-fob-wrap');
+        const gridVal = document.getElementById('prop-serv-valores-grid');
+        const chkFob = document.getElementById('prop-serv-fob');
+        if (wrapFob) wrapFob.style.display = permite ? 'block' : 'none';
+        if (gridVal) {
+            gridVal.style.gridTemplateColumns = permite ? '1fr 1fr 1.1fr 1.2fr 1.1fr' : '1fr 1fr 1.1fr 1.2fr';
+        }
+        if (!permite && chkFob && chkFob.checked) {
+            chkFob.checked = false;
+            window.alternarFreteFobServicoProposta();
+        }
+    };
+
     /* Frete FOB da proposta (dispensa o serviço obrigatório na obra). Persistido em propostas.servico_frete_fob */
     window.obterFreteFobPropostaObra = function () {
         if (!window.tipoPropostaUsaServicos()) return 0;
-        const chk = !!document.getElementById('prop-serv-fob')?.checked;
-        const emServico = (window._propServicosAdicionados || []).some(s => !!s.frete_fob);
-        return (chk || emServico) ? 1 : 0;
+        const emServico = (window._propServicosAdicionados || []).some(s => !!s.frete_fob && window.servicoPermiteFreteFob(s.servico || s.descricao, s.codigo));
+        return emServico ? 1 : 0;
     };
 
     window._atualizarTituloServicosProposta = function (tipo) {
@@ -71,7 +98,7 @@
     window.htmlBlocoServicosProposta = function (tipo) {
         const visivel = window.tipoPropostaUsaServicos(tipo);
         const obrigatorio = window.tipoPropostaServicoObrigatorio(tipo);
-        const fobInicial = !!window._propFreteFobInicial && !(window._propServicosAdicionados || []).length;
+        const fobInicial = false;
         return `
         <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -109,7 +136,7 @@
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr 1.1fr 1.2fr 1.1fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
+            <div id="prop-serv-valores-grid" style="display:grid; grid-template-columns:1fr 1fr 1.1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
                 <div>
                     <label class="prop-lbl">Desconto (%)</label>
                     <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-desc-pct" value="${fobInicial ? 'FOB' : '0'}" ${fobInicial ? 'disabled' : 'min="0" max="100" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('pct')" style="${inputCss}">
@@ -128,7 +155,7 @@
                     <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-total" ${fobInicial ? 'disabled value="FOB"' : 'value="0" min="0" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('total')"
                         style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
                 </div>
-                <div>
+                <div id="prop-serv-fob-wrap" style="display:none;">
                     <label class="prop-lbl" style="display:block;">Frete</label>
                     <label style="display:flex !important; align-items:center !important; justify-content:center; gap:8px; height:36px; box-sizing:border-box; margin:0; padding:0 0.6rem; border:1px solid #fde68a; background:#fffbeb; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#b45309; line-height:1;">
                         <input type="checkbox" id="prop-serv-fob" ${fobInicial ? 'checked' : ''} onchange="window.alternarFreteFobServicoProposta()" style="width:15px; height:15px; margin:0; padding:0; flex:none; align-self:center;">
@@ -220,6 +247,7 @@
             if (valEl) { valEl.setAttribute('data-preco-base', '0'); valEl.value = '0'; }
             window.recalcularPreviewServicoProposta('equip');
         }
+        window.atualizarVisibilidadeFobServicoInput();
     };
 
     window.recalcularPreviewServicoProposta = function (origem = '') {
@@ -414,6 +442,7 @@
             inp.setAttribute('data-codigo', cod || '');
             inp.setAttribute('data-nome', nomeLimpo || nome || '');
         }
+        window.atualizarVisibilidadeFobServicoInput();
         const base = (valor !== null && valor !== undefined && !isNaN(valor)) ? Number(valor) : 0;
         const fobAtivo = !!document.getElementById('prop-serv-fob')?.checked;
         if (valEl) {
@@ -454,7 +483,8 @@
         const totalEl = document.getElementById('prop-serv-total');
         const pctEl = document.getElementById('prop-serv-desc-pct');
         const rsEl = document.getElementById('prop-serv-desc-rs');
-        const fob = !!document.getElementById('prop-serv-fob')?.checked;
+        const permiteFob = window.servicoPermiteFreteFob(nome, codigo);
+        const fob = permiteFob && !!document.getElementById('prop-serv-fob')?.checked;
 
         let unit = fob ? 0 : parseFloat(unitEl?.value); if (isNaN(unit)) unit = 0;
         let total = fob ? 0 : parseFloat(totalEl?.value); if (isNaN(total)) total = 0;
@@ -464,7 +494,9 @@
         }
 
         if (!fob && total <= 0 && window.tipoPropostaServicoObrigatorio()) {
-            alert('Informe o valor do serviço ou marque a opção Frete FOB (valor do frete não obrigatório).');
+            alert(permiteFob
+                ? 'Informe o valor do serviço ou marque a opção Frete FOB (valor do frete não obrigatório).'
+                : 'Informe o valor do serviço.');
             unitEl?.focus();
             return;
         }
@@ -508,6 +540,7 @@
         if (totalEl) totalEl.value = '0';
         const fobEl = document.getElementById('prop-serv-fob'); if (fobEl) fobEl.checked = false;
         window.alternarFreteFobServicoProposta();
+        window.atualizarVisibilidadeFobServicoInput();
 
         if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarServicosPropostaGrid();
@@ -590,8 +623,10 @@
         }
         const linhas = lista.map((s, idx) => {
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
+            const permiteFobItem = window.servicoPermiteFreteFob(nome, s.codigo);
+            if (!permiteFobItem && s.frete_fob) s.frete_fob = false;
             const qtd = parseInt(s.quantidade, 10) || 1;
-            const isFob = !!s.frete_fob;
+            const isFob = permiteFobItem && !!s.frete_fob;
             const vUnit = isFob ? 0 : (parseFloat(s.valor ?? s.valor_unitario ?? 0) || 0);
             const subtotal = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : qtd * vUnit);
             let descHtml = '<span style="color:#94a3b8;">—</span>';
@@ -606,9 +641,9 @@
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
                     <div>${esc(nome)} ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : ''}</div>
-                    <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; color:#64748b; font-weight:600; margin-top:3px; cursor:pointer;">
+                    ${permiteFobItem ? `<label style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; color:#64748b; font-weight:600; margin-top:3px; cursor:pointer;">
                         <input type="checkbox" ${isFob ? 'checked' : ''} onchange="window.atualizarItemServicoProposta(${idx}, 'frete_fob', this.checked)" style="width:auto; margin:0;"> Frete FOB
-                    </label>
+                    </label>` : ''}
                 </td>
                 <td style="padding:8px 10px;">
                     <input type="text" value="${esc(s.observacao || '')}" onchange="window.atualizarItemServicoProposta(${idx}, 'observacao', this.value)" placeholder="Observação..."
