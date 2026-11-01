@@ -854,6 +854,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             instalacao_rua: inst.rua,
             instalacao_bairro_cidade: inst.bairro_cidade,
             resumo_diarias_rodape: resumoDiariasRodape,
+            observacoes: String(p.observacoes || '').trim(),
             itens, servicos,
             valor_total_por_dia_geral: somaPorDia,
             valor_total_produtos: somaTotalGeral,

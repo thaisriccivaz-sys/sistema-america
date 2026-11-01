@@ -40932,7 +40932,7 @@ app.delete('/api/propostas/:id', authenticateToken, async (req, res) => {
       if (errG) return res.status(500).json({ error: errG.message });
       if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
       const faseUp = String(row.fase_negociacao || '').trim().toUpperCase();
-      if (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA') {
+      if (!ctx.is_thais && (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA')) {
         return res.status(400).json({ error: 'Propostas assinadas ou aprovadas não podem ser excluídas.' });
       }
       db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {

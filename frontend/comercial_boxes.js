@@ -38,7 +38,6 @@
         { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', icone: 'ph-drop' },
         { codigo: 'EQUIPAMENTOS', nome: 'Proposta Equipamentos', icone: 'ph-wrench' },
         { codigo: 'VENDA', nome: 'Proposta Venda', icone: 'ph-shopping-cart' },
-        { codigo: 'VISITA TÉCNICA', nome: 'Visita Técnica', icone: 'ph-clipboard-text' },
         { codigo: 'ADITIVO', nome: 'Aditivo', icone: 'ph-file-plus' }
     ];
 
@@ -721,6 +720,7 @@
                     condicao_pagamento: document.getElementById('prop-cond-pag')?.value || '',
                     dias_contrato: document.getElementById('prop-dias')?.value || 0,
                     endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
+                    observacoes: document.getElementById('prop-obs')?.value || '',
                     manutencao_diaria: Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
                     itens: window._propProdutosAdicionados || [],
                     itens_servicos: window._propServicosAdicionados || []
@@ -766,6 +766,7 @@
                 instalacao_rua: 'RUA ANTÔNIO BORGES MACHADO DE OLIVEIRA, 500',
                 instalacao_bairro_cidade: 'BAIRRO - CIDADE',
                 resumo_diarias_rodape: 'MANUTENÇÃO DIÁRIA',
+                observacoes: 'OBSERVAÇÕES PREENCHIDAS NA PROPOSTA APARECEM AQUI NO FINAL DO QUADRO',
                 itens: [
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11', quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11, 07/11', quant_diarias: 6, unit: 100, por_dia: 500, desconto: 300, total: 2700 },
@@ -918,6 +919,7 @@
             instalacao_rua: inst.rua,
             instalacao_bairro_cidade: inst.bairro_cidade,
             resumo_diarias_rodape: resumoDiariasRodape,
+            observacoes: String(prop.observacoes || prop.observacao || '').trim(),
             itens: itensFormatados,
             servicos: servicosFormatados,
             valor_total_por_dia_geral: somaPorDia,
@@ -1087,6 +1089,12 @@
                 </div>`}
             </div>` : '';
 
+        const obsTextoFinal = String(d.observacoes !== undefined ? d.observacoes : ((d.impressao_simples && d.impressao_simples.observacao) || '')).trim().toUpperCase();
+        const secaoObservacoesFinal = obsTextoFinal ? `
+            <div style="width:100%; padding:${u(18)} ${u(50)} ${u(10)} ${u(50)}; box-sizing:border-box; display:flex; justify-content:center; align-items:center; text-align:center;">
+                <div style="font-size:12px; line-height:1.45; color:#333; text-transform:uppercase; text-align:center; white-space:pre-wrap; word-break:break-word; width:100%; margin:0 auto;">${esc(obsTextoFinal)}</div>
+            </div>` : '';
+
         return `
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
@@ -1214,6 +1222,7 @@
                             </div>`}
                         </div>
                         ${secaoServicos}
+                        ${secaoObservacoesFinal}
                     </div>
                 </div>
             </div>

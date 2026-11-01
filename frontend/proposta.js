@@ -38,7 +38,6 @@ const PROP_TIPOS = [
     'LIMPA FOSSA',
     'LIMPA FOSSA MENSAL',
     'VENDA',
-    'VISITA TÉCNICA',
     'ADITIVO',
     'EQUIPAMENTOS',
     'AVARIA'
@@ -17296,8 +17295,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
+        const exibirColExcluirModal = !isModoContratoModal && Boolean(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais());
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
-        const propostasComCnpj = _propostasData.filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') : true).map(p => {
+        let propostasComCnpj = _propostasData.filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -17310,7 +17310,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
+                return `<tr><td colspan="${exibirColExcluirModal ? 7 : 6}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
             }
             return list.map(p => {
                 const total = p.valor_total || 0;
@@ -17328,7 +17328,11 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${dataFmt}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${faseExib}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${p.status || '—'}</td>
+                        ${exibirColExcluirModal ? `<td style="padding:8px 12px; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">
+                            <button type="button" onclick="event.stopPropagation(); window.excluirPropostaModalBusca(${p.id})" title="Excluir Proposta" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <i class="ph ph-trash" style="font-size:0.88rem;"></i> Excluir
+                            </button>
+                        </td>` : ''}
                     </tr>
                 `;
             }).join('');
@@ -17374,7 +17378,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px; white-space:nowrap;">Data</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center !important; width:130px; white-space:nowrap;"><div style="text-align:center !important; display:block !important; width:100% !important; margin:0 auto !important; padding:0 !important;">Valor</div></th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:180px; white-space:nowrap;">Fase</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:90px; white-space:nowrap;">Status</th>
+                                        ${exibirColExcluirModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Excluir</th>' : ''}
                                     </tr>
                                 </thead>
                                 <tbody id="modal-proposta-tbody">
@@ -17422,6 +17426,11 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     if (countSpan) countSpan.textContent = `Total: ${filtered.length} registro(s)`;
                 };
 
+                window._removerPropostaDoModalBusca = (idRemovido) => {
+                    propostasComCnpj = propostasComCnpj.filter(p => Number(p.id) !== Number(idRemovido));
+                    filterProps();
+                };
+
                 [inputCodigo, inputRazao, inputCnpj].forEach(input => {
                     input?.addEventListener('input', filterProps);
                 });
@@ -17432,6 +17441,31 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 setTimeout(() => { if (inputCodigo) inputCodigo.focus(); }, 40);
             }
         });
+
+        window.excluirPropostaModalBusca = async function(id) {
+            if (!(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais())) return;
+            const pObj = (_propostasData || []).find(pr => Number(pr.id) === Number(id));
+            const cod = (pObj && pObj.codigo) ? pObj.codigo : id;
+            if (!window.confirm(`Tem certeza que deseja excluir a proposta Nº ${cod}? Esta ação não pode ser desfeita.`)) return;
+            try {
+                const resp = await apiDelete(`/propostas/${id}`);
+                if (resp && resp.success) {
+                    _propostasData = (_propostasData || []).filter(pr => Number(pr.id) !== Number(id));
+                    if (typeof window._removerPropostaDoModalBusca === 'function') {
+                        window._removerPropostaDoModalBusca(id);
+                    }
+                    if (Number(_propostasEditandoId) === Number(id)) {
+                        abrirFormProposta(null);
+                    }
+                    if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Proposta Nº ${cod} excluída.`);
+                } else {
+                    alert('Erro ao excluir: ' + (resp?.error || 'Erro desconhecido'));
+                }
+            } catch (e) {
+                console.error('[PROPOSTAS] Erro ao excluir proposta do modal:', e);
+                alert('Erro ao comunicar com o servidor.');
+            }
+        };
 
         window.selecionarPropostaBusca = function(id) {
             abrirFormProposta(id);
@@ -22403,8 +22437,7 @@ window._renderModelosPropostasInt = async function() {
             'PROPOSTA EVENTO',
             'PROPOSTA LIMPA FOSSA',
             'PROPOSTA EQUIPAMENTOS',
-            'PROPOSTA VENDA',
-            'VISITA TÉCNICA'
+            'PROPOSTA VENDA'
         ];
         const normalizarNome = (r) => {
             const raw = String(r.nome || r.codigo_tipo || '').toUpperCase().trim();
@@ -22420,7 +22453,7 @@ window._renderModelosPropostasInt = async function() {
         window._modelosPropostasList = (Array.isArray(rows) ? rows : [])
             .filter(r => {
                 const up = String(r.codigo_tipo || r.nome || '').toUpperCase();
-                return !up.includes('ADITIVO') && !up.includes('CONTAINER');
+                return !up.includes('ADITIVO') && !up.includes('CONTAINER') && !up.includes('VISITA');
             })
             .map(r => Object.assign({}, r, { nome: normalizarNome(r) }))
             .sort((a, b) => {
