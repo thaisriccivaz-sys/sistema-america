@@ -55,7 +55,9 @@
             tipo_titulo: 'EVENTO',
             info_rotulo: 'EVENTO:',
             cor_primaria: '#7b4195',
+            cor_rotulo_valor_total: '#3b3b3b',
             ocultar_nome_evento: false,
+            ocultar_data_fim: false,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -64,8 +66,10 @@
             nome_quadro: 'Quadro de Valores — Proposta Obra Mensal (Fixo)',
             tipo_titulo: 'OBRA MENSAL',
             info_rotulo: 'EVENTO:',
-            cor_primaria: '#7b4195',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: false,
+            ocultar_data_fim: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -216,7 +220,16 @@
         const mod = window.normalizarModeloTipoBox(modeloRaw);
         const modEfetivo = mod === 'ADITIVO' ? window.resolverModeloOrigemAditivo() : mod;
         const base = window.CONFIG_QUADRO_POR_MODELO[modEfetivo] || window.CONFIG_QUADRO_POR_MODELO['EVENTO'];
-        return Object.assign({}, base, configBoxExtra || {});
+        const extra = Object.assign({}, configBoxExtra || {});
+        if (modEfetivo === 'OBRA MENSAL') {
+            if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
+                delete extra.cor_primaria;
+            }
+            if (extra.ocultar_data_fim === undefined) {
+                extra.ocultar_data_fim = true;
+            }
+        }
+        return Object.assign({}, base, extra);
     };
 
     /* Cache leve de clientes, contatos, endereços e equipamentos para enriquecer o Quadro Fixo */
@@ -703,9 +716,11 @@
         const aditivoHtml = (configQuadroBox && configQuadroBox.aditivo_html) || '';
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = cfg.cor_primaria || '#7b4195';
-        const tituloTopo = d.tipo_titulo || cfg.tipo_titulo || 'EVENTO';
-        const infoRotulo = d.info_rotulo || cfg.info_rotulo || 'EVENTO:';
-        const ocultarNomeEvento = d.ocultar_nome_evento !== undefined ? d.ocultar_nome_evento : Boolean(cfg.ocultar_nome_evento);
+        const corRotuloTotal = cfg.cor_rotulo_valor_total || (String(ROXO).toLowerCase() === '#1e5782' ? '#1e5782' : '#3b3b3b');
+        const tituloTopo = cfg.tipo_titulo || d.tipo_titulo || 'EVENTO';
+        const infoRotulo = cfg.info_rotulo || d.info_rotulo || 'EVENTO:';
+        const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
+        const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
@@ -836,8 +851,8 @@
                                 </div>
                                 <div style="font-size:${u(20.5)}; color:#333; line-height:1.45; margin-top:${u(14)};">
                                     ${ocultarNomeEvento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
-                                    <div style="text-transform:uppercase;">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
-                                    <div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>
+                                    <div style="text-transform:uppercase;${ocultarDataFim ? ` margin-bottom:${u(6)};` : ''}">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
+                                    ${ocultarDataFim ? '' : `<div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>`}
                                     <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
                                     ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
                                 </div>
@@ -856,10 +871,10 @@
                         ${secaoServicos}
                     </div>
 
-                    <!-- Totais (sem faixa preta): apenas valor total em roxo abaixo da coluna VALOR TOTAL -->
+                    <!-- Totais (sem faixa preta): apenas valor total abaixo da coluna VALOR TOTAL -->
                     <div class="bq-totais-bloco" style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
                         <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                            <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:#3b3b3b;">VALOR TOTAL: R$</div>
+                            <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:${corRotuloTotal};">VALOR TOTAL: R$</div>
                             <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                         </div>
                     </div>
@@ -1446,6 +1461,9 @@
                             <input type="checkbox" id="bq-cfg-ocultar-evento" ${cfgAtual.ocultar_nome_evento ? 'checked' : ''}> Ocultar linha "Nome do Evento" no cabeçalho
                         </label>
                         <label style="display:flex; align-items:center; gap:7px; font-size:0.78rem; color:#334155; cursor:pointer;">
+                            <input type="checkbox" id="bq-cfg-ocultar-fim" ${cfgAtual.ocultar_data_fim ? 'checked' : ''}> Ocultar linha "Fim: DD/MM/AA" no cabeçalho
+                        </label>
+                        <label style="display:flex; align-items:center; gap:7px; font-size:0.78rem; color:#334155; cursor:pointer;">
                             <input type="checkbox" id="bq-cfg-mostrar-dias" ${cfgAtual.mostrar_dias_evento_item !== false ? 'checked' : ''}> Mostrar "Dia de Evento / Sucção" nos produtos
                         </label>
                     </div>
@@ -1469,6 +1487,7 @@
             titulo_servicos: (document.getElementById('bq-cfg-tit-serv')?.value || 'SERVIÇOS:').trim(),
             cor_primaria: document.getElementById('bq-cfg-cor')?.value || '#7b4195',
             ocultar_nome_evento: Boolean(document.getElementById('bq-cfg-ocultar-evento')?.checked),
+            ocultar_data_fim: Boolean(document.getElementById('bq-cfg-ocultar-fim')?.checked),
             mostrar_dias_evento_item: Boolean(document.getElementById('bq-cfg-mostrar-dias')?.checked)
         };
         window.CONFIG_QUADRO_POR_MODELO[mod] = Object.assign({}, window.CONFIG_QUADRO_POR_MODELO[mod] || {}, cfg);
