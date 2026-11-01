@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <script src="/comercial_boxes.js?v=20261101v13"></script>
+    <script src="/comercial_boxes.js?v=20261101v15"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -212,10 +212,11 @@
                     }).join('') +
                     '</tbody><tfoot>' +
                     (somaDescontoItens > 0 ? '<tr><td colspan="5" style="padding:4px 6px 2px 6px; text-align:right; font-weight:700;">DESCONTO</td><td style="padding:4px 6px 2px 6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaDescontoItens) + '</td></tr>' : '') +
-                    '<tr><td colspan="5" style="padding:6px; text-align:right; font-weight:700;">TOTAL EQUIPAMENTOS</td><td style="padding:6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(totalLiquidoItens) + '</td></tr>' +
+                    '<tr><td colspan="5" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS PRODUTOS</td><td style="padding:6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(totalLiquidoItens) + '</td></tr>' +
                     '</tfoot></table>';
             }
 
+            var somaServicos = servicos.reduce(function (acc, sv) { return acc + ((sv.fob || sv.cortesia) ? 0 : (Number(sv.total) || 0)); }, 0);
             var valoresCompHtml = servicos.length > 0 ? (
                 '<div style="margin-top:10px; border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">Serviços / Valores Complementares</div>' +
                 '<table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">' +
@@ -234,7 +235,7 @@
                         '<td style="padding:5px 6px; text-align:right;">' + valExib + '</td>' +
                         '</tr>';
                 }).join('') +
-                '</tbody></table>'
+                '</tbody><tfoot><tr><td colspan="3" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS SERVIÇOS</td><td style="padding:6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaServicos) + '</td></tr></tfoot></table>'
             ) : '';
 
             var linhasInfo = Array.isArray(imp.linhas_informacoes) ? imp.linhas_informacoes : [];
@@ -279,7 +280,6 @@
                 '<div style="border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">' + esc(imp.titulo_tabela_produtos || 'Produtos para Locação') + '</div>' +
                 tabelaProdutosHtml +
                 valoresCompHtml +
-                '<div style="margin-top:8px; padding:6px 8px; background:#f8fafc; border:1px solid #cbd5e1; text-align:right; font-weight:700; font-size:12px; color:#0f172a;">VALOR TOTAL DA PROPOSTA: R$ ' + fmtMoeda(d.valor_total_geral) + '</div>' +
                 infoBoxHtml +
                 (imp.observacao ? '<div style="margin-top:12px;"><div style="text-align:center; font-weight:700; font-size:11.5px; color:#475569; margin-bottom:4px;">Observação</div><div style="border:1px solid #cbd5e1; border-radius:4px; padding:8px 10px; min-height:34px; font-size:11px; color:#1e293b; white-space:pre-wrap;">' + esc(imp.observacao) + '</div></div>' : '') +
                 '</div></div>';

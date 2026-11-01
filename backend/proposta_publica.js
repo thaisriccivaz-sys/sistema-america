@@ -523,7 +523,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
         const itensRaw = lerJson(p.itens);
         const servRaw = lerJson(p.itens_servicos);
-        let somaPorDia = 0, somaTotalGeral = 0;
+        let somaPorDia = 0, somaTotalGeral = 0, somaTotalServicos = 0;
 
         const formatarDiasCurtoItem = (it) => {
             let diasArr = Array.isArray(it && it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
@@ -574,7 +574,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
             const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
             const gross = isFob ? 0 : (base * qtd);
-            if (!isFob) somaTotalGeral += net;
+            if (!isFob) somaTotalServicos += net;
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe({ codigo: s.codigo }, nome),
                 link_url: linkDe({ codigo: s.codigo, link_url: s.link_url }, nome),
@@ -686,6 +686,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 if (mCod === cNorm || mNom === cNorm) return true;
                 if (cNorm.startsWith('obra') && (mCod === 'obra' || mCod.startsWith('obra'))) return true;
                 if (cNorm.includes('fossa') && (mCod === 'limpa fossa' || mCod.includes('fossa'))) return true;
+                if (cNorm.includes('container') && (mCod.includes('container') || mNom.includes('container'))) return true;
+                if (cNorm.includes('equipamento') && (mCod.includes('equipamento') || mNom.includes('equipamento'))) return true;
                 return false;
             }) || null;
         };
@@ -807,6 +809,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             resumo_diarias_rodape: resumoDiariasRodape,
             itens, servicos,
             valor_total_por_dia_geral: somaPorDia,
+            valor_total_produtos: somaTotalGeral,
+            valor_total_servicos: somaTotalServicos,
             valor_total_geral: somaTotalGeral
         };
     }

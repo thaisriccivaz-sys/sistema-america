@@ -5823,7 +5823,7 @@ function calcularDescontoReais() {
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         return acc + (q * v);
     }, 0);
-    precoServico += somaProdutos + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0);
+    precoServico += somaProdutos;
     const freteIda = parseFloat(document.getElementById('prop-frete-ida')?.value || 0);
     const freteVolta = parseFloat(document.getElementById('prop-frete-volta')?.value || 0);
     const subtotal = precoServico + freteIda + freteVolta;
@@ -5873,7 +5873,7 @@ window.calcularValorTotalProposta = function() {
     if (servicoSelect && servicoSelect.value && servicoSelect.options[servicoSelect.selectedIndex]) {
         precoServico = parseFloat(servicoSelect.options[servicoSelect.selectedIndex].getAttribute('data-preco') || 0);
     }
-    precoServico += somaProdutos + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0);
+    precoServico += somaProdutos;
     const freteIda = parseFloat(freteIdaEl?.value || 0);
     const freteVolta = parseFloat(freteVoltaEl?.value || 0);
 
@@ -6062,7 +6062,7 @@ window.salvarPropostaNova = async function() {
                 }, 0);
             }
             return obterN('prop-valor-total');
-        })() + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0),
+        })(),
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
@@ -6700,7 +6700,7 @@ window.aprovarPropostaEdicao = async function() {
                 }, 0);
             }
             return obterN('prop-valor-total');
-        })() + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0),
+        })(),
         status: obter('prop-status') || 'Ativa',
         motivo_reprovacao: '',
         criado_por: window.obterNomeUsuarioLogado(),
@@ -6965,6 +6965,32 @@ window.obterDadosContatoPropostaAtual = async function(p = null) {
     };
 };
 
+window.gerarHtmlImpressaoLinkProposta = async function(propId) {
+    const resp = await apiGet('/propostas/' + propId + '/dados-documento-assinado');
+    if (!resp || !resp.dados) throw new Error('Não foi possível carregar os dados da proposta.');
+    const d = resp.dados;
+    const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+        ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
+        : '';
+    const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
+    const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+    const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
+    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+    const htmlAssinatura = d.assinatura_url ? (
+        '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
+        '<div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+        '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+        '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
+        '</div>' +
+        (d.aceite_publico_em ? '<div style="font-size:11px; color:#475569; margin-top:6px;">Assinado eletronicamente em ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+        '</div>'
+    ) : '';
+    return {
+        dados: d,
+        htmlCorpo: '<div style="max-width:960px; margin:0 auto; background:#fff;">' + htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>'
+    };
+};
+
 window.baixarPdfProposta = async function(id = null) {
     const propId = id || _propostasEditandoId;
     if (!propId) {
@@ -6975,39 +7001,54 @@ window.baixarPdfProposta = async function(id = null) {
     const cod = (p && p.codigo) ? p.codigo : propId;
 
     Swal.fire({
-        title: 'Gerando PDF...',
-        html: 'Preparando arquivo PDF da proposta para download...',
+        title: 'Preparando PDF da Proposta...',
+        html: 'Carregando versão de impressão da proposta...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const baseApi = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api';
-        const resp = await fetch(`${baseApi}/propostas/${propId}/pdf`, {
-            method: 'GET',
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        if (!resp.ok) {
-            throw new Error('Falha ao gerar PDF direto');
-        }
-        const blob = await resp.blob();
+        const { htmlCorpo } = await window.gerarHtmlImpressaoLinkProposta(propId);
+        try {
+            apiPost('/propostas/' + propId + '/registrar-acao', {
+                acao: 'Download de PDF',
+                detalhe: 'PDF da proposta Nº ' + cod + ' baixado pelo usuário'
+            });
+        } catch (_) {}
         Swal.close();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Proposta_${cod}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            window.URL.revokeObjectURL(url);
-            a.remove();
-        }, 1000);
+        const win = window.open('', '_blank', 'width=1020,height=860');
+        if (!win) {
+            Swal.fire('Aviso', 'Permita pop-ups no navegador para visualizar/salvar o PDF da proposta.', 'warning');
+            return;
+        }
+        win.document.write(
+            '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">' +
+            '<title>Proposta_' + _escHtmlProp(String(cod)) + '</title>' +
+            '<style>' +
+            'html, body { margin: 0; padding: 0; background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+            '@page { margin: 8mm; }' +
+            '</style></head><body>' +
+            htmlCorpo +
+            '<script>' +
+            'window.addEventListener("load", function() {' +
+            '  var imgs = Array.prototype.slice.call(document.images || []);' +
+            '  var pendentes = imgs.filter(function(i){ return !i.complete; });' +
+            '  var disparar = function(){ setTimeout(function(){ window.focus(); window.print(); }, 350); };' +
+            '  if (pendentes.length === 0) { disparar(); return; }' +
+            '  var cont = 0;' +
+            '  pendentes.forEach(function(im){' +
+            '    var done = function(){ cont++; if (cont >= pendentes.length) disparar(); };' +
+            '    im.addEventListener("load", done); im.addEventListener("error", done);' +
+            '  });' +
+            '  setTimeout(disparar, 2200);' +
+            '});' +
+            '<\/script></body></html>'
+        );
+        win.document.close();
     } catch (e) {
         Swal.close();
-        console.warn('[PROPOSTA] Fallback para janela de impressão/PDF:', e);
-        try { apiPost('/propostas/' + propId + '/registrar-acao', { acao: 'Download de PDF', detalhe: 'PDF da proposta baixado/impresso pelo usuário' }); } catch (_) {}
-        imprimirProposta(propId);
+        console.error('[PROPOSTA] Erro ao gerar PDF da proposta:', e);
+        Swal.fire('Erro', 'Não foi possível preparar o PDF da proposta: ' + e.message, 'error');
     }
 };
 
@@ -17133,30 +17174,53 @@ window.pesquisarPropostaPorCodigoInput = async function() {
     const raw = String(inp?.value || '').trim();
     const termo = raw.toUpperCase() === 'AUTO' ? '' : raw;
     if (termo) {
-        if (!Array.isArray(_propostasData) || _propostasData.length === 0) {
-            await carregarPropostas();
-        }
-        const propAtual = _propostasEditandoId ? _propostasData.find(p => p.id === _propostasEditandoId) : null;
+        await carregarPropostas();
+        const isModoContrato = window._modoTelaComercial === 'contrato';
+        const baseLista = (_propostasData || []).filter(p =>
+            isModoContrato ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true
+        );
         const termoLower = termo.toLowerCase();
         const termoDigits = termo.replace(/\D/g, '').replace(/^0+/, '');
-        if (!propAtual || String((window._modoTelaComercial === 'contrato' ? (propAtual.contrato || propAtual.codigo) : propAtual.codigo) || '').toLowerCase() !== termoLower) {
-            const exatas = _propostasData.filter(p => (window._modoTelaComercial === 'contrato' ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true)).filter(p => {
-                const cod = String((window._modoTelaComercial === 'contrato' ? (p.contrato || p.codigo) : p.codigo) || '').trim();
-                if (!cod) return false;
-                if (cod.toLowerCase() === termoLower) return true;
-                const codDigits = cod.replace(/\D/g, '').replace(/^0+/, '');
-                return Boolean(termoDigits && codDigits && codDigits === termoDigits && /^\d+$/.test(termo));
+
+        // 1) Busca correspondência exata pelo código (ou contrato)
+        let encontrada = baseLista.find(p => {
+            const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
+            return cod && cod.toLowerCase() === termoLower;
+        });
+
+        // 2) Se não achou exata e digitou número (ex.: "1" ou "01"), busca pelo número inteiro ignorando zeros à esquerda
+        if (!encontrada && /^\d+$/.test(termo)) {
+            const numBuscado = parseInt(termo, 10);
+            encontrada = baseLista.find(p => {
+                const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
+                if (/^\d+$/.test(cod) && parseInt(cod, 10) === numBuscado) return true;
+                const mSeq = cod.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+                if (mSeq && parseInt(mSeq[1], 10) === numBuscado) return true;
+                return false;
             });
-            if (exatas.length === 1) {
-                await abrirFormProposta(exatas[0].id);
-                if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso(`Proposta ${exatas[0].codigo} carregada!`);
-                }
-                return;
-            }
         }
+
+        // 3) Fallback por dígitos sem zero à esquerda
+        if (!encontrada && termoDigits && /^\d+$/.test(termo)) {
+            encontrada = baseLista.find(p => {
+                const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
+                const codDigits = cod.replace(/\D/g, '').replace(/^0+/, '');
+                return Boolean(codDigits && codDigits === termoDigits);
+            });
+        }
+
+        if (encontrada) {
+            await abrirFormProposta(encontrada.id);
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`${isModoContrato ? 'Contrato' : 'Proposta'} ${(isModoContrato ? (encontrada.contrato || encontrada.codigo) : encontrada.codigo)} carregad${isModoContrato ? 'o' : 'a'}!`);
+            }
+            return;
+        }
+
+        Swal.fire('Aviso', `Nenhuma ${isModoContrato ? 'contrato' : 'proposta'} encontrada com o número "${termo}".`, 'warning');
+        return;
     }
-    await window.abrirModalPesquisaPropostas(termo);
+    await window.abrirModalPesquisaPropostas('');
 };
 
 window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
@@ -19685,7 +19749,18 @@ window.renderizarProdutosPropostaGrid = function() {
                 </td>
             </tr>
         `;
-    }).join('');
+    }).join('') + `
+        <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+            <td colspan="${usaManutGrid ? 6 : 5}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
+            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p) => {
+                const q = parseInt(p.quantidade, 10) || 1;
+                const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+                const st = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vu);
+                return acc + st;
+            }, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td></td>
+        </tr>
+    `;
 
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
@@ -21933,7 +22008,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                         <td style="padding:2px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(descontoVal)}</td>
                     </tr>
                     <tr>
-                        <td colspan="6" style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">TOTAL COM DESCONTO</td>
+                        <td colspan="6" style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">VALOR TOTAL DOS PRODUTOS</td>
                         <td style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalComDesconto)}</td>
                     </tr>
                 </tfoot>
@@ -21968,7 +22043,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="4" style="padding:6px; text-align:right; font-weight:700;">TOTAL</td>
+                        <td colspan="4" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS PRODUTOS</td>
                         <td style="padding:6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalProdutos)}</td>
                     </tr>
                 </tfoot>
@@ -21976,9 +22051,10 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
         `;
     }
 
+    const totalValoresComp = listaValoresComp.reduce((acc, vc) => acc + (Number(vc.valor) || 0), 0);
     const valoresCompHtml = mostrarValoresComp ? `
         <div style="margin-top:10px; border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">
-            Valores Complementares
+            Serviços / Valores Complementares
         </div>
         <table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">
             <thead>
@@ -21997,6 +22073,12 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                     </tr>
                 `).join('')}
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS SERVIÇOS</td>
+                    <td style="padding:6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalValoresComp)}</td>
+                </tr>
+            </tfoot>
         </table>
     ` : '';
 
@@ -22232,7 +22314,34 @@ window._renderModelosPropostasInt = async function() {
             apiGet('/comercial/modelos-proposta'),
             apiGet('/comercial/boxes?modelo_tipo=ADITIVO').catch(() => [])
         ]);
-        window._modelosPropostasList = Array.isArray(rows) ? rows : [];
+        const ordemFixa = [
+            'PROPOSTA OBRA',
+            'PROPOSTA EVENTO',
+            'PROPOSTA LIMPA FOSSA',
+            'PROPOSTA EQUIPAMENTOS',
+            'PROPOSTA CONTAINER',
+            'PROPOSTA VENDA',
+            'VISITA TÉCNICA'
+        ];
+        const normalizarNome = (r) => {
+            const raw = String(r.nome || r.codigo_tipo || '').toUpperCase().trim();
+            if (raw.includes('OBRA')) return 'PROPOSTA OBRA';
+            if (raw.includes('EVENTO')) return 'PROPOSTA EVENTO';
+            if (raw.includes('LIMPA FOSSA')) return 'PROPOSTA LIMPA FOSSA';
+            if (raw.includes('EQUIPAMENTO')) return 'PROPOSTA EQUIPAMENTOS';
+            if (raw.includes('CONTAINER')) return 'PROPOSTA CONTAINER';
+            if (raw.includes('VENDA')) return 'PROPOSTA VENDA';
+            if (raw.includes('VISITA')) return 'VISITA TÉCNICA';
+            return raw;
+        };
+        window._modelosPropostasList = (Array.isArray(rows) ? rows : [])
+            .filter(r => !String(r.codigo_tipo || r.nome || '').toUpperCase().includes('ADITIVO'))
+            .map(r => Object.assign({}, r, { nome: normalizarNome(r) }))
+            .sort((a, b) => {
+                const ia = ordemFixa.indexOf(a.nome);
+                const ib = ordemFixa.indexOf(b.nome);
+                return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+            });
         window._boxesAditivoCache = Array.isArray(boxesAdt) ? boxesAdt : [];
         const badge = document.getElementById('modelos-prop-count-badge');
         if (badge) badge.textContent = String(window._modelosPropostasList.length);
@@ -22663,7 +22772,7 @@ window._renderBlocosAceiteEAditivoModeloProposta = function(m) {
                 <input type="file" id="${inputId}" accept="image/*" style="display:none;" onchange="window.enviarArquivoQuadroModeloProposta(${m.id}, '${categoria}', '${variante}', this)">
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <button type="button" onclick="document.getElementById('${inputId}').click()" style="flex:1; background:${corTema}; color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                        <i class="ph ${urlImg ? 'ph-pencil-simple' : 'ph-plus-circle'}"></i> ${urlImg ? 'Editar / Substituir' : 'Adicionar'}
+                        <i class="ph ${urlImg ? 'ph-pencil-simple' : 'ph-plus-circle'}"></i> ${urlImg ? 'Editar' : 'Adicionar'}
                     </button>
                     ${urlImg ? `
                     <button type="button" onclick="window.excluirArquivoQuadroModeloProposta(${m.id}, '${categoria}', '${variante}')" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">

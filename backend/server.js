@@ -43771,6 +43771,13 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
   }
   stmtSeed.finalize(() => {
     db.run("DELETE FROM comercial_modelos_proposta WHERE codigo_tipo IN ('PROPOSTA OBRA MENSAL', 'PROPOSTA OBRA QUINZENAL', 'PROPOSTA OBRA SEMANAL', 'PROPOSTA LIMPA FOSSA MENSAL')", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 1, nome = 'PROPOSTA OBRA' WHERE UPPER(codigo_tipo) = 'PROPOSTA OBRA' OR UPPER(nome) = 'PROPOSTA OBRA'", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 2, nome = 'PROPOSTA EVENTO' WHERE UPPER(codigo_tipo) = 'PROPOSTA EVENTO' OR UPPER(nome) = 'PROPOSTA EVENTO'", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 3, nome = 'PROPOSTA LIMPA FOSSA' WHERE UPPER(codigo_tipo) = 'PROPOSTA LIMPA FOSSA' OR UPPER(nome) = 'PROPOSTA LIMPA FOSSA'", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 4, nome = 'PROPOSTA EQUIPAMENTOS' WHERE UPPER(codigo_tipo) IN ('EQUIPAMENTOS', 'PROPOSTA EQUIPAMENTOS') OR UPPER(nome) IN ('EQUIPAMENTOS', 'PROPOSTA EQUIPAMENTOS')", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 5, nome = 'PROPOSTA CONTAINER' WHERE UPPER(codigo_tipo) IN ('PROPOSTA LOCAÇÃO CONTAINER', 'PROPOSTA CONTAINER', 'LOCAÇÃO CONTAINER') OR UPPER(nome) IN ('PROPOSTA LOCAÇÃO CONTAINER', 'PROPOSTA CONTAINER')", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 6, nome = 'PROPOSTA VENDA' WHERE UPPER(codigo_tipo) = 'PROPOSTA VENDA' OR UPPER(nome) = 'PROPOSTA VENDA'", () => {});
+    db.run("UPDATE comercial_modelos_proposta SET ordem = 7, nome = 'VISITA TÉCNICA' WHERE UPPER(codigo_tipo) = 'VISITA TÉCNICA' OR UPPER(nome) = 'VISITA TÉCNICA'", () => {});
   });
 });
 
@@ -44857,8 +44864,40 @@ app.get('/api/public/propostas/:id/assinatura-arquivo', (req, res) => {
 // GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta
 app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, nome ASC', [], (err, rawRows) => {
-    const rows = (rawRows || []).map(montarModeloPropostaRow);
     if (err) return res.status(500).json({ error: err.message });
+    const ordemFixa = [
+      'PROPOSTA OBRA',
+      'PROPOSTA EVENTO',
+      'PROPOSTA LIMPA FOSSA',
+      'PROPOSTA EQUIPAMENTOS',
+      'PROPOSTA CONTAINER',
+      'PROPOSTA VENDA',
+      'VISITA TÉCNICA'
+    ];
+    const normalizarNomeExibicao = (r) => {
+      const codUp = String(r.codigo_tipo || '').trim().toUpperCase();
+      const nomUp = String(r.nome || '').trim().toUpperCase();
+      if (codUp === 'EQUIPAMENTOS' || nomUp === 'EQUIPAMENTOS') return 'PROPOSTA EQUIPAMENTOS';
+      if (codUp.includes('CONTAINER') || nomUp.includes('CONTAINER')) return 'PROPOSTA CONTAINER';
+      if (codUp === 'PROPOSTA OBRA' || nomUp === 'PROPOSTA OBRA') return 'PROPOSTA OBRA';
+      if (codUp === 'PROPOSTA EVENTO' || nomUp === 'PROPOSTA EVENTO') return 'PROPOSTA EVENTO';
+      if (codUp === 'PROPOSTA LIMPA FOSSA' || nomUp === 'PROPOSTA LIMPA FOSSA') return 'PROPOSTA LIMPA FOSSA';
+      if (codUp === 'PROPOSTA VENDA' || nomUp === 'PROPOSTA VENDA') return 'PROPOSTA VENDA';
+      if (codUp.includes('VISITA') || nomUp.includes('VISITA')) return 'VISITA TÉCNICA';
+      return String(r.nome || r.codigo_tipo || '').trim().toUpperCase();
+    };
+    const rows = (rawRows || [])
+      .map(montarModeloPropostaRow)
+      .filter(r => r && String(r.codigo_tipo || '').trim().toUpperCase() !== 'ADITIVO' && String(r.nome || '').trim().toUpperCase() !== 'ADITIVO')
+      .map(r => Object.assign({}, r, { nome: normalizarNomeExibicao(r) }))
+      .sort((a, b) => {
+        const ia = ordemFixa.indexOf(String(a.nome || '').toUpperCase());
+        const ib = ordemFixa.indexOf(String(b.nome || '').toUpperCase());
+        const oa = ia >= 0 ? ia : 999;
+        const ob = ib >= 0 ? ib : 999;
+        if (oa !== ob) return oa - ob;
+        return (a.ordem || 99) - (b.ordem || 99);
+      });
     res.json(rows || []);
   });
 });

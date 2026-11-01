@@ -763,7 +763,9 @@
                     { quantidade: 1, nome: 'LIMPEZA DURANTE O EVENTO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 350, por_dia: 350, desconto: 50, total: 300 }
                 ],
                 valor_total_por_dia_geral: 1000,
-                valor_total_geral: 5500
+                valor_total_produtos: 5200,
+                valor_total_servicos: 300,
+                valor_total_geral: 5200
             };
         }
 
@@ -804,6 +806,7 @@
 
         let somaPorDia = 0;
         let somaTotalGeral = 0;
+        let somaTotalServicos = 0;
 
         const itensFormatados = (itensRaw || []).map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
@@ -842,7 +845,7 @@
             const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
             const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
             const gross = isFob ? 0 : (base * qtd);
-            if (!isFob) somaTotalGeral += net;
+            if (!isFob) somaTotalServicos += net;
             return {
                 quantidade: qtd,
                 nome: nomeServ,
@@ -890,6 +893,8 @@
             itens: itensFormatados,
             servicos: servicosFormatados,
             valor_total_por_dia_geral: somaPorDia,
+            valor_total_produtos: somaTotalGeral,
+            valor_total_servicos: somaTotalServicos,
             valor_total_geral: somaTotalGeral
         };
     };
@@ -1033,10 +1038,21 @@
             ? d.itens.map(linhaItem).join('')
             : `<div style="padding:${u(24)}; text-align:center; color:#94a3b8; font-size:${u(24)}; border:${u(2)} dashed #cbd5e1; border-radius:${u(10)}; margin-bottom:${u(20)};">Nenhum equipamento adicionado nesta proposta ainda.</div>`;
 
+        const totalProdutosQuadro = (d.valor_total_produtos !== undefined && !isNaN(Number(d.valor_total_produtos)))
+            ? Number(d.valor_total_produtos)
+            : (Array.isArray(d.itens) ? d.itens.reduce((acc, it) => acc + (it.cortesia || it.fob ? 0 : (Number(it.total) || 0)), 0) : Number(d.valor_total_geral || 0));
+        const totalServicosQuadro = (d.valor_total_servicos !== undefined && !isNaN(Number(d.valor_total_servicos)))
+            ? Number(d.valor_total_servicos)
+            : (Array.isArray(d.servicos) ? d.servicos.reduce((acc, s) => acc + (s.cortesia || s.fob ? 0 : (Number(s.total) || 0)), 0) : 0);
+
         const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
-            <div style="padding:${u(10)} ${u(60)} ${u(10)} ${u(50)};">
+            <div style="padding:${u(14)} ${u(60)} ${u(20)} ${u(50)};">
                 ${cabecalhoColunasServicos(esc(tituloServ))}
                 ${d.servicos.map(linhaServico).join('')}
+                <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                    <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS SERVIÇOS: R$</div>
+                    <div class="bq-d" style="text-align:center; font-size:${u(36)}; color:${ROXO};">${fmtNum(totalServicosQuadro)}</div>
+                </div>
             </div>` : '';
 
         return `
@@ -1154,22 +1170,18 @@
                     ${mostrarFaixaValores ? `<img src="${faixaValoresImg}" alt="Valores contemplados na proposta" style="width:100%; height:auto; display:block; pointer-events:none;">` : ''}
                 </div>
 
-                <div class="bq-body-wrap">
-                    <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
+                <div class="bq-body-wrap" style="padding-bottom:${u(30)};">
+                    <!-- Equipamentos e Serviços com totais calculados separadamente -->
                     <div class="bq-equipamentos-bloco">
-                        <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
+                        <div style="padding:${u(34)} ${u(60)} ${u(16)} ${u(50)};">
                             ${cabecalhoColunas(esc(tituloEquip))}
                             ${itensHtml}
+                            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                                <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS PRODUTOS: R$</div>
+                                <div class="bq-d" style="text-align:center; font-size:${u(36)}; color:${ROXO};">${fmtNum(totalProdutosQuadro)}</div>
+                            </div>
                         </div>
                         ${secaoServicos}
-                    </div>
-
-                    <!-- Totais (sem faixa preta): apenas valor total abaixo da coluna VALOR TOTAL -->
-                    <div class="bq-totais-bloco" style="padding:${u(6)} ${u(60)} ${u(46)} ${u(50)}; flex-shrink:0;">
-                        <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                            <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(36)}; color:${corRotuloTotal};">VALOR TOTAL: R$</div>
-                            <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
-                        </div>
                     </div>
                 </div>
             </div>
