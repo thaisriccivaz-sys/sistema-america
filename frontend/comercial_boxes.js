@@ -34,9 +34,7 @@
     /* ── Lista de Modelos de Proposta e Configurações independentes de Quadro de Valores por Modelo ── */
     window.MODELOS_PROPOSTA_BOXES = [
         { codigo: 'EVENTO', nome: 'Proposta Evento', icone: 'ph-confetti' },
-        { codigo: 'OBRA MENSAL', nome: 'Proposta Obra Mensal', icone: 'ph-buildings' },
-        { codigo: 'OBRA QUINZENAL', nome: 'Proposta Obra Quinzenal', icone: 'ph-buildings' },
-        { codigo: 'OBRA SEMANAL', nome: 'Proposta Obra Semanal', icone: 'ph-buildings' },
+        { codigo: 'OBRA', nome: 'Proposta Obra', icone: 'ph-buildings' },
         { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', icone: 'ph-drop' },
         { codigo: 'LIMPA FOSSA MENSAL', nome: 'Proposta Limpa Fossa Mensal', icone: 'ph-drop' },
         { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', icone: 'ph-cube' },
@@ -61,6 +59,21 @@
             mostrar_condicoes_topo: true,
             mostrar_faixa_valores_contemplados: true,
             faixa_valores_img: '/assets/faixa-valores-contemplados-evento.png?v=20261101v8',
+            mostrar_dias_evento_item: true,
+            titulo_equipamentos: 'EQUIPAMENTOS:',
+            titulo_servicos: 'SERVIÇOS:'
+        },
+        'OBRA': {
+            nome_quadro: 'Quadro de Valores — Proposta Obra (Fixo)',
+            tipo_titulo: 'OBRA MENSAL',
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
+            ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-obra.png?v=20261101v8',
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -188,9 +201,47 @@
         if (s === 'ADTIVO' || s === 'ADITIVO') return 'ADITIVO';
         if (s.includes('LOCACAO CONTAINER') || s.includes('LOCAÇÃO CONTAINER')) return 'LOCAÇÃO CONTAINER';
         if (s.includes('VISITA TECNICA') || s.includes('VISITA TÉCNICA')) return 'VISITA TÉCNICA';
-        if (s === 'OBRA') return 'OBRA MENSAL';
+        if (s.includes('OBRA')) return 'OBRA';
         if (window.CONFIG_QUADRO_POR_MODELO[s]) return s;
         return 'EVENTO';
+    };
+
+    /* Extrai o subtítulo exato da Obra ('OBRA MENSAL', 'OBRA QUINZENAL' ou 'OBRA SEMANAL') para exibir no topo do Quadro de Valores */
+    function extrairSubtituloObraTextoBox(raw) {
+        const s = String(raw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        if (!s) return '';
+        if (s.includes('QUINZ')) return 'OBRA QUINZENAL';
+        if (s.includes('SEMAN')) return 'OBRA SEMANAL';
+        if (s.includes('MENS')) return 'OBRA MENSAL';
+        return '';
+    }
+
+    window.resolverSubtituloObraProposta = function (propostaObj, rawHint) {
+        const p = propostaObj || {};
+        const direto = extrairSubtituloObraTextoBox(p.tipo) || extrairSubtituloObraTextoBox(rawHint);
+        if (direto) return direto;
+        const inpContrato = document.getElementById('prop-contrato-aditivo');
+        const subVinc = extrairSubtituloObraTextoBox(p.contrato_vinculado_tipo) || extrairSubtituloObraTextoBox(inpContrato?.getAttribute('data-contrato-tipo'));
+        if (subVinc) return subVinc;
+        const numVinc = String(p.contrato_vinculado || inpContrato?.value || '').trim();
+        const idVinc = Number(p.contrato_vinculado_id || inpContrato?.getAttribute('data-contrato-id') || 0);
+        const todasProps = (window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas))
+            ? window._boxCacheDadosAux.propostasTodas
+            : (typeof _propostasData !== 'undefined' && Array.isArray(_propostasData) ? _propostasData : []);
+        if ((numVinc || idVinc) && todasProps.length) {
+            const orig = todasProps.find(x => {
+                const t = window.normalizarModeloTipoBox(x.tipo);
+                if (t === 'ADITIVO') return false;
+                if (idVinc && Number(x.id) === idVinc) return true;
+                if (numVinc && (String(x.contrato || '').trim() === numVinc || String(x.codigo || '').trim() === numVinc)) return true;
+                return false;
+            });
+            const subOrig = orig ? (extrairSubtituloObraTextoBox(orig.tipo) || extrairSubtituloObraTextoBox(orig.tabela_precos)) : '';
+            if (subOrig) return subOrig;
+        }
+        const subTab = extrairSubtituloObraTextoBox(p.tabela_precos) || extrairSubtituloObraTextoBox(document.getElementById('prop-tabela')?.value) || extrairSubtituloObraTextoBox(document.getElementById('prop-tipo')?.value);
+        if (subTab) return subTab;
+        return 'OBRA MENSAL';
     };
 
     /* Resolve qual é o modelo da proposta do contrato originário vinculado a uma proposta ADITIVO */
@@ -237,13 +288,19 @@
         const modEfetivo = mod === 'ADITIVO' ? window.resolverModeloOrigemAditivo() : mod;
         const base = window.CONFIG_QUADRO_POR_MODELO[modEfetivo] || window.CONFIG_QUADRO_POR_MODELO['EVENTO'];
         const extra = Object.assign({}, configBoxExtra || {});
-        if (modEfetivo === 'OBRA MENSAL' || modEfetivo === 'OBRA QUINZENAL' || modEfetivo === 'OBRA SEMANAL') {
+        if (modEfetivo === 'OBRA' || modEfetivo === 'OBRA MENSAL' || modEfetivo === 'OBRA QUINZENAL' || modEfetivo === 'OBRA SEMANAL') {
             const rotUp = String(extra.info_rotulo || '').trim().toUpperCase();
             if (!rotUp || rotUp === 'EVENTO:' || rotUp === 'OBRA:') {
                 extra.info_rotulo = 'DA OBRA:';
             }
             if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
                 delete extra.cor_primaria;
+            }
+            const subHint = extrairSubtituloObraTextoBox(modeloRaw);
+            if (subHint) {
+                extra.tipo_titulo = subHint;
+            } else if (!extra.tipo_titulo || String(extra.tipo_titulo).toUpperCase() === 'OBRA') {
+                extra.tipo_titulo = 'OBRA MENSAL';
             }
             extra.ocultar_nome_evento = true;
             extra.ocultar_data_fim = true;
@@ -603,6 +660,9 @@
         const modeloNorm = window.normalizarModeloTipoBox(modeloBruto);
         const modeloEfetivo = modeloNorm === 'ADITIVO' ? window.resolverModeloOrigemAditivo(prop) : modeloNorm;
         const cfgModelo = window.obterConfigQuadroModelo(modeloEfetivo);
+        const tituloTopoResolvido = modeloEfetivo === 'OBRA'
+            ? window.resolverSubtituloObraProposta(prop, modeloBruto)
+            : (cfgModelo.tipo_titulo || modeloEfetivo);
 
         if (!prop) {
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
@@ -611,7 +671,7 @@
                 modelo_tipo: modeloEfetivo,
                 eh_aditivo: modeloNorm === 'ADITIVO',
                 eh_demo: true,
-                tipo_titulo: cfgModelo.tipo_titulo || modeloEfetivo,
+                tipo_titulo: tituloTopoResolvido,
                 info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
                 ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
                 contrato: '01',
@@ -744,7 +804,7 @@
             modelo_tipo: modeloEfetivo,
             eh_aditivo: modeloNorm === 'ADITIVO',
             eh_demo: false,
-            tipo_titulo: cfgModelo.tipo_titulo || modeloEfetivo,
+            tipo_titulo: tituloTopoResolvido,
             info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
             ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
             contrato: numSeq,
@@ -797,12 +857,14 @@
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = cfg.cor_primaria || '#7b4195';
         const corRotuloTotal = cfg.cor_rotulo_valor_total || (String(ROXO).toLowerCase() === '#1e5782' ? '#1e5782' : '#3b3b3b');
-        const tituloTopo = cfg.tipo_titulo || d.tipo_titulo || 'EVENTO';
+        const tituloTopo = (d && d.modelo_tipo === 'OBRA' && d.tipo_titulo)
+            ? d.tipo_titulo
+            : (cfg.tipo_titulo || d.tipo_titulo || 'EVENTO');
         const infoRotulo = cfg.info_rotulo || d.info_rotulo || 'EVENTO:';
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
-        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';

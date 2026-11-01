@@ -43387,15 +43387,15 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
     },
     {
       ordem: 7,
-      codigo_tipo: 'PROPOSTA OBRA MENSAL',
-      nome: 'Proposta Obra Mensal',
-      arquivo_origem: 'Obra Mensal.pdf',
-      titulo_documento: 'PROPOSTA OBRA MENSAL Nº {{NUMERO_PROPOSTA}}',
+      codigo_tipo: 'PROPOSTA OBRA',
+      nome: 'Proposta Obra',
+      arquivo_origem: 'Obra.pdf',
+      titulo_documento: 'PROPOSTA OBRA Nº {{NUMERO_PROPOSTA}}',
       titulo_tabela_produtos: 'Produtos para Locação',
       exibir_valores_complementares: 1,
       titulo_informacoes: 'Informações:',
       texto_informacoes: [
-        '1. Proposta de Locação Mensal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
+        '1. Proposta de Locação de Obra, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
         '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
         '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
         '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
@@ -43403,7 +43403,7 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
         '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
         '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
       ].join('\n'),
-      observacao_padrao: 'LOCAÇÃO MENSAL COM 01 LIMPEZA SEMANAL INCLUSA',
+      observacao_padrao: 'LOCAÇÃO COM 01 LIMPEZA SEMANAL INCLUSA',
       exemplo_dados: JSON.stringify({
         numero_proposta: '14046',
         representante: 'Gabriela Vasconcelos',
@@ -43428,106 +43428,6 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
         cep_instalacao: '01426-001',
         itens: [
           { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - OBRA', observacao: '01 LIMPEZA POR SEMANA', qtde: 3, valor_unitario: 480.00, total: 1440.00 }
-        ],
-        valores_complementares: [
-          { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
-          { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
-        ]
-      })
-    },
-    {
-      ordem: 8,
-      codigo_tipo: 'PROPOSTA OBRA QUINZENAL',
-      nome: 'Proposta Obra Quinzenal',
-      arquivo_origem: 'Obra Quinzenal.pdf',
-      titulo_documento: 'PROPOSTA OBRA QUINZENAL Nº {{NUMERO_PROPOSTA}}',
-      titulo_tabela_produtos: 'Produtos para Locação',
-      exibir_valores_complementares: 1,
-      titulo_informacoes: 'Informações:',
-      texto_informacoes: [
-        '1. Proposta de Locação Quinzenal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
-        '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
-        '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
-        '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
-        '5. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
-        '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
-        '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
-      ].join('\n'),
-      observacao_padrao: 'LOCAÇÃO QUINZENAL COM 01 LIMPEZA SEMANAL INCLUSA',
-      exemplo_dados: JSON.stringify({
-        numero_proposta: '14047',
-        representante: 'Gabriela Vasconcelos',
-        email_representante: 'comercial2@americarental.com.br',
-        cliente_razao: 'PAVIMENTACAO E TERRAPLENAGEM VIA NOVA LTDA',
-        cliente_cnpj: '19.283.746/0001-02',
-        cliente_ie: '112.334.556.118',
-        cliente_endereco: 'AV MARGINAL TIETE, 5200 - VILA MARIA',
-        cliente_municipio: 'SAO PAULO',
-        cliente_uf: 'SP',
-        cliente_cep: '02117-000',
-        contato_nome: 'HENRIQUE COSTA',
-        contato_telefone: '(11) 2955-4433',
-        contato_celular: '(11) 98456-7890',
-        contato_email: 'compras@vianova.eng.br',
-        periodo_inicio: '01/11/2026',
-        periodo_fim: '15/11/2026',
-        condicao_pagamento: '15 DDL',
-        validade_proposta: '10 DIAS',
-        local_instalacao: 'FRENTE DE OBRA MARGINAL',
-        endereco_instalacao: 'AV MARGINAL TIETE, 5200 - VILA MARIA - SAO PAULO/SP',
-        cep_instalacao: '02117-000',
-        itens: [
-          { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - QUINZENAL', observacao: '01 LIMPEZA POR SEMANA', qtde: 2, valor_unitario: 390.00, total: 780.00 }
-        ],
-        valores_complementares: [
-          { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
-          { descricao: 'DESMOBILIZAÇÃO ZC', observacao: 'FRETE DE RETIRADA', valor: 150.00 }
-        ]
-      })
-    },
-    {
-      ordem: 9,
-      codigo_tipo: 'PROPOSTA OBRA SEMANAL',
-      nome: 'Proposta Obra Semanal',
-      arquivo_origem: 'Semanal.pdf',
-      titulo_documento: 'PROPOSTA OBRA SEMANAL Nº {{NUMERO_PROPOSTA}}',
-      titulo_tabela_produtos: 'Produtos para Locação',
-      exibir_valores_complementares: 1,
-      titulo_informacoes: 'Informações:',
-      texto_informacoes: [
-        '1. Proposta de Locação Semanal, sujeito a renovação automática do contrato firmado quando não solicitado a retirada dentro do prazo de término do contrato.',
-        '2. Todos os Modelos Hidráulicos a instalação fica por conta do Contratante.',
-        '3. Em caso de necessidade de manutenção adicional, será aplicada uma taxa de R$ 450,00 por cabine.',
-        '4. Mesmo que ocorra a devolução de parte das cabines de acordo com o contrato, o valor estipulado permanecerá inalterado.',
-        '5. Custo de Reposição Unitário das(s) Cabine(s) R$ 6.700,00.',
-        '6. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
-        '7. Esta proposta não constitui uma garantia de reserva do produto ou serviço mencionado. A contratação está sujeita à disponibilidade de estoque no momento da assinatura do contrato.'
-      ].join('\n'),
-      observacao_padrao: 'LOCAÇÃO SEMANAL PARA MANUTENÇÃO PREDIAL RÁPIDA',
-      exemplo_dados: JSON.stringify({
-        numero_proposta: '14048',
-        representante: 'Gabriela Vasconcelos',
-        email_representante: 'comercial2@americarental.com.br',
-        cliente_razao: 'REFORMAS E INSTALACOES EXPRESS LTDA',
-        cliente_cnpj: '31.222.444/0001-77',
-        cliente_ie: 'ISENTO',
-        cliente_endereco: 'RUA VERGUEIRO, 2100 - VILA MARIANA',
-        cliente_municipio: 'SAO PAULO',
-        cliente_uf: 'SP',
-        cliente_cep: '04101-100',
-        contato_nome: 'ANDREIA RAMOS',
-        contato_telefone: '(11) 5571-2020',
-        contato_celular: '(11) 99654-3210',
-        contato_email: 'andreia@reformasexpress.com.br',
-        periodo_inicio: '01/11/2026',
-        periodo_fim: '07/11/2026',
-        condicao_pagamento: 'À VISTA ANTECIPADO',
-        validade_proposta: '7 DIAS',
-        local_instalacao: 'OBRA VILA MARIANA',
-        endereco_instalacao: 'RUA VERGUEIRO, 2100 - VILA MARIANA - SAO PAULO/SP',
-        cep_instalacao: '04101-100',
-        itens: [
-          { descricao: 'CABINE SANITÁRIA STANDARD QUÍMICA - SEMANAL', observacao: 'PERÍODO DE 07 DIAS', qtde: 1, valor_unitario: 340.00, total: 340.00 }
         ],
         valores_complementares: [
           { descricao: 'MOBILIZAÇÃO ZV', observacao: 'FRETE DE ENTREGA', valor: 150.00 },
@@ -43634,7 +43534,9 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
       m.texto_informacoes, m.observacao_padrao, m.exemplo_dados, agora, agora
     ]);
   }
-  stmtSeed.finalize();
+  stmtSeed.finalize(() => {
+    db.run("DELETE FROM comercial_modelos_proposta WHERE codigo_tipo IN ('PROPOSTA OBRA MENSAL', 'PROPOSTA OBRA QUINZENAL', 'PROPOSTA OBRA SEMANAL')", () => {});
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════
@@ -43677,6 +43579,23 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
     if (errAlt2 && !String(errAlt2.message).includes('duplicate column name')) {
       console.error('[BOXES] Aviso migration config_quadro:', errAlt2.message);
     }
+    db.run("UPDATE comercial_boxes SET modelo_tipo = 'OBRA' WHERE tipo != 'quadro_evento' AND modelo_tipo IN ('OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL')", () => {
+      db.get("SELECT id FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo = 'OBRA' LIMIT 1", (errQ, rowQ) => {
+        if (!rowQ) {
+          db.get("SELECT id FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo IN ('OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL') ORDER BY CASE WHEN modelo_tipo = 'OBRA MENSAL' THEN 0 ELSE 1 END, id ASC LIMIT 1", (errQ2, rowOld) => {
+            if (rowOld && rowOld.id) {
+              db.run("UPDATE comercial_boxes SET modelo_tipo = 'OBRA', nome = 'Quadro de Valores — Proposta Obra (Fixo)' WHERE id = ?", [rowOld.id], () => {
+                db.run("DELETE FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo IN ('OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL')", () => {});
+              });
+            }
+          });
+        } else {
+          db.run("UPDATE comercial_boxes SET nome = 'Quadro de Valores — Proposta Obra (Fixo)' WHERE id = ?", [rowQ.id], () => {
+            db.run("DELETE FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo IN ('OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL')", () => {});
+          });
+        }
+      });
+    });
   });
 });
 
@@ -43687,9 +43606,7 @@ const BOX_PROPORCOES = ['1:1', '4:5', '3:4', '9:16', '16:9', '3:2'];
 
 const BOX_MODELOS_PADRAO = [
   { codigo: 'EVENTO', nome: 'Proposta Evento', quadroNome: 'Quadro de Valores — Proposta Evento (Fixo)' },
-  { codigo: 'OBRA MENSAL', nome: 'Proposta Obra Mensal', quadroNome: 'Quadro de Valores — Proposta Obra Mensal (Fixo)' },
-  { codigo: 'OBRA QUINZENAL', nome: 'Proposta Obra Quinzenal', quadroNome: 'Quadro de Valores — Proposta Obra Quinzenal (Fixo)' },
-  { codigo: 'OBRA SEMANAL', nome: 'Proposta Obra Semanal', quadroNome: 'Quadro de Valores — Proposta Obra Semanal (Fixo)' },
+  { codigo: 'OBRA', nome: 'Proposta Obra', quadroNome: 'Quadro de Valores — Proposta Obra (Fixo)' },
   { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa (Fixo)' },
   { codigo: 'LIMPA FOSSA MENSAL', nome: 'Proposta Limpa Fossa Mensal', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa Mensal (Fixo)' },
   { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', quadroNome: 'Quadro de Valores — Proposta Locação Container (Fixo)' },
@@ -43710,9 +43627,7 @@ function boxNormalizarModeloTipo(raw) {
   const achado = BOX_MODELOS_PADRAO.find(m => boxSemAcento(m.codigo) === limpo || boxSemAcento(m.nome).replace(/^PROPOSTA\s+/i, '') === limpo);
   if (achado) return achado.codigo;
   if (limpo.includes('ADITIVO')) return 'ADITIVO';
-  if (limpo.includes('OBRA') && limpo.includes('QUINZ')) return 'OBRA QUINZENAL';
-  if (limpo.includes('OBRA') && limpo.includes('SEMAN')) return 'OBRA SEMANAL';
-  if (limpo.includes('OBRA')) return 'OBRA MENSAL';
+  if (limpo.includes('OBRA')) return 'OBRA';
   if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
   if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
   if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';

@@ -171,7 +171,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
     };
 
     const MODELOS_PADRAO_CODIGOS = [
-        'EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL',
+        'EVENTO', 'OBRA',
         'LIMPA FOSSA', 'LIMPA FOSSA MENSAL', 'LOCAÇÃO CONTAINER',
         'EQUIPAMENTOS', 'VENDA', 'VISITA TÉCNICA', 'AVARIA', 'ADITIVO'
     ];
@@ -181,9 +181,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         const exato = MODELOS_PADRAO_CODIGOS.find(c => norm(c).toUpperCase() === limpo);
         if (exato) return exato;
         if (limpo.includes('ADITIVO')) return 'ADITIVO';
-        if (limpo.includes('OBRA') && limpo.includes('QUINZ')) return 'OBRA QUINZENAL';
-        if (limpo.includes('OBRA') && limpo.includes('SEMAN')) return 'OBRA SEMANAL';
-        if (limpo.includes('OBRA')) return 'OBRA MENSAL';
+        if (limpo.includes('OBRA')) return 'OBRA';
         if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
         if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
         if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';
@@ -192,6 +190,44 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         if (limpo.includes('VISITA')) return 'VISITA TÉCNICA';
         if (limpo.includes('AVARIA')) return 'AVARIA';
         return 'EVENTO';
+    }
+
+    function extrairSubtituloObraTexto(raw) {
+        const s = norm(raw).toUpperCase();
+        if (!s) return '';
+        if (s.includes('QUINZ')) return 'OBRA QUINZENAL';
+        if (s.includes('SEMAN')) return 'OBRA SEMANAL';
+        if (s.includes('MENS') || s.includes('OBRA')) return 'OBRA MENSAL';
+        return '';
+    }
+
+    async function resolverSubtituloObraPublico(p) {
+        if (!p) return 'OBRA MENSAL';
+        const direto = extrairSubtituloObraTexto(p.tipo) || extrairSubtituloObraTexto(p.contrato_vinculado_tipo) || extrairSubtituloObraTexto(p.tabela_precos);
+        if (direto && !norm(p.tipo).toUpperCase().includes('ADITIVO')) return direto;
+        const cvId = Number(p.contrato_vinculado_id) || 0;
+        if (cvId > 0) {
+            const ctRow = await dbGet('SELECT * FROM contratos WHERE id = ?', [cvId]).catch(() => null);
+            const subCt = ctRow ? extrairSubtituloObraTexto(ctRow.tipo) : '';
+            if (subCt) return subCt;
+            const propIdRef = (ctRow && ctRow.proposta_id) ? ctRow.proposta_id : cvId;
+            const prRow = await dbGet('SELECT tipo, tabela_precos FROM propostas WHERE id = ?', [propIdRef]).catch(() => null);
+            const subPr = prRow ? (extrairSubtituloObraTexto(prRow.tipo) || extrairSubtituloObraTexto(prRow.tabela_precos)) : '';
+            if (subPr) return subPr;
+        }
+        const cvNum = String(p.contrato_vinculado || '').trim();
+        if (cvNum) {
+            const prNumRow = await dbGet(
+                `SELECT tipo, tabela_precos FROM propostas
+                 WHERE (UPPER(TRIM(contrato)) = UPPER(TRIM(?)) OR UPPER(TRIM(codigo)) = UPPER(TRIM(?)))
+                   AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
+                 ORDER BY id DESC LIMIT 1`,
+                [cvNum, cvNum]
+            ).catch(() => null);
+            const subPr2 = prNumRow ? (extrairSubtituloObraTexto(prNumRow.tipo) || extrairSubtituloObraTexto(prNumRow.tabela_precos)) : '';
+            if (subPr2) return subPr2;
+        }
+        return direto || 'OBRA MENSAL';
     }
 
     async function resolverModeloOriginarioAditivoPublico(p) {
@@ -559,10 +595,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             return escolhidas.join(' ');
         };
 
-        const ehObraLike = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
+        const ehObraLike = modeloEfetivo === 'OBRA' || ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
+        const tituloTopoFinal = ehObraLike
+            ? await resolverSubtituloObraPublico(p)
+            : (modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO');
 
         return {
-            tipo_titulo: modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO',
+            tipo_titulo: tituloTopoFinal,
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
             eh_demo: false,
