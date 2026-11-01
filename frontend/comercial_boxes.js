@@ -66,11 +66,12 @@
         'OBRA MENSAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Mensal (Fixo)',
             tipo_titulo: 'OBRA MENSAL',
-            info_rotulo: 'OBRA:',
+            info_rotulo: 'DA OBRA:',
             cor_primaria: '#1e5782',
             cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: true,
             ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -78,9 +79,12 @@
         'OBRA QUINZENAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Quinzenal (Fixo)',
             tipo_titulo: 'OBRA QUINZENAL',
-            info_rotulo: 'OBRA:',
-            cor_primaria: '#7b4195',
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -88,9 +92,12 @@
         'OBRA SEMANAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Semanal (Fixo)',
             tipo_titulo: 'OBRA SEMANAL',
-            info_rotulo: 'OBRA:',
-            cor_primaria: '#7b4195',
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -223,18 +230,16 @@
         const base = window.CONFIG_QUADRO_POR_MODELO[modEfetivo] || window.CONFIG_QUADRO_POR_MODELO['EVENTO'];
         const extra = Object.assign({}, configBoxExtra || {});
         if (modEfetivo === 'OBRA MENSAL' || modEfetivo === 'OBRA QUINZENAL' || modEfetivo === 'OBRA SEMANAL') {
-            if (!extra.info_rotulo || String(extra.info_rotulo).trim().toUpperCase() === 'EVENTO:') {
-                extra.info_rotulo = 'OBRA:';
+            const rotUp = String(extra.info_rotulo || '').trim().toUpperCase();
+            if (!rotUp || rotUp === 'EVENTO:' || rotUp === 'OBRA:') {
+                extra.info_rotulo = 'DA OBRA:';
             }
-            extra.ocultar_nome_evento = true;
-        }
-        if (modEfetivo === 'OBRA MENSAL') {
             if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
                 delete extra.cor_primaria;
             }
-            if (extra.ocultar_data_fim === undefined) {
-                extra.ocultar_data_fim = true;
-            }
+            extra.ocultar_nome_evento = true;
+            extra.ocultar_data_fim = true;
+            extra.mostrar_condicoes_topo = true;
         }
         return Object.assign({}, base, extra);
     };
@@ -985,7 +990,10 @@
                                 </div>
                                 <div style="color:#333; margin-top:${u(20)};">
                                     <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">${esc(d.condicao_pagamento || '—')}</div>
-                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>
+                                    ${ocultarDataFim
+                                        ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">INÍCIO DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>`
+                                        : `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>`
+                                    }
                                     <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
                                     ${exibirContratoBaseTopo ? `<div style="font-size:${u(18.5)}; line-height:1.25; color:${ROXO}; text-transform:uppercase; white-space:nowrap;">CONTRATO BASE: <span class="bq-d">${esc(textoContratoBaseTopo)}</span></div>` : ''}
                                 </div>

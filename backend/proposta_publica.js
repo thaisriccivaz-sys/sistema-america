@@ -559,14 +559,16 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             return escolhidas.join(' ');
         };
 
+        const ehObraLike = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
+
         return {
             tipo_titulo: modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO',
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
             eh_demo: false,
             contrato_vinculado: String(p.contrato_vinculado || '').trim(),
-            info_rotulo: eventoLikeEfetivo ? 'EVENTO:' : 'EVENTO:',
-            ocultar_nome_evento: false,
+            info_rotulo: ehObraLike ? 'DA OBRA:' : 'EVENTO:',
+            ocultar_nome_evento: ehObraLike,
             contrato: numSeq,
             codigo_proposta: numSeq,
             razao_social: truncarRazao30(cliNomeLimpo),
