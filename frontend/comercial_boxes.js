@@ -764,27 +764,12 @@
 
     /* Renderiza o Quadro de Valores (todos os modelos começam com o mesmo padrão criado para Proposta Evento,
        podendo ser personalizados separadamente via CONFIG_QUADRO_POR_MODELO / config_quadro do box) */
-    /* Verifica em tempo real se a altura natural dos produtos/serviços + cabeçalho atingiu o mínimo de 400px:
-       - Se NÃO atingir 400px de altura no celular, desce 50px o topo do quadro de valores (.bq-abaixo-600).
-       - Se atingir ou passar de 400px, mantém o topo normal (0px). */
+    /* Mantém o topo do Quadro de Valores encostado na imagem anterior (sem margem extra e sem altura mínima no celular) */
     window.ajustarAlturaQuadroValoresBoxes = function (root) {
         const escopo = root && root.classList && root.classList.contains('box-quadro-evento-proposta')
             ? [root]
             : Array.from((root && root.querySelectorAll ? root : document).querySelectorAll('.box-quadro-evento-proposta'));
-        escopo.forEach(q => {
-            const topo = q.querySelector('.bq-topo-bloco');
-            const equip = q.querySelector('.bq-equipamentos-bloco');
-            const totais = q.querySelector('.bq-totais-bloco');
-            if (!topo || !equip || !totais) return;
-            const alturaNatural = topo.offsetHeight + equip.offsetHeight + totais.offsetHeight;
-            if (alturaNatural > 0) {
-                if (alturaNatural < 400) {
-                    q.classList.add('bq-abaixo-600');
-                } else {
-                    q.classList.remove('bq-abaixo-600');
-                }
-            }
-        });
+        escopo.forEach(q => q.classList.remove('bq-abaixo-600'));
     };
     window.addEventListener('resize', () => {
         if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') window.ajustarAlturaQuadroValoresBoxes();
@@ -924,25 +909,25 @@
             @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
             .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; background:#fff; }
             .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
-            .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
-            .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; }
+            .box-quadro-evento-proposta .bq-inner { width:100%; min-height:0; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
+            .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; margin-top:0; }
             .box-quadro-evento-proposta .bq-dados-topo-grid { flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(48)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(115)}; align-items:start; min-width:0; }
             .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
-            .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; position:relative; z-index:1; }
-            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:400px; }
+            .box-quadro-evento-proposta .bq-body-wrap { flex:0 0 auto; display:flex; flex-direction:column; justify-content:flex-start; width:100%; box-sizing:border-box; position:relative; z-index:1; }
+            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:0; }
+            .box-quadro-evento-proposta.bq-mobile .bq-topo-bloco { margin-top:0; }
             .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
             .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
-            .box-quadro-evento-proposta.bq-mobile.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
-            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
+            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:flex-start; }
             @media (max-width: 768px) {
-                .box-quadro-evento-proposta .bq-inner { min-height:400px; }
+                .box-quadro-evento-proposta .bq-inner { min-height:0; }
+                .box-quadro-evento-proposta .bq-topo-bloco { margin-top:0; }
                 .box-quadro-evento-proposta .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
                 .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
-                .box-quadro-evento-proposta.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
-                .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
+                .box-quadro-evento-proposta .bq-body-wrap { justify-content:flex-start; }
             }
         </style>
-        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}${abaixo600Inicial ? ' bq-abaixo-600' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
             <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="display:none;">
             <div class="bq-inner">
                 <div class="bq-topo-bloco">
