@@ -44977,7 +44977,6 @@ app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
       'PROPOSTA EVENTO',
       'PROPOSTA LIMPA FOSSA',
       'PROPOSTA EQUIPAMENTOS',
-      'PROPOSTA CONTAINER',
       'PROPOSTA VENDA',
       'VISITA TÉCNICA'
     ];
@@ -44995,7 +44994,12 @@ app.get('/api/comercial/modelos-proposta', authenticateToken, (req, res) => {
     };
     const rows = (rawRows || [])
       .map(montarModeloPropostaRow)
-      .filter(r => r && String(r.codigo_tipo || '').trim().toUpperCase() !== 'ADITIVO' && String(r.nome || '').trim().toUpperCase() !== 'ADITIVO')
+      .filter(r => {
+        if (!r) return false;
+        const cUp = String(r.codigo_tipo || '').trim().toUpperCase();
+        const nUp = String(r.nome || '').trim().toUpperCase();
+        return cUp !== 'ADITIVO' && nUp !== 'ADITIVO' && !cUp.includes('CONTAINER') && !nUp.includes('CONTAINER');
+      })
       .map(r => Object.assign({}, r, { nome: normalizarNomeExibicao(r) }))
       .sort((a, b) => {
         const ia = ordemFixa.indexOf(String(a.nome || '').toUpperCase());

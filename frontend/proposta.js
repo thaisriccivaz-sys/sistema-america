@@ -37,7 +37,6 @@ const PROP_TIPOS = [
     'OBRA SEMANAL',
     'LIMPA FOSSA',
     'LIMPA FOSSA MENSAL',
-    'LOCAÇÃO CONTAINER',
     'VENDA',
     'VISITA TÉCNICA',
     'ADITIVO',
@@ -17486,7 +17485,9 @@ window.atualizarVisibilidadeNomeEventoProposta = function(tipo) {
 };
 
 window.tipoPropostaUsaDiasEvento = function(tipo) {
-    return window.tipoPropostaEhEvento(tipo);
+    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
+    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    return t === 'EVENTO' || t === 'EQUIPAMENTOS';
 };
 
 window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
@@ -19018,8 +19019,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (grupoNorm.includes('guarita') || nomeNorm.includes('guarita')) {
                 return false;
             }
-        } else if (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm)) {
-            // Tipo OBRA: os servicos aparecem apenas no quadro "Servicos da Proposta"
+        } else if (['obra mensal', 'obra quinzenal', 'obra semanal', 'equipamentos'].includes(tipoNorm)) {
+            // Tipo OBRA e EQUIPAMENTOS: os servicos aparecem apenas no quadro "Servicos da Proposta"
             if (grupoNorm === 'servicos' || grupoNorm === 'servico') {
                 return false;
             }
@@ -19136,7 +19137,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        (['obra mensal', 'obra quinzenal', 'obra semanal', 'evento'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal', 'evento', 'equipamentos'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
@@ -22306,7 +22307,6 @@ window._renderModelosPropostasInt = async function() {
             'PROPOSTA EVENTO',
             'PROPOSTA LIMPA FOSSA',
             'PROPOSTA EQUIPAMENTOS',
-            'PROPOSTA CONTAINER',
             'PROPOSTA VENDA',
             'VISITA TÉCNICA'
         ];
@@ -22322,7 +22322,10 @@ window._renderModelosPropostasInt = async function() {
             return raw;
         };
         window._modelosPropostasList = (Array.isArray(rows) ? rows : [])
-            .filter(r => !String(r.codigo_tipo || r.nome || '').toUpperCase().includes('ADITIVO'))
+            .filter(r => {
+                const up = String(r.codigo_tipo || r.nome || '').toUpperCase();
+                return !up.includes('ADITIVO') && !up.includes('CONTAINER');
+            })
             .map(r => Object.assign({}, r, { nome: normalizarNome(r) }))
             .sort((a, b) => {
                 const ia = ordemFixa.indexOf(a.nome);

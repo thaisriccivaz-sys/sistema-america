@@ -36,8 +36,7 @@
         { codigo: 'EVENTO', nome: 'Proposta Evento', icone: 'ph-confetti' },
         { codigo: 'OBRA', nome: 'Proposta Obra', icone: 'ph-buildings' },
         { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', icone: 'ph-drop' },
-        { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', icone: 'ph-cube' },
-        { codigo: 'EQUIPAMENTOS', nome: 'Equipamentos', icone: 'ph-wrench' },
+        { codigo: 'EQUIPAMENTOS', nome: 'Proposta Equipamentos', icone: 'ph-wrench' },
         { codigo: 'VENDA', nome: 'Proposta Venda', icone: 'ph-shopping-cart' },
         { codigo: 'VISITA TÉCNICA', nome: 'Visita Técnica', icone: 'ph-clipboard-text' },
         { codigo: 'ADITIVO', nome: 'Aditivo', icone: 'ph-file-plus' }
@@ -169,7 +168,12 @@
             tipo_titulo: 'EQUIPAMENTOS',
             info_rotulo: 'EVENTO:',
             cor_primaria: '#7b4195',
+            cor_rotulo_valor_total: '#3b3b3b',
             ocultar_nome_evento: false,
+            ocultar_data_fim: false,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-evento.png?v=20261101v8',
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -367,6 +371,14 @@
             extra.mostrar_condicoes_topo = true;
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
+        } else if (modEfetivo === 'EQUIPAMENTOS') {
+            if (!extra.info_rotulo) extra.info_rotulo = 'EVENTO:';
+            extra.ocultar_nome_evento = false;
+            extra.ocultar_data_fim = false;
+            extra.mostrar_condicoes_topo = true;
+            extra.mostrar_faixa_valores_contemplados = true;
+            extra.faixa_valores_img = '/assets/faixa-valores-contemplados-evento.png?v=20261101v8';
+            extra.mostrar_dias_evento_item = true;
         }
         return Object.assign({}, base, extra);
     };
@@ -943,8 +955,8 @@
         const rotuloInstalacao = cfg.rotulo_instalacao || d.rotulo_instalacao || (String(infoRotulo).toUpperCase().includes('FOSSA') ? 'ENDEREÇO:' : 'INSTALAÇÃO:');
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
-        const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
-        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (['EVENTO', 'EQUIPAMENTOS'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
