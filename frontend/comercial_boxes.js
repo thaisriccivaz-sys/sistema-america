@@ -125,9 +125,14 @@
         'LIMPA FOSSA': {
             nome_quadro: 'Quadro de Valores — Proposta Limpa Fossa (Fixo)',
             tipo_titulo: 'LIMPA FOSSA',
-            info_rotulo: 'EVENTO:',
-            cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
+            ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-obra.png?v=20261101v8',
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -135,9 +140,14 @@
         'LIMPA FOSSA MENSAL': {
             nome_quadro: 'Quadro de Valores — Proposta Limpa Fossa Mensal (Fixo)',
             tipo_titulo: 'LIMPA FOSSA MENSAL',
-            info_rotulo: 'EVENTO:',
-            cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
+            ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-obra.png?v=20261101v8',
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -343,8 +353,20 @@
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
         } else if (modEfetivo === 'LIMPA FOSSA' || modEfetivo === 'LIMPA FOSSA MENSAL') {
+            const rotUp = String(extra.info_rotulo || '').trim().toUpperCase();
+            if (!rotUp || rotUp === 'EVENTO:' || rotUp === 'OBRA:') {
+                extra.info_rotulo = 'DA OBRA:';
+            }
+            if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
+                delete extra.cor_primaria;
+            }
             const subFossa = extrairSubtituloLimpaFossaTextoBox(modeloRaw);
             if (subFossa) extra.tipo_titulo = subFossa;
+            extra.ocultar_nome_evento = true;
+            extra.ocultar_data_fim = true;
+            extra.mostrar_condicoes_topo = true;
+            extra.mostrar_faixa_valores_contemplados = true;
+            extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
         }
         return Object.assign({}, base, extra);
     };
@@ -904,7 +926,7 @@
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
-        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
