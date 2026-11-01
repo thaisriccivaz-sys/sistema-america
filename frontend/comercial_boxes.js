@@ -820,11 +820,15 @@
         let somaTotalGeral = 0;
         let somaTotalServicos = 0;
 
+        const ehModeloEventoCalc = String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const diasContratoPropNum = Number(prop.dias_contrato || 0);
         const itensFormatados = (itensRaw || []).map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1);
+            const nDiarias = (ehModeloEventoCalc && diasContratoPropNum > 0)
+                ? diasContratoPropNum
+                : (diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1));
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
@@ -959,6 +963,8 @@
         const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
+        const ehModeloEventoPuro = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const rotuloDiasItemQuadro = ehModeloEventoPuro ? 'Dia de Evento ou Sucção:' : 'Dia de Evento / Sucção:';
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
 
@@ -1030,7 +1036,7 @@
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
-                    ${(mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Dia de Evento / Sucção: ${esc(it.dias_evento_texto)}</div>` : ''}
+                    ${(mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
                 <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${esc(it.quant_diarias)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>

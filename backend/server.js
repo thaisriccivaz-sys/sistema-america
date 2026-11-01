@@ -40179,16 +40179,43 @@ app.get('/api/comercial/me-contexto', authenticateToken, async (req, res) => {
 app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res) => {
   try {
     const proposalId = req.params.id;
-    const { acao, detalhe } = req.body || {};
-    if (!acao) return res.status(400).json({ error: 'Ação não informada.' });
+    const { acao, detalhe, mudar_para_enviada, apenas_mudar_fase } = req.body || {};
+    if (!acao && !apenas_mudar_fase) return res.status(400).json({ error: 'Ação não informada.' });
     const ctx = await resolverContextoUsuarioComercial(req.user);
     const autor = ctx.nome_colaborador || req.user?.username || 'Usuário';
+
+    const acaoNorm = String(acao || '').toLowerCase();
+    const deveMudarFase = Boolean(mudar_para_enviada || apenas_mudar_fase || acaoNorm.includes('pdf') || acaoNorm.includes('whatsapp') || acaoNorm.includes('e-mail') || acaoNorm.includes('email') || acaoNorm.includes('copiar link'));
+    let novaFase = null;
+    if (deveMudarFase) {
+      const propRow = await new Promise((resolve) => {
+        db.get('SELECT id, fase_negociacao FROM propostas WHERE id = ?', [proposalId], (e, r) => resolve(r || null));
+      });
+      if (propRow) {
+        const faseAtualNorm = String(propRow.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+        if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA') {
+          novaFase = 'Proposta Enviada';
+          await new Promise((resolve) => {
+            db.run("UPDATE propostas SET fase_negociacao = 'Proposta Enviada', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [proposalId], () => resolve());
+          });
+          db.run(
+            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'fase_negociacao', ?, 'Proposta Enviada', ?)`,
+            [autor, String(propRow.fase_negociacao || 'Em Elaboração'), proposalId]
+          );
+        }
+      }
+    }
+
+    if (apenas_mudar_fase) {
+      return res.json({ success: true, fase_negociacao: novaFase || 'Proposta Enviada' });
+    }
+
     db.run(
       `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, '', ?, ?)`,
       [autor, String(acao).trim(), String(detalhe || acao).trim(), proposalId],
       (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+        res.json({ success: true, fase_negociacao: novaFase || 'Proposta Enviada' });
       }
     );
   } catch (e) {
@@ -40728,10 +40755,18 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
 
       const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const loggedUser = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'unknown';
+      const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+      if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA') {
+        db.run("UPDATE propostas SET fase_negociacao = 'Proposta Enviada', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [p.id]);
+        db.run(
+          `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'fase_negociacao', ?, 'Proposta Enviada', ?)`,
+          [loggedUser, String(p.fase_negociacao || 'Em Elaboração'), p.id]
+        );
+      }
       db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
         [loggedUser, `Enviado para: ${toList}`, p.id]);
 
-      res.json({ success: true });
+      res.json({ success: true, fase_negociacao: 'Proposta Enviada' });
     } catch (e) {
       console.error('[PROPOSTAS] Erro ao enviar e-mail:', e);
       res.status(500).json({ error: 'Erro ao gerar ou enviar e-mail: ' + e.message });

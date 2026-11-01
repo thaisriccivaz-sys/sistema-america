@@ -2547,14 +2547,15 @@ function _renderFormPropostaInt() {
                                         <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
                                         <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center;">Quant. Manut. Semana</th>
                                         <th style="padding:10px 12px; font-weight:700; width:130px; text-align:center;">Desconto</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Unit.</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
+                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:right;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário Diária' : 'Valor Unit.'}</th>
+                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:right;">Valor Total por Dia</th>
+                                        <th id="prop-th-valor-total" style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
                                         <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prop-produtos-tbody">
                                     <tr>
-                                        <td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                                        <td colspan="${(typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 8 : 7) + (typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 1 : 0)}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -5834,7 +5835,10 @@ window.calcularFimContrato = function() {
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const dias = parseInt(document.getElementById('prop-dias')?.value || 0);
     const fimEl = document.getElementById('prop-periodo-fim');
-    if (!ini || !fimEl || dias <= 0) return;
+    if (!ini || !fimEl || dias <= 0) {
+        if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
+        return;
+    }
     const date = new Date(ini + 'T12:00:00');
     date.setDate(date.getDate() + dias);
     fimEl.value = date.toISOString().split('T')[0];
@@ -5849,13 +5853,17 @@ function calcularDescontoReais() {
         const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
         precoServico = parseFloat(selectedOption.getAttribute('data-preco') || 0);
     }
+    const ehEvCalcDesc = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
-        if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) {
-            return acc + parseFloat(p.valor_total);
-        }
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
-        return acc + (q * v);
+        const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+            ? parseFloat(p.valor_total)
+            : (q * v);
+        const multDias = (ehEvCalcDesc && typeof window.obterQtdDiariasProdutoEvento === 'function')
+            ? window.obterQtdDiariasProdutoEvento(p)
+            : 1;
+        return acc + (porDia * multDias);
     }, 0);
     precoServico += somaProdutos;
     const freteIda = parseFloat(document.getElementById('prop-frete-ida')?.value || 0);
@@ -5882,13 +5890,17 @@ window.calcularValorTotalProposta = function() {
 
     if (!totalEl) return;
 
+    const ehEvCalcTot = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
-        if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) {
-            return acc + parseFloat(p.valor_total);
-        }
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
-        return acc + (q * v);
+        const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+            ? parseFloat(p.valor_total)
+            : (q * v);
+        const multDias = (ehEvCalcTot && typeof window.obterQtdDiariasProdutoEvento === 'function')
+            ? window.obterQtdDiariasProdutoEvento(p)
+            : 1;
+        return acc + (porDia * multDias);
     }, 0);
 
     const prodInputAtivo = (document.getElementById('prop-prod-codigo')?.value || '').trim();
@@ -6090,9 +6102,15 @@ window.salvarPropostaNova = async function() {
         valor_total: (() => {
             const itensAtuais = window._propProdutosAdicionados || [];
             if (itensAtuais.length > 0) {
+                const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
                 return itensAtuais.reduce((acc, p) => {
-                    if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) return acc + parseFloat(p.valor_total);
-                    return acc + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                    const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+                        ? parseFloat(p.valor_total)
+                        : ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                    const multDias = (ehEvSalvar && typeof window.obterQtdDiariasProdutoEvento === 'function')
+                        ? window.obterQtdDiariasProdutoEvento(p)
+                        : 1;
+                    return acc + (porDia * multDias);
                 }, 0);
             }
             return obterN('prop-valor-total');
@@ -6658,9 +6676,15 @@ window.aprovarPropostaEdicao = async function() {
         valor_total: (() => {
             const itensAtuais = window._propProdutosAdicionados || [];
             if (itensAtuais.length > 0) {
+                const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
                 return itensAtuais.reduce((acc, p) => {
-                    if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) return acc + parseFloat(p.valor_total);
-                    return acc + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                    const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+                        ? parseFloat(p.valor_total)
+                        : ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                    const multDias = (ehEvSalvar && typeof window.obterQtdDiariasProdutoEvento === 'function')
+                        ? window.obterQtdDiariasProdutoEvento(p)
+                        : 1;
+                    return acc + (porDia * multDias);
                 }, 0);
             }
             return obterN('prop-valor-total');
@@ -6971,12 +6995,43 @@ window.gerarHtmlImpressaoLinkProposta = async function(propId) {
     };
 };
 
+window._marcarPropostaComoEnviadaAuto = function(propId, sincronizarServidor = false) {
+    if (window._modoTelaComercial === 'contrato') return;
+    const normFase = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const selFase = document.getElementById('prop-fase');
+    if (selFase) {
+        const fAtual = normFase(selFase.value);
+        if (fAtual !== 'APROVADA' && fAtual !== 'PRE APROVADA') {
+            selFase.value = 'Proposta Enviada';
+        }
+    }
+    const idAlvo = propId || _propostasEditandoId;
+    if (idAlvo && Array.isArray(_propostasData)) {
+        const pObj = _propostasData.find(pr => Number(pr.id) === Number(idAlvo));
+        if (pObj) {
+            const fObj = normFase(pObj.fase_negociacao);
+            if (fObj !== 'APROVADA' && fObj !== 'PRE APROVADA') {
+                pObj.fase_negociacao = 'Proposta Enviada';
+            }
+        }
+    }
+    if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+        window.atualizarVisibilidadeBotoesPosSalvoProposta();
+    }
+    if (sincronizarServidor && idAlvo) {
+        try {
+            apiPost('/propostas/' + idAlvo + '/registrar-acao', { apenas_mudar_fase: true });
+        } catch (_) {}
+    }
+};
+
 window.baixarPdfProposta = async function(id = null) {
     const propId = id || _propostasEditandoId;
     if (!propId) {
         Swal.fire('Aviso', 'Salve a proposta primeiro para poder baixar o PDF.', 'warning');
         return;
     }
+    window._marcarPropostaComoEnviadaAuto(propId, false);
     const p = _propostasData.find(pr => pr.id === propId);
     const cod = (p && p.codigo) ? p.codigo : propId;
 
@@ -6995,6 +7050,7 @@ window.baixarPdfProposta = async function(id = null) {
                 detalhe: 'PDF da proposta Nº ' + cod + ' baixado pelo usuário'
             });
         } catch (_) {}
+        window._marcarPropostaComoEnviadaAuto(propId, false);
         Swal.close();
         const win = window.open('', '_blank', 'width=1020,height=860');
         if (!win) {
@@ -7053,6 +7109,7 @@ window.copiarLinkProposta = async function(id) {
         Swal.fire('Aviso', 'Salve a proposta primeiro para poder copiar o link.', 'warning');
         return;
     }
+    window._marcarPropostaComoEnviadaAuto(propId, false);
     const btn = document.getElementById('btn-prop-copiar-link');
     const htmlOrig = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Gerando...'; }
@@ -7062,6 +7119,7 @@ window.copiarLinkProposta = async function(id) {
             Swal.fire('Erro', (resp && resp.error) || 'Não foi possível gerar o link da proposta.', 'error');
             return;
         }
+        window._marcarPropostaComoEnviadaAuto(propId, false);
         const ok = await window._copiarTextoClipboard(resp.url);
         const validade = resp.expira_em ? String(resp.expira_em).split('-').reverse().join('/') : '';
         const aviso = resp.ativo === false
@@ -7106,11 +7164,13 @@ window.enviarPropostaPorEmail = function(id = null) {
         Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning');
         return;
     }
+    window._marcarPropostaComoEnviadaAuto(propId, true);
     window.abrirPopupEmail(propId);
 };
 
 window.enviarPropostaPorWhatsapp = async function(id = null) {
     const propId = id || _propostasEditandoId;
+    if (propId) window._marcarPropostaComoEnviadaAuto(propId, true);
     const p = propId ? _propostasData.find(pr => pr.id === propId) : null;
 
     const dadosCt = await window.obterDadosContatoPropostaAtual(p);
@@ -7123,8 +7183,14 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
     const itensAtuais = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
         ? window._propProdutosAdicionados
         : (p && p.itens ? (typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : p.itens) : []);
-    const totalCalc = itensAtuais.reduce((acc, it) => acc + (parseFloat(it.valor_total) || ((parseFloat(it.valor || it.valor_unitario) || 0) * (parseInt(it.quantidade, 10) || 1))), 0)
-        || parseFloat(document.getElementById('prop-valor-total')?.value || (p && p.valor_total) || 0);
+    const ehEvWpp = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento(tipoProp) : false;
+    const totalCalc = itensAtuais.reduce((acc, it) => {
+        const porDia = parseFloat(it.valor_total) || ((parseFloat(it.valor || it.valor_unitario) || 0) * (parseInt(it.quantidade, 10) || 1));
+        const multDias = (ehEvWpp && typeof window.obterQtdDiariasProdutoEvento === 'function')
+            ? window.obterQtdDiariasProdutoEvento(it)
+            : 1;
+        return acc + (porDia * multDias);
+    }, 0) || parseFloat(document.getElementById('prop-valor-total')?.value || (p && p.valor_total) || 0);
     const totalFmt = 'R$ ' + Number(totalCalc || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const resumoItens = itensAtuais.length > 0
@@ -7198,6 +7264,7 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
                     detalhe: 'Enviado por WhatsApp para ' + (contatoProp || '') + ' (' + numRaw + ') via ' + (res.isConfirmed ? 'CRM Abil' : 'WhatsApp Direto')
                 });
             } catch (_) {}
+            window._marcarPropostaComoEnviadaAuto(propId, false);
         }
         if (res.isConfirmed) {
             // Abre direto no CRM da Abil e já deixa a mensagem e número copiados
@@ -7214,6 +7281,7 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
 window.abrirPopupEmail = async function(id) {
     const p = _propostasData.find(pr => pr.id === id);
     if (!p) { alert('Proposta não encontrada.'); return; }
+    window._marcarPropostaComoEnviadaAuto(id, true);
 
     const dadosCt = await window.obterDadosContatoPropostaAtual(p);
     const emailContatoPadrao = dadosCt.email || '';
@@ -17466,6 +17534,14 @@ window.tipoPropostaEhEvento = function(tipo) {
     return t === 'EVENTO';
 };
 
+window.obterQtdDiariasProdutoEvento = function(p) {
+    const diasContrato = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
+    if (diasContrato > 0) return diasContrato;
+    const diasArr = Array.isArray(p && p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+    if (diasArr.length > 0) return diasArr.length;
+    return Math.max(1, Number(p && p.diarias ? p.diarias : 1) || 1);
+};
+
 window.tipoPropostaExigeNomeEvento = function(tipo) {
     const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
     const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -18562,6 +18638,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
             window.renderizarProdutosPropostaGrid();
         }
     }
+    if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+        window.renderizarProdutosPropostaGrid();
+    }
 };
 
 window.onChangeTabelaPrecosManual = async function(novaTabela) {
@@ -18617,6 +18696,9 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         if (mudou) {
             window.renderizarProdutosPropostaGrid();
         }
+    }
+    if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+        window.renderizarProdutosPropostaGrid();
     }
 };
 
@@ -19650,14 +19732,19 @@ window.renderizarProdutosPropostaGrid = function() {
     if (!tbody) return;
 
     const usaManutGrid = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
+    const ehEventoGrid = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
     const thManutGrid = document.getElementById('prop-th-manut-semana');
     if (thManutGrid) thManutGrid.style.display = usaManutGrid ? 'table-cell' : 'none';
+    const thValUnit = document.getElementById('prop-th-valor-unit');
+    if (thValUnit) thValUnit.textContent = ehEventoGrid ? 'Valor Unitário Diária' : 'Valor Unit.';
+    const thValTotalDia = document.getElementById('prop-th-valor-total-dia');
+    if (thValTotalDia) thValTotalDia.style.display = ehEventoGrid ? 'table-cell' : 'none';
     const list = window._propProdutosAdicionados || [];
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="${usaManutGrid ? 8 : 7}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                <td colspan="${(usaManutGrid ? 8 : 7) + (ehEventoGrid ? 1 : 0)}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
             </tr>
         `;
         if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
@@ -19672,6 +19759,10 @@ window.renderizarProdutosPropostaGrid = function() {
         const subtotal = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
             ? parseFloat(p.valor_total)
             : (qtd * vUnit);
+        const nDiariasLinha = (ehEventoGrid && typeof window.obterQtdDiariasProdutoEvento === 'function')
+            ? window.obterQtdDiariasProdutoEvento(p)
+            : 1;
+        const valorTotalFinalLinha = ehEventoGrid ? (subtotal * nDiariasLinha) : subtotal;
 
         const usaDias = typeof window.tipoPropostaUsaDiasEvento === 'function' ? window.tipoPropostaUsaDiasEvento() : false;
         const diasChipsHtml = (usaDias && typeof window.htmlDiasProdutoGrid === 'function')
@@ -19724,8 +19815,12 @@ window.renderizarProdutosPropostaGrid = function() {
                     <input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
                         style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">
                 </td>
-                <td style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
+                ${ehEventoGrid ? `
+                <td style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap;">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>` : ''}
+                <td style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
+                    R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
@@ -19739,12 +19834,13 @@ window.renderizarProdutosPropostaGrid = function() {
         `;
     }).join('') + `
         <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-            <td colspan="${usaManutGrid ? 6 : 5}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
+            <td colspan="${(usaManutGrid ? 6 : 5) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
             <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p) => {
                 const q = parseInt(p.quantidade, 10) || 1;
                 const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
                 const st = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vu);
-                return acc + st;
+                const multD = (ehEventoGrid && typeof window.obterQtdDiariasProdutoEvento === 'function') ? window.obterQtdDiariasProdutoEvento(p) : 1;
+                return acc + (st * multD);
             }, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td></td>
         </tr>

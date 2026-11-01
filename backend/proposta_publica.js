@@ -124,6 +124,16 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const urlLink = `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${token}`;
             if (!req.body || req.body.registrar_historico !== false) {
                 const nomeColab = await resolverNomeColabAudit(req);
+                const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+                if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA') {
+                    await dbRun("UPDATE propostas SET fase_negociacao = 'Proposta Enviada', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [p.id]).catch(() => {});
+                    await dbRun(
+                        `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                         VALUES (?, 'Proposta', 'fase_negociacao', ?, 'Proposta Enviada', ?, ?)`,
+                        [nomeColab, String(p.fase_negociacao || 'Em Elaboração'), agora, p.id]
+                    ).catch(() => {});
+                    p.fase_negociacao = 'Proposta Enviada';
+                }
                 await dbRun(
                     `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
                      VALUES (?, 'Proposta', 'Copiar Link', '—', ?, ?, ?)`,
@@ -575,11 +585,15 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
         };
 
+        const ehEventoCalcPub = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const diasContratoPubNum = Number(p.dias_contrato || 0);
         const itens = itensRaw.map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const dias = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = dias.length > 0 ? dias.length : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1);
+            const nDiarias = (ehEventoCalcPub && diasContratoPubNum > 0)
+                ? diasContratoPubNum
+                : (dias.length > 0 ? dias.length : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1));
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
