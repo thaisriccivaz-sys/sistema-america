@@ -43296,52 +43296,6 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
       })
     },
     {
-      ordem: 5,
-      codigo_tipo: 'PROPOSTA LIMPA FOSSA MENSAL',
-      nome: 'Proposta Limpa Fossa Mensal',
-      arquivo_origem: 'Limpa Fossa Mensal.pdf',
-      titulo_documento: 'PROPOSTA LIMPA FOSSA MENSAL Nº {{NUMERO_PROPOSTA}}',
-      titulo_tabela_produtos: 'Produtos para Locação',
-      exibir_valores_complementares: 0,
-      titulo_informacoes: 'Informações:',
-      texto_informacoes: [
-        '1. Proposta de Limpa Fossa Mensal por medição, sujeito a renovação automática do contrato firmado quando não solicitado a suspensão dos serviços no prazo de término do contrato.',
-        '2. Os serviços contratados serão medidos mensalmente com base na quantidade efetivamente executada no período.',
-        '3. Caso o volume exceda o acordado e seja necessário um esgotamento completo, será aplicada uma taxa dobrada para cobrir os custos da segunda viagem, devido aos custos associados ao deslocamento da equipe até o local de prestação de serviços.',
-        '4. Caso a equipe se desloque até o local para realizar o atendimento e seja impedida por qualquer motivo, será cobrada taxa integral do valor do contrato.',
-        '5. Em situações em que houver despesas relacionadas a estacionamento, estas serão tratadas como custos adicionais. O comprovante correspondente será encaminhado ao cliente para possibilitar o reembolso dos valores despendidos.',
-        '6. Esta proposta não constitui uma garantia de reserva do serviço mencionado. A contratação está sujeita à disponibilidade de atendimento logístico no momento da assinatura do contrato.'
-      ].join('\n'),
-      observacao_padrao: 'ATENDIMENTO MENSAL PROGRAMADO DE SUCÇÃO E ESGOTAMENTO DE FOSSA SÉPTICA',
-      exemplo_dados: JSON.stringify({
-        numero_proposta: '14044',
-        representante: 'Gabriela Vasconcelos',
-        email_representante: 'comercial2@americarental.com.br',
-        cliente_razao: 'LOGISTICA INTEGRADA GUARULHOS LTDA',
-        cliente_cnpj: '09.112.233/0001-44',
-        cliente_ie: '336.998.771.110',
-        cliente_endereco: 'ESTRADA MUNICIPAL, 800 - BONSUCESSO',
-        cliente_municipio: 'GUARULHOS',
-        cliente_uf: 'SP',
-        cliente_cep: '07175-000',
-        contato_nome: 'PATRICIA SOUZA',
-        contato_telefone: '(11) 2488-9000',
-        contato_celular: '(11) 99222-8899',
-        contato_email: 'manutencao@logisticagru.com.br',
-        periodo_inicio: '01/11/2026',
-        periodo_fim: '30/11/2026',
-        condicao_pagamento: '28 DDL',
-        validade_proposta: '10 DIAS',
-        local_instalacao: 'CENTRO DE DISTRIBUIÇÃO BONSUCESSO',
-        endereco_instalacao: 'ESTRADA MUNICIPAL, 800 - BONSUCESSO - GUARULHOS/SP',
-        cep_instalacao: '07175-000',
-        itens: [
-          { descricao: 'SERVIÇO DE LIMPA FOSSA MENSAL (CAMINHÃO ATÉ 08M³)', observacao: '1 VIAGEM POR SEMANA (4 VIAGENS/MÊS)', qtde: 4, valor_unitario: 850.00, total: 3400.00 }
-        ],
-        valores_complementares: []
-      })
-    },
-    {
       ordem: 6,
       codigo_tipo: 'PROPOSTA LIMPA FOSSA',
       nome: 'Proposta Limpa Fossa',
@@ -43535,7 +43489,7 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_proposta (
     ]);
   }
   stmtSeed.finalize(() => {
-    db.run("DELETE FROM comercial_modelos_proposta WHERE codigo_tipo IN ('PROPOSTA OBRA MENSAL', 'PROPOSTA OBRA QUINZENAL', 'PROPOSTA OBRA SEMANAL')", () => {});
+    db.run("DELETE FROM comercial_modelos_proposta WHERE codigo_tipo IN ('PROPOSTA OBRA MENSAL', 'PROPOSTA OBRA QUINZENAL', 'PROPOSTA OBRA SEMANAL', 'PROPOSTA LIMPA FOSSA MENSAL')", () => {});
   });
 });
 
@@ -43596,6 +43550,24 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
         }
       });
     });
+    // Unifica boxes de LIMPA FOSSA / LIMPA FOSSA MENSAL em um único modelo LIMPA FOSSA (Proposta Limpa Fossa)
+    db.run("UPDATE comercial_boxes SET modelo_tipo = 'LIMPA FOSSA' WHERE tipo != 'quadro_evento' AND modelo_tipo = 'LIMPA FOSSA MENSAL'", () => {
+      db.get("SELECT id FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo = 'LIMPA FOSSA' LIMIT 1", (errLF, rowLF) => {
+        if (!rowLF) {
+          db.get("SELECT id FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo = 'LIMPA FOSSA MENSAL' ORDER BY id ASC LIMIT 1", (errLF2, rowOldLF) => {
+            if (rowOldLF && rowOldLF.id) {
+              db.run("UPDATE comercial_boxes SET modelo_tipo = 'LIMPA FOSSA', nome = 'Quadro de Valores — Proposta Limpa Fossa (Fixo)' WHERE id = ?", [rowOldLF.id], () => {
+                db.run("DELETE FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo = 'LIMPA FOSSA MENSAL'", () => {});
+              });
+            }
+          });
+        } else {
+          db.run("UPDATE comercial_boxes SET nome = 'Quadro de Valores — Proposta Limpa Fossa (Fixo)' WHERE id = ?", [rowLF.id], () => {
+            db.run("DELETE FROM comercial_boxes WHERE tipo = 'quadro_evento' AND modelo_tipo = 'LIMPA FOSSA MENSAL'", () => {});
+          });
+        }
+      });
+    });
   });
 });
 
@@ -43608,7 +43580,6 @@ const BOX_MODELOS_PADRAO = [
   { codigo: 'EVENTO', nome: 'Proposta Evento', quadroNome: 'Quadro de Valores — Proposta Evento (Fixo)' },
   { codigo: 'OBRA', nome: 'Proposta Obra', quadroNome: 'Quadro de Valores — Proposta Obra (Fixo)' },
   { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa (Fixo)' },
-  { codigo: 'LIMPA FOSSA MENSAL', nome: 'Proposta Limpa Fossa Mensal', quadroNome: 'Quadro de Valores — Proposta Limpa Fossa Mensal (Fixo)' },
   { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', quadroNome: 'Quadro de Valores — Proposta Locação Container (Fixo)' },
   { codigo: 'EQUIPAMENTOS', nome: 'Equipamentos', quadroNome: 'Quadro de Valores — Equipamentos (Fixo)' },
   { codigo: 'VENDA', nome: 'Proposta Venda', quadroNome: 'Quadro de Valores — Proposta Venda (Fixo)' },
@@ -43628,7 +43599,6 @@ function boxNormalizarModeloTipo(raw) {
   if (achado) return achado.codigo;
   if (limpo.includes('ADITIVO')) return 'ADITIVO';
   if (limpo.includes('OBRA')) return 'OBRA';
-  if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
   if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
   if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';
   if (limpo.includes('EQUIPAMENTO')) return 'EQUIPAMENTOS';

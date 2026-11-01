@@ -36,7 +36,6 @@
         { codigo: 'EVENTO', nome: 'Proposta Evento', icone: 'ph-confetti' },
         { codigo: 'OBRA', nome: 'Proposta Obra', icone: 'ph-buildings' },
         { codigo: 'LIMPA FOSSA', nome: 'Proposta Limpa Fossa', icone: 'ph-drop' },
-        { codigo: 'LIMPA FOSSA MENSAL', nome: 'Proposta Limpa Fossa Mensal', icone: 'ph-drop' },
         { codigo: 'LOCAÇÃO CONTAINER', nome: 'Proposta Locação Container', icone: 'ph-cube' },
         { codigo: 'EQUIPAMENTOS', nome: 'Equipamentos', icone: 'ph-wrench' },
         { codigo: 'VENDA', nome: 'Proposta Venda', icone: 'ph-shopping-cart' },
@@ -202,8 +201,44 @@
         if (s.includes('LOCACAO CONTAINER') || s.includes('LOCAÇÃO CONTAINER')) return 'LOCAÇÃO CONTAINER';
         if (s.includes('VISITA TECNICA') || s.includes('VISITA TÉCNICA')) return 'VISITA TÉCNICA';
         if (s.includes('OBRA')) return 'OBRA';
+        if (s.includes('FOSSA')) return 'LIMPA FOSSA';
         if (window.CONFIG_QUADRO_POR_MODELO[s]) return s;
         return 'EVENTO';
+    };
+
+    function extrairSubtituloLimpaFossaTextoBox(raw) {
+        const s = String(raw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        if (!s || !s.includes('FOSSA')) return '';
+        if (s.includes('MENS')) return 'LIMPA FOSSA MENSAL';
+        return 'LIMPA FOSSA';
+    }
+
+    window.resolverSubtituloLimpaFossaProposta = function (propostaObj, rawHint) {
+        const p = propostaObj || {};
+        const direto = extrairSubtituloLimpaFossaTextoBox(p.tipo) || extrairSubtituloLimpaFossaTextoBox(rawHint);
+        if (direto) return direto;
+        const inpContrato = document.getElementById('prop-contrato-aditivo');
+        const subVinc = extrairSubtituloLimpaFossaTextoBox(p.contrato_vinculado_tipo) || extrairSubtituloLimpaFossaTextoBox(inpContrato?.getAttribute('data-contrato-tipo'));
+        if (subVinc) return subVinc;
+        const numVinc = String(p.contrato_vinculado || inpContrato?.value || '').trim();
+        const idVinc = Number(p.contrato_vinculado_id || inpContrato?.getAttribute('data-contrato-id') || 0);
+        const todasProps = (window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas))
+            ? window._boxCacheDadosAux.propostasTodas
+            : (typeof _propostasData !== 'undefined' && Array.isArray(_propostasData) ? _propostasData : []);
+        if ((numVinc || idVinc) && todasProps.length) {
+            const orig = todasProps.find(x => {
+                const t = window.normalizarModeloTipoBox(x.tipo);
+                if (t === 'ADITIVO') return false;
+                if (idVinc && Number(x.id) === idVinc) return true;
+                if (numVinc && (String(x.contrato || '').trim() === numVinc || String(x.codigo || '').trim() === numVinc)) return true;
+                return false;
+            });
+            const subOrig = orig ? (extrairSubtituloLimpaFossaTextoBox(orig.tipo) || extrairSubtituloLimpaFossaTextoBox(orig.tabela_precos)) : '';
+            if (subOrig) return subOrig;
+        }
+        const subTab = extrairSubtituloLimpaFossaTextoBox(p.tabela_precos) || extrairSubtituloLimpaFossaTextoBox(document.getElementById('prop-tabela')?.value) || extrairSubtituloLimpaFossaTextoBox(document.getElementById('prop-tipo')?.value);
+        if (subTab) return subTab;
+        return 'LIMPA FOSSA';
     };
 
     /* Extrai o subtítulo exato da Obra ('OBRA MENSAL', 'OBRA QUINZENAL' ou 'OBRA SEMANAL') para exibir no topo do Quadro de Valores */
@@ -307,6 +342,9 @@
             extra.mostrar_condicoes_topo = true;
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
+        } else if (modEfetivo === 'LIMPA FOSSA' || modEfetivo === 'LIMPA FOSSA MENSAL') {
+            const subFossa = extrairSubtituloLimpaFossaTextoBox(modeloRaw);
+            if (subFossa) extra.tipo_titulo = subFossa;
         }
         return Object.assign({}, base, extra);
     };
@@ -662,7 +700,9 @@
         const cfgModelo = window.obterConfigQuadroModelo(modeloEfetivo);
         const tituloTopoResolvido = modeloEfetivo === 'OBRA'
             ? window.resolverSubtituloObraProposta(prop, modeloBruto)
-            : (cfgModelo.tipo_titulo || modeloEfetivo);
+            : (modeloEfetivo === 'LIMPA FOSSA'
+                ? window.resolverSubtituloLimpaFossaProposta(prop, modeloBruto)
+                : (cfgModelo.tipo_titulo || modeloEfetivo));
 
         if (!prop) {
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
@@ -857,7 +897,7 @@
         const u = (px) => (px / 19.2).toFixed(4) + 'cqw';
         const ROXO = cfg.cor_primaria || '#7b4195';
         const corRotuloTotal = cfg.cor_rotulo_valor_total || (String(ROXO).toLowerCase() === '#1e5782' ? '#1e5782' : '#3b3b3b');
-        const tituloTopo = (d && d.modelo_tipo === 'OBRA' && d.tipo_titulo)
+        const tituloTopo = (d && (d.modelo_tipo === 'OBRA' || d.modelo_tipo === 'LIMPA FOSSA') && d.tipo_titulo)
             ? d.tipo_titulo
             : (cfg.tipo_titulo || d.tipo_titulo || 'EVENTO');
         const infoRotulo = cfg.info_rotulo || d.info_rotulo || 'EVENTO:';

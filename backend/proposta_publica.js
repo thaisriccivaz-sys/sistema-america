@@ -172,7 +172,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
 
     const MODELOS_PADRAO_CODIGOS = [
         'EVENTO', 'OBRA',
-        'LIMPA FOSSA', 'LIMPA FOSSA MENSAL', 'LOCAÇÃO CONTAINER',
+        'LIMPA FOSSA', 'LOCAÇÃO CONTAINER',
         'EQUIPAMENTOS', 'VENDA', 'VISITA TÉCNICA', 'AVARIA', 'ADITIVO'
     ];
     function normalizarModeloTipoPublico(raw) {
@@ -182,7 +182,6 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         if (exato) return exato;
         if (limpo.includes('ADITIVO')) return 'ADITIVO';
         if (limpo.includes('OBRA')) return 'OBRA';
-        if (limpo.includes('FOSSA') && limpo.includes('MENS')) return 'LIMPA FOSSA MENSAL';
         if (limpo.includes('FOSSA')) return 'LIMPA FOSSA';
         if (limpo.includes('CONTAINER')) return 'LOCAÇÃO CONTAINER';
         if (limpo.includes('EQUIPAMENTO')) return 'EQUIPAMENTOS';
@@ -190,6 +189,42 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         if (limpo.includes('VISITA')) return 'VISITA TÉCNICA';
         if (limpo.includes('AVARIA')) return 'AVARIA';
         return 'EVENTO';
+    }
+
+    function extrairSubtituloLimpaFossaTexto(raw) {
+        const s = norm(raw).toUpperCase();
+        if (!s || !s.includes('FOSSA')) return '';
+        if (s.includes('MENS')) return 'LIMPA FOSSA MENSAL';
+        return 'LIMPA FOSSA';
+    }
+
+    async function resolverSubtituloLimpaFossaPublico(p) {
+        if (!p) return 'LIMPA FOSSA';
+        const direto = extrairSubtituloLimpaFossaTexto(p.tipo) || extrairSubtituloLimpaFossaTexto(p.contrato_vinculado_tipo) || extrairSubtituloLimpaFossaTexto(p.tabela_precos);
+        if (direto && !norm(p.tipo).toUpperCase().includes('ADITIVO')) return direto;
+        const cvId = Number(p.contrato_vinculado_id) || 0;
+        if (cvId > 0) {
+            const ctRow = await dbGet('SELECT * FROM contratos WHERE id = ?', [cvId]).catch(() => null);
+            const subCt = ctRow ? extrairSubtituloLimpaFossaTexto(ctRow.tipo) : '';
+            if (subCt) return subCt;
+            const propIdRef = (ctRow && ctRow.proposta_id) ? ctRow.proposta_id : cvId;
+            const prRow = await dbGet('SELECT tipo, tabela_precos FROM propostas WHERE id = ?', [propIdRef]).catch(() => null);
+            const subPr = prRow ? (extrairSubtituloLimpaFossaTexto(prRow.tipo) || extrairSubtituloLimpaFossaTexto(prRow.tabela_precos)) : '';
+            if (subPr) return subPr;
+        }
+        const cvNum = String(p.contrato_vinculado || '').trim();
+        if (cvNum) {
+            const prNumRow = await dbGet(
+                `SELECT tipo, tabela_precos FROM propostas
+                 WHERE (UPPER(TRIM(contrato)) = UPPER(TRIM(?)) OR UPPER(TRIM(codigo)) = UPPER(TRIM(?)))
+                   AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
+                 ORDER BY id DESC LIMIT 1`,
+                [cvNum, cvNum]
+            ).catch(() => null);
+            const subPr2 = prNumRow ? (extrairSubtituloLimpaFossaTexto(prNumRow.tipo) || extrairSubtituloLimpaFossaTexto(prNumRow.tabela_precos)) : '';
+            if (subPr2) return subPr2;
+        }
+        return direto || 'LIMPA FOSSA';
     }
 
     function extrairSubtituloObraTexto(raw) {
@@ -596,9 +631,12 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         };
 
         const ehObraLike = modeloEfetivo === 'OBRA' || ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
+        const ehFossaLike = modeloEfetivo === 'LIMPA FOSSA' || modeloEfetivo === 'LIMPA FOSSA MENSAL';
         const tituloTopoFinal = ehObraLike
             ? await resolverSubtituloObraPublico(p)
-            : (modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO');
+            : (ehFossaLike
+                ? await resolverSubtituloLimpaFossaPublico(p)
+                : (modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO'));
 
         return {
             tipo_titulo: tituloTopoFinal,

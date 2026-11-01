@@ -6965,7 +6965,7 @@ async function imprimirProposta(id) {
             : String(p.tipo || '').trim().toUpperCase();
         modeloPropostaObj = (modelosProp || []).find(m =>
             String(m.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === tipoNorm.replace(/^PROPOSTA\s+/i, '') ||
-            String(m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === tipoNorm.replace(/^PROPOSTA\s+/i, '') || (tipoNorm.replace(/^PROPOSTA\s+/i, '').startsWith('OBRA') && String(m.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'OBRA')
+            String(m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === tipoNorm.replace(/^PROPOSTA\s+/i, '') || (tipoNorm.replace(/^PROPOSTA\s+/i, '').startsWith('OBRA') && String(m.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'OBRA') || (tipoNorm.replace(/^PROPOSTA\s+/i, '').startsWith('LIMPA FOSSA') && String(m.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'LIMPA FOSSA')
         ) || (modelosProp || [])[0] || null;
 
         clientObj = (clients || []).find(c =>
