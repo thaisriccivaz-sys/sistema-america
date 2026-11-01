@@ -18445,7 +18445,15 @@ window.pesquisarEnderecoProposta = async function(btnEl = null) {
     }
 };
 
-window.obterFiltroPadraoEquipamentosPorTipo = function() {
+window.obterFiltroPadraoEquipamentosPorTipo = function(tipoPropostaRaw = null) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const rawTipo = (tipoPropostaRaw !== null && tipoPropostaRaw !== undefined) ? tipoPropostaRaw : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const rawTabela = document.getElementById('prop-tabela')?.value || '';
+    const tipoNorm = normStr(String(rawTipo || '').replace(/^proposta\s+/i, ''));
+    const tabNorm = normStr(String(rawTabela || '').replace(/^proposta\s+/i, ''));
+    if (tipoNorm === 'limpa fossa' || tipoNorm === 'limpa fossa mensal' || tabNorm === 'limpa fossa' || tabNorm === 'limpa fossa mensal') {
+        return { grupo: 'SERVIÇOS', fonte: '', incluirServicos: true };
+    }
     return { grupo: '', fonte: '', incluirServicos: false };
 };
 
@@ -18513,7 +18521,7 @@ window.filtrarListaEquipamentosProposta = function(produtos, { termo = '', grupo
         const fonteStr = normStr(p.fonte_fornecimento);
 
         const matchTermo = !qVal || codStr === qVal || codStr.includes(qVal) || nomeStr.includes(qVal) || comboStr.includes(qVal);
-        const matchGrupo = !grupoVal || grupoStr === grupoVal;
+        const matchGrupo = !grupoVal || grupoStr === grupoVal || ((grupoVal === 'servicos' || grupoVal === 'servico') && (grupoStr === 'servicos' || grupoStr === 'servico'));
         const matchFonte = !fonteVal || fonteStr === fonteVal;
 
         return matchTermo && matchGrupo && matchFonte;
@@ -18613,6 +18621,8 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
         });
     }
     const gruposUnicos = Array.from(gruposSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const filtroPadrao = typeof window.obterFiltroPadraoEquipamentosPorTipo === 'function' ? window.obterFiltroPadraoEquipamentosPorTipo(tipoPropostaAtivo) : { grupo: '' };
+    const grupoInicialPadrao = filtroPadrao.grupo ? (gruposUnicos.find(g => normStr(g) === normStr(filtroPadrao.grupo) || ((normStr(filtroPadrao.grupo) === 'servicos' || normStr(filtroPadrao.grupo) === 'servico') && (normStr(g) === 'servicos' || normStr(g) === 'servico'))) || filtroPadrao.grupo) : '';
 
     const fontesSet = new Set(produtosBase.map(p => String(p.fonte_fornecimento || '').trim()).filter(Boolean));
     if (tipoNorm === 'venda') {
@@ -18686,7 +18696,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                             <label style="display:block; font-size:0.73rem; font-weight:700; color:#475569; margin-bottom:4px;">Grupo</label>
                             <select id="modal-prod-search-grupo" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; height:36px; cursor:pointer;">
                                 <option value="">Todos os Grupos</option>
-                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}">${_escHtmlProp(g)}</option>`).join('')}
+                                ${gruposUnicos.map(g => `<option value="${_escHtmlProp(g)}" ${grupoInicialPadrao && normStr(g) === normStr(grupoInicialPadrao) ? 'selected' : ''}>${_escHtmlProp(g)}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -18737,6 +18747,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
                 if (countSpan) countSpan.textContent = `Total: ${filtered.length} equipamento(s)`;
             };
 
+            if (selectGrupo && grupoInicialPadrao) selectGrupo.value = grupoInicialPadrao;
             filterProds();
             inputTermo?.addEventListener('input', filterProds);
             inputTermo?.addEventListener('keydown', (ev) => {
