@@ -750,6 +750,18 @@
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>`;
 
+        const cabecalhoColunasServicos = (titulo) => `
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
+                <div></div>
+                <div style="grid-column:2 / 4; font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
+                    <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
+                </div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>R$</div>
+                <div></div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
+            </div>`;
+
         const svgChainLink = `<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="width:${u(20)}; height:${u(20)}; display:block;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
         const iconeLinkItem = (it) => {
             const rawUrl = String(it.link_url || '').trim();
@@ -783,14 +795,33 @@
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
 
+        const linhaServico = (it) => `
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
+                <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${it.foto_url ? u(84) : u(36)};">
+                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
+                </div>
+                <div style="grid-column:2 / 4; min-width:0; padding-right:${u(20)}; align-self:start;">
+                    <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
+                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
+                        <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
+                    </div>
+                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                </div>
+                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>
+                <div></div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
+            </div>`;
+
         const itensHtml = (d.itens && d.itens.length > 0)
             ? d.itens.map(linhaItem).join('')
             : `<div style="padding:${u(24)}; text-align:center; color:#94a3b8; font-size:${u(24)}; border:${u(2)} dashed #cbd5e1; border-radius:${u(10)}; margin-bottom:${u(20)};">Nenhum equipamento adicionado nesta proposta ainda.</div>`;
 
         const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
             <div style="padding:${u(10)} ${u(60)} ${u(10)} ${u(50)};">
-                ${cabecalhoColunas(esc(tituloServ))}
-                ${d.servicos.map(linhaItem).join('')}
+                ${cabecalhoColunasServicos(esc(tituloServ))}
+                ${d.servicos.map(linhaServico).join('')}
             </div>` : '';
 
         return `
