@@ -47,8 +47,10 @@ const PROP_TIPOS = [
 const PROP_FASES = [
     'Em Elaboração',
     'Proposta Enviada',
+    'Pré aprovada',
     'Aprovada',
     'Reprovada',
+    'Cancelada',
     'Sem Resposta'
 ];
 const PROP_MODELOS = [
@@ -102,6 +104,7 @@ const PROP_FRETES = ['', 'CIF', 'FOB', 'Sem Frete'];
 const PROP_STATUS_CORES = {
     'Em Elaboração':        { bg: '#e0f2fe', text: '#0369a1', icon: 'ph-pencil' },
     'Proposta Enviada':     { bg: '#fef9c3', text: '#92400e', icon: 'ph-paper-plane-right' },
+    'Pré aprovada':         { bg: '#ccfbf1', text: '#0f766e', icon: 'ph-seal-check' },
     'Em Negociação':        { bg: '#fff7ed', text: '#c2410c', icon: 'ph-arrows-left-right' },
     'Aguardando Aprovação': { bg: '#f3e8ff', text: '#6d28d9', icon: 'ph-clock' },
     'Aprovada':             { bg: '#dcfce7', text: '#166534', icon: 'ph-check-circle' },
@@ -1310,6 +1313,7 @@ function _renderLinhasPropostas(lista) {
                 ${valorFmt}
             </td>
             <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap; font-size: 1.15rem; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                ${(p.assinatura_r2_key || p.aceite_publico_em || String(p.fase_negociacao || '').trim().toUpperCase() === 'PRÉ APROVADA') ? `<i class="ph ph-file-lock" title="Ver Proposta Assinada pelo Cliente" style="color:#0d9488; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="window.verDocumentoAssinadoClienteProposta(${p.id})"></i>` : ''}
                 <i class="ph ph-eye" title="Visualizar" style="color:#3b82f6; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="imprimirProposta(${p.id})"></i>
                 <i class="ph ph-pencil-simple" title="Editar" style="color:#7048e8; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="abrirFormProposta(${p.id})"></i>
                 <i class="ph ph-trash" title="Excluir" style="color:#ef4444; cursor:pointer; transition:opacity 0.15s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" onclick="excluirProposta(${p.id})"></i>
@@ -1975,7 +1979,7 @@ function _renderFormPropostaInt() {
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder ver o histórico.', 'warning')" : `abrirLogsAlteracao(${id})`}" title="Histórico de Alterações" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-clock-counter-clockwise" style="font-size:1.15rem;"></i>
                     </button>
-                    <button onclick="recarregarPropostaForm(_propostasEditandoId || null)" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <button onclick="recarregarPropostaForm(_propostasEditandoId || null)" title="Recarregar" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
                     </button>
 
@@ -1986,10 +1990,19 @@ function _renderFormPropostaInt() {
                     <button onclick="limparFormPropostaNovo();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
                     </button>
-                    <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${isNovo ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
+                        <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
+                    </button>
+                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${window._modoTelaComercial === 'contrato' ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato')) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#115e59'" onmouseout="this.style.background='#0f766e'" onfocus="this.blur()">
+                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
+                    </button>
+                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="Visualizar Proposta Assinada pelo Cliente" style="display:${(!isNovo && (v('assinatura_r2_key') || v('aceite_publico_em') || String(v('fase_negociacao') || '').trim().toUpperCase() === 'PRÉ APROVADA')) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
+                        <i class="ph ph-eye" style="font-size:1rem;"></i> Proposta Assinada
+                    </button>
                     <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
                     </button>
@@ -2027,9 +2040,9 @@ function _renderFormPropostaInt() {
                     <!-- Linha 1: Código, Tipo, Nº do Contrato (Aditivo), Atendente -->
                     <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? '1fr 1.6fr 1.8fr 1.3fr' : '1fr 2fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
                         <div>
-                            <label class="prop-lbl">Código</label>
+                            <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Nº do Contrato' : 'Código'}</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
-                                <input type="text" id="prop-codigo" value="${String(v('codigo') || (isNovo ? 'AUTO' : '')).toUpperCase()}"
+                                <input type="text" id="prop-codigo" value="${String((window._modoTelaComercial === 'contrato' ? (v('contrato') || v('codigo')) : v('codigo')) || (isNovo ? 'AUTO' : '')).toUpperCase()}"
                                     placeholder="AUTO ou digite o nº para pesquisar"
                                     title="Digite o número/código da proposta e pressione Enter ou clique na lupa para pesquisar"
                                     onfocus="if(this.value.trim().toUpperCase()==='AUTO') this.select();"
@@ -2094,9 +2107,16 @@ function _renderFormPropostaInt() {
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Fase de Negociação *</label>
+                            <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Situação do Contrato *' : 'Fase de Negociação *'}</label>
                             <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                ${PROP_FASES.map(f => `<option value="${f}" ${String(v('fase_negociacao') || (window._modoTelaComercial === 'contrato' ? 'Aprovada' : '')).toUpperCase()===f.toUpperCase()?'selected':''}>${f.toUpperCase()}</option>`).join('')}
+                                ${PROP_FASES.map(f => {
+                                    const faseAtiva = window._modoTelaComercial === 'contrato'
+                                        ? String(v('situacao_contrato') || v('fase_negociacao') || 'Aprovada')
+                                        : String(v('fase_negociacao') || '');
+                                    const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
+                                    const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
+                                    return `<option value="${f}" ${isSel ? 'selected' : ''} ${isPreAp ? 'disabled title="Disponível apenas mediante assinatura do cliente pelo link da proposta"' : ''}>${f.toUpperCase()}</option>`;
+                                }).join('')}
                             </select>
                         </div>
                         <div style="display:none;">
@@ -2589,6 +2609,16 @@ function _renderFormPropostaInt() {
     window._propFormEditadoNaoSalvo = false;
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
+    }
+    if (window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') {
+        const formEl = document.getElementById('form-proposta');
+        if (formEl) {
+            formEl.querySelectorAll('input, select, textarea, button').forEach(el => {
+                if (el.id === 'prop-codigo' || (el.getAttribute('onclick') || '').includes('pesquisarPropostaPorCodigoInput')) return;
+                el.disabled = true;
+                if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
+            });
+        }
     }
 }
 
@@ -5961,7 +5991,9 @@ window.salvarPropostaNova = async function() {
         valor_km: obterN('prop-valor-km'),
         distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
-        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        modo_contrato: window._modoTelaComercial === 'contrato',
+        situacao_contrato: window._modoTelaComercial === 'contrato' ? fase : undefined
     };
 
     // Cache payload for save confirm call
@@ -6339,7 +6371,6 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
                 await abrirFormProposta(finalId);
             }
             if (typeof mostrarToastSucesso === 'function') {
-                if (String(window._cachedProposalPayload?.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && window._modoTelaComercial !== 'contrato') { window._propostasEditandoId_proposta = null; window._propostasEditandoId_contrato = finalId; window._modoTelaComercial = 'contrato'; _propostasEditandoId = finalId; await abrirFormProposta(finalId); if (typeof window.navigateTo === 'function') window.navigateTo('comercial-contratos'); }
                 mostrarToastSucesso(isEditing ? 'Proposta atualizada com sucesso!' : 'Proposta salva com sucesso!');
             }
             Swal.close();
@@ -6358,6 +6389,18 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
 window.estornarPropostaEdicao = async function() {
     if (!_propostasEditandoId) {
         alert('Nenhuma proposta para estornar.');
+        return;
+    }
+
+    const propAtual = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || {};
+    const sitContrato = String(
+        (window._modoTelaComercial === 'contrato' ? document.getElementById('prop-fase')?.value : '') ||
+        propAtual.situacao_contrato ||
+        ''
+    ).trim().toUpperCase();
+    const sitPermitida = ['REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContrato);
+    if (!sitPermitida) {
+        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver na situação de REPROVADO ou CANCELADO na tela de Contratos.', 'warning');
         return;
     }
 
@@ -6433,7 +6476,8 @@ window.estornarPropostaEdicao = async function() {
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: 'Em Elaboração', // Estorna e retorna para Proposta
+        fase_negociacao: 'Proposta Enviada',
+        acao_estornar: true,
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -6477,9 +6521,16 @@ window.estornarPropostaEdicao = async function() {
             if (finalId) {
                 await abrirFormProposta(finalId);
             }
+            if (window._modoTelaComercial === 'contrato') {
+                window._propostasEditandoId_contrato = null;
+                window._propostasEditandoId_proposta = finalId;
+                window._modoTelaComercial = 'proposta';
+                _propostasEditandoId = finalId;
+                await abrirFormProposta(finalId);
+                if (typeof window.navigateTo === 'function') window.navigateTo('comercial-proposta');
+            }
             if (typeof mostrarToastSucesso === 'function') {
-                if (window._modoTelaComercial === 'contrato') { window._propostasEditandoId_contrato = null; window._propostasEditandoId_proposta = finalId; window._modoTelaComercial = 'proposta'; _propostasEditandoId = finalId; await abrirFormProposta(finalId); if (typeof window.navigateTo === 'function') window.navigateTo('comercial-proposta'); }
-                mostrarToastSucesso('Alterações salvas e proposta liberada para aprovação!');
+                mostrarToastSucesso('Proposta estornada para Proposta Enviada e liberada para edição!');
             }
         } else {
             alert('Erro ao salvar proposta: ' + (resp?.error || 'Erro desconhecido'));
@@ -6588,20 +6639,191 @@ window.aprovarPropostaEdicao = async function() {
         if (resp && (resp.success || resp.id)) {
             const finalId = _propostasEditandoId || resp.id;
             await carregarPropostas();
-            window._propostasEditandoId_proposta = null;
-            window._propostasEditandoId_contrato = finalId;
-            window._modoTelaComercial = 'contrato';
             _propostasEditandoId = finalId;
+            window._propostasEditandoId_proposta = finalId;
+            window._propostasEditandoId_contrato = finalId;
             Swal.close();
             await abrirFormProposta(finalId);
-            if (typeof window.navigateTo === 'function') window.navigateTo('comercial-contratos');
-            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta aprovada! Convertida em Contrato com sucesso!');
+            const propAp = (_propostasData || []).find(p => Number(p.id) === Number(finalId));
+            const numCtr = propAp?.contrato || resp?.contrato || '01';
+            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta aprovada! Contrato Nº ' + numCtr + ' gerado com sucesso!');
         } else {
             Swal.fire('Erro', 'Erro ao aprovar proposta: ' + (resp?.error || 'Erro desconhecido'), 'error');
         }
     } catch (e) {
         console.error('[PROPOSTAS] Erro ao aprovar:', e);
         Swal.fire('Erro', 'Erro ao comunicar com o servidor: ' + e.message, 'error');
+    }
+};
+
+window.abrirContratoDaProposta = async function(id) {
+    const targetId = id || _propostasEditandoId;
+    if (!targetId) return;
+    window._propostasEditandoId_contrato = targetId;
+    window._modoTelaComercial = 'contrato';
+    _propostasEditandoId = targetId;
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('comercial-contratos');
+    }
+    await carregarPropostas();
+    await abrirFormProposta(targetId);
+};
+
+window.abrirPropostaDiretoId = async function(id) {
+    const targetId = Number(id);
+    if (!targetId) return;
+    window._propostasEditandoId_proposta = targetId;
+    window._modoTelaComercial = 'proposta';
+    _propostasEditandoId = targetId;
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('comercial-proposta');
+    }
+    await carregarPropostas();
+    await abrirFormProposta(targetId);
+};
+
+window.duplicarPropostaAtual = async function() {
+    if (!_propostasEditandoId) {
+        Swal.fire('Aviso', 'Abra uma proposta salva primeiro para poder duplicá-la.', 'warning');
+        return;
+    }
+    const orig = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId));
+    if (!orig) {
+        Swal.fire('Aviso', 'Proposta atual não encontrada.', 'warning');
+        return;
+    }
+    const conf = await Swal.fire({
+        title: 'Duplicar Proposta?',
+        text: 'Deseja criar uma nova proposta copiando todas as informações da proposta ' + (orig.codigo || '') + '?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'Sim, duplicar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const payload = {
+        local: orig.local || 'AMERICA RENTAL',
+        tipo: orig.tipo || '',
+        atendente: orig.atendente || window.obterNomeUsuarioLogado(),
+        data_cadastro: hoje,
+        validade_proposta: orig.validade_proposta || hoje,
+        previsao_fechamento: orig.previsao_fechamento || hoje,
+        fase_negociacao: 'Em Elaboração',
+        modelo_impressao: orig.modelo_impressao || '',
+        cliente_nome: orig.cliente_nome || '',
+        contato_nome: orig.contato_nome || '',
+        periodo_inicio: orig.periodo_inicio || '',
+        periodo_fim: orig.periodo_fim || '',
+        hora_inicio: orig.hora_inicio || '00:00',
+        hora_fim: orig.hora_fim || '00:00',
+        dias_contrato: Number(orig.dias_contrato || 0),
+        dias_evento: typeof orig.dias_evento === 'string' ? orig.dias_evento : JSON.stringify(orig.dias_evento || []),
+        tabela_precos: orig.tabela_precos || '',
+        nome_evento: orig.nome_evento || '',
+        servico_frete_fob: orig.servico_frete_fob ? 1 : 0,
+        contrato_vinculado: orig.contrato_vinculado || '',
+        contrato_vinculado_id: orig.contrato_vinculado_id || null,
+        contrato_vinculado_tipo: orig.contrato_vinculado_tipo || '',
+        endereco_instalacao: orig.endereco_instalacao || '',
+        desconto_percent: Number(orig.desconto_percent || 0),
+        desconto_reais: Number(orig.desconto_reais || 0),
+        condicao_pagamento: orig.condicao_pagamento || '',
+        representante: orig.representante || window.obterNomeUsuarioLogado(),
+        transportadora: orig.transportadora || '',
+        tipo_frete: orig.tipo_frete || '',
+        valor_frete_ida: Number(orig.valor_frete_ida || 0),
+        valor_frete_volta: Number(orig.valor_frete_volta || 0),
+        observacoes: orig.observacoes || '',
+        valor_total: Number(orig.valor_total || 0),
+        status: 'Ativa',
+        motivo_reprovacao: '',
+        criado_por: window.obterNomeUsuarioLogado(),
+        itens: Array.isArray(orig.itens) ? JSON.parse(JSON.stringify(orig.itens)) : [],
+        itens_servicos: Array.isArray(orig.itens_servicos) ? JSON.parse(JSON.stringify(orig.itens_servicos)) : [],
+        servico_precificacao_id: orig.servico_precificacao_id || null,
+        regiao: orig.regiao || null,
+        percentual_zona: Number(orig.percentual_zona || 0),
+        valor_km: Number(orig.valor_km || 0),
+        distancia_km: Number(orig.distancia_km || 0),
+        valor_zona_calculado: Number(orig.valor_zona_calculado || 0),
+        valor_distancia_calculado: Number(orig.valor_distancia_calculado || 0)
+    };
+
+    try {
+        Swal.fire({ title: 'Duplicando proposta...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const resp = await apiPost('/propostas', payload);
+        Swal.close();
+        if (resp && (resp.success || resp.id)) {
+            await carregarPropostas();
+            window._modoTelaComercial = 'proposta';
+            _propostasEditandoId = resp.id;
+            window._propostasEditandoId_proposta = resp.id;
+            await abrirFormProposta(resp.id);
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Proposta duplicada com sucesso! Novo código: ' + (resp.codigo || resp.id));
+            }
+        } else {
+            Swal.fire('Erro', (resp && resp.error) || 'Não foi possível duplicar a proposta.', 'error');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Falha ao duplicar proposta: ' + e.message, 'error');
+    }
+};
+
+window.verDocumentoAssinadoClienteProposta = async function(id) {
+    const targetId = id || _propostasEditandoId;
+    if (!targetId) return;
+    try {
+        Swal.fire({ title: 'Carregando documento assinado...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const resp = await apiGet('/propostas/' + targetId + '/dados-documento-assinado');
+        Swal.close();
+        if (!resp || !resp.dados) {
+            Swal.fire('Erro', 'Não foi possível carregar os dados do documento assinado.', 'error');
+            return;
+        }
+        const d = resp.dados;
+        const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+            ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
+            : '';
+        const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
+        const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+        const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
+        const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+        const htmlAssinatura = d.assinatura_url ? (
+            '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
+            '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+            '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+            '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
+            '</div>' +
+            (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+            '</div>'
+        ) : '<div style="padding:18px; text-align:center; color:#64748b; font-size:13px; background:#f8fafc; border-top:1px solid #e2e8f0;">Assinatura eletrônica registrada em ' + _escHtmlProp(d.aceite_publico_em ? new Date(d.aceite_publico_em).toLocaleString('pt-BR') : '—') + '</div>';
+
+        const docCompletoHtml = '<div id="doc-assinado-cliente-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
+            htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
+
+        Swal.fire({
+            title: 'Proposta Assinada pelo Cliente — Nº ' + _escHtmlProp(d.codigo_proposta || ''),
+            width: '980px',
+            html: '<div style="max-height:72vh; overflow-y:auto; text-align:left;">' + docCompletoHtml + '</div>',
+            showCancelButton: true,
+            confirmButtonColor: '#0f172a',
+            confirmButtonText: '<i class="ph ph-printer"></i> Imprimir Documento Assinado',
+            cancelButtonText: 'Fechar'
+        }).then((r) => {
+            if (r.isConfirmed) {
+                const w = window.open('', '_blank', 'width=1020,height=860');
+                if (w) {
+                    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proposta Assinada Nº ' + _escHtmlProp(d.codigo_proposta || '') + '</title><link rel="stylesheet" href="/box_renderer.css"></head><body style="margin:0; padding:0; background:#fff;">' + docCompletoHtml + '<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>');
+                    w.document.close();
+                }
+            }
+        });
+    } catch (e) {
+        Swal.fire('Erro', 'Falha ao abrir documento assinado: ' + e.message, 'error');
     }
 };
 
@@ -16794,9 +17016,9 @@ window.pesquisarPropostaPorCodigoInput = async function() {
         const propAtual = _propostasEditandoId ? _propostasData.find(p => p.id === _propostasEditandoId) : null;
         const termoLower = termo.toLowerCase();
         const termoDigits = termo.replace(/\D/g, '').replace(/^0+/, '');
-        if (!propAtual || String(propAtual.codigo || '').toLowerCase() !== termoLower) {
-            const exatas = _propostasData.filter(p => (window._modoTelaComercial === 'contrato' ? String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' : String(p.fase_negociacao || '').trim().toUpperCase() !== 'APROVADA')).filter(p => {
-                const cod = String(p.codigo || '').trim();
+        if (!propAtual || String((window._modoTelaComercial === 'contrato' ? (propAtual.contrato || propAtual.codigo) : propAtual.codigo) || '').toLowerCase() !== termoLower) {
+            const exatas = _propostasData.filter(p => (window._modoTelaComercial === 'contrato' ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true)).filter(p => {
+                const cod = String((window._modoTelaComercial === 'contrato' ? (p.contrato || p.codigo) : p.codigo) || '').trim();
                 if (!cod) return false;
                 if (cod.toLowerCase() === termoLower) return true;
                 const codDigits = cod.replace(/\D/g, '').replace(/^0+/, '');
@@ -16839,7 +17061,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
-        const propostasComCnpj = _propostasData.filter(p => window._modoTelaComercial === 'contrato' ? String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' : String(p.fase_negociacao || '').trim().toUpperCase() !== 'APROVADA').map(p => {
+        const propostasComCnpj = _propostasData.filter(p => window._modoTelaComercial === 'contrato' ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -21923,21 +22145,11 @@ window.filtrarListaModelosProposta = function() {
     const activeId = window._modeloPropostaAtivo?.id;
     listEl.innerHTML = filtrados.map(m => {
         const isAtivo = m.id === activeId;
-        const codModelo = _escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO');
+        const nomeUnicoUpper = _escHtmlProp(String(m.nome || m.codigo_tipo || '').toUpperCase());
         return `
             <div onclick="window.selecionarModeloProposta(${m.id})"
-                 style="padding:0.6rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; flex-direction:column; gap:5px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-                    <span style="font-size:0.82rem; font-weight:700; color:${isAtivo ? '#5b21b6' : '#1e293b'};">${_escHtmlProp(m.nome)}</span>
-                    ${false && m.arquivo_origem ? `<span style="font-size:0.66rem; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; font-weight:600;">${_escHtmlProp(m.arquivo_origem)}</span>` : ''}
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-                    <span style="font-size:0.7rem; color:#64748b; font-weight:600;">${_escHtmlProp(m.codigo_tipo)}</span>
-                    <button type="button" onclick="event.stopPropagation(); window.selecionarModeloProposta(${m.id}); if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${codModelo}');"
-                        style="display:none; background:${isAtivo ? '#7048e8' : '#ede9fe'}; color:${isAtivo ? '#fff' : '#5b21b6'}; border:1px solid ${isAtivo ? '#7048e8' : '#ddd6fe'}; padding:2px 8px; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer; align-items:center; gap:4px;">
-                        <i class="ph ph-image-square"></i> Boxes (Banners)
-                    </button>
-                </div>
+                 style="padding:0.65rem 0.75rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:0.82rem; font-weight:800; color:${isAtivo ? '#5b21b6' : '#1e293b'}; text-transform:uppercase; letter-spacing:0.02em;">${nomeUnicoUpper}</span>
             </div>
         `;
     }).join('');
@@ -21998,9 +22210,6 @@ window._renderEditorModeloPropostaAtivo = function() {
                 </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" title="Adicionar / Editar imagem de Aceite exibida ao clicar em Aprovar no link da proposta" style="background:${m.aceite_r2_key ? '#0d9488' : '#0284c7'}; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
-                    <i class="ph ${m.aceite_r2_key ? 'ph-seal-check' : 'ph-file-plus'}"></i> Adicionar Aceite${m.aceite_r2_key ? ' ✓' : ''}
-                </button>
                 <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" title="Editar Boxes (Banners) deste modelo: ${_escHtmlProp(m.nome)}" style="background:#7048e8; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
                     <i class="ph ph-image-square"></i> Boxes (Banners)
                 </button>
@@ -22244,74 +22453,135 @@ window.excluirAceiteModeloPropostaDireto = async function(modeloId) {
     }
 };
 
+window.enviarArquivoQuadroModeloProposta = async function(modeloId, categoria, variante, inputEl) {
+    const file = inputEl && inputEl.files && inputEl.files[0];
+    if (!file || !modeloId) return;
+    const fd = new FormData();
+    if (variante === 'mobile') {
+        fd.append('arquivo_mobile', file);
+    } else {
+        fd.append('arquivo', file);
+    }
+    fd.append('aplicar_todos', '0');
+    const endpoint = categoria === 'aditivo'
+        ? '/api/comercial/modelos-proposta/' + modeloId + '/aditivo'
+        : '/api/comercial/modelos-proposta/' + modeloId + '/aceite';
+    try {
+        Swal.fire({ title: 'Salvando imagem...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+            body: fd
+        });
+        const j = await resp.json().catch(() => ({}));
+        Swal.close();
+        if (!resp.ok || !j.success) throw new Error(j.error || 'Erro ao salvar imagem.');
+        await window._renderModelosPropostasInt();
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Imagem salva com sucesso!');
+    } catch (err) {
+        Swal.fire('Erro', err.message || 'Erro ao enviar imagem.', 'error');
+    }
+};
+
+window.excluirArquivoQuadroModeloProposta = async function(modeloId, categoria, variante) {
+    if (!modeloId) return;
+    const label = (categoria === 'aditivo' ? 'Imagem de Aditivo' : 'Imagem de Aceite') + (variante === 'mobile' ? ' (Celular)' : ' (Desktop)');
+    const conf = await Swal.fire({
+        title: 'Excluir ' + label + '?',
+        text: 'Esta imagem será removida deste modelo de proposta.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+    const endpoint = categoria === 'aditivo'
+        ? '/api/comercial/modelos-proposta/' + modeloId + '/aditivo?variante=' + encodeURIComponent(variante)
+        : '/api/comercial/modelos-proposta/' + modeloId + '/aceite?todos=0&variante=' + encodeURIComponent(variante);
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || !j.success) throw new Error(j.error || 'Erro ao excluir imagem.');
+        await window._renderModelosPropostasInt();
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Imagem excluída com sucesso!');
+    } catch (err) {
+        Swal.fire('Erro', err.message || 'Erro ao excluir imagem.', 'error');
+    }
+};
+
 window._renderBlocosAceiteEAditivoModeloProposta = function(m) {
     if (!m) return '';
-    const urlAceite = m.aceite_url || (m.aceite_r2_key ? `/api/public/modelos-proposta/${m.id}/aceite-arquivo?v=desktop` : '');
-    const isAdtMod = String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO');
-    const adtBoxes = (Array.isArray(window._boxesAditivoCache) ? window._boxesAditivoCache : []).filter(b => b && b.tipo !== 'quadro_evento');
+    const urlAdtDesk = m.aditivo_url || (m.aditivo_r2_key ? `/api/public/modelos-proposta/${m.id}/aditivo-arquivo?v=desktop` : '');
+    const urlAdtMob = m.aditivo_mobile_url || (m.aditivo_mobile_r2_key ? `/api/public/modelos-proposta/${m.id}/aditivo-arquivo?v=mobile` : '');
+    const urlAceiteDesk = m.aceite_url || (m.aceite_r2_key ? `/api/public/modelos-proposta/${m.id}/aceite-arquivo?v=desktop` : '');
+    const urlAceiteMob = m.aceite_mobile_url || (m.aceite_mobile_r2_key ? `/api/public/modelos-proposta/${m.id}/aceite-arquivo?v=mobile` : '');
 
-    const htmlAceiteCard = urlAceite ? `
-        <div style="background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:10px; padding:0.7rem 0.9rem; margin-bottom:0.65rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                <img src="${_escHtmlProp(urlAceite)}" alt="Aceite" style="width:92px; height:58px; object-fit:cover; border-radius:6px; border:1px solid #5eead4; background:#fff; flex-shrink:0;">
-                <div>
-                    <div style="font-size:0.82rem; font-weight:800; color:#0f766e;"><i class="ph ph-seal-check"></i> Imagem de Aceite — ${_escHtmlProp(m.nome)}</div>
-                    <div style="font-size:0.73rem; color:#115e59;">Exibida ao clicar em Aprovar no link público e na versão impressa deste modelo.</div>
+    const renderSlot = (categoria, variante, labelVariante, urlImg, corTema, bgSlot, borderSlot) => {
+        const inputId = `mp-file-${categoria}-${variante}-${m.id}`;
+        return `
+            <div style="flex:1; min-width:210px; background:${bgSlot}; border:1px solid ${borderSlot}; border-radius:8px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+                <div style="font-size:0.75rem; font-weight:800; color:${corTema}; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between;">
+                    <span><i class="ph ${variante === 'mobile' ? 'ph-device-mobile' : 'ph-desktop'}"></i> ${labelVariante}</span>
+                    ${urlImg ? '<span style="font-size:0.68rem; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px;">Anexada ✓</span>' : '<span style="font-size:0.68rem; color:#94a3b8;">Sem imagem</span>'}
+                </div>
+                ${urlImg ? `
+                <div style="background:#fff; border:1px solid ${borderSlot}; border-radius:6px; padding:6px; text-align:center;">
+                    <img src="${_escHtmlProp(urlImg)}" alt="${labelVariante}" style="max-width:100%; height:110px; object-fit:contain; border-radius:4px; display:block; margin:0 auto;">
+                </div>` : `
+                <div style="height:110px; border:1px dashed ${borderSlot}; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.75rem; text-align:center; padding:8px;">
+                    Nenhuma miniatura anexada
+                </div>`}
+                <input type="file" id="${inputId}" accept="image/*" style="display:none;" onchange="window.enviarArquivoQuadroModeloProposta(${m.id}, '${categoria}', '${variante}', this)">
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" onclick="document.getElementById('${inputId}').click()" style="flex:1; background:${corTema}; color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                        <i class="ph ${urlImg ? 'ph-pencil-simple' : 'ph-plus-circle'}"></i> ${urlImg ? 'Editar / Substituir' : 'Adicionar'}
+                    </button>
+                    ${urlImg ? `
+                    <button type="button" onclick="window.excluirArquivoQuadroModeloProposta(${m.id}, '${categoria}', '${variante}')" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                        <i class="ph ph-trash"></i> Excluir
+                    </button>` : ''}
                 </div>
             </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" style="background:#0284c7; color:#fff; border:none; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-pencil-simple"></i> Editar
-                </button>
-                <button type="button" onclick="window.excluirAceiteModeloPropostaDireto(${m.id})" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-trash"></i> Excluir
-                </button>
-                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" style="background:#0d9488; color:#fff; border:none; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-plus-circle"></i> Adicionar Nova
-                </button>
-            </div>
-        </div>` : '';
+        `;
+    };
 
-    const htmlAditivoCard = (isAdtMod || adtBoxes.length > 0) ? `
-        <div style="background:#f5f3ff; border:1.5px dashed #8b5cf6; border-radius:10px; padding:0.75rem 0.95rem; margin-bottom:0.4rem;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:${adtBoxes.length ? '0.65rem' : '0'};">
-                <div style="font-size:0.78rem; color:#4c1d95; line-height:1.4;">
-                    <b><i class="ph ph-image-square"></i> Imagens de Aditivo Anexadas:</b> Abaixo do #2 Quadro de Valores você pode editar, excluir ou adicionar uma nova imagem de aditivo.
+    return `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:14px; margin-bottom:0.5rem;">
+            <!-- Quadro 1: Imagens de Aditivo Anexadas -->
+            <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px;">
+                <div style="font-size:0.84rem; font-weight:800; color:#4c1d95; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-image-square"></i> Imagens de Aditivo Anexadas — ${_escHtmlProp(String(m.nome || '').toUpperCase())}
                 </div>
-                <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.76rem; white-space:nowrap; display:inline-flex; align-items:center; gap:5px;">
-                    <i class="ph ph-plus-circle"></i> + Adicionar Nova Imagem de Aditivo
-                </button>
+                <div style="font-size:0.73rem; color:#5b21b6; margin-bottom:10px;">
+                    Anexe 1 imagem de Aditivo para Desktop e 1 para Celular exclusiva deste modelo de proposta.
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    ${renderSlot('aditivo', 'desktop', 'Desktop', urlAdtDesk, '#6d28d9', '#faf5ff', '#ddd6fe')}
+                    ${renderSlot('aditivo', 'mobile', 'Celular', urlAdtMob, '#6d28d9', '#faf5ff', '#ddd6fe')}
+                </div>
             </div>
-            ${adtBoxes.length > 0 ? `
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                ${adtBoxes.map((b, i) => `
-                    <div style="background:#fff; border:1px solid #c4b5fd; border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                            ${b.tipo === 'video'
-                                ? `<video src="${_escHtmlProp(b.url)}#t=0.5" muted preload="metadata" style="width:88px; height:54px; object-fit:cover; border-radius:6px; background:#0f172a; flex-shrink:0;"></video>`
-                                : `<img src="${_escHtmlProp(b.url)}" alt="" style="width:88px; height:54px; object-fit:cover; border-radius:6px; border:1px solid #ddd6fe; background:#0f172a; flex-shrink:0;">`}
-                            <div style="min-width:0;">
-                                <div style="font-size:0.82rem; font-weight:800; color:#1e293b;"><span style="color:#6d28d9;">Aditivo #${i + 1}</span> — ${_escHtmlProp(b.nome || 'Imagem de Aditivo')}</div>
-                                <div style="font-size:0.72rem; color:#64748b;">Exibida abaixo do #2 Quadro de Valores</div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(${b.id}, 'ADITIVO')" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                                <i class="ph ph-pencil-simple"></i> Editar
-                            </button>
-                            <button type="button" onclick="if(typeof window.excluirBox === 'function') window.excluirBox(${b.id})" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                                <i class="ph ph-trash"></i> Excluir
-                            </button>
-                            <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                                <i class="ph ph-plus-circle"></i> Adicionar Nova
-                            </button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>` : ''}
-        </div>` : '';
 
-    return htmlAceiteCard + htmlAditivoCard;
+            <!-- Quadro 2: Imagem de Aceite -->
+            <div style="background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:10px; padding:12px;">
+                <div style="font-size:0.84rem; font-weight:800; color:#0f766e; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-seal-check"></i> Imagem de Aceite — ${_escHtmlProp(String(m.nome || '').toUpperCase())}
+                </div>
+                <div style="font-size:0.73rem; color:#115e59; margin-bottom:10px;">
+                    Exibida ao cliente após clicar em Aprovar no link da proposta (1 para Desktop e 1 para Celular).
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    ${renderSlot('aceite', 'desktop', 'Desktop', urlAceiteDesk, '#0d9488', '#f0fdfa', '#99f6e4')}
+                    ${renderSlot('aceite', 'mobile', 'Celular', urlAceiteMob, '#0d9488', '#f0fdfa', '#99f6e4')}
+                </div>
+            </div>
+        </div>
+    `;
 };
 
 window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {

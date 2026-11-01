@@ -39975,10 +39975,26 @@ function gerarCodigoProposta(cb) {
 
 // Gerar código único para contrato
 function gerarCodigoContrato(cb) {
-  const ano = new Date().getFullYear();
-  db.get(`SELECT MAX(CAST(SUBSTR(contrato, 7) AS INTEGER)) as max_seq FROM propostas WHERE contrato LIKE 'CT${ano}%'`, [], (err, row) => {
-    const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
-    cb(`CT${ano}${String(seq).padStart(4, '0')}`);
+  db.all("SELECT contrato FROM propostas WHERE contrato IS NOT NULL AND TRIM(contrato) != ''", [], (err, rowsProp) => {
+    db.all("SELECT numero_contrato FROM contratos WHERE numero_contrato IS NOT NULL AND TRIM(numero_contrato) != ''", [], (err2, rowsCont) => {
+      let maxSeq = 0;
+      (rowsProp || []).forEach(r => {
+        const c = String(r.contrato || '').trim();
+        if (/^\d+$/.test(c)) {
+          const n = parseInt(c, 10);
+          if (n > maxSeq) maxSeq = n;
+        }
+      });
+      (rowsCont || []).forEach(r => {
+        const c = String(r.numero_contrato || '').trim();
+        if (/^\d+$/.test(c)) {
+          const n = parseInt(c, 10);
+          if (n > maxSeq) maxSeq = n;
+        }
+      });
+      const seq = maxSeq + 1;
+      cb(String(seq).padStart(2, '0'));
+    });
   });
 }
 
@@ -40061,7 +40077,7 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
 });
 
 // Link público seguro da proposta (/proposta/:codigo/:token) — módulo isolado
-require('./proposta_publica')(app, db, authenticateToken);
+require('./proposta_publica')(app, db, authenticateToken, sendMailHelper);
 
 // GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
 app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
@@ -40078,16 +40094,19 @@ function sincronizarContratoDaProposta(propostaId) {
     if (err || !p) return;
     const isAprovada = String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
     const numContrato = String(p.contrato || p.codigo || '').trim();
+    const sitRaw = String(p.situacao_contrato || '').trim().toUpperCase();
+    const sitContrato = (sitRaw === 'REPROVADA' || sitRaw === 'REPROVADO') ? 'REPROVADO'
+      : ((sitRaw === 'CANCELADA' || sitRaw === 'CANCELADO') ? 'CANCELADO' : 'ATIVO');
     const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
     db.get('SELECT id FROM contratos WHERE proposta_id = ?', [p.id], (errC, rowC) => {
       if (errC) return;
       if (isAprovada) {
         if (rowC && rowC.id) {
-          db.run(`UPDATE contratos SET numero_contrato=?, cliente_nome=?, contato_nome=?, tipo=?, periodo_inicio=?, periodo_fim=?, endereco_instalacao=?, valor_total=?, situacao='ATIVO', status='ATIVO', atualizado_em=? WHERE id=?`,
-            [numContrato, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, agora, rowC.id]);
+          db.run(`UPDATE contratos SET numero_contrato=?, cliente_nome=?, contato_nome=?, tipo=?, periodo_inicio=?, periodo_fim=?, endereco_instalacao=?, valor_total=?, situacao=?, status=?, atualizado_em=? WHERE id=?`,
+            [numContrato, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, sitContrato, sitContrato, agora, rowC.id]);
         } else {
-          db.run(`INSERT INTO contratos (numero_contrato, proposta_id, cliente_nome, contato_nome, tipo, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, situacao, status, criado_em, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,'ATIVO','ATIVO',?,?)`,
-            [numContrato, p.id, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, agora, agora]);
+          db.run(`INSERT INTO contratos (numero_contrato, proposta_id, cliente_nome, contato_nome, tipo, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, situacao, status, criado_em, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?)`,
+            [numContrato, p.id, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, sitContrato, sitContrato, agora, agora]);
         }
       } else if (rowC && rowC.id) {
         db.run(`UPDATE contratos SET situacao='ESTORNADO', status='ESTORNADO', atualizado_em=? WHERE id=?`, [agora, rowC.id]);
@@ -40098,7 +40117,8 @@ function sincronizarContratoDaProposta(propostaId) {
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
   gerarCodigoProposta((codigo) => {
-    gerarCodigoContrato((contrato) => {
+    const isNovaAprovada = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
+    const prosseguirInsert = (contrato) => {
       const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
       db.run(`INSERT INTO propostas (
         codigo, contrato, local, tipo, atendente, data_cadastro, validade_proposta, previsao_fechamento,
@@ -40134,11 +40154,13 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        
+        if (isNovaAprovada) {
+          db.run("UPDATE propostas SET situacao_contrato = 'Aprovada' WHERE id = ?", [this.lastID], () => {});
+        }
         // Log de criação
         const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
-          [usuarioLog, `Proposta criada com contrato ${contrato}`, this.lastID]);
+          [usuarioLog, contrato ? `Proposta criada com contrato ${contrato}` : `Proposta ${codigo} criada`, this.lastID]);
         if (typeof evSincronizarPropostaNoEvento === 'function' && d.nome_evento && String(d.nome_evento).trim()) {
           evSincronizarPropostaNoEvento({
             cliente_nome: d.cliente_nome,
@@ -40155,7 +40177,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         sincronizarContratoDaProposta(this.lastID);
         res.json({ success: true, id: this.lastID, codigo, contrato });
       });
-    });
+    };
+    if (isNovaAprovada) gerarCodigoContrato(prosseguirInsert);
+    else prosseguirInsert(null);
   });
 });
 
@@ -40170,7 +40194,36 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!oldRow) return res.status(404).json({ error: 'Proposta não encontrada' });
 
-    db.run(`UPDATE propostas SET
+    const oldFaseUpper = String(oldRow.fase_negociacao || '').trim().toUpperCase();
+    const reqFaseRaw = String(d.fase_negociacao || '').trim();
+    const reqFaseUpper = reqFaseRaw.toUpperCase();
+
+    if (d.acao_estornar) {
+      const sitContratoCheck = String(d.situacao_contrato || oldRow.situacao_contrato || '').trim().toUpperCase();
+      if (!['REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContratoCheck)) {
+        return res.status(400).json({ error: 'Um contrato apenas pode ser estornado se estiver na situação de REPROVADO ou CANCELADO.' });
+      }
+      d.fase_negociacao = 'Proposta Enviada';
+      d.situacao_contrato = 'ESTORNADO';
+    } else if (oldFaseUpper === 'APROVADA') {
+      if (d.modo_contrato) {
+        d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'Aprovada';
+        d.fase_negociacao = 'Aprovada';
+      } else {
+        return res.status(400).json({ error: 'Proposta aprovada não pode ser editada. Estorne a proposta para poder editar.' });
+      }
+    }
+
+    const needNovoNumContrato = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
+      && (!oldRow.contrato || !/^\d+$/.test(String(oldRow.contrato).trim()));
+
+    const executarUpdateProposta = (contratoFinal) => {
+      const sitContratoFinal = d.situacao_contrato !== undefined
+        ? d.situacao_contrato
+        : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' ? (oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'Aprovada') : (oldRow.situacao_contrato || null));
+
+      db.run(`UPDATE propostas SET
+      contrato=?, situacao_contrato=?,
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
@@ -40182,6 +40235,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       itens_servicos=?, atualizado_em=?
       WHERE id=?`,
     [
+      contratoFinal, sitContratoFinal,
       d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
@@ -40213,9 +40267,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
           periodo_fim: d.periodo_fim,
           proposta_id: Number(proposalId),
           codigo: oldRow.codigo,
-          contrato: oldRow.contrato,
+          contrato: contratoFinal,
           usuario: usuarioLog
         });
+      }
+      if (String(oldRow.situacao_contrato || '') !== String(sitContratoFinal || '')) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Situação do Contrato', ?, ?, ?)`,
+          [usuarioLog, String(oldRow.situacao_contrato || '—'), String(sitContratoFinal || '—'), proposalId]);
       }
 
       // Auditoria: comparar campos alterados
@@ -40314,11 +40372,14 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
           [usuarioLog, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId]);
       }
       sincronizarContratoDaProposta(proposalId);
-      if (false) {
-      }
-
-      res.json({ success: true });
+      res.json({ success: true, contrato: contratoFinal, situacao_contrato: sitContratoFinal });
     });
+    };
+    if (needNovoNumContrato) {
+      gerarCodigoContrato(executarUpdateProposta);
+    } else {
+      executarUpdateProposta(oldRow.contrato || null);
+    }
   });
 });
 
@@ -44269,11 +44330,22 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   });
 });
 
-// Migrations para imagem de Aceite em comercial_modelos_proposta (Cloudflare R2)
-['aceite_r2_key TEXT', 'aceite_mime_type TEXT', 'aceite_mobile_r2_key TEXT', 'aceite_mobile_mime_type TEXT'].forEach(col => {
+// Migrations para imagem de Aceite e Aditivo em comercial_modelos_proposta e assinatura em propostas (Cloudflare R2)
+[
+  'aceite_r2_key TEXT', 'aceite_mime_type TEXT', 'aceite_mobile_r2_key TEXT', 'aceite_mobile_mime_type TEXT',
+  'aditivo_r2_key TEXT', 'aditivo_mime_type TEXT', 'aditivo_mobile_r2_key TEXT', 'aditivo_mobile_mime_type TEXT'
+].forEach(col => {
   db.run(`ALTER TABLE comercial_modelos_proposta ADD COLUMN ${col}`, (err) => {
     if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('[MODELOS_PROPOSTA] Aviso migration aceite:', err.message);
+      console.error('[MODELOS_PROPOSTA] Aviso migration aceite/aditivo:', err.message);
+    }
+  });
+});
+
+['assinatura_r2_key TEXT', 'assinatura_mime_type TEXT', 'aceite_assinante_nome TEXT', 'situacao_contrato TEXT'].forEach(col => {
+  db.run(`ALTER TABLE propostas ADD COLUMN ${col}`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('[PROPOSTAS] Aviso migration assinatura/contrato:', err.message);
     }
   });
 });
@@ -44286,11 +44358,21 @@ function aceiteUrlDoModelo(row, variante) {
   return `/api/public/modelos-proposta/${row.id}/aceite-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
 }
 
+function aditivoUrlDoModelo(row, variante) {
+  if (!row) return null;
+  const key = variante === 'mobile' ? (row.aditivo_mobile_r2_key || row.aditivo_r2_key) : row.aditivo_r2_key;
+  if (!key) return null;
+  if (process.env.R2_PUBLIC_URL) return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
+  return `/api/public/modelos-proposta/${row.id}/aditivo-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
+}
+
 function montarModeloPropostaRow(row) {
   if (!row) return row;
   return Object.assign({}, row, {
-    aceite_url: aceiteUrlDoModelo(row, 'desktop'),
-    aceite_mobile_url: row.aceite_mobile_r2_key ? aceiteUrlDoModelo(row, 'mobile') : null
+    aceite_url: row.aceite_r2_key ? aceiteUrlDoModelo(row, 'desktop') : null,
+    aceite_mobile_url: row.aceite_mobile_r2_key ? aceiteUrlDoModelo(row, 'mobile') : null,
+    aditivo_url: row.aditivo_r2_key ? aditivoUrlDoModelo(row, 'desktop') : null,
+    aditivo_mobile_url: row.aditivo_mobile_r2_key ? aditivoUrlDoModelo(row, 'mobile') : null
   });
 }
 
@@ -44410,16 +44492,16 @@ app.delete('/api/comercial/modelos-proposta/:id/aceite', authenticateToken, asyn
       db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
     });
     if (!rowAtual) return res.status(404).json({ error: 'Modelo de proposta não encontrado.' });
-    const removerTodos = req.query.todos === '1' || (req.body && (req.body.aplicar_todos === '1' || req.body.aplicar_todos === true));
-    if (removerTodos) {
-      const todasRows = await new Promise((resolve) => db.all('SELECT id, aceite_r2_key, aceite_mobile_r2_key FROM comercial_modelos_proposta', [], (e, r) => resolve(r || [])));
-      const todosIds = todasRows.map(x => x.id);
-      for (const rOld of todasRows) {
-        if (rOld.aceite_r2_key) await aceiteApagarR2SeSemReferencia(rOld.aceite_r2_key, todosIds);
-        if (rOld.aceite_mobile_r2_key) await aceiteApagarR2SeSemReferencia(rOld.aceite_mobile_r2_key, todosIds);
-      }
+    const variante = String(req.query.variante || 'all').toLowerCase();
+    if (variante === 'desktop') {
+      if (rowAtual.aceite_r2_key) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_r2_key, [rowAtual.id]);
       await new Promise((resolve, reject) => {
-        db.run('UPDATE comercial_modelos_proposta SET aceite_r2_key = NULL, aceite_mime_type = NULL, aceite_mobile_r2_key = NULL, aceite_mobile_mime_type = NULL', [], (e) => e ? reject(e) : resolve());
+        db.run('UPDATE comercial_modelos_proposta SET aceite_r2_key = NULL, aceite_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
+      });
+    } else if (variante === 'mobile') {
+      if (rowAtual.aceite_mobile_r2_key) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_mobile_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aceite_mobile_r2_key = NULL, aceite_mobile_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
       });
     } else {
       if (rowAtual.aceite_r2_key) await aceiteApagarR2SeSemReferencia(rowAtual.aceite_r2_key, [rowAtual.id]);
@@ -44428,10 +44510,155 @@ app.delete('/api/comercial/modelos-proposta/:id/aceite', authenticateToken, asyn
         db.run('UPDATE comercial_modelos_proposta SET aceite_r2_key = NULL, aceite_mime_type = NULL, aceite_mobile_r2_key = NULL, aceite_mobile_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
       });
     }
-    res.json({ success: true });
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [rowAtual.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloPropostaRow(rowFinal) });
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao remover imagem de aceite.' });
   }
+});
+
+async function aditivoApagarR2SeSemReferencia(key, ignoreIds) {
+  if (!key) return;
+  const r2b = require('./utils/r2');
+  if (!r2b.isReady()) return;
+  const ids = Array.isArray(ignoreIds) ? ignoreIds.map(n => Number(n) || 0) : [Number(ignoreIds) || 0];
+  const placeholders = ids.map(() => '?').join(',');
+  const cnt = await new Promise((resolve) => {
+    db.get(
+      `SELECT COUNT(*) AS c FROM comercial_modelos_proposta WHERE id NOT IN (${placeholders}) AND (aditivo_r2_key = ? OR aditivo_mobile_r2_key = ?)`,
+      [...ids, key, key],
+      (err, row) => resolve((row && Number(row.c)) || 0)
+    );
+  });
+  if (cnt === 0) {
+    try { await r2b.deleteFromR2(key); } catch (e) { console.error('[ADITIVO] Aviso ao excluir chave R2:', e.message); }
+  }
+}
+
+app.get('/api/public/modelos-proposta/:id/aditivo-arquivo', (req, res) => {
+  db.get('SELECT id, aditivo_r2_key, aditivo_mime_type, aditivo_mobile_r2_key, aditivo_mobile_mime_type FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err || !row) return res.status(404).send('Arquivo não encontrado');
+    const variante = req.query.v === 'mobile' ? 'mobile' : 'desktop';
+    const key = variante === 'mobile' ? (row.aditivo_mobile_r2_key || row.aditivo_r2_key) : row.aditivo_r2_key;
+    if (!key) return res.status(404).send('Arquivo não encontrado');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento não configurado');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(key);
+      res.setHeader('Content-Type', contentType || (variante === 'mobile' ? row.aditivo_mobile_mime_type : row.aditivo_mime_type) || 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.pipe(res);
+    } catch (e) {
+      res.status(500).send('Erro ao ler arquivo de aditivo');
+    }
+  });
+});
+
+app.post('/api/comercial/modelos-proposta/:id/aditivo', authenticateToken, boxesUploadFields, async (req, res) => {
+  try {
+    const r2b = require('./utils/r2');
+    if (!r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) não configurado.' });
+    const rowAtual = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
+    });
+    if (!rowAtual) return res.status(404).json({ error: 'Modelo de proposta não encontrado.' });
+
+    const fDesk = req.files && req.files.arquivo && req.files.arquivo[0];
+    const fMob = req.files && req.files.arquivo_mobile && req.files.arquivo_mobile[0];
+    if (!fDesk && !fMob) {
+      return res.status(400).json({ error: 'Selecione a imagem de Aditivo para enviar.' });
+    }
+    const agoraBr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
+    const yyyy = agoraBr.getUTCFullYear();
+    const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+    const slug = String(rowAtual.codigo_tipo || rowAtual.nome || 'PROPOSTA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 30) || 'PROPOSTA';
+
+    let novaKey = rowAtual.aditivo_r2_key || null;
+    let novoMime = rowAtual.aditivo_mime_type || null;
+    let novaMobKey = rowAtual.aditivo_mobile_r2_key || null;
+    let novoMobMime = rowAtual.aditivo_mobile_mime_type || null;
+
+    if (fDesk) {
+      const hash = require('crypto').randomBytes(4).toString('hex');
+      novaKey = `Comercial/Aditivo/${yyyy}/${mm}/${dd}_ADITIVO_${slug}_${hash}.${boxExtDoArquivo(fDesk)}`;
+      novoMime = fDesk.mimetype || 'image/png';
+      await r2b.uploadToR2(novaKey, fDesk.buffer, novoMime);
+      if (rowAtual.aditivo_r2_key && rowAtual.aditivo_r2_key !== novaKey) {
+        await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_r2_key, [rowAtual.id]);
+      }
+    }
+    if (fMob) {
+      const hashM = require('crypto').randomBytes(4).toString('hex');
+      novaMobKey = `Comercial/Aditivo/${yyyy}/${mm}/${dd}_ADITIVO_MOBILE_${slug}_${hashM}.${boxExtDoArquivo(fMob)}`;
+      novoMobMime = fMob.mimetype || 'image/png';
+      await r2b.uploadToR2(novaMobKey, fMob.buffer, novoMobMime);
+      if (rowAtual.aditivo_mobile_r2_key && rowAtual.aditivo_mobile_r2_key !== novaMobKey) {
+        await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_mobile_r2_key, [rowAtual.id]);
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE comercial_modelos_proposta SET aditivo_r2_key = ?, aditivo_mime_type = ?, aditivo_mobile_r2_key = ?, aditivo_mobile_mime_type = ? WHERE id = ?',
+        [novaKey, novoMime, novaMobKey, novoMobMime, rowAtual.id],
+        (e) => e ? reject(e) : resolve()
+      );
+    });
+
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [rowAtual.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloPropostaRow(rowFinal) });
+  } catch (e) {
+    console.error('[ADITIVO] Erro ao salvar imagem de aditivo:', e);
+    res.status(500).json({ error: e.message || 'Erro ao salvar imagem de aditivo.' });
+  }
+});
+
+app.delete('/api/comercial/modelos-proposta/:id/aditivo', authenticateToken, async (req, res) => {
+  try {
+    const rowAtual = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
+    });
+    if (!rowAtual) return res.status(404).json({ error: 'Modelo de proposta não encontrado.' });
+    const variante = String(req.query.variante || 'all').toLowerCase();
+    if (variante === 'desktop') {
+      if (rowAtual.aditivo_r2_key) await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aditivo_r2_key = NULL, aditivo_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
+      });
+    } else if (variante === 'mobile') {
+      if (rowAtual.aditivo_mobile_r2_key) await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_mobile_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aditivo_mobile_r2_key = NULL, aditivo_mobile_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
+      });
+    } else {
+      if (rowAtual.aditivo_r2_key) await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_r2_key, [rowAtual.id]);
+      if (rowAtual.aditivo_mobile_r2_key) await aditivoApagarR2SeSemReferencia(rowAtual.aditivo_mobile_r2_key, [rowAtual.id]);
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE comercial_modelos_proposta SET aditivo_r2_key = NULL, aditivo_mime_type = NULL, aditivo_mobile_r2_key = NULL, aditivo_mobile_mime_type = NULL WHERE id = ?', [rowAtual.id], (e) => e ? reject(e) : resolve());
+      });
+    }
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_proposta WHERE id = ?', [rowAtual.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloPropostaRow(rowFinal) });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao remover imagem de aditivo.' });
+  }
+});
+
+app.get('/api/public/propostas/:id/assinatura-arquivo', (req, res) => {
+  db.get('SELECT id, assinatura_r2_key, assinatura_mime_type FROM propostas WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err || !row || !row.assinatura_r2_key) return res.status(404).send('Assinatura não encontrada');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento não configurado');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(row.assinatura_r2_key);
+      res.setHeader('Content-Type', contentType || row.assinatura_mime_type || 'image/png');
+      res.setHeader('Cache-Control', 'no-cache');
+      stream.pipe(res);
+    } catch (e) {
+      res.status(500).send('Erro ao ler assinatura');
+    }
+  });
 });
 
 // GET /api/comercial/modelos-proposta - Listar todos os modelos de proposta

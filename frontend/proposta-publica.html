@@ -96,9 +96,20 @@
             if (!d) return '';
             if (typeof window.renderBoxQuadroEventoHtml === 'function') {
                 var htmlQuadro = window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' });
+                var urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
+                var htmlAditivo = urlAditivo ? ('<img src="' + esc(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">') : '';
                 var urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
                 var htmlAceite = urlAceite ? ('<img src="' + esc(urlAceite) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">') : '';
-                return '<div style="max-width:960px; margin:0 auto; background:#fff;">' + htmlQuadro + htmlAceite + '</div>';
+                var htmlAssinatura = d.assinatura_url ? (
+                    '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
+                    '<div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+                    '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+                    '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
+                    '</div>' +
+                    (d.aceite_publico_em ? '<div style="font-size:11px; color:#475569; margin-top:6px;">Assinado eletronicamente em ' + esc(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+                    '</div>'
+                ) : '';
+                return '<div style="max-width:960px; margin:0 auto; background:#fff;">' + htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
             }
             var imp = d.impressao_simples || {};
             var c = imp.contratada || {
@@ -282,14 +293,122 @@
 
         function exibirImagemAceite() {
             var urlImg = obterUrlImagemAceite();
-            if (urlImg) {
-                secaoAceite.innerHTML = '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta">';
+            var d = estado.dados || {};
+            var jaAssinado = !!(d.assinatura_url || estado.aprovado);
+            var imgHtml = urlImg ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+            if (jaAssinado && d.assinatura_url) {
+                var htmlFinal = imgHtml +
+                    '<div style="padding:20px 24px; background:#f8fafc; border-top:1px solid #e2e8f0; text-align:center;">' +
+                    '<div style="font-size:15px; font-weight:800; color:#16a34a; margin-bottom:8px;">✓ Proposta Pré-Aprovada e Assinada!</div>' +
+                    '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+                    '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura Salva" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
+                    '</div>' +
+                    (d.aceite_publico_em ? '<div style="font-size:12px; color:#64748b; margin-top:6px;">Data/Hora do Aceite: ' + esc(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+                    '</div>';
+                secaoAceite.innerHTML = htmlFinal;
                 secaoAceite.style.display = 'block';
-                modalAceiteBody.innerHTML = '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta">';
+                modalAceiteBody.innerHTML = htmlFinal;
                 modalAceite.style.display = 'flex';
-            } else {
-                modalAceiteBody.innerHTML = '<div style="padding:36px 28px; text-align:center; color:#1e293b;"><h2 style="margin:0 0 10px; color:#16a34a;">Proposta Aprovada!</h2><p style="margin:0; color:#475569; font-size:15px;">Recebemos a sua aprovação. Nossa equipe comercial entrará em contato para dar andamento.</p></div>';
-                modalAceite.style.display = 'flex';
+                return;
+            }
+
+            modalAceiteBody.innerHTML =
+                imgHtml +
+                '<div style="padding:20px 24px; background:#f8fafc; border-top:2px solid #e2e8f0; text-align:center;">' +
+                '<div style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">Assine abaixo para Aprovar a Proposta</div>' +
+                '<div style="font-size:12.5px; color:#475569; margin-bottom:12px;">Desenhe sua assinatura no quadro abaixo utilizando o mouse ou o dedo na tela:</div>' +
+                '<div style="max-width:520px; margin:0 auto; background:#fff; border:2px dashed #94a3b8; border-radius:10px; overflow:hidden; position:relative;">' +
+                '<canvas id="pp-canvas-assinatura" width="520" height="170" style="width:100%; height:170px; display:block; touch-action:none; cursor:crosshair;"></canvas>' +
+                '</div>' +
+                '<div id="pp-assinatura-erro" style="display:none; color:#dc2626; font-size:12.5px; font-weight:700; margin-top:8px;">Por favor, assine no quadro acima antes de confirmar.</div>' +
+                '<div style="display:flex; justify-content:center; gap:12px; margin-top:14px; flex-wrap:wrap;">' +
+                '<button type="button" id="pp-btn-limpar-assinatura" style="padding:10px 18px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#334155; font-weight:700; font-size:13px; cursor:pointer;">Limpar Assinatura</button>' +
+                '<button type="button" id="pp-btn-confirmar-assinatura" style="padding:10px 24px; border-radius:8px; border:none; background:#16a34a; color:#fff; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.28);">✓ Confirmar Assinatura e Aprovar</button>' +
+                '</div>' +
+                '</div>';
+            modalAceite.style.display = 'flex';
+
+            var canvas = document.getElementById('pp-canvas-assinatura');
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            var desenhando = false;
+            var temTraco = false;
+
+            function posCanvas(ev) {
+                var rect = canvas.getBoundingClientRect();
+                var scaleX = canvas.width / (rect.width || 1);
+                var scaleY = canvas.height / (rect.height || 1);
+                var clientX = ev.touches && ev.touches[0] ? ev.touches[0].clientX : ev.clientX;
+                var clientY = ev.touches && ev.touches[0] ? ev.touches[0].clientY : ev.clientY;
+                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+            }
+            function iniciarTraco(ev) {
+                desenhando = true;
+                temTraco = true;
+                var erroEl = document.getElementById('pp-assinatura-erro');
+                if (erroEl) erroEl.style.display = 'none';
+                var p = posCanvas(ev);
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                if (ev.cancelable) ev.preventDefault();
+            }
+            function moverTraco(ev) {
+                if (!desenhando) return;
+                var p = posCanvas(ev);
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+                if (ev.cancelable) ev.preventDefault();
+            }
+            function finalizarTraco() { desenhando = false; }
+
+            canvas.addEventListener('mousedown', iniciarTraco);
+            canvas.addEventListener('mousemove', moverTraco);
+            window.addEventListener('mouseup', finalizarTraco);
+            canvas.addEventListener('touchstart', iniciarTraco, { passive: false });
+            canvas.addEventListener('touchmove', moverTraco, { passive: false });
+            window.addEventListener('touchend', finalizarTraco);
+
+            var btnLimpar = document.getElementById('pp-btn-limpar-assinatura');
+            if (btnLimpar) {
+                btnLimpar.addEventListener('click', function () {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    temTraco = false;
+                });
+            }
+            var btnConfirmar = document.getElementById('pp-btn-confirmar-assinatura');
+            if (btnConfirmar) {
+                btnConfirmar.addEventListener('click', function () {
+                    if (!temTraco) {
+                        var erroEl = document.getElementById('pp-assinatura-erro');
+                        if (erroEl) erroEl.style.display = 'block';
+                        return;
+                    }
+                    var dataUrl = canvas.toDataURL('image/png');
+                    btnConfirmar.disabled = true;
+                    btnConfirmar.textContent = 'Salvando assinatura...';
+                    fetch('/api/public/proposta/' + encodeURIComponent(codigo) + '/' + encodeURIComponent(token) + '/aprovar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        credentials: 'omit',
+                        referrerPolicy: 'no-referrer',
+                        body: JSON.stringify({ assinatura_base64: dataUrl })
+                    }).then(function (r) { return r.json(); }).then(function (resp) {
+                        estado.aprovado = true;
+                        if (estado.dados) {
+                            estado.dados.aceite_publico_em = (resp && resp.aceite_publico_em) || new Date().toISOString();
+                            estado.dados.assinatura_url = (resp && resp.assinatura_url) || dataUrl;
+                            if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
+                        }
+                        exibirImagemAceite();
+                    }).catch(function () {
+                        btnConfirmar.disabled = false;
+                        btnConfirmar.textContent = '✓ Confirmar Assinatura e Aprovar';
+                    });
+                });
             }
         }
 
@@ -301,13 +420,6 @@
 
         document.getElementById('pp-btn-aprovar').addEventListener('click', function () {
             if (!estado.dados) return;
-            estado.aprovado = true;
-            fetch('/api/public/proposta/' + encodeURIComponent(codigo) + '/' + encodeURIComponent(token) + '/aprovar', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json' },
-                credentials: 'omit',
-                referrerPolicy: 'no-referrer'
-            }).catch(function () {});
             exibirImagemAceite();
         });
 

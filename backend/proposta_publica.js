@@ -18,7 +18,7 @@ const crypto = require('crypto');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 
-module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
+module.exports = function registrarPropostaPublica(app, db, authenticateToken, sendMailHelper) {
     const dbGet = (sql, p) => new Promise((ok, ko) => db.get(sql, p || [], (e, r) => e ? ko(e) : ok(r)));
     const dbAll = (sql, p) => new Promise((ok, ko) => db.all(sql, p || [], (e, r) => e ? ko(e) : ok(r || [])));
     const dbRun = (sql, p) => new Promise((ok, ko) => db.run(sql, p || [], function (e) { e ? ko(e) : ok(this); }));
@@ -357,10 +357,48 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         }
 
         if (ehAditivo) {
-            const rowsAditivo = await dbAll(
-                "SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = 'ADITIVO' AND tipo != 'quadro_evento' ORDER BY ordem ASC, id ASC"
-            );
-            const boxesAditivo = rowsAditivo.map(r => Object.assign(mapearRowBoxPublico(r, 'ADITIVO'), { origem_aditivo: true }));
+            const modelosPropAll = await dbAll('SELECT * FROM comercial_modelos_proposta ORDER BY ordem ASC, id ASC').catch(() => []);
+            const acharModAdt = (codAlvo) => {
+                const cNorm = norm(codAlvo).replace(/^proposta\s+/i, '').trim();
+                return modelosPropAll.find(m => {
+                    const mCod = norm(m.codigo_tipo).replace(/^proposta\s+/i, '').trim();
+                    const mNom = norm(m.nome).replace(/^proposta\s+/i, '').trim();
+                    if (mCod === cNorm || mNom === cNorm) return true;
+                    if (cNorm.startsWith('obra') && (mCod === 'obra' || mCod.startsWith('obra'))) return true;
+                    if (cNorm.includes('fossa') && (mCod === 'limpa fossa' || mCod.includes('fossa'))) return true;
+                    return false;
+                }) || null;
+            };
+            const modRefAdt = acharModAdt(modeloBase) || acharModAdt('ADITIVO') || null;
+            const boxesAditivo = [];
+            if (modRefAdt && (modRefAdt.aditivo_r2_key || modRefAdt.aditivo_mobile_r2_key)) {
+                const pubBase = process.env.R2_PUBLIC_URL ? String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '') : '';
+                const deskKey = modRefAdt.aditivo_r2_key || modRefAdt.aditivo_mobile_r2_key;
+                const mobKey = modRefAdt.aditivo_mobile_r2_key || modRefAdt.aditivo_r2_key;
+                const urlDesk = pubBase ? `${pubBase}/${deskKey}` : `/api/public/modelos-proposta/${modRefAdt.id}/aditivo-arquivo?v=desktop`;
+                const urlMob = pubBase ? `${pubBase}/${mobKey}` : `/api/public/modelos-proposta/${modRefAdt.id}/aditivo-arquivo?v=mobile`;
+                boxesAditivo.push({
+                    id: 900000 + Number(modRefAdt.id || 1),
+                    nome: `Aditivo - ${modRefAdt.nome || modeloBase}`,
+                    tipo: 'imagem',
+                    modelo_tipo: 'ADITIVO',
+                    origem_aditivo: true,
+                    config_quadro: {},
+                    url: urlDesk,
+                    mobile_url: urlMob,
+                    mobile_tipo: 'imagem',
+                    mobile_modo: modRefAdt.aditivo_mobile_r2_key ? 'separada' : 'mesma',
+                    mobile_proporcao: 'auto',
+                    foco_x: 50, foco_y: 50,
+                    hotspots_desktop: [],
+                    hotspots_mobile: []
+                });
+            } else {
+                const rowsAditivo = await dbAll(
+                    "SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = 'ADITIVO' AND tipo != 'quadro_evento' ORDER BY ordem ASC, id ASC"
+                );
+                rowsAditivo.forEach(r => boxesAditivo.push(Object.assign(mapearRowBoxPublico(r, 'ADITIVO'), { origem_aditivo: true })));
+            }
             if (boxesAditivo.length > 0) {
                 const idxQuadro = lista.findIndex(b => b.tipo === 'quadro_evento');
                 const posInserir = idxQuadro >= 0 ? idxQuadro + 1 : lista.length;
@@ -652,7 +690,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             }) || null;
         };
         const modeloRow = acharModeloRow(modeloEfetivo) || acharModeloRow(p.tipo) || modelosProp[0] || null;
-        const aceiteRow = (modeloRow && modeloRow.aceite_r2_key) ? modeloRow : null;
+        const aceiteRow = (modeloRow && (modeloRow.aceite_r2_key || modeloRow.aceite_mobile_r2_key)) ? modeloRow : null;
+        const aditivoRow = (modeloRow && (modeloRow.aditivo_r2_key || modeloRow.aditivo_mobile_r2_key))
+            ? modeloRow
+            : (() => {
+                const mAdt = acharModeloRow('ADITIVO');
+                return (mAdt && (mAdt.aditivo_r2_key || mAdt.aditivo_mobile_r2_key)) ? mAdt : null;
+            })();
         const montarUrlAceite = (row, variante) => {
             if (!row) return null;
             const key = variante === 'mobile' ? (row.aceite_mobile_r2_key || row.aceite_r2_key) : row.aceite_r2_key;
@@ -660,6 +704,24 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             if (process.env.R2_PUBLIC_URL) return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
             return `/api/public/modelos-proposta/${row.id}/aceite-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
         };
+        const montarUrlAditivo = (row, variante) => {
+            if (!row) return null;
+            const key = variante === 'mobile' ? (row.aditivo_mobile_r2_key || row.aditivo_r2_key) : row.aditivo_r2_key;
+            if (!key) return null;
+            if (process.env.R2_PUBLIC_URL) return `${String(process.env.R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
+            return `/api/public/modelos-proposta/${row.id}/aditivo-arquivo?v=${variante === 'mobile' ? 'mobile' : 'desktop'}`;
+        };
+        let aditivoFallbackUrl = null;
+        let aditivoFallbackMobUrl = null;
+        if (ehAditivo && !aditivoRow) {
+            const boxAdtLegacy = await dbGet(
+                "SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = 'ADITIVO' AND tipo != 'quadro_evento' ORDER BY ordem ASC, id ASC LIMIT 1"
+            ).catch(() => null);
+            if (boxAdtLegacy) {
+                aditivoFallbackUrl = urlBox(boxAdtLegacy, 'desktop');
+                aditivoFallbackMobUrl = urlBox(boxAdtLegacy, 'mobile');
+            }
+        }
         let contratadaPadrao = {
             razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',
             cnpj: '03.434.448/0001-01',
@@ -686,9 +748,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             eh_aditivo: ehAditivo,
             eh_demo: false,
             aceite_publico_em: p.aceite_publico_em || null,
+            assinatura_url: p.assinatura_r2_key ? (`/api/public/propostas/${p.id}/assinatura-arquivo?t=${encodeURIComponent(p.aceite_publico_em || '1')}`) : null,
             aceite: {
                 url: montarUrlAceite(aceiteRow, 'desktop'),
                 mobile_url: (aceiteRow && aceiteRow.aceite_mobile_r2_key) ? montarUrlAceite(aceiteRow, 'mobile') : null
+            },
+            aditivo: {
+                url: aditivoRow ? montarUrlAditivo(aditivoRow, 'desktop') : aditivoFallbackUrl,
+                mobile_url: (aditivoRow && aditivoRow.aditivo_mobile_r2_key) ? montarUrlAditivo(aditivoRow, 'mobile') : aditivoFallbackMobUrl
             },
             impressao_simples: {
                 titulo_documento: tituloDocSimples,
@@ -769,7 +836,175 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         }
     });
 
-    app.post('/api/public/proposta/:codigo/:token/aprovar', limiteGeral, limiteFalhas, async (req, res) => {
+    app.get('/api/propostas/:id/dados-documento-assinado', authenticateToken, async (req, res) => {
+        try {
+            const p = await dbGet('SELECT * FROM propostas WHERE id = ?', [req.params.id]);
+            if (!p) return res.status(404).json({ error: 'Proposta não encontrada.' });
+            const dados = await montarDadosQuadro(p);
+            res.json({ success: true, dados, proposta: p });
+        } catch (e) {
+            console.error('[PROPOSTA-PUBLICA] Erro ao montar documento assinado:', e.message);
+            res.status(500).json({ error: e.message || 'Erro ao carregar documento assinado.' });
+        }
+    });
+
+    async function notificarPreAprovacaoProposta(p, agoraIso, agoraBrFmt) {
+        try {
+            const [usuarios, colabs, emailsCorp, departamentos] = await Promise.all([
+                dbAll('SELECT id, username, nome, email, departamento FROM usuarios').catch(() => []),
+                dbAll('SELECT id, nome_completo, email, email_corporativo, departamento FROM colaboradores').catch(() => []),
+                dbAll("SELECT email, colaborador_id, colaborador_nome FROM emails_corporativos WHERE status = 'ativo'").catch(() => []),
+                dbAll('SELECT id, nome, responsavel_id, responsavel_nome FROM departamentos').catch(() => [])
+            ]);
+
+            const matchNomeFlex = (a, b) => {
+                const sa = norm(a).replace(/[._-]+/g, ' ').trim();
+                const sb = norm(b).replace(/[._-]+/g, ' ').trim();
+                if (!sa || !sb) return false;
+                if (sa === sb || sa.includes(sb) || sb.includes(sa)) return true;
+                const pa = sa.split(/\s+/).filter(x => x.length >= 2);
+                const pb = sb.split(/\s+/).filter(x => x.length >= 2);
+                if (pa.length >= 2 && pa.every(w => pb.includes(w))) return true;
+                if (pb.length >= 2 && pb.every(w => pa.includes(w))) return true;
+                if (pa.length >= 2 && pb.length >= 2 && pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]) return true;
+                return false;
+            };
+
+            const resolverPessoa = (termoNome, colabIdHint) => {
+                const tNorm = norm(termoNome);
+                let colab = null;
+                if (colabIdHint) {
+                    colab = colabs.find(c => Number(c.id) === Number(colabIdHint)) || null;
+                }
+                if (!colab && tNorm) {
+                    colab = colabs.find(c => norm(c.nome_completo) === tNorm)
+                        || colabs.find(c => matchNomeFlex(tNorm, c.nome_completo))
+                        || null;
+                }
+                let user = null;
+                if (tNorm) {
+                    user = usuarios.find(u => norm(u.username) === tNorm || norm(u.nome) === tNorm)
+                        || usuarios.find(u => matchNomeFlex(tNorm, u.nome) || matchNomeFlex(tNorm, u.username))
+                        || null;
+                }
+                if (!user && colab) {
+                    user = usuarios.find(u =>
+                        matchNomeFlex(colab.nome_completo, u.nome) ||
+                        matchNomeFlex(colab.nome_completo, u.username) ||
+                        (colab.email_corporativo && norm(u.email) === norm(colab.email_corporativo)) ||
+                        (colab.email && norm(u.email) === norm(colab.email))
+                    ) || null;
+                }
+                if (!colab && user) {
+                    colab = colabs.find(c =>
+                        matchNomeFlex(user.nome, c.nome_completo) ||
+                        matchNomeFlex(user.username, c.nome_completo) ||
+                        (user.email && (norm(c.email_corporativo) === norm(user.email) || norm(c.email) === norm(user.email)))
+                    ) || null;
+                }
+
+                let email = null;
+                if (colab) {
+                    const ec = emailsCorp.find(e => Number(e.colaborador_id) === Number(colab.id))
+                        || emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, colab.nome_completo));
+                    if (ec && ec.email && String(ec.email).includes('@')) email = String(ec.email).trim().toLowerCase();
+                    else if (colab.email_corporativo && String(colab.email_corporativo).includes('@')) email = String(colab.email_corporativo).trim().toLowerCase();
+                }
+                if (!email && tNorm) {
+                    const ec2 = emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, termoNome));
+                    if (ec2 && ec2.email && String(ec2.email).includes('@')) email = String(ec2.email).trim().toLowerCase();
+                }
+                if (!email && user && user.email && String(user.email).includes('@')) {
+                    email = String(user.email).trim().toLowerCase();
+                }
+                if (!email && colab && colab.email && String(colab.email).includes('@')) {
+                    email = String(colab.email).trim().toLowerCase();
+                }
+
+                const depto = (colab && colab.departamento) || (user && user.departamento) || 'Comercial';
+                return {
+                    usuario_id: user ? Number(user.id) : null,
+                    colaborador_id: colab ? Number(colab.id) : null,
+                    email,
+                    departamento: depto
+                };
+            };
+
+            const nomeAtendente = String(p.atendente || p.representante || p.criado_por || '').trim();
+            const infoAtendente = resolverPessoa(nomeAtendente, null);
+
+            const deptoAlvoNorm = norm(infoAtendente.departamento || 'Comercial');
+            const deptoRow = departamentos.find(d => norm(d.nome) === deptoAlvoNorm)
+                || departamentos.find(d => deptoAlvoNorm && (norm(d.nome).includes(deptoAlvoNorm) || deptoAlvoNorm.includes(norm(d.nome))))
+                || departamentos.find(d => norm(d.nome).includes('comercial'))
+                || null;
+
+            const infoGestor = deptoRow
+                ? resolverPessoa(deptoRow.responsavel_nome || '', deptoRow.responsavel_id || null)
+                : { usuario_id: null, email: null };
+
+            const userIdsNotificar = Array.from(new Set([infoAtendente.usuario_id, infoGestor.usuario_id].filter(Boolean)));
+            const emailsNotificar = Array.from(new Set([infoAtendente.email, infoGestor.email].filter(Boolean)));
+
+            const numProp = String(p.codigo || p.id || '').trim();
+            const cliProp = String(p.cliente_nome || '—').trim();
+            const contProp = String(p.contato_nome || '—').trim();
+            const linkDiretoProposta = `${baseLink()}/?abrir_proposta=${encodeURIComponent(p.id)}`;
+
+            const dadosJson = JSON.stringify({
+                proposta_id: p.id,
+                codigo: numProp,
+                cliente_nome: cliProp,
+                contato_nome: contProp,
+                aceite_em: agoraBrFmt,
+                url: `/?abrir_proposta=${encodeURIComponent(p.id)}`
+            });
+            const msgPopup = `Proposta Nº ${numProp} | Cliente: ${cliProp} | Contato: ${contProp}`;
+
+            for (const uid of userIdsNotificar) {
+                await dbRun(
+                    `INSERT INTO notificacoes_usuarios (usuario_id, tipo, titulo, mensagem, dados, lida, criado_em)
+                     VALUES (?, 'proposta_pre_aprovada', 'PROPOSTA PRÉ APROVADA', ?, ?, 0, ?)`,
+                    [uid, msgPopup, dadosJson, agoraIso]
+                ).catch(e => console.error('[PROPOSTA-PUBLICA] Erro ao criar notif popup:', e.message));
+            }
+
+            if (typeof sendMailHelper === 'function' && emailsNotificar.length > 0) {
+                const htmlEmail = `
+                    <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                        <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#ffffff; padding:20px 24px;">
+                            <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.9;">América Rental — Comercial</div>
+                            <h2 style="margin:6px 0 0 0; font-size:20px; font-weight:800;">✅ PROPOSTA PRÉ APROVADA</h2>
+                        </div>
+                        <div style="padding:24px; color:#1e293b; font-size:14px; line-height:1.6;">
+                            <p style="margin:0 0 16px 0;">Uma proposta comercial acaba de ser <strong>pré-aprovada e assinada pelo cliente</strong> através do link da proposta:</p>
+                            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px 16px; margin-bottom:20px;">
+                                <div style="margin-bottom:6px;"><strong>Número da proposta:</strong> ${numProp}</div>
+                                <div style="margin-bottom:6px;"><strong>Nome do Cliente:</strong> ${cliProp}</div>
+                                <div style="margin-bottom:6px;"><strong>Nome do Contato:</strong> ${contProp}</div>
+                                <div><strong>Data/Hora do Aceite:</strong> ${agoraBrFmt}</div>
+                            </div>
+                            <div style="text-align:center; margin:22px 0 8px 0;">
+                                <a href="${linkDiretoProposta}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; font-weight:800; font-size:14px; padding:12px 26px; border-radius:8px;">
+                                    Abrir Proposta Nº ${numProp} no Sistema
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                await sendMailHelper({
+                    to: emailsNotificar.join(', '),
+                    subject: `PROPOSTA PRÉ APROVADA - Nº ${numProp} - ${cliProp}`,
+                    html: htmlEmail
+                }).catch(e => console.error('[PROPOSTA-PUBLICA] Erro ao enviar email pré-aprovação:', e.message));
+            }
+        } catch (errNotif) {
+            console.error('[PROPOSTA-PUBLICA] Erro geral em notificarPreAprovacaoProposta:', errNotif.message);
+        }
+    }
+
+    const expressJsonAssinatura = require('express').json({ limit: '15mb' });
+    app.post('/api/public/proposta/:codigo/:token/aprovar', limiteGeral, limiteFalhas, expressJsonAssinatura, async (req, res) => {
         cabecalhosPublicos(res);
         const naoEncontrada = () => res.status(404).json({ error: 'Link inválido ou expirado.' });
         try {
@@ -785,9 +1020,51 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             if (!p || !tokenConfere(token, p.token_publico)) return naoEncontrada();
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado.' });
-            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-            await dbRun("UPDATE propostas SET aceite_publico_em = ?, fase_negociacao = 'Aprovada' WHERE id = ?", [agora, p.id]);
-            res.json({ success: true, aceite_publico_em: agora });
+
+            const assinaturaBase64 = String((req.body && req.body.assinatura_base64) || '').trim();
+            if (!assinaturaBase64 || !assinaturaBase64.startsWith('data:image/')) {
+                return res.status(400).json({ error: 'Por favor, assine no quadro de assinatura antes de confirmar.' });
+            }
+
+            let assinaturaR2Key = p.assinatura_r2_key || null;
+            const r2b = require('./utils/r2');
+            if (r2b.isReady()) {
+                const base64Clean = assinaturaBase64.replace(/^data:image\/\w+;base64,/, '');
+                const bufAssinatura = Buffer.from(base64Clean, 'base64');
+                const agoraBrObj = new Date(Date.now() - 3 * 60 * 60 * 1000);
+                const yyyy = agoraBrObj.getUTCFullYear();
+                const mm = String(agoraBrObj.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(agoraBrObj.getUTCDate()).padStart(2, '0');
+                const hash = crypto.randomBytes(4).toString('hex');
+                assinaturaR2Key = `Comercial/AssinaturasAceite/${yyyy}/${mm}/${dd}_ASSINATURA_PROP_${p.id}_${hash}.png`;
+                await r2b.uploadToR2(assinaturaR2Key, bufAssinatura, 'image/png');
+            }
+
+            const agoraDate = new Date(Date.now() - 3 * 60 * 60 * 1000);
+            const agora = agoraDate.toISOString().replace('T', ' ').substring(0, 19);
+            const [dPart, tPart] = agora.split(' ');
+            const agoraBrFmt = `${dPart.split('-').reverse().join('/')} às ${tPart}`;
+            const faseAnterior = p.fase_negociacao || 'Proposta Enviada';
+            const novaFase = String(faseAnterior).trim().toUpperCase() === 'APROVADA' ? faseAnterior : 'Pré aprovada';
+
+            await dbRun(
+                "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ? WHERE id = ?",
+                [agora, assinaturaR2Key, novaFase, p.id]
+            );
+
+            await dbRun(
+                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                 VALUES (?, 'Proposta', 'Fase de Negociação', ?, ?, ?, ?)`,
+                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt})`, agora, p.id]
+            ).catch(() => {});
+
+            notificarPreAprovacaoProposta(p, agora, agoraBrFmt);
+
+            res.json({
+                success: true,
+                aceite_publico_em: agora,
+                assinatura_url: assinaturaR2Key ? `/api/public/propostas/${p.id}/assinatura-arquivo?t=${encodeURIComponent(agora)}` : null
+            });
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro ao aprovar:', e.message);
             res.status(500).json({ error: 'Não foi possível registrar o aceite agora.' });

@@ -15945,6 +15945,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-calendar-plus'; titulo = 'Agendar Revisão'; navTarget = 'frota';
                 } else if (notif.tipo === 'custos_frota') {
                     bg = '#eff6ff'; color = '#1971c2'; icon = 'ph-currency-dollar'; titulo = 'Custos de Frota'; navTarget = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
+                } else if (notif.tipo === 'proposta_pre_aprovada') {
+                    bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-check-circle'; titulo = 'PROPOSTA PRÉ APROVADA'; navTarget = 'comercial-propostas';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16213,6 +16215,15 @@ async function checkUserNotificacoes() {
                             ${listaKmHtml}
                         </div>
                     `;
+                } else if (notif.tipo === 'proposta_pre_aprovada') {
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.15rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> PROPOSTA PRÉ APROVADA
+                        </div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número da proposta:</b> ${dados.numero_proposta || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;"><b>Nome do Contato:</b> ${dados.contato_nome || '—'}</div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16224,7 +16235,9 @@ async function checkUserNotificacoes() {
 
                 // Definir ação do botão Ver Detalhes
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
-                if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
+                if (notif.tipo === 'proposta_pre_aprovada' && dados.proposta_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (typeof window.abrirPropostaDiretoId === 'function') { window.abrirPropostaDiretoId(${Number(dados.proposta_id)}); } else { navigateTo('comercial-propostas'); setTimeout(function(){ if(window.editarProposta) window.editarProposta(${Number(dados.proposta_id)}); }, 500); }`;
+                } else if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
                 } else if (notif.tipo === 'nova_ocorrencia' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Advertências');`;
@@ -16313,6 +16326,21 @@ window.markUserNotifLida = function (id) {
 window.checkUserNotificacoes = checkUserNotificacoes;
 setInterval(checkUserNotificacoes, 60000);
 setTimeout(checkUserNotificacoes, 8000);
+setTimeout(function () {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const propId = params.get('abrir_proposta');
+        if (propId && Number(propId) > 0) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            if (typeof window.abrirPropostaDiretoId === 'function') {
+                window.abrirPropostaDiretoId(Number(propId));
+            } else if (typeof navigateTo === 'function') {
+                navigateTo('comercial-propostas');
+                setTimeout(function () { if (window.editarProposta) window.editarProposta(Number(propId)); }, 600);
+            }
+        }
+    } catch (_) {}
+}, 1500);
 
 // --- LÓGICA RENDER PDF (PDF.js) ---
 
