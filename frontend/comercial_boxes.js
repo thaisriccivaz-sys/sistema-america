@@ -1112,7 +1112,7 @@
                                 <div style="color:#333; margin-top:${u(20)};">
                                     <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">${esc(d.condicao_pagamento || '—')}</div>
                                     ${ocultarDataFim
-                                        ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">INÍCIO DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>`
+                                        ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>`
                                         : `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>`
                                     }
                                     <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
