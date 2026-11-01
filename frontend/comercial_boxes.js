@@ -667,8 +667,8 @@
     /* Renderiza o Quadro de Valores (todos os modelos começam com o mesmo padrão criado para Proposta Evento,
        podendo ser personalizados separadamente via CONFIG_QUADRO_POR_MODELO / config_quadro do box) */
     /* Verifica em tempo real se a altura natural dos produtos/serviços + cabeçalho atingiu o mínimo de 600px:
-       - Se NÃO atingir 600px de altura, exibe o texto introdutório (12px) abaixo do campo do topo.
-       - Se atingir ou passar de 600px, oculta o texto introdutório. */
+       - Se NÃO atingir 600px de altura no celular, desce 50px o topo do quadro de valores (.bq-abaixo-600).
+       - Se atingir ou passar de 600px, mantém o topo normal (0px). */
     window.ajustarAlturaQuadroValoresBoxes = function (root) {
         const escopo = root && root.classList && root.classList.contains('box-quadro-evento-proposta')
             ? [root]
@@ -677,11 +677,14 @@
             const topo = q.querySelector('.bq-topo-bloco');
             const equip = q.querySelector('.bq-equipamentos-bloco');
             const totais = q.querySelector('.bq-totais-bloco');
-            const intro = q.querySelector('.bq-texto-intro-curto');
-            if (!topo || !equip || !totais || !intro) return;
+            if (!topo || !equip || !totais) return;
             const alturaNatural = topo.offsetHeight + equip.offsetHeight + totais.offsetHeight;
             if (alturaNatural > 0) {
-                intro.style.display = alturaNatural < 600 ? 'block' : 'none';
+                if (alturaNatural < 600) {
+                    q.classList.add('bq-abaixo-600');
+                } else {
+                    q.classList.remove('bq-abaixo-600');
+                }
             }
         });
     };
@@ -708,8 +711,7 @@
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
 
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
-        const isMobileInit = view === 'mobile' || (typeof window !== 'undefined' && window.innerWidth <= 768);
-        const mostrarIntroInicial = isMobileInit ? (qtdTotalLinhas < 14) : (qtdTotalLinhas < 3);
+        const abaixo600Inicial = qtdTotalLinhas < 14;
 
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
@@ -783,20 +785,26 @@
             .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; background:#fff; }
             .box-quadro-evento-proposta .bq-d { font-family:'FGDemi','Libre Franklin','Franklin Gothic Demi',Arial,Helvetica,sans-serif; font-weight:600; }
             .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
-            .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; background:#fff; }
+            .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; }
+            .box-quadro-evento-proposta .bq-dados-topo-grid { flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(48)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(115)}; align-items:start; min-width:0; }
+            .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; position:relative; z-index:1; }
             .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:600px; }
+            .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
+            .box-quadro-evento-proposta.bq-mobile.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             @media (max-width: 768px) {
                 .box-quadro-evento-proposta .bq-inner { min-height:600px; }
+                .box-quadro-evento-proposta .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
+                .box-quadro-evento-proposta.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
                 .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
                 .box-quadro-evento-proposta .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             }
         </style>
-        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
+        <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}${abaixo600Inicial ? ' bq-abaixo-600' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
             <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="display:none;">
             <div class="bq-inner">
-                <div class="bq-topo-bloco" style="flex-shrink:0;">
+                <div class="bq-topo-bloco">
                     <!-- Faixa superior: PROPOSTA [MODELO] + número sequencial da proposta -->
                     <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
                         <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(tituloTopo)}</span></div>
@@ -804,11 +812,11 @@
                     </div>
 
                     <!-- Bloco logo + dados do cliente + informações do evento -->
-                    <div style="display:flex; align-items:stretch; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                    <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
                         <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
                         </div>
-                        <div style="flex:1; display:grid; grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; align-items:start; min-width:0;">
+                        <div class="bq-dados-topo-grid">
                             <div style="min-width:0;">
                                 <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
@@ -836,11 +844,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Texto abaixo do campo do topo (fonte 12px) exibido apenas quando a quantidade de produtos não atingir o mínimo de 600px de altura -->
-                <div class="bq-texto-intro-curto" style="display:${mostrarIntroInicial ? 'block' : 'none'}; font-size:12px; color:#3b3b3b; padding:${u(18)} ${u(60)} ${u(4)} ${u(52)}; line-height:1.45; flex-shrink:0;">
-                    Apresentamos a seguir nossa proposta comercial, desenvolvida para atender às suas necessidades com qualidade, eficiência e pontualidade. Confira as condições e os valores dos serviços e equipamentos oferecidos pela América Rental.
                 </div>
 
                 <div class="bq-body-wrap${aditivoHtml ? ' bq-has-aditivo' : ''}">
