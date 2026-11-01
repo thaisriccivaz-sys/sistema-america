@@ -685,9 +685,9 @@
 
     /* Renderiza o Quadro de Valores (todos os modelos começam com o mesmo padrão criado para Proposta Evento,
        podendo ser personalizados separadamente via CONFIG_QUADRO_POR_MODELO / config_quadro do box) */
-    /* Verifica em tempo real se a altura natural dos produtos/serviços + cabeçalho atingiu o mínimo de 600px:
-       - Se NÃO atingir 600px de altura no celular, desce 50px o topo do quadro de valores (.bq-abaixo-600).
-       - Se atingir ou passar de 600px, mantém o topo normal (0px). */
+    /* Verifica em tempo real se a altura natural dos produtos/serviços + cabeçalho atingiu o mínimo de 400px:
+       - Se NÃO atingir 400px de altura no celular, desce 50px o topo do quadro de valores (.bq-abaixo-600).
+       - Se atingir ou passar de 400px, mantém o topo normal (0px). */
     window.ajustarAlturaQuadroValoresBoxes = function (root) {
         const escopo = root && root.classList && root.classList.contains('box-quadro-evento-proposta')
             ? [root]
@@ -699,7 +699,7 @@
             if (!topo || !equip || !totais) return;
             const alturaNatural = topo.offsetHeight + equip.offsetHeight + totais.offsetHeight;
             if (alturaNatural > 0) {
-                if (alturaNatural < 600) {
+                if (alturaNatural < 400) {
                     q.classList.add('bq-abaixo-600');
                 } else {
                     q.classList.remove('bq-abaixo-600');
@@ -732,7 +732,7 @@
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
 
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
-        const abaixo600Inicial = qtdTotalLinhas < 14;
+        const abaixo600Inicial = qtdTotalLinhas < 9;
 
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
@@ -841,17 +841,15 @@
             .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; }
             .box-quadro-evento-proposta .bq-dados-topo-grid { flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(48)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(115)}; align-items:start; min-width:0; }
             .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; position:relative; z-index:1; }
-            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:600px; }
+            .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:400px; }
             .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
             .box-quadro-evento-proposta.bq-mobile.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
-            .box-quadro-evento-proposta.bq-mobile .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             @media (max-width: 768px) {
-                .box-quadro-evento-proposta .bq-inner { min-height:600px; }
+                .box-quadro-evento-proposta .bq-inner { min-height:400px; }
                 .box-quadro-evento-proposta .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
                 .box-quadro-evento-proposta.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
                 .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
-                .box-quadro-evento-proposta .bq-body-wrap.bq-has-aditivo { justify-content:flex-start; }
             }
         </style>
         <div class="box-quadro-evento-proposta${view === 'mobile' ? ' bq-mobile' : ''}${abaixo600Inicial ? ' bq-abaixo-600' : ''}" style="container-type:inline-size; width:100%; background:#fff; color:#1e293b; box-sizing:border-box; line-height:1.35;">
@@ -899,7 +897,7 @@
                     </div>
                 </div>
 
-                <div class="bq-body-wrap${aditivoHtml ? ' bq-has-aditivo' : ''}">
+                <div class="bq-body-wrap">
                     <!-- Equipamentos e Serviços (a altura cresce até o final do conteúdo) -->
                     <div class="bq-equipamentos-bloco">
                         <div style="padding:${u(34)} ${u(60)} ${u(10)} ${u(50)};">
@@ -916,12 +914,9 @@
                             <div class="bq-d" style="text-align:center; font-size:${u(38)}; color:${ROXO};">${fmtNum(d.valor_total_geral)}</div>
                         </div>
                     </div>
-
-                    <!-- Quadro de Aditivo posicionado dentro do espaço de 600px mínimo quando o Quadro de Valores for menor que 600px (podendo passar) -->
-                    ${aditivoHtml ? `<div class="bq-aditivo-inside" style="width:100%; flex-shrink:0;">${aditivoHtml}</div>` : ''}
                 </div>
             </div>
-        </div>`;
+        </div>${aditivoHtml ? `<div class="bq-aditivo-after" style="width:100%;">${aditivoHtml}</div>` : ''}`;
     };
 
     async function chamar(metodo, url, body) {
@@ -1374,28 +1369,12 @@
         return out;
     };
 
-    /* Renderiza a lista completa de boxes garantindo que, quando houver boxes de Aditivo logo após o
-       Quadro de Valores, eles entrem dentro do mesmo container de 600px mínimos no celular (podendo passar). */
+    /* Renderiza a lista completa de boxes: a imagem do box de Aditivo aparece abaixo do Quadro de Valores,
+       logo após o Quadro de Valores terminar. */
     window.renderListaBoxesCompletaHtml = function (listaBoxes, view, opts) {
         opts = opts || {};
         const arr = Array.isArray(listaBoxes) ? listaBoxes : [];
-        const partes = [];
-        const ehBoxAditivo = (bx) => Boolean(bx && bx.tipo !== 'quadro_evento' && (bx.origem_aditivo || String(bx.modelo_tipo || '').toUpperCase() === 'ADITIVO'));
-        for (let i = 0; i < arr.length; i++) {
-            const b = arr[i];
-            if (!b) continue;
-            if (b.tipo === 'quadro_evento') {
-                const aditivoHtmlArr = [];
-                while (i + 1 < arr.length && ehBoxAditivo(arr[i + 1])) {
-                    i++;
-                    aditivoHtmlArr.push(window.boxRenderHtml(arr[i], view, opts));
-                }
-                partes.push(window.boxRenderHtml(b, view, Object.assign({}, opts, { aditivo_html: aditivoHtmlArr.join('') })));
-            } else {
-                partes.push(window.boxRenderHtml(b, view, opts));
-            }
-        }
-        return partes.join('');
+        return arr.map(b => b ? window.boxRenderHtml(b, view, opts) : '').join('');
     };
 
     window._renderBoxesPreview = function () {
