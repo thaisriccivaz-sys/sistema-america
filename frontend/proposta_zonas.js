@@ -57,6 +57,34 @@
         return last;
     };
 
+    /* Extrai a quantidade de manutenções por semana do código/nome do produto (ex: O01X -> 1, O02X -> 2, O03X -> 3, 002XZC -> 2) */
+    window.extrairManutSemanaDeProduto = function (nome) {
+        const s = String(nome || '').trim();
+        if (!s) return 0;
+        const codZona = window.extrairCodigoZonaProduto(s);
+        if (codZona && Number.isInteger(codZona.manut) && codZona.manut > 0) {
+            return codZona.manut;
+        }
+        const m = s.match(/(?:^|[^A-Za-z0-9])[Oo0]0?([1-9])\s*[Xx](?=$|[^A-Za-z0-9]|Z[VvAaCc])/);
+        if (m && m[1]) {
+            const n = parseInt(m[1], 10);
+            if (!isNaN(n) && n > 0) return n;
+        }
+        return 0;
+    };
+
+    /* Preenche automaticamente o campo "Quant. manut. semana" a partir do código do produto (ex: O01X -> 1 x, O02X -> 2 x, O03X -> 3 x), mantendo editável */
+    window.preencherManutSemanaPorProduto = function (nome) {
+        const el = document.getElementById('prop-prod-manut');
+        if (!el) return 0;
+        const n = window.extrairManutSemanaDeProduto(nome);
+        if (n > 0) {
+            el.value = `${n} x`;
+            el.dataset.prevManut = el.value;
+        }
+        return n;
+    };
+
     window.formatarManutSemanaInput = function (el) {
         if (!el) return;
         const raw = String(el.value || '');
@@ -118,12 +146,17 @@
     window.atualizarVisibilidadeManutencoesProposta = function (tipo) {
         const wrap = document.getElementById('prop-wrapper-manut');
         const grid = document.getElementById('prop-prod-add-grid');
+        const thManut = document.getElementById('prop-th-manut-semana');
         const usa = window.tipoPropostaUsaManutencoes(tipo);
         if (wrap) wrap.style.display = usa ? 'block' : 'none';
         if (grid) grid.style.gridTemplateColumns = usa ? '2fr 2.5fr 0.8fr 1fr' : '2fr 2.5fr 0.8fr';
+        if (thManut) thManut.style.display = usa ? 'table-cell' : 'none';
         if (!usa) {
             const inp = document.getElementById('prop-prod-manut');
             if (inp) inp.value = '';
+        }
+        if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+            window.renderizarProdutosPropostaGrid();
         }
     };
 

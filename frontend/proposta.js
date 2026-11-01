@@ -2301,7 +2301,7 @@ function _renderFormPropostaInt() {
                             </div>
                             <div id="prop-wrapper-manut" style="display:none;">
                                 <label class="prop-lbl" title="Quantidade de manutenções por semana (1 x, 2 x, 3 x...). Destaca em azul os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
-                                <input type="text" id="prop-prod-manut" inputmode="numeric" placeholder="1 x" title="1 x, 2 x, 3 x..."
+                                <input type="text" id="prop-prod-manut" inputmode="numeric" placeholder="Ex: 1 x" title="1 x, 2 x, 3 x..."
                                     oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
                             </div>
@@ -2424,6 +2424,7 @@ function _renderFormPropostaInt() {
                                         <th style="padding:10px 12px; font-weight:700;">Produto</th>
                                         <th style="padding:10px 12px; font-weight:700;">Observação</th>
                                         <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
+                                        <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center;">Quant. Manut. Semana</th>
                                         <th style="padding:10px 12px; font-weight:700; width:130px; text-align:center;">Desconto</th>
                                         <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Unit.</th>
                                         <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
@@ -18765,6 +18766,9 @@ window.onInputProdutoPropostaTexto = async function() {
     await window._garantirTabelasPrecoCarregadas(false);
     const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: txt, nome: txt });
+    if (typeof window.preencherManutSemanaPorProduto === 'function') {
+        window.preencherManutSemanaPorProduto(txt);
+    }
     if (vTab !== null && inputValor) {
         inputCodigo.setAttribute('data-nome', txt);
         inputValor.setAttribute('data-preco-base', String(Number(vTab)));
@@ -18854,6 +18858,9 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
         inputCodigo.value = nomeLimpo || cod || '';
         inputCodigo.setAttribute('data-codigo', cod || '');
         inputCodigo.setAttribute('data-nome', nomeLimpo || nome || '');
+    }
+    if (typeof window.preencherManutSemanaPorProduto === 'function') {
+        window.preencherManutSemanaPorProduto(nomeLimpo || nome || cod);
     }
     await window._garantirTabelasPrecoCarregadas(false);
     const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
@@ -18963,7 +18970,13 @@ window.adicionarProdutoProposta = function() {
         descricao_proposta: (typeof window.obterDescricaoPropostaEquipamento === 'function')
             ? window.obterDescricaoPropostaEquipamento({ codigo, produto: produtoNome })
             : '',
-        manut_semana: (typeof window.obterManutSemanaSelecionada === 'function') ? window.obterManutSemanaSelecionada() : 0,
+        manut_semana: (() => {
+            const usaM = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
+            if (!usaM) return 0;
+            const mSel = (typeof window.obterManutSemanaSelecionada === 'function') ? window.obterManutSemanaSelecionada() : 0;
+            if (mSel > 0) return mSel;
+            return (typeof window.extrairManutSemanaDeProduto === 'function') ? window.extrairManutSemanaDeProduto(produtoNome || codigo) : 0;
+        })(),
         observacao: observacao,
         quantidade: quantidade,
         dias_evento: [...diasSelecionados],
@@ -18984,6 +18997,8 @@ window.adicionarProdutoProposta = function() {
     }
     if (inputObservacao) inputObservacao.value = '';
     if (inputQuantidade) inputQuantidade.value = '1';
+    const inputManutReset = document.getElementById('prop-prod-manut');
+    if (inputManutReset) { inputManutReset.value = ''; inputManutReset.dataset.prevManut = ''; }
     if (descPctEl) descPctEl.value = '0';
     if (descRsEl) descRsEl.value = '0';
     if (inputValor) {
@@ -19040,6 +19055,10 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
         item.valor_total = vNovo * qtd;
     } else if (campo === 'observacao') {
         item.observacao = String(valorNovo || '');
+    } else if (campo === 'manut_semana') {
+        const digits = String(valorNovo || '').replace(/\D+/g, '');
+        const n = parseInt(digits, 10);
+        item.manut_semana = (!isNaN(n) && n > 0) ? n : 0;
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     window.renderizarProdutosPropostaGrid();
@@ -19086,12 +19105,15 @@ window.renderizarProdutosPropostaGrid = function() {
     const tbody = document.getElementById('prop-produtos-tbody');
     if (!tbody) return;
 
+    const usaManutGrid = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
+    const thManutGrid = document.getElementById('prop-th-manut-semana');
+    if (thManutGrid) thManutGrid.style.display = usaManutGrid ? 'table-cell' : 'none';
     const list = window._propProdutosAdicionados || [];
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
+                <td colspan="${usaManutGrid ? 8 : 7}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
             </tr>
         `;
         if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
@@ -19128,10 +19150,13 @@ window.renderizarProdutosPropostaGrid = function() {
             descHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem; white-space:nowrap;">R$ ${rsStr}</span>`;
         }
 
+        const manutValItem = parseInt(p.manut_semana, 10) > 0
+            ? parseInt(p.manut_semana, 10)
+            : (usaManutGrid && typeof window.extrairManutSemanaDeProduto === 'function' ? window.extrairManutSemanaDeProduto(nomeProd || p.codigo) : 0);
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div>${_escHtmlProp(nomeProd)} ${(parseInt(p.manut_semana, 10) > 0) ? `<span style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px; white-space:nowrap;">${parseInt(p.manut_semana, 10)}x manut./sem.</span>` : ''}</div>
+                    <div>${_escHtmlProp(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 10px;">
@@ -19142,6 +19167,14 @@ window.renderizarProdutosPropostaGrid = function() {
                     <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
                         style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700;">
                 </td>
+                ${usaManutGrid ? `
+                <td style="padding:8px 10px; text-align:center;">
+                    <input type="text" inputmode="numeric" value="${manutValItem > 0 ? manutValItem + ' x' : ''}" placeholder="—"
+                        oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
+                        onchange="window.atualizarItemProdutoProposta(${idx}, 'manut_semana', this.value)"
+                        title="Quantidade de manutenções por semana"
+                        style="width:76px; padding:4px 6px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff;">
+                </td>` : ''}
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
                     <input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
