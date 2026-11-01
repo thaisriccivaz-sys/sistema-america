@@ -786,7 +786,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado.' });
             const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-            await dbRun('UPDATE propostas SET aceite_publico_em = ? WHERE id = ?', [agora, p.id]);
+            await dbRun("UPDATE propostas SET aceite_publico_em = ?, fase_negociacao = 'Aprovada' WHERE id = ?", [agora, p.id]);
             res.json({ success: true, aceite_publico_em: agora });
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro ao aprovar:', e.message);

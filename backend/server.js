@@ -40072,6 +40072,29 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
 });
 
 // POST /api/propostas - Criar nova proposta
+function sincronizarContratoDaProposta(propostaId) {
+  if (!propostaId) return;
+  db.get('SELECT * FROM propostas WHERE id = ?', [propostaId], (err, p) => {
+    if (err || !p) return;
+    const isAprovada = String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
+    const numContrato = String(p.contrato || p.codigo || '').trim();
+    const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+    db.get('SELECT id FROM contratos WHERE proposta_id = ?', [p.id], (errC, rowC) => {
+      if (errC) return;
+      if (isAprovada) {
+        if (rowC && rowC.id) {
+          db.run(`UPDATE contratos SET numero_contrato=?, cliente_nome=?, contato_nome=?, tipo=?, periodo_inicio=?, periodo_fim=?, endereco_instalacao=?, valor_total=?, situacao='ATIVO', status='ATIVO', atualizado_em=? WHERE id=?`,
+            [numContrato, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, agora, rowC.id]);
+        } else {
+          db.run(`INSERT INTO contratos (numero_contrato, proposta_id, cliente_nome, contato_nome, tipo, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, situacao, status, criado_em, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,'ATIVO','ATIVO',?,?)`,
+            [numContrato, p.id, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, agora, agora]);
+        }
+      } else if (rowC && rowC.id) {
+        db.run(`UPDATE contratos SET situacao='ESTORNADO', status='ESTORNADO', atualizado_em=? WHERE id=?`, [agora, rowC.id]);
+      }
+    });
+  });
+}
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
   gerarCodigoProposta((codigo) => {
@@ -40129,6 +40152,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
           });
         }
 
+        sincronizarContratoDaProposta(this.lastID);
         res.json({ success: true, id: this.lastID, codigo, contrato });
       });
     });
@@ -40288,6 +40312,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       if (oldServFmt !== newServFmt) {
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
           [usuarioLog, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId]);
+      }
+      sincronizarContratoDaProposta(proposalId);
+      if (false) {
       }
 
       res.json({ success: true });

@@ -117,6 +117,9 @@ let _manutencoesData = [];
 let _veiculosData = [];
 let _clientesData = [];
 let _propostasEditandoId = null;
+window._modoTelaComercial = window._modoTelaComercial || 'proposta';
+window._propostasEditandoId_proposta = null;
+window._propostasEditandoId_contrato = null;
 let _propRegiaoIdentificada = '';
 let _currentPropostaTab = 'form'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
@@ -130,6 +133,8 @@ let _empresaSelecionadaCodigo = null;
 
 /* ── Inicialização ──────────────────────────────────────────────────── */
 async function inicializarPropostas(defaultTab) {
+    if (defaultTab === 'contratos') { window._modoTelaComercial = 'contrato'; _propostasEditandoId = window._propostasEditandoId_contrato || null; defaultTab = 'form'; }
+    else if (defaultTab === 'form') { window._modoTelaComercial = 'proposta'; _propostasEditandoId = window._propostasEditandoId_proposta || null; }
     if (defaultTab) {
         _currentPropostaTab = defaultTab;
     } else if (window._pendingPropostaTab) {
@@ -1091,6 +1096,9 @@ function renderTelaPropostas() {
 }
 
 window.switchPropostaTab = function(tab) {
+    let mudouModoComercial = false;
+    if (tab === 'contratos') { if (window._modoTelaComercial !== 'contrato') mudouModoComercial = true; window._modoTelaComercial = 'contrato'; _propostasEditandoId = window._propostasEditandoId_contrato || null; tab = 'form'; }
+    else if (tab === 'form' && window._modoTelaComercial === 'contrato') { mudouModoComercial = true; window._modoTelaComercial = 'proposta'; _propostasEditandoId = window._propostasEditandoId_proposta || null; }
     _currentPropostaTab = tab;
     
     const viewLista = document.getElementById('prop-view-lista');
@@ -1115,7 +1123,7 @@ window.switchPropostaTab = function(tab) {
     const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewCadastroEventos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
     if (elementsExist) {
         if (tab === 'form') {
-            if (viewForm.innerHTML.trim() === '') {
+            if (mudouModoComercial || viewForm.innerHTML.trim() === '') {
                 _renderFormPropostaInt();
             } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
                 window.verificarBloqueioFaturamentoProposta();
@@ -1863,6 +1871,8 @@ window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedSer
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 window.abrirFormProposta = abrirFormProposta;
 async function abrirFormProposta(id) {
+    if (window._modoTelaComercial === 'contrato') window._propostasEditandoId_contrato = id;
+    else window._propostasEditandoId_proposta = id;
     _propostasEditandoId = id;
     _currentPropostaTab = 'form';
     
@@ -1979,6 +1989,7 @@ function _renderFormPropostaInt() {
                     <button onclick="salvarPropostaNova()" style="background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${window._modoTelaComercial === 'contrato' ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
                     <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
                     </button>
@@ -2085,7 +2096,7 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Fase de Negociação *</label>
                             <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                ${PROP_FASES.map(f => `<option value="${f}" ${String(v('fase_negociacao')||'').toUpperCase()===f.toUpperCase()?'selected':''}>${f.toUpperCase()}</option>`).join('')}
+                                ${PROP_FASES.map(f => `<option value="${f}" ${String(v('fase_negociacao') || (window._modoTelaComercial === 'contrato' ? 'Aprovada' : '')).toUpperCase()===f.toUpperCase()?'selected':''}>${f.toUpperCase()}</option>`).join('')}
                             </select>
                         </div>
                         <div style="display:none;">
@@ -5804,6 +5815,8 @@ window.calcularValorTotalProposta = function() {
 
 /* ── Botões CRUD e Envio ─────────────────────────────────────────────── */
 window.limparFormPropostaNovo = function() {
+    if (window._modoTelaComercial === 'contrato') window._propostasEditandoId_contrato = null;
+    else window._propostasEditandoId_proposta = null;
     _propostasEditandoId = null;
     window._propProdutosAdicionados = [];
     window._propDiasEventoSelecionados = [];
@@ -6326,6 +6339,7 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
                 await abrirFormProposta(finalId);
             }
             if (typeof mostrarToastSucesso === 'function') {
+                if (String(window._cachedProposalPayload?.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && window._modoTelaComercial !== 'contrato') { window._propostasEditandoId_proposta = null; window._propostasEditandoId_contrato = finalId; window._modoTelaComercial = 'contrato'; _propostasEditandoId = finalId; await abrirFormProposta(finalId); if (typeof window.navigateTo === 'function') window.navigateTo('comercial-contratos'); }
                 mostrarToastSucesso(isEditing ? 'Proposta atualizada com sucesso!' : 'Proposta salva com sucesso!');
             }
             Swal.close();
@@ -6419,7 +6433,7 @@ window.estornarPropostaEdicao = async function() {
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: 'Aguardando Aprovação', // Estorna e libera para aprovação novamente
+        fase_negociacao: 'Em Elaboração', // Estorna e retorna para Proposta
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -6464,6 +6478,7 @@ window.estornarPropostaEdicao = async function() {
                 await abrirFormProposta(finalId);
             }
             if (typeof mostrarToastSucesso === 'function') {
+                if (window._modoTelaComercial === 'contrato') { window._propostasEditandoId_contrato = null; window._propostasEditandoId_proposta = finalId; window._modoTelaComercial = 'proposta'; _propostasEditandoId = finalId; await abrirFormProposta(finalId); if (typeof window.navigateTo === 'function') window.navigateTo('comercial-proposta'); }
                 mostrarToastSucesso('Alterações salvas e proposta liberada para aprovação!');
             }
         } else {
@@ -6472,6 +6487,121 @@ window.estornarPropostaEdicao = async function() {
     } catch (e) {
         console.error('[PROPOSTAS] Erro ao estornar:', e);
         alert('Erro ao comunicar com o servidor.');
+    }
+};
+
+window.aprovarPropostaEdicao = async function() {
+    const obter = (id) => document.getElementById(id)?.value || '';
+    const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const tipo = obter('prop-tipo');
+    const dataCad = obter('prop-data-cadastro');
+    if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
+    if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
+    if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para aprovar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
+    if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para aprovar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
+    if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
+        const nomeEventoVal = obter('prop-nome-evento').trim();
+        if (!nomeEventoVal) { alert('Informe o Nome do Evento.'); document.getElementById('prop-nome-evento')?.focus(); return; }
+    }
+    if (window.tipoPropostaUsaDiasEvento(tipo)) {
+        const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
+        if (diasGlobais.length > 0 && !window.validarDiasEHorariosEventoSelecionados()) return;
+        const itensValidacao = window._propProdutosAdicionados || [];
+        for (let i = 0; i < itensValidacao.length; i++) {
+            const p = itensValidacao[i];
+            const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+            if (dItem.length === 0) { alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário.'); return; }
+            const faltaHorarioNoItem = dItem.some(entry => { const parsed = window._parseDiasEventoItem(entry); return !parsed.data || !window._horarioEventoIntervaloValido(parsed.horario); });
+            if (faltaHorarioNoItem) { alert('O produto "' + (p.produto || p.descricao || '') + '" tem diária sem horário completo.'); return; }
+            p.dias_evento = dItem.map(entry => { const parsed = window._parseDiasEventoItem(entry); return parsed.horario ? `${parsed.data} ${parsed.horario}` : parsed.data; });
+        }
+    } else {
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        if (Array.isArray(window._propProdutosAdicionados)) window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+    }
+    if (typeof window.validarServicosPropostaObra === 'function' && !window.validarServicosPropostaObra(tipo)) return;
+    const faseSel = document.getElementById('prop-fase');
+    if (faseSel) faseSel.value = 'Aprovada';
+    if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
+    const payload = {
+        local: obter('prop-local') || 'AMERICA RENTAL',
+        tipo,
+        atendente: obter('prop-atendente'),
+        data_cadastro: dataCad,
+        validade_proposta: obter('prop-validade-proposta'),
+        previsao_fechamento: obter('prop-previsao'),
+        fase_negociacao: 'Aprovada',
+        modelo_impressao: obter('prop-modelo'),
+        cliente_nome: obter('prop-cliente'),
+        contato_nome: obter('prop-contato'),
+        periodo_inicio: obter('prop-periodo-ini'),
+        periodo_fim: obter('prop-periodo-fim'),
+        hora_inicio: obter('prop-hora-ini') || '00:00',
+        hora_fim: obter('prop-hora-fim') || '00:00',
+        dias_contrato: parseInt(obter('prop-dias') || 0),
+        dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
+        tabela_precos: obter('prop-tabela'),
+        nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
+        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
+        contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
+        contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
+        endereco_instalacao: obter('prop-endereco'),
+        desconto_percent: obterN('prop-desc-pct'),
+        desconto_reais: obterN('prop-desc-rs'),
+        condicao_pagamento: obter('prop-cond-pag'),
+        representante: obter('prop-representante'),
+        transportadora: obter('prop-transportadora'),
+        tipo_frete: obter('prop-tipo-frete'),
+        valor_frete_ida: obterN('prop-frete-ida'),
+        valor_frete_volta: obterN('prop-frete-volta'),
+        observacoes: obter('prop-obs'),
+        valor_total: (() => {
+            const itensAtuais = window._propProdutosAdicionados || [];
+            if (itensAtuais.length > 0) {
+                return itensAtuais.reduce((acc, p) => {
+                    if (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) return acc + parseFloat(p.valor_total);
+                    return acc + ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                }, 0);
+            }
+            return obterN('prop-valor-total');
+        })() + (typeof window._somaServicosProposta === 'function' ? window._somaServicosProposta() : 0),
+        status: obter('prop-status') || 'Ativa',
+        motivo_reprovacao: '',
+        criado_por: window.obterNomeUsuarioLogado(),
+        itens: window._propProdutosAdicionados || [],
+        itens_servicos: window._propServicosAdicionados || [],
+        servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
+        regiao: _propRegiaoIdentificada || null,
+        percentual_zona: obterN('prop-percentual-zona'),
+        valor_km: obterN('prop-valor-km'),
+        distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
+        valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
+    };
+    Swal.fire({ title: 'Aprovando Proposta e gerando Contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const resp = _propostasEditandoId
+            ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
+            : await apiPost('/propostas', payload);
+        if (resp && (resp.success || resp.id)) {
+            const finalId = _propostasEditandoId || resp.id;
+            await carregarPropostas();
+            window._propostasEditandoId_proposta = null;
+            window._propostasEditandoId_contrato = finalId;
+            window._modoTelaComercial = 'contrato';
+            _propostasEditandoId = finalId;
+            Swal.close();
+            await abrirFormProposta(finalId);
+            if (typeof window.navigateTo === 'function') window.navigateTo('comercial-contratos');
+            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta aprovada! Convertida em Contrato com sucesso!');
+        } else {
+            Swal.fire('Erro', 'Erro ao aprovar proposta: ' + (resp?.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        console.error('[PROPOSTAS] Erro ao aprovar:', e);
+        Swal.fire('Erro', 'Erro ao comunicar com o servidor: ' + e.message, 'error');
     }
 };
 
@@ -16665,7 +16795,7 @@ window.pesquisarPropostaPorCodigoInput = async function() {
         const termoLower = termo.toLowerCase();
         const termoDigits = termo.replace(/\D/g, '').replace(/^0+/, '');
         if (!propAtual || String(propAtual.codigo || '').toLowerCase() !== termoLower) {
-            const exatas = _propostasData.filter(p => {
+            const exatas = _propostasData.filter(p => (window._modoTelaComercial === 'contrato' ? String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' : String(p.fase_negociacao || '').trim().toUpperCase() !== 'APROVADA')).filter(p => {
                 const cod = String(p.codigo || '').trim();
                 if (!cod) return false;
                 if (cod.toLowerCase() === termoLower) return true;
@@ -16709,7 +16839,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
-        const propostasComCnpj = _propostasData.map(p => {
+        const propostasComCnpj = _propostasData.filter(p => window._modoTelaComercial === 'contrato' ? String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' : String(p.fase_negociacao || '').trim().toUpperCase() !== 'APROVADA').map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -16749,7 +16879,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     
                     <!-- Header -->
                     <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-file-search" style="color:#7048e8; font-size:1.3rem;"></i> Pesquisar Propostas
+                        <i class="ph ph-file-search" style="color:#7048e8; font-size:1.3rem;"></i> ${window._modoTelaComercial === 'contrato' ? 'Pesquisar Contratos' : 'Pesquisar Propostas'}
                     </div>
                     
                     <!-- Body/Filters -->
