@@ -2562,10 +2562,10 @@ function _renderFormPropostaInt() {
                                         <th style="padding:10px 12px; font-weight:700;">Produto</th>
                                         <th style="padding:10px 12px; font-weight:700;">Observação</th>
                                         <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
-                                        <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center;">Quant. Manut. Semana</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:130px; text-align:center;">Desconto</th>
-                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:right;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário Diária' : 'Valor Unit.'}</th>
-                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:right;">Valor Total por Dia</th>
+                                        <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center; line-height:1.25;">Quant. Manut.<br>Semana</th>
+                                        <th style="padding:10px 12px; font-weight:700; width:155px; text-align:center;">Desconto</th>
+                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'center' : 'right'}; line-height:1.25;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário<br>Diária' : 'Valor Unit.'}</th>
+                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:center; line-height:1.25;">Valor Total<br>por Dia</th>
                                         <th id="prop-th-valor-total" style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
                                         <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                                     </tr>
@@ -4175,9 +4175,13 @@ window.modalRenderTabelaContatos = function() {
     tbody.innerHTML = window._modalClienteContatos.map((c, idx) => {
         const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
         return `
         <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'modal')" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste contato">
-            <td style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; word-break:break-word;">
+                <span style="color:#2563eb; font-weight:600; cursor:pointer; text-decoration:underline;">${c.nome}</span>
+                ${badgesHtml ? `<div style="margin-top:4px;">${badgesHtml}</div>` : ''}
+            </td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
@@ -4899,7 +4903,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
 
         // Unifica contatos da tabela /contatos + contatos embutidos nos clientes
         const listaUnificada = [];
-        const chavesVistas = new Set();
+        const mapaUnificadoPorChave = new Map();
 
         (Array.isArray(contatosApi) ? contatosApi : []).forEach(c => {
             const cliVinc = c.cliente_id ? mapClientePorId.get(Number(c.cliente_id)) : null;
@@ -4914,10 +4918,15 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                 celular: c.celular || c.telefone || '',
                 cliente_id: c.cliente_id || (cliVinc && cliVinc.id) || null,
                 cliente_nome: empNome,
-                cliente_cnpj: empCnpj
+                cliente_cnpj: empCnpj,
+                email_nfe: c.email_nfe === 1 || c.nfe === 'Sim' ? 1 : 0,
+                email_cobranca: c.email_cobranca === 1 || c.cobranca === 'Sim' ? 1 : 0,
+                email_os: c.email_os === 1 || c.os === 'Sim' ? 1 : 0,
+                email_contrato: c.email_contrato === 1 || c.contrato === 'Sim' ? 1 : 0,
+                inativo: c.inativo === 1 || c.inativo === 'Sim' || String(c.situacao || '').toLowerCase() === 'inativo' ? 1 : 0
             };
             const key = `${normStr(item.nome)}|${normStr(item.cliente_nome)}`;
-            chavesVistas.add(key);
+            mapaUnificadoPorChave.set(key, item);
             listaUnificada.push(item);
         });
 
@@ -4929,9 +4938,21 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             arr.forEach(ct => {
                 if (!ct || !ct.nome) return;
                 const key = `${normStr(ct.nome)}|${normStr(cl.nome_razao_social)}`;
-                if (chavesVistas.has(key)) return;
-                chavesVistas.add(key);
-                listaUnificada.push({
+                const ctNfe = ct.email_nfe === 1 || ct.nfe === 'Sim' ? 1 : 0;
+                const ctCob = ct.email_cobranca === 1 || ct.cobranca === 'Sim' ? 1 : 0;
+                const ctOs = ct.email_os === 1 || ct.os === 'Sim' ? 1 : 0;
+                const ctCon = ct.email_contrato === 1 || ct.contrato === 'Sim' ? 1 : 0;
+                const ctInat = ct.inativo === 1 || ct.inativo === 'Sim' || String(ct.situacao || '').toLowerCase() === 'inativo' ? 1 : 0;
+                if (mapaUnificadoPorChave.has(key)) {
+                    const ex = mapaUnificadoPorChave.get(key);
+                    if (!ex.email_nfe && ctNfe) ex.email_nfe = 1;
+                    if (!ex.email_cobranca && ctCob) ex.email_cobranca = 1;
+                    if (!ex.email_os && ctOs) ex.email_os = 1;
+                    if (!ex.email_contrato && ctCon) ex.email_contrato = 1;
+                    if (!ex.inativo && ctInat) ex.inativo = 1;
+                    return;
+                }
+                const novoItem = {
                     id: ct.id || '',
                     codigo: ct.identificacao || ct.codigo || ct.id || '',
                     nome: ct.nome,
@@ -4940,8 +4961,15 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                     celular: ct.celular || ct.telefone || ct.telefone_ramal || '',
                     cliente_id: cl.id,
                     cliente_nome: cl.nome_razao_social || '',
-                    cliente_cnpj: cl.cpf_cnpj || ''
-                });
+                    cliente_cnpj: cl.cpf_cnpj || '',
+                    email_nfe: ctNfe,
+                    email_cobranca: ctCob,
+                    email_os: ctOs,
+                    email_contrato: ctCon,
+                    inativo: ctInat
+                };
+                mapaUnificadoPorChave.set(key, novoItem);
+                listaUnificada.push(novoItem);
             });
         });
 
@@ -5055,7 +5083,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             if (exibidos.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" style="padding:1.8rem; text-align:center; color:#64748b;">
+                        <td colspan="6" style="padding:1.8rem; text-align:center; color:#64748b;">
                             Nenhum contato encontrado para a busca informada.
                         </td>
                     </tr>
@@ -5065,12 +5093,14 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             tbody.innerHTML = exibidos.map(c => {
                 const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
                 return `
                     <tr onclick="window.selectContatoProposta('${safeNome}', '${safeEmp}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${_escHtmlProp(c.codigo)}</td>
                         <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</td>
                         <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cargo || '—')}</td>
                         <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.celular || '—')}</td>
+                        <td style="padding:0.5rem; text-align:left;">${badgesHtml || '<span style="color:#94a3b8;">—</span>'}</td>
                         <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cliente_nome || '—')}</td>
                     </tr>
                 `;
@@ -5080,7 +5110,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         const safeQuery = query.replace(/"/g, '&quot;');
         Swal.fire({
             title: 'Pesquisar Contato',
-            width: '780px',
+            width: '920px',
             html: `
                 <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
                     <input type="text" id="swal-busca-contato-prop" value="${safeQuery}"
@@ -5094,10 +5124,11 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                     <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
                         <thead>
                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; position:sticky; top:0; z-index:1;">
-                                <th style="padding:0.5rem; width:75px;">Código</th>
+                                <th style="padding:0.5rem; width:65px;">Código</th>
                                 <th style="padding:0.5rem;">Nome</th>
                                 <th style="padding:0.5rem;">Cargo / Depto</th>
                                 <th style="padding:0.5rem;">Celular / Tel</th>
+                                <th style="padding:0.5rem;">Opções Ticadas</th>
                                 <th style="padding:0.5rem;">Empresa</th>
                             </tr>
                         </thead>
@@ -5142,6 +5173,27 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
 window._contatosDoClientePropostaAtual = [];
 window._todosContatosPropostaCache = [];
 
+window.obterBadgesOpcoesContato = function(c) {
+    if (!c) return '';
+    const tags = [];
+    if (c.email_nfe === 1 || c.nfe === 'Sim' || c.email_nfe === true) {
+        tags.push('<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Envio NFe</span>');
+    }
+    if (c.email_cobranca === 1 || c.cobranca === 'Sim' || c.email_cobranca === true) {
+        tags.push('<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Cobrança</span>');
+    }
+    if (c.email_os === 1 || c.os === 'Sim' || c.email_os === true) {
+        tags.push('<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">OS</span>');
+    }
+    if (c.email_contrato === 1 || c.contrato === 'Sim' || c.email_contrato === true) {
+        tags.push('<span style="background:#f3e8ff; color:#6d28d9; border:1px solid #ddd6fe; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Contrato</span>');
+    }
+    if (c.inativo === 1 || c.inativo === 'Sim' || c.inativo === true || String(c.situacao || '').toLowerCase() === 'inativo') {
+        tags.push('<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Inativo</span>');
+    }
+    return tags.length > 0 ? `<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">${tags.join('')}</div>` : '';
+};
+
 window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
     const clienteNome = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -5164,7 +5216,7 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
         (cliDigits.length >= 4 && String(c.cpf_cnpj || '').replace(/\D/g, '').includes(cliDigits))
     ) || null);
     const listaUnificada = [];
-    const chavesVistas = new Set();
+    const mapaUnificadoPorChave = new Map();
     (Array.isArray(contatosApi) ? contatosApi : []).forEach(c => {
         if (!c || !c.nome) return;
         const cliVinc = c.cliente_id ? mapClientePorId.get(Number(c.cliente_id)) : null;
@@ -5177,11 +5229,16 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
             email: c.email || '',
             celular: c.celular || c.telefone || '',
             cliente_id: c.cliente_id || (cliVinc && cliVinc.id) || null,
-            cliente_nome: empNome
+            cliente_nome: empNome,
+            email_nfe: c.email_nfe === 1 || c.nfe === 'Sim' ? 1 : 0,
+            email_cobranca: c.email_cobranca === 1 || c.cobranca === 'Sim' ? 1 : 0,
+            email_os: c.email_os === 1 || c.os === 'Sim' ? 1 : 0,
+            email_contrato: c.email_contrato === 1 || c.contrato === 'Sim' ? 1 : 0,
+            inativo: c.inativo === 1 || c.inativo === 'Sim' || String(c.situacao || '').toLowerCase() === 'inativo' ? 1 : 0
         };
         const key = `${normStr(item.nome)}|${normStr(item.cliente_nome)}`;
-        if (chavesVistas.has(key)) return;
-        chavesVistas.add(key);
+        if (mapaUnificadoPorChave.has(key)) return;
+        mapaUnificadoPorChave.set(key, item);
         listaUnificada.push(item);
     });
     clientes.forEach(cl => {
@@ -5192,9 +5249,21 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
         arr.forEach(ct => {
             if (!ct || !ct.nome) return;
             const key = `${normStr(ct.nome)}|${normStr(cl.nome_razao_social)}`;
-            if (chavesVistas.has(key)) return;
-            chavesVistas.add(key);
-            listaUnificada.push({
+            const ctNfe = ct.email_nfe === 1 || ct.nfe === 'Sim' ? 1 : 0;
+            const ctCob = ct.email_cobranca === 1 || ct.cobranca === 'Sim' ? 1 : 0;
+            const ctOs = ct.email_os === 1 || ct.os === 'Sim' ? 1 : 0;
+            const ctCon = ct.email_contrato === 1 || ct.contrato === 'Sim' ? 1 : 0;
+            const ctInat = ct.inativo === 1 || ct.inativo === 'Sim' || String(ct.situacao || '').toLowerCase() === 'inativo' ? 1 : 0;
+            if (mapaUnificadoPorChave.has(key)) {
+                const ex = mapaUnificadoPorChave.get(key);
+                if (!ex.email_nfe && ctNfe) ex.email_nfe = 1;
+                if (!ex.email_cobranca && ctCob) ex.email_cobranca = 1;
+                if (!ex.email_os && ctOs) ex.email_os = 1;
+                if (!ex.email_contrato && ctCon) ex.email_contrato = 1;
+                if (!ex.inativo && ctInat) ex.inativo = 1;
+                return;
+            }
+            const novoItem = {
                 id: ct.id || '',
                 codigo: ct.identificacao || ct.codigo || ct.id || '',
                 nome: ct.nome,
@@ -5202,8 +5271,15 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
                 email: ct.email || '',
                 celular: ct.celular || ct.telefone || ct.telefone_ramal || '',
                 cliente_id: cl.id,
-                cliente_nome: cl.nome_razao_social || ''
-            });
+                cliente_nome: cl.nome_razao_social || '',
+                email_nfe: ctNfe,
+                email_cobranca: ctCob,
+                email_os: ctOs,
+                email_contrato: ctCon,
+                inativo: ctInat
+            };
+            mapaUnificadoPorChave.set(key, novoItem);
+            listaUnificada.push(novoItem);
         });
     });
     const contatosDoCliente = foundCli
@@ -5255,11 +5331,15 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const subInfo = [c.cargo, c.celular].filter(Boolean).join(' • ');
+        const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
         return `
             <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownContatoProposta('${safeNome}', '${safeEmp}')"
                 style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
                 onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
-                <div style="font-size:0.83rem; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                    <span style="font-size:0.83rem; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</span>
+                    ${badgesHtml}
+                </div>
                 ${subInfo ? `<div style="font-size:0.72rem; color:#64748b;">${_escHtmlProp(subInfo)}</div>` : ''}
             </div>
         `;
@@ -9770,9 +9850,13 @@ window._renderTabelaContatos = function() {
     tbody.innerHTML = _clienteContatos.map((c, idx) => {
         const refId = Number(c.id || c.identificacao || c.codigo || 0) || 0;
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
         return `
         <tr onclick="window.abrirContatoDeCliente(${refId}, '${safeNome}', ${idx}, 'main', this)" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro do contato">
-            <td style="padding:0.75rem 1rem; color:#2563eb; font-weight:600; word-break:break-word; cursor:pointer; text-decoration:underline;">${c.nome}</td>
+            <td style="padding:0.75rem 1rem; word-break:break-word;">
+                <span style="color:#2563eb; font-weight:600; cursor:pointer; text-decoration:underline;">${c.nome}</span>
+                ${badgesHtml ? `<div style="margin-top:4px;">${badgesHtml}</div>` : ''}
+            </td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.cargo || c.departamento || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${c.celular || c.telefone || c.telefone_ramal || '—'}</td>
             <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${c.email || '—'}</td>
@@ -11653,15 +11737,21 @@ window.abrirModalPesquisaContato = async function(btnEl = null, initialQuery = n
                 tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum contato encontrado para a busca informada.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = exibidos.map(c => `
+            tbody.innerHTML = exibidos.map(c => {
+                const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
+                return `
                 <tr onclick="selectContatoPesquisa(${c.id})" class="swal-contato-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo || ''}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">
+                        <div style="font-weight:600; color:#1e293b;">${c.nome || ''}</div>
+                        ${badgesHtml ? `<div style="margin-top:3px;">${badgesHtml}</div>` : ''}
+                    </td>
                     <td style="padding:0.5rem; text-align:left;">${c.email || ''}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.celular || ''}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.cliente_nome || ''}</td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         };
 
         const safeQInit = qInit.replace(/"/g, '&quot;');
@@ -12828,10 +12918,34 @@ window.modalSalvarEndereco = async function() {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Endereço salvo com sucesso!');
             }
-            window.modalCarregarEnderecos(cid);
+            const parsedEnd = window._separarRuaENumeroEnderecos(payload.endereco, payload.numero);
+            const endComNum = parsedEnd.numero ? `${parsedEnd.rua}, ${parsedEnd.numero}` : parsedEnd.rua;
+            const fullAddress = `${payload.nome_local ? payload.nome_local + ' - ' : ''}${endComNum}${payload.complemento ? ' (' + payload.complemento + ')' : ''}${payload.bairro ? ' - ' + payload.bairro : ''}${payload.municipio ? ' - ' + payload.municipio : ''}${payload.uf ? '/' + payload.uf : ''}`;
+
+            if (payload.coordenadas && payload.coordenadas.trim()) {
+                const parts = payload.coordenadas.split(',');
+                if (parts.length === 2) {
+                    const lat = parseFloat(parts[0].trim());
+                    const lon = parseFloat(parts[1].trim());
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        window._enderecoCoordenadasCache = window._enderecoCoordenadasCache || {};
+                        window._enderecoCoordenadasCache[fullAddress.trim()] = { lat, lon };
+                    }
+                }
+            }
+
+            const propEnderecoInput = document.getElementById('prop-endereco');
+            if (propEnderecoInput) {
+                propEnderecoInput.value = fullAddress;
+                if (typeof window.classificarRegiaoEDias === 'function') {
+                    window.classificarRegiaoEDias();
+                }
+            }
+
             if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
                 window.carregarEnderecosVinculadosClienteProposta(document.getElementById('prop-cliente')?.value || '', false);
             }
+            Swal.close();
         } else {
             alert('Erro ao salvar endereço: ' + (res && res.error ? res.error : 'Resposta inválida do servidor.'));
         }
@@ -19732,6 +19846,53 @@ window.adicionarProdutoProposta = function() {
     window.renderizarProdutosPropostaGrid();
 };
 
+window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo) {
+    if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
+    const item = window._propProdutosAdicionados[idx];
+    const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+    const vUnitAtual = parseFloat(item.valor ?? item.valor_unitario ?? 0) || 0;
+    let vBase = parseFloat(item.valor_base);
+    if (isNaN(vBase) || vBase <= 0) {
+        if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0 && parseFloat(item.desconto_pct) < 100) {
+            vBase = vUnitAtual / (1 - (parseFloat(item.desconto_pct) / 100));
+        } else if (parseFloat(item.desconto_rs) > 0) {
+            vBase = ((vUnitAtual * qtd) + parseFloat(item.desconto_rs)) / qtd;
+        } else {
+            vBase = vUnitAtual;
+        }
+        item.valor_base = vBase;
+    }
+
+    const tipo = (tipoNovo === 'pct' || tipoNovo === '%') ? 'pct' : 'valor';
+    const val = Math.max(0, parseFloat(String(valorNovo ?? '0').replace(',', '.')) || 0);
+
+    if (val <= 0) {
+        item.desconto_tipo = tipo;
+        item.desconto_pct = 0;
+        item.desconto_rs = 0;
+        item.valor = vBase;
+        item.valor_unitario = vBase;
+        item.valor_total = vBase * qtd;
+    } else if (tipo === 'pct') {
+        const pct = Math.min(100, val);
+        item.desconto_tipo = 'pct';
+        item.desconto_pct = pct;
+        item.valor = Math.max(0, vBase * (1 - pct / 100));
+        item.valor_unitario = item.valor;
+        item.valor_total = item.valor * qtd;
+        item.desconto_rs = (vBase * qtd) * (pct / 100);
+    } else {
+        item.desconto_tipo = 'valor';
+        item.desconto_rs = val;
+        item.desconto_pct = 0;
+        item.valor_total = Math.max(0, (vBase * qtd) - val);
+        item.valor = qtd > 0 ? (item.valor_total / qtd) : 0;
+        item.valor_unitario = item.valor;
+    }
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+    window.renderizarProdutosPropostaGrid();
+};
+
 window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
     const item = window._propProdutosAdicionados[idx];
@@ -19819,11 +19980,22 @@ window.renderizarProdutosPropostaGrid = function() {
     const usaManutGrid = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
     const ehEventoGrid = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
     const thManutGrid = document.getElementById('prop-th-manut-semana');
-    if (thManutGrid) thManutGrid.style.display = usaManutGrid ? 'table-cell' : 'none';
+    if (thManutGrid) {
+        thManutGrid.innerHTML = 'Quant. Manut.<br>Semana';
+        thManutGrid.style.textAlign = 'center';
+        thManutGrid.style.display = usaManutGrid ? 'table-cell' : 'none';
+    }
     const thValUnit = document.getElementById('prop-th-valor-unit');
-    if (thValUnit) thValUnit.textContent = ehEventoGrid ? 'Valor Unitário Diária' : 'Valor Unit.';
+    if (thValUnit) {
+        thValUnit.innerHTML = ehEventoGrid ? 'Valor Unitário<br>Diária' : 'Valor Unit.';
+        thValUnit.style.textAlign = ehEventoGrid ? 'center' : 'right';
+    }
     const thValTotalDia = document.getElementById('prop-th-valor-total-dia');
-    if (thValTotalDia) thValTotalDia.style.display = ehEventoGrid ? 'table-cell' : 'none';
+    if (thValTotalDia) {
+        thValTotalDia.innerHTML = 'Valor Total<br>por Dia';
+        thValTotalDia.style.textAlign = 'center';
+        thValTotalDia.style.display = ehEventoGrid ? 'table-cell' : 'none';
+    }
     const list = window._propProdutosAdicionados || [];
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
@@ -19861,14 +20033,28 @@ window.renderizarProdutosPropostaGrid = function() {
                     </button>`
             : '';
 
-        let descHtml = '<span style="color:#94a3b8;">—</span>';
-        if (p.desconto_tipo === 'pct' && parseFloat(p.desconto_pct) > 0) {
-            const pctStr = Number(p.desconto_pct).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-            descHtml = `<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem; white-space:nowrap;">${pctStr}%</span>`;
-        } else if ((p.desconto_tipo === 'valor' || parseFloat(p.desconto_rs) > 0) && parseFloat(p.desconto_rs) > 0) {
-            const rsStr = Number(p.desconto_rs).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            descHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem; white-space:nowrap;">R$ ${rsStr}</span>`;
-        }
+        const descTipoAtual = p.desconto_tipo === 'pct' ? 'pct' : 'valor';
+        const descValAtual = descTipoAtual === 'pct'
+            ? (parseFloat(p.desconto_pct) || 0)
+            : (parseFloat(p.desconto_rs) || 0);
+        const temDescAtivo = descValAtual > 0;
+        const descBg = !temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7');
+        const descBorder = !temDescAtivo ? '#cbd5e1' : (descTipoAtual === 'pct' ? '#fde68a' : '#bbf7d0');
+        const descColor = !temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d');
+        const descHtml = `
+            <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
+                <select onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.nextElementSibling.value)"
+                    title="Tipo de desconto (R$ ou %)"
+                    style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:pointer; outline:none;">
+                    <option value="valor" ${descTipoAtual === 'valor' ? 'selected' : ''}>R$</option>
+                    <option value="pct" ${descTipoAtual === 'pct' ? 'selected' : ''}>%</option>
+                </select>
+                <input type="number" step="0.01" min="0" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0,00"
+                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.previousElementSibling.value, this.value)"
+                    title="Editar desconto"
+                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">
+            </div>
+        `;
 
         const manutValItem = parseInt(p.manut_semana, 10) > 0
             ? parseInt(p.manut_semana, 10)
