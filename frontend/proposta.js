@@ -21481,7 +21481,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
             ? window._boxesAditivoCache.filter(b => b && b.tipo !== 'quadro_evento').map(b => window.boxRenderHtml(b, 'desktop')).join('')
             : '';
         const htmlQuadro = window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop', { modelo_tipo: modEfetivo, aditivo_html: extrasAdt });
-        const modMatchAceite = (!m.aceite_url && Array.isArray(window._modelosPropostasList)) ? window._modelosPropostasList.find(x => x && (String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === modEfetivo || (modEfetivo.startsWith('OBRA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'OBRA') || (modEfetivo.startsWith('LIMPA FOSSA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'LIMPA FOSSA'))) : null;
+        const modMatchAceite = (!m.aceite_url && !m.id && Array.isArray(window._modelosPropostasList)) ? window._modelosPropostasList.find(x => x && (String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === modEfetivo || (modEfetivo.startsWith('OBRA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'OBRA') || (modEfetivo.startsWith('LIMPA FOSSA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'LIMPA FOSSA'))) : null;
         const aceiteUrl = m.aceite_url || (modMatchAceite && modMatchAceite.aceite_url) || '';
         const htmlAceite = aceiteUrl ? ('<img src="' + _escHtmlProp(aceiteUrl) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">') : '';
         return '<div style="max-width:960px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">' +
@@ -21992,7 +21992,7 @@ window._renderEditorModeloPropostaAtivo = function() {
                     <h3 style="margin:0; font-size:0.95rem; font-weight:800; color:#1e293b;">
                         Editar Textos do Modelo: <span style="color:#7048e8;">${_escHtmlProp(m.nome)}</span>
                     </h3>
-                    <span style="font-size:0.74rem; color:#64748b;">
+                    <span style="display:none; font-size:0.74rem; color:#64748b;">
                         Arquivo base: <b>${_escHtmlProp(m.arquivo_origem || 'Personalizado')}</b> · Vinculado ao tipo <b>${_escHtmlProp(m.codigo_tipo)}</b>
                     </span>
                 </div>
@@ -22004,12 +22004,13 @@ window._renderEditorModeloPropostaAtivo = function() {
                 <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" title="Editar Boxes (Banners) deste modelo: ${_escHtmlProp(m.nome)}" style="background:#7048e8; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
                     <i class="ph ph-image-square"></i> Boxes (Banners)
                 </button>
-                <button type="button" onclick="window.salvarModeloPropostaAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                <button type="button" onclick="window.salvarModeloPropostaAtivo()" style="display:none; background:#16a34a; color:#fff; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; align-items:center; gap:5px;">
                     <i class="ph ph-check-circle"></i> Salvar Textos
                 </button>
             </div>
         </div>
-        ${String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO') ? `
+        ${typeof window._renderBlocosAceiteEAditivoModeloProposta === 'function' ? window._renderBlocosAceiteEAditivoModeloProposta(m) : ''}
+        ${false && String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO') ? `
         <div style="background:#f5f3ff; border:1.5px dashed #8b5cf6; border-radius:10px; padding:0.75rem 0.95rem; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
             <div style="font-size:0.78rem; color:#4c1d95; line-height:1.4;">
                 <b><i class="ph ph-link"></i> Modelo Aditivo vinculado ao Contrato Originário:</b> Se o contrato vinculado for Obra, usa o modelo de Obra; se for Evento, usa o modelo de Evento, e assim por diante.<br>
@@ -22021,7 +22022,7 @@ window._renderEditorModeloPropostaAtivo = function() {
         </div>` : ''}
 
         <!-- Campos de Configuração do Cabeçalho e Títulos -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1.3fr; gap:0.75rem; margin-bottom:0.85rem;">
+        <div style="display:none; grid-template-columns: 1fr 1fr 1.3fr; gap:0.75rem; margin-bottom:0.85rem;">
             <div>
                 <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Nome do Modelo *</label>
                 <input id="mp-edit-nome" type="text" value="${_escHtmlProp(m.nome)}" oninput="window._onInputCampoModeloProposta()"
@@ -22039,7 +22040,7 @@ window._renderEditorModeloPropostaAtivo = function() {
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.9rem;">
+        <div style="display:none; grid-template-columns: 1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.9rem;">
             <div>
                 <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Título da Tabela de Produtos</label>
                 <input id="mp-edit-titulo-prod" type="text" value="${_escHtmlProp(m.titulo_tabela_produtos || 'Produtos para Locação')}" oninput="window._onInputCampoModeloProposta()"
@@ -22215,6 +22216,104 @@ window.imprimirModeloPropostaAtivo = function() {
     win.focus();
 };
 
+window.excluirAceiteModeloPropostaDireto = async function(modeloId) {
+    const idAlvo = modeloId || (window._modeloPropostaAtivo && window._modeloPropostaAtivo.id);
+    if (!idAlvo) return;
+    const conf = await Swal.fire({
+        title: 'Excluir Imagem de Aceite?',
+        text: 'A imagem de Aceite deste modelo de proposta será removida.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(`/api/comercial/modelos-proposta/${idAlvo}/aceite?todos=0`, {
+            method: 'DELETE',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || !j.success) throw new Error(j.error || 'Erro ao excluir imagem de aceite.');
+        await window._renderModelosPropostasInt();
+        Swal.fire('Excluído', 'A imagem de Aceite foi excluída com sucesso.', 'success');
+    } catch (err) {
+        Swal.fire('Erro', err.message || 'Erro ao excluir imagem.', 'error');
+    }
+};
+
+window._renderBlocosAceiteEAditivoModeloProposta = function(m) {
+    if (!m) return '';
+    const urlAceite = m.aceite_url || (m.aceite_r2_key ? `/api/public/modelos-proposta/${m.id}/aceite-arquivo?v=desktop` : '');
+    const isAdtMod = String(m.codigo_tipo || '').toUpperCase().includes('ADITIVO');
+    const adtBoxes = (Array.isArray(window._boxesAditivoCache) ? window._boxesAditivoCache : []).filter(b => b && b.tipo !== 'quadro_evento');
+
+    const htmlAceiteCard = urlAceite ? `
+        <div style="background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:10px; padding:0.7rem 0.9rem; margin-bottom:0.65rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <img src="${_escHtmlProp(urlAceite)}" alt="Aceite" style="width:92px; height:58px; object-fit:cover; border-radius:6px; border:1px solid #5eead4; background:#fff; flex-shrink:0;">
+                <div>
+                    <div style="font-size:0.82rem; font-weight:800; color:#0f766e;"><i class="ph ph-seal-check"></i> Imagem de Aceite — ${_escHtmlProp(m.nome)}</div>
+                    <div style="font-size:0.73rem; color:#115e59;">Exibida ao clicar em Aprovar no link público e na versão impressa deste modelo.</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" style="background:#0284c7; color:#fff; border:none; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-pencil-simple"></i> Editar
+                </button>
+                <button type="button" onclick="window.excluirAceiteModeloPropostaDireto(${m.id})" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+                <button type="button" onclick="window.abrirModalAdicionarAceiteModeloProposta(${m.id})" style="background:#0d9488; color:#fff; border:none; padding:6px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-plus-circle"></i> Adicionar Nova
+                </button>
+            </div>
+        </div>` : '';
+
+    const htmlAditivoCard = (isAdtMod || adtBoxes.length > 0) ? `
+        <div style="background:#f5f3ff; border:1.5px dashed #8b5cf6; border-radius:10px; padding:0.75rem 0.95rem; margin-bottom:0.4rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:${adtBoxes.length ? '0.65rem' : '0'};">
+                <div style="font-size:0.78rem; color:#4c1d95; line-height:1.4;">
+                    <b><i class="ph ph-image-square"></i> Imagens de Aditivo Anexadas:</b> Abaixo do #2 Quadro de Valores você pode editar, excluir ou adicionar uma nova imagem de aditivo.
+                </div>
+                <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.76rem; white-space:nowrap; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-plus-circle"></i> + Adicionar Nova Imagem de Aditivo
+                </button>
+            </div>
+            ${adtBoxes.length > 0 ? `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${adtBoxes.map((b, i) => `
+                    <div style="background:#fff; border:1px solid #c4b5fd; border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            ${b.tipo === 'video'
+                                ? `<video src="${_escHtmlProp(b.url)}#t=0.5" muted preload="metadata" style="width:88px; height:54px; object-fit:cover; border-radius:6px; background:#0f172a; flex-shrink:0;"></video>`
+                                : `<img src="${_escHtmlProp(b.url)}" alt="" style="width:88px; height:54px; object-fit:cover; border-radius:6px; border:1px solid #ddd6fe; background:#0f172a; flex-shrink:0;">`}
+                            <div style="min-width:0;">
+                                <div style="font-size:0.82rem; font-weight:800; color:#1e293b;"><span style="color:#6d28d9;">Aditivo #${i + 1}</span> — ${_escHtmlProp(b.nome || 'Imagem de Aditivo')}</div>
+                                <div style="font-size:0.72rem; color:#64748b;">Exibida abaixo do #2 Quadro de Valores</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(${b.id}, 'ADITIVO')" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-pencil-simple"></i> Editar
+                            </button>
+                            <button type="button" onclick="if(typeof window.excluirBox === 'function') window.excluirBox(${b.id})" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-trash"></i> Excluir
+                            </button>
+                            <button type="button" onclick="if(typeof window.abrirEditorBox === 'function') window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-plus-circle"></i> Adicionar Nova
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>` : ''}
+        </div>` : '';
+
+    return htmlAceiteCard + htmlAditivoCard;
+};
+
 window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
     const idAlvo = modeloId || (window._modeloPropostaAtivo && window._modeloPropostaAtivo.id);
     if (!idAlvo) return;
@@ -22244,8 +22343,8 @@ window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
                     <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Imagem de Aceite para Celular (Opcional — se vazio, usa a mesma acima)</label>
                     <input type="file" id="swal-aceite-file-mob" accept="image/*" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; background:#fff; box-sizing:border-box;">
                 </div>
-                <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; font-weight:600; color:#1e293b; cursor:pointer; margin-top:2px;">
-                    <input type="checkbox" id="swal-aceite-aplicar-todos" checked style="width:16px; height:16px; accent-color:#0284c7;">
+                <label style="display:none; align-items:center; gap:8px; font-size:0.82rem; font-weight:600; color:#1e293b; cursor:pointer; margin-top:2px;">
+                    <input type="checkbox" id="swal-aceite-aplicar-todos" style="width:16px; height:16px; accent-color:#0284c7;">
                     Aplicar esta imagem de Aceite em todos os modelos de proposta
                 </label>
                 ${urlAtual ? `
@@ -22264,11 +22363,11 @@ window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
             const btnRem = document.getElementById('btn-remover-aceite-atual');
             if (btnRem) {
                 btnRem.onclick = async () => {
-                    const aplicarTodos = document.getElementById('swal-aceite-aplicar-todos')?.checked ? '1' : '0';
+                    const aplicarTodos = '0';
                     try {
                         btnRem.disabled = true;
                         btnRem.textContent = 'Removendo...';
-                        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
                         const resp = await fetch(`/api/comercial/modelos-proposta/${idAlvo}/aceite?todos=${aplicarTodos}`, {
                             method: 'DELETE',
                             headers: token ? { 'Authorization': 'Bearer ' + token } : {}
@@ -22287,7 +22386,7 @@ window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
         preConfirm: async () => {
             const fDesk = document.getElementById('swal-aceite-file-desk')?.files?.[0] || null;
             const fMob = document.getElementById('swal-aceite-file-mob')?.files?.[0] || null;
-            const aplicarTodos = document.getElementById('swal-aceite-aplicar-todos')?.checked ? '1' : '0';
+            const aplicarTodos = '0';
             if (!fDesk && !fMob) {
                 Swal.showValidationMessage('Selecione um arquivo de imagem para enviar.');
                 return false;
@@ -22297,7 +22396,7 @@ window.abrirModalAdicionarAceiteModeloProposta = async function(modeloId) {
             if (fMob) fd.append('arquivo_mobile', fMob);
             fd.append('aplicar_todos', aplicarTodos);
             try {
-                const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
                 const resp = await fetch(`/api/comercial/modelos-proposta/${idAlvo}/aceite`, {
                     method: 'POST',
                     headers: token ? { 'Authorization': 'Bearer ' + token } : {},

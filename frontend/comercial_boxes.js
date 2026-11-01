@@ -1411,6 +1411,8 @@
 
         window._renderBoxesLista();
         window._renderBoxesPreview();
+        if (typeof window._renderEditorModeloPropostaAtivo === 'function') window._renderEditorModeloPropostaAtivo();
+        if (typeof window.atualizarPreviewModeloPropostaAtivo === 'function') window.atualizarPreviewModeloPropostaAtivo();
     };
 
     window._renderBoxesLista = function () {
@@ -1473,8 +1475,9 @@
                         </div>
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <button title="Editar" onclick="window.abrirEditorBox(${b.id}, 'ADITIVO')" style="width:32px; height:32px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                        <button title="Excluir" onclick="window.excluirBox(${b.id})" style="width:32px; height:32px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-trash"></i></button>
+                        <button title="Editar" onclick="window.abrirEditorBox(${b.id}, 'ADITIVO')" style="height:32px; padding:0 9px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; font-weight:700;"><i class="ph ph-pencil-simple"></i> Editar</button>
+                        <button title="Excluir" onclick="window.excluirBox(${b.id})" style="height:32px; padding:0 9px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; font-weight:700;"><i class="ph ph-trash"></i> Excluir</button>
+                        <button title="Adicionar Nova" onclick="window.abrirEditorBox(null, 'ADITIVO')" style="height:32px; padding:0 9px; border:none; background:#6d28d9; color:#fff; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; font-weight:700;"><i class="ph ph-plus-circle"></i> + Nova</button>
                     </div>
                 </div>`;
             }).join('');
@@ -1541,7 +1544,33 @@
                     `}
                 </div>
             </div>`;
-        }).join('');
+        }).join('') + (() => {
+            const adtList = (window._boxesAditivoCache || []).filter(x => x && x.tipo !== 'quadro_evento');
+            if (!adtList.length) return '';
+            return `
+                <div style="margin-top:8px; padding-top:8px; border-top:2px dashed #c4b5fd; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.75rem; font-weight:800; color:#5b21b6;"><i class="ph ph-image-square"></i> Imagens de Aditivo Anexadas</span>
+                    <button type="button" onclick="window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:4px 9px; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-circle"></i> + Adicionar Nova</button>
+                </div>
+            ` + adtList.map((b, i) => `
+                <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:8px; display:flex; gap:10px; align-items:center;">
+                    <div style="width:100px; height:64px; border-radius:7px; overflow:hidden; background:#0f172a; flex-shrink:0;">
+                        ${b.tipo === 'video'
+                            ? `<video src="${esc(b.url)}#t=0.5" muted preload="metadata" style="width:100%; height:100%; object-fit:cover;"></video>`
+                            : `<img src="${esc(b.url)}" alt="" style="width:100%; height:100%; object-fit:cover;">`}
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:800; font-size:0.82rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:#6d28d9;">Aditivo #${i + 1}</span> ${esc(b.nome)}</div>
+                        <div style="font-size:0.68rem; color:#6d28d9; font-weight:700; margin-top:2px;">Abaixo do #2 Quadro de Valores</div>
+                    </div>
+                    <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                        <button title="Editar" onclick="window.abrirEditorBox(${b.id}, 'ADITIVO')" style="height:30px; padding:0 8px; border:1px solid #c4b5fd; background:#fff; color:#6d28d9; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:3px; font-size:0.7rem; font-weight:700;"><i class="ph ph-pencil-simple"></i> Editar</button>
+                        <button title="Excluir" onclick="window.excluirBox(${b.id})" style="height:30px; padding:0 8px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:3px; font-size:0.7rem; font-weight:700;"><i class="ph ph-trash"></i> Excluir</button>
+                        <button title="Adicionar Nova" onclick="window.abrirEditorBox(null, 'ADITIVO')" style="height:30px; padding:0 8px; border:none; background:#6d28d9; color:#fff; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:3px; font-size:0.7rem; font-weight:700;"><i class="ph ph-plus-circle"></i> + Nova</button>
+                    </div>
+                </div>
+            `).join('');
+        })();
     };
 
     function togglePreviewHtml(atual, fnName) {

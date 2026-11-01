@@ -652,7 +652,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             }) || null;
         };
         const modeloRow = acharModeloRow(modeloEfetivo) || acharModeloRow(p.tipo) || modelosProp[0] || null;
-        const aceiteRow = (modeloRow && modeloRow.aceite_r2_key) ? modeloRow : (modelosProp.find(m => m && m.aceite_r2_key) || null);
+        const aceiteRow = (modeloRow && modeloRow.aceite_r2_key) ? modeloRow : null;
         const montarUrlAceite = (row, variante) => {
             if (!row) return null;
             const key = variante === 'mobile' ? (row.aceite_mobile_r2_key || row.aceite_r2_key) : row.aceite_r2_key;
