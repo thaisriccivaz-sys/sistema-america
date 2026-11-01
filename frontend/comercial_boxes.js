@@ -950,8 +950,8 @@
     window.abrirGerenciadorBoxes = async function (modeloInicial) {
         if (modeloInicial) {
             window._boxesModeloAtivo = window.normalizarModeloTipoBox(modeloInicial);
-        } else if (window._modeloPropostaAtivo && window._modeloPropostaAtivo.codigo_tipo) {
-            window._boxesModeloAtivo = window.normalizarModeloTipoBox(window._modeloPropostaAtivo.codigo_tipo);
+        } else if (window._modeloPropostaAtivo && (window._modeloPropostaAtivo.codigo_tipo || window._modeloPropostaAtivo.nome)) {
+            window._boxesModeloAtivo = window.normalizarModeloTipoBox(window._modeloPropostaAtivo.codigo_tipo || window._modeloPropostaAtivo.nome);
         } else {
             const tipoForm = document.getElementById('prop-tipo')?.value || '';
             if (tipoForm) window._boxesModeloAtivo = window.normalizarModeloTipoBox(tipoForm);
@@ -966,8 +966,8 @@
         <div style="background:#f8fafc; width:min(1400px, 98vw); height:94vh; border-radius:14px; box-shadow:0 25px 50px rgba(0,0,0,0.35); display:flex; flex-direction:column; overflow:hidden;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:0.75rem 1.2rem; background:#fff; border-bottom:1px solid #e2e8f0; flex-wrap:wrap;">
                 <div>
-                    <div id="boxes-header-titulo" style="font-size:1.05rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;"><i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes por Modelo de Proposta (Banners + Quadro Fixo de Valores)</div>
-                    <div id="boxes-header-subtitulo" style="font-size:0.74rem; color:#64748b;">Cada modelo possui seu próprio <b>Quadro de Valores (Fixo)</b> editável separadamente. As imagens do <b>Aditivo</b> entram abaixo do #2 Quadro de Valores do modelo vinculado ao contrato.</div>
+                    <div id="boxes-header-titulo" style="font-size:1.05rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;"><i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes (Banners)</div>
+                    <div id="boxes-header-subtitulo" style="font-size:0.74rem; color:#64748b;">Edição dos boxes (banners e Quadro de Valores Fixo) exclusivos do modelo de proposta selecionado.</div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <button id="boxes-btn-anexar-principal" onclick="window.abrirEditorBox(null)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1rem; border-radius:7px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px;"><i class="ph ph-plus-circle"></i> Anexar Box (Imagem / Vídeo)</button>
@@ -975,8 +975,8 @@
                 </div>
             </div>
 
-            <!-- Abas de seleção do Modelo de Proposta -->
-            <div id="boxes-modelos-tabs" style="display:flex; align-items:center; gap:6px; padding:0.55rem 1rem; background:#f1f5f9; border-bottom:1px solid #e2e8f0; overflow-x:auto; flex-shrink:0;"></div>
+            <!-- Abas ocultas: abertura direta pelo modelo de proposta selecionado -->
+            <div id="boxes-modelos-tabs" style="display:none;"></div>
 
             <!-- Barra informativa quando estiver no Modelo Aditivo -->
             <div id="boxes-aditivo-banner" style="display:none; padding:0.55rem 1rem; background:#f5f3ff; border-bottom:1px solid #ddd6fe; font-size:0.76rem; color:#4c1d95; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;"></div>
@@ -1010,28 +1010,17 @@
     };
 
     window._renderAbasModelosBoxes = function () {
-        const tabs = document.getElementById('boxes-modelos-tabs');
-        if (!tabs) return;
         const ativo = window._boxesModeloAtivo || 'EVENTO';
-        tabs.innerHTML = window.MODELOS_PROPOSTA_BOXES.map(m => {
-            const isAtivo = m.codigo === ativo;
-            const isAditivo = m.codigo === 'ADITIVO';
-            const bg = isAtivo ? (isAditivo ? '#6d28d9' : '#7048e8') : '#fff';
-            const cor = isAtivo ? '#fff' : (isAditivo ? '#6d28d9' : '#334155');
-            const borda = isAtivo ? (isAditivo ? '#6d28d9' : '#7048e8') : (isAditivo ? '#c4b5fd' : '#cbd5e1');
-            return `<button type="button" onclick="window.selecionarModeloBoxes('${esc(m.codigo)}')" style="border:1px solid ${borda}; background:${bg}; color:${cor}; padding:5px 11px; border-radius:8px; font-size:0.74rem; font-weight:700; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; box-shadow:${isAtivo ? '0 2px 6px rgba(112,72,232,0.25)' : 'none'};">
-                <i class="ph ${m.icone}"></i> ${esc(m.nome)}
-            </button>`;
-        }).join('');
-
         const modObj = window.MODELOS_PROPOSTA_BOXES.find(x => x.codigo === ativo) || { codigo: ativo, nome: ativo };
         const titEl = document.getElementById('boxes-header-titulo');
+        const subEl = document.getElementById('boxes-header-subtitulo');
         const btnAnexar = document.getElementById('boxes-btn-anexar-principal');
         const bannerAdt = document.getElementById('boxes-aditivo-banner');
 
         if (ativo === 'ADITIVO') {
-            if (titEl) titEl.innerHTML = `<i class="ph ph-file-plus" style="color:#6d28d9;"></i> Modelo de Proposta: Aditivo (Segue o modelo do Contrato Originário + Imagens abaixo do #2 Quadro de Valores)`;
-            if (btnAnexar) btnAnexar.innerHTML = `<i class="ph ph-plus-circle"></i> Incluir Imagem / Vídeo no Aditivo (abaixo do #2 Quadro de Valores)`;
+            if (titEl) titEl.innerHTML = `<i class="ph ph-file-plus" style="color:#6d28d9;"></i> Boxes (Banners) — Modelo de Proposta: Aditivo`;
+            if (subEl) subEl.innerHTML = `O Aditivo segue o modelo do contrato vinculado e posiciona as imagens incluídas aqui <b>abaixo do #2 Quadro de Valores (Fixo)</b>.`;
+            if (btnAnexar) btnAnexar.innerHTML = `<i class="ph ph-plus-circle"></i> Incluir Imagem / Vídeo no Aditivo`;
             if (bannerAdt) {
                 bannerAdt.style.display = 'flex';
                 const opcoesBase = window.MODELOS_PROPOSTA_BOXES.filter(x => x.codigo !== 'ADITIVO').map(x =>
@@ -1050,7 +1039,8 @@
                     </div>`;
             }
         } else {
-            if (titEl) titEl.innerHTML = `<i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes — ${esc(modObj.nome)} (Banners + Quadro Fixo de Valores)`;
+            if (titEl) titEl.innerHTML = `<i class="ph ph-image-square" style="color:#7048e8;"></i> Boxes (Banners) — ${esc(modObj.nome)}`;
+            if (subEl) subEl.innerHTML = `Gerencie os banners e o <b>Quadro de Valores — ${esc(modObj.nome)} (Fixo)</b> exclusivos deste modelo de proposta.`;
             if (btnAnexar) btnAnexar.innerHTML = `<i class="ph ph-plus-circle"></i> Anexar Box em ${esc(modObj.nome)}`;
             if (bannerAdt) bannerAdt.style.display = 'none';
         }

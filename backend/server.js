@@ -43669,7 +43669,9 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_boxes (
     if (errAlt1 && !String(errAlt1.message).includes('duplicate column name')) {
       console.error('[BOXES] Aviso migration modelo_tipo:', errAlt1.message);
     }
-    db.run("UPDATE comercial_boxes SET modelo_tipo = 'EVENTO' WHERE modelo_tipo IS NULL OR TRIM(modelo_tipo) = ''", () => {});
+    db.run("UPDATE comercial_boxes SET modelo_tipo = 'EVENTO' WHERE modelo_tipo IS NULL OR TRIM(modelo_tipo) = ''", () => {
+      db.run("DELETE FROM comercial_boxes WHERE modelo_tipo != 'EVENTO' AND tipo != 'quadro_evento' AND criado_por = 'Sistema'", () => {});
+    });
   });
   db.run("ALTER TABLE comercial_boxes ADD COLUMN config_quadro TEXT DEFAULT '{}'", (errAlt2) => {
     if (errAlt2 && !String(errAlt2.message).includes('duplicate column name')) {
@@ -43830,86 +43832,23 @@ function boxGarantirModeloInicializado(modeloTipoRaw, cb) {
     );
   }
 
-  db.get('SELECT COUNT(*) AS total FROM comercial_boxes WHERE modelo_tipo = ?', [modeloTipo], (errCnt, rowCnt) => {
-    const totalExistente = (rowCnt && Number(rowCnt.total)) || 0;
-    const cfgPadraoStr = JSON.stringify({ modelo_tipo: modeloTipo, titulo_topo: meta.codigo });
-
-    if (totalExistente === 0 && modeloTipo !== 'EVENTO') {
-      // Primeira vez abrindo este modelo: clona o padrao atual de EVENTO (incluindo o Quadro de Valores separado deste modelo)
-      db.all("SELECT * FROM comercial_boxes WHERE ativo = 1 AND (modelo_tipo = 'EVENTO' OR modelo_tipo IS NULL OR TRIM(modelo_tipo) = '') ORDER BY ordem ASC, id ASC", [], (errEv, rowsEv) => {
-        const listaEv = Array.isArray(rowsEv) ? rowsEv : [];
-        if (listaEv.length === 0) {
-          db.run(
-            `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', 1, 1, 'Sistema')`,
-            [meta.quadroNome, modeloTipo, cfgPadraoStr],
-            () => {
-              db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (e2, r2) => cb(e2, r2 || []));
-            }
-          );
-          return;
-        }
-        db.serialize(() => {
-          let temQuadroClonado = false;
-          listaEv.forEach((r, idx) => {
-            const isQuadro = r.tipo === 'quadro_evento';
-            if (isQuadro) temQuadroClonado = true;
-            db.run(
-              `INSERT INTO comercial_boxes (
-                nome, tipo, modelo_tipo, config_quadro, r2_key, mime_type, mobile_modo, mobile_tipo,
-                mobile_r2_key, mobile_mime_type, mobile_proporcao, foco_x, foco_y,
-                hotspots_desktop, hotspots_mobile, ordem, ativo, criado_por
-              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-              [
-                isQuadro ? meta.quadroNome : r.nome,
-                r.tipo,
-                modeloTipo,
-                isQuadro ? cfgPadraoStr : (r.config_quadro || '{}'),
-                isQuadro ? null : r.r2_key,
-                isQuadro ? null : r.mime_type,
-                r.mobile_modo || 'mesma',
-                isQuadro ? null : r.mobile_tipo,
-                isQuadro ? null : r.mobile_r2_key,
-                isQuadro ? null : r.mobile_mime_type,
-                r.mobile_proporcao || '4:5',
-                r.foco_x ?? 50,
-                r.foco_y ?? 50,
-                isQuadro ? '[]' : (r.hotspots_desktop || '[]'),
-                isQuadro ? '[]' : (r.hotspots_mobile || '[]'),
-                idx + 1,
-                1,
-                'Sistema'
-              ]
-            );
-          });
-          if (!temQuadroClonado) {
-            db.run(
-              `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', ?, 1, 'Sistema')`,
-              [meta.quadroNome, modeloTipo, cfgPadraoStr, listaEv.length + 1]
-            );
-          }
-          db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (e2, r2) => cb(e2, r2 || []));
-        });
-      });
-      return;
+  const cfgPadraoStr = JSON.stringify({ modelo_tipo: modeloTipo, titulo_topo: meta.codigo });
+  db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err, rows) => {
+    if (err) return cb(err, []);
+    const lista = rows || [];
+    if (lista.some(r => r.tipo === 'quadro_evento')) {
+      return cb(null, lista);
     }
-
-    db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err, rows) => {
-      if (err) return cb(err, []);
-      const lista = rows || [];
-      if (lista.some(r => r.tipo === 'quadro_evento')) {
-        return cb(null, lista);
+    const maxOrdem = lista.reduce((acc, r) => Math.max(acc, Number(r.ordem) || 0), 0);
+    db.run(
+      `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', ?, 1, 'Sistema')`,
+      [meta.quadroNome, modeloTipo, cfgPadraoStr, maxOrdem + 1],
+      function() {
+        db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err2, rows2) => {
+          cb(err2, rows2 || lista);
+        });
       }
-      const maxOrdem = lista.reduce((acc, r) => Math.max(acc, Number(r.ordem) || 0), 0);
-      db.run(
-        `INSERT INTO comercial_boxes (nome, tipo, modelo_tipo, config_quadro, mobile_modo, ordem, ativo, criado_por) VALUES (?, 'quadro_evento', ?, ?, 'mesma', ?, 1, 'Sistema')`,
-        [meta.quadroNome, modeloTipo, cfgPadraoStr, maxOrdem + 1],
-        function() {
-          db.all('SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC', [modeloTipo], (err2, rows2) => {
-            cb(err2, rows2 || lista);
-          });
-        }
-      );
-    });
+    );
   });
 }
 

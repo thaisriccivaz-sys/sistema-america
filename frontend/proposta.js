@@ -21639,9 +21639,6 @@ window._renderModelosPropostasInt = async function() {
                 </div>
 
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                    <button onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes(window._modeloPropostaAtivo?.codigo_tipo || 'EVENTO');" title="Banners de imagem, vídeo e Quadro de Valores por Modelo (Boxes)" style="background:#7048e8; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
-                        <i class="ph ph-image-square"></i> Boxes (Banners + Quadro de Valores)
-                    </button>
                     <button onclick="window.novoModeloPropostaModal()" style="background:#fff; color:#7048e8; border:1px solid #d0bfff; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-plus-circle"></i> Novo Tipo de Proposta
                     </button>
@@ -21743,14 +21740,21 @@ window.filtrarListaModelosProposta = function() {
     const activeId = window._modeloPropostaAtivo?.id;
     listEl.innerHTML = filtrados.map(m => {
         const isAtivo = m.id === activeId;
+        const codModelo = _escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO');
         return `
             <div onclick="window.selecionarModeloProposta(${m.id})"
-                 style="padding:0.6rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; flex-direction:column; gap:2px;">
+                 style="padding:0.6rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; flex-direction:column; gap:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
                     <span style="font-size:0.82rem; font-weight:700; color:${isAtivo ? '#5b21b6' : '#1e293b'};">${_escHtmlProp(m.nome)}</span>
                     ${m.arquivo_origem ? `<span style="font-size:0.66rem; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; font-weight:600;">${_escHtmlProp(m.arquivo_origem)}</span>` : ''}
                 </div>
-                <span style="font-size:0.7rem; color:#64748b; font-weight:600;">${_escHtmlProp(m.codigo_tipo)}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                    <span style="font-size:0.7rem; color:#64748b; font-weight:600;">${_escHtmlProp(m.codigo_tipo)}</span>
+                    <button type="button" onclick="event.stopPropagation(); window.selecionarModeloProposta(${m.id}); if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${codModelo}');"
+                        style="background:${isAtivo ? '#7048e8' : '#ede9fe'}; color:${isAtivo ? '#fff' : '#5b21b6'}; border:1px solid ${isAtivo ? '#7048e8' : '#ddd6fe'}; padding:2px 8px; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="ph ph-image-square"></i> Boxes (Banners)
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
@@ -21811,8 +21815,8 @@ window._renderEditorModeloPropostaAtivo = function() {
                 </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" style="background:#7048e8; color:#fff; border:none; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
-                    <i class="ph ph-image-square"></i> Boxes e Quadro de Valores (${_escHtmlProp(m.codigo_tipo || m.nome)})
+                <button type="button" onclick="if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${_escHtmlProp(m.codigo_tipo || m.nome || 'EVENTO')}')" title="Editar Boxes (Banners) deste modelo: ${_escHtmlProp(m.nome)}" style="background:#7048e8; color:#fff; border:none; padding:0.42rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
+                    <i class="ph ph-image-square"></i> Boxes (Banners)
                 </button>
                 <button type="button" onclick="window.salvarModeloPropostaAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.4rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
                     <i class="ph ph-check-circle"></i> Salvar Textos
