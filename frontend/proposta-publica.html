@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <script src="/comercial_boxes.js?v=20261101v15"></script>
+    <script src="/comercial_boxes.js?v=20261101v23"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -94,6 +94,13 @@
 
         function gerarHtmlVersaoSimples(d) {
             if (!d) return '';
+            var prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+            var htmlProdsAprov = prodsAprovArr.length > 0 ? (
+                '<div style="margin:8px auto 10px auto; max-width:620px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 14px; text-align:left;">' +
+                '<div style="font-size:11.5px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+                prodsAprovArr.map(function (p) { return '<div style="font-size:12px; font-weight:700; color:#0f172a;">• ' + esc(p) + '</div>'; }).join('') +
+                '</div>'
+            ) : '';
             if (typeof window.renderBoxQuadroEventoHtml === 'function') {
                 var htmlQuadro = window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' });
                 var urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
@@ -103,6 +110,7 @@
                 var htmlAssinatura = d.assinatura_url ? (
                     '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
                     '<div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+                    htmlProdsAprov +
                     '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
                     '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
                     '</div>' +
@@ -296,10 +304,18 @@
             var d = estado.dados || {};
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             var imgHtml = urlImg ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+            var prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+            var htmlProdsAprovSalvos = prodsAprovArr.length > 0 ? (
+                '<div style="margin:6px auto 10px auto; max-width:560px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 14px; text-align:left;">' +
+                '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+                prodsAprovArr.map(function (p) { return '<div style="font-size:12.5px; font-weight:700; color:#0f172a;">• ' + esc(p) + '</div>'; }).join('') +
+                '</div>'
+            ) : '';
             if (jaAssinado && d.assinatura_url) {
                 var htmlFinal = imgHtml +
                     '<div style="padding:20px 24px; background:#f8fafc; border-top:1px solid #e2e8f0; text-align:center;">' +
                     '<div style="font-size:15px; font-weight:800; color:#16a34a; margin-bottom:8px;">✓ Proposta Pré-Aprovada e Assinada!</div>' +
+                    htmlProdsAprovSalvos +
                     '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
                     '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura Salva" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
                     '</div>' +
@@ -312,9 +328,31 @@
                 return;
             }
 
+            var isComparativa = !!(d.proposta_comparativa && Array.isArray(d.itens) && d.itens.length > 0);
+            var blocoSelecaoProdutosHtml = '';
+            if (isComparativa) {
+                blocoSelecaoProdutosHtml =
+                    '<div style="max-width:560px; margin:0 auto 16px auto; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:12px 16px; text-align:left;">' +
+                    '<div style="font-size:13.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px;">Selecione qual(is) produto(s) da proposta estão sendo aprovados: *</div>' +
+                    '<div style="display:flex; flex-direction:column; gap:8px;">' +
+                    d.itens.map(function (it, idx) {
+                        var rotuloProd = String(it.nome || 'Produto ' + (idx + 1)).trim() +
+                            (it.quantidade ? ' (Qtd: ' + it.quantidade + ')' : '') +
+                            (!it.cortesia && !it.fob && it.total !== undefined ? ' — R$ ' + fmtMoeda(it.total) : '');
+                        return '<label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:700; color:#0f172a; cursor:pointer; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">' +
+                            '<input type="checkbox" class="pp-chk-prod-comparativa" value="' + esc(rotuloProd) + '" style="width:17px; height:17px; margin-top:1px; accent-color:#1d4ed8; cursor:pointer;">' +
+                            '<span>' + esc(rotuloProd) + '</span>' +
+                            '</label>';
+                    }).join('') +
+                    '</div>' +
+                    '<div id="pp-produtos-erro" style="display:none; color:#dc2626; font-size:12.5px; font-weight:700; margin-top:8px;">Selecione pelo menos um produto que está sendo aprovado.</div>' +
+                    '</div>';
+            }
+
             modalAceiteBody.innerHTML =
                 imgHtml +
                 '<div style="padding:20px 24px; background:#f8fafc; border-top:2px solid #e2e8f0; text-align:center;">' +
+                blocoSelecaoProdutosHtml +
                 '<div style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">Assine abaixo para Aprovar a Proposta</div>' +
                 '<div style="font-size:12.5px; color:#475569; margin-bottom:12px;">Desenhe sua assinatura no quadro abaixo utilizando o mouse ou o dedo na tela:</div>' +
                 '<div style="max-width:520px; margin:0 auto; background:#fff; border:2px dashed #94a3b8; border-radius:10px; overflow:hidden; position:relative;">' +
@@ -382,6 +420,18 @@
             var btnConfirmar = document.getElementById('pp-btn-confirmar-assinatura');
             if (btnConfirmar) {
                 btnConfirmar.addEventListener('click', function () {
+                    var prodsSelecionados = [];
+                    if (isComparativa) {
+                        var chks = document.querySelectorAll('.pp-chk-prod-comparativa:checked');
+                        chks.forEach(function (c) { if (c.value) prodsSelecionados.push(c.value); });
+                        var erroProdEl = document.getElementById('pp-produtos-erro');
+                        if (prodsSelecionados.length === 0) {
+                            if (erroProdEl) erroProdEl.style.display = 'block';
+                            return;
+                        } else if (erroProdEl) {
+                            erroProdEl.style.display = 'none';
+                        }
+                    }
                     if (!temTraco) {
                         var erroEl = document.getElementById('pp-assinatura-erro');
                         if (erroEl) erroEl.style.display = 'block';
@@ -395,12 +445,19 @@
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         credentials: 'omit',
                         referrerPolicy: 'no-referrer',
-                        body: JSON.stringify({ assinatura_base64: dataUrl })
+                        body: JSON.stringify({ assinatura_base64: dataUrl, produtos_aprovados: prodsSelecionados })
                     }).then(function (r) { return r.json(); }).then(function (resp) {
+                        if (resp && resp.error) {
+                            btnConfirmar.disabled = false;
+                            btnConfirmar.textContent = '✓ Confirmar Assinatura e Aprovar';
+                            alert(resp.error);
+                            return;
+                        }
                         estado.aprovado = true;
                         if (estado.dados) {
                             estado.dados.aceite_publico_em = (resp && resp.aceite_publico_em) || new Date().toISOString();
                             estado.dados.assinatura_url = (resp && resp.assinatura_url) || dataUrl;
+                            if (prodsSelecionados.length > 0) estado.dados.produtos_aprovados = prodsSelecionados;
                             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
                         }
                         exibirImagemAceite();

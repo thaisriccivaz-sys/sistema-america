@@ -39932,6 +39932,11 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
       atualizado_em TEXT
     )`);
     
+    // Colunas para Proposta Comparativa e Produtos Aprovados
+    ['proposta_comparativa INTEGER DEFAULT 0', 'produtos_aprovados TEXT'].forEach(colDef => {
+      db.run(`ALTER TABLE propostas ADD COLUMN ${colDef}`, () => {});
+    });
+
     // Migração: remover propostas fictícias do seed legado e garantir numeração sequencial 01, 02...
     db.run(
       `DELETE FROM propostas WHERE codigo LIKE 'PR2026/%' AND cliente_nome IN (
@@ -39952,6 +39957,30 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
             }
           });
         });
+
+        // Garantir numeração própria de contratos (01 em diante) e situação inicial 'Em Elaboração'
+        db.all(
+          "SELECT id, codigo, contrato, situacao_contrato FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' ORDER BY COALESCE(aprovado_em, atualizado_em, criado_em) ASC, id ASC",
+          [],
+          (errAp, rowsAp) => {
+            if (errAp || !Array.isArray(rowsAp)) return;
+            db.run("DELETE FROM contratos WHERE proposta_id IS NOT NULL AND proposta_id NOT IN (SELECT id FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA')", [], () => {});
+            rowsAp.forEach((r, idx) => {
+              const seqContrato = String(idx + 1).padStart(2, '0');
+              const sitAtual = String(r.situacao_contrato || '').trim();
+              const novaSit = (!sitAtual || sitAtual.toUpperCase() === 'APROVADA' || sitAtual.toUpperCase() === 'APROVADO' || sitAtual.toUpperCase() === 'ESTORNADO')
+                ? 'Em Elaboração'
+                : sitAtual;
+              if (String(r.contrato || '').trim() !== seqContrato || sitAtual !== novaSit) {
+                db.run("UPDATE propostas SET contrato = ?, situacao_contrato = ? WHERE id = ?", [seqContrato, novaSit, r.id], () => {
+                  sincronizarContratoDaProposta(r.id);
+                });
+              } else {
+                sincronizarContratoDaProposta(r.id);
+              }
+            });
+          }
+        );
       }
     );
   }
@@ -39973,28 +40002,19 @@ function gerarCodigoProposta(cb) {
   });
 }
 
-// Gerar código único para contrato
+// Gerar código único sequencial próprio para contrato (01, 02, 03...)
 function gerarCodigoContrato(cb) {
-  db.all("SELECT contrato FROM propostas WHERE contrato IS NOT NULL AND TRIM(contrato) != ''", [], (err, rowsProp) => {
-    db.all("SELECT numero_contrato FROM contratos WHERE numero_contrato IS NOT NULL AND TRIM(numero_contrato) != ''", [], (err2, rowsCont) => {
-      let maxSeq = 0;
-      (rowsProp || []).forEach(r => {
-        const c = String(r.contrato || '').trim();
-        if (/^\d+$/.test(c)) {
-          const n = parseInt(c, 10);
-          if (n > maxSeq) maxSeq = n;
-        }
-      });
-      (rowsCont || []).forEach(r => {
-        const c = String(r.numero_contrato || '').trim();
-        if (/^\d+$/.test(c)) {
-          const n = parseInt(c, 10);
-          if (n > maxSeq) maxSeq = n;
-        }
-      });
-      const seq = maxSeq + 1;
-      cb(String(seq).padStart(2, '0'));
+  db.all("SELECT contrato FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' AND contrato IS NOT NULL AND TRIM(contrato) != ''", [], (err, rowsProp) => {
+    let maxSeq = 0;
+    (rowsProp || []).forEach(r => {
+      const c = String(r.contrato || '').trim();
+      if (/^\d+$/.test(c)) {
+        const n = parseInt(c, 10);
+        if (n > maxSeq) maxSeq = n;
+      }
     });
+    const seq = maxSeq + 1;
+    cb(String(seq).padStart(2, '0'));
   });
 }
 
@@ -40226,8 +40246,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
-        itens_servicos, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        itens_servicos, proposta_comparativa, produtos_aprovados, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -40248,6 +40268,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.valor_zona_calculado || 0,
         d.valor_distancia_calculado || 0,
         d.itens_servicos ? (typeof d.itens_servicos === 'string' ? d.itens_servicos : JSON.stringify(d.itens_servicos)) : '[]',
+        d.proposta_comparativa ? 1 : 0,
+        d.produtos_aprovados ? (typeof d.produtos_aprovados === 'string' ? d.produtos_aprovados : JSON.stringify(d.produtos_aprovados)) : '[]',
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -40256,9 +40278,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
           const lastIdCreated = this.lastID;
           resolverContextoUsuarioComercial(req.user).then(ctx => {
             const nomeAprov = (ctx && ctx.nome_colaborador) || usuarioLog;
-            db.run("UPDATE propostas SET situacao_contrato = 'Aprovada', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
+            db.run("UPDATE propostas SET situacao_contrato = 'Em Elaboração', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
           }).catch(() => {
-            db.run("UPDATE propostas SET situacao_contrato = 'Aprovada', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
+            db.run("UPDATE propostas SET situacao_contrato = 'Em Elaboração', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
           });
         }
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
@@ -40302,14 +40324,15 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
 
     if (d.acao_estornar) {
       const sitContratoCheck = String(d.situacao_contrato || oldRow.situacao_contrato || '').trim().toUpperCase();
-      if (!['REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContratoCheck)) {
-        return res.status(400).json({ error: 'Um contrato apenas pode ser estornado se estiver na situação de REPROVADO ou CANCELADO.' });
+      const sitPermitidasEstorno = ['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'];
+      if (!sitPermitidasEstorno.includes(sitContratoCheck)) {
+        return res.status(400).json({ error: 'Um contrato apenas pode ser estornado se estiver na situação de EM ELABORAÇÃO, REPROVADO ou CANCELADO.' });
       }
       d.fase_negociacao = 'Proposta Enviada';
       d.situacao_contrato = 'ESTORNADO';
     } else if (oldFaseUpper === 'APROVADA') {
       if (d.modo_contrato) {
-        d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'Aprovada';
+        d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'Em Elaboração';
         d.fase_negociacao = 'Aprovada';
       } else {
         return res.status(400).json({ error: 'Proposta aprovada não pode ser editada. Estorne a proposta para poder editar.' });
@@ -40324,9 +40347,10 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     }
 
     const needNovoNumContrato = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
-      && (!oldRow.contrato || !/^\d+$/.test(String(oldRow.contrato).trim()));
+      && (oldFaseUpper !== 'APROVADA' || !oldRow.contrato || !/^\d+$/.test(String(oldRow.contrato).trim()));
 
     const executarUpdateProposta = async (contratoFinal) => {
+      if (d.acao_estornar) contratoFinal = null;
       const ctxUser = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const nomeAutorAcao = ctxUser.nome_colaborador || usuarioLog;
       if (invalidarAssinaturaPorEdicao && oldRow.assinatura_r2_key) {
@@ -40343,7 +40367,16 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
 
       const sitContratoFinal = d.situacao_contrato !== undefined
         ? d.situacao_contrato
-        : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' ? (oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'Aprovada') : (oldRow.situacao_contrato || null));
+        : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
+            ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'Em Elaboração')
+            : (oldRow.situacao_contrato || null));
+
+      const propComparativaFinal = d.proposta_comparativa !== undefined ? (d.proposta_comparativa ? 1 : 0) : (Number(oldRow.proposta_comparativa) === 1 ? 1 : 0);
+      const produtosAprovadosFinal = invalidarAssinaturaPorEdicao
+        ? '[]'
+        : (d.produtos_aprovados !== undefined
+            ? (typeof d.produtos_aprovados === 'string' ? d.produtos_aprovados : JSON.stringify(d.produtos_aprovados || []))
+            : (oldRow.produtos_aprovados || '[]'));
 
       db.run(`UPDATE propostas SET
       contrato=?, situacao_contrato=?, assinatura_r2_key=?, assinatura_mime_type=?, aceite_publico_em=?, aprovado_por=?, aprovado_em=?,
@@ -40355,7 +40388,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
-      itens_servicos=?, atualizado_em=?
+      itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, atualizado_em=?
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
@@ -40378,6 +40411,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.valor_zona_calculado || 0,
       d.valor_distancia_calculado || 0,
       d.itens_servicos ? (typeof d.itens_servicos === 'string' ? d.itens_servicos : JSON.stringify(d.itens_servicos)) : '[]',
+      propComparativaFinal,
+      produtosAprovadosFinal,
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
@@ -40510,6 +40545,81 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
+async function prepararHtmlImpressaoParaPdf(rawHtml) {
+  let html = String(rawHtml || '');
+  if (!html.trim()) return html;
+
+  // 1) Converter unidades 'cqw' (Container Query Width) para 'px' (750px largura útil A4)
+  //    pois o Chromium do html-pdf-node não suporta cqw e desconfigura o CSS Grid do Quadro de Valores.
+  html = html.replace(/(\d+(?:\.\d+)?)cqw/g, (_, numStr) => {
+    const px = (parseFloat(numStr) * 7.5).toFixed(2);
+    return `${px}px`;
+  });
+
+  // 2) Embutir imagens de /assets/* diretamente do disco como base64 data URI
+  const assetsDir = path.join(__dirname, '..', 'frontend', 'assets');
+  html = html.replace(/src=(["'])(?:https?:\/\/[^/"']+)?\/assets\/([^"'?#]+)(?:\?[^"']*)?\1/gi, (full, q, fileName) => {
+    try {
+      const safeName = path.basename(fileName);
+      const filePath = path.join(assetsDir, safeName);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(safeName).toLowerCase();
+        const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : (ext === '.svg' ? 'image/svg+xml' : 'image/png');
+        const b64 = fs.readFileSync(filePath).toString('base64');
+        return `src=${q}data:${mime};base64,${b64}${q}`;
+      }
+    } catch (_) {}
+    return full;
+  });
+
+  // 3) Embutir imagens do R2 (/api/public/modelos-proposta/:id/(aceite|aditivo)-arquivo e assinatura-arquivo)
+  const r2Mod = require('./utils/r2');
+  if (r2Mod && r2Mod.isReady()) {
+    const streamToBuffer = (stream) => new Promise((resolve, reject) => {
+      const chunks = [];
+      stream.on('data', (c) => chunks.push(Buffer.from(c)));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', reject);
+    });
+
+    const regexApiImg = /src=(["'])(?:https?:\/\/[^/"']+)?\/api\/public\/(modelos-proposta|propostas)\/(\d+)\/(aceite-arquivo|aditivo-arquivo|assinatura-arquivo)(?:\?[^"']*)?\1/gi;
+    const matches = Array.from(html.matchAll(regexApiImg));
+    for (const m of matches) {
+      try {
+        const [fullMatch, q, tipoRota, idReg, acao] = m;
+        let r2Key = null;
+        let mime = 'image/png';
+        if (tipoRota === 'modelos-proposta') {
+          const rowMod = await new Promise((res) => db.get('SELECT * FROM modelos_proposta WHERE id = ?', [idReg], (e, r) => res(r || null)));
+          if (rowMod) {
+            if (acao === 'aceite-arquivo') {
+              r2Key = rowMod.aceite_r2_key || rowMod.aceite_mobile_r2_key || null;
+              mime = rowMod.aceite_mime_type || 'image/png';
+            } else if (acao === 'aditivo-arquivo') {
+              r2Key = rowMod.aditivo_r2_key || rowMod.aditivo_mobile_r2_key || null;
+              mime = rowMod.aditivo_mime_type || 'image/png';
+            }
+          }
+        } else if (tipoRota === 'propostas' && acao === 'assinatura-arquivo') {
+          const rowProp = await new Promise((res) => db.get('SELECT assinatura_r2_key, assinatura_mime_type FROM propostas WHERE id = ?', [idReg], (e, r) => res(r || null)));
+          if (rowProp && rowProp.assinatura_r2_key) {
+            r2Key = rowProp.assinatura_r2_key;
+            mime = rowProp.assinatura_mime_type || 'image/png';
+          }
+        }
+        if (r2Key) {
+          const dl = await r2Mod.downloadStreamFromR2(r2Key);
+          const buf = await streamToBuffer(dl.stream);
+          const b64 = buf.toString('base64');
+          html = html.split(fullMatch).join(`src=${q}data:${dl.contentType || mime};base64,${b64}${q}`);
+        }
+      } catch (_) {}
+    }
+  }
+
+  return html;
+}
+
 // GET /api/propostas/:id/pdf - Baixar PDF da proposta
 app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
   db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
@@ -40526,7 +40636,7 @@ app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
       const htmlPdf = require('html-pdf-node');
       const pdfBuffer = await htmlPdf.generatePdf(
         { content: proposalHtml },
-        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
+        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' }, printBackground: true }
       );
       const fileName = `Proposta_${p.codigo || p.id}.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
@@ -40563,17 +40673,18 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
         cssBoxes = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'box_renderer.css'), 'utf8');
       } catch (_) {}
 
-      const resumoBruto = (html_impressao_simples && String(html_impressao_simples).trim())
-        ? String(html_impressao_simples).replace(/src="\//g, `src="${baseLink}/`).replace(/src='\//g, `src='${baseLink}/`)
+      const resumoBrutoRaw = (html_impressao_simples && String(html_impressao_simples).trim())
+        ? String(html_impressao_simples)
         : gerarHtmlProposta(p);
+      const resumoPreparado = await prepararHtmlImpressaoParaPdf(resumoBrutoRaw);
 
-      const docPdfHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><style>${cssBoxes} body{margin:0;padding:0;background:#fff;font-family:Arial,sans-serif;}</style></head><body>${resumoBruto}</body></html>`;
+      const docPdfHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><style>${cssBoxes} *{-webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; box-sizing:border-box;} body{margin:0;padding:0;background:#fff;font-family:Arial,sans-serif;}</style></head><body>${resumoPreparado}</body></html>`;
       let pdfBuffer = null;
       try {
         const htmlPdf = require('html-pdf-node');
         pdfBuffer = await htmlPdf.generatePdf(
           { content: docPdfHtml },
-          { format: 'A4', margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' } }
+          { format: 'A4', margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' }, printBackground: true }
         );
       } catch (ePdf) {
         console.warn('[PROPOSTAS] Aviso ao gerar PDF para anexo do e-mail:', ePdf.message);
@@ -40581,22 +40692,18 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
 
       const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
       const htmlEmailFinal = `
-        <div style="font-family:Arial,sans-serif;max-width:780px;margin:0 auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#ffffff;">
+        <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#ffffff;">
           <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:780px;height:auto;display:block;">
+            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:640px;height:auto;display:block;">
           </div>
           <div style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
-            <div>${corpo || '<p>Segue abaixo a nossa proposta comercial.</p>'}</div>
-            <div style="margin:22px 0;padding:16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;">
+            <div>${corpo || '<p>Olá,</p><p>Seguem abaixo o link da proposta e os detalhes da nossa proposta comercial.</p>'}</div>
+            <div style="margin:22px 0 8px 0;padding:16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;">
               <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px;">Acesse a proposta completa, aprove ou imprima pelo link abaixo:</div>
               <a href="${linkPublicoProposta}" target="_blank" style="display:inline-block;background:#1b358f;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 28px;border-radius:8px;">
                 🔗 Abrir Proposta Comercial Nº ${p.codigo || p.id}
               </a>
               <div style="margin-top:8px;font-size:12px;color:#64748b;word-break:break-all;"><a href="${linkPublicoProposta}" style="color:#2563eb;">${linkPublicoProposta}</a></div>
-            </div>
-            <div style="margin-top:20px;border-top:2px solid #e2e8f0;padding-top:16px;">
-              <style>${cssBoxes}</style>
-              ${resumoBruto}
             </div>
           </div>
         </div>

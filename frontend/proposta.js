@@ -199,11 +199,34 @@ async function inicializarPropostas(defaultTab) {
 }
 
 window._contextoUsuarioComercial = window._contextoUsuarioComercial || null;
+window.usuarioLogadoEhThais = function() {
+    const normStr = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[._-]+/g, ' ').trim();
+    const candidatos = [];
+    if (window.currentUser) {
+        candidatos.push(window.currentUser.username, window.currentUser.nome, window.currentUser.email);
+    }
+    try {
+        const uStorage = JSON.parse(localStorage.getItem('erp_user') || 'null');
+        if (uStorage) candidatos.push(uStorage.username, uStorage.nome, uStorage.email);
+    } catch (_) {}
+    const elHeader = document.getElementById('logged-user-name');
+    if (elHeader && elHeader.textContent) candidatos.push(elHeader.textContent);
+    if (window.obterNomeUsuarioLogado) candidatos.push(window.obterNomeUsuarioLogado());
+    if (window._contextoUsuarioComercial) {
+        candidatos.push(window._contextoUsuarioComercial.username, window._contextoUsuarioComercial.nome_colaborador);
+    }
+    return candidatos.some(c => {
+        const n = normStr(c);
+        return n === 'thais ricci' || n.includes('thais ricci');
+    });
+};
+
 window.carregarContextoUsuarioComercial = async function(force = false) {
     if (window._contextoUsuarioComercial && !force) return window._contextoUsuarioComercial;
     try {
         const ctx = await apiGet('/comercial/me-contexto');
         if (ctx && typeof ctx === 'object') {
+            if (window.usuarioLogadoEhThais()) ctx.pode_excluir_proposta = true;
             window._contextoUsuarioComercial = ctx;
             return ctx;
         }
@@ -211,7 +234,7 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
         console.warn('[PROPOSTAS] Falha ao carregar contexto do usuário comercial:', e);
     }
     const uRaw = String(window.obterNomeUsuarioLogado ? window.obterNomeUsuarioLogado() : '').trim();
-    const isThais = uRaw.toLowerCase() === 'thais.ricci' || uRaw.toLowerCase().includes('thais.ricci');
+    const isThais = window.usuarioLogadoEhThais();
     window._contextoUsuarioComercial = {
         username: uRaw,
         nome_colaborador: window.formatarNomeColaboradorAssinatura ? window.formatarNomeColaboradorAssinatura(uRaw) : uRaw,
@@ -243,12 +266,12 @@ window.propostaEstaAssinadaOuAprovada = function(p) {
 
 window.podeExcluirPropostaAtual = function(p) {
     if (p && window.propostaEstaAssinadaOuAprovada(p)) return false;
+    if (window.usuarioLogadoEhThais && window.usuarioLogadoEhThais()) return true;
     const ctx = window._contextoUsuarioComercial;
-    if (ctx && typeof ctx.pode_excluir_proposta === 'boolean') {
-        return ctx.pode_excluir_proposta;
+    if (ctx && (ctx.pode_excluir_proposta === true || ctx.is_gestor_departamento === true)) {
+        return true;
     }
-    const uRaw = String(window.obterNomeUsuarioLogado ? window.obterNomeUsuarioLogado() : '').trim().toLowerCase();
-    return uRaw === 'thais.ricci' || uRaw.includes('thais.ricci');
+    return false;
 };
 
 async function carregarPropostas() {
@@ -1329,8 +1352,12 @@ function _renderLinhasPropostas(lista) {
     }
 
     return lista.map(p => {
-        const fase = p.fase_negociacao || 'Em Elaboração';
+        const isModoContrato = window._modoTelaComercial === 'contrato';
+        const fase = isModoContrato
+            ? ((p.situacao_contrato && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(String(p.situacao_contrato).trim().toUpperCase())) ? p.situacao_contrato : 'Em Elaboração')
+            : (p.fase_negociacao || 'Em Elaboração');
         const faseStyle = PROP_STATUS_CORES[fase] || { bg: '#f1f5f9', text: '#64748b', icon: 'ph-circle' };
+        const codigoExib = isModoContrato ? (p.contrato || '01') : (p.codigo || '—');
         
         // Format Total Value to Currency BRL
         const valorTotal = typeof p.valor_total === 'number' ? p.valor_total : parseFloat(p.valor_total) || 0;
@@ -1351,7 +1378,7 @@ function _renderLinhasPropostas(lista) {
         return `
         <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
             <td style="padding:0.6rem 0.75rem; font-weight:700; color:#7048e8; white-space:nowrap;">
-                ${p.codigo || '—'}
+                ${codigoExib}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.cliente_nome||''}">
                 <div>${(() => { const ic = typeof window.obterIconeGrupoPorNomeCliente === 'function' ? window.obterIconeGrupoPorNomeCliente(p.cliente_nome) : ''; return p.cliente_nome ? (ic ? ic + ' ' : '') + p.cliente_nome : '<span style="color:#94a3b8">—</span>'; })()}</div>
@@ -1930,7 +1957,8 @@ window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedSer
 
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 window.abrirFormProposta = abrirFormProposta;
-async function abrirFormProposta(id) {
+async function abrirFormProposta(id, rascunhoDuplicado = null) {
+    window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
     if (window._modoTelaComercial === 'contrato') window._propostasEditandoId_contrato = id;
     else window._propostasEditandoId_proposta = id;
     _propostasEditandoId = id;
@@ -1949,9 +1977,9 @@ async function abrirFormProposta(id) {
 
 function _renderFormPropostaInt() {
     const id = _propostasEditandoId;
-    const prop = id ? _propostasData.find(p => p.id === id) : null;
+    const prop = id ? _propostasData.find(p => p.id === id) : (window._propostaDuplicadaRascunho || null);
     _propRegiaoIdentificada = prop && prop.regiao ? prop.regiao : '';
-    const isNovo = !prop;
+    const isNovo = !id;
     const hoje = new Date().toISOString().split('T')[0];
     const dataCadastroVal = prop && prop.data_cadastro ? prop.data_cadastro : hoje;
     const umaSemanaDepois = (() => {
@@ -2053,7 +2081,7 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
-                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato')) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#115e59'" onmouseout="this.style.background='#0f766e'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato')) ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
                     </button>
                     <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="Visualizar Proposta Assinada / Aprovada" style="display:${(!isNovo && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
@@ -2098,7 +2126,7 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Nº do Contrato' : 'Código'}</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
-                                <input type="text" id="prop-codigo" value="${String((window._modoTelaComercial === 'contrato' ? (v('contrato') || v('codigo')) : v('codigo')) || (isNovo ? 'AUTO' : '')).toUpperCase()}"
+                                <input type="text" id="prop-codigo" value="${String((window._modoTelaComercial === 'contrato' ? (v('contrato') || '01') : v('codigo')) || (isNovo ? 'AUTO' : '')).toUpperCase()}"
                                     placeholder="AUTO ou digite o nº para pesquisar"
                                     title="Digite o número/código da proposta e pressione Enter ou clique na lupa para pesquisar"
                                     onfocus="if(this.value.trim().toUpperCase()==='AUTO') this.select();"
@@ -2163,11 +2191,12 @@ function _renderFormPropostaInt() {
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Situação do Contrato *' : 'Fase de Negociação *'}</label>
+                            <label class="prop-lbl">Fase de Negociação *</label>
                             <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                                 ${PROP_FASES.map(f => {
+                                    const sitContRaw = String(v('situacao_contrato') || '').trim();
                                     const faseAtiva = window._modoTelaComercial === 'contrato'
-                                        ? String(v('situacao_contrato') || v('fase_negociacao') || 'Aprovada')
+                                        ? ((sitContRaw && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(sitContRaw.toUpperCase())) ? sitContRaw : 'Em Elaboração')
                                         : String(v('fase_negociacao') || '');
                                     const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
                                     const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
@@ -2358,9 +2387,15 @@ function _renderFormPropostaInt() {
 
                     <!-- Seção: Produtos da Proposta -->
                     <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
-                        </h4>
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0 0 0.45rem;">
+                            <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
+                            </h4>
+                            <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:700; color:#1e3a8a; background:#eff6ff; border:1px solid #93c5fd; padding:3px 10px; border-radius:6px; cursor:pointer; user-select:none;" title="Ao marcar como Proposta comparativa, o sistema oculta a soma do valor total no link da proposta e pergunta quais produtos estão sendo aprovados no momento da aprovação.">
+                                <input type="checkbox" id="prop-comparativa" ${Number(v('proposta_comparativa')) === 1 ? 'checked' : ''} style="width:15px; height:15px; accent-color:#1d4ed8; cursor:pointer;">
+                                <span>Proposta comparativa</span>
+                            </label>
+                        </div>
                         
                         <!-- Inputs para adicionar produto -->
                         <div id="prop-prod-add-grid" style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
@@ -6068,6 +6103,7 @@ window.salvarPropostaNova = async function() {
         criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
         itens_servicos: window._propServicosAdicionados || [],
+        proposta_comparativa: document.getElementById('prop-comparativa')?.checked ? 1 : 0,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
         percentual_zona: obterN('prop-percentual-zona'),
@@ -6081,233 +6117,94 @@ window.salvarPropostaNova = async function() {
 
     // Cache payload for save confirm call
     window._cachedProposalPayload = payload;
+    window._propostaDuplicadaRascunho = null;
 
-    // Show loading
     Swal.fire({
-        title: 'Processando demonstrativos...',
+        title: 'Preparando conferência da proposta...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     (async () => {
         try {
-            const dre = await window.obterDadosDREProposta(payload);
+            const propExist = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+            const propPreview = Object.assign({}, propExist || {}, payload, {
+                id: _propostasEditandoId || null,
+                codigo: (propExist && propExist.codigo) || document.getElementById('prop-codigo')?.value || '01'
+            });
 
-            const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            const pctPart = (part, total) => total > 0 ? `${((part / total) * 100).toFixed(2).replace('.', ',')}%` : '0,00%';
+            const normMod = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
+            const tipoRawNorm = normMod(payload.tipo);
+            const ehAditivo = tipoRawNorm === 'ADITIVO';
+            let tipoBaseMod = ehAditivo ? normMod(payload.contrato_vinculado_tipo || 'OBRA') : tipoRawNorm;
+            if (tipoBaseMod.startsWith('OBRA')) tipoBaseMod = 'OBRA';
+            if (tipoBaseMod.startsWith('LIMPA FOSSA')) tipoBaseMod = 'LIMPA FOSSA';
+            if (tipoBaseMod.includes('CONTAINER')) tipoBaseMod = 'LOCACAO CONTAINER';
 
-            const selectServico = document.getElementById('prop-servico-precificado');
-            const selectedOption = selectServico ? selectServico.options[selectServico.selectedIndex] : null;
-            const precoServico = parseFloat(selectedOption ? (selectedOption.getAttribute('data-preco') || 0) : 0);
-            
-            const totalReceita = precoServico + payload.valor_zona_calculado + payload.valor_distancia_calculado + payload.valor_frete_ida + payload.valor_frete_volta;
-            const desconto = payload.desconto_reais || (totalReceita * payload.desconto_percent / 100);
-            const receitaLiquida = totalReceita - desconto;
-            const custoVariavelTotal = dre.custoVariavel + dre.despesaVariavel + payload.valor_distancia_calculado;
-            const margemContrib = receitaLiquida - custoVariavelTotal;
-            const custosFixosTotais = dre.custoFixo + dre.despesaFixa + dre.rateioDespesasFixas;
-            const lucroLiquido = margemContrib - custosFixosTotais;
+            const dadosQuadro = typeof window.montarDadosQuadroEventoProposta === 'function'
+                ? window.montarDadosQuadroEventoProposta(propPreview, ehAditivo ? (payload.contrato_vinculado_tipo || 'OBRA') : payload.tipo)
+                : propPreview;
+            const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                ? window.renderBoxQuadroEventoHtml(dadosQuadro, 'desktop', { modelo_tipo: dadosQuadro.modelo_tipo || 'EVENTO' })
+                : '';
 
-            const _itensResumoLista = [
-                ...(payload.itens || []).map(item => ({
-                    nome: item.descricao || item.produto || item.nome || 'Item',
-                    qtd: item.quantidade || 1,
-                    fob: false,
-                    unit: item.valor_unitario ?? item.valor ?? 0,
-                    total: (item.valor_total !== undefined && !isNaN(parseFloat(item.valor_total))) ? parseFloat(item.valor_total) : ((item.quantidade || 1) * (item.valor_unitario ?? item.valor ?? 0))
-                })),
-                ...(payload.itens_servicos || []).map(s => ({
-                    nome: s.servico || s.descricao || s.nome || 'Serviço',
-                    qtd: s.quantidade || 1,
-                    fob: !!s.frete_fob,
-                    unit: s.frete_fob ? 0 : (s.valor_unitario ?? s.valor ?? 0),
-                    total: s.frete_fob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : ((s.quantidade || 1) * (s.valor_unitario ?? s.valor ?? 0)))
-                }))
-            ];
-            const itensHtml = _itensResumoLista.map((item, idx) => `
-                <tr style="border-bottom:1px solid #cbd5e1;">
-                    <td style="text-align:center; padding:0.35rem 0.6rem;">${idx + 1}</td>
-                    <td style="padding:0.35rem 0.6rem;">${item.nome}</td>
-                    <td style="text-align:center; padding:0.35rem 0.6rem;">${item.qtd}</td>
-                    <td style="text-align:right; padding:0.35rem 0.6rem;">${item.fob ? 'FOB' : fmt(item.unit)}</td>
-                    <td style="text-align:right; font-weight:bold; padding:0.35rem 0.6rem;">${item.fob ? 'FOB' : fmt(item.total)}</td>
-                </tr>
-            `).join('');
+            let urlAditivo = '';
+            let urlAceite = '';
+            try {
+                const listaMod = await apiGet('/comercial/modelos-proposta').catch(() => []);
+                if (Array.isArray(listaMod)) {
+                    const acharMod = (alvo) => listaMod.find(m => {
+                        const mt = normMod(m.tipo_proposta || m.nome);
+                        return mt === alvo || (alvo === 'LOCACAO CONTAINER' && mt.includes('CONTAINER')) || (alvo === 'OBRA' && mt.startsWith('OBRA')) || (alvo === 'LIMPA FOSSA' && mt.startsWith('LIMPA FOSSA'));
+                    });
+                    const modAlvo = acharMod(tipoBaseMod) || listaMod.find(m => m.aceite_url || m.aceite_r2_key);
+                    if (modAlvo) {
+                        if (modAlvo.aceite_url) urlAceite = modAlvo.aceite_url;
+                        else if (modAlvo.aceite_r2_key) urlAceite = '/api/public/modelos-proposta/' + modAlvo.id + '/aceite-arquivo?v=desktop';
+                        if (ehAditivo) {
+                            if (modAlvo.aditivo_url) urlAditivo = modAlvo.aditivo_url;
+                            else if (modAlvo.aditivo_r2_key) urlAditivo = '/api/public/modelos-proposta/' + modAlvo.id + '/aditivo-arquivo?v=desktop';
+                        }
+                    }
+                }
+            } catch (_) {}
 
-            const code = selectServico && selectServico.value ? `SVC-${String(selectServico.value).padStart(4, '0')}` : 'MANUAL';
+            const htmlAditivo = (ehAditivo && urlAditivo) ? `<img src="${_escHtmlProp(urlAditivo)}" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">` : '';
+            const htmlAceite = urlAceite ? `<img src="${_escHtmlProp(urlAceite)}" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">` : '';
+            const htmlConferencia = `<div style="max-width:1100px; margin:0 auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; box-shadow:0 4px 16px rgba(15,23,42,0.08);">${htmlQuadro}${htmlAditivo}${htmlAceite}</div>`;
 
             Swal.fire({
                 title: '',
-                width: '850px',
+                width: '98vw',
                 customClass: {
                     popup: 'custom-swal-padding-zero'
                 },
                 html: `
-                    <style>
-                        .rf-box {
-                            border: 2px solid #065f46;
-                            border-radius: 8px;
-                            font-family: 'Inter', sans-serif;
-                            background: #fff;
-                            color: #000;
-                            text-align: left;
-                            margin: 1rem 0;
-                            overflow: hidden;
-                        }
-                        .rf-header {
-                            background: #065f46;
-                            color: #fff;
-                            padding: 0.6rem;
-                            text-align: center;
-                            font-weight: bold;
-                            font-size: 0.85rem;
-                            line-height: 1.2;
-                        }
-                        .rf-header-title {
-                            font-size: 1rem;
-                            letter-spacing: 0.05em;
-                            margin-bottom: 2px;
-                        }
-                        .rf-section-title {
-                            background: #f0fdf4;
-                            color: #166534;
-                            font-weight: bold;
-                            font-size: 0.8rem;
-                            padding: 0.35rem 0.6rem;
-                            border-top: 2px solid #065f46;
-                            border-bottom: 1px solid #cbd5e1;
-                            text-transform: uppercase;
-                        }
-                        .rf-grid {
-                            display: grid;
-                            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                            border-bottom: 1px solid #cbd5e1;
-                        }
-                        .rf-grid-cell {
-                            padding: 0.4rem 0.6rem;
-                            border-right: 1px solid #cbd5e1;
-                            box-sizing: border-box;
-                        }
-                        .rf-grid-cell:last-child {
-                            border-right: none;
-                        }
-                        .rf-label {
-                            font-size: 0.65rem;
-                            color: #475569;
-                            text-transform: uppercase;
-                            font-weight: bold;
-                            margin-bottom: 2px;
-                            display: block;
-                        }
-                        .rf-value {
-                            font-size: 0.82rem;
-                            font-weight: bold;
-                            color: #0f172a;
-                        }
-                        .rf-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            font-size: 0.78rem;
-                        }
-                        .rf-table th {
-                            background: #f1f5f9;
-                            border-bottom: 1.5px solid #cbd5e1;
-                            padding: 0.35rem 0.6rem;
-                            font-weight: bold;
-                            color: #475569;
-                            text-transform: uppercase;
-                            font-size: 0.65rem;
-                        }
-                        .rf-table td {
-                            padding: 0.35rem 0.6rem;
-                            border-bottom: 1px solid #cbd5e1;
-                        }
-                    </style>
-                    <div style="text-align:left; font-family:'Inter', sans-serif; background:#fff; border-radius:12px; overflow:hidden;">
-                        <!-- Header Tabs -->
-                        <div style="display:flex; border-bottom: 2px solid #cbd5e1; background:#f8fafc;">
-                            <button type="button" id="btn-resumo-simplificado" style="flex:1; padding: 0.8rem; background: #f1f5f9; border: none; border-bottom: 3px solid #3b82f6; font-weight: bold; cursor: default; font-size: 0.9rem; outline:none; font-family:'Inter', sans-serif;">Resumo Simplificado</button>
-                        </div>
-
-                        <div style="padding: 1.2rem 1.5rem; max-height:550px; overflow-y:auto;">
-                            
-                            <!-- BOX RECEITA FEDERAL SIMPLIFICADO -->
-                            <div id="panel-resumo-simplificado" style="display:block;">
-                                <div class="rf-box">
-                                    <div class="rf-header">
-                                        <div class="rf-header-title">AMERICA RENTAL LOCAÇÃO DE EQUIPAMENTOS</div>
-                                        <div>SISTEMA DE PROPOSTAS COMERCIAIS &bull; RESUMO DA DECLARAÇÃO</div>
-                                    </div>
-                                    
-                                    <div class="rf-section-title">Seção I - Identificação da Proposta</div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell"><span class="rf-label">Código</span><span class="rf-value">${_propostasEditandoId ? 'EDITANDO ID: ' + _propostasEditandoId : 'NOVA PROPOSTA'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Data Emissão</span><span class="rf-value">${dataCad.split('-').reverse().join('/')}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Fase</span><span class="rf-value">${fase}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Tipo</span><span class="rf-value">${tipo}</span></div>
-                                    </div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell"><span class="rf-label">Atendente</span><span class="rf-value">${payload.atendente || '—'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Tabela de Preço</span><span class="rf-value">${payload.tabela_precos || '—'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Modelo Impressão</span><span class="rf-value">${payload.modelo_impressao || '—'}</span></div>
-                                    </div>
-
-                                    <div class="rf-section-title">Seção II - Dados do Contratante</div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell" style="grid-column: span 2;"><span class="rf-label">Nome / Razão Social</span><span class="rf-value">${payload.cliente_nome || '—'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Contato</span><span class="rf-value">${payload.contato_nome || '—'}</span></div>
-                                    </div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell" style="grid-column: span 3;"><span class="rf-label">Endereço de Instalação</span><span class="rf-value">${payload.endereco_instalacao || '—'}</span></div>
-                                    </div>
-
-                                    <div class="rf-section-title">Seção III - Período Contratual</div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell"><span class="rf-label">Início</span><span class="rf-value">${payload.periodo_inicio ? payload.periodo_inicio.split('-').reverse().join('/') : '—'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Fim</span><span class="rf-value">${payload.periodo_fim ? payload.periodo_fim.split('-').reverse().join('/') : '—'}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Dias Contrato</span><span class="rf-value">${payload.dias_contrato} dias</span></div>
-                                    </div>
-
-                                    <div class="rf-section-title">Seção IV - Composição da Proposta</div>
-                                    <table class="rf-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="text-align:center; width:40px;">#</th>
-                                                <th>Descrição</th>
-                                                <th style="text-align:center; width:60px;">Qtd</th>
-                                                <th style="text-align:right; width:120px;">Unitário</th>
-                                                <th style="text-align:right; width:120px;">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${itensHtml || `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1rem;">Nenhum produto/item adicionado.</td></tr>`}
-                                        </tbody>
-                                    </table>
-
-                                    <div class="rf-section-title">Seção V - Resumo de Valores</div>
-                                    <div class="rf-grid">
-                                        <div class="rf-grid-cell"><span class="rf-label">Serviço/Equipamento</span><span class="rf-value">${fmt(precoServico)}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Total Frete</span><span class="rf-value">${fmt(payload.valor_frete_ida + payload.valor_frete_volta)}</span></div>
-                                        <div class="rf-grid-cell"><span class="rf-label">Adicionais (Zona & KM)</span><span class="rf-value">${fmt(payload.valor_zona_calculado + payload.valor_distancia_calculado)}</span></div>
-                                        <div class="rf-grid-cell" style="background:#f0fdf4; border-left: 1px solid #cbd5e1;"><span class="rf-label" style="color:#166534;">Valor Total Final</span><span class="rf-value" style="color:#166534; font-size:1rem;">${fmt(payload.valor_total)}</span></div>
-                                    </div>
-                                </div>
+                    <div style="text-align:left; font-family:'Inter', sans-serif; background:#f1f5f9; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; max-height:92vh;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.4rem; background:#0f172a; color:#fff; flex-shrink:0;">
+                            <div style="font-weight:800; font-size:0.98rem; display:flex; align-items:center; gap:8px;">
+                                <i class="ph ph-file-magnifying-glass" style="font-size:1.2rem; color:#38bdf8;"></i>
+                                Conferência da Proposta antes de Salvar
                             </div>
-
+                            <div style="display:flex; gap:0.6rem;">
+                                <button type="button" onclick="Swal.close()" style="background:#475569; color:#fff; border:none; padding:0.48rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.84rem; cursor:pointer;">Cancelar / Voltar</button>
+                                <button type="button" onclick="window.confirmarSalvarProposta(false)" style="background:#16a34a; color:#fff; border:none; padding:0.48rem 1.25rem; border-radius:6px; font-weight:800; font-size:0.84rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;"><i class="ph ph-check"></i> Confirmar e Salvar</button>
+                            </div>
                         </div>
-
-                        <!-- Footer Actions -->
-                        <div style="display:flex; justify-content: flex-end; gap:0.55rem; padding: 0.75rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
-                            <button type="button" onclick="Swal.close()" style="background:#94a3b8; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; outline:none;" onmouseover="this.style.background='#64748b'" onmouseout="this.style.background='#94a3b8'">Cancelar</button>
-                            <button type="button" onclick="window.confirmarSalvarProposta(false)" style="background:#16a34a; color:#fff; border:none; padding:0.5rem 1.1rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; outline:none;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'"><i class="ph ph-check"></i> Confirmar e Salvar</button>
+                        <div style="padding:1rem; overflow-y:auto; flex:1;">
+                            ${htmlConferencia}
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:0.6rem; padding:0.75rem 1.4rem; background:#fff; border-top:1px solid #cbd5e1; flex-shrink:0;">
+                            <button type="button" onclick="Swal.close()" style="background:#94a3b8; color:#fff; border:none; padding:0.55rem 1.2rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">Cancelar</button>
+                            <button type="button" onclick="window.confirmarSalvarProposta(false)" style="background:#16a34a; color:#fff; border:none; padding:0.55rem 1.4rem; border-radius:6px; font-weight:800; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;"><i class="ph ph-check"></i> Confirmar e Salvar</button>
                         </div>
                     </div>
                 `,
                 showConfirmButton: false
             });
-        } catch (dreErr) {
-            console.error(dreErr);
-            Swal.fire('Erro', 'Erro ao processar demonstrativos DRE: ' + dreErr.message, 'error');
+        } catch (confErr) {
+            console.error(confErr);
+            Swal.fire('Erro', 'Erro ao montar conferência da proposta: ' + confErr.message, 'error');
         }
     })();
 };
@@ -6476,16 +6373,29 @@ window.estornarPropostaEdicao = async function() {
     }
 
     const propAtual = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || {};
-    const sitContrato = String(
+    const sitContratoRaw = String(
         (window._modoTelaComercial === 'contrato' ? document.getElementById('prop-fase')?.value : '') ||
         propAtual.situacao_contrato ||
-        ''
-    ).trim().toUpperCase();
-    const sitPermitida = ['REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContrato);
+        'Em Elaboração'
+    ).trim();
+    const sitContrato = sitContratoRaw.toUpperCase();
+    const sitPermitida = ['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContrato);
     if (!sitPermitida) {
-        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver na situação de REPROVADO ou CANCELADO na tela de Contratos.', 'warning');
+        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver na situação de EM ELABORAÇÃO, REPROVADO ou CANCELADO na tela de Contratos.', 'warning');
         return;
     }
+
+    const confEstorno = await Swal.fire({
+        title: 'Estornar Contrato?',
+        text: 'Tem certeza que gostaria de estornar o contrato? A proposta voltará para a situação Proposta Enviada.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, estornar contrato',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!confEstorno.isConfirmed) return;
 
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
@@ -6561,6 +6471,7 @@ window.estornarPropostaEdicao = async function() {
         previsao_fechamento: obter('prop-previsao'),
         fase_negociacao: 'Proposta Enviada',
         acao_estornar: true,
+        situacao_contrato: sitContratoRaw || 'Em Elaboração',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -6592,6 +6503,7 @@ window.estornarPropostaEdicao = async function() {
         criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
         itens_servicos: window._propServicosAdicionados || [],
+        proposta_comparativa: document.getElementById('prop-comparativa')?.checked ? 1 : 0,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null
     };
@@ -6655,6 +6567,58 @@ window.aprovarPropostaEdicao = async function() {
         if (Array.isArray(window._propProdutosAdicionados)) window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
     }
     if (typeof window.validarServicosPropostaObra === 'function' && !window.validarServicosPropostaObra(tipo)) return;
+
+    const isComparativa = Boolean(document.getElementById('prop-comparativa')?.checked);
+    const propExistente = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+    let produtosAprovadosSel = [];
+    try {
+        if (propExistente && propExistente.produtos_aprovados) {
+            produtosAprovadosSel = Array.isArray(propExistente.produtos_aprovados)
+                ? propExistente.produtos_aprovados
+                : JSON.parse(propExistente.produtos_aprovados || '[]');
+        }
+    } catch (_) { produtosAprovadosSel = []; }
+
+    const itensAtuaisAprov = window._propProdutosAdicionados || [];
+    if (isComparativa && itensAtuaisAprov.length > 0) {
+        const opcoesHtml = itensAtuaisAprov.map((it, idx) => {
+            const nomeIt = String(it.produto || it.descricao || it.nome || ('Produto ' + (idx + 1))).trim();
+            const qtdIt = Number(it.quantidade || 1);
+            const totIt = Number(it.valor_total ?? (qtdIt * Number(it.valor ?? it.valor_unitario ?? 0)) ?? 0);
+            const totFmt = totIt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const rotulo = `${nomeIt} (Qtd: ${qtdIt}) — R$ ${totFmt}`;
+            const jaMarcado = produtosAprovadosSel.some(s => String(s).includes(nomeIt));
+            return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; font-size:0.84rem; font-weight:700; color:#0f172a;">
+                <input type="checkbox" class="swal-chk-prod-aprov" value="${_escHtmlProp(rotulo)}" ${jaMarcado ? 'checked' : ''} style="width:17px; height:17px; margin-top:2px; accent-color:#1d4ed8; cursor:pointer;">
+                <span>${_escHtmlProp(rotulo)}</span>
+            </label>`;
+        }).join('');
+
+        const selResp = await Swal.fire({
+            title: 'Proposta Comparativa — Produtos Aprovados',
+            html: `
+                <div style="text-align:left; font-family:'Inter',sans-serif;">
+                    <p style="font-size:0.86rem; color:#334155; margin:0 0 10px 0;">Selecione qual(is) produto(s) da proposta estão sendo aprovados:</p>
+                    <div style="display:flex; flex-direction:column; gap:8px; max-height:48vh; overflow-y:auto;">${opcoesHtml}</div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: '#1b358f',
+            confirmButtonText: 'Confirmar Aprovação',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const marcados = Array.from(document.querySelectorAll('.swal-chk-prod-aprov:checked')).map(c => c.value).filter(Boolean);
+                if (marcados.length === 0) {
+                    Swal.showValidationMessage('Selecione pelo menos um produto que está sendo aprovado.');
+                    return false;
+                }
+                return marcados;
+            }
+        });
+        if (!selResp.isConfirmed) return;
+        produtosAprovadosSel = selResp.value || [];
+    }
+
     const faseSel = document.getElementById('prop-fase');
     if (faseSel) faseSel.value = 'Aprovada';
     if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
@@ -6666,6 +6630,7 @@ window.aprovarPropostaEdicao = async function() {
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
         fase_negociacao: 'Aprovada',
+        situacao_contrato: 'Em Elaboração',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -6706,6 +6671,8 @@ window.aprovarPropostaEdicao = async function() {
         criado_por: window.obterNomeUsuarioLogado(),
         itens: window._propProdutosAdicionados || [],
         itens_servicos: window._propServicosAdicionados || [],
+        proposta_comparativa: isComparativa ? 1 : 0,
+        produtos_aprovados: produtosAprovadosSel,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
         percentual_zona: obterN('prop-percentual-zona'),
@@ -6775,57 +6742,66 @@ window.duplicarPropostaAtual = async function() {
         Swal.fire('Aviso', 'Proposta atual não encontrada.', 'warning');
         return;
     }
-    const conf = await Swal.fire({
-        title: 'Duplicar Proposta?',
-        text: 'Deseja criar uma nova proposta copiando todas as informações da proposta ' + (orig.codigo || '') + '?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#0284c7',
-        confirmButtonText: 'Sim, duplicar',
-        cancelButtonText: 'Cancelar'
-    });
-    if (!conf.isConfirmed) return;
 
     const hoje = new Date().toISOString().slice(0, 10);
-    const payload = {
-        local: orig.local || 'AMERICA RENTAL',
-        tipo: orig.tipo || '',
-        atendente: orig.atendente || window.obterNomeUsuarioLogado(),
+    const obter = (id) => document.getElementById(id)?.value;
+    const itensOrig = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
+        ? JSON.parse(JSON.stringify(window._propProdutosAdicionados))
+        : (orig.itens ? (typeof orig.itens === 'string' ? JSON.parse(orig.itens || '[]') : JSON.parse(JSON.stringify(orig.itens))) : []);
+    const servsOrig = Array.isArray(window._propServicosAdicionados) && window._propServicosAdicionados.length > 0
+        ? JSON.parse(JSON.stringify(window._propServicosAdicionados))
+        : (orig.itens_servicos ? (typeof orig.itens_servicos === 'string' ? JSON.parse(orig.itens_servicos || '[]') : JSON.parse(JSON.stringify(orig.itens_servicos))) : []);
+
+    const rascunhoDuplicado = {
+        id: null,
+        codigo: 'AUTO',
+        contrato: null,
+        situacao_contrato: null,
+        assinatura_r2_key: null,
+        assinatura_mime_type: null,
+        aceite_publico_em: null,
+        aprovado_por: null,
+        aprovado_em: null,
+        produtos_aprovados: '[]',
+        local: obter('prop-local') || orig.local || 'AMERICA RENTAL',
+        tipo: obter('prop-tipo') || orig.tipo || '',
+        atendente: window.obterNomeUsuarioLogado() || orig.atendente || '',
         data_cadastro: hoje,
-        validade_proposta: orig.validade_proposta || hoje,
-        previsao_fechamento: orig.previsao_fechamento || hoje,
+        validade_proposta: orig.validade_proposta || '',
+        previsao_fechamento: orig.previsao_fechamento || '',
         fase_negociacao: 'Em Elaboração',
-        modelo_impressao: orig.modelo_impressao || '',
-        cliente_nome: orig.cliente_nome || '',
-        contato_nome: orig.contato_nome || '',
-        periodo_inicio: orig.periodo_inicio || '',
-        periodo_fim: orig.periodo_fim || '',
-        hora_inicio: orig.hora_inicio || '00:00',
-        hora_fim: orig.hora_fim || '00:00',
-        dias_contrato: Number(orig.dias_contrato || 0),
+        modelo_impressao: obter('prop-modelo') ?? orig.modelo_impressao ?? '',
+        cliente_nome: obter('prop-cliente') ?? orig.cliente_nome ?? '',
+        contato_nome: obter('prop-contato') ?? orig.contato_nome ?? '',
+        periodo_inicio: obter('prop-periodo-ini') ?? orig.periodo_inicio ?? '',
+        periodo_fim: obter('prop-periodo-fim') ?? orig.periodo_fim ?? '',
+        hora_inicio: obter('prop-hora-ini') || orig.hora_inicio || '00:00',
+        hora_fim: obter('prop-hora-fim') || orig.hora_fim || '00:00',
+        dias_contrato: Number(obter('prop-dias') ?? orig.dias_contrato ?? 0),
         dias_evento: typeof orig.dias_evento === 'string' ? orig.dias_evento : JSON.stringify(orig.dias_evento || []),
-        tabela_precos: orig.tabela_precos || '',
-        nome_evento: orig.nome_evento || '',
+        tabela_precos: obter('prop-tabela') ?? orig.tabela_precos ?? '',
+        nome_evento: obter('prop-nome-evento') ?? orig.nome_evento ?? '',
         servico_frete_fob: orig.servico_frete_fob ? 1 : 0,
-        contrato_vinculado: orig.contrato_vinculado || '',
+        contrato_vinculado: obter('prop-contrato-aditivo') ?? orig.contrato_vinculado ?? '',
         contrato_vinculado_id: orig.contrato_vinculado_id || null,
         contrato_vinculado_tipo: orig.contrato_vinculado_tipo || '',
-        endereco_instalacao: orig.endereco_instalacao || '',
+        endereco_instalacao: obter('prop-endereco') ?? orig.endereco_instalacao ?? '',
         desconto_percent: Number(orig.desconto_percent || 0),
         desconto_reais: Number(orig.desconto_reais || 0),
-        condicao_pagamento: orig.condicao_pagamento || '',
-        representante: orig.representante || window.obterNomeUsuarioLogado(),
+        condicao_pagamento: obter('prop-cond-pag') ?? orig.condicao_pagamento ?? '',
+        representante: window.obterNomeUsuarioLogado() || orig.representante || '',
         transportadora: orig.transportadora || '',
         tipo_frete: orig.tipo_frete || '',
         valor_frete_ida: Number(orig.valor_frete_ida || 0),
         valor_frete_volta: Number(orig.valor_frete_volta || 0),
-        observacoes: orig.observacoes || '',
+        observacoes: obter('prop-obs') ?? orig.observacoes ?? '',
         valor_total: Number(orig.valor_total || 0),
         status: 'Ativa',
         motivo_reprovacao: '',
         criado_por: window.obterNomeUsuarioLogado(),
-        itens: Array.isArray(orig.itens) ? JSON.parse(JSON.stringify(orig.itens)) : [],
-        itens_servicos: Array.isArray(orig.itens_servicos) ? JSON.parse(JSON.stringify(orig.itens_servicos)) : [],
+        itens: itensOrig,
+        itens_servicos: servsOrig,
+        proposta_comparativa: document.getElementById('prop-comparativa') ? (document.getElementById('prop-comparativa').checked ? 1 : 0) : (Number(orig.proposta_comparativa) === 1 ? 1 : 0),
         servico_precificacao_id: orig.servico_precificacao_id || null,
         regiao: orig.regiao || null,
         percentual_zona: Number(orig.percentual_zona || 0),
@@ -6835,24 +6811,12 @@ window.duplicarPropostaAtual = async function() {
         valor_distancia_calculado: Number(orig.valor_distancia_calculado || 0)
     };
 
-    try {
-        Swal.fire({ title: 'Duplicando proposta...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const resp = await apiPost('/propostas', payload);
-        Swal.close();
-        if (resp && (resp.success || resp.id)) {
-            await carregarPropostas();
-            window._modoTelaComercial = 'proposta';
-            _propostasEditandoId = resp.id;
-            window._propostasEditandoId_proposta = resp.id;
-            await abrirFormProposta(resp.id);
-            if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso('Proposta duplicada com sucesso! Novo código: ' + (resp.codigo || resp.id));
-            }
-        } else {
-            Swal.fire('Erro', (resp && resp.error) || 'Não foi possível duplicar a proposta.', 'error');
-        }
-    } catch (e) {
-        Swal.fire('Erro', 'Falha ao duplicar proposta: ' + e.message, 'error');
+    window._modoTelaComercial = 'proposta';
+    _propostasEditandoId = null;
+    window._propostasEditandoId_proposta = null;
+    await abrirFormProposta(null, rascunhoDuplicado);
+    if (typeof mostrarToastSucesso === 'function') {
+        mostrarToastSucesso('Informações duplicadas! Revise os dados e clique em Salvar para gravar a nova proposta.');
     }
 };
 
@@ -6875,10 +6839,18 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
         const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
         const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
         const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+        const prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+        const htmlProdutosAprovados = prodsAprovArr.length > 0 ? (
+            '<div style="margin:8px auto 12px auto; max-width:640px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; text-align:left;">' +
+            '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+            prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
+            '</div>'
+        ) : '';
         const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
         const htmlAssinatura = d.assinatura_url ? (
             '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
             '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+            htmlProdutosAprovados +
             '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
             '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
             '</div>' +
@@ -6888,10 +6860,11 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
         ) : isAprovacaoInternaSemAssinatura ? (
             '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
             '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada Internamente</div>' +
+            htmlProdutosAprovados +
             '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(d.aprovado_por || window.obterNomeUsuarioLogado()) + '</div>' +
             (d.aprovado_em ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) + '</div>' : '') +
             '</div>'
-        ) : '<div style="padding:18px; text-align:center; color:#64748b; font-size:13px; background:#f8fafc; border-top:1px solid #e2e8f0;">Assinatura eletrônica registrada em ' + _escHtmlProp(d.aceite_publico_em ? new Date(d.aceite_publico_em).toLocaleString('pt-BR') : '—') + '</div>';
+        ) : '<div style="padding:18px; text-align:center; color:#64748b; font-size:13px; background:#f8fafc; border-top:1px solid #e2e8f0;">' + htmlProdutosAprovados + 'Assinatura eletrônica registrada em ' + _escHtmlProp(d.aceite_publico_em ? new Date(d.aceite_publico_em).toLocaleString('pt-BR') : '—') + '</div>';
 
         const docCompletoHtml = '<div id="doc-assinado-cliente-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
             htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
@@ -6975,10 +6948,18 @@ window.gerarHtmlImpressaoLinkProposta = async function(propId) {
     const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
     const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
     const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
-    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+    const prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+    const htmlProdutosAprovados = prodsAprovArr.length > 0 ? (
+        '<div style="margin:8px auto 12px auto; max-width:640px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; text-align:left;">' +
+        '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+        prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
+        '</div>'
+    ) : '';
     const htmlAssinatura = d.assinatura_url ? (
         '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
         '<div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+        htmlProdutosAprovados +
         '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
         '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
         '</div>' +
@@ -17247,8 +17228,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
             }
         });
 
+        const isModoContratoModal = window._modoTelaComercial === 'contrato';
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
-        const propostasComCnpj = _propostasData.filter(p => window._modoTelaComercial === 'contrato' ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true).map(p => {
+        const propostasComCnpj = _propostasData.filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -17261,20 +17243,24 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhuma proposta encontrada.</td></tr>`;
+                return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
             }
             return list.map(p => {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
+                const codExib = isModoContratoModal ? (p.contrato || '01') : (p.codigo || '—');
+                const faseExib = isModoContratoModal
+                    ? ((p.situacao_contrato && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(String(p.situacao_contrato).trim().toUpperCase())) ? p.situacao_contrato : 'Em Elaboração')
+                    : (p.fase_negociacao || '—');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${p.codigo || '—'}</td>
+                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${codExib}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${dataFmt}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
-                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${p.fase_negociacao || '—'}</td>
+                        <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${faseExib}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${p.status || '—'}</td>
                     </tr>
                 `;
@@ -17297,8 +17283,8 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         <!-- Inputs -->
                         <div style="display:grid; grid-template-columns: 1fr 2fr 1.5fr; gap:0.75rem;">
                             <div>
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Código</label>
-                                <input type="text" id="modal-search-codigo" placeholder="Ex: Auto ou CT" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">${isModoContratoModal ? 'Nº do Contrato' : 'Código'}</label>
+                                <input type="text" id="modal-search-codigo" placeholder="Ex: 01, 02..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
                             </div>
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Razão Social</label>
@@ -17315,7 +17301,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">Código</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Código'}</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px; white-space:nowrap;">Data</th>
@@ -17331,8 +17317,8 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         </div>
                         
                         <div style="font-size:0.75rem; color:#64748b; font-style:italic; display:flex; justify-content:space-between; align-items:center;">
-                            <span>Dica: Clique duas vezes (Double Click) em uma linha para abrir a proposta no formulário.</span>
-                            <span id="modal-proposta-count" style="font-weight:700; color:#475569;">Total: ${propostasComCnpj.length} proposta(s)</span>
+                            <span>Dica: Clique duas vezes (Double Click) em uma linha para abrir no formulário.</span>
+                            <span id="modal-proposta-count" style="font-weight:700; color:#475569;">Total: ${propostasComCnpj.length} registro(s)</span>
                         </div>
                     </div>
                 </div>
@@ -17355,7 +17341,8 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     const cnpjVal = (inputCnpj?.value || '').replace(/\D/g, '');
 
                     const filtered = propostasComCnpj.filter(p => {
-                        const matchCodigo = !codVal || (p.codigo && p.codigo.toLowerCase().includes(codVal));
+                        const codRef = String((isModoContratoModal ? (p.contrato || '01') : p.codigo) || '').toLowerCase();
+                        const matchCodigo = !codVal || codRef.includes(codVal);
                         const matchRazao = !razVal || (p.cliente_nome && p.cliente_nome.toLowerCase().includes(razVal));
                         
                         const cnpjClean = p.cliente_cnpj ? p.cliente_cnpj.replace(/\D/g, '') : '';
@@ -17365,7 +17352,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     });
 
                     if (tbody) tbody.innerHTML = renderRows(filtered);
-                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} proposta(s)`;
+                    if (countSpan) countSpan.textContent = `Total: ${filtered.length} registro(s)`;
                 };
 
                 [inputCodigo, inputRazao, inputCnpj].forEach(input => {

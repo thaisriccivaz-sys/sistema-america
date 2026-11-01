@@ -42,7 +42,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         'token_publico_revogado INTEGER DEFAULT 0',
         'visualizacoes_publicas INTEGER DEFAULT 0',
         'ultima_visualizacao_publica TEXT',
-        'aceite_publico_em TEXT'
+        'aceite_publico_em TEXT',
+        'proposta_comparativa INTEGER DEFAULT 0',
+        'produtos_aprovados TEXT'
     ].forEach(col => {
         db.run(`ALTER TABLE propostas ADD COLUMN ${col}`, (err) => {
             if (err && !String(err.message).includes('duplicate column name')) {
@@ -90,6 +92,19 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
     const novoToken = () => crypto.randomBytes(24).toString('base64url'); // 32 caracteres
 
+    async function resolverNomeColabAudit(req) {
+        const rawUser = String((req.body && req.body.usuario) || (req.user && (req.user.nome || req.user.username)) || 'Sistema').trim();
+        try {
+            const colab = await dbGet(
+                "SELECT nome_completo FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) OR LOWER(REPLACE(TRIM(nome_completo), ' ', '.')) = LOWER(TRIM(?)) LIMIT 1",
+                [rawUser, rawUser]
+            );
+            return (colab && colab.nome_completo) || rawUser;
+        } catch (_) {
+            return rawUser;
+        }
+    }
+
     // ── Rotas autenticadas (usuário do sistema) ──────────────────────────────────
     // POST /api/propostas/:id/link-publico  { renovar?: boolean }
     app.post('/api/propostas/:id/link-publico', authenticateToken, async (req, res) => {
@@ -99,18 +114,27 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (!p.codigo || !CODIGO_RE.test(p.codigo)) return res.status(400).json({ error: 'Proposta sem código válido.' });
             let token = p.token_publico;
             const renovar = !!(req.body && req.body.renovar);
+            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
             if (!token || Number(p.token_publico_revogado) === 1 || renovar) {
                 token = novoToken();
-                const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
                 await dbRun('UPDATE propostas SET token_publico = ?, token_publico_criado_em = ?, token_publico_revogado = 0 WHERE id = ?', [token, agora, p.id]);
                 p.token_publico = token;
                 p.token_publico_revogado = 0;
+            }
+            const urlLink = `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${token}`;
+            if (!req.body || req.body.registrar_historico !== false) {
+                const nomeColab = await resolverNomeColabAudit(req);
+                await dbRun(
+                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                     VALUES (?, 'Proposta', 'Copiar Link', '—', ?, ?, ?)`,
+                    [nomeColab, `Link público copiado (${urlLink})`, agora, p.id]
+                ).catch(() => {});
             }
             const st = statusLink(p);
             res.set('Cache-Control', 'no-store');
             res.json({
                 success: true,
-                url: `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${token}`,
+                url: urlLink,
                 ativo: st.ativo,
                 expira_em: st.expira_em || null,
                 motivo: st.motivo || null
@@ -126,6 +150,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         try {
             const r = await dbRun('UPDATE propostas SET token_publico_revogado = 1 WHERE id = ?', [req.params.id]);
             if (!r.changes) return res.status(404).json({ error: 'Proposta não encontrada.' });
+            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+            const nomeColab = await resolverNomeColabAudit(req);
+            await dbRun(
+                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                 VALUES (?, 'Proposta', 'Desativar Link', 'Link Ativo', 'Link público desativado', ?, ?)`,
+                [nomeColab, agora, req.params.id]
+            ).catch(() => {});
             res.json({ success: true });
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro ao revogar link:', e.message);
@@ -749,6 +780,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
             eh_demo: false,
+            proposta_comparativa: Boolean(Number(p.proposta_comparativa) === 1),
+            produtos_aprovados: lerJson(p.produtos_aprovados),
             fase_negociacao: p.fase_negociacao || '',
             aprovado_por: p.aprovado_por || null,
             aprovado_em: p.aprovado_em || null,
@@ -1050,6 +1083,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 return res.status(400).json({ error: 'Por favor, assine no quadro de assinatura antes de confirmar.' });
             }
 
+            const produtosAprovadosRaw = (req.body && Array.isArray(req.body.produtos_aprovados))
+                ? req.body.produtos_aprovados.map(x => String(x || '').trim()).filter(Boolean)
+                : [];
+            if (Number(p.proposta_comparativa) === 1 && produtosAprovadosRaw.length === 0) {
+                return res.status(400).json({ error: 'Selecione qual(is) produto(s) da proposta estão sendo aprovados antes de confirmar.' });
+            }
+            const produtosAprovadosJson = produtosAprovadosRaw.length > 0 ? JSON.stringify(produtosAprovadosRaw) : (p.produtos_aprovados || '[]');
+
             let assinaturaR2Key = p.assinatura_r2_key || null;
             const r2b = require('./utils/r2');
             if (r2b.isReady()) {
@@ -1072,14 +1113,15 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const novaFase = String(faseAnterior).trim().toUpperCase() === 'APROVADA' ? faseAnterior : 'Pré aprovada';
 
             await dbRun(
-                "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ? WHERE id = ?",
-                [agora, assinaturaR2Key, novaFase, p.id]
+                "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ?, produtos_aprovados = ? WHERE id = ?",
+                [agora, assinaturaR2Key, novaFase, produtosAprovadosJson, p.id]
             );
 
+            const detalheProdsAudit = produtosAprovadosRaw.length > 0 ? ` | Produto(s): ${produtosAprovadosRaw.join(', ')}` : '';
             await dbRun(
                 `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
                  VALUES (?, 'Proposta', 'Fase de Negociação', ?, ?, ?, ?)`,
-                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt})`, agora, p.id]
+                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt}${detalheProdsAudit})`, agora, p.id]
             ).catch(() => {});
 
             notificarPreAprovacaoProposta(p, agora, agoraBrFmt);
@@ -1087,6 +1129,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             res.json({
                 success: true,
                 aceite_publico_em: agora,
+                produtos_aprovados: produtosAprovadosRaw,
                 assinatura_url: assinaturaR2Key ? `/api/public/propostas/${p.id}/assinatura-arquivo?t=${encodeURIComponent(agora)}` : null
             });
         } catch (e) {

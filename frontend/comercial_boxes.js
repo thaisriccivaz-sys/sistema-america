@@ -865,10 +865,22 @@
         const numSeq = formatarNumeroPropostaSequencial(prop.codigo, prop.contrato, prop.id);
         const resumoDiariasRodape = calcularResumoDiariasRodape(prop, itensRaw);
 
+        const isPropComparativa = prop.proposta_comparativa !== undefined
+            ? Boolean(Number(prop.proposta_comparativa) === 1 || prop.proposta_comparativa === true)
+            : Boolean(document.getElementById('prop-comparativa')?.checked);
+        let prodsAprov = [];
+        try {
+            prodsAprov = Array.isArray(prop.produtos_aprovados)
+                ? prop.produtos_aprovados
+                : JSON.parse(prop.produtos_aprovados || '[]');
+        } catch (_) { prodsAprov = []; }
+
         return {
             modelo_tipo: modeloEfetivo,
             eh_aditivo: modeloNorm === 'ADITIVO',
             eh_demo: false,
+            proposta_comparativa: isPropComparativa,
+            produtos_aprovados: Array.isArray(prodsAprov) ? prodsAprov : [],
             tipo_titulo: tituloTopoResolvido,
             info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
             ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
@@ -1045,14 +1057,16 @@
             ? Number(d.valor_total_servicos)
             : (Array.isArray(d.servicos) ? d.servicos.reduce((acc, s) => acc + (s.cortesia || s.fob ? 0 : (Number(s.total) || 0)), 0) : 0);
 
+        const ocultarTotaisComparativa = Boolean(d.proposta_comparativa);
+
         const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
             <div style="padding:${u(14)} ${u(60)} ${u(20)} ${u(50)};">
                 ${cabecalhoColunasServicos(esc(tituloServ))}
                 ${d.servicos.map(linhaServico).join('')}
-                <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                ${ocultarTotaisComparativa ? '' : `<div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
                     <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS SERVIÇOS: R$</div>
                     <div class="bq-d" style="text-align:center; font-size:${u(36)}; color:${ROXO};">${fmtNum(totalServicosQuadro)}</div>
-                </div>
+                </div>`}
             </div>` : '';
 
         return `
@@ -1176,10 +1190,10 @@
                         <div style="padding:${u(34)} ${u(60)} ${u(16)} ${u(50)};">
                             ${cabecalhoColunas(esc(tituloEquip))}
                             ${itensHtml}
-                            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
+                            ${ocultarTotaisComparativa ? '' : `<div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
                                 <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS PRODUTOS: R$</div>
                                 <div class="bq-d" style="text-align:center; font-size:${u(36)}; color:${ROXO};">${fmtNum(totalProdutosQuadro)}</div>
-                            </div>
+                            </div>`}
                         </div>
                         ${secaoServicos}
                     </div>
