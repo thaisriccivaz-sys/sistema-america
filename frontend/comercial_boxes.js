@@ -59,6 +59,7 @@
             ocultar_nome_evento: false,
             ocultar_data_fim: false,
             mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -792,6 +793,7 @@
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
@@ -938,7 +940,7 @@
                     </div>
 
                     <!-- Bloco logo + dados do cliente + informações do evento + condições da proposta -->
-                    <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
+                    <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff;${mostrarFaixaValores ? '' : ` box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18);`} flex-shrink:0;">
                         <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(358) : u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(220) : u(224)}; width:auto; display:block;">
                         </div>
@@ -1014,6 +1016,7 @@
                         </div>
                         `}
                     </div>
+                    ${mostrarFaixaValores ? `<img src="/assets/faixa-valores-contemplados-evento.png" alt="Valores contemplados na proposta" style="width:100%; height:auto; display:block; pointer-events:none;">` : ''}
                 </div>
 
                 <div class="bq-body-wrap">
