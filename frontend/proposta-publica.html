@@ -36,7 +36,7 @@
             .pp-btn-whatsapp { width: 50px; height: 50px; padding: 0; }
         }
         @media print {
-            html, body { background: #fff !important; }
+            html, body { background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             #proposta-raiz, #proposta-aceite-secao, .pp-fab-bar, .pp-modal-aceite { display: none !important; }
             #proposta-impressao-simples { display: block !important; width: 100%; background: #fff; }
         }
@@ -97,6 +97,12 @@
 
         function gerarHtmlVersaoSimples(d) {
             if (!d) return '';
+            if (typeof window.renderBoxQuadroEventoHtml === 'function') {
+                var htmlQuadro = window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' });
+                var urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
+                var htmlAceite = urlAceite ? ('<img src="' + esc(urlAceite) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">') : '';
+                return '<div style="max-width:960px; margin:0 auto; background:#fff;">' + htmlQuadro + htmlAceite + '</div>';
+            }
             var imp = d.impressao_simples || {};
             var c = imp.contratada || {
                 razao_social: 'AMERICA RENTAL EQUIPAMENTOS LTDA',

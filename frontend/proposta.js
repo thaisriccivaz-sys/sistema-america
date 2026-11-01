@@ -6958,6 +6958,8 @@ async function imprimirProposta(id) {
             apiGet('/comercial/modelos-proposta').catch(() => []),
             apiGet('/clientes').catch(() => [])
         ]);
+        if (Array.isArray(modelosProp) && modelosProp.length > 0) window._modelosPropostasList = modelosProp;
+        if (typeof window.carregarCacheDadosQuadroEvento === 'function') await window.carregarCacheDadosQuadroEvento(false);
         modelObj = (models || []).find(m => m.nome === p.modelo_impressao);
         const tipoBruto = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const tipoNorm = (tipoBruto === 'ADITIVO' || tipoBruto === 'ADTIVO')
@@ -7147,7 +7149,7 @@ async function imprimirProposta(id) {
             observacao_padrao: p.observacoes || ''
         };
 
-        win.document.write(window.gerarHtmlDocumentoPropostaCompleta(modeloEfetivo, dadosRender));
+        win.document.write(window.gerarHtmlDocumentoPropostaCompleta(modeloEfetivo, p));
     }
 
     win.document.close();
@@ -21340,7 +21342,7 @@ function _fmtMoedaNumProp(v) {
 window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
     const m = modelo || {};
     const codTipoLimpo = String(m.codigo_tipo || m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    if (!(dadosCustom && dadosCustom._modoSimples) && typeof window.renderBoxQuadroEventoHtml === 'function') {
+    if (typeof window.renderBoxQuadroEventoHtml === 'function') {
         const isAdt = codTipoLimpo === 'ADITIVO' || codTipoLimpo === 'ADTIVO';
         const modEfetivo = isAdt
             ? (typeof window.resolverModeloOrigemAditivo === 'function' ? window.resolverModeloOrigemAditivo(dadosCustom) : 'EVENTO')
@@ -21349,8 +21351,11 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
             ? window._boxesAditivoCache.filter(b => b && b.tipo !== 'quadro_evento').map(b => window.boxRenderHtml(b, 'desktop')).join('')
             : '';
         const htmlQuadro = window.renderBoxQuadroEventoHtml(dadosCustom || null, 'desktop', { modelo_tipo: modEfetivo, aditivo_html: extrasAdt });
+        const modMatchAceite = (!m.aceite_url && Array.isArray(window._modelosPropostasList)) ? window._modelosPropostasList.find(x => x && (String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === modEfetivo || (modEfetivo.startsWith('OBRA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'OBRA') || (modEfetivo.startsWith('LIMPA FOSSA') && String(x.codigo_tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'LIMPA FOSSA'))) : null;
+        const aceiteUrl = m.aceite_url || (modMatchAceite && modMatchAceite.aceite_url) || '';
+        const htmlAceite = aceiteUrl ? ('<img src="' + _escHtmlProp(aceiteUrl) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">') : '';
         return '<div style="max-width:960px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">' +
-            htmlQuadro +
+            htmlQuadro + htmlAceite +
             '</div>';
     }
     let contratada = {
@@ -21612,7 +21617,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
 };
 
 window.gerarHtmlDocumentoPropostaCompleta = function(modelo, dadosCustom) {
-    const bodyHtml = window.gerarHtmlLayoutPropostaPadrao(modelo, Object.assign({}, dadosCustom || {}, { _modoSimples: true }));
+    const bodyHtml = window.gerarHtmlLayoutPropostaPadrao(modelo, dadosCustom || null);
     const titulo = (modelo && modelo.nome) ? modelo.nome : 'Proposta Comercial';
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -21625,7 +21630,7 @@ window.gerarHtmlDocumentoPropostaCompleta = function(modelo, dadosCustom) {
         .print-Wrapper { background: #fff; max-width: 840px; margin: 0 auto; padding: 10px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
         .no-print-bar { max-width: 840px; margin: 0 auto 14px auto; display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: #fff; padding: 10px 16px; border-radius: 8px; }
         @media print {
-            body { background: #fff; padding: 0; }
+            body { background: #fff; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .print-Wrapper { box-shadow: none; max-width: 100%; padding: 0; }
             .no-print-bar { display: none !important; }
         }
@@ -21925,7 +21930,7 @@ window._renderEditorModeloPropostaAtivo = function() {
         </div>
 
         <!-- Editor de Textos / Cláusulas da Proposta -->
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem; margin-bottom:0.85rem;">
+        <div style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem; margin-bottom:0.85rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.65rem; flex-wrap:wrap; gap:6px;">
                 <label style="font-size:0.76rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.03em;">
                     <i class="ph ph-list-numbers" style="color:#7048e8;"></i> Textos / Condições da Proposta (Editável)
@@ -21959,9 +21964,9 @@ window._renderEditorModeloPropostaAtivo = function() {
 
         <!-- Observação Padrão -->
         <div>
-            <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Observação Padrão do Modelo</label>
+            <label style="display:none; font-size:0.72rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Observação Padrão do Modelo</label>
             <textarea id="mp-edit-observacao" rows="2" oninput="window._onInputCampoModeloProposta()"
-                style="width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; font-family:'Inter', sans-serif; box-sizing:border-box; resize:vertical;">${_escHtmlProp(m.observacao_padrao || '')}</textarea>
+                style="display:none; width:100%; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; font-family:'Inter', sans-serif; box-sizing:border-box; resize:vertical;">${_escHtmlProp(m.observacao_padrao || '')}</textarea>
         </div>
     `;
 };
