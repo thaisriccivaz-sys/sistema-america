@@ -40079,6 +40079,103 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
 // Link público seguro da proposta (/proposta/:codigo/:token) — módulo isolado
 require('./proposta_publica')(app, db, authenticateToken, sendMailHelper);
 
+function resolverContextoUsuarioComercial(userJwt) {
+  return new Promise((resolve) => {
+    const u = userJwt || {};
+    const rawUsername = String(u.username || '').trim();
+    const rawNome = String(u.nome || u.name || '').trim();
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const matchNomeFlex = (a, b) => {
+      const sa = normStr(a).replace(/[._-]+/g, ' ').trim();
+      const sb = normStr(b).replace(/[._-]+/g, ' ').trim();
+      if (!sa || !sb) return false;
+      if (sa === sb || sa.includes(sb) || sb.includes(sa)) return true;
+      const pa = sa.split(/\s+/).filter(x => x.length >= 2);
+      const pb = sb.split(/\s+/).filter(x => x.length >= 2);
+      if (pa.length >= 2 && pa.every(w => pb.includes(w))) return true;
+      if (pb.length >= 2 && pb.every(w => pa.includes(w))) return true;
+      if (pa.length >= 2 && pb.length >= 2 && pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]) return true;
+      return false;
+    };
+
+    db.all('SELECT id, nome, email, username FROM usuarios', [], (eU, usuarios) => {
+      const listUsers = Array.isArray(usuarios) ? usuarios : [];
+      const dbUser = listUsers.find(x => (u.id && Number(x.id) === Number(u.id)) || (rawUsername && normStr(x.username) === normStr(rawUsername))) || {};
+      const emailUser = String(dbUser.email || u.email || '').trim().toLowerCase();
+      const nomeUser = String(dbUser.nome || rawNome || rawUsername || '').trim();
+
+      db.all("SELECT id, nome_completo, email, email_corporativo FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'", [], (eC, colabs) => {
+        const listColabs = Array.isArray(colabs) ? colabs : [];
+        let colab = null;
+        if (emailUser) {
+          colab = listColabs.find(c => normStr(c.email_corporativo) === emailUser || normStr(c.email) === emailUser) || null;
+        }
+        if (!colab && nomeUser) {
+          colab = listColabs.find(c => normStr(c.nome_completo) === normStr(nomeUser).replace(/[._-]+/g, ' '))
+            || listColabs.find(c => matchNomeFlex(nomeUser, c.nome_completo))
+            || null;
+        }
+        if (!colab && rawUsername) {
+          colab = listColabs.find(c => matchNomeFlex(rawUsername, c.nome_completo)) || null;
+        }
+
+        const nomeColaborador = (colab && colab.nome_completo)
+          ? String(colab.nome_completo).trim()
+          : (dbUser.nome && !String(dbUser.nome).includes('.') ? String(dbUser.nome).trim() : (rawNome || rawUsername));
+
+        db.all('SELECT id, nome, responsavel_id, responsavel_nome FROM departamentos', [], (eD, deptos) => {
+          const listDeptos = Array.isArray(deptos) ? deptos : [];
+          const uNorm = normStr(rawUsername || dbUser.username || '');
+          const nNorm = normStr(nomeColaborador);
+          const isThais = uNorm === 'thais.ricci' || uNorm.includes('thais.ricci') || (nNorm.includes('thais') && nNorm.includes('ricci'));
+          const isGestorDepto = listDeptos.some(d => {
+            if (colab && d.responsavel_id && Number(d.responsavel_id) === Number(colab.id)) return true;
+            if (d.responsavel_nome && (matchNomeFlex(d.responsavel_nome, nomeColaborador) || matchNomeFlex(d.responsavel_nome, rawUsername) || matchNomeFlex(d.responsavel_nome, nomeUser))) return true;
+            return false;
+          });
+          resolve({
+            usuario_id: dbUser.id || u.id || null,
+            username: rawUsername || dbUser.username || '',
+            nome_colaborador: nomeColaborador || rawUsername || 'Colaborador',
+            colaborador_id: colab ? colab.id : null,
+            is_gestor_departamento: isGestorDepto,
+            pode_excluir_proposta: Boolean(isThais || isGestorDepto)
+          });
+        });
+      });
+    });
+  });
+}
+
+app.get('/api/comercial/me-contexto', authenticateToken, async (req, res) => {
+  try {
+    const ctx = await resolverContextoUsuarioComercial(req.user);
+    res.json(ctx);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res) => {
+  try {
+    const proposalId = req.params.id;
+    const { acao, detalhe } = req.body || {};
+    if (!acao) return res.status(400).json({ error: 'Ação não informada.' });
+    const ctx = await resolverContextoUsuarioComercial(req.user);
+    const autor = ctx.nome_colaborador || req.user?.username || 'Usuário';
+    db.run(
+      `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, '', ?, ?)`,
+      [autor, String(acao).trim(), String(detalhe || acao).trim(), proposalId],
+      (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+      }
+    );
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
 app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
   db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY data_hora DESC", [req.params.id], (err, rows) => {
@@ -40154,11 +40251,16 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (isNovaAprovada) {
-          db.run("UPDATE propostas SET situacao_contrato = 'Aprovada' WHERE id = ?", [this.lastID], () => {});
-        }
-        // Log de criação
         const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+        if (isNovaAprovada) {
+          const lastIdCreated = this.lastID;
+          resolverContextoUsuarioComercial(req.user).then(ctx => {
+            const nomeAprov = (ctx && ctx.nome_colaborador) || usuarioLog;
+            db.run("UPDATE propostas SET situacao_contrato = 'Aprovada', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
+          }).catch(() => {
+            db.run("UPDATE propostas SET situacao_contrato = 'Aprovada', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
+          });
+        }
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
           [usuarioLog, contrato ? `Proposta criada com contrato ${contrato}` : `Proposta ${codigo} criada`, this.lastID]);
         if (typeof evSincronizarPropostaNoEvento === 'function' && d.nome_evento && String(d.nome_evento).trim()) {
@@ -40214,16 +40316,37 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       }
     }
 
+    const isAgoraAprovada = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
+    const tinhaAssinaturaOuPreAp = Boolean(oldRow.assinatura_r2_key || oldRow.aceite_publico_em || oldFaseUpper === 'PRÉ APROVADA');
+    const invalidarAssinaturaPorEdicao = Boolean(d.acao_estornar || (!d.modo_contrato && !isAgoraAprovada && tinhaAssinaturaOuPreAp));
+    if (invalidarAssinaturaPorEdicao && String(d.fase_negociacao || '').trim().toUpperCase() === 'PRÉ APROVADA') {
+      d.fase_negociacao = 'Proposta Enviada';
+    }
+
     const needNovoNumContrato = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
       && (!oldRow.contrato || !/^\d+$/.test(String(oldRow.contrato).trim()));
 
-    const executarUpdateProposta = (contratoFinal) => {
+    const executarUpdateProposta = async (contratoFinal) => {
+      const ctxUser = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
+      const nomeAutorAcao = ctxUser.nome_colaborador || usuarioLog;
+      if (invalidarAssinaturaPorEdicao && oldRow.assinatura_r2_key) {
+        try {
+          const r2s = require('./utils/r2');
+          if (r2s.isReady()) await r2s.deleteFromR2(oldRow.assinatura_r2_key);
+        } catch (eDelSig) {}
+      }
+      const assinaturaR2Final = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_r2_key || null);
+      const assinaturaMimeFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_mime_type || null);
+      const aceiteEmFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.aceite_publico_em || null);
+      const aprovadoPorFinal = d.acao_estornar ? null : (isAgoraAprovada ? (oldRow.aprovado_por || nomeAutorAcao) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_por || null)));
+      const aprovadoEmFinal = d.acao_estornar ? null : (isAgoraAprovada ? (oldRow.aprovado_em || agora) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_em || null)));
+
       const sitContratoFinal = d.situacao_contrato !== undefined
         ? d.situacao_contrato
         : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' ? (oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'Aprovada') : (oldRow.situacao_contrato || null));
 
       db.run(`UPDATE propostas SET
-      contrato=?, situacao_contrato=?,
+      contrato=?, situacao_contrato=?, assinatura_r2_key=?, assinatura_mime_type=?, aceite_publico_em=?, aprovado_por=?, aprovado_em=?,
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
@@ -40235,7 +40358,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       itens_servicos=?, atualizado_em=?
       WHERE id=?`,
     [
-      contratoFinal, sitContratoFinal,
+      contratoFinal, sitContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
       d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
@@ -40271,9 +40394,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
           usuario: usuarioLog
         });
       }
+      if (invalidarAssinaturaPorEdicao && tinhaAssinaturaOuPreAp) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Assinatura / Aceite', ?, ?, ?)`,
+          [nomeAutorAcao, 'Assinada pelo cliente', 'Invalidada por edição da proposta (necessário novo aceite)', proposalId]);
+      }
       if (String(oldRow.situacao_contrato || '') !== String(sitContratoFinal || '')) {
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Situação do Contrato', ?, ?, ?)`,
-          [usuarioLog, String(oldRow.situacao_contrato || '—'), String(sitContratoFinal || '—'), proposalId]);
+          [nomeAutorAcao, String(oldRow.situacao_contrato || '—'), String(sitContratoFinal || '—'), proposalId]);
       }
 
       // Auditoria: comparar campos alterados
@@ -40390,6 +40517,11 @@ app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
     if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
 
     try {
+      const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
+      const autorLog = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'unknown';
+      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Download de PDF', '', ?, ?)`,
+        [autorLog, `PDF da proposta Nº ${p.codigo || p.id} baixado`, p.id]);
+
       const proposalHtml = gerarHtmlProposta(p);
       const htmlPdf = require('html-pdf-node');
       const pdfBuffer = await htmlPdf.generatePdf(
@@ -40409,7 +40541,7 @@ app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
 
 // POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
 app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
-  const { assunto, destinatarios, corpo } = req.body;
+  const { assunto, destinatarios, corpo, html_impressao_simples } = req.body;
   if (!destinatarios) return res.status(400).json({ error: 'Informe pelo menos um destinatário.' });
 
   db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
@@ -40417,33 +40549,78 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
     if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
 
     try {
-      // 1. Gerar HTML da Proposta
-      const proposalHtml = gerarHtmlProposta(p);
+      const baseLink = String(process.env.PUBLIC_LINK_BASE || 'https://fluxoar.com.br').replace(/\/+$/, '');
+      let tokenPublico = p.token_publico;
+      if (!tokenPublico || Number(p.token_publico_revogado) === 1) {
+        tokenPublico = require('crypto').randomBytes(24).toString('base64url');
+        const agoraTok = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+        await new Promise((resolve) => db.run('UPDATE propostas SET token_publico = ?, token_publico_criado_em = ?, token_publico_revogado = 0 WHERE id = ?', [tokenPublico, agoraTok, p.id], () => resolve()));
+      }
+      const linkPublicoProposta = `${baseLink}/proposta/${encodeURIComponent(p.codigo || p.id)}/${tokenPublico}`;
 
-      // 2. Gerar PDF com layout completo usando html-pdf-node
-      const htmlPdf = require('html-pdf-node');
-      const pdfBuffer = await htmlPdf.generatePdf(
-        { content: proposalHtml },
-        { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } }
-      );
+      let cssBoxes = '';
+      try {
+        cssBoxes = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'box_renderer.css'), 'utf8');
+      } catch (_) {}
 
-      // 3. Enviar e-mail usando sendMailHelper
+      const resumoBruto = (html_impressao_simples && String(html_impressao_simples).trim())
+        ? String(html_impressao_simples).replace(/src="\//g, `src="${baseLink}/`).replace(/src='\//g, `src='${baseLink}/`)
+        : gerarHtmlProposta(p);
+
+      const docPdfHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><style>${cssBoxes} body{margin:0;padding:0;background:#fff;font-family:Arial,sans-serif;}</style></head><body>${resumoBruto}</body></html>`;
+      let pdfBuffer = null;
+      try {
+        const htmlPdf = require('html-pdf-node');
+        pdfBuffer = await htmlPdf.generatePdf(
+          { content: docPdfHtml },
+          { format: 'A4', margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' } }
+        );
+      } catch (ePdf) {
+        console.warn('[PROPOSTAS] Aviso ao gerar PDF para anexo do e-mail:', ePdf.message);
+      }
+
+      const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+      const htmlEmailFinal = `
+        <div style="font-family:Arial,sans-serif;max-width:780px;margin:0 auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#ffffff;">
+          <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:780px;height:auto;display:block;">
+          </div>
+          <div style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
+            <div>${corpo || '<p>Segue abaixo a nossa proposta comercial.</p>'}</div>
+            <div style="margin:22px 0;padding:16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;">
+              <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px;">Acesse a proposta completa, aprove ou imprima pelo link abaixo:</div>
+              <a href="${linkPublicoProposta}" target="_blank" style="display:inline-block;background:#1b358f;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 28px;border-radius:8px;">
+                🔗 Abrir Proposta Comercial Nº ${p.codigo || p.id}
+              </a>
+              <div style="margin-top:8px;font-size:12px;color:#64748b;word-break:break-all;"><a href="${linkPublicoProposta}" style="color:#2563eb;">${linkPublicoProposta}</a></div>
+            </div>
+            <div style="margin-top:20px;border-top:2px solid #e2e8f0;padding-top:16px;">
+              <style>${cssBoxes}</style>
+              ${resumoBruto}
+            </div>
+          </div>
+        </div>
+      `;
+
+      const attachments = [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
+      if (pdfBuffer) {
+        attachments.push({
+          filename: `Proposta_${p.codigo || p.id}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        });
+      }
+
       const toList = destinatarios.replace(/;/g, ',');
       await sendMailHelper({
         to: toList,
         subject: assunto || `Proposta Comercial ${p.codigo}`,
-        html: corpo || '<p>Segue em anexo a nossa proposta comercial.</p>',
-        attachments: [
-          {
-            filename: `Proposta_${p.codigo}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
+        html: htmlEmailFinal,
+        attachments
       });
 
-      // 4. Registrar auditoria do envio de e-mail
-      const loggedUser = req.user?.username || req.user?.nome || 'unknown';
+      const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
+      const loggedUser = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'unknown';
       db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
         [loggedUser, `Enviado para: ${toList}`, p.id]);
 
@@ -40603,12 +40780,28 @@ function gerarHtmlProposta(p) {
 }
 
 // DELETE /api/propostas/:id - Excluir proposta
-app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
-  db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
-    res.json({ success: true });
-  });
+app.delete('/api/propostas/:id', authenticateToken, async (req, res) => {
+  try {
+    const ctx = await resolverContextoUsuarioComercial(req.user);
+    if (!ctx.pode_excluir_proposta) {
+      return res.status(403).json({ error: 'Apenas Thais.Ricci e gestores de departamento possuem permissão para excluir propostas.' });
+    }
+    db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (errG, row) => {
+      if (errG) return res.status(500).json({ error: errG.message });
+      if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
+      const faseUp = String(row.fase_negociacao || '').trim().toUpperCase();
+      if (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA') {
+        return res.status(400).json({ error: 'Propostas assinadas ou aprovadas não podem ser excluídas.' });
+      }
+      db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+        res.json({ success: true });
+      });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════════
@@ -44342,7 +44535,7 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   });
 });
 
-['assinatura_r2_key TEXT', 'assinatura_mime_type TEXT', 'aceite_assinante_nome TEXT', 'situacao_contrato TEXT'].forEach(col => {
+['assinatura_r2_key TEXT', 'assinatura_mime_type TEXT', 'aceite_assinante_nome TEXT', 'situacao_contrato TEXT', 'aprovado_por TEXT', 'aprovado_em TEXT'].forEach(col => {
   db.run(`ALTER TABLE propostas ADD COLUMN ${col}`, (err) => {
     if (err && !String(err.message).includes('duplicate column name')) {
       console.error('[PROPOSTAS] Aviso migration assinatura/contrato:', err.message);

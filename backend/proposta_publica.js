@@ -747,6 +747,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
             eh_demo: false,
+            fase_negociacao: p.fase_negociacao || '',
+            aprovado_por: p.aprovado_por || null,
+            aprovado_em: p.aprovado_em || null,
             aceite_publico_em: p.aceite_publico_em || null,
             assinatura_url: p.assinatura_r2_key ? (`/api/public/propostas/${p.id}/assinatura-arquivo?t=${encodeURIComponent(p.aceite_publico_em || '1')}`) : null,
             aceite: {
@@ -841,6 +844,21 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const p = await dbGet('SELECT * FROM propostas WHERE id = ?', [req.params.id]);
             if (!p) return res.status(404).json({ error: 'Proposta não encontrada.' });
             const dados = await montarDadosQuadro(p);
+            if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && !dados.aprovado_por) {
+                const logAp = await dbGet(
+                    "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND (UPPER(conteudo_atual) = 'APROVADA' OR campo = 'Criação') ORDER BY id DESC LIMIT 1",
+                    [p.id]
+                ).catch(() => null);
+                const rawUser = (logAp && logAp.usuario) || p.atendente || p.criado_por || '';
+                if (rawUser) {
+                    const colabMatch = await dbGet(
+                        "SELECT nome_completo FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) OR LOWER(REPLACE(TRIM(nome_completo), ' ', '.')) = LOWER(TRIM(?)) LIMIT 1",
+                        [rawUser, rawUser]
+                    ).catch(() => null);
+                    dados.aprovado_por = (colabMatch && colabMatch.nome_completo) || rawUser;
+                    dados.aprovado_em = (logAp && logAp.data_hora) || p.atualizado_em || null;
+                }
+            }
             res.json({ success: true, dados, proposta: p });
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro ao montar documento assinado:', e.message);
@@ -970,22 +988,23 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             }
 
             if (typeof sendMailHelper === 'function' && emailsNotificar.length > 0) {
+                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                 const htmlEmail = `
-                    <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
-                        <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#ffffff; padding:20px 24px;">
-                            <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.9;">América Rental — Comercial</div>
-                            <h2 style="margin:6px 0 0 0; font-size:20px; font-weight:800;">✅ PROPOSTA PRÉ APROVADA</h2>
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#ffffff;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
-                        <div style="padding:24px; color:#1e293b; font-size:14px; line-height:1.6;">
+                        <div style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
+                            <h2 style="color:#16a34a;text-align:center;margin-top:0;font-weight:800;">✅ PROPOSTA PRÉ APROVADA</h2>
                             <p style="margin:0 0 16px 0;">Uma proposta comercial acaba de ser <strong>pré-aprovada e assinada pelo cliente</strong> através do link da proposta:</p>
-                            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px 16px; margin-bottom:20px;">
-                                <div style="margin-bottom:6px;"><strong>Número da proposta:</strong> ${numProp}</div>
-                                <div style="margin-bottom:6px;"><strong>Nome do Cliente:</strong> ${cliProp}</div>
-                                <div style="margin-bottom:6px;"><strong>Nome do Contato:</strong> ${contProp}</div>
-                                <div><strong>Data/Hora do Aceite:</strong> ${agoraBrFmt}</div>
+                            <div style="background:#f0fdf4;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #16a34a;">
+                                <p style="margin:4px 0;"><strong>Número da proposta:</strong> ${numProp}</p>
+                                <p style="margin:4px 0;"><strong>Nome do Cliente:</strong> ${cliProp}</p>
+                                <p style="margin:4px 0;"><strong>Nome do Contato:</strong> ${contProp}</p>
+                                <p style="margin:4px 0;"><strong>Data/Hora do Aceite:</strong> ${agoraBrFmt}</p>
                             </div>
-                            <div style="text-align:center; margin:22px 0 8px 0;">
-                                <a href="${linkDiretoProposta}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; font-weight:800; font-size:14px; padding:12px 26px; border-radius:8px;">
+                            <div style="text-align:center;margin:22px 0 8px 0;">
+                                <a href="${linkDiretoProposta}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 26px;border-radius:8px;">
                                     Abrir Proposta Nº ${numProp} no Sistema
                                 </a>
                             </div>
@@ -995,7 +1014,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 await sendMailHelper({
                     to: emailsNotificar.join(', '),
                     subject: `PROPOSTA PRÉ APROVADA - Nº ${numProp} - ${cliProp}`,
-                    html: htmlEmail
+                    html: htmlEmail,
+                    attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                 }).catch(e => console.error('[PROPOSTA-PUBLICA] Erro ao enviar email pré-aprovação:', e.message));
             }
         } catch (errNotif) {
