@@ -326,7 +326,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         if (!celular && cliente) celular = String(cliente.celular || cliente.telefone || '').trim();
 
         // Endereço de instalação em 2 linhas: Linha 1 = Nome do Local, Linha 2 = Rua e Número - Bairro - Cidade
-        let inst = { linha1: '', linha2: '' };
+        let inst = { linha1: '', linha2: '', rua: '', bairro_cidade: '' };
+        const separarRuaBairro = (l2) => {
+            const s = String(l2 || '').trim();
+            if (!s) return { rua: '', bairro_cidade: '' };
+            const ps = s.split(/\s+-\s+/);
+            return ps.length >= 2 ? { rua: ps[0].trim(), bairro_cidade: ps.slice(1).join(' - ').trim() } : { rua: s, bairro_cidade: '' };
+        };
         const rawOriginal = String(p.endereco_instalacao || '').trim();
         const mPrefixo = rawOriginal.match(/^\s*(ENDERE[ÇC]O\s+(?:DE\s+)?(?:FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*(.*)$/i);
         const prefixoExplicito = mPrefixo ? String(mPrefixo[1] || '').trim().toUpperCase() : '';
@@ -344,6 +350,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
                 const ruaNum = j([match.endereco, match.numero, match.complemento]).join(', ');
                 const bairroCid = j([match.bairro, j([match.municipio, match.uf]).join('/')]).join(' - ');
                 const endCompleto = j([ruaNum, bairroCid]).join(' - ');
+                inst.rua = ruaNum || rawEnd;
+                inst.bairro_cidade = bairroCid;
                 if (nomeLocal) {
                     inst.linha1 = nomeLocal;
                     inst.linha2 = endCompleto || rawEnd;
@@ -352,11 +360,20 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
                     inst.linha2 = bairroCid;
                 }
             } else if (prefixoExplicito) {
+                const sep = separarRuaBairro(rawEnd);
                 inst.linha1 = prefixoExplicito;
                 inst.linha2 = rawEnd;
+                inst.rua = sep.rua;
+                inst.bairro_cidade = sep.bairro_cidade;
             } else {
                 const partes = rawOriginal.split(/\s+-\s+/);
-                inst = partes.length >= 2 ? { linha1: partes[0].trim(), linha2: partes.slice(1).join(' - ').trim() } : { linha1: rawOriginal, linha2: '' };
+                if (partes.length >= 2) {
+                    const l2 = partes.slice(1).join(' - ').trim();
+                    const sep = separarRuaBairro(l2);
+                    inst = { linha1: partes[0].trim(), linha2: l2, rua: sep.rua, bairro_cidade: sep.bairro_cidade };
+                } else {
+                    inst = { linha1: rawOriginal, linha2: '', rua: '', bairro_cidade: '' };
+                }
             }
         }
 
@@ -517,10 +534,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
         const modeloEfetivo = ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm;
         const eventoLikeEfetivo = tipoEhEventoLike(modeloEfetivo);
 
+        const valPub = fmtDataIso(p.validade_proposta || ultimoDiaValido(p));
+        const condPagPub = String(p.condicao_pagamento || '').trim();
+
         return {
             tipo_titulo: modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO',
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
+            eh_demo: false,
             contrato_vinculado: String(p.contrato_vinculado || '').trim(),
             info_rotulo: eventoLikeEfetivo ? 'EVENTO:' : 'EVENTO:',
             ocultar_nome_evento: false,
@@ -533,9 +554,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             nome_evento: String(p.nome_evento || '').trim() || '—',
             data_inicio: ini || '—',
             data_fim: fim || ini || '—',
+            validade_proposta: valPub || '—',
+            condicao_pagamento: condPagPub || '—',
             diarias_contrato: diarias,
             instalacao_linha1: inst.linha1 || 'NOME DO LOCAL',
             instalacao_linha2: inst.linha2,
+            instalacao_rua: inst.rua,
+            instalacao_bairro_cidade: inst.bairro_cidade,
             resumo_diarias_rodape: resumoDiariasRodape,
             itens, servicos,
             valor_total_por_dia_geral: somaPorDia,

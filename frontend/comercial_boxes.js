@@ -58,6 +58,7 @@
             cor_rotulo_valor_total: '#3b3b3b',
             ocultar_nome_evento: false,
             ocultar_data_fim: false,
+            mostrar_condicoes_topo: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -432,7 +433,17 @@
         return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
     }
 
-    /* Separa endereço de instalação em Linha 1 (Nome do Local) e Linha 2 (Rua e Número - Bairro - Cidade) */
+    /* Separa endereço de instalação em Linha 1 (Nome do Local), Rua/Número, Bairro/Cidade e Linha 2 completa */
+    function separarRuaBairroCidade(linha2) {
+        const s = String(linha2 || '').trim();
+        if (!s) return { rua: '', bairro_cidade: '' };
+        const partes = s.split(/\s+-\s+/);
+        if (partes.length >= 2) {
+            return { rua: partes[0].trim(), bairro_cidade: partes.slice(1).join(' - ').trim() };
+        }
+        return { rua: s, bairro_cidade: '' };
+    }
+
     function formatarInstalacaoDuasLinhas(proposta, clienteObj) {
         const rawOriginal = String(proposta.endereco_instalacao || '').trim();
         const mPrefixo = rawOriginal.match(/^\s*(ENDERE[ÇC]O\s+(?:DE\s+)?(?:FATURAMENTO|ENTREGA|INSTALA[ÇC][ÃA]O|COBRAN[ÇC]A|COMERCIAL)|MATRIZ|FILIAL)\s*[-:–]\s*(.*)$/i);
@@ -454,25 +465,35 @@
                 const bairroCid = [match.bairro, [match.municipio, match.uf].filter(Boolean).join('/')].map(x => String(x || '').trim()).filter(Boolean).join(' - ');
                 const endCompleto = [ruaNum, bairroCid].filter(Boolean).join(' - ');
                 if (nomeLocal) {
-                    return { linha1: nomeLocal, linha2: endCompleto || rawEnd };
+                    return { linha1: nomeLocal, linha2: endCompleto || rawEnd, rua: ruaNum || rawEnd, bairro_cidade: bairroCid };
                 }
-                return { linha1: ruaNum || rawEnd, linha2: bairroCid };
+                return { linha1: ruaNum || rawEnd, linha2: bairroCid, rua: ruaNum || rawEnd, bairro_cidade: bairroCid };
             }
         }
         if (!rawOriginal) {
-            return { linha1: 'NOME DO LOCAL', linha2: 'RUA E NUMERO - BAIRRO - CIDADE' };
+            return {
+                linha1: 'NOME DO LOCAL',
+                linha2: 'RUA E NUMERO - BAIRRO - CIDADE',
+                rua: 'RUA ANTÔNIO BORGES MACHADO DE OLIVEIRA, 500',
+                bairro_cidade: 'BAIRRO - CIDADE'
+            };
         }
         if (prefixoExplicito) {
-            return { linha1: prefixoExplicito, linha2: rawEnd };
+            const sep = separarRuaBairroCidade(rawEnd);
+            return { linha1: prefixoExplicito, linha2: rawEnd, rua: sep.rua, bairro_cidade: sep.bairro_cidade };
         }
         const partesTraco = rawOriginal.split(/\s+-\s+/);
         if (partesTraco.length >= 2) {
+            const l2 = partesTraco.slice(1).join(' - ').trim();
+            const sep = separarRuaBairroCidade(l2);
             return {
                 linha1: partesTraco[0].trim(),
-                linha2: partesTraco.slice(1).join(' - ').trim()
+                linha2: l2,
+                rua: sep.rua,
+                bairro_cidade: sep.bairro_cidade
             };
         }
-        return { linha1: rawOriginal, linha2: '' };
+        return { linha1: rawOriginal, linha2: '', rua: '', bairro_cidade: '' };
     }
 
     function lerServicosProposta(raw) {
@@ -516,6 +537,8 @@
                     nome_evento: document.getElementById('prop-nome-evento')?.value || '',
                     periodo_inicio: document.getElementById('prop-periodo-ini')?.value || '',
                     periodo_fim: document.getElementById('prop-periodo-fim')?.value || '',
+                    validade_proposta: document.getElementById('prop-validade-proposta')?.value || '',
+                    condicao_pagamento: document.getElementById('prop-cond-pag')?.value || '',
                     dias_contrato: document.getElementById('prop-dias')?.value || 0,
                     endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
                     manutencao_diaria: Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
@@ -536,6 +559,7 @@
             return {
                 modelo_tipo: modeloEfetivo,
                 eh_aditivo: modeloNorm === 'ADITIVO',
+                eh_demo: true,
                 tipo_titulo: cfgModelo.tipo_titulo || modeloEfetivo,
                 info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
                 ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
@@ -548,9 +572,14 @@
                 nome_evento: 'NOME DO EVENTO',
                 data_inicio: 'DD/MM/AA',
                 data_fim: 'DD/MM/AA',
+                validade_proposta: 'DD/MM/AA',
+                condicao_pagamento: 'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
+                contrato_vinculado: 'APENAS PARA ADITIVO',
                 diarias_contrato: 'DIÁRIAS DE CONTRATO',
                 instalacao_linha1: 'NOME DO LOCAL',
                 instalacao_linha2: 'RUA E NUMERO - BAIRRO - CIDADE',
+                instalacao_rua: 'RUA ANTÔNIO BORGES MACHADO DE OLIVEIRA, 500',
+                instalacao_bairro_cidade: 'BAIRRO - CIDADE',
                 resumo_diarias_rodape: 'MANUTENÇÃO DIÁRIA',
                 itens: [
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '02/11, 03/11, 04/11, 05/11, 06/11', quant_diarias: 5, unit: 100, por_dia: 500, desconto: 0, total: 2500 },
@@ -586,6 +615,9 @@
 
         const iniFmt = fmtDataIso(prop.periodo_inicio);
         const fimFmt = fmtDataIso(prop.periodo_fim);
+        const valFmt = fmtDataIso(prop.validade_proposta);
+        const condPag = String(prop.condicao_pagamento || '').trim();
+        const contratoVinc = String(prop.contrato_vinculado || '').trim();
         let diariasContrato = '';
         if (iniFmt && fimFmt) diariasContrato = iniFmt === fimFmt ? iniFmt : iniFmt + ' A ' + fimFmt;
         else diariasContrato = iniFmt || fimFmt || '—';
@@ -660,6 +692,7 @@
         return {
             modelo_tipo: modeloEfetivo,
             eh_aditivo: modeloNorm === 'ADITIVO',
+            eh_demo: false,
             tipo_titulo: cfgModelo.tipo_titulo || modeloEfetivo,
             info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
             ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
@@ -672,9 +705,14 @@
             nome_evento: String(prop.nome_evento || '').trim() || '—',
             data_inicio: iniFmt || '—',
             data_fim: fimFmt || iniFmt || '—',
+            validade_proposta: valFmt || '—',
+            condicao_pagamento: condPag || '—',
+            contrato_vinculado: contratoVinc,
             diarias_contrato: diariasContrato,
             instalacao_linha1: inst.linha1,
             instalacao_linha2: inst.linha2,
+            instalacao_rua: inst.rua,
+            instalacao_bairro_cidade: inst.bairro_cidade,
             resumo_diarias_rodape: resumoDiariasRodape,
             itens: itensFormatados,
             servicos: servicosFormatados,
@@ -727,9 +765,16 @@
         const infoRotulo = cfg.info_rotulo || d.info_rotulo || 'EVENTO:';
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
+        const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
+
+        const sepEndTopo = separarRuaBairroCidade(d.instalacao_linha2);
+        const endRuaTopo = d.instalacao_rua !== undefined ? d.instalacao_rua : sepEndTopo.rua;
+        const endBairroCidTopo = d.instalacao_bairro_cidade !== undefined ? d.instalacao_bairro_cidade : sepEndTopo.bairro_cidade;
+        const exibirContratoBaseTopo = Boolean(d.eh_aditivo || d.eh_demo || (d.contrato_vinculado && String(d.contrato_vinculado).trim()));
+        const textoContratoBaseTopo = (d.eh_demo && !d.eh_aditivo) ? (d.contrato_vinculado || 'APENAS PARA ADITIVO') : (d.contrato_vinculado || '—');
 
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
         const abaixo600Inicial = qtdTotalLinhas < 9;
@@ -840,14 +885,17 @@
             .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
             .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; }
             .box-quadro-evento-proposta .bq-dados-topo-grid { flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(48)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(115)}; align-items:start; min-width:0; }
+            .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
             .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; position:relative; z-index:1; }
             .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:400px; }
             .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
+            .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
             .box-quadro-evento-proposta.bq-mobile.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
             @media (max-width: 768px) {
                 .box-quadro-evento-proposta .bq-inner { min-height:400px; }
                 .box-quadro-evento-proposta .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
+                .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
                 .box-quadro-evento-proposta.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
                 .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
             }
@@ -857,16 +905,56 @@
             <div class="bq-inner">
                 <div class="bq-topo-bloco">
                     <!-- Faixa superior: PROPOSTA [MODELO] + número sequencial da proposta -->
-                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(88)}; padding:0 ${u(60)} 0 ${u(52)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(86)}; padding:0 ${u(56)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
                         <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(tituloTopo)}</span></div>
                         <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                     </div>
 
-                    <!-- Bloco logo + dados do cliente + informações do evento -->
+                    <!-- Bloco logo + dados do cliente + informações do evento + condições da proposta -->
                     <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                        <div style="background:${ROXO}; width:${u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${u(224)}; width:auto; display:block;">
+                        <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(353) : u(415)}; height:${mostrarCondicoesTopo ? u(258) : u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(218) : u(224)}; width:auto; display:block;">
                         </div>
+                        ${mostrarCondicoesTopo ? `
+                        <div class="bq-dados-topo-grid bq-topo-3col">
+                            <div style="min-width:0;">
+                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
+                                </div>
+                                <div style="color:#333; margin-top:${u(14)}; word-break:break-word;">
+                                    <div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(10)};">${esc(d.razao_social)}</div>
+                                    <div style="font-size:${u(19.5)}; line-height:1.3; margin-bottom:${u(12)};">CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
+                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(10)};">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
+                                    <div style="font-size:${u(19.5)}; line-height:1.3;">CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                                </div>
+                            </div>
+                            <div style="min-width:0; overflow:hidden;">
+                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>INFORMAÇÕES <span class="bq-d">${esc(infoRotulo)}</span></span>
+                                </div>
+                                <div style="color:#333; margin-top:${u(14)};">
+                                    ${ocultarNomeEvento ? '' : `<div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(14)};">${esc(d.nome_evento)}</div>`}
+                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(14)};" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    ${endRuaTopo ? `<div class="bq-d" style="font-size:${u(19)}; line-height:1.32; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endRuaTopo)}">${esc(endRuaTopo)}</div>` : ''}
+                                    ${endBairroCidTopo ? `<div class="bq-d" style="font-size:${u(19)}; line-height:1.32; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endBairroCidTopo)}">${esc(endBairroCidTopo)}</div>` : ''}
+                                </div>
+                            </div>
+                            <div style="min-width:0; text-align:right;">
+                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; justify-content:flex-end; gap:${u(8)}; white-space:nowrap;">
+                                    <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
+                                    <span>CONDIÇÕES DA <span class="bq-d">PROPOSTA:</span></span>
+                                </div>
+                                <div style="color:#333; margin-top:${u(14)};">
+                                    <div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(10)};">${esc(d.condicao_pagamento || '—')}</div>
+                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(12)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>
+                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(10)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
+                                    ${exibirContratoBaseTopo ? `<div style="font-size:${u(19.5)}; line-height:1.3; color:${ROXO}; text-transform:uppercase; white-space:nowrap;">CONTRATO BASE: <span class="bq-d">${esc(textoContratoBaseTopo)}</span></div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ` : `
                         <div class="bq-dados-topo-grid">
                             <div style="min-width:0;">
                                 <div style="font-size:${u(31)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
@@ -894,6 +982,7 @@
                                 </div>
                             </div>
                         </div>
+                        `}
                     </div>
                 </div>
 
