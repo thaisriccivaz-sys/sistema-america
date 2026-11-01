@@ -125,7 +125,8 @@
         'LIMPA FOSSA': {
             nome_quadro: 'Quadro de Valores — Proposta Limpa Fossa (Fixo)',
             tipo_titulo: 'LIMPA FOSSA',
-            info_rotulo: 'DA OBRA:',
+            info_rotulo: 'DA FOSSA:',
+            rotulo_instalacao: 'ENDEREÇO:',
             cor_primaria: '#1e5782',
             cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: true,
@@ -140,7 +141,8 @@
         'LIMPA FOSSA MENSAL': {
             nome_quadro: 'Quadro de Valores — Proposta Limpa Fossa Mensal (Fixo)',
             tipo_titulo: 'LIMPA FOSSA MENSAL',
-            info_rotulo: 'DA OBRA:',
+            info_rotulo: 'DA FOSSA:',
+            rotulo_instalacao: 'ENDEREÇO:',
             cor_primaria: '#1e5782',
             cor_rotulo_valor_total: '#1e5782',
             ocultar_nome_evento: true,
@@ -353,10 +355,8 @@
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
         } else if (modEfetivo === 'LIMPA FOSSA' || modEfetivo === 'LIMPA FOSSA MENSAL') {
-            const rotUp = String(extra.info_rotulo || '').trim().toUpperCase();
-            if (!rotUp || rotUp === 'EVENTO:' || rotUp === 'OBRA:') {
-                extra.info_rotulo = 'DA OBRA:';
-            }
+            extra.info_rotulo = 'DA FOSSA:';
+            extra.rotulo_instalacao = 'ENDEREÇO:';
             if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
                 delete extra.cor_primaria;
             }
@@ -923,6 +923,7 @@
             ? d.tipo_titulo
             : (cfg.tipo_titulo || d.tipo_titulo || 'EVENTO');
         const infoRotulo = cfg.info_rotulo || d.info_rotulo || 'EVENTO:';
+        const rotuloInstalacao = cfg.rotulo_instalacao || d.rotulo_instalacao || (String(infoRotulo).toUpperCase().includes('FOSSA') ? 'ENDEREÇO:' : 'INSTALAÇÃO:');
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (String(d.modelo_tipo || '').toUpperCase() === 'EVENTO');
@@ -1099,7 +1100,7 @@
                                 </div>
                                 <div style="color:#333; margin-top:${u(20)};">
                                     ${ocultarNomeEvento ? '' : `<div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(22)};">${esc(d.nome_evento)}</div>`}
-                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(19)};" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(19)};" title="${esc(d.instalacao_linha1)}">${esc(rotuloInstalacao)} <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
                                     ${endRuaTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endRuaTopo)}">${esc(endRuaTopo)}</div>` : ''}
                                     ${endBairroCidTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endBairroCidTopo)}">${esc(endBairroCidTopo)}</div>` : ''}
                                 </div>
@@ -1143,7 +1144,7 @@
                                     ${ocultarNomeEvento ? '' : `<div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.nome_evento)}</div>`}
                                     <div style="text-transform:uppercase;${ocultarDataFim ? ` margin-bottom:${u(6)};` : ''}">INÍCIO: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>
                                     ${ocultarDataFim ? '' : `<div style="text-transform:uppercase; margin-bottom:${u(6)};">FIM: <span class="bq-d">${esc(d.data_fim || '—')}</span></div>`}
-                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(d.instalacao_linha1)}">${esc(rotuloInstalacao)} <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
                                     ${d.instalacao_linha2 ? `<div style="font-size:${u(16.5)}; color:#444; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;" title="${esc(d.instalacao_linha2)}">${esc(d.instalacao_linha2)}</div>` : ''}
                                 </div>
                             </div>
