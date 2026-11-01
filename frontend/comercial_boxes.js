@@ -433,6 +433,42 @@
         return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
     }
 
+    /* Limita a Razão Social a no máximo 30 caracteres sem cortar palavras no meio
+       e sem deixar conectivos isolados no final (ex.: "E", "&", "DE", "DA", "DO") */
+    function truncarRazaoSocialProposta(nome, limite) {
+        const max = Number(limite) > 0 ? Number(limite) : 30;
+        const limpo = String(nome || '').trim().replace(/\s+/g, ' ');
+        if (!limpo || limpo === '—') return '—';
+        const conectivoFinalRe = /^(?:E|&|DE|DA|DO|DAS|DOS|-|\/|,)$/i;
+        const palavras = limpo.split(' ');
+        if (limpo.length <= max) {
+            while (palavras.length > 1 && conectivoFinalRe.test(palavras[palavras.length - 1])) {
+                palavras.pop();
+            }
+            return palavras.join(' ');
+        }
+        const escolhidas = [];
+        let atual = '';
+        for (let i = 0; i < palavras.length; i++) {
+            const p = palavras[i];
+            const candidato = atual ? (atual + ' ' + p) : p;
+            if (candidato.length <= max) {
+                escolhidas.push(p);
+                atual = candidato;
+            } else {
+                break;
+            }
+        }
+        if (escolhidas.length === 0) {
+            return limpo.slice(0, max).trim();
+        }
+        while (escolhidas.length > 1 && conectivoFinalRe.test(escolhidas[escolhidas.length - 1])) {
+            escolhidas.pop();
+        }
+        return escolhidas.join(' ');
+    }
+    window.truncarRazaoSocialProposta = truncarRazaoSocialProposta;
+
     /* Separa endereço de instalação em Linha 1 (Nome do Local), Rua/Número, Bairro/Cidade e Linha 2 completa */
     function separarRuaBairroCidade(linha2) {
         const s = String(linha2 || '').trim();
@@ -565,7 +601,7 @@
                 ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
                 contrato: '01',
                 codigo_proposta: '01',
-                razao_social: 'RAZÃO SOCIAL',
+                razao_social: truncarRazaoSocialProposta('LATIN AMERICA MANUTENCAO E MONTAGEM INDUSTRIAL LTDA', 30),
                 cnpj: 'CNPJ AQUI',
                 contato_nome: 'NOME DO CONTATO',
                 contato_celular: 'NUMERO DO CONTATO',
@@ -698,7 +734,7 @@
             ocultar_nome_evento: Boolean(cfgModelo.ocultar_nome_evento),
             contrato: numSeq,
             codigo_proposta: numSeq,
-            razao_social: cliNomeLimpo || prop.cliente_razao || '—',
+            razao_social: truncarRazaoSocialProposta(cliNomeLimpo || prop.cliente_razao || '', 30),
             cnpj: cnpj || '—',
             contato_nome: contatoNome || '—',
             contato_celular: celularContato || '—',
@@ -775,6 +811,7 @@
         const endBairroCidTopo = d.instalacao_bairro_cidade !== undefined ? d.instalacao_bairro_cidade : sepEndTopo.bairro_cidade;
         const exibirContratoBaseTopo = Boolean(d.eh_aditivo || d.eh_demo || (d.contrato_vinculado && String(d.contrato_vinculado).trim()));
         const textoContratoBaseTopo = (d.eh_demo && !d.eh_aditivo) ? (d.contrato_vinculado || 'APENAS PARA ADITIVO') : (d.contrato_vinculado || '—');
+        const razaoSocialTopo = truncarRazaoSocialProposta(d.razao_social, 30);
 
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
         const abaixo600Inicial = qtdTotalLinhas < 9;
@@ -885,17 +922,17 @@
             .box-quadro-evento-proposta .bq-inner { width:100%; min-height:56.25cqw; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; }
             .box-quadro-evento-proposta .bq-topo-bloco { position:relative; z-index:2; flex-shrink:0; }
             .box-quadro-evento-proposta .bq-dados-topo-grid { flex:1; display:grid; grid-template-columns:0.82fr 1.18fr; column-gap:${u(48)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(115)}; align-items:start; min-width:0; }
-            .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
+            .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
             .box-quadro-evento-proposta .bq-body-wrap { flex:1 0 auto; display:flex; flex-direction:column; justify-content:space-between; width:100%; box-sizing:border-box; position:relative; z-index:1; }
             .box-quadro-evento-proposta.bq-mobile .bq-inner { min-height:400px; }
             .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
-            .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
+            .box-quadro-evento-proposta.bq-mobile .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
             .box-quadro-evento-proposta.bq-mobile.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
             .box-quadro-evento-proposta.bq-mobile .bq-body-wrap { justify-content:center; }
             @media (max-width: 768px) {
                 .box-quadro-evento-proposta .bq-inner { min-height:400px; }
                 .box-quadro-evento-proposta .bq-dados-topo-grid { grid-template-columns:0.74fr 1.26fr; column-gap:${u(32)}; padding:${u(24)} ${u(44)} ${u(18)} ${u(53)}; }
-                .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(365)} 1fr auto; column-gap:${u(32)}; padding:${u(30)} ${u(56)} ${u(20)} ${u(58)}; }
+                .box-quadro-evento-proposta .bq-dados-topo-grid.bq-topo-3col { grid-template-columns:${u(452)} 1fr auto; column-gap:${u(32)}; padding:${u(34)} ${u(54)} ${u(20)} ${u(49)}; }
                 .box-quadro-evento-proposta.bq-abaixo-600 .bq-topo-bloco { margin-top:50px; }
                 .box-quadro-evento-proposta .bq-body-wrap { justify-content:center; }
             }
@@ -905,52 +942,52 @@
             <div class="bq-inner">
                 <div class="bq-topo-bloco">
                     <!-- Faixa superior: PROPOSTA [MODELO] + número sequencial da proposta -->
-                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(86)}; padding:0 ${u(56)} 0 ${u(48)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
+                    <div style="border-bottom:${u(3)} solid ${ROXO}; height:${u(84)}; padding:0 ${u(54)} 0 ${u(34)}; display:flex; justify-content:space-between; align-items:center; box-sizing:border-box; flex-shrink:0;">
                         <div style="font-size:${u(33)}; letter-spacing:0.02em; color:#333;">PROPOSTA <span class="bq-d">${esc(tituloTopo)}</span></div>
                         <div class="bq-d" style="font-size:${u(42)}; color:${ROXO};">${esc(d.codigo_proposta || d.contrato)}</div>
                     </div>
 
                     <!-- Bloco logo + dados do cliente + informações do evento + condições da proposta -->
                     <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff; box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18); flex-shrink:0;">
-                        <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(353) : u(415)}; height:${mostrarCondicoesTopo ? u(258) : u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(218) : u(224)}; width:auto; display:block;">
+                        <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(358) : u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(220) : u(224)}; width:auto; display:block;">
                         </div>
                         ${mostrarCondicoesTopo ? `
                         <div class="bq-dados-topo-grid bq-topo-3col">
                             <div style="min-width:0;">
-                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                     <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
                                 </div>
-                                <div style="color:#333; margin-top:${u(14)}; word-break:break-word;">
-                                    <div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(10)};">${esc(d.razao_social)}</div>
-                                    <div style="font-size:${u(19.5)}; line-height:1.3; margin-bottom:${u(12)};">CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
-                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(10)};">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
-                                    <div style="font-size:${u(19.5)}; line-height:1.3;">CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
+                                <div style="color:#333; margin-top:${u(20)}; word-break:break-word;">
+                                    <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; margin-bottom:${u(14)};">${esc(razaoSocialTopo)}</div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; margin-bottom:${u(15)};">CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(14)};">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25;">CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
                                 </div>
                             </div>
                             <div style="min-width:0; overflow:hidden;">
-                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
+                                <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                     <span>INFORMAÇÕES <span class="bq-d">${esc(infoRotulo)}</span></span>
                                 </div>
-                                <div style="color:#333; margin-top:${u(14)};">
-                                    ${ocultarNomeEvento ? '' : `<div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(14)};">${esc(d.nome_evento)}</div>`}
-                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(14)};" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
-                                    ${endRuaTopo ? `<div class="bq-d" style="font-size:${u(19)}; line-height:1.32; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endRuaTopo)}">${esc(endRuaTopo)}</div>` : ''}
-                                    ${endBairroCidTopo ? `<div class="bq-d" style="font-size:${u(19)}; line-height:1.32; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endBairroCidTopo)}">${esc(endBairroCidTopo)}</div>` : ''}
+                                <div style="color:#333; margin-top:${u(20)};">
+                                    ${ocultarNomeEvento ? '' : `<div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(22)};">${esc(d.nome_evento)}</div>`}
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(19)};" title="${esc(d.instalacao_linha1)}">INSTALAÇÃO: <span class="bq-d">${esc(d.instalacao_linha1)}</span></div>
+                                    ${endRuaTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endRuaTopo)}">${esc(endRuaTopo)}</div>` : ''}
+                                    ${endBairroCidTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endBairroCidTopo)}">${esc(endBairroCidTopo)}</div>` : ''}
                                 </div>
                             </div>
                             <div style="min-width:0; text-align:right;">
-                                <div style="font-size:${u(30)}; color:#333; display:flex; align-items:center; justify-content:flex-end; gap:${u(8)}; white-space:nowrap;">
+                                <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; justify-content:flex-end; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                     <span>CONDIÇÕES DA <span class="bq-d">PROPOSTA:</span></span>
                                 </div>
-                                <div style="color:#333; margin-top:${u(14)};">
-                                    <div class="bq-d" style="font-size:${u(21)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(10)};">${esc(d.condicao_pagamento || '—')}</div>
-                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(12)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>
-                                    <div style="font-size:${u(19.5)}; line-height:1.3; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(10)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
-                                    ${exibirContratoBaseTopo ? `<div style="font-size:${u(19.5)}; line-height:1.3; color:${ROXO}; text-transform:uppercase; white-space:nowrap;">CONTRATO BASE: <span class="bq-d">${esc(textoContratoBaseTopo)}</span></div>` : ''}
+                                <div style="color:#333; margin-top:${u(20)};">
+                                    <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">${esc(d.condicao_pagamento || '—')}</div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
+                                    ${exibirContratoBaseTopo ? `<div style="font-size:${u(18.5)}; line-height:1.25; color:${ROXO}; text-transform:uppercase; white-space:nowrap;">CONTRATO BASE: <span class="bq-d">${esc(textoContratoBaseTopo)}</span></div>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -962,7 +999,7 @@
                                     <span>DADOS DO <span class="bq-d">CLIENTE:</span></span>
                                 </div>
                                 <div style="font-size:${u(20.5)}; color:#333; line-height:1.58; margin-top:${u(14)}; word-break:break-word;">
-                                    <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(d.razao_social)}</div>
+                                    <div class="bq-d" style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:${u(4)};">${esc(razaoSocialTopo)}</div>
                                     <div>CNPJ: <span class="bq-d">${esc(d.cnpj)}</span></div>
                                     <div style="text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">CONTATO: <span class="bq-d">${esc(d.contato_nome)}</span></div>
                                     <div>CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>

@@ -536,6 +536,28 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
 
         const valPub = fmtDataIso(p.validade_proposta || ultimoDiaValido(p));
         const condPagPub = String(p.condicao_pagamento || '').trim();
+        const truncarRazao30 = (nome) => {
+            const max = 30;
+            const limpo = String(nome || '').trim().replace(/\s+/g, ' ');
+            if (!limpo || limpo === '—') return '—';
+            const conectivoFinalRe = /^(?:E|&|DE|DA|DO|DAS|DOS|-|\/|,)$/i;
+            const palavras = limpo.split(' ');
+            if (limpo.length <= max) {
+                while (palavras.length > 1 && conectivoFinalRe.test(palavras[palavras.length - 1])) palavras.pop();
+                return palavras.join(' ');
+            }
+            const escolhidas = [];
+            let atual = '';
+            for (let i = 0; i < palavras.length; i++) {
+                const pl = palavras[i];
+                const cand = atual ? (atual + ' ' + pl) : pl;
+                if (cand.length <= max) { escolhidas.push(pl); atual = cand; }
+                else break;
+            }
+            if (!escolhidas.length) return limpo.slice(0, max).trim();
+            while (escolhidas.length > 1 && conectivoFinalRe.test(escolhidas[escolhidas.length - 1])) escolhidas.pop();
+            return escolhidas.join(' ');
+        };
 
         return {
             tipo_titulo: modeloEfetivo || tipoLimpo(p.tipo) || 'EVENTO',
@@ -547,7 +569,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken) {
             ocultar_nome_evento: false,
             contrato: numSeq,
             codigo_proposta: numSeq,
-            razao_social: cliNomeLimpo || '—',
+            razao_social: truncarRazao30(cliNomeLimpo),
             cnpj: (cliente && cliente.cpf_cnpj) ? String(cliente.cpf_cnpj).trim() : '—',
             contato_nome: contatoNome || '—',
             contato_celular: celular || '—',
