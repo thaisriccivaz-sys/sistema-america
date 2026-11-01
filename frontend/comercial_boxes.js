@@ -1354,7 +1354,6 @@
         }
 
         const cfgMod = window.obterConfigQuadroModelo(modAtivo);
-        const aditivoBoxes = window._boxesAditivoCache || [];
 
         el.innerHTML = lista.map((b, i) => {
             const isQuadroFixo = b.tipo === 'quadro_evento';
@@ -1375,7 +1374,7 @@
                     : `<img src="${esc(b.url)}" alt="" style="width:100%; height:100%; object-fit:cover;">`);
             const nHot = (b.hotspots_desktop || []).length + (b.hotspots_mobile || []).length;
 
-            const cardPrincipal = `
+            return `
             <div style="background:${isQuadroFixo ? '#faf5ff' : '#fff'}; border:${isQuadroFixo ? '2px solid #8b5cf6' : '1px solid #e2e8f0'}; border-radius:10px; padding:8px; display:flex; gap:10px; align-items:center;">
                 <div style="display:flex; flex-direction:column; gap:3px;">
                     <button title="Subir posição" ${i === 0 ? 'disabled' : ''} onclick="window.moverBox(${b.id}, 'up')" style="width:26px; height:26px; border:1px solid #cbd5e1; background:${i === 0 ? '#f1f5f9' : '#fff'}; border-radius:6px; cursor:${i === 0 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center; padding:0;"><i class="ph ph-arrow-up"></i></button>
@@ -1407,48 +1406,6 @@
                     `}
                 </div>
             </div>`;
-
-            /* Abaixo do #2 Quadro de Valores — Proposta Evento (Fixo) (e dos demais modelos), mostrar o campo/bloco colocado dentro de Aditivo */
-            if (!isQuadroFixo) return cardPrincipal;
-
-            const itensAditivoHtml = aditivoBoxes.length > 0
-                ? aditivoBoxes.map((ab, idxAdt) => `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff; border:1px solid #ddd6fe; border-radius:7px; padding:5px 8px; margin-top:5px;">
-                        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                            <div style="width:52px; height:32px; border-radius:5px; overflow:hidden; background:#0f172a; flex-shrink:0;">
-                                ${ab.tipo === 'video'
-                                    ? `<video src="${esc(ab.url)}#t=0.5" muted preload="metadata" style="width:100%; height:100%; object-fit:cover;"></video>`
-                                    : `<img src="${esc(ab.url)}" alt="" style="width:100%; height:100%; object-fit:cover;">`}
-                            </div>
-                            <div style="min-width:0;">
-                                <div style="font-size:0.75rem; font-weight:800; color:#4c1d95; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Aditivo #${idxAdt + 1} — ${esc(ab.nome)}</div>
-                                <div style="font-size:0.65rem; color:#6d28d9;">Exibido abaixo do #${i + 1} ${esc(b.nome)} quando a proposta for Aditivo</div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:4px; flex-shrink:0;">
-                            <button type="button" title="Editar imagem do Aditivo" onclick="window.abrirEditorBox(${ab.id}, 'ADITIVO')" style="width:26px; height:26px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
-                            <button type="button" title="Excluir imagem do Aditivo" onclick="window.excluirBox(${ab.id})" style="width:26px; height:26px; border:1px solid #fecaca; background:#fee2e2; color:#dc2626; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-trash"></i></button>
-                        </div>
-                    </div>`).join('')
-                : `<div style="font-size:0.71rem; color:#6d28d9; margin-top:4px;">Nenhuma imagem anexada no modelo de Aditivo ainda. Use os botões ao lado para incluir imagens do Aditivo abaixo deste quadro.</div>`;
-
-            const blocoSlotAditivoAbaixo = `
-            <div style="margin-left:18px; background:#f5f3ff; border:1.5px dashed #8b5cf6; border-radius:9px; padding:8px 10px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-                    <div style="display:flex; align-items:center; gap:6px; font-size:0.74rem; font-weight:800; color:#5b21b6;">
-                        <i class="ph ph-corner-down-right"></i>
-                        <span>Campo do Modelo Aditivo (abaixo de #${i + 1} ${esc(b.nome)})</span>
-                        <span style="background:#ede9fe; color:#6d28d9; padding:1px 7px; border-radius:999px; font-size:0.66rem;">${aditivoBoxes.length} imagem(ns)</span>
-                    </div>
-                    <div style="display:flex; gap:5px;">
-                        <button type="button" onclick="window.abrirEditorBox(null, 'ADITIVO')" style="background:#6d28d9; color:#fff; border:none; padding:4px 9px; border-radius:6px; font-size:0.69rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-plus-circle"></i> + Incluir Imagem no Aditivo</button>
-                        <button type="button" onclick="window.selecionarModeloBoxes('ADITIVO')" style="background:#fff; color:#6d28d9; border:1px solid #c4b5fd; padding:4px 8px; border-radius:6px; font-size:0.69rem; font-weight:700; cursor:pointer;">Abrir aba Aditivo</button>
-                    </div>
-                </div>
-                ${itensAditivoHtml}
-            </div>`;
-
-            return cardPrincipal + blocoSlotAditivoAbaixo;
         }).join('');
     };
 
