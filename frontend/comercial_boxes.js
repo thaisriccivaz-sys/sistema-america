@@ -65,10 +65,10 @@
         'OBRA MENSAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Mensal (Fixo)',
             tipo_titulo: 'OBRA MENSAL',
-            info_rotulo: 'EVENTO:',
+            info_rotulo: 'OBRA:',
             cor_primaria: '#1e5782',
             cor_rotulo_valor_total: '#1e5782',
-            ocultar_nome_evento: false,
+            ocultar_nome_evento: true,
             ocultar_data_fim: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
@@ -77,9 +77,9 @@
         'OBRA QUINZENAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Quinzenal (Fixo)',
             tipo_titulo: 'OBRA QUINZENAL',
-            info_rotulo: 'EVENTO:',
+            info_rotulo: 'OBRA:',
             cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
+            ocultar_nome_evento: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -87,9 +87,9 @@
         'OBRA SEMANAL': {
             nome_quadro: 'Quadro de Valores — Proposta Obra Semanal (Fixo)',
             tipo_titulo: 'OBRA SEMANAL',
-            info_rotulo: 'EVENTO:',
+            info_rotulo: 'OBRA:',
             cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
+            ocultar_nome_evento: true,
             mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
@@ -221,6 +221,12 @@
         const modEfetivo = mod === 'ADITIVO' ? window.resolverModeloOrigemAditivo() : mod;
         const base = window.CONFIG_QUADRO_POR_MODELO[modEfetivo] || window.CONFIG_QUADRO_POR_MODELO['EVENTO'];
         const extra = Object.assign({}, configBoxExtra || {});
+        if (modEfetivo === 'OBRA MENSAL' || modEfetivo === 'OBRA QUINZENAL' || modEfetivo === 'OBRA SEMANAL') {
+            if (!extra.info_rotulo || String(extra.info_rotulo).trim().toUpperCase() === 'EVENTO:') {
+                extra.info_rotulo = 'OBRA:';
+            }
+            extra.ocultar_nome_evento = true;
+        }
         if (modEfetivo === 'OBRA MENSAL') {
             if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
                 delete extra.cor_primaria;
