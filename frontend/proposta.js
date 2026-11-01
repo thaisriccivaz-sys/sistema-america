@@ -273,59 +273,77 @@ window.podeExcluirPropostaAtual = function(p) {
 };
 
 async function carregarPropostas() {
-    try {
-        await window.carregarContextoUsuarioComercial();
-    } catch (e) {}
-    try {
-        const data = await apiGet('/propostas');
-        _propostasData = Array.isArray(data) ? data : [];
-    } catch (e) {
-        console.error('[PROPOSTAS] Erro ao carregar:', e);
-        _propostasData = [];
-    }
-    try {
-        window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
-    } catch (e) {
-        console.error('[CONTRATOS] Erro ao carregar modelos para dropdown:', e);
-        window._comercialModelosContrato = [];
-    }
-    try {
-        const stats = await apiGet('/dashboard/stats');
-        _dashboardStatsData = Array.isArray(stats) ? stats : [];
-    } catch (e) {
-        console.error('[DASHBOARD STATS] Erro ao carregar:', e);
-        _dashboardStatsData = [];
-    }
-    try {
-        const maint = await apiGet('/frota/manutencoes');
-        _manutencoesData = Array.isArray(maint) ? maint : [];
-    } catch (e) {
-        console.error('[MANUTENCOES] Erro ao carregar:', e);
-        _manutencoesData = [];
-    }
-    try {
-        const veic = await apiGet('/frota/veiculos');
-        _veiculosData = Array.isArray(veic) ? veic : [];
-    } catch (e) {
-        console.error('[VEICULOS] Erro ao carregar:', e);
-        _veiculosData = [];
-    }
-    try {
-        const clis = await apiGet('/clientes');
-        _clientesData = Array.isArray(clis) ? clis : [];
-    } catch (e) {
-        console.error('[CLIENTES] Erro ao carregar:', e);
-        _clientesData = [];
-    }
-    if (typeof window._carregarServicosPrecificadosList === 'function') {
-        await window._carregarServicosPrecificadosList();
-    }
-    try {
-        window._comercialTabelasPrecoData = await apiGet('/comercial/tabelas-preco') || { configs: [], itens: [] };
-    } catch (e) {
-        console.error('[TABELAS PRECO] Erro ao carregar:', e);
-        window._comercialTabelasPrecoData = { configs: [], itens: [] };
-    }
+    await Promise.all([
+        (async () => {
+            try { await window.carregarContextoUsuarioComercial(); } catch (e) {}
+        })(),
+        (async () => {
+            try {
+                const data = await apiGet('/propostas');
+                _propostasData = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('[PROPOSTAS] Erro ao carregar:', e);
+                _propostasData = [];
+            }
+        })(),
+        (async () => {
+            try {
+                window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
+            } catch (e) {
+                console.error('[CONTRATOS] Erro ao carregar modelos para dropdown:', e);
+                window._comercialModelosContrato = [];
+            }
+        })(),
+        (async () => {
+            try {
+                const stats = await apiGet('/dashboard/stats');
+                _dashboardStatsData = Array.isArray(stats) ? stats : [];
+            } catch (e) {
+                console.error('[DASHBOARD STATS] Erro ao carregar:', e);
+                _dashboardStatsData = [];
+            }
+        })(),
+        (async () => {
+            try {
+                const maint = await apiGet('/frota/manutencoes');
+                _manutencoesData = Array.isArray(maint) ? maint : [];
+            } catch (e) {
+                console.error('[MANUTENCOES] Erro ao carregar:', e);
+                _manutencoesData = [];
+            }
+        })(),
+        (async () => {
+            try {
+                const veic = await apiGet('/frota/veiculos');
+                _veiculosData = Array.isArray(veic) ? veic : [];
+            } catch (e) {
+                console.error('[VEICULOS] Erro ao carregar:', e);
+                _veiculosData = [];
+            }
+        })(),
+        (async () => {
+            try {
+                const clis = await apiGet('/clientes');
+                _clientesData = Array.isArray(clis) ? clis : [];
+            } catch (e) {
+                console.error('[CLIENTES] Erro ao carregar:', e);
+                _clientesData = [];
+            }
+        })(),
+        (async () => {
+            if (typeof window._carregarServicosPrecificadosList === 'function') {
+                try { await window._carregarServicosPrecificadosList(); } catch (e) {}
+            }
+        })(),
+        (async () => {
+            try {
+                window._comercialTabelasPrecoData = await apiGet('/comercial/tabelas-preco') || { configs: [], itens: [] };
+            } catch (e) {
+                console.error('[TABELAS PRECO] Erro ao carregar:', e);
+                window._comercialTabelasPrecoData = { configs: [], itens: [] };
+            }
+        })()
+    ]);
 }
 
 /* ── Render da tela principal ───────────────────────────────────────── */
@@ -17221,39 +17239,51 @@ window.pesquisarPropostaPorCodigoInput = async function() {
     const raw = String(inp?.value || '').trim();
     const termo = raw.toUpperCase() === 'AUTO' ? '' : raw;
     if (termo) {
-        await carregarPropostas();
         const isModoContrato = window._modoTelaComercial === 'contrato';
-        const baseLista = (_propostasData || []).filter(p =>
-            isModoContrato ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true
-        );
         const termoLower = termo.toLowerCase();
         const termoDigits = termo.replace(/\D/g, '').replace(/^0+/, '');
 
-        // 1) Busca correspondência exata pelo código (ou contrato)
-        let encontrada = baseLista.find(p => {
-            const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
-            return cod && cod.toLowerCase() === termoLower;
-        });
-
-        // 2) Se não achou exata e digitou número (ex.: "1" ou "01"), busca pelo número inteiro ignorando zeros à esquerda
-        if (!encontrada && /^\d+$/.test(termo)) {
-            const numBuscado = parseInt(termo, 10);
-            encontrada = baseLista.find(p => {
+        const localizarNaLista = (listaFonte) => {
+            const baseLista = (listaFonte || []).filter(p =>
+                isModoContrato ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' || Boolean(p.contrato)) : true
+            );
+            // 1) Busca correspondência exata pelo código (ou contrato)
+            let achada = baseLista.find(p => {
                 const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
-                if (/^\d+$/.test(cod) && parseInt(cod, 10) === numBuscado) return true;
-                const mSeq = cod.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
-                if (mSeq && parseInt(mSeq[1], 10) === numBuscado) return true;
-                return false;
+                return cod && cod.toLowerCase() === termoLower;
             });
-        }
+            // 2) Se não achou exata e digitou número (ex.: "1" ou "01"), busca pelo número inteiro ignorando zeros à esquerda
+            if (!achada && /^\d+$/.test(termo)) {
+                const numBuscado = parseInt(termo, 10);
+                achada = baseLista.find(p => {
+                    const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
+                    if (/^\d+$/.test(cod) && parseInt(cod, 10) === numBuscado) return true;
+                    const mSeq = cod.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
+                    if (mSeq && parseInt(mSeq[1], 10) === numBuscado) return true;
+                    return false;
+                });
+            }
+            // 3) Fallback por dígitos sem zero à esquerda
+            if (!achada && termoDigits && /^\d+$/.test(termo)) {
+                achada = baseLista.find(p => {
+                    const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
+                    const codDigits = cod.replace(/\D/g, '').replace(/^0+/, '');
+                    return Boolean(codDigits && codDigits === termoDigits);
+                });
+            }
+            return achada;
+        };
 
-        // 3) Fallback por dígitos sem zero à esquerda
-        if (!encontrada && termoDigits && /^\d+$/.test(termo)) {
-            encontrada = baseLista.find(p => {
-                const cod = String((isModoContrato ? (p.contrato || p.codigo) : p.codigo) || '').trim();
-                const codDigits = cod.replace(/\D/g, '').replace(/^0+/, '');
-                return Boolean(codDigits && codDigits === termoDigits);
-            });
+        let encontrada = Array.isArray(_propostasData) && _propostasData.length > 0
+            ? localizarNaLista(_propostasData)
+            : null;
+
+        if (!encontrada) {
+            try {
+                const freshData = await apiGet('/propostas');
+                if (Array.isArray(freshData)) _propostasData = freshData;
+            } catch (e) {}
+            encontrada = localizarNaLista(_propostasData);
         }
 
         if (encontrada) {
@@ -17271,16 +17301,27 @@ window.pesquisarPropostaPorCodigoInput = async function() {
 };
 
 window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
-    Swal.fire({
-        title: 'Carregando propostas...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
+    const temCachePronto = Array.isArray(_propostasData) && _propostasData.length > 0 && Array.isArray(_clientesData) && _clientesData.length > 0;
+    if (!temCachePronto) {
+        Swal.fire({
+            title: 'Carregando propostas...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+    }
 
     try {
-        await carregarPropostas();
-        const clientes = await apiGet('/clientes') || [];
-        Swal.close();
+        if (!temCachePronto) {
+            const [propostasResp, clientesResp] = await Promise.all([
+                (Array.isArray(_propostasData) && _propostasData.length > 0) ? Promise.resolve(_propostasData) : apiGet('/propostas'),
+                (Array.isArray(_clientesData) && _clientesData.length > 0) ? Promise.resolve(_clientesData) : apiGet('/clientes'),
+                (async () => { try { await window.carregarContextoUsuarioComercial(); } catch (e) {} })()
+            ]);
+            if (Array.isArray(propostasResp)) _propostasData = propostasResp;
+            if (Array.isArray(clientesResp)) _clientesData = clientesResp;
+            Swal.close();
+        }
+        const clientes = Array.isArray(_clientesData) ? _clientesData : [];
 
         // Mapeamento de Razão Social -> CNPJ
         const clientCnpjMap = {};
@@ -17296,8 +17337,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
         const exibirColExcluirModal = !isModoContratoModal && Boolean(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais());
-        // Adiciona CNPJ e ícone de grupo localmente a cada proposta
-        let propostasComCnpj = _propostasData.filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') : true).map(p => {
+        const mapearPropostasComCnpj = (listaBruta) => (listaBruta || []).filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -17307,6 +17347,8 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 cliente_icone: icone
             };
         });
+        // Adiciona CNPJ e ícone de grupo localmente a cada proposta
+        let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
         const renderRows = (list) => {
             if (list.length === 0) {
@@ -17437,6 +17479,15 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 if (filtroCodigoInicial && inputCodigo) {
                     inputCodigo.value = filtroCodigoInicial;
                     filterProps();
+                }
+                if (temCachePronto) {
+                    apiGet('/propostas').then(fresh => {
+                        if (Array.isArray(fresh) && document.getElementById('modal-proposta-tbody')) {
+                            _propostasData = fresh;
+                            propostasComCnpj = mapearPropostasComCnpj(_propostasData);
+                            filterProps();
+                        }
+                    }).catch(() => {});
                 }
                 setTimeout(() => { if (inputCodigo) inputCodigo.focus(); }, 40);
             }
