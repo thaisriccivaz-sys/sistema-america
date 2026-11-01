@@ -1082,7 +1082,7 @@ function renderTelaPropostas() {
         };
         const toolbarId = toolbarIdMap[_currentPropostaTab];
         const toolbar = document.getElementById(toolbarId);
-        if (toolbar) {
+        if (toolbar && toolbar.offsetParent !== null) {
             const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
             window.scrollTo({ top: targetY });
         } else {
@@ -1227,7 +1227,7 @@ window.switchPropostaTab = function(tab) {
             };
             const toolbarId = toolbarIdMap[tab];
             const toolbar = document.getElementById(toolbarId);
-            if (toolbar) {
+            if (toolbar && toolbar.offsetParent !== null) {
                 const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
                 window.scrollTo({ top: targetY });
             } else {
@@ -14679,7 +14679,7 @@ function _renderPrecificacaoBaseLayout() {
     // Rolagem imediata e precisa para fixar o header (prop-toolbar-precificacao)
     setTimeout(() => {
         const toolbar = document.getElementById('prop-toolbar-precificacao');
-        if (toolbar) {
+        if (toolbar && toolbar.offsetParent !== null) {
             const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
             window.scrollTo({ top: targetY });
         }
@@ -20840,7 +20840,7 @@ function _renderModelosContratoBaseLayout() {
     // Rolagem imediata e precisa para fixar o header (prop-toolbar-modelos)
     setTimeout(() => {
         const toolbar = document.getElementById('prop-toolbar-modelos');
-        if (toolbar) {
+        if (toolbar && toolbar.offsetParent !== null) {
             const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
             window.scrollTo({ top: targetY });
         }
@@ -21788,7 +21788,7 @@ window._renderModelosPropostasInt = async function() {
     container.innerHTML = `
         <div style="font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 0.75rem 0.75rem; border-radius:14px; min-height:820px; box-sizing:border-box;">
             <!-- Top SaaS Toolbar -->
-            <div id="prop-toolbar-modelos-propostas" style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:0.85rem; background:#fff; padding:0.55rem 1rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
+            <div id="prop-toolbar-modelos-propostas" style="display:none; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:0.85rem; background:#fff; padding:0.55rem 1rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997;">
                 <div class="saas-dropdown-container">
                     <div class="saas-nav-item active" style="display:flex; align-items:center; gap:0.35rem;">
                         <i class="ph ph-files"></i> Modelos Propostas <i class="ph ph-caret-down" style="font-size:0.8rem; opacity:0.7;"></i>
@@ -21929,12 +21929,12 @@ window.filtrarListaModelosProposta = function() {
                  style="padding:0.6rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; flex-direction:column; gap:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
                     <span style="font-size:0.82rem; font-weight:700; color:${isAtivo ? '#5b21b6' : '#1e293b'};">${_escHtmlProp(m.nome)}</span>
-                    ${m.arquivo_origem ? `<span style="font-size:0.66rem; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; font-weight:600;">${_escHtmlProp(m.arquivo_origem)}</span>` : ''}
+                    ${false && m.arquivo_origem ? `<span style="font-size:0.66rem; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; font-weight:600;">${_escHtmlProp(m.arquivo_origem)}</span>` : ''}
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
                     <span style="font-size:0.7rem; color:#64748b; font-weight:600;">${_escHtmlProp(m.codigo_tipo)}</span>
                     <button type="button" onclick="event.stopPropagation(); window.selecionarModeloProposta(${m.id}); if(typeof window.abrirGerenciadorBoxes === 'function') window.abrirGerenciadorBoxes('${codModelo}');"
-                        style="background:${isAtivo ? '#7048e8' : '#ede9fe'}; color:${isAtivo ? '#fff' : '#5b21b6'}; border:1px solid ${isAtivo ? '#7048e8' : '#ddd6fe'}; padding:2px 8px; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        style="display:none; background:${isAtivo ? '#7048e8' : '#ede9fe'}; color:${isAtivo ? '#fff' : '#5b21b6'}; border:1px solid ${isAtivo ? '#7048e8' : '#ddd6fe'}; padding:2px 8px; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer; align-items:center; gap:4px;">
                         <i class="ph ph-image-square"></i> Boxes (Banners)
                     </button>
                 </div>
