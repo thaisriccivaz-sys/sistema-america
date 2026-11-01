@@ -1016,7 +1016,7 @@
                         </div>
                         `}
                     </div>
-                    ${mostrarFaixaValores ? `<img src="/assets/faixa-valores-contemplados-evento.png" alt="Valores contemplados na proposta" style="width:100%; height:auto; display:block; pointer-events:none;">` : ''}
+                    ${mostrarFaixaValores ? `<img src="/assets/faixa-valores-contemplados-evento.png?v=20261101v7" alt="Valores contemplados na proposta" style="width:100%; height:auto; display:block; pointer-events:none;">` : ''}
                 </div>
 
                 <div class="bq-body-wrap">
