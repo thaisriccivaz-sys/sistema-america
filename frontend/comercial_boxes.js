@@ -415,12 +415,9 @@
         return c;
     };
 
-    /* Busca a "Descrição para Proposta" no cadastro do equipamento pelo código ou nome */
+    /* Busca a "Especificação Técnica" no cadastro do equipamento pelo código ou nome para exibir abaixo do produto na proposta */
     window.obterDescricaoPropostaEquipamento = function (itemOuProd) {
         if (!itemOuProd) return '';
-        if (itemOuProd.descricao_proposta && String(itemOuProd.descricao_proposta).trim()) {
-            return String(itemOuProd.descricao_proposta).trim();
-        }
         const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
@@ -430,8 +427,16 @@
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
         );
-        if (!achado) return '';
-        return String(achado.descricao_proposta || achado.especificacao_tecnica || '').trim();
+        if (achado && String(achado.especificacao_tecnica || achado.descricao_proposta || '').trim()) {
+            return String(achado.especificacao_tecnica || achado.descricao_proposta || '').trim();
+        }
+        if (itemOuProd.especificacao_tecnica && String(itemOuProd.especificacao_tecnica).trim()) {
+            return String(itemOuProd.especificacao_tecnica).trim();
+        }
+        if (itemOuProd.descricao_proposta && String(itemOuProd.descricao_proposta).trim()) {
+            return String(itemOuProd.descricao_proposta).trim();
+        }
+        return '';
     };
 
     window.obterFonteFornecimentoEquipamento = function (itemOuProd) {

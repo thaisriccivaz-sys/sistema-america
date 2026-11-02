@@ -577,9 +577,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             return equip.find(eq => (cod && cod !== '—' && norm(eq.codigo) === cod) || (nm && norm(eq.nome) === nm)) || null;
         };
         const descricaoDe = (it, nomeProd) => {
-            if (it.descricao_proposta && String(it.descricao_proposta).trim()) return String(it.descricao_proposta).trim();
             const a = acharEquip(it, nomeProd);
-            return a ? String(a.descricao_proposta || a.especificacao_tecnica || '').trim() : '';
+            if (a && String(a.especificacao_tecnica || a.descricao_proposta || '').trim()) {
+                return String(a.especificacao_tecnica || a.descricao_proposta || '').trim();
+            }
+            if (it.especificacao_tecnica && String(it.especificacao_tecnica).trim()) return String(it.especificacao_tecnica).trim();
+            if (it.descricao_proposta && String(it.descricao_proposta).trim()) return String(it.descricao_proposta).trim();
+            return '';
         };
         const fotoDe = (it, nomeProd) => {
             if (it.foto_url && String(it.foto_url).trim()) return String(it.foto_url).trim();

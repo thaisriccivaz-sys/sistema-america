@@ -2830,7 +2830,7 @@ window.salvarEquipamentoEstoque = async function(event) {
     const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'PACOTE OBRA').trim().toUpperCase();
     const grupo_produto = String(document.getElementById('equipamento-est-grupo')?.value || 'ACESSÓRIO').trim().toUpperCase();
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
-    const descricao_proposta = (document.getElementById('equipamento-est-descricao-proposta')?.value || '').trim();
+    const descricao_proposta = especificacao_tecnica;
     const link_url = (document.getElementById('equipamento-est-link-url')?.value || '').trim();
     const foto_base64 = (document.getElementById('equipamento-est-foto-base64')?.value || '').trim();
     const remover_foto = document.getElementById('equipamento-est-remover-foto')?.value === '1';

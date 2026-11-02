@@ -112,6 +112,66 @@ const PROP_STATUS_CORES = {
     'Sem Resposta':         { bg: '#f1f5f9', text: '#475569', icon: 'ph-clock-countdown' },
 };
 
+const CONTRATO_SITUACOES_CONFIG = [
+    { nome: 'AGUARDANDO ASSINATURA',                  cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-clock' },
+    { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
+    { nome: 'CONTRATO DIGITAL ASSINADO',              cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-signature' },
+    { nome: 'INFORMAÇÕES ADICIONAIS',                 cor: 'YELLOW',  bg: '#fef9c3', text: '#a16207', border: '#fde047', status: 'Ativo',   icon: 'ph-info' },
+    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-check-circle' },
+    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
+    { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado', icon: 'ph-x-circle' },
+    { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-archive' },
+    { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',   icon: 'ph-seal-check' },
+    { nome: 'ADIANTAMENTO DE OS',                     cor: 'BROWN',   bg: '#f5ebe0', text: '#78350f', border: '#d6ccc2', status: 'Aberto',  icon: 'ph-wrench' }
+];
+window.CONTRATO_SITUACOES_CONFIG = CONTRATO_SITUACOES_CONFIG;
+
+window.obterConfigSituacaoContrato = function(sitRaw) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const s = normStr(sitRaw);
+    if (!s || s === 'EM ELABORACAO' || s === 'APROVADA' || s === 'APROVADO' || s === 'ESTORNADO') {
+        return CONTRATO_SITUACOES_CONFIG[0];
+    }
+    const exact = CONTRATO_SITUACOES_CONFIG.find(c => normStr(c.nome) === s);
+    if (exact) return exact;
+    if (s === 'REPROVADA' || s === 'REPROVADO' || s === 'CANCELADA' || s === 'CANCELADO') {
+        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[6];
+    }
+    return { nome: String(sitRaw || 'AGUARDANDO ASSINATURA').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Aberto', icon: 'ph-circle' };
+};
+
+window.situacaoContratoEhAtiva = function(sitRaw) {
+    const cfg = window.obterConfigSituacaoContrato(sitRaw);
+    return Boolean(cfg && String(cfg.status || '').toUpperCase() === 'ATIVO');
+};
+
+window.renderBadgeSituacaoContratoHtml = function(sitRaw, mostrarStatusTipo = true) {
+    const cfg = window.obterConfigSituacaoContrato(sitRaw);
+    const stUpper = String(cfg.status || 'Aberto').toUpperCase();
+    const stPillStyle = stUpper === 'ATIVO'
+        ? 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;'
+        : (stUpper === 'FECHADO'
+            ? 'background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;'
+            : 'background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;');
+    return `<span style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:center;">
+        <span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
+            <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${cfg.nome}
+        </span>
+        ${mostrarStatusTipo ? `<span style="${stPillStyle} padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap;">${cfg.status}</span>` : ''}
+    </span>`;
+};
+
+window.atualizarBadgeSituacaoContratoForm = function(val) {
+    const el = document.getElementById('prop-situacao-contrato-badge');
+    if (!el) return;
+    if (window._modoTelaComercial !== 'contrato') {
+        el.innerHTML = '';
+        return;
+    }
+    const v = val !== undefined ? val : (document.getElementById('prop-fase')?.value || '');
+    el.innerHTML = window.renderBadgeSituacaoContratoHtml(v, true);
+};
+
 let _propostasData = [];
 let _dashboardStatsData = [];
 let _manutencoesData = [];
@@ -1369,10 +1429,13 @@ function _renderLinhasPropostas(lista) {
 
     return lista.map(p => {
         const isModoContrato = window._modoTelaComercial === 'contrato';
+        const cfgSitCont = isModoContrato ? window.obterConfigSituacaoContrato(p.situacao_contrato) : null;
         const fase = isModoContrato
-            ? ((p.situacao_contrato && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(String(p.situacao_contrato).trim().toUpperCase())) ? p.situacao_contrato : 'Em Elaboração')
+            ? cfgSitCont.nome
             : (p.fase_negociacao || 'Em Elaboração');
-        const faseStyle = PROP_STATUS_CORES[fase] || { bg: '#f1f5f9', text: '#64748b', icon: 'ph-circle' };
+        const faseStyle = isModoContrato
+            ? { bg: cfgSitCont.bg, text: cfgSitCont.text, icon: cfgSitCont.icon }
+            : (PROP_STATUS_CORES[fase] || { bg: '#f1f5f9', text: '#64748b', icon: 'ph-circle' });
         const codigoExib = isModoContrato ? (p.contrato || '01') : (p.codigo || '—');
         
         // Format Total Value to Currency BRL
@@ -2207,22 +2270,28 @@ function _renderFormPropostaInt() {
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label class="prop-lbl">Fase de Negociação *</label>
-                            <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value)" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
-                                ${PROP_FASES.map(f => {
-                                    const sitContRaw = String(v('situacao_contrato') || '').trim();
-                                    const faseAtiva = window._modoTelaComercial === 'contrato'
-                                        ? ((sitContRaw && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(sitContRaw.toUpperCase())) ? sitContRaw : 'Em Elaboração')
-                                        : String(v('fase_negociacao') || '');
-                                    const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
-                                    const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
-                                    const isApBloq = window._modoTelaComercial !== 'contrato' && f.toUpperCase() === 'APROVADA';
-                                    const isDisabled = isPreAp || isApBloq;
-                                    const disabledTitle = isPreAp
-                                        ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                        : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
-                                    return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
-                                }).join('')}
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+                                <label class="prop-lbl" style="margin-bottom:0;">${window._modoTelaComercial === 'contrato' ? 'Situação do Contrato *' : 'Fase de Negociação *'}</label>
+                                <span id="prop-situacao-contrato-badge">${window._modoTelaComercial === 'contrato' ? window.renderBadgeSituacaoContratoHtml(v('situacao_contrato'), true) : ''}</span>
+                            </div>
+                            <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value); if(window.atualizarBadgeSituacaoContratoForm) window.atualizarBadgeSituacaoContratoForm(this.value);" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                                ${window._modoTelaComercial === 'contrato'
+                                    ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
+                                        const sitSel = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
+                                        const isSel = sitSel.toUpperCase() === cfg.nome.toUpperCase();
+                                        return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
+                                    }).join('')
+                                    : PROP_FASES.map(f => {
+                                        const faseAtiva = String(v('fase_negociacao') || '');
+                                        const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
+                                        const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
+                                        const isApBloq = f.toUpperCase() === 'APROVADA';
+                                        const isDisabled = isPreAp || isApBloq;
+                                        const disabledTitle = isPreAp
+                                            ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                            : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
+                                        return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
+                                    }).join('')}
                             </select>
                         </div>
                         <div style="display:none;">
@@ -6535,12 +6604,23 @@ window.estornarPropostaEdicao = async function() {
     const sitContratoRaw = String(
         (window._modoTelaComercial === 'contrato' ? document.getElementById('prop-fase')?.value : '') ||
         propAtual.situacao_contrato ||
-        'Em Elaboração'
+        'AGUARDANDO ASSINATURA'
     ).trim();
     const sitContrato = sitContratoRaw.toUpperCase();
-    const sitPermitida = ['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'].includes(sitContrato);
+    const sitPermitida = [
+        '',
+        'AGUARDANDO ASSINATURA',
+        'ADIANTAMENTO DE OS',
+        'REPROVADO | CANCELADO',
+        'EM ELABORAÇÃO',
+        'EM ELABORACAO',
+        'REPROVADA',
+        'REPROVADO',
+        'CANCELADA',
+        'CANCELADO'
+    ].includes(sitContrato);
     if (!sitPermitida) {
-        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver na situação de EM ELABORAÇÃO, REPROVADO ou CANCELADO na tela de Contratos.', 'warning');
+        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver em situação Aberta (AGUARDANDO ASSINATURA / ADIANTAMENTO DE OS) ou REPROVADO | CANCELADO.', 'warning');
         return;
     }
 
@@ -6805,7 +6885,7 @@ window.aprovarPropostaEdicao = async function() {
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
         fase_negociacao: 'Aprovada',
-        situacao_contrato: 'Em Elaboração',
+        situacao_contrato: 'AGUARDANDO ASSINATURA',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -17659,7 +17739,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const codExib = isModoContratoModal ? (p.contrato || '01') : (p.codigo || '—');
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
-                    ? ((p.situacao_contrato && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(String(p.situacao_contrato).trim().toUpperCase())) ? p.situacao_contrato : 'Em Elaboração')
+                    ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true)
                     : (p.fase_negociacao || '—');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
@@ -17720,7 +17800,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:130px; white-space:nowrap;">Tipo</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">Data</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center !important; width:125px; white-space:nowrap;"><div style="text-align:center !important; display:block !important; width:100% !important; margin:0 auto !important; padding:0 !important;">Valor</div></th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:165px; white-space:nowrap;">Fase</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:165px; white-space:nowrap;">${isModoContratoModal ? 'Situação' : 'Fase'}</th>
                                         ${exibirColExcluirModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Excluir</th>' : ''}
                                     </tr>
                                 </thead>
@@ -18789,8 +18869,12 @@ window._listarContratosAtivosParaAditivo = async function() {
         const res = await apiGet('/contratos/ativos');
         const lista = Array.isArray(res) ? res : [];
         return lista.filter(c => {
-            const sit = String(c.situacao || c.status || '').trim().toUpperCase();
-            return sit === 'ATIVO' || sit === 'ATIVA';
+            const sitEspecifica = String(c.situacao_contrato || c.situacao || '').trim();
+            if (typeof window.situacaoContratoEhAtiva === 'function') {
+                return window.situacaoContratoEhAtiva(sitEspecifica);
+            }
+            const st = String(c.status || '').trim().toUpperCase();
+            return st === 'ATIVO' || st === 'ATIVA';
         });
     } catch (e) {
         return [];
@@ -18869,12 +18953,15 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const cli = String(c.cliente_nome || c.razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const per = (c.periodo_inicio || c.periodo_fim) ? `${fmtData(c.periodo_inicio)} a ${fmtData(c.periodo_fim)}` : '—';
+            const badgeSit = typeof window.renderBadgeSituacaoContratoHtml === 'function'
+                ? window.renderBadgeSituacaoContratoHtml(c.situacao_contrato || c.situacao, true)
+                : '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">ATIVO</span>';
             return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
                 <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(c.cliente_nome || c.razao_social || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center;">${esc(c.tipo || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(per)}</td>
-                <td style="padding:10px 12px; text-align:center;"><span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">ATIVO</span></td>
+                <td style="padding:10px 12px; text-align:center;">${badgeSit}</td>
             </tr>`;
         }).join('');
     };
