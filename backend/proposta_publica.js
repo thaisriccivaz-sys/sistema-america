@@ -113,17 +113,29 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (!p) return res.status(404).json({ error: 'Proposta não encontrada. Salve a proposta antes de copiar o link.' });
             if (!p.codigo || !CODIGO_RE.test(p.codigo)) return res.status(400).json({ error: 'Proposta sem código válido.' });
             let token = p.token_publico;
+            const tokenAntigo = p.token_publico || '';
+            const estavaRevogado = Boolean(tokenAntigo && Number(p.token_publico_revogado) === 1);
             const renovar = !!(req.body && req.body.renovar);
+            let gerouNovoLink = false;
             const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
             if (!token || Number(p.token_publico_revogado) === 1 || renovar) {
                 token = novoToken();
+                gerouNovoLink = true;
                 await dbRun('UPDATE propostas SET token_publico = ?, token_publico_criado_em = ?, token_publico_revogado = 0 WHERE id = ?', [token, agora, p.id]);
                 p.token_publico = token;
                 p.token_publico_revogado = 0;
             }
             const urlLink = `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${token}`;
+            const nomeColab = await resolverNomeColabAudit(req);
+            if (gerouNovoLink && estavaRevogado) {
+                const urlAntiga = `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${tokenAntigo}`;
+                await dbRun(
+                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                     VALUES (?, 'Proposta', 'Novo Link da Proposta', ?, ?, ?, ?)`,
+                    [nomeColab, `Link anterior desativado (${urlAntiga})`, `Novo link público gerado (${urlLink})`, agora, p.id]
+                ).catch(() => {});
+            }
             if (!req.body || req.body.registrar_historico !== false) {
-                const nomeColab = await resolverNomeColabAudit(req);
                 const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
                 if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA') {
                     await dbRun("UPDATE propostas SET fase_negociacao = 'Proposta Enviada', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [p.id]).catch(() => {});
@@ -591,9 +603,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const dias = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = (ehEventoCalcPub && diasContratoPubNum > 0)
-                ? diasContratoPubNum
-                : (dias.length > 0 ? dias.length : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1));
+            const nDiarias = dias.length > 0
+                ? dias.length
+                : ((ehEventoCalcPub && diasContratoPubNum > 0)
+                    ? diasContratoPubNum
+                    : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1));
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;

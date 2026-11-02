@@ -40507,6 +40507,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         { field: 'valor_distancia_calculado', label: 'Valor Distância' }
       ];
 
+      let houveAlteracaoNaProposta = false;
+
       fieldsToCompare.forEach(item => {
         let oldVal = oldRow[item.field] !== null && oldRow[item.field] !== undefined ? String(oldRow[item.field]) : '';
         let newVal = d[item.field] !== null && d[item.field] !== undefined ? String(d[item.field]) : '';
@@ -40522,17 +40524,30 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         }
 
         if (oldVal !== newVal) {
+          houveAlteracaoNaProposta = true;
           db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
             [usuarioLog, item.label, oldVal, newVal, proposalId]);
         }
       });
+
+      if (Number(oldRow.proposta_comparativa || 0) !== Number(propComparativaFinal || 0)) {
+        houveAlteracaoNaProposta = true;
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Proposta Comparativa', ?, ?, ?)`,
+          [usuarioLog, Number(oldRow.proposta_comparativa) === 1 ? 'Sim' : 'Não', propComparativaFinal === 1 ? 'Sim' : 'Não', proposalId]);
+      }
 
       // Comparar alterações nos produtos da proposta (itens)
       const fmtItensLog = (raw) => {
         try {
           const arr = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
           if (!Array.isArray(arr) || arr.length === 0) return 'Nenhum produto';
-          return arr.map(it => `${it.codigo || ''} ${it.descricao || it.nome || ''} (Qtd: ${it.quantidade || 1})`.trim()).join('; ');
+          return arr.map(it => {
+            const diasTxt = Array.isArray(it.dias_evento) && it.dias_evento.length > 0 ? `, Diárias (${it.dias_evento.length}): ${it.dias_evento.join(', ')}` : '';
+            const vUnit = Number(it.valor ?? it.valor_unitario ?? 0).toFixed(2);
+            const descTxt = Number(it.desconto_rs || 0) > 0 ? `, Desc R$ ${Number(it.desconto_rs).toFixed(2)}` : (Number(it.desconto_pct || 0) > 0 ? `, Desc ${Number(it.desconto_pct)}%` : '');
+            const obsTxt = it.observacao ? `, Obs: ${String(it.observacao).trim()}` : '';
+            return `${it.codigo || ''} ${it.produto || it.descricao || it.nome || ''} (Qtd: ${it.quantidade || 1}, Unit: R$ ${vUnit}${descTxt}${diasTxt}${obsTxt})`.trim();
+          }).join('; ');
         } catch (e) {
           return String(raw || '');
         }
@@ -40540,6 +40555,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const oldItensFmt = fmtItensLog(oldRow.itens);
       const newItensFmt = fmtItensLog(d.itens);
       if (oldItensFmt !== newItensFmt) {
+        houveAlteracaoNaProposta = true;
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
           [usuarioLog, 'Produtos da Proposta', oldItensFmt, newItensFmt, proposalId]);
       }
@@ -40557,9 +40573,37 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const oldServFmt = fmtServLog(oldRow.itens_servicos);
       const newServFmt = fmtServLog(d.itens_servicos);
       if (oldServFmt !== newServFmt) {
+        houveAlteracaoNaProposta = true;
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
           [usuarioLog, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId]);
       }
+
+      // Se a proposta estava em Proposta Enviada (ou já possuía link gerado) e sofreu qualquer alteração,
+      // desativa o link anterior, gera um novo link público e registra ambos no Histórico
+      const eraOuEstaEnviada = oldFaseUpper === 'PROPOSTA ENVIADA' || reqFaseUpper === 'PROPOSTA ENVIADA' || Boolean(oldRow.token_publico);
+      if (houveAlteracaoNaProposta && eraOuEstaEnviada && !d.acao_estornar) {
+        const baseLink = String(process.env.PUBLIC_LINK_BASE || 'https://fluxoar.com.br').replace(/\/+$/, '');
+        const codRef = encodeURIComponent(oldRow.codigo || proposalId);
+        const oldUrl = oldRow.token_publico ? `${baseLink}/proposta/${codRef}/${oldRow.token_publico}` : 'Sem link anterior';
+        const novoTokenPublico = require('crypto').randomBytes(24).toString('base64url');
+        const newUrl = `${baseLink}/proposta/${codRef}/${novoTokenPublico}`;
+        const agoraTok = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+        db.run(
+          `UPDATE propostas SET token_publico = ?, token_publico_criado_em = ?, token_publico_revogado = 0 WHERE id = ?`,
+          [novoTokenPublico, agoraTok, proposalId]
+        );
+        if (oldRow.token_publico) {
+          db.run(
+            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Link da Proposta (Desativado)', ?, ?, ?)`,
+            [nomeAutorAcao || usuarioLog, oldUrl, 'Link anterior desativado automaticamente por alteração na proposta', proposalId]
+          );
+        }
+        db.run(
+          `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Novo Link da Proposta', ?, ?, ?)`,
+          [nomeAutorAcao || usuarioLog, oldRow.token_publico ? `Link anterior desativado (${oldUrl})` : 'Proposta alterada', `Novo link gerado após salvar alteração (${newUrl})`, proposalId]
+        );
+      }
+
       sincronizarContratoDaProposta(proposalId);
       res.json({ success: true, contrato: contratoFinal, situacao_contrato: sitContratoFinal });
     });

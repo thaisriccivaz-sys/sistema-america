@@ -827,9 +827,11 @@
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = (ehModeloEventoCalc && diasContratoPropNum > 0)
-                ? diasContratoPropNum
-                : (diasArr.length > 0 ? diasArr.length : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1));
+            const nDiarias = diasArr.length > 0
+                ? diasArr.length
+                : ((ehModeloEventoCalc && diasContratoPropNum > 0)
+                    ? diasContratoPropNum
+                    : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1));
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;

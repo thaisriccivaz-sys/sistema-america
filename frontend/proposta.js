@@ -17734,10 +17734,10 @@ window.tipoPropostaEhEvento = function(tipo) {
 };
 
 window.obterQtdDiariasProdutoEvento = function(p) {
-    const diasContrato = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
-    if (diasContrato > 0) return diasContrato;
     const diasArr = Array.isArray(p && p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
     if (diasArr.length > 0) return diasArr.length;
+    const diasContrato = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
+    if (diasContrato > 0) return diasContrato;
     return Math.max(1, Number(p && p.diarias ? p.diarias : 1) || 1);
 };
 
