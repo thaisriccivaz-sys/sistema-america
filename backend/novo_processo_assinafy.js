@@ -117,11 +117,14 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
         return porEmail.id;
     }
 
-    // 2. Tentar encontrar pelo CPF (primeira página — API também ignora filtro mas tenta)
-    console.log(`[SIGNER] Não encontrado por e-mail. Buscando por CPF: ${cpfClean}`);
-    const searchByCpf = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${cpfClean}`, null);
-    const listaCpf = Array.isArray(searchByCpf.json?.data) ? searchByCpf.json.data : [];
-    const exactCpfMatch = listaCpf.find(s => s.tax_id && s.tax_id.replace(/\D/g, '') === cpfClean);
+    // 2. Tentar encontrar pelo CPF se tiver 11 dígitos válidos
+    let exactCpfMatch = null;
+    if (cpfClean.length === 11) {
+        console.log(`[SIGNER] Não encontrado por e-mail. Buscando por CPF: ${cpfClean}`);
+        const searchByCpf = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?tax_id=${cpfClean}`, null);
+        const listaCpf = Array.isArray(searchByCpf.json?.data) ? searchByCpf.json.data : [];
+        exactCpfMatch = listaCpf.find(s => s.tax_id && s.tax_id.replace(/\D/g, '') === cpfClean) || null;
+    }
     if (exactCpfMatch) {
         const id = exactCpfMatch.id;
         if (exactCpfMatch.email?.toLowerCase() === emailLower) {
@@ -144,7 +147,9 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
     // 3. Criar novo signatário
     console.log(`[SIGNER] Criando: ${full_name} (${email})...`);
     const r = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
-        full_name, email, tax_id,
+        full_name,
+        email,
+        ...(cpfClean.length === 11 ? { tax_id: cpfClean } : {}),
         ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
     });
 
@@ -351,36 +356,75 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
     }
 
     const fileNameSafe = String(nomeArquivoPdf || 'Proposta_Aditivo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const upRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, fileNameSafe, pdfBuffer);
-    if (upRes.status >= 400 || !upRes.json?.data?.id) {
+    const form = new FormData();
+    form.append('file', pdfBuffer, {
+        filename: fileNameSafe,
+        contentType: 'application/pdf'
+    });
+
+    console.log(`[ASSINAFY ADITIVO] Upload: "${fileNameSafe}" (${pdfBuffer.length} bytes)`);
+    const upRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, form);
+    const assinafyDocId = (upRes.json?.data || upRes.json)?.id;
+    if (upRes.status < 200 || upRes.status >= 300 || !assinafyDocId) {
         throw new Error(`Falha no upload do PDF para o Assinafy (HTTP ${upRes.status}): ${upRes.json?.message || upRes.raw.substring(0, 150)}`);
     }
-    const assinafyDocId = upRes.json.data.id;
     console.log(`[ASSINAFY ADITIVO] Upload OK! DocID: ${assinafyDocId}`);
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 2000));
-        const st = await req('GET', `/v1/documents/${assinafyDocId}`);
-        const s = st.json?.data?.status || '';
-        console.log(`   [Polling ${i + 1}/15] status="${s}"`);
-        if (s && !['uploading', 'uploaded', 'processing', 'pending_processing'].includes(s)) break;
+        const st = await req('GET', `/v1/documents/${assinafyDocId}`, null);
+        const s = String(st.json?.data?.status || st.json?.status || '').toLowerCase();
+        console.log(`   [Polling ${i + 1}/60] status="${s}"`);
         if (s === 'failed') throw new Error('Assinafy falhou ao processar o PDF do aditivo.');
+        if (s && !['uploading', 'uploaded', 'processing', 'pending_processing'].includes(s) && !s.includes('processing')) break;
     }
 
-    const signerId = await resolverSignatario(nome, email, cpfSignatario || '', whatsappSignatario || '');
+    const cpfDigits = String(cpfSignatario || '').replace(/\D/g, '');
+    const cpfValido = cpfDigits.length === 11 ? cpfDigits : '';
+    const foneRaw = String(whatsappSignatario || '').replace(/\D/g, '');
+    let fone = '';
+    if (foneRaw.length >= 10) {
+        const semPais = foneRaw.startsWith('55') && foneRaw.length > 11 ? foneRaw.slice(2) : foneRaw;
+        const ddd = semPais.slice(0, 2);
+        const numero = semPais.slice(2);
+        if (numero.length === 9) {
+            fone = `+55${ddd}${numero}`;
+        }
+    }
+
+    const signerId = await resolverSignatario({
+        full_name: nome,
+        email,
+        tax_id: cpfValido,
+        whatsapp_phone_number: fone || undefined
+    });
+    if (!signerId) throw new Error('ID do signatário não obtido no Assinafy.');
     console.log(`[ASSINAFY ADITIVO] SignerID=${signerId}`);
 
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
+        signers: [
+            {
+                id: signerId,
+                role: 'signer',
+                notification_methods: ['Email'],
+                require_initials: false
+            }
+        ],
         method: 'virtual',
-        signers: [{ id: signerId }]
+        copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
 
-    if (assignRes.status >= 400) {
+    if (assignRes.status < 200 || assignRes.status >= 300) {
         throw new Error(`Falha ao criar solicitação de assinatura no Assinafy (HTTP ${assignRes.status}): ${assignRes.json?.message || assignRes.raw.substring(0, 200)}`);
     }
 
-    const assignList = assignRes.json?.data?.assignments || [];
+    const assignList = Array.isArray(assignRes.json?.data)
+        ? assignRes.json.data
+        : (Array.isArray(assignRes.json?.data?.assignments)
+            ? assignRes.json.data.assignments
+            : [assignRes.json?.data].filter(Boolean));
     const urlAssinatura = (
+        assignList[0]?.url ||
         assignList[0]?.signature_url ||
         assignList[0]?.signing_url   ||
         assignRes.json?.data?.signing_urls?.[0]?.url ||

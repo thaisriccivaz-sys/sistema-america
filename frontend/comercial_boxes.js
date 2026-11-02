@@ -180,10 +180,15 @@
         'VENDA': {
             nome_quadro: 'Quadro de Valores — Proposta Venda (Fixo)',
             tipo_titulo: 'VENDA',
-            info_rotulo: 'EVENTO:',
-            cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
-            mostrar_dias_evento_item: true,
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
+            ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-obra.png?v=20261101v8',
+            mostrar_dias_evento_item: false,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
         },
@@ -357,6 +362,21 @@
             extra.mostrar_condicoes_topo = true;
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
+        } else if (modEfetivo === 'VENDA') {
+            const rotUp = String(extra.info_rotulo || '').trim().toUpperCase();
+            if (!rotUp || rotUp === 'EVENTO:' || rotUp === 'OBRA:') {
+                extra.info_rotulo = 'DA OBRA:';
+            }
+            if (!extra.cor_primaria || String(extra.cor_primaria).toLowerCase() === '#7b4195') {
+                delete extra.cor_primaria;
+            }
+            extra.tipo_titulo = 'VENDA';
+            extra.ocultar_nome_evento = true;
+            extra.ocultar_data_fim = true;
+            extra.mostrar_condicoes_topo = true;
+            extra.mostrar_faixa_valores_contemplados = true;
+            extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
+            extra.mostrar_dias_evento_item = false;
         } else if (modEfetivo === 'LIMPA FOSSA' || modEfetivo === 'LIMPA FOSSA MENSAL') {
             extra.info_rotulo = 'DA FOSSA:';
             extra.rotulo_instalacao = 'ENDEREÇO:';
@@ -836,7 +856,7 @@
         if (!prop) {
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
             const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
-            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA');
+            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA') || String(modeloEfetivo || '').trim().toUpperCase() === 'VENDA';
             const ehDemoLimpaFossa = String(modeloEfetivo || '').trim().toUpperCase().startsWith('LIMPA FOSSA');
             const ehDemoSemDiarias = ehDemoObra || ehDemoLimpaFossa;
             return {
@@ -1074,12 +1094,12 @@
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
         const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (['EVENTO', 'EQUIPAMENTOS'].includes(String(d.modelo_tipo || '').toUpperCase()));
-        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'VENDA', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const modTipoQuadroUpper = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehModeloEventoPuro = modTipoQuadroUpper === 'EVENTO';
-        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
+        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA';
         const ehQuadroLimpaFossa = modTipoQuadroUpper === 'LIMPA FOSSA' || modTipoQuadroUpper.startsWith('LIMPA FOSSA');
         const rotuloDiasItemQuadro = ehModeloEventoPuro ? 'Dia de Evento ou Sucção:' : 'Dia de Evento / Sucção:';
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';

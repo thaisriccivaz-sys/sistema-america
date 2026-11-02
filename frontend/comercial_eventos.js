@@ -177,7 +177,7 @@
             html: `
             <div style="text-align:left; font-family:'Inter',sans-serif;">
                 <div style="font-size:1.05rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc;">
-                    <i class="ph ph-calendar-star" style="color:#7048e8;"></i> Eventos de ${esc(nomeCli)}
+                    <i class="ph ph-calendar-star" style="color:#7048e8;"></i> Eventos de ${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(nomeCli) : nomeCli)}
                 </div>
                 <div style="padding:14px 16px; background:#f1f5f9;">
                     <input id="modal-ev-busca" type="search" name="modal_ev_busca_nofill" autocomplete="new-password" data-lpignore="true" data-form-type="other" readonly onmousedown="this.removeAttribute('readonly')" onfocus="this.removeAttribute('readonly')" onclick="this.removeAttribute('readonly')" placeholder="Digite para filtrar o nome do evento..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:36px; outline:none; background:#fff; margin-bottom:10px;">
@@ -236,7 +236,7 @@
             html: `
                 <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.84rem; display:flex; flex-direction:column; gap:10px;">
                     <div style="font-size:0.8rem; color:#475569; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
-                        Cliente: <b style="color:#1e293b;">${esc(nomeCli)}</b>
+                        Cliente: <b style="color:#1e293b;">${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(nomeCli) : nomeCli)}</b>
                     </div>
                     <div>
                         <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome do Evento *</label>
@@ -303,7 +303,6 @@
                 ${it('lista', 'ph-list-bullets', 'Lista de Propostas')}
                 <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();"><i class="ph ph-pencil-simple"></i> Nova Proposta</div>
                 ${it('cadastro-cliente', 'ph-user-plus', 'Clientes')}
-                ${it('cadastro-contatos', 'ph-identification-card', 'Contatos')}
                 ${it('enderecos', 'ph-map-pin', 'Endereços')}
                 ${it('cadastro-eventos', 'ph-calendar-star', 'Eventos', true)}
                 ${it('servicos-precificacao', 'ph-calculator', 'Precificação de Serviços')}
@@ -440,7 +439,7 @@
         }).slice(0, 60);
         dd.innerHTML = lista.length
             ? lista.map(c => `<div data-id="${esc(c.id)}" class="ev-cli-item" style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; font-size:0.84rem;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background=''">
-                    <b style="color:#7048e8;">${esc(c.codigo || '')}</b> ${esc(c.nome_razao_social || c.nome_fantasia || '')}
+                    <b style="color:#7048e8;">${esc(c.codigo || '')}</b> ${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, est.clientes) : (c.nome_razao_social || c.nome_fantasia || ''))}
                     <span style="color:#94a3b8; font-size:0.74rem; margin-left:6px;">${esc(c.cpf_cnpj || '')}</span></div>`).join('')
             : '<div style="padding:10px 12px; font-size:0.8rem; color:#94a3b8;">Nenhum cliente encontrado.</div>';
         dd.style.display = 'block';
@@ -454,7 +453,7 @@
     function selecionarClienteCad(c) {
         est.cliSel = { id: c.id, nome: c.nome_razao_social || c.nome_fantasia || '' };
         const inp = document.getElementById('ev-cad-cliente');
-        if (inp) inp.value = est.cliSel.nome;
+        if (inp) inp.value = window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, est.clientes) : est.cliSel.nome;
         const dd = document.getElementById('ev-cad-cli-dd');
         if (dd) dd.style.display = 'none';
         document.getElementById('ev-cad-nome')?.focus();
@@ -633,7 +632,7 @@
                                 </button>
                             </div>
                         </td>
-                        <td style="padding:9px 12px; font-weight:600; color:#334155;">${esc(ev.cliente_nome)}</td>
+                        <td style="padding:9px 12px; font-weight:600; color:#334155;">${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(ev.cliente_nome, null, est.clientes) : ev.cliente_nome)}</td>
                         <td style="padding:9px 12px; font-weight:700; color:#5b21b6; white-space:nowrap;">
                             ${esc(fmtPeriodoContrato(it.periodo_inicio, it.periodo_fim))}
                             ${it.contrato ? `<span style="display:block; font-size:0.7rem; color:#64748b; font-weight:600;">Contrato: ${esc(it.contrato)}</span>` : ''}
@@ -697,7 +696,7 @@
                             ${semData.map(ev => `
                                 <tr style="border-bottom:1px solid #e2e8f0;">
                                     <td style="padding:9px 12px; font-weight:800; color:#1e293b; text-transform:uppercase;">${esc(ev.nome)}</td>
-                                    <td style="padding:9px 12px; font-weight:600; color:#334155;">${esc(ev.cliente_nome)}</td>
+                                    <td style="padding:9px 12px; font-weight:600; color:#334155;">${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(ev.cliente_nome, null, est.clientes) : ev.cliente_nome)}</td>
                                     <td style="padding:9px 12px; color:#94a3b8; font-style:italic;">Sem data registrada</td>
                                     <td style="padding:9px 12px; text-align:center; white-space:nowrap;">
                                         <button type="button" title="Adicionar Data ao Histórico" onclick="window.abrirHistoricoDatasEvento(${ev.id})" style="width:30px; height:30px; border:1px solid #bfdbfe; background:#eff6ff; color:#2563eb; border-radius:7px; cursor:pointer; margin-right:3px;"><i class="ph ph-calendar-plus"></i></button>
@@ -734,7 +733,7 @@
                 <div style="text-align:left; font-family:'Inter',sans-serif;">
                     <div style="font-size:1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc;">
                         <i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Datas — <span style="color:#7048e8; text-transform:uppercase;">${esc(ev.nome)}</span>
-                        <div style="font-size:0.76rem; font-weight:600; color:#64748b; margin-top:3px;">Cliente: <b style="color:#334155;">${esc(ev.cliente_nome)}</b> | Último Evento: <b style="color:#5b21b6;">${esc(ult.texto)}</b></div>
+                        <div style="font-size:0.76rem; font-weight:600; color:#64748b; margin-top:3px;">Cliente: <b style="color:#334155;">${esc(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(ev.cliente_nome, null, est.clientes) : ev.cliente_nome)}</b> | Último Evento: <b style="color:#5b21b6;">${esc(ult.texto)}</b></div>
                     </div>
                     <div style="padding:14px 16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
                         <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
@@ -834,7 +833,7 @@
         est.editId = id;
         est.cliSel = { id: e.cliente_id, nome: e.cliente_nome };
         const ult = obterUltimoPeriodoEvento(e);
-        const cEl = document.getElementById('ev-cad-cliente'); if (cEl) cEl.value = e.cliente_nome || '';
+        const cEl = document.getElementById('ev-cad-cliente'); if (cEl) cEl.value = window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(e.cliente_nome || '', null, est.clientes) : (e.cliente_nome || '');
         const nEl = document.getElementById('ev-cad-nome'); if (nEl) nEl.value = e.nome || '';
         const iEl = document.getElementById('ev-cad-ini'); if (iEl) iEl.value = ult.ini || '';
         const fEl = document.getElementById('ev-cad-fim'); if (fEl) fEl.value = ult.fim || '';

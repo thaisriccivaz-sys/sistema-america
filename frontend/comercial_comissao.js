@@ -435,7 +435,7 @@
             return '<tr style="border-bottom:1px solid #f1f5f9' + aprClass + '">' +
                 '<td style="padding:8px 10px;font-family:monospace;">' + (p.proposta_num || '') + '</td>' +
                 '<td style="padding:8px 8px;text-align:center;">' + _badgeFase(p.fase) + '</td>' +
-                '<td style="padding:8px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.cliente_nome||'') + '">' + (p.cliente_nome || '—') + '</td>' +
+                '<td style="padding:8px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (p.cliente_nome||'') + '">' + (window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(p.cliente_nome) : (p.cliente_nome || '—')) + '</td>' +
                 '<td style="padding:8px 8px;text-align:center;font-weight:600;">' + (p.representante || '—') + '</td>' +
                 '<td style="padding:8px 8px;text-align:center;">' + (p.data_cadastro || '—') + '</td>' +
                 '<td style="padding:8px 8px;text-align:center;font-family:monospace;">' + (p.contrato || '—') + '</td>' +

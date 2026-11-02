@@ -904,7 +904,13 @@ window.carregarPermissoesOnline = async function () {
         // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
         // Eles têm acesso automático e irrestrito a todas as telas visualmente.
         window.estoquePerms = { itens: true, equipamentos: true };
-        document.querySelectorAll('.nav-item').forEach(el => el.style.display = '');
+        document.querySelectorAll('.nav-item').forEach(el => {
+            if (el.getAttribute('data-target') === 'comercial-contatos') {
+                el.style.cssText = 'display: none !important;';
+            } else {
+                el.style.display = '';
+            }
+        });
         if (typeof window.aplicarPermissoesAbasEstoque === 'function') window.aplicarPermissoesAbasEstoque();
         return; // Retorna cedo ignorando qualquer grupo
     }
@@ -978,6 +984,11 @@ window.carregarPermissoesOnline = async function () {
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
+
+            if (pathId === 'comercial-contatos') {
+                link.style.cssText = 'display: none !important;';
+                return;
+            }
 
             // Hardcode: módulos "Em breve" nunca devem aparecer para usuários comuns, 
             // mesmo que marcados sem querer no banco.
@@ -18488,7 +18499,7 @@ function getNormalizedPageSearchData() {
     const EXCLUDED_SEARCH_KEYS = new Set([
         'form-colaborador', 'form-usuario', 'integracao', 'avaliacoes',
         'experiencia-rh', 'terapias-rh', 'palestras-rh', 'logistica-frota-resumo',
-        'gestao-departamentos'
+        'gestao-departamentos', 'comercial-contatos'
     ]);
     const pages = [];
     for (const [key, obj] of Object.entries(BREADCRUMB_MAP)) {

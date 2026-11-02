@@ -1511,6 +1511,7 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') window.atualizarVisibilidadeDiasEventoProposta(tipoLimpoRest);
     if (typeof window.atualizarVisibilidadeServicosProposta === 'function') window.atualizarVisibilidadeServicosProposta(tipoLimpoRest);
     if (typeof window.atualizarVisibilidadeContratoAditivo === 'function') window.atualizarVisibilidadeContratoAditivo(tipoLimpoRest);
+    if (typeof window.atualizarLayoutCamposVendaProposta === 'function') window.atualizarLayoutCamposVendaProposta(tipoLimpoRest, true);
     window._propProdutosAdicionados = produtosSnapBackup;
     window._propServicosAdicionados = servicosSnapBackup;
     if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
@@ -2457,7 +2458,7 @@ function _renderFormPropostaInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
@@ -2771,21 +2772,21 @@ function _renderFormPropostaInt() {
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div style="display:grid; grid-template-columns:1fr 1fr 0.7fr 1.5fr 1.4fr; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
-                            <div>
-                                <label class="prop-lbl">Período Início *</label>
+                        <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '1.1fr 0.85fr 1.5fr 1.6fr' : '1fr 1fr 0.7fr 1.5fr 1.4fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
+                            <div id="prop-wrapper-periodo-ini">
+                                <label class="prop-lbl" id="prop-lbl-periodo-ini">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Previsão de Entrega *' : 'Período Início *'}</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
                                     onchange="if(typeof window.onChangePeriodoInicioProposta === 'function'){ window.onChangePeriodoInicioProposta(); } else { calcularDiasContrato(); calcularFimContrato(); }"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
-                            <div>
+                            <div id="prop-wrapper-periodo-fim" style="display:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'none' : 'block'};">
                                 <label class="prop-lbl">Até *</label>
                                 <input type="date" id="prop-periodo-fim" value="${v('periodo_fim')}"
                                     onchange="calcularDiasContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Dias Contrato</label>
+                                <label class="prop-lbl" id="prop-lbl-dias-contrato">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Dias para Entrega' : 'Dias Contrato'}</label>
                                 <input type="number" id="prop-dias" value="${vn('dias_contrato','0')}" min="0"
                                     oninput="calcularFimContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
@@ -2805,9 +2806,15 @@ function _renderFormPropostaInt() {
                                 <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                                     <option value="">-- Selecione --</option>
                                     ${(() => {
-                                        const valAtual = String(v('condicao_pagamento') || '').trim();
+                                        const ehVendaAtual = Boolean(window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')));
+                                        const condVendaFixa = window.CONDICAO_PAGAMENTO_VENDA_FIXA || '50% na formalização do pedido / 50% na coleta do material';
+                                        const valAtual = ehVendaAtual ? condVendaFixa : String(v('condicao_pagamento') || '').trim();
                                         const lista = [...PROP_COND_PAG];
-                                        if (valAtual && !lista.includes(valAtual)) lista.unshift(valAtual);
+                                        if (ehVendaAtual && !lista.includes(condVendaFixa)) {
+                                            lista.unshift(condVendaFixa);
+                                        } else if (!ehVendaAtual && valAtual && valAtual !== condVendaFixa && !lista.includes(valAtual)) {
+                                            lista.unshift(valAtual);
+                                        }
                                         return lista.map(c => `<option value="${_escHtmlProp(c)}" ${valAtual===c?'selected':''}>${_escHtmlProp(c)}</option>`).join('');
                                     })()}
                                 </select>
@@ -2909,8 +2916,9 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
-                                <input type="number" id="prop-prod-quantidade" value="1" min="1"
+                                <input type="number" id="prop-prod-quantidade" value="${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '10' : '1'}" min="${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '10' : '1'}"
                                     oninput="window.recalcularPreviewProdutoProposta('qtd')"
+                                    onchange="if(typeof window.validarMinimoQuantidadeVendaInput === 'function') window.validarMinimoQuantidadeVendaInput(this);"
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                             </div>
                         </div>
@@ -3192,6 +3200,9 @@ function _renderFormPropostaInt() {
     }
     if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
         window.atualizarVisibilidadeServicosProposta(v('tipo'));
+    }
+    if (typeof window.atualizarLayoutCamposVendaProposta === 'function') {
+        window.atualizarLayoutCamposVendaProposta(v('tipo'), true);
     }
     if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
         window.atualizarBloqueioPorTipoProposta();
@@ -3520,6 +3531,18 @@ window.obterIconeGrupoPorNomeCliente = function(nomeOuObj, listaClientes) {
         }
     }
     return '';
+};
+
+window.formatarNomeClienteComIcone = function(nomeOuObj, grupoOpcional, listaOpcional) {
+    if (!nomeOuObj) return '';
+    const rawNome = typeof nomeOuObj === 'object'
+        ? (nomeOuObj.nome_razao_social || nomeOuObj.nome_fantasia || nomeOuObj.cliente_nome || '')
+        : String(nomeOuObj || '');
+    const nomeLimpo = String(rawNome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (!nomeLimpo) return '';
+    const ico = (grupoOpcional ? window.obterIconeApenasGrupoCliente(grupoOpcional) : '')
+        || window.obterIconeGrupoPorNomeCliente(nomeOuObj, listaOpcional);
+    return ico ? `${ico} ${nomeLimpo}` : nomeLimpo;
 };
 
 window._aplicarIconeGrupoClienteProposta = function(icone) {
@@ -4923,7 +4946,7 @@ window.modalAbrirPesquisaCliente = async function(initialQuery = '') {
             tbody.innerHTML = exibidos.map(c => `
                 <tr onclick="window.modalSelectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista))}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || ''}</td>
                 </tr>
             `).join('');
@@ -5533,6 +5556,9 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                 const ctInat = ct.inativo === 1 || ct.inativo === 'Sim' || String(ct.situacao || '').toLowerCase() === 'inativo' ? 1 : 0;
                 if (mapaUnificadoPorChave.has(key)) {
                     const ex = mapaUnificadoPorChave.get(key);
+                    if (!ex.email && ct.email) ex.email = ct.email;
+                    if (!ex.celular && (ct.celular || ct.telefone || ct.telefone_ramal)) ex.celular = ct.celular || ct.telefone || ct.telefone_ramal;
+                    if (!ex.cargo && (ct.cargo || ct.departamento)) ex.cargo = ct.cargo || ct.departamento;
                     if (!ex.email_nfe && ctNfe) ex.email_nfe = 1;
                     if (!ex.email_cobranca && ctCob) ex.email_cobranca = 1;
                     if (!ex.email_os && ctOs) ex.email_os = 1;
@@ -5671,7 +5697,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
             if (exibidos.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding:1.8rem; text-align:center; color:#64748b;">
+                        <td colspan="7" style="padding:1.8rem; text-align:center; color:#64748b;">
                             Nenhum contato encontrado para a busca informada.
                         </td>
                     </tr>
@@ -5688,8 +5714,9 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                         <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(c.nome)}</td>
                         <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cargo || '—')}</td>
                         <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.celular || '—')}</td>
+                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.email || '—')}</td>
                         <td style="padding:0.5rem; text-align:left;">${badgesHtml || '<span style="color:#94a3b8;">—</span>'}</td>
-                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cliente_nome || '—')}</td>
+                        <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(window.formatarNomeClienteComIcone ? window.formatarNomeClienteComIcone(c.cliente_nome) : (c.cliente_nome || '—'))}</td>
                     </tr>
                 `;
             }).join('');
@@ -5698,13 +5725,13 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
         const safeQuery = query.replace(/"/g, '&quot;');
         Swal.fire({
             title: 'Pesquisar Contato',
-            width: '920px',
+            width: '1020px',
             html: `
                 <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
                     <input type="text" id="swal-busca-contato-prop" value="${safeQuery}"
                         oninput="window.filtrarContatosPropostaGrid(this.value)"
                         onkeydown="if(event.key==='Enter'){event.preventDefault(); const firstRow = document.querySelector('#swal-busca-contato-prop-tbody tr[onclick]'); if(firstRow) firstRow.click();}"
-                        placeholder="Digite o nome, código, cargo, celular, empresa ou CNPJ para filtrar..."
+                        placeholder="Digite o nome, código, cargo, celular, e-mail, empresa ou CNPJ para filtrar..."
                         style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none;">
                     <div id="swal-busca-contato-prop-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
                 </div>
@@ -5716,6 +5743,7 @@ window.pesquisarContatoProposta = async function(btnEl = null) {
                                 <th style="padding:0.5rem;">Nome</th>
                                 <th style="padding:0.5rem;">Cargo / Depto</th>
                                 <th style="padding:0.5rem;">Celular / Tel</th>
+                                <th style="padding:0.5rem;">E-mail</th>
                                 <th style="padding:0.5rem;">Opções Ticadas</th>
                                 <th style="padding:0.5rem;">Empresa</th>
                             </tr>
@@ -5844,6 +5872,9 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
             const ctInat = ct.inativo === 1 || ct.inativo === 'Sim' || String(ct.situacao || '').toLowerCase() === 'inativo' ? 1 : 0;
             if (mapaUnificadoPorChave.has(key)) {
                 const ex = mapaUnificadoPorChave.get(key);
+                if (!ex.email && ct.email) ex.email = ct.email;
+                if (!ex.celular && (ct.celular || ct.telefone || ct.telefone_ramal)) ex.celular = ct.celular || ct.telefone || ct.telefone_ramal;
+                if (!ex.cargo && (ct.cargo || ct.departamento)) ex.cargo = ct.cargo || ct.departamento;
                 if (!ex.email_nfe && ctNfe) ex.email_nfe = 1;
                 if (!ex.email_cobranca && ctCob) ex.email_cobranca = 1;
                 if (!ex.email_os && ctOs) ex.email_os = 1;
@@ -5906,7 +5937,7 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
     const filtrados = !qNorm
         ? base
-        : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm));
+        : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm) || normStr(c.email).includes(qNorm));
     if (filtrados.length === 0) {
         const msg = clienteNome
             ? 'Nenhum contato vinculado a este cliente encontrado. Clique no botão + para cadastrar.'
@@ -5918,7 +5949,7 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     dropEl.innerHTML = filtrados.slice(0, 80).map(c => {
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const subInfo = [c.cargo, c.celular].filter(Boolean).join(' • ');
+        const subInfo = [c.cargo, c.celular, c.email].filter(Boolean).join(' • ');
         const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
         return `
             <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownContatoProposta('${safeNome}', '${safeEmp}')"
@@ -6476,10 +6507,23 @@ window.calcularPrevisaoFechamento = function() {
     } else if (validadeEl) {
         validadeEl.value = dataMais7;
     }
+    if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) {
+        const diasVenda = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
+        const iniVendaEl = document.getElementById('prop-periodo-ini');
+        if (diasVenda > 0) {
+            window.calcularFimContrato();
+        } else if (iniVendaEl && iniVendaEl.value) {
+            window.calcularDiasContrato();
+        }
+    }
 };
 
 window.onChangePeriodoInicioProposta = function() {
     if (typeof window.calcularValidadePropostaPorTipo === 'function') window.calcularValidadePropostaPorTipo();
+    if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) {
+        window.calcularDiasContrato();
+        return;
+    }
     const tipoAtual = document.getElementById('prop-tipo')?.value || '';
     const diasPadrao = typeof window.obterDiasContratoPadraoPorTipo === 'function'
         ? window.obterDiasContratoPadraoPorTipo(tipoAtual)
@@ -6506,6 +6550,16 @@ window.onChangePeriodoInicioProposta = function() {
 
 window.calcularDiasContrato = function() {
     const diasEl = document.getElementById('prop-dias');
+    if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) {
+        const dataCad = document.getElementById('prop-data-cadastro')?.value;
+        const prevEntrega = document.getElementById('prop-periodo-ini')?.value;
+        const fimVendaEl = document.getElementById('prop-periodo-fim');
+        if (fimVendaEl && prevEntrega) fimVendaEl.value = prevEntrega;
+        if (!dataCad || !prevEntrega || !diasEl) return;
+        const diffVenda = Math.round((new Date(prevEntrega + 'T12:00:00') - new Date(dataCad + 'T12:00:00')) / (1000 * 60 * 60 * 24));
+        diasEl.value = Math.max(0, diffVenda);
+        return;
+    }
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const fim = document.getElementById('prop-periodo-fim')?.value;
     if (!ini || !fim || !diasEl) {
@@ -6518,6 +6572,19 @@ window.calcularDiasContrato = function() {
 };
 
 window.calcularFimContrato = function() {
+    if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) {
+        const dataCad = document.getElementById('prop-data-cadastro')?.value;
+        const diasVenda = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
+        const iniVendaEl = document.getElementById('prop-periodo-ini');
+        const fimVendaEl = document.getElementById('prop-periodo-fim');
+        if (!dataCad || !iniVendaEl || isNaN(diasVenda) || diasVenda < 0) return;
+        const dtEntrega = new Date(dataCad + 'T12:00:00');
+        dtEntrega.setDate(dtEntrega.getDate() + diasVenda);
+        const isoEntrega = dtEntrega.getFullYear() + '-' + String(dtEntrega.getMonth() + 1).padStart(2, '0') + '-' + String(dtEntrega.getDate()).padStart(2, '0');
+        iniVendaEl.value = isoEntrega;
+        if (fimVendaEl) fimVendaEl.value = isoEntrega;
+        return;
+    }
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const dias = parseInt(document.getElementById('prop-dias')?.value || 0);
     const fimEl = document.getElementById('prop-periodo-fim');
@@ -9391,7 +9458,7 @@ window.filtrarTabelaHistoricoClientes = function(context = 'page') {
             <tr onclick="window.selecionarClienteDoHistorico(${c.id}, '${context}')" style="border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste cliente">
                 <td style="padding:0.65rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">${c.codigo || '—'}</td>
                 <td style="padding:0.65rem 1rem; color:#334155; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
-                <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${nomeFantasia}</td>
+                <td style="padding:0.65rem 1rem; color:#1e293b; font-weight:600;">${_escHtmlProp(window.formatarNomeClienteComIcone(nomeFantasia, c.grupo_clientes, lista))}</td>
                 <td style="padding:0.65rem 1rem; color:#334155; white-space:nowrap; font-weight:600;">${grupoFmt}</td>
                 <td style="padding:0.65rem 1rem; color:#475569;">${contatoNome}</td>
                 <td style="padding:0.65rem 1rem; color:#475569; white-space:nowrap;">${dataCadFmt}</td>
@@ -9437,7 +9504,7 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
                 String(c.nome_razao_social) === String(selectedValue) ||
                 `${c.codigo} - ${c.nome_razao_social}` === String(selectedValue)
             );
-            cliCentInput.value = found ? `${found.codigo} - ${found.nome_razao_social}` : selectedValue;
+            cliCentInput.value = found ? `${found.codigo} - ${window.formatarNomeClienteComIcone(found, found.grupo_clientes, _clientesCache)}` : selectedValue;
         }
     }
 
@@ -9449,7 +9516,7 @@ window.atualizarClienteCentralizadorOptions = async function(selectedValue = nul
                 String(c.nome_razao_social) === String(selectedValue) ||
                 `${c.codigo} - ${c.nome_razao_social}` === String(selectedValue)
             );
-            empCentEl.value = found ? `${found.codigo} - ${found.nome_razao_social}` : (selectedValue || '');
+            empCentEl.value = found ? `${found.codigo} - ${window.formatarNomeClienteComIcone(found, found.grupo_clientes, _clientesCache)}` : (selectedValue || '');
         }
     }
 };
@@ -9518,11 +9585,12 @@ window.abrirModalPesquisaCentralizador = async function(targetInputId = 'cli-cen
         const exibidos = filtrados.slice(0, 150);
         if (infoEl) infoEl.textContent = `Exibindo ${exibidos.length} de ${filtrados.length} clientes`;
         tbody.innerHTML = exibidos.map(c => {
-            const label = `${c.codigo} - ${c.nome_razao_social || ''}`.replace(/'/g, "\\'");
+            const nomeComIcone = window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista);
+            const label = `${c.codigo} - ${nomeComIcone}`.replace(/'/g, "\\'");
             return `
                 <tr onclick="window._selecionarCentralizador('${label}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8; white-space:nowrap;">${c.codigo || ''}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(nomeComIcone)}</td>
                     <td style="padding:0.5rem; text-align:left; white-space:nowrap;">${c.cpf_cnpj || ''}</td>
                 </tr>
             `;
@@ -9606,7 +9674,7 @@ window.buscarCentralizadorCNPJ = async function(targetInputId = 'cli-centralizad
         // Se houver um único cliente correspondente, preenche automaticamente
         if (matches.length === 1 && inputEl) {
             const foundInternal = matches[0];
-            const nomeExib = foundInternal.nome_razao_social || foundInternal.nome_fantasia || '';
+            const nomeExib = window.formatarNomeClienteComIcone(foundInternal, foundInternal.grupo_clientes, lista);
             inputEl.value = `${foundInternal.codigo} - ${nomeExib}`;
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Cliente Centralizador localizado!');
@@ -9940,7 +10008,7 @@ window.abrirModalPesquisaCliente = async function(initialQuery = '') {
             tbody.innerHTML = exibidos.map(c => `
                 <tr onclick="selectClientePesquisa(${c.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista))}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.cpf_cnpj || ''}</td>
                 </tr>
             `).join('');
@@ -11635,7 +11703,7 @@ window.filtrarContatosModal = function(term = '') {
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.departamento || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.celular || '—'}</td>
                         <td style="padding:0.65rem 1rem; color:#475569;">${c.email || '—'}</td>
-                        <td style="padding:0.65rem 1rem; color:#475569;">${c.cliente_nome || '—'}</td>
+                        <td style="padding:0.65rem 1rem; color:#475569;">${_escHtmlProp(window.formatarNomeClienteComIcone(c.cliente_nome) || '—')}</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -12190,7 +12258,7 @@ function _renderCadastroContatosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
@@ -12725,7 +12793,7 @@ window.abrirModalPesquisaContato = async function(btnEl = null, initialQuery = n
                     </td>
                     <td style="padding:0.5rem; text-align:left;">${c.email || ''}</td>
                     <td style="padding:0.5rem; text-align:left;">${c.celular || ''}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.cliente_nome || ''}</td>
+                    <td style="padding:0.5rem; text-align:left;">${_escHtmlProp(window.formatarNomeClienteComIcone(c.cliente_nome))}</td>
                 </tr>
             `;
             }).join('');
@@ -12826,7 +12894,7 @@ window.abrirModalPesquisaEmpresa = async function(initialQuery = '', btnEl = nul
             tbody.innerHTML = exibidos.map(c => `
                 <tr onclick="selectEmpresaPesquisa(${c.id})" class="swal-empresa-row" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8; white-space:nowrap;">${c.codigo || ''}</td>
-                    <td style="padding:0.5rem; text-align:left;">${c.nome_razao_social || ''}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista))}</td>
                     <td style="padding:0.5rem; text-align:left; white-space:nowrap;">${c.cpf_cnpj || ''}</td>
                 </tr>
             `).join('');
@@ -13755,9 +13823,9 @@ window.modalCarregarEnderecoForm = function(idx) {
         const dataEl = document.getElementById('modal-cli-data');
         if (codEl && (e.cliente_codigo || !codEl.value)) codEl.value = e.cliente_codigo || codEl.value || '';
         const razaoVal = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
-        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = razaoVal || razaoEl.value || '';
+        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = window.formatarNomeClienteComIcone(razaoVal || razaoEl.value || '');
         const fantVal = e.cliente_fantasia || e.nome_fantasia || e.cliente_nome_fantasia || '';
-        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = fantVal || fantEl.value || '';
+        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = window.formatarNomeClienteComIcone(fantVal || fantEl.value || '');
         const rawData = e.cliente_data_cadastro || e.data_cadastro || '';
         if (dataEl && (rawData || !dataEl.value)) {
             dataEl.value = rawData ? (rawData.includes('-') ? rawData.split('-').reverse().join('/') : rawData) : (dataEl.value || '');
@@ -14057,7 +14125,7 @@ window.modalBuscarCliente = async function(initialTerm = '') {
             tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.modalSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6; white-space:nowrap;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c, c.grupo_clientes, clientes))}</td>
                     <td style="padding:0.5rem; text-align:left; color:#475569; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
                 </tr>
             `).join('');
@@ -14232,7 +14300,7 @@ function _renderEnderecosInt() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
@@ -14420,8 +14488,8 @@ function _renderEnderecosInt() {
             if (matchedClient) {
                 window._pageSelectedClienteId = matchedClient.id;
                 document.getElementById('page-cli-codigo').value = matchedClient.codigo || '';
-                document.getElementById('page-cli-razao').value = matchedClient.nome_razao_social || '';
-                document.getElementById('page-cli-fantasia').value = matchedClient.nome_fantasia || '';
+                document.getElementById('page-cli-razao').value = window.formatarNomeClienteComIcone(matchedClient, matchedClient.grupo_clientes, clientes);
+                document.getElementById('page-cli-fantasia').value = window.formatarNomeClienteComIcone(matchedClient.nome_fantasia || matchedClient.nome_razao_social, matchedClient.grupo_clientes, clientes);
                 document.getElementById('page-cli-data').value = matchedClient.data_cadastro ? (matchedClient.data_cadastro.includes('-') ? matchedClient.data_cadastro.split('-').reverse().join('/') : matchedClient.data_cadastro) : '';
                 window.pageCarregarEnderecos(matchedClient.id);
             } else {
@@ -14482,7 +14550,7 @@ window.pageRenderEnderecos = function() {
             <td style="padding:10px 12px; text-align:center; color:#475569; font-weight:bold;">${e.sequencia}</td>
             <td style="padding:10px 12px; color:#1e293b; font-weight:600;">
                 ${e.nome_local || '—'}
-                ${showCliSub ? `<div style="font-size:0.72rem; color:#64748b; font-weight:500; margin-top:2px;">${cliNome}</div>` : ''}
+                ${showCliSub ? `<div style="font-size:0.72rem; color:#64748b; font-weight:500; margin-top:2px;">${_escHtmlProp(window.formatarNomeClienteComIcone(cliNome))}</div>` : ''}
             </td>
             <td style="padding:10px 12px; color:#475569;">${e.endereco || ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' - ' + e.bairro : ''}</td>
             <td style="padding:10px 12px; color:#475569;">${e.municipio || ''} / ${e.uf || ''}</td>
@@ -14510,9 +14578,9 @@ window.pageCarregarEnderecoForm = function(idx) {
         const dataEl = document.getElementById('page-cli-data');
         if (codEl && (e.cliente_codigo || !codEl.value)) codEl.value = e.cliente_codigo || codEl.value || '';
         const razaoVal = e.cliente_razao || e.razao_social || e.cliente_razao_social || '';
-        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = razaoVal || razaoEl.value || '';
+        if (razaoEl && (razaoVal || !razaoEl.value)) razaoEl.value = window.formatarNomeClienteComIcone(razaoVal || razaoEl.value || '');
         const fantVal = e.cliente_fantasia || e.nome_fantasia || e.cliente_nome_fantasia || '';
-        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = fantVal || fantEl.value || '';
+        if (fantEl && (fantVal || !fantEl.value)) fantEl.value = window.formatarNomeClienteComIcone(fantVal || fantEl.value || '');
         const rawData = e.cliente_data_cadastro || e.data_cadastro || '';
         if (dataEl && (rawData || !dataEl.value)) {
             dataEl.value = rawData ? (rawData.includes('-') ? rawData.split('-').reverse().join('/') : rawData) : (dataEl.value || '');
@@ -14772,7 +14840,7 @@ window.pageBuscarCliente = async function(initialTerm = '') {
             tbody.innerHTML = filtered.slice(0, 150).map(c => `
                 <tr onclick="window.pageSelecionarClienteBusca('${encodeURIComponent(JSON.stringify(c))}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:0.5rem; text-align:center; font-weight:bold; color:#2e58a6; white-space:nowrap;">${c.codigo}</td>
-                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${c.nome_razao_social}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c, c.grupo_clientes, clientes))}</td>
                     <td style="padding:0.5rem; text-align:left; color:#475569; white-space:nowrap;">${c.cpf_cnpj || '—'}</td>
                 </tr>
             `).join('');
@@ -14783,8 +14851,8 @@ window.pageBuscarCliente = async function(initialTerm = '') {
             window._pageSelectedClienteId = c.id;
             
             document.getElementById('page-cli-codigo').value = c.codigo || '';
-            document.getElementById('page-cli-razao').value = c.nome_razao_social || '';
-            document.getElementById('page-cli-fantasia').value = c.nome_fantasia || '';
+            document.getElementById('page-cli-razao').value = window.formatarNomeClienteComIcone(c, c.grupo_clientes, clientes);
+            document.getElementById('page-cli-fantasia').value = window.formatarNomeClienteComIcone(c.nome_fantasia || c.nome_razao_social, c.grupo_clientes, clientes);
             document.getElementById('page-cli-data').value = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
             
             window.pageCarregarEnderecos(c.id);
@@ -15098,7 +15166,7 @@ window.atualizarTabelaCurvaABC = function(lista) {
         }
         tbody.innerHTML = curva.map(c => `
             <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                <td style="padding:0.6rem 0.75rem; font-weight:700; color:#1e293b;">${c.cliente_nome}</td>
+                <td style="padding:0.6rem 0.75rem; font-weight:700; color:#1e293b;">${_escHtmlProp(window.formatarNomeClienteComIcone(c.cliente_nome))}</td>
                 <td style="padding:0.6rem 0.75rem; font-weight:600; color:#475569;">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                 <td style="padding:0.6rem 0.75rem; color:#64748b;">${c.percentual}%</td>
                 <td style="padding:0.6rem 0.75rem; text-align:center;">
@@ -16139,7 +16207,7 @@ function _renderPrecificacaoBaseLayout() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
@@ -18680,8 +18748,13 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
     return itemMatch ? (parseFloat(itemMatch.valor_total) || 0) : null;
 };
 
+window.CONDICAO_PAGAMENTO_VENDA_FIXA = '50% na formalização do pedido / 50% na coleta do material';
+
 window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
     const t = window.obterTipoEfetivoProposta(tipo);
+    if (t === 'VENDA') {
+        return window.CONDICAO_PAGAMENTO_VENDA_FIXA;
+    }
     if (
         t === 'OBRA MENSAL' ||
         t === 'OBRA QUINZENAL' ||
@@ -18694,8 +18767,7 @@ window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
     if (
         t === 'EQUIPAMENTOS' ||
         t === 'LOCAÇÃO CONTAINER' ||
-        t === 'LOCACAO CONTAINER' ||
-        t === 'VENDA'
+        t === 'LOCACAO CONTAINER'
     ) {
         return 'PIX 50% RESERVA + 50% ANTES DA ENTREGA';
     }
@@ -18714,6 +18786,84 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
 window.tipoPropostaEhEvento = function(tipo) {
     const t = window.obterTipoEfetivoProposta(tipo);
     return t === 'EVENTO' || t === 'EQUIPAMENTOS';
+};
+
+window.tipoPropostaEhVenda = function(tipo) {
+    const t = window.obterTipoEfetivoProposta(tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || ''));
+    return t === 'VENDA';
+};
+
+window.validarMinimoQuantidadeVendaInput = function(inputEl) {
+    if (!inputEl) return;
+    if (!window.tipoPropostaEhVenda()) return;
+    const val = parseInt(inputEl.value, 10);
+    if (isNaN(val) || val < 10) {
+        inputEl.value = '10';
+        window.recalcularPreviewProdutoProposta('qtd');
+    }
+};
+
+window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao = false) {
+    const ehVenda = window.tipoPropostaEhVenda(tipo);
+    const wrapInicio = document.getElementById('prop-wrap-periodo-inicio');
+    const lblAte = document.getElementById('prop-lbl-periodo-ate');
+    const lblDias = document.getElementById('prop-lbl-dias-contrato');
+    const rowPeriodo = document.getElementById('prop-periodo-grid-row');
+    const inpQtd = document.getElementById('prop-prod-quantidade');
+    const selCondPag = document.getElementById('prop-cond-pag');
+
+    if (wrapInicio) wrapInicio.style.display = ehVenda ? 'none' : '';
+    if (lblAte) lblAte.innerHTML = ehVenda ? 'Previsão de Entrega <span style="color:#ef4444;">*</span>' : 'Até <span style="color:#ef4444;">*</span>';
+    if (lblDias) lblDias.textContent = ehVenda ? 'Dias para Entrega' : 'Dias Contrato';
+    if (rowPeriodo) {
+        rowPeriodo.style.gridTemplateColumns = ehVenda
+            ? '145px 125px minmax(170px, 1fr) minmax(240px, 1.4fr)'
+            : '130px 130px 95px minmax(170px, 1fr) minmax(210px, 1.2fr)';
+    }
+
+    if (inpQtd) {
+        inpQtd.min = ehVenda ? '10' : '1';
+        if (ehVenda) {
+            const qAtual = parseInt(inpQtd.value, 10) || 0;
+            if (qAtual < 10) {
+                inpQtd.value = '10';
+                if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+                    window.recalcularPreviewProdutoProposta('qtd');
+                }
+            }
+        } else if (!isCarregamentoEdicao && inpQtd.value === '10' && !(window._propProdutosAdicionados && window._propProdutosAdicionados.length)) {
+            inpQtd.value = '1';
+        }
+    }
+
+    if (selCondPag) {
+        const condVenda = window.CONDICAO_PAGAMENTO_VENDA_FIXA;
+        let optVenda = Array.from(selCondPag.options).find(o => o.value === condVenda);
+        if (ehVenda) {
+            if (!optVenda) {
+                optVenda = document.createElement('option');
+                optVenda.value = condVenda;
+                optVenda.textContent = condVenda;
+                optVenda.setAttribute('data-venda-only', '1');
+                selCondPag.appendChild(optVenda);
+            }
+            selCondPag.value = condVenda;
+            if (typeof window.atualizarCorCondicaoPagamento === 'function') {
+                window.atualizarCorCondicaoPagamento(selCondPag);
+            }
+        } else {
+            if (optVenda && optVenda.getAttribute('data-venda-only') === '1') {
+                const eraSelecionada = selCondPag.value === condVenda;
+                optVenda.remove();
+                if (eraSelecionada && !isCarregamentoEdicao) {
+                    selCondPag.value = '';
+                    if (typeof window.atualizarCorCondicaoPagamento === 'function') {
+                        window.atualizarCorCondicaoPagamento(selCondPag);
+                    }
+                }
+            }
+        }
+    }
 };
 
 window.obterQtdDiariasProdutoEvento = function(p) {
@@ -20126,6 +20276,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     if (typeof window.atualizarVisibilidadeContratoAditivo === 'function') {
         window.atualizarVisibilidadeContratoAditivo(tipoLimpo);
     }
+    if (typeof window.atualizarLayoutCamposVendaProposta === 'function') {
+        window.atualizarLayoutCamposVendaProposta(tipoLimpo, false);
+    }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
@@ -21105,7 +21258,8 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
 
     if (!valUnitEl || !valTotalEl) return;
 
-    const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
+    const minQtdPreview = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1;
+    const qtd = Math.max(minQtdPreview, parseFloat(qtdEl?.value) || minQtdPreview);
 
     if (origem === 'total') {
         const totalDigitado = Math.max(0, window.parseMoedaProposta(valTotalEl.value));
@@ -21240,6 +21394,15 @@ window.adicionarProdutoProposta = function() {
 
     const observacao = inputObservacao?.value?.trim() || '';
     const quantidade = parseInt(inputQuantidade?.value, 10) || 0;
+    const ehVendaAdd = typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda();
+    if (ehVendaAdd && quantidade < 10) {
+        alert('Para propostas de VENDA, a quantidade mínima por produto é 10.');
+        if (inputQuantidade) {
+            inputQuantidade.value = '10';
+            window.recalcularPreviewProdutoProposta('qtd');
+        }
+        return;
+    }
     if (quantidade <= 0) {
         alert('A quantidade deve ser maior que zero.');
         return;
@@ -21335,7 +21498,7 @@ window.adicionarProdutoProposta = function() {
         inputCodigo.removeAttribute('data-nome');
     }
     if (inputObservacao) inputObservacao.value = '';
-    if (inputQuantidade) inputQuantidade.value = '1';
+    if (inputQuantidade) inputQuantidade.value = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? '10' : '1';
     const inputManutReset = document.getElementById('prop-prod-manut');
     if (inputManutReset) { inputManutReset.value = ''; inputManutReset.dataset.prevManut = ''; }
     if (descPctEl) descPctEl.value = '0';
@@ -21421,7 +21584,8 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo, reRender =
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
     const item = window._propProdutosAdicionados[idx];
     if (campo === 'quantidade') {
-        const qtd = Math.max(1, parseInt(valorNovo, 10) || 1);
+        const minQtdItem = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1;
+        const qtd = Math.max(minQtdItem, parseInt(valorNovo, 10) || minQtdItem);
         item.quantidade = qtd;
         const vBase = parseFloat(item.valor_base ?? item.valor ?? item.valor_unitario ?? 0) || 0;
         if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
@@ -21652,7 +21816,7 @@ window.renderizarProdutosPropostaGrid = function() {
                         placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box; ${styleRiscadoGrid}">
                 </td>
                 <td style="padding:8px 10px; text-align:center;">
-                    <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
+                    <input type="number" min="${(typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1}" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
                         style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700; ${styleRiscadoGrid}">
                 </td>
                 ${usaManutGrid ? `
@@ -23059,7 +23223,7 @@ function _renderModelosContratoBaseLayout() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
@@ -24166,7 +24330,7 @@ window._renderModelosPropostasInt = async function() {
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
                             <i class="ph ph-user-plus"></i> Clientes
                         </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();">
+                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
                             <i class="ph ph-identification-card"></i> Contatos
                         </div>
                         <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">

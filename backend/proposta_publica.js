@@ -796,6 +796,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         };
 
         const ehObraLike = modeloEfetivo === 'OBRA' || ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
+        const ehVendaLike = modeloEfetivo === 'VENDA';
         const ehFossaLike = modeloEfetivo === 'LIMPA FOSSA' || modeloEfetivo === 'LIMPA FOSSA MENSAL';
         const tituloTopoFinal = ehObraLike
             ? await resolverSubtituloObraPublico(p)
@@ -941,9 +942,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 observacao: String(p.observacoes || (modeloRow && modeloRow.observacao_padrao) || '').trim()
             },
             contrato_vinculado: String(p.contrato_vinculado || '').trim(),
-            info_rotulo: ehFossaLike ? 'DA FOSSA:' : (ehObraLike ? 'DA OBRA:' : 'EVENTO:'),
+            info_rotulo: ehFossaLike ? 'DA FOSSA:' : ((ehObraLike || ehVendaLike) ? 'DA OBRA:' : 'EVENTO:'),
             rotulo_instalacao: ehFossaLike ? 'ENDEREÇO:' : 'INSTALAÇÃO:',
-            ocultar_nome_evento: (ehObraLike || ehFossaLike),
+            ocultar_nome_evento: (ehObraLike || ehFossaLike || ehVendaLike),
             contrato: numSeq,
             codigo_proposta: numSeq,
             razao_social: truncarRazao30(cliNomeLimpo),
