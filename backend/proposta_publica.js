@@ -412,7 +412,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const tipoPropNorm = normalizarModeloTipoPublico(p && p.tipo);
         const ehAditivo = tipoPropNorm === 'ADITIVO';
         const temParceiros = await propostaTemProdutoParceirosPublico(p);
-        const modeloBase = temParceiros
+        const modeloBase = (temParceiros && tipoPropNorm === 'EVENTO')
             ? 'EQUIPAMENTOS'
             : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
 
@@ -627,7 +627,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
         };
 
-        const ehEventoCalcPub = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const ehEventoCalcPub = ['EVENTO', 'EQUIPAMENTOS'].includes(String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const diasContratoPubNum = Number(p.dias_contrato || 0);
         const itens = itensRaw.map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
@@ -731,7 +731,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const tipoPropNorm = normalizarModeloTipoPublico(p.tipo);
         const ehAditivo = tipoPropNorm === 'ADITIVO';
         const temParceirosQuadro = await propostaTemProdutoParceirosPublico(p, equip);
-        const modeloEfetivo = temParceirosQuadro
+        const modeloEfetivo = (temParceirosQuadro && tipoPropNorm === 'EVENTO')
             ? 'EQUIPAMENTOS'
             : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
         const eventoLikeEfetivo = tipoEhEventoLike(modeloEfetivo);

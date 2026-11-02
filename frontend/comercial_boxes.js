@@ -762,7 +762,7 @@
         const modeloBruto = modeloForcado || (prop && prop.tipo) || window._boxesModeloAtivo || 'EVENTO';
         const modeloNorm = window.normalizarModeloTipoBox(modeloBruto);
         const temProdParceiros = Boolean(prop && typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(prop));
-        const modeloEfetivo = temProdParceiros ? 'EQUIPAMENTOS' : (modeloNorm === 'ADITIVO' ? window.resolverModeloOrigemAditivo(prop) : modeloNorm);
+        const modeloEfetivo = (temProdParceiros && modeloNorm === 'EVENTO') ? 'EQUIPAMENTOS' : (modeloNorm === 'ADITIVO' ? window.resolverModeloOrigemAditivo(prop) : modeloNorm);
         const cfgModelo = window.obterConfigQuadroModelo(modeloEfetivo);
         const tituloTopoResolvido = modeloEfetivo === 'OBRA'
             ? window.resolverSubtituloObraProposta(prop, modeloBruto)
@@ -853,7 +853,7 @@
         let somaTotalGeral = 0;
         let somaTotalServicos = 0;
 
-        const ehModeloEventoCalc = String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const ehModeloEventoCalc = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const diasContratoPropNum = Number(prop.dias_contrato || 0);
         const itensFormatados = (itensRaw || []).map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);

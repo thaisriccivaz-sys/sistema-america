@@ -6266,6 +6266,9 @@ window.salvarPropostaNova = async function() {
 
     (async () => {
         try {
+            if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
+                await window.carregarCacheDadosQuadroEvento(false);
+            }
             const propExist = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
             const propPreview = Object.assign({}, propExist || {}, payload, {
                 id: _propostasEditandoId || null,
@@ -6276,19 +6279,29 @@ window.salvarPropostaNova = async function() {
             const tipoRawNorm = normMod(payload.tipo);
             const ehAditivo = tipoRawNorm === 'ADITIVO';
             const temParceiros = typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(propPreview);
-            if (temParceiros) {
+            if (temParceiros && tipoRawNorm === 'EVENTO') {
+                payload.tipo = 'EQUIPAMENTOS';
+                propPreview.tipo = 'EQUIPAMENTOS';
+                const selTipoEl = document.getElementById('prop-tipo');
+                if (selTipoEl) selTipoEl.value = 'EQUIPAMENTOS';
+                if (!payload.tabela_precos || normMod(payload.tabela_precos) === 'EVENTO') {
+                    payload.tabela_precos = 'EQUIPAMENTOS';
+                    propPreview.tabela_precos = 'EQUIPAMENTOS';
+                    const inpTabEl = document.getElementById('prop-tabela');
+                    if (inpTabEl) inpTabEl.value = 'EQUIPAMENTOS';
+                }
                 payload.modelo_impressao = 'PROPOSTA EQUIPAMENTOS';
                 propPreview.modelo_impressao = 'PROPOSTA EQUIPAMENTOS';
                 const selModEl = document.getElementById('prop-modelo');
                 if (selModEl) selModEl.value = 'PROPOSTA EQUIPAMENTOS';
             }
-            let tipoBaseMod = temParceiros ? 'EQUIPAMENTOS' : (ehAditivo ? normMod(payload.contrato_vinculado_tipo || 'OBRA') : tipoRawNorm);
+            let tipoBaseMod = (temParceiros && tipoRawNorm === 'EVENTO') ? 'EQUIPAMENTOS' : (ehAditivo ? normMod(payload.contrato_vinculado_tipo || 'OBRA') : tipoRawNorm);
             if (tipoBaseMod.startsWith('OBRA')) tipoBaseMod = 'OBRA';
             if (tipoBaseMod.startsWith('LIMPA FOSSA')) tipoBaseMod = 'LIMPA FOSSA';
             if (tipoBaseMod.includes('CONTAINER')) tipoBaseMod = 'LOCACAO CONTAINER';
 
             const dadosQuadro = typeof window.montarDadosQuadroEventoProposta === 'function'
-                ? window.montarDadosQuadroEventoProposta(propPreview, temParceiros ? 'EQUIPAMENTOS' : (ehAditivo ? (payload.contrato_vinculado_tipo || 'OBRA') : payload.tipo))
+                ? window.montarDadosQuadroEventoProposta(propPreview, (temParceiros && tipoRawNorm === 'EVENTO') ? 'EQUIPAMENTOS' : (ehAditivo ? (payload.contrato_vinculado_tipo || 'OBRA') : payload.tipo))
                 : propPreview;
             const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
                 ? window.renderBoxQuadroEventoHtml(dadosQuadro, 'desktop', { modelo_tipo: dadosQuadro.modelo_tipo || 'EVENTO' })
@@ -6683,9 +6696,25 @@ window.estornarPropostaEdicao = async function() {
 };
 
 window.aprovarPropostaEdicao = async function() {
+    if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
+        await window.carregarCacheDadosQuadroEvento(false);
+    }
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
-    const tipo = obter('prop-tipo');
+    let tipo = obter('prop-tipo');
+    if (String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO' &&
+        typeof window.propostaTemProdutoParceiros === 'function' &&
+        window.propostaTemProdutoParceiros(window._propProdutosAdicionados || [])) {
+        tipo = 'EQUIPAMENTOS';
+        const selTipoEl = document.getElementById('prop-tipo');
+        if (selTipoEl) selTipoEl.value = 'EQUIPAMENTOS';
+        const inpTabEl = document.getElementById('prop-tabela');
+        if (inpTabEl && (!inpTabEl.value || String(inpTabEl.value).trim().toUpperCase() === 'EVENTO')) {
+            inpTabEl.value = 'EQUIPAMENTOS';
+        }
+        const selModEl = document.getElementById('prop-modelo');
+        if (selModEl) selModEl.value = 'PROPOSTA EQUIPAMENTOS';
+    }
     const dataCad = obter('prop-data-cadastro');
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
@@ -17885,7 +17914,7 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
 window.tipoPropostaEhEvento = function(tipo) {
     const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
     const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    return t === 'EVENTO';
+    return t === 'EVENTO' || t === 'EQUIPAMENTOS';
 };
 
 window.obterQtdDiariasProdutoEvento = function(p) {
@@ -19973,7 +20002,8 @@ window.adicionarProdutoProposta = function() {
         valor_unitario: valorUnitarioFinal,
         valor_total: valorTotalFinal
     });
-    if (typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(window._propProdutosAdicionados)) {
+    const tipoAtuAddProd = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoAtuAddProd === 'EVENTO' && typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(window._propProdutosAdicionados)) {
         const elModImp = document.getElementById('prop-modelo');
         if (elModImp) elModImp.value = 'PROPOSTA EQUIPAMENTOS';
     }
