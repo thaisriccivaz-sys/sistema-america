@@ -434,6 +434,37 @@
         return String(achado.descricao_proposta || achado.especificacao_tecnica || '').trim();
     };
 
+    window.obterFonteFornecimentoEquipamento = function (itemOuProd) {
+        if (!itemOuProd) return '';
+        const direto = String(itemOuProd.fonte_fornecimento || itemOuProd.grupo_fornecimento || itemOuProd.fonte || '').trim();
+        if (direto) return direto;
+        const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
+            ? window._boxCacheDadosAux.equipamentos
+            : (window._equipamentosEstoqueData || []);
+        const cod = norm(itemOuProd.codigo);
+        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const achado = lista.find(eq =>
+            (cod && cod !== '—' && norm(eq.codigo) === cod) ||
+            (nome && norm(eq.nome) === nome)
+        );
+        if (!achado) return '';
+        return String(achado.fonte_fornecimento || achado.fonte || achado.grupo_produto || '').trim();
+    };
+
+    window.propostaTemProdutoParceiros = function (propOuItens) {
+        let itensArr = [];
+        if (Array.isArray(propOuItens)) {
+            itensArr = propOuItens;
+        } else if (propOuItens && propOuItens.itens) {
+            if (Array.isArray(propOuItens.itens)) itensArr = propOuItens.itens;
+            else {
+                try { itensArr = JSON.parse(propOuItens.itens || '[]'); } catch (_) { itensArr = []; }
+            }
+        }
+        if (!Array.isArray(itensArr) || !itensArr.length) return false;
+        return itensArr.some(it => norm(window.obterFonteFornecimentoEquipamento(it)).includes('parceir'));
+    };
+
     /* Busca a Foto do Equipamento no cadastro pelo código ou nome */
     window.obterFotoPropostaEquipamento = function (itemOuProd) {
         if (!itemOuProd) return '';
@@ -730,7 +761,8 @@
 
         const modeloBruto = modeloForcado || (prop && prop.tipo) || window._boxesModeloAtivo || 'EVENTO';
         const modeloNorm = window.normalizarModeloTipoBox(modeloBruto);
-        const modeloEfetivo = modeloNorm === 'ADITIVO' ? window.resolverModeloOrigemAditivo(prop) : modeloNorm;
+        const temProdParceiros = Boolean(prop && typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(prop));
+        const modeloEfetivo = temProdParceiros ? 'EQUIPAMENTOS' : (modeloNorm === 'ADITIVO' ? window.resolverModeloOrigemAditivo(prop) : modeloNorm);
         const cfgModelo = window.obterConfigQuadroModelo(modeloEfetivo);
         const tituloTopoResolvido = modeloEfetivo === 'OBRA'
             ? window.resolverSubtituloObraProposta(prop, modeloBruto)

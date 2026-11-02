@@ -125,7 +125,6 @@
                             📅 Último: ${esc(ult.texto)}${qtdHist > 1 ? ` (${qtdHist}x)` : ''}
                         </span>
                     </div>
-                    <div style="font-size:0.74rem; color:#64748b; margin-top:2px;">Cliente: <b style="color:#475569;">${esc(e.cliente_nome || nomeCli)}</b></div>
                 </div>`;
             }).join('');
         }
@@ -207,10 +206,7 @@
                                         📅 Último Evento (Período Início / Até): ${esc(ult.texto)}
                                     </span>
                                 </div>
-                                <div style="font-size:0.76rem; color:#64748b; margin-top:3px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-                                    <span>Cliente: <b style="color:#334155;">${esc(e.cliente_nome || nomeCli)}</b></span>
-                                    ${hist.length > 1 ? `<span style="color:#6d28d9; font-weight:600;">Histórico: ${hist.map(h => fmtPeriodoContrato(h.periodo_inicio, h.periodo_fim)).slice(0, 3).join(' | ')}</span>` : ''}
-                                </div>
+                                ${hist.length > 1 ? `<div style="font-size:0.76rem; color:#6d28d9; font-weight:600; margin-top:3px;">Histórico: ${hist.map(h => fmtPeriodoContrato(h.periodo_inicio, h.periodo_fim)).slice(0, 3).join(' | ')}</div>` : ''}
                             </div>`;
                         }).join('')
                         : '<div style="padding:1.5rem; text-align:center; color:#94a3b8; font-size:0.85rem;">Nenhum evento encontrado para este cliente.</div>';

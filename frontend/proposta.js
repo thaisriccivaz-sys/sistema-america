@@ -2612,7 +2612,7 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Distância (KM)</label>
-                                <input type="text" id="prop-distancia-km" value="0.00 km" readonly
+                                <input type="text" id="prop-distancia-km" value="${vn('distancia_km','0')} km" readonly
                                     style="width:100%;padding:0.55rem;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#64748b;font-size:0.85rem;box-sizing:border-box;font-weight:600;">
                             </div>
                             <div>
@@ -6255,13 +6255,20 @@ window.salvarPropostaNova = async function() {
             const normMod = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
             const tipoRawNorm = normMod(payload.tipo);
             const ehAditivo = tipoRawNorm === 'ADITIVO';
-            let tipoBaseMod = ehAditivo ? normMod(payload.contrato_vinculado_tipo || 'OBRA') : tipoRawNorm;
+            const temParceiros = typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(propPreview);
+            if (temParceiros) {
+                payload.modelo_impressao = 'PROPOSTA EQUIPAMENTOS';
+                propPreview.modelo_impressao = 'PROPOSTA EQUIPAMENTOS';
+                const selModEl = document.getElementById('prop-modelo');
+                if (selModEl) selModEl.value = 'PROPOSTA EQUIPAMENTOS';
+            }
+            let tipoBaseMod = temParceiros ? 'EQUIPAMENTOS' : (ehAditivo ? normMod(payload.contrato_vinculado_tipo || 'OBRA') : tipoRawNorm);
             if (tipoBaseMod.startsWith('OBRA')) tipoBaseMod = 'OBRA';
             if (tipoBaseMod.startsWith('LIMPA FOSSA')) tipoBaseMod = 'LIMPA FOSSA';
             if (tipoBaseMod.includes('CONTAINER')) tipoBaseMod = 'LOCACAO CONTAINER';
 
             const dadosQuadro = typeof window.montarDadosQuadroEventoProposta === 'function'
-                ? window.montarDadosQuadroEventoProposta(propPreview, ehAditivo ? (payload.contrato_vinculado_tipo || 'OBRA') : payload.tipo)
+                ? window.montarDadosQuadroEventoProposta(propPreview, temParceiros ? 'EQUIPAMENTOS' : (ehAditivo ? (payload.contrato_vinculado_tipo || 'OBRA') : payload.tipo))
                 : propPreview;
             const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
                 ? window.renderBoxQuadroEventoHtml(dadosQuadro, 'desktop', { modelo_tipo: dadosQuadro.modelo_tipo || 'EVENTO' })
@@ -7524,20 +7531,41 @@ window.abrirLogsAlteracao = async function(id) {
             return;
         }
 
+        const normHistTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
         const rowsHtml = logs.map(log => {
             const rawDt = String(log.data_hora || '').trim();
             const dtObj = rawDt ? new Date(rawDt.includes('T') ? rawDt : rawDt.replace(' ', 'T') + (rawDt.endsWith('Z') ? '' : 'Z')) : null;
             const dataHora = (dtObj && !isNaN(dtObj.getTime())) ? dtObj.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : rawDt;
             const ant = log.conteudo_anterior || '';
             const atu = log.conteudo_atual || '';
-            const descEdicao = (log.campo === 'Criação' || log.campo === 'Envio de E-mail' || (!ant && atu))
-                ? `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(log.campo || '')}:</span> <span style="color:#16a34a; font-weight:600;">${_escHtmlProp(atu || '—')}</span>`
-                : `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(log.campo || '')}:</span> de <span style="color:#dc2626; font-weight:600;">"${_escHtmlProp(ant || 'vazio')}"</span> para <span style="color:#16a34a; font-weight:600;">"${_escHtmlProp(atu || 'vazio')}"</span>`;
+            const campoRaw = log.campo === 'fase_negociacao' ? 'Fase de Negociação' : (log.campo || '');
+            const descEdicao = (campoRaw === 'Criação' || campoRaw === 'Envio de E-mail' || (!ant && atu))
+                ? `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(campoRaw)}:</span> <span style="color:#16a34a; font-weight:600;">${_escHtmlProp(atu || '—')}</span>`
+                : `<span style="font-weight:700; color:#7048e8;">${_escHtmlProp(campoRaw)}:</span> de <span style="color:#dc2626; font-weight:600;">"${_escHtmlProp(ant || 'vazio')}"</span> para <span style="color:#16a34a; font-weight:600;">"${_escHtmlProp(atu || 'vazio')}"</span>`;
+
+            const cNorm = normHistTxt(campoRaw);
+            const atuNorm = normHistTxt(atu);
+            const ehFaseTransicaoDoc = (cNorm === 'FASE DE NEGOCIACAO') && (
+                atuNorm.startsWith('PROPOSTA ENVIADA') ||
+                atuNorm.startsWith('PRE APROVADA') ||
+                atuNorm.startsWith('APROVADA') ||
+                atuNorm.includes('ACEITE ASSINADO')
+            );
+            const mostrarOlho = Boolean(log.tem_documento || ehFaseTransicaoDoc);
+            const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
+            const tituloBotaoOlho = ehAssinado
+                ? 'Visualizar documento assinado desta versão'
+                : 'Visualizar documento PDF da proposta nesta versão';
+            const btnOlhoHtml = mostrarOlho
+                ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${Number(propId)}, ${Number(log.id)})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
+                : '<span style="color:#cbd5e1;">—</span>';
+
             return `
                 <tr style="border-bottom:1px solid #f1f5f9; font-size:0.8rem;">
                     <td style="padding:0.5rem 0.6rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
                     <td style="padding:0.5rem 0.6rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
                     <td style="padding:0.5rem 0.6rem; color:#334155; line-height:1.4;">${descEdicao}</td>
+                    <td style="padding:0.5rem 0.6rem; text-align:center; white-space:nowrap;">${btnOlhoHtml}</td>
                 </tr>
             `;
         }).join('');
@@ -7552,6 +7580,7 @@ window.abrirLogsAlteracao = async function(id) {
                                 <th style="padding:0.55rem 0.6rem;">Usuário</th>
                                 <th style="padding:0.55rem 0.6rem;">Dia e Hora</th>
                                 <th style="padding:0.55rem 0.6rem;">Edição Realizada</th>
+                                <th style="padding:0.55rem 0.6rem; text-align:center; width:70px;">Doc.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7560,7 +7589,7 @@ window.abrirLogsAlteracao = async function(id) {
                     </table>
                 </div>
             `,
-            width: '820px',
+            width: '880px',
             confirmButtonText: 'Fechar',
             confirmButtonColor: '#7048e8'
         });
@@ -7569,6 +7598,113 @@ window.abrirLogsAlteracao = async function(id) {
         Swal.close();
         console.error(e);
         Swal.fire('Erro', 'Erro ao carregar histórico: ' + e.message, 'error');
+    }
+};
+
+window.verDocumentoHistoricoProposta = async function(propId, logId) {
+    if (!propId || !logId) return;
+    try {
+        Swal.fire({
+            title: 'Carregando documento do histórico...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+        const resp = await apiGet(`/propostas/${propId}/logs/${logId}/documento`);
+        Swal.close();
+        if (!resp || !resp.dados) {
+            Swal.fire('Erro', 'Não foi possível carregar o documento deste registro de histórico.', 'error');
+            return;
+        }
+        const d = resp.dados;
+        const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+            ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
+            : '';
+        const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
+        const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+        const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
+        const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+        const prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+        const htmlProdutosAprovados = prodsAprovArr.length > 0 ? (
+            '<div style="margin:8px auto 12px auto; max-width:640px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; text-align:left;">' +
+            '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+            prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
+            '</div>'
+        ) : '';
+        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && String(d.fase_negociacao || '').trim().toUpperCase().startsWith('APROVADA');
+        const htmlAssinatura = d.assinatura_url ? (
+            '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
+            '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+            htmlProdutosAprovados +
+            '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+            '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
+            '</div>' +
+            (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+            (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) : '') + '</div>' : '') +
+            '</div>'
+        ) : isAprovacaoInternaSemAssinatura ? (
+            '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
+            '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada Internamente</div>' +
+            htmlProdutosAprovados +
+            '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(d.aprovado_por || window.obterNomeUsuarioLogado()) + '</div>' +
+            (d.aprovado_em ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) + '</div>' : '') +
+            '</div>'
+        ) : '';
+
+        const docCompletoHtml = '<div id="doc-historico-proposta-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
+            htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
+
+        const tituloModal = d.assinatura_url
+            ? ('Documento Assinado — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || ''))
+            : ('Documento PDF da Proposta — Nº ' + _escHtmlProp(d.codigo_proposta || '') + (d.fase_negociacao ? ' (' + _escHtmlProp(d.fase_negociacao) + ')' : ''));
+
+        Swal.fire({
+            title: tituloModal,
+            width: '980px',
+            html: '<div style="max-height:72vh; overflow-y:auto; text-align:left;">' + docCompletoHtml + '</div>',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#0f172a',
+            confirmButtonText: '<i class="ph ph-printer"></i> Baixar / Imprimir PDF',
+            denyButtonColor: '#7048e8',
+            denyButtonText: '<i class="ph ph-arrow-left"></i> Voltar ao Histórico',
+            cancelButtonText: 'Fechar'
+        }).then((r) => {
+            if (r.isConfirmed) {
+                const win = window.open('', '_blank', 'width=1020,height=860');
+                if (win) {
+                    win.document.write(
+                        '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">' +
+                        '<title>Proposta_' + _escHtmlProp(String(d.codigo_proposta || propId)) + '</title>' +
+                        '<link rel="stylesheet" href="/box_renderer.css">' +
+                        '<style>' +
+                        'html, body { margin: 0; padding: 0; background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+                        '@page { margin: 8mm; }' +
+                        '</style></head><body>' +
+                        docCompletoHtml +
+                        '<script>' +
+                        'window.addEventListener("load", function() {' +
+                        '  var imgs = Array.prototype.slice.call(document.images || []);' +
+                        '  var pendentes = imgs.filter(function(i){ return !i.complete; });' +
+                        '  var disparar = function(){ setTimeout(function(){ window.focus(); window.print(); }, 350); };' +
+                        '  if (pendentes.length === 0) { disparar(); return; }' +
+                        '  var cont = 0;' +
+                        '  pendentes.forEach(function(im){' +
+                        '    var done = function(){ cont++; if (cont >= pendentes.length) disparar(); };' +
+                        '    im.addEventListener("load", done); im.addEventListener("error", done);' +
+                        '  });' +
+                        '  setTimeout(disparar, 2200);' +
+                        '});' +
+                        '<\/script></body></html>'
+                    );
+                    win.document.close();
+                }
+            } else if (r.isDenied) {
+                window.abrirLogsAlteracao(propId);
+            }
+        });
+    } catch (e) {
+        Swal.close();
+        Swal.fire('Erro', 'Falha ao abrir documento do histórico: ' + e.message, 'error');
     }
 };
 
@@ -19793,6 +19929,9 @@ window.adicionarProdutoProposta = function() {
         descricao_proposta: (typeof window.obterDescricaoPropostaEquipamento === 'function')
             ? window.obterDescricaoPropostaEquipamento({ codigo, produto: produtoNome })
             : '',
+        fonte_fornecimento: (typeof window.obterFonteFornecimentoEquipamento === 'function')
+            ? window.obterFonteFornecimentoEquipamento({ codigo, produto: produtoNome })
+            : '',
         manut_semana: (() => {
             const usaM = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
             if (!usaM) return 0;
@@ -19812,6 +19951,10 @@ window.adicionarProdutoProposta = function() {
         valor_unitario: valorUnitarioFinal,
         valor_total: valorTotalFinal
     });
+    if (typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(window._propProdutosAdicionados)) {
+        const elModImp = document.getElementById('prop-modelo');
+        if (elModImp) elModImp.value = 'PROPOSTA EQUIPAMENTOS';
+    }
 
     if (inputCodigo) {
         inputCodigo.value = '';

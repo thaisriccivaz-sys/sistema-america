@@ -52,6 +52,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             }
         });
     });
+    db.run('ALTER TABLE auditoria ADD COLUMN snapshot_json TEXT', (err) => {
+        if (err && !String(err.message).includes('duplicate column name')) {
+            console.log('[PROPOSTA-PUBLICA] Alerta migration auditoria:', err.message);
+        }
+    });
     db.run('CREATE INDEX IF NOT EXISTS idx_propostas_codigo_publico ON propostas(codigo)', () => {});
 
     // ── Expiração: último dia em que o link funciona ─────────────────────────────
@@ -130,26 +135,28 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (gerouNovoLink && estavaRevogado) {
                 const urlAntiga = `${baseLink()}/proposta/${encodeURIComponent(p.codigo)}/${tokenAntigo}`;
                 await dbRun(
-                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
-                     VALUES (?, 'Proposta', 'Novo Link da Proposta', ?, ?, ?, ?)`,
-                    [nomeColab, `Link anterior desativado (${urlAntiga})`, `Novo link público gerado (${urlLink})`, agora, p.id]
+                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id)
+                     VALUES (?, 'Proposta', 'Novo Link da Proposta', ?, ?, ?)`,
+                    [nomeColab, `Link anterior desativado (${urlAntiga})`, `Novo link público gerado (${urlLink})`, p.id]
                 ).catch(() => {});
             }
             if (!req.body || req.body.registrar_historico !== false) {
                 const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
                 if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA') {
+                    const faseAnt = String(p.fase_negociacao || 'Em Elaboração');
                     await dbRun("UPDATE propostas SET fase_negociacao = 'Proposta Enviada', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [p.id]).catch(() => {});
-                    await dbRun(
-                        `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
-                         VALUES (?, 'Proposta', 'fase_negociacao', ?, 'Proposta Enviada', ?, ?)`,
-                        [nomeColab, String(p.fase_negociacao || 'Em Elaboração'), agora, p.id]
-                    ).catch(() => {});
                     p.fase_negociacao = 'Proposta Enviada';
+                    const snapEnv = JSON.stringify(Object.assign({}, p, { fase_negociacao: 'Proposta Enviada', assinatura_r2_key: null, aceite_publico_em: null }));
+                    await dbRun(
+                        `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)
+                         VALUES (?, 'Proposta', 'Fase de Negociação', ?, 'Proposta Enviada', ?, ?)`,
+                        [nomeColab, faseAnt, p.id, snapEnv]
+                    ).catch(() => {});
                 }
                 await dbRun(
-                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
-                     VALUES (?, 'Proposta', 'Copiar Link', '—', ?, ?, ?)`,
-                    [nomeColab, `Link público copiado (${urlLink})`, agora, p.id]
+                    `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id)
+                     VALUES (?, 'Proposta', 'Copiar Link', '—', ?, ?)`,
+                    [nomeColab, `Link público copiado (${urlLink})`, p.id]
                 ).catch(() => {});
             }
             const st = statusLink(p);
@@ -172,12 +179,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         try {
             const r = await dbRun('UPDATE propostas SET token_publico_revogado = 1 WHERE id = ?', [req.params.id]);
             if (!r.changes) return res.status(404).json({ error: 'Proposta não encontrada.' });
-            const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
             const nomeColab = await resolverNomeColabAudit(req);
             await dbRun(
-                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
-                 VALUES (?, 'Proposta', 'Desativar Link', 'Link Ativo', 'Link público desativado', ?, ?)`,
-                [nomeColab, agora, req.params.id]
+                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id)
+                 VALUES (?, 'Proposta', 'Desativar Link', 'Link Ativo', 'Link público desativado', ?)`,
+                [nomeColab, req.params.id]
             ).catch(() => {});
             res.json({ success: true });
         } catch (e) {
@@ -381,10 +387,34 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         };
     }
 
+    async function propostaTemProdutoParceirosPublico(p, equipPreloaded) {
+        if (!p) return false;
+        let itensArr = [];
+        try {
+            itensArr = Array.isArray(p.itens) ? p.itens : JSON.parse(p.itens || '[]');
+        } catch (_) { itensArr = []; }
+        if (!Array.isArray(itensArr) || itensArr.length === 0) return false;
+        const eqList = Array.isArray(equipPreloaded)
+            ? equipPreloaded
+            : await dbAll('SELECT codigo, nome, fonte_fornecimento FROM estoque_equipamentos').catch(() => []);
+        return itensArr.some(it => {
+            if (!it) return false;
+            const fDireta = norm(it.fonte_fornecimento || it.grupo_fornecimento || '');
+            if (fDireta.includes('parceiro')) return true;
+            const cod = norm(it.codigo);
+            const nm = norm(String(it.produto || it.descricao || it.nome || '').replace(/^\d+\s*-\s*/, ''));
+            const eq = eqList.find(e => (cod && cod !== '—' && norm(e.codigo) === cod) || (nm && norm(e.nome) === nm));
+            return Boolean(eq && norm(eq.fonte_fornecimento).includes('parceiro'));
+        });
+    }
+
     async function listarBoxesPublicos(p) {
         const tipoPropNorm = normalizarModeloTipoPublico(p && p.tipo);
         const ehAditivo = tipoPropNorm === 'ADITIVO';
-        const modeloBase = ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm;
+        const temParceiros = await propostaTemProdutoParceirosPublico(p);
+        const modeloBase = temParceiros
+            ? 'EQUIPAMENTOS'
+            : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
 
         let rowsBase = await dbAll(
             'SELECT * FROM comercial_boxes WHERE ativo = 1 AND modelo_tipo = ? ORDER BY ordem ASC, id ASC',
@@ -700,7 +730,10 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const numSeq = formatarSeq(p.codigo, p.contrato, p.id);
         const tipoPropNorm = normalizarModeloTipoPublico(p.tipo);
         const ehAditivo = tipoPropNorm === 'ADITIVO';
-        const modeloEfetivo = ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm;
+        const temParceirosQuadro = await propostaTemProdutoParceirosPublico(p, equip);
+        const modeloEfetivo = temParceirosQuadro
+            ? 'EQUIPAMENTOS'
+            : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
         const eventoLikeEfetivo = tipoEhEventoLike(modeloEfetivo);
 
         const valPub = fmtDataIso(p.validade_proposta || ultimoDiaValido(p));
@@ -932,6 +965,99 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         }
     });
 
+    app.get('/api/public/auditoria/:logId/assinatura-arquivo', limiteGeral, async (req, res) => {
+        try {
+            const log = await dbGet('SELECT id, registro_id, snapshot_json FROM auditoria WHERE id = ?', [req.params.logId]);
+            if (!log) return res.status(404).end();
+            let r2Key = null;
+            let mimeType = 'image/png';
+            if (log.snapshot_json) {
+                try {
+                    const snap = JSON.parse(log.snapshot_json);
+                    if (snap && snap.assinatura_r2_key) r2Key = snap.assinatura_r2_key;
+                    if (snap && snap.assinatura_mime_type) mimeType = snap.assinatura_mime_type;
+                } catch (_) {}
+            }
+            if (!r2Key && log.registro_id) {
+                const p = await dbGet('SELECT assinatura_r2_key, assinatura_mime_type FROM propostas WHERE id = ?', [log.registro_id]);
+                if (p && p.assinatura_r2_key) {
+                    r2Key = p.assinatura_r2_key;
+                    if (p.assinatura_mime_type) mimeType = p.assinatura_mime_type;
+                }
+            }
+            if (!r2Key) return res.status(404).end();
+            const r2s = require('./utils/r2');
+            if (!r2s.isReady()) return res.status(503).end();
+            const { stream, contentType } = await r2s.downloadStreamFromR2(r2Key);
+            res.setHeader('Content-Type', contentType || mimeType || 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            stream.pipe(res);
+        } catch (e) {
+            res.status(404).end();
+        }
+    });
+
+    app.get('/api/propostas/:id/logs/:logId/documento', authenticateToken, async (req, res) => {
+        try {
+            const propId = Number(req.params.id);
+            const logId = Number(req.params.logId);
+            const [pAtual, log] = await Promise.all([
+                dbGet('SELECT * FROM propostas WHERE id = ?', [propId]),
+                dbGet("SELECT * FROM auditoria WHERE id = ? AND programa = 'Proposta'", [logId])
+            ]);
+            if (!pAtual) return res.status(404).json({ error: 'Proposta não encontrada.' });
+            if (!log) return res.status(404).json({ error: 'Registro de histórico não encontrado.' });
+
+            let pBase = Object.assign({}, pAtual);
+            if (log.snapshot_json) {
+                try {
+                    const parsedSnap = JSON.parse(log.snapshot_json);
+                    if (parsedSnap && typeof parsedSnap === 'object') {
+                        pBase = Object.assign({}, pAtual, parsedSnap);
+                    }
+                } catch (_) {}
+            } else {
+                // Para registros antigos anteriores ao snapshot_json, tenta buscar assinatura de pré-aprovação anterior se aplicável
+                const atuUpper = norm(log.conteudo_atual || '').toUpperCase();
+                if (atuUpper.startsWith('PROPOSTA ENVIADA')) {
+                    pBase.assinatura_r2_key = null;
+                    pBase.aceite_publico_em = null;
+                    pBase.aprovado_por = null;
+                    pBase.aprovado_em = null;
+                    pBase.fase_negociacao = 'Proposta Enviada';
+                } else if (atuUpper.startsWith('PRE APROVADA') || atuUpper.includes('ACEITE ASSINADO')) {
+                    pBase.fase_negociacao = 'Pré aprovada';
+                    pBase.aprovado_por = null;
+                    pBase.aprovado_em = null;
+                } else if (atuUpper.startsWith('APROVADA')) {
+                    pBase.fase_negociacao = 'Aprovada';
+                }
+            }
+
+            const dados = await montarDadosQuadro(pBase);
+            const atuNorm = norm(log.conteudo_atual || '').toUpperCase();
+            if (atuNorm.startsWith('PROPOSTA ENVIADA')) {
+                dados.assinatura_url = null;
+                dados.aceite_publico_em = null;
+                dados.aprovado_por = null;
+                dados.aprovado_em = null;
+                dados.fase_negociacao = 'Proposta Enviada';
+            } else if (pBase.assinatura_r2_key) {
+                dados.assinatura_url = `/api/public/auditoria/${log.id}/assinatura-arquivo?t=${log.id}`;
+            }
+
+            if (atuNorm.startsWith('APROVADA') && !dados.aprovado_por) {
+                dados.aprovado_por = log.usuario || pBase.aprovado_por || pBase.atendente || '';
+                dados.aprovado_em = log.data_hora || pBase.aprovado_em || null;
+            }
+
+            res.json({ success: true, dados, log });
+        } catch (e) {
+            console.error('[PROPOSTA-PUBLICA] Erro ao montar documento do histórico:', e.message);
+            res.status(500).json({ error: e.message || 'Erro ao carregar documento do histórico.' });
+        }
+    });
+
     async function notificarPreAprovacaoProposta(p, agoraIso, agoraBrFmt) {
         try {
             const [usuarios, colabs, emailsCorp, departamentos] = await Promise.all([
@@ -1147,10 +1273,17 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             );
 
             const detalheProdsAudit = produtosAprovadosRaw.length > 0 ? ` | Produto(s): ${produtosAprovadosRaw.join(', ')}` : '';
+            const snapPreAprov = JSON.stringify(Object.assign({}, p, {
+                aceite_publico_em: agora,
+                assinatura_r2_key: assinaturaR2Key,
+                assinatura_mime_type: 'image/png',
+                fase_negociacao: novaFase,
+                produtos_aprovados: produtosAprovadosJson
+            }));
             await dbRun(
-                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, data_hora, registro_id)
+                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)
                  VALUES (?, 'Proposta', 'Fase de Negociação', ?, ?, ?, ?)`,
-                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt}${detalheProdsAudit})`, agora, p.id]
+                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt}${detalheProdsAudit})`, p.id, snapPreAprov]
             ).catch(() => {});
 
             notificarPreAprovacaoProposta(p, agora, agoraBrFmt);
