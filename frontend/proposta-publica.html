@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <script src="/comercial_boxes.js?v=20261102v11"></script>
+    <script src="/comercial_boxes.js?v=20261102v13"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -163,7 +163,7 @@
             var tituloDoc = imp.titulo_documento || ('PROPOSTA ' + (d.tipo_titulo || 'COMERCIAL') + ' Nº ' + (d.codigo_proposta || d.contrato || '01'));
             var itens = Array.isArray(d.itens) ? d.itens : [];
             var servicos = Array.isArray(d.servicos) ? d.servicos : [];
-            var isEquip = String(d.modelo_tipo || '').toUpperCase().indexOf('EQUIPAMENTO') >= 0;
+            var isEquip = false;
             var somaBrutaItens = 0;
             var somaDescontoItens = 0;
             itens.forEach(function (it) {

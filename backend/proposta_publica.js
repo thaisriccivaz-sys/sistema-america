@@ -655,7 +655,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const modeloEfetivo = (temParceirosQuadro && tipoPropNorm === 'EVENTO')
             ? 'EQUIPAMENTOS'
             : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
-        const ehEventoCalcPub = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
+        const ehEventoCalcPub = String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
         const diasContratoPubNum = Number(p.dias_contrato || 0);
         const isCompPub = Boolean(Number(p.proposta_comparativa) === 1);
         const prodsAprovPub = lerJson(p.produtos_aprovados);
@@ -687,7 +687,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 foto_url: fotoDe(it, nome),
                 link_url: linkDe(it, nome),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
-                dias_evento_texto: ehItemServico ? '' : formatarDiasCurtoItem(it),
+                dias_evento_texto: (ehItemServico || !ehEventoCalcPub) ? '' : formatarDiasCurtoItem(it),
                 quant_diarias: ehItemServico ? '—' : nDiarias, unit: base, por_dia: grossDia,
                 desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0,
                 eh_servico: ehItemServico,

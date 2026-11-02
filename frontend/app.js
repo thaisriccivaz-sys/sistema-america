@@ -1457,17 +1457,45 @@ window.navigateToTab = function (tabId) {
     }
 };
 
-window.closeAppTab = function (tabId) {
+window.closeAppTab = async function (tabId, forceClose = false) {
     const idx = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idx === -1) return;
     const tabObj = appOpenTabs[idx];
     const wasActive = Boolean(tabObj && tabObj.active);
-    if (tabObj && (tabObj.target === 'comercial-proposta' || tabObj.target === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
-        window.limparEstadoAbaComercial(tabObj.target === 'comercial-contratos' ? 'contrato' : 'proposta', wasActive, tabObj.tabId);
+    if (!forceClose && tabObj && tabObj.target === 'comercial-proposta') {
+        if (wasActive && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+            window.salvarSnapshotEstadoFormComercial('proposta', tabObj.tabId);
+        }
+        if (typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function' && window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId)) {
+            let confirmado = false;
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                const res = await Swal.fire({
+                    title: 'Informações não salvas',
+                    text: 'Tem certeza que gostaria de fechar a aba pois as informações não foram salvas?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Sim, fechar sem salvar',
+                    cancelButtonText: 'Cancelar'
+                });
+                confirmado = Boolean(res && res.isConfirmed);
+            } else {
+                confirmado = window.confirm('Tem certeza que gostaria de fechar a aba pois as informações não foram salvas?');
+            }
+            if (!confirmado) return;
+        }
     }
-    appOpenTabs.splice(idx, 1);
+    const idxAfter = appOpenTabs.findIndex(t => t.tabId === tabId);
+    if (idxAfter === -1) return;
+    const tabObjAfter = appOpenTabs[idxAfter];
+    const wasActiveAfter = Boolean(tabObjAfter && tabObjAfter.active);
+    if (tabObjAfter && (tabObjAfter.target === 'comercial-proposta' || tabObjAfter.target === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
+        window.limparEstadoAbaComercial(tabObjAfter.target === 'comercial-contratos' ? 'contrato' : 'proposta', wasActiveAfter, tabObjAfter.tabId);
+    }
+    appOpenTabs.splice(idxAfter, 1);
 
-    if (wasActive) {
+    if (wasActiveAfter) {
         if (appOpenTabs.length > 0) {
             navigateToTab(appOpenTabs[appOpenTabs.length - 1].tabId);
         } else {
@@ -1493,12 +1521,11 @@ function navigateTo(target) {
         if (target === 'comercial-proposta') {
             const propTabs = appOpenTabs.filter(t => t.target === 'comercial-proposta');
             let newTabId = 'comercial-proposta';
-            let newTitle = meta.title;
-            if (propTabs.length > 0) {
+            const newTitle = 'Proposta';
+            if (propTabs.length > 0 || appOpenTabs.some(t => t.tabId === 'comercial-proposta')) {
                 let n = 2;
                 while (appOpenTabs.some(t => t.tabId === `comercial-proposta-${n}`)) n++;
                 newTabId = `comercial-proposta-${n}`;
-                newTitle = `${meta.title} ${n}`;
             }
             window._activePropostaTabId = newTabId;
             if (window._snapshotsFormComercial) {
@@ -1780,6 +1807,9 @@ window._openProntuarioTab = function (colabId, nomeColab, colaboradorData) {
 
 function setupNavigation() {
     document.querySelectorAll('.sidebar-nav .nav-item[data-target], .dept-submenu .nav-item[data-target]').forEach(item => {
+        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes('navigateTo')) {
+            item.removeAttribute('onclick');
+        }
         item.addEventListener('click', (e) => {
             e.preventDefault();
             navigateTo(e.currentTarget.dataset.target);

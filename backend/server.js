@@ -40068,7 +40068,8 @@ app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
     `SELECT id, codigo, contrato, cliente_nome, contato_nome, tipo, tabela_precos, condicao_pagamento, nome_evento, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, status, fase_negociacao, situacao_contrato
      FROM propostas
      WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA'
-       AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
+       AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO', 'VENDA', 'PROPOSTA VENDA')
+       AND UPPER(TRIM(COALESCE(tabela_precos, ''))) NOT IN ('VENDA', 'PROPOSTA VENDA')
      ORDER BY id DESC`,
     [],
     (errProp, rowsProp) => {

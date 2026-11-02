@@ -1524,7 +1524,81 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     if (cliVal && typeof window.verificarBloqueioFaturamentoProposta === 'function') {
         window.verificarBloqueioFaturamentoProposta(cliVal);
     }
+    if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        window.atualizarTituloAbaPropostaAtiva( null, chave );
+    }
     return true;
+};
+
+window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOverride = null) {
+    if (window._modoTelaComercial === 'contrato') return;
+    if (!Array.isArray(window.appOpenTabs)) return;
+    const chave = tabIdOverride || (typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('proposta') : 'comercial-proposta');
+    const tab = window.appOpenTabs.find(t => t && t.tabId === chave) || window.appOpenTabs.find(t => t && t.active && t.target === 'comercial-proposta');
+    if (!tab || tab.target !== 'comercial-proposta') return;
+
+    const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[tab.tabId];
+    const isTabAtiva = Boolean(tab.active);
+    const idRef = isTabAtiva ? (_propostasEditandoId || (snap && snap.editandoId) || null) : (snap ? snap.editandoId : null);
+
+    let codStr = '';
+    if (idRef) {
+        if (codigoOverride) {
+            codStr = String(codigoOverride).trim();
+        }
+        if (!codStr && Array.isArray(_propostasData)) {
+            const pMatch = _propostasData.find(p => Number(p.id) === Number(idRef));
+            if (pMatch && pMatch.codigo) codStr = String(pMatch.codigo).trim();
+        }
+        if (!codStr && isTabAtiva) {
+            codStr = String(document.getElementById('prop-codigo')?.value || '').trim();
+        }
+        if (!codStr && snap && snap.campos && snap.campos['prop-codigo']) {
+            codStr = String(snap.campos['prop-codigo'].value || '').trim();
+        }
+    }
+
+    const novoTitulo = (idRef && codStr && codStr.toUpperCase() !== 'AUTO')
+        ? `Proposta ${codStr}`
+        : 'Proposta';
+
+    if (tab.title !== novoTitulo) {
+        tab.title = novoTitulo;
+        if (typeof renderAppTabs === 'function') {
+            renderAppTabs();
+        }
+    }
+};
+
+window.abaPropostaTemAlteracoesNaoSalvas = function(tabIdOverride = null) {
+    const chave = typeof window._obterChaveSnapshotComercial === 'function'
+        ? window._obterChaveSnapshotComercial('proposta', tabIdOverride)
+        : (tabIdOverride || 'comercial-proposta');
+    const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[chave];
+    if (!snap) return false;
+    if (snap.editandoId) {
+        return Boolean(snap.formEditadoNaoSalvo);
+    }
+    if (snap.formEditadoNaoSalvo) return true;
+    if (Array.isArray(snap.produtos) && snap.produtos.length > 0) return true;
+    if (Array.isArray(snap.servicos) && snap.servicos.length > 0) return true;
+    const c = snap.campos || {};
+    const camposRelevantes = [
+        'prop-tipo',
+        'prop-cliente',
+        'prop-contato',
+        'prop-periodo-ini',
+        'prop-periodo-fim',
+        'prop-nome-evento',
+        'prop-endereco',
+        'prop-obs',
+        'prop-contrato-aditivo',
+        'prop-prod-codigo'
+    ];
+    return camposRelevantes.some(idCampo => {
+        const val = String((c[idCampo] && c[idCampo].value) || '').trim();
+        return Boolean(val);
+    });
 };
 
 window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true, tabIdOverride = null) {
@@ -2752,6 +2826,7 @@ function _renderFormPropostaInt() {
                                     <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(v('contrato_vinculado') || '')}"
                                         data-contrato-id="${_escHtmlProp(v('contrato_vinculado_id') || '')}"
                                         data-contrato-tipo="${_escHtmlProp(v('contrato_vinculado_tipo') || '')}"
+                                        data-contrato-cond-pag="${_escHtmlProp(String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? (v('condicao_pagamento') || '') : '')}"
                                         placeholder="Nº do contrato base..."
                                         title="Preencha o Cliente primeiro e digite o nº do contrato ou clique na lupa (apenas contratos ativos do cliente)"
                                         onfocus="if(typeof window.onFocusContratoAditivoInput === 'function') window.onFocusContratoAditivoInput(event);"
@@ -3211,6 +3286,9 @@ function _renderFormPropostaInt() {
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
     }
+    if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        window.atualizarTituloAbaPropostaAtiva(prop ? prop.codigo : null);
+    }
     const faseUpRender = String(v('fase_negociacao') || '').trim().toUpperCase();
     if (window._modoTelaComercial !== 'contrato' && (faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
         const formEl = document.getElementById('form-proposta');
@@ -3317,8 +3395,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 };
 
 window.marcarPropostaComoEditada = function(opcoes = {}) {
-    if (!_propostasEditandoId) return;
     window._propFormEditadoNaoSalvo = true;
+    if (!_propostasEditandoId) return;
     if (window._modoTelaComercial !== 'contrato' && !(opcoes && opcoes.preservarFase)) {
         const selFase = document.getElementById('prop-fase');
         if (selFase) {
@@ -3617,6 +3695,9 @@ window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
                 condPagEl.appendChild(optBase);
             }
             condPagEl.value = optBase.value;
+            if (typeof window.atualizarCorCondicaoPagamento === 'function') {
+                window.atualizarCorCondicaoPagamento(condPagEl);
+            }
         } else if (tinhaBloq) {
             const tipoAtual = document.getElementById('prop-tipo')?.value || '';
             const condPadrao = typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function'
@@ -6857,6 +6938,9 @@ window.salvarPropostaNova = async function() {
     if (typeof window.validarServicosPropostaObra === 'function') {
         if (!window.validarServicosPropostaObra(tipo)) return;
     }
+    if (typeof window.validarListaProdutosEquipamentosDiasContrato === 'function') {
+        if (!window.validarListaProdutosEquipamentosDiasContrato(tipo)) return;
+    }
 
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
@@ -7321,6 +7405,9 @@ window.estornarPropostaEdicao = async function() {
     if (typeof window.validarServicosPropostaObra === 'function') {
         if (!window.validarServicosPropostaObra(tipo)) return;
     }
+    if (typeof window.validarListaProdutosEquipamentosDiasContrato === 'function') {
+        if (!window.validarListaProdutosEquipamentosDiasContrato(tipo)) return;
+    }
 
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
@@ -7378,11 +7465,11 @@ window.estornarPropostaEdicao = async function() {
             }
             if (window._modoTelaComercial === 'contrato') {
                 window._propostasEditandoId_contrato = null;
+                if (typeof window.navigateTo === 'function') window.navigateTo('comercial-proposta');
                 window._propostasEditandoId_proposta = finalId;
                 window._modoTelaComercial = 'proposta';
                 _propostasEditandoId = finalId;
                 await abrirFormProposta(finalId);
-                if (typeof window.navigateTo === 'function') window.navigateTo('comercial-proposta');
             }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso('Proposta estornada para Proposta Enviada e liberada para edição!');
@@ -7453,6 +7540,7 @@ window.aprovarPropostaEdicao = async function() {
         if (Array.isArray(window._propProdutosAdicionados)) window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
     }
     if (typeof window.validarServicosPropostaObra === 'function' && !window.validarServicosPropostaObra(tipo)) return;
+    if (typeof window.validarListaProdutosEquipamentosDiasContrato === 'function' && !window.validarListaProdutosEquipamentosDiasContrato(tipo)) return;
 
     const isComparativa = Boolean(document.getElementById('prop-comparativa')?.checked);
     const propExistente = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
@@ -7744,12 +7832,6 @@ window.abrirContratoDaProposta = async function(id) {
 window.abrirPropostaDiretoId = async function(id) {
     const targetId = Number(id);
     if (!targetId) return;
-    if (window._modoTelaComercial === 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        window.salvarSnapshotEstadoFormComercial('contrato');
-    }
-    window._propostasEditandoId_proposta = targetId;
-    window._modoTelaComercial = 'proposta';
-    _propostasEditandoId = targetId;
     if (typeof window.navigateTo === 'function') {
         window.navigateTo('comercial-proposta');
     }
@@ -18785,7 +18867,7 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
 
 window.tipoPropostaEhEvento = function(tipo) {
     const t = window.obterTipoEfetivoProposta(tipo);
-    return t === 'EVENTO' || t === 'EQUIPAMENTOS';
+    return t === 'EVENTO';
 };
 
 window.tipoPropostaEhVenda = function(tipo) {
@@ -18896,7 +18978,7 @@ window.atualizarVisibilidadeNomeEventoProposta = function(tipo) {
 
 window.tipoPropostaUsaDiasEvento = function(tipo) {
     const t = window.obterTipoEfetivoProposta(tipo);
-    return t === 'EVENTO' || t === 'EQUIPAMENTOS';
+    return t === 'EVENTO';
 };
 
 window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
@@ -19935,6 +20017,8 @@ window._listarContratosAtivosParaAditivo = async function(clienteFiltro = null) 
         const res = await apiGet('/contratos/ativos');
         const lista = Array.isArray(res) ? res : [];
         return lista.filter(c => {
+            const tipoContLimpo = String(c.tipo || c.tabela_precos || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoContLimpo === 'VENDA' || tipoContLimpo === 'ADITIVO') return false;
             const sitEspecifica = String(c.situacao_contrato || c.situacao || '').trim();
             const ehAtivo = (typeof window.situacaoContratoEhAtiva === 'function')
                 ? window.situacaoContratoEhAtiva(sitEspecifica)
@@ -20014,8 +20098,12 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     let condPagOrig = String(condicaoPagamento || '').trim();
     let nomeEventoOrig = String(nomeEvento || '').trim();
     let pOrig = null;
-    if (idContrato && Array.isArray(window._propostasData)) {
-        pOrig = window._propostasData.find(p => String(p.id) === String(idContrato)) || null;
+    if (Array.isArray(window._propostasData)) {
+        const numLimpo = String(numContrato || '').trim().toUpperCase();
+        pOrig = (idContrato && window._propostasData.find(p => String(p.id) === String(idContrato)))
+            || (numLimpo && window._propostasData.find(p => String(p.contrato || p.codigo || '').trim().toUpperCase() === numLimpo))
+            || null;
+        if (pOrig && !idContrato && pOrig.id) idContrato = String(pOrig.id);
         if (!condPagOrig && pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
         if (!tipoContrato && pOrig && pOrig.tipo) tipoContrato = String(pOrig.tipo).trim();
         if (!nomeEventoOrig && pOrig && pOrig.nome_evento) nomeEventoOrig = String(pOrig.nome_evento).trim();
@@ -20107,6 +20195,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             condPagEl.appendChild(opt);
         }
         condPagEl.value = opt.value;
+        if (typeof window.atualizarCorCondicaoPagamento === 'function') {
+            window.atualizarCorCondicaoPagamento(condPagEl);
+        }
     }
     if (nomeEventoOrig && window.tipoPropostaExigeNomeEvento('ADITIVO')) {
         const inpNomeEvAfter = document.getElementById('prop-nome-evento');
@@ -20783,13 +20874,13 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         const grupoNorm = normStr(p.grupo_produto);
         const nomeNorm = normStr(p.nome);
 
-        if (tipoNorm === 'evento') {
-            // Tipo EVENTO: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos); serviços aparecem em Produto
+        if (tipoNorm === 'evento' || tipoNorm === 'equipamentos') {
+            // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos); serviços aparecem em Produto
             if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
                 return false;
             }
-            // Não mostrar produtos de mobilização ZC, ZA e ZV e nem desmobilização ZC, ZA e ZV
-            if (window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p)) {
+            // Não mostrar produtos de mobilização ZC, ZA e ZV e nem desmobilização ZC, ZA e ZV em propostas de evento
+            if (tipoNorm === 'evento' && window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p)) {
                 return false;
             }
         } else if (tipoNorm === 'venda') {
@@ -20944,7 +21035,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
         if (!Array.from(fontesSet).some(x => normStr(x) === 'proprio avulso')) {
             fontesSet.add('PRÓPRIO AVULSO');
         }
-    } else if (tipoNorm === 'evento') {
+    } else if (tipoNorm === 'evento' || tipoNorm === 'equipamentos') {
         ['PRÓPRIO AVULSO', 'PARCEIROS'].forEach(fPad => {
             if (!Array.from(fontesSet).some(x => normStr(x) === normStr(fPad))) {
                 fontesSet.add(fPad);
@@ -21324,11 +21415,56 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
     valTotalEl.value = window.formatarMoedaCentavosProposta(totalLiquido);
 };
 
+window.validarProprioAvulsoEquipamentosDiasContrato = function(prodRef, tipoOverride = null) {
+    const t = typeof window.obterTipoEfetivoProposta === 'function'
+        ? window.obterTipoEfetivoProposta(tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || ''))
+        : String(tipoOverride || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (t !== 'EQUIPAMENTOS') return true;
+
+    const fonteBruta = (prodRef && prodRef.fonte_fornecimento)
+        ? String(prodRef.fonte_fornecimento)
+        : ((typeof window.obterFonteFornecimentoEquipamento === 'function' && prodRef)
+            ? window.obterFonteFornecimentoEquipamento(prodRef)
+            : '');
+    const fonteNorm = String(fonteBruta || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (fonteNorm === 'proprio avulso' || fonteNorm.includes('proprio avulso')) {
+        const diasContrato = parseInt(document.getElementById('prop-dias')?.value || '0', 10);
+        if (diasContrato !== 1) {
+            const msg = 'Quando uma proposta for do tipo EQUIPAMENTOS, só é possível adicionar produto com fonte de fornecimento PRÓPRIO AVULSO caso esteja selecionado apenas 1 no campo Dias Contrato.';
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                Swal.fire('Regra de Equipamentos', msg, 'warning');
+            } else {
+                alert(msg);
+            }
+            return false;
+        }
+    }
+    return true;
+};
+
+window.validarListaProdutosEquipamentosDiasContrato = function(tipoOverride = null) {
+    const t = typeof window.obterTipoEfetivoProposta === 'function'
+        ? window.obterTipoEfetivoProposta(tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || ''))
+        : String(tipoOverride || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (t !== 'EQUIPAMENTOS') return true;
+    const itens = Array.isArray(window._propProdutosAdicionados) ? window._propProdutosAdicionados : [];
+    for (let i = 0; i < itens.length; i++) {
+        if (!window.validarProprioAvulsoEquipamentosDiasContrato(itens[i], tipoOverride)) {
+            return false;
+        }
+    }
+    return true;
+};
+
 window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) {
+    const nomeLimpo = String(nome || '').replace(/^\d+\s*-\s*/, '').trim();
+    if (typeof window.validarProprioAvulsoEquipamentosDiasContrato === 'function') {
+        if (!window.validarProprioAvulsoEquipamentosDiasContrato({ codigo: cod, nome: nomeLimpo || nome, produto: nomeLimpo || nome })) {
+            return;
+        }
+    }
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
-    // Não mostrar o código na frente do nome do produto (ex: apenas "LIMPA FOSSA")
-    const nomeLimpo = String(nome || '').replace(/^\d+\s*-\s*/, '').trim();
     if (inputCodigo) {
         inputCodigo.value = nomeLimpo || cod || '';
         inputCodigo.setAttribute('data-codigo', cod || '');
@@ -21381,6 +21517,12 @@ window.adicionarProdutoProposta = function() {
         }
     }
     produtoNome = String(produtoNome || '').replace(/^\d+\s*-\s*/, '').trim();
+
+    if (typeof window.validarProprioAvulsoEquipamentosDiasContrato === 'function') {
+        if (!window.validarProprioAvulsoEquipamentosDiasContrato({ codigo, nome: produtoNome, produto: produtoNome })) {
+            return;
+        }
+    }
 
     const ehProdServico = (typeof window.produtoEhTipoServico === 'function') && window.produtoEhTipoServico({ codigo, nome: produtoNome, produto: produtoNome });
 

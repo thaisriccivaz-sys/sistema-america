@@ -173,7 +173,7 @@
             mostrar_condicoes_topo: true,
             mostrar_faixa_valores_contemplados: true,
             faixa_valores_img: '/assets/faixa-valores-contemplados-evento.png?v=20261101v8',
-            mostrar_dias_evento_item: true,
+            mostrar_dias_evento_item: false,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
         },
@@ -856,7 +856,7 @@
         if (!prop) {
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
             const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
-            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA') || String(modeloEfetivo || '').trim().toUpperCase() === 'VENDA';
+            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA') || String(modeloEfetivo || '').trim().toUpperCase() === 'VENDA' || String(modeloEfetivo || '').trim().toUpperCase() === 'EQUIPAMENTOS';
             const ehDemoLimpaFossa = String(modeloEfetivo || '').trim().toUpperCase().startsWith('LIMPA FOSSA');
             const ehDemoSemDiarias = ehDemoObra || ehDemoLimpaFossa;
             return {
@@ -953,7 +953,7 @@
                 : JSON.parse(prop.produtos_aprovados || '[]');
         } catch (_) { prodsAprov = []; }
 
-        const ehModeloEventoCalc = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
+        const ehModeloEventoCalc = String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
         const diasContratoPropNum = Number(prop.dias_contrato || 0);
         const itensFormatados = (itensRaw || []).map((it, idxIt) => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
@@ -984,7 +984,7 @@
                 foto_url: window.obterFotoPropostaEquipamento(it),
                 link_url: window.obterLinkPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
-                dias_evento_texto: ehItemServico ? '' : formatarDiasEventoProdutoCurto(it, prop),
+                dias_evento_texto: (ehItemServico || !ehModeloEventoCalc) ? '' : formatarDiasEventoProdutoCurto(it, prop),
                 quant_diarias: ehItemServico ? '—' : nDiarias,
                 unit: base,
                 por_dia: grossDia,
@@ -1099,7 +1099,7 @@
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const modTipoQuadroUpper = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehModeloEventoPuro = modTipoQuadroUpper === 'EVENTO';
-        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA';
+        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'EQUIPAMENTOS';
         const ehQuadroLimpaFossa = modTipoQuadroUpper === 'LIMPA FOSSA' || modTipoQuadroUpper.startsWith('LIMPA FOSSA');
         const rotuloDiasItemQuadro = ehModeloEventoPuro ? 'Dia de Evento ou Sucção:' : 'Dia de Evento / Sucção:';
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
