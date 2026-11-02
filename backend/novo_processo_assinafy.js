@@ -332,4 +332,63 @@ async function cancelarDocumentoAssinafy(assinafyDocId) {
     throw new Error(`Erro ao cancelar documento (HTTP ${r.status}): ${r.json?.message || r.raw.substring(0, 150)}`);
 }
 
-module.exports = { enviarDocumentoParaAssinafy, cancelarDocumentoAssinafy };
+
+async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSignatario, emailSignatario, cpfSignatario, whatsappSignatario }) {
+    console.log('\n========================================');
+    console.log('[ASSINAFY ADITIVO] Iniciando envio de PDF em buffer');
+    console.log('========================================');
+
+    if (!API_KEY || !ACCOUNT_ID) {
+        throw new Error('ASSINAFY_API_KEY ou ASSINAFY_ACCOUNT_ID não configuradas no ambiente.');
+    }
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('Buffer do PDF do aditivo está vazio.');
+    }
+    const email = String(emailSignatario || '').trim().toLowerCase();
+    const nome = String(nomeSignatario || 'Cliente').trim();
+    if (!email || !email.includes('@')) {
+        throw new Error('O contato/cliente da proposta de aditivo não possui e-mail válido cadastrado para assinatura no Assinafy.');
+    }
+
+    const fileNameSafe = String(nomeArquivoPdf || 'Proposta_Aditivo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const upRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, fileNameSafe, pdfBuffer);
+    if (upRes.status >= 400 || !upRes.json?.data?.id) {
+        throw new Error(`Falha no upload do PDF para o Assinafy (HTTP ${upRes.status}): ${upRes.json?.message || upRes.raw.substring(0, 150)}`);
+    }
+    const assinafyDocId = upRes.json.data.id;
+    console.log(`[ASSINAFY ADITIVO] Upload OK! DocID: ${assinafyDocId}`);
+
+    for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const st = await req('GET', `/v1/documents/${assinafyDocId}`);
+        const s = st.json?.data?.status || '';
+        console.log(`   [Polling ${i + 1}/15] status="${s}"`);
+        if (s && !['uploading', 'uploaded', 'processing', 'pending_processing'].includes(s)) break;
+        if (s === 'failed') throw new Error('Assinafy falhou ao processar o PDF do aditivo.');
+    }
+
+    const signerId = await resolverSignatario(nome, email, cpfSignatario || '', whatsappSignatario || '');
+    console.log(`[ASSINAFY ADITIVO] SignerID=${signerId}`);
+
+    const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
+        method: 'virtual',
+        signers: [{ id: signerId }]
+    });
+
+    if (assignRes.status >= 400) {
+        throw new Error(`Falha ao criar solicitação de assinatura no Assinafy (HTTP ${assignRes.status}): ${assignRes.json?.message || assignRes.raw.substring(0, 200)}`);
+    }
+
+    const assignList = assignRes.json?.data?.assignments || [];
+    const urlAssinatura = (
+        assignList[0]?.signature_url ||
+        assignList[0]?.signing_url   ||
+        assignRes.json?.data?.signing_urls?.[0]?.url ||
+        `https://app.assinafy.com.br/sign/${assinafyDocId}`
+    );
+    console.log(`[ASSINAFY ADITIVO] Assignment OK! URL: ${urlAssinatura}`);
+
+    return { assinafyDocId, signerId, urlAssinatura, emailSignatario: email, nomeSignatario: nome };
+}
+
+module.exports = { enviarDocumentoParaAssinafy, cancelarDocumentoAssinafy, enviarPdfBufferParaAssinafy };

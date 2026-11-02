@@ -868,11 +868,12 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
         let aprovadoPorFinal = p.aprovado_por || null;
         let aprovadoEmFinal = p.aprovado_em || null;
-        if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') {
+        const faseUpQuadro = String(p.fase_negociacao || '').trim().toUpperCase();
+        if (faseUpQuadro === 'APROVADA' || faseUpQuadro === 'APROVADO - ADITIVO ASSINADO' || faseUpQuadro === 'ENVIADO PARA ASSINATURA') {
             if (!aprovadoPorFinal || !aprovadoEmFinal) {
                 try {
                     const logAp = await dbGet(
-                        "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND UPPER(TRIM(conteudo_atual)) LIKE 'APROVADA%' ORDER BY id DESC LIMIT 1",
+                        "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND (UPPER(TRIM(conteudo_atual)) LIKE 'APROVADA%' OR UPPER(TRIM(conteudo_atual)) LIKE 'APROVADO%' OR UPPER(TRIM(conteudo_atual)) LIKE 'ENVIADO PARA ASSINATURA%') ORDER BY id DESC LIMIT 1",
                         [p.id]
                     );
                     if (logAp) {
@@ -1301,14 +1302,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (!p || !tokenConfere(token, p.token_publico)) return naoEncontrada();
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado.' });
-            if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') {
+            const faseUpCheck = String(p.fase_negociacao || '').trim().toUpperCase();
+            if (faseUpCheck === 'APROVADA' || faseUpCheck === 'APROVADO - ADITIVO ASSINADO' || faseUpCheck === 'ENVIADO PARA ASSINATURA') {
                 return res.status(400).json({ error: 'Esta proposta já foi aprovada internamente.' });
             }
 
             const assinaturaBase64 = String((req.body && req.body.assinatura_base64) || '').trim();
-            if (!assinaturaBase64 || !assinaturaBase64.startsWith('data:image/')) {
-                return res.status(400).json({ error: 'Por favor, assine no quadro de assinatura antes de confirmar.' });
-            }
+            const temAssinaturaImagem = Boolean(assinaturaBase64 && assinaturaBase64.startsWith('data:image/'));
 
             const produtosAprovadosRaw = (req.body && Array.isArray(req.body.produtos_aprovados))
                 ? req.body.produtos_aprovados.map(x => String(x || '').trim()).filter(Boolean)
@@ -1327,7 +1327,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
             let assinaturaR2Key = p.assinatura_r2_key || null;
             const r2b = require('./utils/r2');
-            if (r2b.isReady()) {
+            if (temAssinaturaImagem && r2b.isReady()) {
                 const base64Clean = assinaturaBase64.replace(/^data:image\/\w+;base64,/, '');
                 const bufAssinatura = Buffer.from(base64Clean, 'base64');
                 const agoraBrObj = new Date(Date.now() - 3 * 60 * 60 * 1000);
@@ -1344,7 +1344,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const [dPart, tPart] = agora.split(' ');
             const agoraBrFmt = `${dPart.split('-').reverse().join('/')} às ${tPart}`;
             const faseAnterior = p.fase_negociacao || 'Proposta Enviada';
-            const novaFase = String(faseAnterior).trim().toUpperCase() === 'APROVADA' ? faseAnterior : 'Pré aprovada';
+            const novaFase = (faseUpCheck === 'APROVADA' || faseUpCheck === 'APROVADO - ADITIVO ASSINADO') ? faseAnterior : 'Pré aprovada';
 
             await dbRun(
                 "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ?, produtos_aprovados = ?, itens = ? WHERE id = ?",
@@ -1363,7 +1363,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             await dbRun(
                 `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)
                  VALUES (?, 'Proposta', 'Fase de Negociação', ?, ?, ?, ?)`,
-                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite assinado em ${agoraBrFmt}${detalheProdsAudit})`, p.id, snapPreAprov]
+                ['CLIENTE (Link da Proposta)', faseAnterior, `Pré aprovada (Aceite confirmado em ${agoraBrFmt}${detalheProdsAudit})`, p.id, snapPreAprov]
             ).catch(() => {});
 
             notificarPreAprovacaoProposta(p, agora, agoraBrFmt);

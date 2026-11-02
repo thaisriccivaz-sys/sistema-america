@@ -108,8 +108,10 @@ const PROP_STATUS_CORES = {
     'Aprovada':             { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-check-circle' },
     'Reprovada':            { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-x-circle' },
     'Cancelada':            { bg: '#0f172a', text: '#ffffff', border: '#0f172a', icon: 'ph-prohibit' },
-    'Convertida em OS':     { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'ph-clipboard-text' },
-    'Sem Resposta':         { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-clock-countdown' },
+    'Convertida em OS':             { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'ph-clipboard-text' },
+    'Sem Resposta':                 { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-clock-countdown' },
+    'ENVIADO PARA ASSINATURA':      { bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' },
+    'APROVADO - ADITIVO ASSINADO':  { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-check-circle' },
 };
 
 window.obterConfigFaseNegociacao = function(faseRaw) {
@@ -123,6 +125,12 @@ window.obterConfigFaseNegociacao = function(faseRaw) {
     }
     if (f === 'PRE APROVADA' || f === 'PRE-APROVADA') {
         return { nome: 'Pré aprovada', ...PROP_STATUS_CORES['Pré aprovada'] };
+    }
+    if (f === 'ENVIADO PARA ASSINATURA') {
+        return { nome: 'ENVIADO PARA ASSINATURA', ...PROP_STATUS_CORES['ENVIADO PARA ASSINATURA'] };
+    }
+    if (f === 'APROVADO - ADITIVO ASSINADO') {
+        return { nome: 'APROVADO - ADITIVO ASSINADO', ...PROP_STATUS_CORES['APROVADO - ADITIVO ASSINADO'] };
     }
     if (f === 'APROVADA' || f === 'APROVADO') {
         return { nome: 'Aprovada', ...PROP_STATUS_CORES['Aprovada'] };
@@ -415,7 +423,9 @@ window.propostaEstaAssinadaOuAprovada = function(p) {
         (p.assinatura_r2_key && String(p.assinatura_r2_key).trim()) ||
         (p.aceite_publico_em && String(p.aceite_publico_em).trim()) ||
         faseUp === 'PRÉ APROVADA' ||
-        faseUp === 'APROVADA'
+        faseUp === 'APROVADA' ||
+        faseUp === 'APROVADO - ADITIVO ASSINADO' ||
+        faseUp === 'ENVIADO PARA ASSINATURA'
     );
 };
 
@@ -2455,11 +2465,11 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${isNovo ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
                     </button>
-                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
-                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato')) ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || ['APROVADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
                     </button>
                     <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="Visualizar Proposta Assinada / Aprovada" style="display:${(!isNovo && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
@@ -2486,7 +2496,7 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
-                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="margin-left:auto; background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
@@ -2565,7 +2575,7 @@ function _renderFormPropostaInt() {
                                         const isSel = sitSel.toUpperCase() === cfg.nome.toUpperCase();
                                         return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
                                     }).join('')
-                                    : PROP_FASES.map(f => {
+                                    : (PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
                                         const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
@@ -2578,7 +2588,9 @@ function _renderFormPropostaInt() {
                                                 ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
                                                 : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''));
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
-                                    }).join('')}
+                                    }).join('') + (['ENVIADO PARA ASSINATURA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())
+                                        ? `<option value="${_escHtmlProp(String(v('fase_negociacao')).trim())}" selected disabled>${_escHtmlProp(String(v('fase_negociacao')).trim().toUpperCase())}</option>`
+                                        : ''))}
                             </select>
                             <div id="prop-fase-custom-wrap" style="position:relative; width:100%;">
                                 <button type="button" id="prop-fase-custom-btn" onclick="window.toggleDropdownFaseProposta(event)"
@@ -3147,7 +3159,8 @@ function _renderFormPropostaInt() {
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
     }
-    if (window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') {
+    const faseUpRender = String(v('fase_negociacao') || '').trim().toUpperCase();
+    if (window._modoTelaComercial !== 'contrato' && (faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
         const formEl = document.getElementById('form-proposta');
         if (formEl) {
             formEl.querySelectorAll('input, select, textarea, button').forEach(el => {
@@ -3157,13 +3170,26 @@ function _renderFormPropostaInt() {
             });
         }
     }
+    if (id && faseUpRender === 'ENVIADO PARA ASSINATURA' && window._ultimoSyncAssinafyPropId !== id) {
+        window._ultimoSyncAssinafyPropId = id;
+        apiPost(`/propostas/${id}/sync-assinafy`, {}).then(async (rSync) => {
+            const novaFaseSync = String(rSync?.proposta?.fase_negociacao || '').trim().toUpperCase();
+            if (novaFaseSync === 'APROVADO - ADITIVO ASSINADO') {
+                window._ultimoSyncAssinafyPropId = null;
+                await carregarPropostas();
+                if (Number(_propostasEditandoId) === Number(id)) {
+                    await abrirFormProposta(id);
+                }
+            }
+        }).catch(() => {});
+    }
 }
 
 window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     const mostrar = Boolean(_propostasEditandoId) && !Boolean(window._propFormEditadoNaoSalvo);
     const prop = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
     const faseForm = String(document.getElementById('prop-fase')?.value || (prop && prop.fase_negociacao) || '').trim().toUpperCase();
-    const isApOuPreAp = faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA';
+    const isApOuPreAp = faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA' || faseForm === 'APROVADO - ADITIVO ASSINADO' || faseForm === 'ENVIADO PARA ASSINATURA';
 
     document.querySelectorAll('#prop-toolbar-form .prop-btn-pos-salvo').forEach(btn => {
         if (isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
@@ -3208,7 +3234,11 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnAprovar = document.getElementById('btn-prop-aprovar');
     if (btnAprovar) {
-        const mostrarAprovar = Boolean(_propostasEditandoId) && window._modoTelaComercial !== 'contrato' && faseForm !== 'APROVADA';
+        const mostrarAprovar = Boolean(_propostasEditandoId)
+            && window._modoTelaComercial !== 'contrato'
+            && faseForm !== 'APROVADA'
+            && faseForm !== 'APROVADO - ADITIVO ASSINADO'
+            && faseForm !== 'ENVIADO PARA ASSINATURA';
         btnAprovar.style.display = mostrarAprovar ? 'inline-flex' : 'none';
         if (mostrarAprovar) {
             const bloqueadoPorEdicao = Boolean(window._propFormEditadoNaoSalvo);
@@ -3241,7 +3271,7 @@ window.marcarPropostaComoEditada = function(opcoes = {}) {
         const selFase = document.getElementById('prop-fase');
         if (selFase) {
             const faseNorm = String(selFase.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-            if (faseNorm === 'PROPOSTA ENVIADA' || faseNorm === 'ENVIADA' || faseNorm === 'PRE APROVADA') {
+            if (faseNorm === 'PROPOSTA ENVIADA' || faseNorm === 'ENVIADA' || faseNorm === 'PRE APROVADA' || faseNorm === 'ENVIADO PARA ASSINATURA') {
                 selFase.value = 'Em Elaboração';
                 if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
                     window.atualizarBadgeSituacaoContratoForm('Em Elaboração');
@@ -7364,9 +7394,12 @@ window.aprovarPropostaEdicao = async function() {
         window._propProdutosAprovadosAtual = produtosAprovadosSel;
     }
 
+    const ehAditivoAprov = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
     const faseSel = document.getElementById('prop-fase');
-    if (faseSel) faseSel.value = 'Aprovada';
-    if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
+    if (!ehAditivoAprov) {
+        if (faseSel) faseSel.value = 'Aprovada';
+        if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
+    }
     const payload = {
         local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
@@ -7374,8 +7407,8 @@ window.aprovarPropostaEdicao = async function() {
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: 'Aprovada',
-        situacao_contrato: 'AGUARDANDO ASSINATURA',
+        fase_negociacao: ehAditivoAprov ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada',
+        situacao_contrato: ehAditivoAprov ? null : 'AGUARDANDO ASSINATURA',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -7435,6 +7468,97 @@ window.aprovarPropostaEdicao = async function() {
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
+    if (ehAditivoAprov) {
+        Swal.fire({ title: 'Gerando documento do Aditivo e enviando via Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+            const respSave = _propostasEditandoId
+                ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
+                : await apiPost('/propostas', payload);
+            const finalId = _propostasEditandoId || respSave?.id;
+            if (!finalId) {
+                Swal.fire('Erro', 'Não foi possível salvar a proposta de aditivo antes do envio.', 'error');
+                return;
+            }
+            _propostasEditandoId = finalId;
+            window._propostasEditandoId_proposta = finalId;
+
+            let htmlImpressaoSimples = '';
+            try {
+                const respDoc = await apiGet('/propostas/' + finalId + '/dados-documento-assinado');
+                if (respDoc && respDoc.dados) {
+                    const dDoc = respDoc.dados;
+                    const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                        ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
+                        : '';
+                    const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
+                    const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                    const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
+                    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                    htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                }
+            } catch (errDocAd) {
+                console.warn('[ADITIVO ASSINAFY] Falha ao montar html_impressao_simples:', errDocAd);
+            }
+
+            let respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
+                html_impressao_simples: htmlImpressaoSimples,
+                produtos_aprovados: produtosAprovadosSel
+            });
+
+            if (respAssinafy && respAssinafy.precisa_email) {
+                Swal.close();
+                const promptSig = await Swal.fire({
+                    title: 'Dados do Signatário (Assinafy)',
+                    html: `
+                        <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.86rem;">
+                            <p style="color:#475569; margin:0 0 10px 0;">Informe o nome e o e-mail do cliente/contato para envio automático do aditivo para assinatura via Assinafy:</p>
+                            <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nome do Signatário *</label>
+                            <input type="text" id="swal-assinafy-nome" value="${_escHtmlProp(respAssinafy.nome_sugerido || obter('prop-contato') || obter('prop-cliente') || '')}" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; box-sizing:border-box;">
+                            <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">E-mail do Signatário *</label>
+                            <input type="email" id="swal-assinafy-email" placeholder="cliente@empresa.com.br" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none !important;">
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonColor: '#0f766e',
+                    confirmButtonText: 'Enviar para Assinatura (Assinafy)',
+                    cancelButtonText: 'Cancelar',
+                    preConfirm: () => {
+                        const nm = (document.getElementById('swal-assinafy-nome')?.value || '').trim();
+                        const em = (document.getElementById('swal-assinafy-email')?.value || '').trim();
+                        if (!nm) { Swal.showValidationMessage('Informe o nome do signatário.'); return false; }
+                        if (!em || !em.includes('@')) { Swal.showValidationMessage('Informe um e-mail válido para assinatura.'); return false; }
+                        return { nome_signatario: nm, email_signatario: em };
+                    }
+                });
+                if (!promptSig.isConfirmed) return;
+                Swal.fire({ title: 'Enviando Aditivo para o Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
+                    html_impressao_simples: htmlImpressaoSimples,
+                    produtos_aprovados: produtosAprovadosSel,
+                    nome_signatario: promptSig.value.nome_signatario,
+                    email_signatario: promptSig.value.email_signatario
+                });
+            }
+
+            if (respAssinafy && respAssinafy.success) {
+                await carregarPropostas();
+                _propostasEditandoId = finalId;
+                window._propostasEditandoId_proposta = finalId;
+                Swal.close();
+                await abrirFormProposta(finalId);
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso('Aditivo enviado para assinatura via Assinafy (' + (respAssinafy.email_signatario || '') + ')! Situação: ENVIADO PARA ASSINATURA.');
+                }
+            } else {
+                Swal.fire('Erro', 'Falha ao enviar aditivo para o Assinafy: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
+            }
+        } catch (eAd) {
+            console.error('[PROPOSTAS ADITIVO ASSINAFY] Erro:', eAd);
+            Swal.fire('Erro', 'Erro ao enviar aditivo para o Assinafy: ' + eAd.message, 'error');
+        }
+        return;
+    }
+
     Swal.fire({ title: 'Aprovando Proposta e gerando Contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const resp = _propostasEditandoId
