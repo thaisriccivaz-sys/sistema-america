@@ -1316,6 +1316,12 @@ function renderAppTabs() {
 window.navigateToTab = function (tabId) {
     const tab = appOpenTabs.find(t => t.tabId === tabId);
     if (!tab) return;
+    const prevActiveTab = appOpenTabs.find(t => t.active && t.tabId !== tabId);
+    if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
+        if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+            window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta');
+        }
+    }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
     // Salvar o scroll do Pipeline se ele estiver aberto no momento
@@ -1341,7 +1347,7 @@ window.navigateToTab = function (tabId) {
     }
 
     const _comercialSubTabMap = {
-        'comercial-proposta': 'form',
+        'comercial-proposta': 'propostas',
         'comercial-contratos': 'contratos',
         'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-tabela-precos': 'tabela-precos',
@@ -1411,13 +1417,17 @@ window.navigateToTab = function (tabId) {
     }
     if (_comercialSubTabMap[tab.target]) {
         const subTab = _comercialSubTabMap[tab.target];
-        setTimeout(() => {
-            if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
-                window.switchPropostaTab(subTab);
-            } else if (typeof window.inicializarPropostas === 'function') {
-                window.inicializarPropostas(subTab);
-            }
-        }, 80);
+        if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab(subTab);
+        } else {
+            setTimeout(() => {
+                if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
+                    window.switchPropostaTab(subTab);
+                } else if (typeof window.inicializarPropostas === 'function') {
+                    window.inicializarPropostas(subTab);
+                }
+            }, 80);
+        }
     }
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
@@ -1457,6 +1467,12 @@ window.closeAppTab = function (tabId) {
 // Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
     if (target !== 'login') {
+        const prevActiveTab = appOpenTabs.find(t => t.active && t.tabId !== target);
+        if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
+            if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+                window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta');
+            }
+        }
         const meta = getTabMeta(target);
         // Telas simples: apenas uma aba por target
         const existingTab = appOpenTabs.find(t => t.tabId === target);
@@ -1503,7 +1519,7 @@ function navigateTo(target) {
     }
 
     const _comercialSubTabMap = {
-        'comercial-proposta': 'form',
+        'comercial-proposta': 'propostas',
         'comercial-contratos': 'contratos',
         'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-tabela-precos': 'tabela-precos',
@@ -1627,13 +1643,17 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (_comercialSubTabMap[target]) {
         const subTab = _comercialSubTabMap[target];
-        setTimeout(() => {
-            if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
-                window.switchPropostaTab(subTab);
-            } else if (typeof window.inicializarPropostas === 'function') {
-                window.inicializarPropostas(subTab);
-            }
-        }, 80);
+        if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
+            window.switchPropostaTab(subTab);
+        } else {
+            setTimeout(() => {
+                if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
+                    window.switchPropostaTab(subTab);
+                } else if (typeof window.inicializarPropostas === 'function') {
+                    window.inicializarPropostas(subTab);
+                }
+            }, 80);
+        }
     } else if (target === 'comercial-comissao') {
         if (typeof window._comercialComissao !== 'undefined') setTimeout(() => window._comercialComissao.init(), 80);
     } else if (target === 'administrativo-senhas') {
