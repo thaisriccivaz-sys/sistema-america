@@ -1286,7 +1286,7 @@ function renderAppTabs() {
         const activeColor = t.color || '#0f172a';
         // Cor inativa: mesma cor do departamento mas com opacidade reduzida
         const inactiveColor = activeColor;
-        const displayTitle = TAB_META[t.target]?.title || t.title;
+        const displayTitle = (t.target === 'comercial-proposta' && t.title) ? t.title : (TAB_META[t.target]?.title || t.title);
         return `
         <div class="app-top-tab ${t.active ? 'active' : ''}" 
              onclick="navigateToTab('${t.tabId}')"
@@ -1319,8 +1319,11 @@ window.navigateToTab = function (tabId) {
     const prevActiveTab = appOpenTabs.find(t => t.active && t.tabId !== tabId);
     if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
         if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-            window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta');
+            window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
         }
+    }
+    if (tab.target === 'comercial-proposta') {
+        window._activePropostaTabId = tab.tabId;
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
@@ -1446,10 +1449,11 @@ window.navigateToTab = function (tabId) {
 window.closeAppTab = function (tabId) {
     const idx = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idx === -1) return;
-    if ((tabId === 'comercial-proposta' || tabId === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
-        window.limparEstadoAbaComercial(tabId === 'comercial-contratos' ? 'contrato' : 'proposta', true);
+    const tabObj = appOpenTabs[idx];
+    const wasActive = Boolean(tabObj && tabObj.active);
+    if (tabObj && (tabObj.target === 'comercial-proposta' || tabObj.target === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
+        window.limparEstadoAbaComercial(tabObj.target === 'comercial-contratos' ? 'contrato' : 'proposta', wasActive, tabObj.tabId);
     }
-    const wasActive = appOpenTabs[idx].active;
     appOpenTabs.splice(idx, 1);
 
     if (wasActive) {
@@ -1463,23 +1467,42 @@ window.closeAppTab = function (tabId) {
     }
 };
 
-// navigateTo: abre uma aba ÚNICA por target (telas de lista/config).
+// navigateTo: abre uma aba ÚNICA por target (exceto comercial-proposta, que permite abrir novas abas independentes em branco).
 // Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
+    if (target === 'comercial-propostas') target = 'comercial-proposta';
     if (target !== 'login') {
-        const prevActiveTab = appOpenTabs.find(t => t.active && t.tabId !== target);
+        const prevActiveTab = appOpenTabs.find(t => t.active);
         if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
             if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-                window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta');
+                window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
             }
         }
         const meta = getTabMeta(target);
-        // Telas simples: apenas uma aba por target
-        const existingTab = appOpenTabs.find(t => t.tabId === target);
-        if (!existingTab) {
-            appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true });
+        if (target === 'comercial-proposta') {
+            const propTabs = appOpenTabs.filter(t => t.target === 'comercial-proposta');
+            let newTabId = 'comercial-proposta';
+            let newTitle = meta.title;
+            if (propTabs.length > 0) {
+                let n = 2;
+                while (appOpenTabs.some(t => t.tabId === `comercial-proposta-${n}`)) n++;
+                newTabId = `comercial-proposta-${n}`;
+                newTitle = `${meta.title} ${n}`;
+            }
+            window._activePropostaTabId = newTabId;
+            if (window._snapshotsFormComercial) {
+                delete window._snapshotsFormComercial[newTabId];
+            }
+            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+            appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
+        } else {
+            // Telas simples: apenas uma aba por target
+            const existingTab = appOpenTabs.find(t => t.tabId === target);
+            if (!existingTab) {
+                appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true });
+            }
+            appOpenTabs.forEach(t => t.active = (t.tabId === target));
         }
-        appOpenTabs.forEach(t => t.active = (t.tabId === target));
         renderAppTabs();
     }
     const isTopAdmin = currentUser && (
@@ -16243,7 +16266,7 @@ async function checkUserNotificacoes() {
                         <div style="font-weight:800;font-size:1.15rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> PROPOSTA PRÉ APROVADA
                         </div>
-                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número da proposta:</b> ${dados.numero_proposta || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número da proposta:</b> ${dados.numero_proposta || dados.codigo || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;"><b>Nome do Contato:</b> ${dados.contato_nome || '—'}</div>
                     `;

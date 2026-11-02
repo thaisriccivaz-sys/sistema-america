@@ -1171,12 +1171,17 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                         || usuarios.find(u => matchNomeFlex(tNorm, u.nome) || matchNomeFlex(tNorm, u.username))
                         || null;
                 }
+                const ecColab = colab
+                    ? (emailsCorp.find(e => Number(e.colaborador_id) === Number(colab.id))
+                        || emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, colab.nome_completo)))
+                    : null;
                 if (!user && colab) {
                     user = usuarios.find(u =>
                         matchNomeFlex(colab.nome_completo, u.nome) ||
                         matchNomeFlex(colab.nome_completo, u.username) ||
                         (colab.email_corporativo && norm(u.email) === norm(colab.email_corporativo)) ||
-                        (colab.email && norm(u.email) === norm(colab.email))
+                        (colab.email && norm(u.email) === norm(colab.email)) ||
+                        (ecColab && ecColab.email && norm(u.email) === norm(ecColab.email))
                     ) || null;
                 }
                 if (!colab && user) {
@@ -1237,6 +1242,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
             const dadosJson = JSON.stringify({
                 proposta_id: p.id,
+                numero_proposta: numProp,
                 codigo: numProp,
                 cliente_nome: cliProp,
                 contato_nome: contProp,
@@ -1247,8 +1253,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
             for (const uid of userIdsNotificar) {
                 await dbRun(
-                    `INSERT INTO notificacoes_usuarios (usuario_id, tipo, titulo, mensagem, dados, lida, criado_em)
-                     VALUES (?, 'proposta_pre_aprovada', 'PROPOSTA PRÉ APROVADA', ?, ?, 0, ?)`,
+                    `INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados, lida, criado_em)
+                     VALUES (?, 'proposta_pre_aprovada', ?, ?, 0, ?)`,
                     [uid, msgPopup, dadosJson, agoraIso]
                 ).catch(e => console.error('[PROPOSTA-PUBLICA] Erro ao criar notif popup:', e.message));
             }

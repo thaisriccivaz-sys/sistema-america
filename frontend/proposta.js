@@ -1371,14 +1371,50 @@ function renderTelaPropostas() {
 }
 
 window._snapshotsFormComercial = window._snapshotsFormComercial || { proposta: null, contrato: null };
+window._activePropostaTabId = window._activePropostaTabId || 'comercial-proposta';
 
-window.salvarSnapshotEstadoFormComercial = function(modo) {
+window._obterChaveSnapshotComercial = function(modo, tabIdOverride) {
+    const m = modo === 'contrato' ? 'contrato' : 'proposta';
+    if (m === 'contrato') return 'contrato';
+    if (tabIdOverride && String(tabIdOverride).startsWith('comercial-proposta')) {
+        return String(tabIdOverride);
+    }
+    if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+        const abaAtiva = appOpenTabs.find(t => t && t.active && t.target === 'comercial-proposta');
+        if (abaAtiva && abaAtiva.tabId) {
+            window._activePropostaTabId = abaAtiva.tabId;
+            return abaAtiva.tabId;
+        }
+    }
+    return window._activePropostaTabId || 'comercial-proposta';
+};
+
+window._resetarEstadoMemoriaFormComercial = function(modo) {
+    _propostasEditandoId = null;
+    if (modo === 'contrato') window._propostasEditandoId_contrato = null;
+    else window._propostasEditandoId_proposta = null;
+    window._propProdutosAdicionados = [];
+    window._propProdutosAprovadosAtual = [];
+    window._propDiasEventoSelecionados = [];
+    window._propDiasEventoHorarios = {};
+    window._ultimoHorarioDiaEventoEditado = '';
+    window._propServicosAdicionados = [];
+    window._propFormEditadoNaoSalvo = false;
+    _propRegiaoIdentificada = '';
+    window._ultimoClienteNomePropostaAtivo = '';
+    window._contratoVinculadoTipoAtivo = '';
+    window._propostaDuplicadaRascunho = null;
+};
+
+window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
     const viewForm = document.getElementById('prop-view-form');
     if (!viewForm || !viewForm.innerHTML.trim()) return;
     const formEl = document.getElementById('form-proposta');
     const modoDom = formEl ? formEl.getAttribute('data-modo-comercial') : '';
     if (modoDom && modoDom !== m) return;
+    const tabKeyDom = formEl ? formEl.getAttribute('data-tab-key') : '';
+    const chave = tabIdOverride || (m === 'proposta' && tabKeyDom ? tabKeyDom : window._obterChaveSnapshotComercial(m));
     const idAttr = formEl ? formEl.getAttribute('data-editando-id') : '';
     const idRef = idAttr ? Number(idAttr) : (m === 'contrato' ? (window._propostasEditandoId_contrato || null) : (window._propostasEditandoId_proposta || null));
     const campos = {};
@@ -1396,7 +1432,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo) {
             attrs
         };
     });
-    window._snapshotsFormComercial[m] = {
+    window._snapshotsFormComercial[chave] = {
         editandoId: idRef || null,
         campos,
         produtos: JSON.parse(JSON.stringify(window._propProdutosAdicionados || [])),
@@ -1412,15 +1448,18 @@ window.salvarSnapshotEstadoFormComercial = function(modo) {
     };
 };
 
-window.restaurarSnapshotEstadoFormComercial = function(modo) {
+window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
     window._modoTelaComercial = m;
-    const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[m];
+    const chave = window._obterChaveSnapshotComercial(m, tabIdOverride);
+    const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[chave];
     if (!snap) return false;
     _propostasEditandoId = snap.editandoId || null;
     if (m === 'contrato') window._propostasEditandoId_contrato = _propostasEditandoId;
     else window._propostasEditandoId_proposta = _propostasEditandoId;
     _renderFormPropostaInt();
+    const formElAfter = document.getElementById('form-proposta');
+    if (formElAfter) formElAfter.setAttribute('data-tab-key', chave);
     window._propProdutosAdicionados = JSON.parse(JSON.stringify(snap.produtos || []));
     window._propProdutosAprovadosAtual = JSON.parse(JSON.stringify(snap.produtosAprovadosAtual || []));
     window._propServicosAdicionados = JSON.parse(JSON.stringify(snap.servicos || []));
@@ -1487,24 +1526,15 @@ window.restaurarSnapshotEstadoFormComercial = function(modo) {
     return true;
 };
 
-window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true) {
+window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true, tabIdOverride = null) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
+    const chave = window._obterChaveSnapshotComercial(m, tabIdOverride);
     if (window._snapshotsFormComercial) {
-        window._snapshotsFormComercial[m] = null;
+        delete window._snapshotsFormComercial[chave];
     }
-    if (m === 'contrato') window._propostasEditandoId_contrato = null;
-    else window._propostasEditandoId_proposta = null;
     const modoAtual = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
     if (reRenderSeAtivo && modoAtual === m) {
-        _propostasEditandoId = null;
-        window._propProdutosAdicionados = [];
-        window._propDiasEventoSelecionados = [];
-        window._propDiasEventoHorarios = {};
-        window._ultimoHorarioDiaEventoEditado = '';
-        window._propServicosAdicionados = [];
-        _propRegiaoIdentificada = '';
-        window._ultimoClienteNomePropostaAtivo = '';
-        window._contratoVinculadoTipoAtivo = '';
+        window._resetarEstadoMemoriaFormComercial(m);
         if (document.getElementById('prop-view-form')) {
             _renderFormPropostaInt();
         }
@@ -1516,8 +1546,9 @@ window.switchPropostaTab = function(tab) {
     const modoAnterior = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
     const formElAtu = document.getElementById('form-proposta');
     const modoDomAtu = formElAtu ? formElAtu.getAttribute('data-modo-comercial') : '';
+    const tabKeyDomAtu = formElAtu ? formElAtu.getAttribute('data-tab-key') : '';
     if (modoDomAtu === 'contrato' || modoDomAtu === 'proposta') {
-        window.salvarSnapshotEstadoFormComercial(modoDomAtu);
+        window.salvarSnapshotEstadoFormComercial(modoDomAtu, tabKeyDomAtu || undefined);
     }
     if (tab === 'contratos') {
         if (modoAnterior !== 'contrato' || modoDomAtu !== 'contrato') {
@@ -1527,22 +1558,27 @@ window.switchPropostaTab = function(tab) {
         _propostasEditandoId = window._propostasEditandoId_contrato || null;
         tab = 'form';
     } else if (tab === 'propostas') {
-        if (modoAnterior === 'contrato' || modoDomAtu !== 'proposta') {
+        const chaveAlvoProp = window._obterChaveSnapshotComercial('proposta');
+        if (modoAnterior === 'contrato' || modoDomAtu !== 'proposta' || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoProp)) {
             mudouModoComercial = true;
         }
         window._modoTelaComercial = 'proposta';
-        _propostasEditandoId = window._propostasEditandoId_proposta || null;
+        const snapAlvo = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoProp];
+        _propostasEditandoId = snapAlvo ? (snapAlvo.editandoId || null) : null;
+        window._propostasEditandoId_proposta = _propostasEditandoId;
         tab = 'form';
     } else if (tab === 'form') {
         const modoSinc = typeof window.sincronizarModoComercialComAbaAtiva === 'function'
             ? window.sincronizarModoComercialComAbaAtiva()
             : modoAnterior;
-        if (modoSinc !== modoAnterior || (modoDomAtu && modoDomAtu !== modoSinc)) {
+        const chaveAlvoForm = window._obterChaveSnapshotComercial(modoSinc);
+        if (modoSinc !== modoAnterior || (modoDomAtu && modoDomAtu !== modoSinc) || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoForm)) {
             mudouModoComercial = true;
         }
-        _propostasEditandoId = modoSinc === 'contrato'
-            ? (window._propostasEditandoId_contrato || null)
-            : (window._propostasEditandoId_proposta || null);
+        const snapForm = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoForm];
+        _propostasEditandoId = snapForm
+            ? (snapForm.editandoId || null)
+            : (modoSinc === 'contrato' ? (window._propostasEditandoId_contrato || null) : (window._propostasEditandoId_proposta || null));
     }
     _currentPropostaTab = tab;
     
@@ -1571,10 +1607,12 @@ window.switchPropostaTab = function(tab) {
             const modoNovo = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
             if (mudouModoComercial) {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
+                    window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
                 }
             } else if (viewForm.innerHTML.trim() === '') {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
+                    window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
                 }
             } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
@@ -2333,7 +2371,8 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
         window.sincronizarModoComercialComAbaAtiva();
     }
     const modoAtu = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
-    if (window._snapshotsFormComercial) window._snapshotsFormComercial[modoAtu] = null;
+    const chaveAtu = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial(modoAtu) : modoAtu;
+    if (window._snapshotsFormComercial) delete window._snapshotsFormComercial[chaveAtu];
     window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
     if (modoAtu === 'contrato') window._propostasEditandoId_contrato = id;
     else window._propostasEditandoId_proposta = id;
@@ -2507,7 +2546,7 @@ function _renderFormPropostaInt() {
 
             <!-- Corpo do formulário -->
             <div style="padding:1.5rem;">
-                <form id="form-proposta" data-modo-comercial="${window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta'}" data-editando-id="${id || ''}" autocomplete="off" onsubmit="return false;" oninput="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)" onchange="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)">
+                <form id="form-proposta" data-modo-comercial="${window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta'}" data-tab-key="${typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial(window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta') : ''}" data-editando-id="${id || ''}" autocomplete="off" onsubmit="return false;" oninput="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)" onchange="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)">
 
                     <!-- Linha 1: Código, Tipo, Atendente -->
                     <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
@@ -2715,6 +2754,8 @@ function _renderFormPropostaInt() {
                                         placeholder="Nº do contrato base..."
                                         title="Preencha o Cliente primeiro e digite o nº do contrato ou clique na lupa (apenas contratos ativos do cliente)"
                                         onfocus="if(typeof window.onFocusContratoAditivoInput === 'function') window.onFocusContratoAditivoInput(event);"
+                                        oninput="if(typeof window.onInputContratoAditivo === 'function') window.onInputContratoAditivo(this);"
+                                        onblur="if(typeof window.onBlurContratoAditivoInput === 'function') window.onBlurContratoAditivoInput(event);"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaContratoAditivo(); }"
                                         style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-weight:700;font-size:0.85rem;box-sizing:border-box;">
                                     <button type="button" id="btn-pesq-contrato-aditivo" onclick="window.pesquisarOuAbrirBuscaContratoAditivo()" style="background:#2563eb; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Contrato Base Ativo do Cliente">
@@ -2831,7 +2872,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Produtos da Proposta -->
-                    <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div id="prop-secao-produtos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0 0 0.45rem;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                                 <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
@@ -3311,7 +3352,11 @@ window.onChangeClientePropostaInput = function(novoValor) {
             inpContratoAdit.removeAttribute('data-contrato-id');
             inpContratoAdit.removeAttribute('data-contrato-tipo');
             inpContratoAdit.removeAttribute('data-contrato-cond-pag');
+            inpContratoAdit.removeAttribute('data-contrato-nome-evento');
             window._contratoVinculadoTipoAtivo = '';
+        }
+        if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+            window.atualizarBloqueioProdutoPorContratoBase();
         }
         const enderecoEl = document.getElementById('prop-endereco');
         if (enderecoEl) enderecoEl.value = '';
@@ -3512,9 +3557,13 @@ window.aplicarVisualGrupoCliente = function(grupoValor, escopo = 'main') {
 window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
     const condPagEl = document.getElementById('prop-cond-pag');
     if (!condPagEl) return;
+    const tipoAtualLimpo = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const condAdtBase = (tipoAtualLimpo === 'ADITIVO')
+        ? String(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-cond-pag') || '').trim()
+        : '';
     if (bloqueado) {
-        const valBloq = 'PIX 100% ADIANTADO';
-        let opt = Array.from(condPagEl.options || []).find(o => o.value === valBloq);
+        const valBloq = condAdtBase || 'PIX 100% ADIANTADO';
+        let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === valBloq.toUpperCase());
         if (!opt) {
             opt = document.createElement('option');
             opt.value = valBloq;
@@ -3523,7 +3572,7 @@ window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
         }
         opt.style.color = '#dc2626';
         opt.style.fontWeight = '700';
-        condPagEl.value = valBloq;
+        condPagEl.value = opt.value;
         condPagEl.setAttribute('data-faturamento-bloqueado', '1');
         condPagEl.classList.add('cond-pag-faturamento-bloqueado');
         condPagEl.style.setProperty('color', '#dc2626', 'important');
@@ -3536,7 +3585,16 @@ window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
         condPagEl.style.removeProperty('color');
         condPagEl.style.removeProperty('font-weight');
         condPagEl.style.removeProperty('border-color');
-        if (tinhaBloq) {
+        if (condAdtBase) {
+            let optBase = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === condAdtBase.toUpperCase());
+            if (!optBase) {
+                optBase = document.createElement('option');
+                optBase.value = condAdtBase;
+                optBase.textContent = condAdtBase;
+                condPagEl.appendChild(optBase);
+            }
+            condPagEl.value = optBase.value;
+        } else if (tinhaBloq) {
             const tipoAtual = document.getElementById('prop-tipo')?.value || '';
             const condPadrao = typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function'
                 ? window.obterCondicaoPagamentoPadraoPorTipo(tipoAtual)
@@ -7622,14 +7680,15 @@ window.abrirPropostaDiretoId = async function(id) {
     if (window._modoTelaComercial === 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
         window.salvarSnapshotEstadoFormComercial('contrato');
     }
-    if (window._snapshotsFormComercial) {
-        window._snapshotsFormComercial.proposta = null;
-    }
     window._propostasEditandoId_proposta = targetId;
     window._modoTelaComercial = 'proposta';
     _propostasEditandoId = targetId;
     if (typeof window.navigateTo === 'function') {
         window.navigateTo('comercial-proposta');
+    }
+    const chaveSnap = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('proposta') : 'proposta';
+    if (window._snapshotsFormComercial) {
+        delete window._snapshotsFormComercial[chaveSnap];
     }
     await carregarPropostas();
     window._modoTelaComercial = 'proposta';
@@ -19505,6 +19564,116 @@ window.atualizarBloqueioPorTipoProposta = function() {
         el.disabled = !liberado;
         el.style.pointerEvents = liberado ? '' : 'none';
     });
+    if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+        window.atualizarBloqueioProdutoPorContratoBase();
+    }
+};
+
+window.atualizarBloqueioProdutoPorContratoBase = function() {
+    const tipoEl = document.getElementById('prop-tipo');
+    const secaoProd = document.getElementById('prop-secao-produtos');
+    if (!tipoEl || !secaoProd) return;
+    const tipoVal = String(tipoEl.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const tipoLiberado = Boolean(tipoVal);
+    if (!tipoLiberado) return;
+    const isAditivo = tipoVal === 'ADITIVO';
+    const inpContrato = document.getElementById('prop-contrato-aditivo');
+    const contratoPreenchido = Boolean(String(inpContrato?.value || '').trim());
+    const prodLiberado = !isAditivo || contratoPreenchido;
+    secaoProd.style.opacity = prodLiberado ? '1' : '0.55';
+    secaoProd.style.cursor = prodLiberado ? '' : 'not-allowed';
+    secaoProd.title = prodLiberado ? '' : 'Preencha primeiro o Nº do Contrato (*) para liberar o preenchimento do produto';
+    const camposProd = secaoProd.querySelectorAll('input, select, textarea, button');
+    camposProd.forEach(el => {
+        el.disabled = !prodLiberado;
+        el.style.pointerEvents = prodLiberado ? '' : 'none';
+    });
+    if (prodLiberado && typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+    }
+};
+
+window.onClickProdutoBloqueadoPorContratoBase = function(event) {
+    const tipoEl = document.getElementById('prop-tipo');
+    if (!tipoEl) return;
+    const tipoVal = String(tipoEl.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoVal !== 'ADITIVO') return;
+    const inpContrato = document.getElementById('prop-contrato-aditivo');
+    if (String(inpContrato?.value || '').trim()) return;
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const cliEl = document.getElementById('prop-cliente');
+    const cliPreenchido = Boolean(String(cliEl?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim());
+    const alvoFoco = cliPreenchido ? inpContrato : cliEl;
+    if (alvoFoco) {
+        alvoFoco.focus();
+        alvoFoco.style.borderColor = '#dc2626';
+        alvoFoco.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+        setTimeout(() => {
+            if (alvoFoco) {
+                alvoFoco.style.borderColor = '#cbd5e1';
+                alvoFoco.style.boxShadow = '';
+            }
+        }, 2000);
+    }
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: cliPreenchido
+                ? 'Preencha primeiro o Nº do Contrato base (*) para liberar o preenchimento do produto.'
+                : 'Preencha primeiro o Cliente (*) e o Nº do Contrato base (*) para liberar o preenchimento do produto.',
+            showConfirmButton: false,
+            timer: 2800
+        });
+    }
+};
+
+window.onInputContratoAditivo = function(inp) {
+    if (inp) {
+        inp.removeAttribute('data-contrato-id');
+        inp.removeAttribute('data-contrato-tipo');
+        inp.removeAttribute('data-contrato-cond-pag');
+        inp.removeAttribute('data-contrato-nome-evento');
+        window._contratoVinculadoTipoAtivo = '';
+    }
+    if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+        window.atualizarBloqueioProdutoPorContratoBase();
+    }
+};
+
+window.onBlurContratoAditivoInput = async function() {
+    const inp = document.getElementById('prop-contrato-aditivo');
+    if (!inp) return;
+    const termo = String(inp.value || '').trim();
+    if (!termo) {
+        if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+            window.atualizarBloqueioProdutoPorContratoBase();
+        }
+        return;
+    }
+    if (inp.getAttribute('data-contrato-id')) return;
+    const cliEl = document.getElementById('prop-cliente');
+    const cliNome = String(cliEl?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (!cliNome) return;
+    const contratosAtivos = await window._listarContratosAtivosParaAditivo(cliNome);
+    const normNum = (s) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
+    const matchExato = contratosAtivos.find(c => normNum(c.numero_contrato || c.contrato || c.codigo) === normNum(termo));
+    const matches = matchExato ? [matchExato] : window._filtrarContratosAtivosPorTermo(contratosAtivos, termo);
+    if (matches.length === 1) {
+        const c = matches[0];
+        await window.selecionarContratoAditivoBusca(
+            String(c.numero_contrato || c.contrato || c.codigo || ''),
+            String(c.id || ''),
+            String(c.cliente_nome || c.razao_social || ''),
+            String(c.tipo || ''),
+            String(c.condicao_pagamento || ''),
+            String(c.nome_evento || '')
+        );
+    }
 };
 
 window.onClickCampoBloqueadoPorTipoProposta = function(event) {
@@ -19552,7 +19721,11 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
             inp.removeAttribute('data-contrato-id');
             inp.removeAttribute('data-contrato-tipo');
             inp.removeAttribute('data-contrato-cond-pag');
+            inp.removeAttribute('data-contrato-nome-evento');
         }
+    }
+    if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+        window.atualizarBloqueioProdutoPorContratoBase();
     }
 };
 
@@ -19674,7 +19847,8 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
                     String(c.id || ''),
                     String(c.cliente_nome || c.razao_social || ''),
                     String(c.tipo || ''),
-                    String(c.condicao_pagamento || '')
+                    String(c.condicao_pagamento || ''),
+                    String(c.nome_evento || '')
                 );
                 return;
             }
@@ -19685,16 +19859,32 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     }
 };
 
-window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '') {
+window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '', nomeEvento = '') {
     const inp = document.getElementById('prop-contrato-aditivo');
     let condPagOrig = String(condicaoPagamento || '').trim();
+    let nomeEventoOrig = String(nomeEvento || '').trim();
     let pOrig = null;
     if (idContrato && Array.isArray(window._propostasData)) {
         pOrig = window._propostasData.find(p => String(p.id) === String(idContrato)) || null;
         if (!condPagOrig && pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
         if (!tipoContrato && pOrig && pOrig.tipo) tipoContrato = String(pOrig.tipo).trim();
+        if (!nomeEventoOrig && pOrig && pOrig.nome_evento) nomeEventoOrig = String(pOrig.nome_evento).trim();
+    }
+    if (idContrato && (!condPagOrig || !nomeEventoOrig || !tipoContrato)) {
+        try {
+            const pDet = await apiGet(`/propostas/${encodeURIComponent(idContrato)}`);
+            if (pDet && pDet.id) {
+                pOrig = pDet;
+                if (!condPagOrig && pDet.condicao_pagamento) condPagOrig = String(pDet.condicao_pagamento).trim();
+                if (!tipoContrato && pDet.tipo) tipoContrato = String(pDet.tipo).trim();
+                if (!nomeEventoOrig && pDet.nome_evento) nomeEventoOrig = String(pDet.nome_evento).trim();
+            }
+        } catch (_e) {}
     }
     const tipoBaseLimpo = String(tipoContrato || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (!condPagOrig && tipoBaseLimpo && typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function') {
+        condPagOrig = String(window.obterCondicaoPagamentoPadraoPorTipo(tipoBaseLimpo) || '').trim();
+    }
     window._contratoVinculadoTipoAtivo = tipoBaseLimpo;
     if (inp) {
         inp.value = String(numContrato || '').trim();
@@ -19704,6 +19894,8 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         else inp.removeAttribute('data-contrato-tipo');
         if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
         else inp.removeAttribute('data-contrato-cond-pag');
+        if (nomeEventoOrig) inp.setAttribute('data-contrato-nome-evento', nomeEventoOrig);
+        else inp.removeAttribute('data-contrato-nome-evento');
     }
     const tabelaEl = document.getElementById('prop-tabela');
     if (tabelaEl && tipoBaseLimpo) {
@@ -19725,10 +19917,10 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
         window.atualizarVisibilidadeServicosProposta('ADITIVO');
     }
-    if (pOrig && pOrig.nome_evento && window.tipoPropostaExigeNomeEvento('ADITIVO')) {
+    if (nomeEventoOrig && window.tipoPropostaExigeNomeEvento('ADITIVO')) {
         const inpNomeEv = document.getElementById('prop-nome-evento');
-        if (inpNomeEv && !inpNomeEv.value.trim()) {
-            inpNomeEv.value = String(pOrig.nome_evento).trim();
+        if (inpNomeEv) {
+            inpNomeEv.value = nomeEventoOrig;
         }
     }
     const cliEl = document.getElementById('prop-cliente');
@@ -19744,6 +19936,7 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
             if (tipoBaseLimpo) inp.setAttribute('data-contrato-tipo', tipoBaseLimpo);
             if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
+            if (nomeEventoOrig) inp.setAttribute('data-contrato-nome-evento', nomeEventoOrig);
             window._contratoVinculadoTipoAtivo = tipoBaseLimpo;
         }
         if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
@@ -19756,17 +19949,23 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     }
     const condPagEl = document.getElementById('prop-cond-pag');
     if (condPagEl && condPagOrig) {
-        const bloqAtivo = condPagEl.getAttribute('data-faturamento-bloqueado') === '1' || document.getElementById('prop-cliente')?.classList.contains('input-faturamento-bloqueado');
-        if (!bloqAtivo) {
-            let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === condPagOrig.toUpperCase());
-            if (!opt) {
-                opt = document.createElement('option');
-                opt.value = condPagOrig;
-                opt.textContent = condPagOrig;
-                condPagEl.appendChild(opt);
-            }
-            condPagEl.value = opt.value;
+        let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === condPagOrig.toUpperCase());
+        if (!opt) {
+            opt = document.createElement('option');
+            opt.value = condPagOrig;
+            opt.textContent = condPagOrig;
+            condPagEl.appendChild(opt);
         }
+        condPagEl.value = opt.value;
+    }
+    if (nomeEventoOrig && window.tipoPropostaExigeNomeEvento('ADITIVO')) {
+        const inpNomeEvAfter = document.getElementById('prop-nome-evento');
+        if (inpNomeEvAfter) {
+            inpNomeEvAfter.value = nomeEventoOrig;
+        }
+    }
+    if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+        window.atualizarBloqueioProdutoPorContratoBase();
     }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
@@ -19794,6 +19993,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const cli = cliRaw.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const condPagC = String(c.condicao_pagamento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const nomeEvC = String(c.nome_evento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const per = (c.periodo_inicio || c.periodo_fim) ? `${fmtData(c.periodo_inicio)} a ${fmtData(c.periodo_fim)}` : '—';
             const badgeSit = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                 ? window.renderBadgeSituacaoContratoHtml(c.situacao_contrato || c.situacao, true)
@@ -19806,7 +20006,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
                 : null;
             const isBloqCli = cliObj && typeof window.clienteTemFaturamentoBloqueado === 'function' && window.clienteTemFaturamentoBloqueado(cliObj);
             const estiloCli = isBloqCli ? 'font-weight:700; color:#dc2626;' : 'font-weight:600; color:#1e293b;';
-            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}', '${nomeEvC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
                 <td style="padding:10px 12px; min-width:250px; ${estiloCli}" title="${esc(cliRaw)}">
                     <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; max-height:2.7em; word-break:normal; overflow-wrap:break-word;">
