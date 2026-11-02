@@ -803,6 +803,7 @@ const BREADCRUMB_MAP = {
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
     'comercial-contratos': { path: 'Comercial → Contratos', code: 'COM010' },
+    'comercial-assinaturas': { path: 'Comercial → Assinaturas', code: 'COM011' },
     'comercial-comissao': { path: 'Comercial → Comissão', code: 'COM003' },
     'comercial-enderecos': { path: 'Comercial → Endereços', code: 'COM004' },
     'comercial-clientes': { path: 'Comercial → Clientes', code: 'COM005' },
@@ -1145,7 +1146,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'comercial-contratos' || key === 'comercial-enderecos' || key === 'comercial-clientes' || key === 'comercial-contatos' || key === 'comercial-servicos-precificacao' || key === 'comercial-comissao' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento' || key === 'compras-gestao-frota' || key === 'compras-corretivas' || key === 'compras-revisao' || key === 'compras-estoque';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'comercial-contratos' || key === 'comercial-assinaturas' || key === 'comercial-enderecos' || key === 'comercial-clientes' || key === 'comercial-contatos' || key === 'comercial-servicos-precificacao' || key === 'comercial-comissao' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento' || key === 'compras-gestao-frota' || key === 'compras-corretivas' || key === 'compras-revisao' || key === 'compras-estoque';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1249,6 +1250,7 @@ const TAB_META = {
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-contratos': { color: '#7048e8', icon: 'ph-files', title: 'Contratos' },
+    'comercial-assinaturas': { color: '#7048e8', icon: 'ph-signature', title: 'Assinaturas' },
     'comercial-modelos-propostas': { color: '#7048e8', icon: 'ph-files', title: 'Modelo Proposta' },
     'comercial-tabela-precos': { color: '#7048e8', icon: 'ph-table', title: 'Tabela Preços' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
@@ -1429,6 +1431,9 @@ window.navigateToTab = function (tabId) {
     if (tab.target === 'logistica-agenda' && typeof window.renderAgendaLogistica === 'function') {
         setTimeout(() => window.renderAgendaLogistica(), 80);
     }
+    if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
+        setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
+    }
     if (_comercialSubTabMap[tab.target]) {
         const subTab = _comercialSubTabMap[tab.target];
         if (document.getElementById('prop-view-lista') && typeof window.switchPropostaTab === 'function') {
@@ -1462,11 +1467,17 @@ window.closeAppTab = async function (tabId, forceClose = false) {
     if (idx === -1) return;
     const tabObj = appOpenTabs[idx];
     const wasActive = Boolean(tabObj && tabObj.active);
-    if (!forceClose && tabObj && tabObj.target === 'comercial-proposta') {
-        if (wasActive && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-            window.salvarSnapshotEstadoFormComercial('proposta', tabObj.tabId);
+    if (!forceClose && tabObj) {
+        if (wasActive && (tabObj.target === 'comercial-proposta' || tabObj.target === 'comercial-contratos') && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+            window.salvarSnapshotEstadoFormComercial(tabObj.target === 'comercial-contratos' ? 'contrato' : 'proposta', tabObj.tabId);
         }
-        if (typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function' && window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId)) {
+        let temNaoSalvo = false;
+        if (tabObj.target === 'comercial-proposta' && typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function') {
+            temNaoSalvo = Boolean(window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId));
+        } else if (typeof window.abaPossuiAlteracoesNaoSalvas === 'function') {
+            temNaoSalvo = Boolean(window.abaPossuiAlteracoesNaoSalvas(tabObj));
+        }
+        if (temNaoSalvo) {
             let confirmado = false;
             if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
                 const res = await Swal.fire({
@@ -1484,6 +1495,9 @@ window.closeAppTab = async function (tabId, forceClose = false) {
                 confirmado = window.confirm('Tem certeza que gostaria de fechar a aba pois as informações não foram salvas?');
             }
             if (!confirmado) return;
+            if (typeof window.limparDirtyFlagAba === 'function') {
+                window.limparDirtyFlagAba(tabObj);
+            }
         }
     }
     const idxAfter = appOpenTabs.findIndex(t => t.tabId === tabId);
@@ -1715,6 +1729,8 @@ function navigateTo(target) {
                 }
             }, 80);
         }
+    } else if (target === 'comercial-assinaturas') {
+        if (typeof window.renderTelaAssinaturasComercial === 'function') setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
     } else if (target === 'comercial-comissao') {
         if (typeof window._comercialComissao !== 'undefined') setTimeout(() => window._comercialComissao.init(), 80);
     } else if (target === 'administrativo-senhas') {

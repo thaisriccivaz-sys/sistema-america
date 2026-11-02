@@ -416,10 +416,23 @@ window.formatarNomeColaboradorAssinatura = function(raw) {
     return s;
 };
 
+window.propostaFoiAssinadaViaAssinafy = function(p) {
+    if (!p) return false;
+    const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
+    return Boolean(
+        String(p.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
+        (p.assinafy_signed_r2_key && String(p.assinafy_signed_r2_key).trim()) ||
+        (p.assinafy_signed_at && String(p.assinafy_signed_at).trim()) ||
+        faseUp === 'APROVADO - ADITIVO ASSINADO'
+    );
+};
+
 window.propostaEstaAssinadaOuAprovada = function(p) {
     if (!p) return false;
     const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
     return Boolean(
+        window.propostaFoiAssinadaViaAssinafy(p) ||
+        (p.assinafy_id && String(p.assinafy_id).trim() && faseUp === 'ENVIADO PARA ASSINATURA') ||
         (p.assinatura_r2_key && String(p.assinatura_r2_key).trim()) ||
         (p.aceite_publico_em && String(p.aceite_publico_em).trim()) ||
         faseUp === 'PRÉ APROVADA' ||
@@ -1601,6 +1614,153 @@ window.abaPropostaTemAlteracoesNaoSalvas = function(tabIdOverride = null) {
     });
 };
 
+window._dirtyTargetsMap = window._dirtyTargetsMap || {};
+
+window.abaPossuiAlteracoesNaoSalvas = function(tabObj) {
+    if (!tabObj) return false;
+    const target = String(tabObj.target || '').trim();
+    if (!target) return false;
+    if (target === 'comercial-proposta') {
+        return Boolean(window.abaPropostaTemAlteracoesNaoSalvas && window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId));
+    }
+    if (target === 'comercial-contratos') {
+        if (tabObj.active && window._modoTelaComercial === 'contrato' && window._propFormEditadoNaoSalvo) {
+            return true;
+        }
+        const chaveCtr = typeof window._obterChaveSnapshotComercial === 'function'
+            ? window._obterChaveSnapshotComercial('contrato', tabObj.tabId)
+            : 'contrato';
+        const snapCtr = window._snapshotsFormComercial && (window._snapshotsFormComercial[chaveCtr] || window._snapshotsFormComercial.contrato);
+        if (snapCtr && snapCtr.formEditadoNaoSalvo) return true;
+        return Boolean(window._dirtyTargetsMap[tabObj.tabId] || window._dirtyTargetsMap[target]);
+    }
+    return Boolean(window._dirtyTargetsMap[tabObj.tabId] || window._dirtyTargetsMap[target]);
+};
+
+window.limparDirtyFlagAba = function(tabObjOrTarget) {
+    if (!tabObjOrTarget) return;
+    if (typeof tabObjOrTarget === 'string') {
+        delete window._dirtyTargetsMap[tabObjOrTarget];
+        return;
+    }
+    if (tabObjOrTarget.tabId) delete window._dirtyTargetsMap[tabObjOrTarget.tabId];
+    if (tabObjOrTarget.target) delete window._dirtyTargetsMap[tabObjOrTarget.target];
+    if (tabObjOrTarget.target === 'comercial-contratos' && window._snapshotsFormComercial) {
+        const chaveCtr = typeof window._obterChaveSnapshotComercial === 'function'
+            ? window._obterChaveSnapshotComercial('contrato', tabObjOrTarget.tabId)
+            : 'contrato';
+        if (window._snapshotsFormComercial[chaveCtr]) window._snapshotsFormComercial[chaveCtr].formEditadoNaoSalvo = false;
+        if (window._snapshotsFormComercial.contrato) window._snapshotsFormComercial.contrato.formEditadoNaoSalvo = false;
+        if (window._modoTelaComercial === 'contrato') window._propFormEditadoNaoSalvo = false;
+    }
+};
+
+window.sistemaPossuiAlteracoesNaoSalvas = function() {
+    const modoAtivo = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
+    const formProp = document.getElementById('form-proposta');
+    if (formProp && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        const tabKeyDom = formProp.getAttribute('data-tab-key') || undefined;
+        window.salvarSnapshotEstadoFormComercial(modoAtivo, tabKeyDom);
+    }
+    if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+        for (const t of appOpenTabs) {
+            if (!t) continue;
+            if (t.target === 'comercial-proposta' && typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function') {
+                if (window.abaPropostaTemAlteracoesNaoSalvas(t.tabId)) return true;
+            } else if (typeof window.abaPossuiAlteracoesNaoSalvas === 'function') {
+                if (window.abaPossuiAlteracoesNaoSalvas(t)) return true;
+            }
+        }
+    }
+    return Boolean(window._propFormEditadoNaoSalvo);
+};
+
+if (!window._listenerDirtySystemForms && typeof document !== 'undefined') {
+    window._listenerDirtySystemForms = true;
+    const isCampoIgnoradoDirty = (el) => {
+        if (!el || !el.tagName) return true;
+        const tag = el.tagName.toUpperCase();
+        if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') return true;
+        const type = String(el.type || '').toLowerCase();
+        if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'reset') return true;
+        const id = String(el.id || '').toLowerCase();
+        const cls = String(el.className || '').toLowerCase();
+        const ph = String(el.getAttribute('placeholder') || '').toLowerCase();
+        if (id === 'prop-codigo' || id === 'cli-codigo' || id === 'end-codigo' || id === 'evt-codigo' || id === 'global-screen-search') return true;
+        if (id.includes('filtro') || id.includes('busca') || id.includes('search') || id.includes('pesq')) return true;
+        if (cls.includes('swal') || el.closest('.swal2-container')) return true;
+        if (ph.includes('pesquisar') || ph.includes('buscar') || ph.includes('filtrar')) return true;
+        return false;
+    };
+    const marcarAbaAtivaDirty = (e) => {
+        const t = e && e.target;
+        if (isCampoIgnoradoDirty(t)) return;
+        const viewEl = t.closest('.content-view');
+        if (!viewEl || !viewEl.id) return;
+        const targetName = viewEl.id.replace(/^view-/, '');
+        if (!targetName || targetName === 'dashboard' || targetName === 'comercial-assinaturas') return;
+        if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+            const activeTab = appOpenTabs.find(tb => tb && tb.active);
+            if (activeTab) {
+                window._dirtyTargetsMap[activeTab.tabId] = true;
+                window._dirtyTargetsMap[activeTab.target] = true;
+            }
+        }
+        window._dirtyTargetsMap[targetName] = true;
+    };
+    document.addEventListener('input', marcarAbaAtivaDirty, true);
+    document.addEventListener('change', marcarAbaAtivaDirty, true);
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('button, a') : null;
+        if (!btn) return;
+        const txt = String(btn.textContent || '').trim().toLowerCase();
+        const onclickAttr = String(btn.getAttribute('onclick') || '').toLowerCase();
+        if (
+            onclickAttr.includes('limpar') ||
+            onclickAttr.includes('novo') ||
+            onclickAttr.includes('selecionar') ||
+            onclickAttr.includes('carregar') ||
+            onclickAttr.includes('editar') ||
+            txt === 'novo' ||
+            txt === 'limpar'
+        ) {
+            setTimeout(() => {
+                if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+                    const activeTab = appOpenTabs.find(tb => tb && tb.active);
+                    if (activeTab && activeTab.target !== 'comercial-proposta') {
+                        window.limparDirtyFlagAba(activeTab);
+                    }
+                }
+            }, 120);
+        }
+    }, true);
+
+    setTimeout(() => {
+        if (typeof window.mostrarToastSucesso === 'function' && !window._wrappedToastDirtyClear) {
+            window._wrappedToastDirtyClear = true;
+            const origToast = window.mostrarToastSucesso;
+            window.mostrarToastSucesso = function(...args) {
+                if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+                    const activeTab = appOpenTabs.find(tb => tb && tb.active);
+                    if (activeTab) window.limparDirtyFlagAba(activeTab);
+                }
+                return origToast.apply(this, args);
+            };
+        }
+    }, 600);
+
+    window.addEventListener('beforeunload', (e) => {
+        try {
+            if (window.sistemaPossuiAlteracoesNaoSalvas && window.sistemaPossuiAlteracoesNaoSalvas()) {
+                e.preventDefault();
+                e.returnValue = 'Você possui informações não salvas. Tem certeza que gostaria de sair ou atualizar a página?';
+                return e.returnValue;
+            }
+        } catch (_) {}
+    });
+}
+
 window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true, tabIdOverride = null) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
     const chave = window._obterChaveSnapshotComercial(m, tabIdOverride);
@@ -2579,10 +2739,13 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${isNovo ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
                     </button>
-                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || ['APROVADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
+                        <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
+                    </button>
                     <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
                     </button>
@@ -2610,7 +2773,7 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
-                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="margin-left:auto; background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
@@ -2692,15 +2855,20 @@ function _renderFormPropostaInt() {
                                     : (PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
+                                        const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
                                         const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
                                         const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                         const isApBloq = f.toUpperCase() === 'APROVADA';
-                                        const isDisabled = isEnvBloq || isPreAp || isApBloq;
-                                        const disabledTitle = isEnvBloq
-                                            ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
-                                            : (isPreAp
-                                                ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                                : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''));
+                                        const isDisabled = foiAssinadaAssinafyOpt
+                                            ? (f.toUpperCase() !== 'REPROVADA')
+                                            : (isEnvBloq || isPreAp || isApBloq);
+                                        const disabledTitle = foiAssinadaAssinafyOpt
+                                            ? (isDisabled ? 'Proposta assinada via Assinafy: a única alteração permitida é mudar a situação para Reprovada' : '')
+                                            : (isEnvBloq
+                                                ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                                : (isPreAp
+                                                    ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                    : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '')));
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
                                     }).join('') + (['ENVIADO PARA ASSINATURA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())
                                         ? `<option value="${_escHtmlProp(String(v('fase_negociacao')).trim())}" selected disabled>${_escHtmlProp(String(v('fase_negociacao')).trim().toUpperCase())}</option>`
@@ -2727,15 +2895,20 @@ function _renderFormPropostaInt() {
                                             </div>`;
                                         }).join('')
                                         : PROP_FASES.map(f => {
+                                            const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
                                             const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
                                             const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                             const isApBloq = f.toUpperCase() === 'APROVADA';
-                                            const isDisabled = isEnvBloq || isPreAp || isApBloq;
-                                            const disabledTitle = isEnvBloq
-                                                ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
-                                                : (isPreAp
-                                                    ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                                    : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''));
+                                            const isDisabled = foiAssinadaAssinafyOpt
+                                                ? (f.toUpperCase() !== 'REPROVADA')
+                                                : (isEnvBloq || isPreAp || isApBloq);
+                                            const disabledTitle = foiAssinadaAssinafyOpt
+                                                ? (isDisabled ? 'Proposta assinada via Assinafy: a única alteração permitida é mudar a situação para Reprovada' : '')
+                                                : (isEnvBloq
+                                                    ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                                    : (isPreAp
+                                                        ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                        : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '')));
                                             const fEsc = f.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                             return `<div onclick="window.selecionarFasePropostaCustom('${fEsc}', ${isDisabled ? 'true' : 'false'}, event)"
                                                 ${disabledTitle ? `title="${disabledTitle}"` : ''}
@@ -2847,7 +3020,7 @@ function _renderFormPropostaInt() {
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '1.1fr 0.85fr 1.5fr 1.6fr' : '1fr 1fr 0.7fr 1.5fr 1.4fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
+                        <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '0.85fr 1.1fr 1.5fr 1.6fr' : '1fr 1fr 0.7fr 1.5fr 1.4fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
                             <div id="prop-wrapper-periodo-ini">
                                 <label class="prop-lbl" id="prop-lbl-periodo-ini">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Previsão de Entrega *' : 'Período Início *'}</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
@@ -2860,7 +3033,7 @@ function _renderFormPropostaInt() {
                                     onchange="calcularDiasContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
-                            <div>
+                            <div id="prop-wrapper-dias-contrato" style="order:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '-1' : '0'};">
                                 <label class="prop-lbl" id="prop-lbl-dias-contrato">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Dias para Entrega' : 'Dias Contrato'}</label>
                                 <input type="number" id="prop-dias" value="${vn('dias_contrato','0')}" min="0"
                                     oninput="calcularFimContrato()"
@@ -3020,13 +3193,14 @@ function _renderFormPropostaInt() {
                                     onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
                                     onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
                                     oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewProdutoProposta('unit')"
+                                    onchange="window.recalcularPreviewProdutoProposta('unit')"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;background:#fff;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Valor Total (R$)</label>
                                 <input type="text" inputmode="numeric" id="prop-valor-total" value="${window.formatarMoedaCentavosProposta ? window.formatarMoedaCentavosProposta((window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0) ? 0 : vn('valor_total','0')) : '0,00'}" placeholder="0,00"
-                                    onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
-                                    onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    onfocus="if(typeof window.tipoPropostaEhVenda==='function' && window.tipoPropostaEhVenda()){ const u=document.getElementById('prop-prod-valor'); if(u){ u.focus(); if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(u); return; } } if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    onclick="if(typeof window.tipoPropostaEhVenda==='function' && window.tipoPropostaEhVenda()){ const u=document.getElementById('prop-prod-valor'); if(u){ u.focus(); if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(u); return; } } if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
                                     oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewProdutoProposta('total')"
                                     style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
                             </div>
@@ -3290,21 +3464,26 @@ function _renderFormPropostaInt() {
         window.atualizarTituloAbaPropostaAtiva(prop ? prop.codigo : null);
     }
     const faseUpRender = String(v('fase_negociacao') || '').trim().toUpperCase();
-    if (window._modoTelaComercial !== 'contrato' && (faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
+    const foiAssinadaAssinafyRender = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
+    if (window._modoTelaComercial !== 'contrato' && (foiAssinadaAssinafyRender || faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
         const formEl = document.getElementById('form-proposta');
         if (formEl) {
+            const permiteMudarParaReprovada = foiAssinadaAssinafyRender && faseUpRender !== 'REPROVADA';
             formEl.querySelectorAll('input, select, textarea, button').forEach(el => {
                 if (el.id === 'prop-codigo' || (el.getAttribute('onclick') || '').includes('pesquisarPropostaPorCodigoInput')) return;
+                if (permiteMudarParaReprovada && (el.id === 'prop-fase' || el.id === 'prop-fase-custom-btn' || el.id === 'prop-motivo-reprovacao')) return;
                 el.disabled = true;
                 if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
             });
         }
     }
-    if (id && faseUpRender === 'ENVIADO PARA ASSINATURA' && window._ultimoSyncAssinafyPropId !== id) {
+    if (id && (faseUpRender === 'ENVIADO PARA ASSINATURA' || (prop && prop.assinafy_id && !foiAssinadaAssinafyRender)) && window._ultimoSyncAssinafyPropId !== id) {
         window._ultimoSyncAssinafyPropId = id;
         apiPost(`/propostas/${id}/sync-assinafy`, {}).then(async (rSync) => {
-            const novaFaseSync = String(rSync?.proposta?.fase_negociacao || '').trim().toUpperCase();
-            if (novaFaseSync === 'APROVADO - ADITIVO ASSINADO') {
+            const pSync = rSync?.proposta;
+            const novaFaseSync = String(pSync?.fase_negociacao || '').trim().toUpperCase();
+            const assinadoSync = String(pSync?.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(pSync?.assinafy_signed_r2_key);
+            if (novaFaseSync === 'APROVADO - ADITIVO ASSINADO' || (assinadoSync && novaFaseSync !== faseUpRender) || (assinadoSync && !foiAssinadaAssinafyRender)) {
                 window._ultimoSyncAssinafyPropId = null;
                 await carregarPropostas();
                 if (Number(_propostasEditandoId) === Number(id)) {
@@ -3319,7 +3498,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     const mostrar = Boolean(_propostasEditandoId) && !Boolean(window._propFormEditadoNaoSalvo);
     const prop = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
     const faseForm = String(document.getElementById('prop-fase')?.value || (prop && prop.fase_negociacao) || '').trim().toUpperCase();
-    const isApOuPreAp = faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA' || faseForm === 'APROVADO - ADITIVO ASSINADO' || faseForm === 'ENVIADO PARA ASSINATURA';
+    const foiAssinadaAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+    const isApOuPreAp = foiAssinadaAssinafy || faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA' || faseForm === 'APROVADO - ADITIVO ASSINADO' || faseForm === 'ENVIADO PARA ASSINATURA';
 
     document.querySelectorAll('#prop-toolbar-form .prop-btn-pos-salvo').forEach(btn => {
         if (isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
@@ -3329,9 +3509,22 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         btn.style.display = mostrar ? 'inline-flex' : 'none';
     });
 
+    const btnReenviarAssinafy = document.getElementById('btn-prop-reenviar-assinafy');
+    if (btnReenviarAssinafy) {
+        const mostrarReenviar = Boolean(_propostasEditandoId)
+            && window._modoTelaComercial !== 'contrato'
+            && faseForm === 'ENVIADO PARA ASSINATURA'
+            && !foiAssinadaAssinafy;
+        btnReenviarAssinafy.style.display = mostrarReenviar ? 'inline-flex' : 'none';
+    }
+
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
     if (btnDocAssinado) {
-        if (!mostrar) {
+        if (!_propostasEditandoId) {
+            btnDocAssinado.style.display = 'none';
+        } else if (foiAssinadaAssinafy) {
+            btnDocAssinado.style.display = 'inline-flex';
+        } else if (!mostrar) {
             btnDocAssinado.style.display = 'none';
         } else {
             btnDocAssinado.style.display = window.propostaEstaAssinadaOuAprovada(prop) ? 'inline-flex' : 'none';
@@ -3348,6 +3541,9 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         const podeSalvar = window._modoTelaComercial === 'contrato'
             ? (Boolean(_propostasEditandoId) && Boolean(window._propFormEditadoNaoSalvo))
             : (!Boolean(_propostasEditandoId) || Boolean(window._propFormEditadoNaoSalvo));
+        if (podeSalvar) {
+            btnSalvar.style.display = 'inline-flex';
+        }
         btnSalvar.disabled = !podeSalvar;
         if (podeSalvar) {
             btnSalvar.style.background = '#16a34a';
@@ -3366,6 +3562,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     if (btnAprovar) {
         const mostrarAprovar = Boolean(_propostasEditandoId)
             && window._modoTelaComercial !== 'contrato'
+            && !foiAssinadaAssinafy
             && faseForm !== 'APROVADA'
             && faseForm !== 'APROVADO - ADITIVO ASSINADO'
             && faseForm !== 'ENVIADO PARA ASSINATURA';
@@ -3397,7 +3594,9 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 window.marcarPropostaComoEditada = function(opcoes = {}) {
     window._propFormEditadoNaoSalvo = true;
     if (!_propostasEditandoId) return;
-    if (window._modoTelaComercial !== 'contrato' && !(opcoes && opcoes.preservarFase)) {
+    const prop = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
+    const foiAssinadaAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+    if (window._modoTelaComercial !== 'contrato' && !(opcoes && opcoes.preservarFase) && !foiAssinadaAssinafy) {
         const selFase = document.getElementById('prop-fase');
         if (selFase) {
             const faseNorm = String(selFase.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
@@ -3410,7 +3609,7 @@ window.marcarPropostaComoEditada = function(opcoes = {}) {
         }
     }
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
-    if (btnDocAssinado) btnDocAssinado.style.display = 'none';
+    if (btnDocAssinado && !foiAssinadaAssinafy) btnDocAssinado.style.display = 'none';
     window.atualizarVisibilidadeBotoesPosSalvoProposta();
 };
 
@@ -3568,19 +3767,36 @@ window.obterIconeApenasGrupoCliente = function(grupo) {
 
 window._aplicarIconeEmInput = function(inputEl, spanId, icone, defaultPadLeft = '0.55rem') {
     if (!inputEl) return;
+    let hostEl = inputEl.parentElement;
+    if (hostEl && !hostEl.classList.contains('cli-grupo-icone-input-wrap')) {
+        const temLabelIrmao = Array.from(hostEl.children).some(ch => ch !== inputEl && ch.tagName === 'LABEL');
+        if (temLabelIrmao) {
+            const wrap = document.createElement('div');
+            wrap.className = 'cli-grupo-icone-input-wrap';
+            wrap.style.cssText = 'position:relative; display:flex; align-items:center; width:100%;';
+            hostEl.insertBefore(wrap, inputEl);
+            wrap.appendChild(inputEl);
+            hostEl = wrap;
+        }
+    }
     let iconeEl = document.getElementById(spanId);
-    if (!iconeEl && inputEl.parentElement) {
-        inputEl.parentElement.style.position = 'relative';
+    if (iconeEl && hostEl && iconeEl.parentElement !== hostEl) {
+        hostEl.appendChild(iconeEl);
+    }
+    if (!iconeEl && hostEl) {
+        hostEl.style.position = 'relative';
         iconeEl = document.createElement('span');
         iconeEl.id = spanId;
-        iconeEl.style.cssText = 'display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.05rem; line-height:1; pointer-events:none; z-index:20; user-select:none;';
-        inputEl.parentElement.appendChild(iconeEl);
+        iconeEl.style.cssText = 'display:none; position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:1.02rem; line-height:1; pointer-events:none; z-index:20; user-select:none; align-items:center; justify-content:center;';
+        hostEl.appendChild(iconeEl);
     }
     if (!iconeEl) return;
     const ico = String(icone || '').trim();
     if (ico) {
         iconeEl.textContent = ico;
         iconeEl.style.setProperty('display', 'inline-flex', 'important');
+        iconeEl.style.setProperty('top', '50%', 'important');
+        iconeEl.style.setProperty('transform', 'translateY(-50%)', 'important');
         iconeEl.style.setProperty('z-index', '20', 'important');
         inputEl.style.setProperty('padding-left', '2.1rem', 'important');
     } else {
@@ -6858,6 +7074,26 @@ window.salvarPropostaNova = async function() {
 
     const tipo = obter('prop-tipo');
     let fase = obter('prop-fase');
+    const propExistAssinafy = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+    if (propExistAssinafy && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propExistAssinafy) && window._modoTelaComercial !== 'contrato') {
+        const faseUpSalvar = String(fase || '').trim().toUpperCase();
+        if (faseUpSalvar !== 'REPROVADA' && faseUpSalvar !== 'REPROVADO') {
+            Swal.fire('Edição Bloqueada', 'Esta proposta já foi assinada via Assinafy e não pode mais ser editada. A única alteração permitida é mudar a situação para Reprovada.', 'warning');
+            return;
+        }
+        const motReprov = obter('prop-motivo-reprovacao').trim();
+        if (!motReprov) {
+            alert('Selecione o Motivo de Reprovação.');
+            document.getElementById('prop-motivo-reprovacao')?.focus();
+            return;
+        }
+        window._cachedProposalPayload = {
+            fase_negociacao: 'Reprovada',
+            motivo_reprovacao: motReprov
+        };
+        await window.confirmarSalvarProposta(false);
+        return;
+    }
     if (_propostasEditandoId && window._modoTelaComercial !== 'contrato') {
         const fNormSalvar = String(fase || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
         if (fNormSalvar === 'PROPOSTA ENVIADA' || fNormSalvar === 'ENVIADA' || fNormSalvar === 'PRE APROVADA') {
@@ -7300,6 +7536,10 @@ window.estornarPropostaEdicao = async function() {
     }
 
     const propAtual = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || {};
+    if (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propAtual)) {
+        Swal.fire('Estorno Bloqueado', 'Esta proposta já foi assinada via Assinafy e não pode mais ser estornada ou editada. A única alteração permitida é mudar a situação para Reprovada.', 'warning');
+        return;
+    }
     const sitContratoRaw = String(
         (window._modoTelaComercial === 'contrato' ? document.getElementById('prop-fase')?.value : '') ||
         propAtual.situacao_contrato ||
@@ -7608,8 +7848,12 @@ window.aprovarPropostaEdicao = async function() {
     }
 
     const ehAditivoAprov = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
+    const ehVendaAprov = typeof window.tipoPropostaEhVenda === 'function'
+        ? window.tipoPropostaEhVenda(tipo)
+        : String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'VENDA';
+    const usaFluxoAssinafy = ehAditivoAprov || ehVendaAprov;
     const faseSel = document.getElementById('prop-fase');
-    if (!ehAditivoAprov) {
+    if (!usaFluxoAssinafy) {
         if (faseSel) faseSel.value = 'Aprovada';
         if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
     }
@@ -7620,8 +7864,8 @@ window.aprovarPropostaEdicao = async function() {
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: ehAditivoAprov ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada',
-        situacao_contrato: ehAditivoAprov ? null : 'AGUARDANDO ASSINATURA',
+        fase_negociacao: usaFluxoAssinafy ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada',
+        situacao_contrato: usaFluxoAssinafy ? null : 'AGUARDANDO ASSINATURA',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -7681,19 +7925,24 @@ window.aprovarPropostaEdicao = async function() {
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
-    if (ehAditivoAprov) {
-        Swal.fire({ title: 'Gerando documento do Aditivo e enviando via Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (usaFluxoAssinafy) {
+        const labelDocAssinafy = ehVendaAprov ? 'Proposta de Venda' : 'Aditivo';
+        Swal.fire({ title: `Gerando documento (${labelDocAssinafy}) e enviando via Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
             const respSave = _propostasEditandoId
                 ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
                 : await apiPost('/propostas', payload);
             const finalId = _propostasEditandoId || respSave?.id;
             if (!finalId) {
-                Swal.fire('Erro', 'Não foi possível salvar a proposta de aditivo antes do envio.', 'error');
+                Swal.fire('Erro', 'Não foi possível salvar a proposta antes do envio.', 'error');
                 return;
             }
             _propostasEditandoId = finalId;
             window._propostasEditandoId_proposta = finalId;
+
+            const dadosCtEstrito = typeof window.obterDadosContatoPropostaAtual === 'function'
+                ? await window.obterDadosContatoPropostaAtual(null, true)
+                : { email: '', contatoNome: obter('prop-contato') };
 
             let htmlImpressaoSimples = '';
             try {
@@ -7710,12 +7959,14 @@ window.aprovarPropostaEdicao = async function() {
                     htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
                 }
             } catch (errDocAd) {
-                console.warn('[ADITIVO ASSINAFY] Falha ao montar html_impressao_simples:', errDocAd);
+                console.warn('[ASSINAFY] Falha ao montar html_impressao_simples:', errDocAd);
             }
 
             let respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
                 html_impressao_simples: htmlImpressaoSimples,
-                produtos_aprovados: produtosAprovadosSel
+                produtos_aprovados: produtosAprovadosSel,
+                nome_signatario: dadosCtEstrito.contatoNome || obter('prop-contato') || '',
+                email_signatario: dadosCtEstrito.email || ''
             });
 
             if (respAssinafy && respAssinafy.precisa_email) {
@@ -7724,11 +7975,11 @@ window.aprovarPropostaEdicao = async function() {
                     title: 'Dados do Signatário (Assinafy)',
                     html: `
                         <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.86rem;">
-                            <p style="color:#475569; margin:0 0 10px 0;">Informe o nome e o e-mail do cliente/contato para envio automático do aditivo para assinatura via Assinafy:</p>
+                            <p style="color:#475569; margin:0 0 10px 0;">O contato selecionado (<strong>${_escHtmlProp(obter('prop-contato') || respAssinafy.nome_sugerido || '')}</strong>) não possui e-mail cadastrado. Informe o e-mail deste contato para envio via Assinafy:</p>
                             <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nome do Signatário *</label>
-                            <input type="text" id="swal-assinafy-nome" value="${_escHtmlProp(respAssinafy.nome_sugerido || obter('prop-contato') || obter('prop-cliente') || '')}" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; box-sizing:border-box;">
-                            <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">E-mail do Signatário *</label>
-                            <input type="email" id="swal-assinafy-email" placeholder="cliente@empresa.com.br" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none !important;">
+                            <input type="text" id="swal-assinafy-nome" value="${_escHtmlProp(obter('prop-contato') || respAssinafy.nome_sugerido || obter('prop-cliente') || '')}" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; box-sizing:border-box;">
+                            <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">E-mail do Contato *</label>
+                            <input type="email" id="swal-assinafy-email" placeholder="contato@empresa.com.br" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none !important;">
                         </div>
                     `,
                     showCancelButton: true,
@@ -7744,7 +7995,7 @@ window.aprovarPropostaEdicao = async function() {
                     }
                 });
                 if (!promptSig.isConfirmed) return;
-                Swal.fire({ title: 'Enviando Aditivo para o Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ title: `Enviando ${labelDocAssinafy} para o Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
                     html_impressao_simples: htmlImpressaoSimples,
                     produtos_aprovados: produtosAprovadosSel,
@@ -7760,14 +8011,14 @@ window.aprovarPropostaEdicao = async function() {
                 Swal.close();
                 await abrirFormProposta(finalId);
                 if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso('Aditivo enviado para assinatura via Assinafy (' + (respAssinafy.email_signatario || '') + ')! Situação: ENVIADO PARA ASSINATURA.');
+                    mostrarToastSucesso(`${labelDocAssinafy} enviado(a) para assinatura via Assinafy (${respAssinafy.email_signatario || ''})! Situação: ENVIADO PARA ASSINATURA.`);
                 }
             } else {
-                Swal.fire('Erro', 'Falha ao enviar aditivo para o Assinafy: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
+                Swal.fire('Erro', 'Falha ao enviar documento para o Assinafy: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
             }
         } catch (eAd) {
-            console.error('[PROPOSTAS ADITIVO ASSINAFY] Erro:', eAd);
-            Swal.fire('Erro', 'Erro ao enviar aditivo para o Assinafy: ' + eAd.message, 'error');
+            console.error('[PROPOSTAS ASSINAFY] Erro:', eAd);
+            Swal.fire('Erro', 'Erro ao enviar documento para o Assinafy: ' + eAd.message, 'error');
         }
         return;
     }
@@ -7937,18 +8188,193 @@ window.duplicarPropostaAtual = async function() {
     }
 };
 
+window.reenviarPropostaAssinafy = async function(idOpcional = null) {
+    const targetId = Number(idOpcional || _propostasEditandoId);
+    if (!targetId) {
+        Swal.fire('Aviso', 'Abra uma proposta válida para reenviar a assinatura.', 'warning');
+        return;
+    }
+    try {
+        if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
+            await window.carregarCacheDadosQuadroEvento(false);
+        }
+        const propRef = (_propostasData || []).find(p => Number(p.id) === Number(targetId)) || null;
+        if (propRef && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propRef)) {
+            Swal.fire('Aviso', 'Esta proposta já foi assinada via Assinafy.', 'info');
+            return;
+        }
+        const isEstaPropostaAberta = Number(_propostasEditandoId) === Number(targetId);
+        const dadosCtEstrito = typeof window.obterDadosContatoPropostaAtual === 'function'
+            ? await window.obterDadosContatoPropostaAtual(isEstaPropostaAberta ? null : propRef, true)
+            : { email: propRef?.assinafy_email || '', contatoNome: propRef?.contato_nome || '' };
+
+        const emailSugerido = dadosCtEstrito.email || propRef?.assinafy_email || '';
+        const nomeSugerido = dadosCtEstrito.contatoNome || (isEstaPropostaAberta ? (document.getElementById('prop-contato')?.value || '') : '') || propRef?.contato_nome || propRef?.assinafy_signer_name || '';
+
+        const confReenvio = await Swal.fire({
+            title: 'Reenviar para Assinatura (Assinafy)',
+            html: `
+                <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.86rem;">
+                    <p style="color:#475569; margin:0 0 10px 0;">Confirme os dados do contato selecionado para reenviar o documento para assinatura via Assinafy:</p>
+                    <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">Contato (Signatário) *</label>
+                    <input type="text" id="swal-reenviar-assinafy-nome" value="${_escHtmlProp(nomeSugerido)}" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; box-sizing:border-box;">
+                    <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">E-mail do Contato *</label>
+                    <input type="email" id="swal-reenviar-assinafy-email" value="${_escHtmlProp(emailSugerido)}" placeholder="contato@empresa.com.br" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none !important;">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: '#0284c7',
+            confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Reenviar Agora',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const nm = (document.getElementById('swal-reenviar-assinafy-nome')?.value || '').trim();
+                const em = (document.getElementById('swal-reenviar-assinafy-email')?.value || '').trim();
+                if (!nm) { Swal.showValidationMessage('Informe o nome do contato.'); return false; }
+                if (!em || !em.includes('@')) { Swal.showValidationMessage('Informe um e-mail válido.'); return false; }
+                return { nome_signatario: nm, email_signatario: em };
+            }
+        });
+        if (!confReenvio.isConfirmed) return;
+
+        Swal.fire({ title: 'Reenviando documento via Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        let htmlImpressaoSimples = '';
+        try {
+            const respDoc = await apiGet('/propostas/' + targetId + '/dados-documento-assinado');
+            if (respDoc && respDoc.dados) {
+                const dDoc = respDoc.dados;
+                const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                    ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
+                    : '';
+                const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
+                const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
+                const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+            }
+        } catch (_) {}
+
+        const respAssinafy = await apiPost(`/propostas/${targetId}/aprovar-aditivo-assinafy`, {
+            reenviar: true,
+            html_impressao_simples: htmlImpressaoSimples,
+            nome_signatario: confReenvio.value.nome_signatario,
+            email_signatario: confReenvio.value.email_signatario
+        });
+
+        Swal.close();
+        if (respAssinafy && respAssinafy.success) {
+            await carregarPropostas();
+            if (Number(_propostasEditandoId) === Number(targetId)) {
+                await abrirFormProposta(targetId);
+            }
+            if (document.getElementById('view-comercial-assinaturas')?.classList.contains('active') && typeof window.renderTelaAssinaturasComercial === 'function') {
+                await window.renderTelaAssinaturasComercial(false);
+            }
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`Assinatura reenviada com sucesso para ${respAssinafy.email_signatario || confReenvio.value.email_signatario}!`);
+            }
+        } else {
+            Swal.fire('Erro', 'Falha ao reenviar assinatura: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        console.error('[REENVIAR ASSINAFY] Erro:', e);
+        Swal.fire('Erro', 'Erro ao reenviar assinatura via Assinafy: ' + e.message, 'error');
+    }
+};
+
+window.visualizarPdfAssinaturaComercial = async function(id) {
+    const targetId = Number(id || _propostasEditandoId);
+    if (!targetId) return;
+    await window.verDocumentoAssinadoClienteProposta(targetId);
+};
+
 window.verDocumentoAssinadoClienteProposta = async function(id) {
     const targetId = id || _propostasEditandoId;
     if (!targetId) return;
     try {
-        Swal.fire({ title: 'Carregando documento assinado...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Carregando documento...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         const resp = await apiGet('/propostas/' + targetId + '/dados-documento-assinado');
-        Swal.close();
         if (!resp || !resp.dados) {
-            Swal.fire('Erro', 'Não foi possível carregar os dados do documento assinado.', 'error');
+            Swal.close();
+            Swal.fire('Erro', 'Não foi possível carregar os dados do documento.', 'error');
             return;
         }
         const d = resp.dados;
+        const pRow = resp.proposta || (_propostasData || []).find(x => Number(x.id) === Number(targetId)) || {};
+        const temAssinafy = Boolean(
+            (pRow.assinafy_id && String(pRow.assinafy_id).trim()) ||
+            (pRow.assinafy_signed_r2_key && String(pRow.assinafy_signed_r2_key).trim()) ||
+            (pRow.pdf_enviado_assinafy_r2_key && String(pRow.pdf_enviado_assinafy_r2_key).trim()) ||
+            (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow))
+        );
+
+        let pdfBlobUrl = '';
+        if (temAssinafy) {
+            try {
+                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const apiUrl = window.API_URL || '/api';
+                const rPdf = await fetch(`${apiUrl}/propostas/${targetId}/aditivo-assinado-pdf`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (rPdf.ok) {
+                    const blob = await rPdf.blob();
+                    if (blob && blob.size > 0) {
+                        pdfBlobUrl = URL.createObjectURL(blob);
+                    }
+                }
+            } catch (ePdf) {
+                console.warn('[PROPOSTA ASSINADA PDF] Aviso ao carregar PDF Assinafy:', ePdf);
+            }
+        }
+        Swal.close();
+
+        const fmtDataHoraAssin = (s) => {
+            if (!s) return '—';
+            try {
+                const iso = String(s).includes('T') ? String(s) : String(s).replace(' ', 'T');
+                const dt = new Date(iso);
+                if (!isNaN(dt.getTime())) return dt.toLocaleString('pt-BR');
+                return String(s);
+            } catch (_) { return String(s); }
+        };
+
+        if (pdfBlobUrl) {
+            const foiAssinado = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow));
+            const statusBadge = foiAssinado
+                ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-weight:800; font-size:0.76rem;">ASSINADO VIA ASSINAFY</span>'
+                : '<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:3px 10px; border-radius:999px; font-weight:800; font-size:0.76rem;">AGUARDANDO ASSINATURA (ASSINAFY)</span>';
+            const infoHeader = `
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; margin-bottom:10px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; font-size:0.8rem; color:#1e293b;">
+                    <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center;">
+                        ${statusBadge}
+                        <span><strong>Contato:</strong> ${_escHtmlProp(pRow.assinafy_signer_name || pRow.contato_nome || '—')}</span>
+                        <span><strong>E-mail:</strong> ${_escHtmlProp(pRow.assinafy_email || '—')}</span>
+                        <span><strong>Enviado em:</strong> ${_escHtmlProp(fmtDataHoraAssin(pRow.assinafy_sent_at))}</span>
+                        ${pRow.assinafy_signed_at ? `<span><strong>Assinado em:</strong> ${_escHtmlProp(fmtDataHoraAssin(pRow.assinafy_signed_at))}</span>` : ''}
+                    </div>
+                </div>
+            `;
+            Swal.fire({
+                title: 'Documento Assinafy — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || pRow.codigo || ''),
+                width: '1020px',
+                html: `
+                    <div style="text-align:left; font-family:'Inter',sans-serif;">
+                        ${infoHeader}
+                        <iframe src="${pdfBlobUrl}" style="width:100%; height:70vh; border:1px solid #cbd5e1; border-radius:8px; background:#525659;"></iframe>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#0f172a',
+                confirmButtonText: '<i class="ph ph-arrow-square-out"></i> Abrir / Imprimir PDF em Nova Aba',
+                cancelButtonText: 'Fechar'
+            }).then((r) => {
+                if (r.isConfirmed) {
+                    window.open(pdfBlobUrl, '_blank');
+                }
+            });
+            return;
+        }
+
         const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
             ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
             : '';
@@ -7963,8 +8389,16 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
             prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
             '</div>'
         ) : '';
-        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
-        const htmlAssinatura = d.assinatura_url ? (
+        const foiAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow));
+        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && !foiAssinafy && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
+        const htmlAssinatura = foiAssinafy ? (
+            '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
+            '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Documento Assinado Eletronicamente via Assinafy</div>' +
+            htmlProdutosAprovados +
+            '<div style="font-size:13px; color:#1e293b; font-weight:700;">Signatário: ' + _escHtmlProp(pRow.assinafy_signer_name || pRow.contato_nome || 'Cliente') + (pRow.assinafy_email ? ' (' + _escHtmlProp(pRow.assinafy_email) + ')' : '') + '</div>' +
+            (pRow.assinafy_signed_at ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Assinado em: ' + _escHtmlProp(fmtDataHoraAssin(pRow.assinafy_signed_at)) + '</div>' : '') +
+            '</div>'
+        ) : d.assinatura_url ? (
             '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
             '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
             htmlProdutosAprovados +
@@ -8008,15 +8442,179 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
     }
 };
 
+window._assinaturasComercialData = [];
+
+window.renderTelaAssinaturasComercial = async function(forceSync = true) {
+    const container = document.getElementById('view-comercial-assinaturas');
+    if (!container) return;
+
+    const buscaAtual = document.getElementById('assinaturas-comercial-busca')?.value || '';
+    const statusAtual = document.getElementById('assinaturas-comercial-status')?.value || '';
+
+    if (!container.querySelector('#assinaturas-comercial-tbody')) {
+        container.innerHTML = `
+            <div style="background:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 14px rgba(15,23,42,0.05); overflow:hidden; margin-top:0.5rem;">
+                <div style="padding:1rem 1.25rem; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:38px; height:38px; border-radius:10px; background:rgba(56,189,248,0.18); display:flex; align-items:center; justify-content:center; color:#38bdf8; font-size:1.3rem;">
+                            <i class="ph ph-signature"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:#fff; letter-spacing:-0.01em;">Assinaturas Eletrônicas (Assinafy)</h2>
+                            <p style="margin:2px 0 0 0; font-size:0.76rem; color:#94a3b8;">Acompanhamento de propostas e documentos enviados para assinatura via Assinafy</p>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                        <div style="position:relative; min-width:240px;">
+                            <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.95rem;"></i>
+                            <input type="text" id="assinaturas-comercial-busca" value="${_escHtmlProp(buscaAtual)}" oninput="window.filtrarTabelaAssinaturasComercial()" placeholder="Buscar cliente, contato, e-mail ou código..." style="width:100%; padding:0.48rem 0.75rem 0.48rem 2rem; border-radius:8px; border:1px solid #334155; background:#fff; color:#0f172a; font-size:0.82rem; box-sizing:border-box;">
+                        </div>
+                        <select id="assinaturas-comercial-status" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #334155; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
+                            <option value="">Todas as Situações</option>
+                            <option value="AGUARDANDO">Aguardando Assinatura</option>
+                            <option value="ASSINADO">Assinado</option>
+                            <option value="REPROVADA">Reprovada</option>
+                        </select>
+                        <button type="button" id="btn-atualizar-assinaturas-comercial" onclick="window.renderTelaAssinaturasComercial(true)" style="background:#0284c7; color:#fff; border:none; padding:0.5rem 1rem; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
+                            <i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569; font-weight:800; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
+                                <th style="padding:10px 12px; white-space:nowrap;">Código</th>
+                                <th style="padding:10px 12px; white-space:nowrap;">Documento</th>
+                                <th style="padding:10px 12px; white-space:nowrap;">Tipo / Categoria</th>
+                                <th style="padding:10px 12px;">Cliente</th>
+                                <th style="padding:10px 12px;">Contato</th>
+                                <th style="padding:10px 12px;">E-mail Enviado</th>
+                                <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora do Envio</th>
+                                <th style="padding:10px 12px; white-space:nowrap;">Situação da Assinatura</th>
+                                <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora da Assinatura</th>
+                                <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assinaturas-comercial-tbody">
+                            <tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;"><i class="ph ph-spinner ph-spin"></i> Sincronizando assinaturas com a Assinafy...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } else {
+        const btnAtu = document.getElementById('btn-atualizar-assinaturas-comercial');
+        if (btnAtu) {
+            btnAtu.disabled = true;
+            btnAtu.innerHTML = `<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Atualizando...`;
+        }
+    }
+
+    try {
+        if (typeof window._garantirClientesCacheParaIcone === 'function') {
+            await window._garantirClientesCacheParaIcone().catch(() => {});
+        }
+        const resp = await apiGet(`/comercial/assinaturas?sync=${forceSync ? '1' : '0'}`);
+        window._assinaturasComercialData = Array.isArray(resp?.items) ? resp.items : [];
+        window.filtrarTabelaAssinaturasComercial();
+    } catch (e) {
+        console.error('[ASSINATURAS COMERCIAL] Erro:', e);
+        const tbody = document.getElementById('assinaturas-comercial-tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="10" style="padding:2rem; text-align:center; color:#dc2626; font-weight:700;">Erro ao carregar assinaturas: ${_escHtmlProp(e.message)}</td></tr>`;
+        }
+    } finally {
+        const btnAtu = document.getElementById('btn-atualizar-assinaturas-comercial');
+        if (btnAtu) {
+            btnAtu.disabled = false;
+            btnAtu.innerHTML = `<i class="ph ph-arrows-clockwise" style="font-size:1rem;"></i> Atualizar`;
+        }
+    }
+};
+
+window.filtrarTabelaAssinaturasComercial = function() {
+    const tbody = document.getElementById('assinaturas-comercial-tbody');
+    if (!tbody) return;
+    const termo = (document.getElementById('assinaturas-comercial-busca')?.value || '').toLowerCase().trim();
+    const filtroStatus = (document.getElementById('assinaturas-comercial-status')?.value || '').toUpperCase().trim();
+    const lista = (window._assinaturasComercialData || []).filter(item => {
+        if (filtroStatus === 'AGUARDANDO' && item.foi_assinado) return false;
+        if (filtroStatus === 'ASSINADO' && !item.foi_assinado) return false;
+        if (filtroStatus === 'REPROVADA' && !String(item.situacao_assinatura || '').toUpperCase().includes('REPROVAD')) return false;
+        if (!termo) return true;
+        return [
+            item.codigo,
+            item.tipo_documento,
+            item.categoria,
+            item.cliente_nome,
+            item.contato_nome,
+            item.email_enviado,
+            item.situacao_assinatura
+        ].some(v => String(v || '').toLowerCase().includes(termo));
+    });
+
+    if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="padding:2.2rem; text-align:center; color:#64748b; font-style:italic;">Nenhum documento enviado para assinatura via Assinafy encontrado.</td></tr>`;
+        return;
+    }
+
+    const fmtDataHora = (s) => {
+        if (!s) return '—';
+        try {
+            const iso = String(s).includes('T') ? String(s) : String(s).replace(' ', 'T');
+            const dt = new Date(iso);
+            if (!isNaN(dt.getTime())) return dt.toLocaleString('pt-BR');
+            return String(s);
+        } catch (_) { return String(s); }
+    };
+
+    tbody.innerHTML = lista.map(item => {
+        const cliNomeComIcone = typeof window.formatarNomeClienteComIcone === 'function'
+            ? window.formatarNomeClienteComIcone(item.cliente_nome || '')
+            : (item.cliente_nome || '—');
+        const sitUpper = String(item.situacao_assinatura || '').toUpperCase();
+        let badgeSit = '';
+        if (sitUpper.includes('REPROVAD')) {
+            badgeSit = `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-x-circle"></i> ${_escHtmlProp(item.situacao_assinatura)}</span>`;
+        } else if (item.foi_assinado) {
+            badgeSit = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Assinado</span>`;
+        } else {
+            badgeSit = `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`;
+        }
+        return `
+            <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <td style="padding:10px 12px; font-weight:800; color:#1d4ed8; cursor:pointer; white-space:nowrap;" onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a proposta">${_escHtmlProp(item.codigo)}</td>
+                <td style="padding:10px 12px; font-weight:700; color:#334155; white-space:nowrap;">${_escHtmlProp(item.tipo_documento || 'Proposta')}</td>
+                <td style="padding:10px 12px; font-weight:700; color:#475569; white-space:nowrap;">${_escHtmlProp(item.categoria || '—')}</td>
+                <td style="padding:10px 12px; font-weight:700; color:#0f172a;">${_escHtmlProp(cliNomeComIcone)}</td>
+                <td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(item.contato_nome || '—')}</td>
+                <td style="padding:10px 12px; color:#0369a1; font-weight:600; text-transform:lowercase;">${_escHtmlProp((item.email_enviado || '—').toLowerCase())}</td>
+                <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${_escHtmlProp(fmtDataHora(item.enviado_em))}</td>
+                <td style="padding:10px 12px; white-space:nowrap;">${badgeSit}</td>
+                <td style="padding:10px 12px; color:${item.assinado_em ? '#15803d' : '#94a3b8'}; font-weight:${item.assinado_em ? '700' : '400'}; white-space:nowrap;">${_escHtmlProp(item.assinado_em ? fmtDataHora(item.assinado_em) : '—')}</td>
+                <td style="padding:10px 12px; text-align:center; white-space:nowrap;">
+                    <div style="display:inline-flex; align-items:center; gap:6px;">
+                        <button type="button" onclick="window.visualizarPdfAssinaturaComercial(${item.id})" title="Visualizar Documento / PDF" style="background:#0d9488; color:#fff; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;"><i class="ph ph-eye" style="font-size:1rem;"></i></button>
+                        ${!item.foi_assinado && !sitUpper.includes('REPROVAD')
+                            ? `<button type="button" onclick="window.reenviarPropostaAssinafy(${item.id})" title="Reenviar para Assinatura via Assinafy" style="background:#0284c7; color:#fff; border:none; padding:0 9px; height:30px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.74rem; font-weight:700;"><i class="ph ph-paper-plane-tilt"></i> Reenviar</button>`
+                            : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
 window.salvarProposta = function() {
     // Mantido por compatibilidade
     window.salvarPropostaNova();
 };
 
-window.obterDadosContatoPropostaAtual = async function(p = null) {
+window.obterDadosContatoPropostaAtual = async function(p = null, estritoContatoSelecionado = false) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const clienteNome = String(document.getElementById('prop-cliente')?.value || (p && p.cliente_nome) || '').trim();
-    const contatoNome = String(document.getElementById('prop-contato')?.value || (p && p.contato_nome) || '').trim();
+    const clienteNome = String((p ? p.cliente_nome : document.getElementById('prop-cliente')?.value) || (p && p.cliente_nome) || '').trim();
+    const contatoNome = String((p ? p.contato_nome : document.getElementById('prop-contato')?.value) || (p && p.contato_nome) || '').trim();
 
     let emailContato = '';
     let celularContato = '';
@@ -8024,24 +8622,29 @@ window.obterDadosContatoPropostaAtual = async function(p = null) {
 
     try {
         const dados = await window._obterDadosContatosClienteProposta(clienteNome);
-        const lista = [
-            ...(Array.isArray(dados?.contatosDoCliente) ? dados.contatosDoCliente : []),
-            ...(Array.isArray(dados?.listaUnificada) ? dados.listaUnificada : [])
-        ];
+        const listaCli = Array.isArray(dados?.contatosDoCliente) ? dados.contatosDoCliente : [];
+        const listaUni = Array.isArray(dados?.listaUnificada) ? dados.listaUnificada : [];
         if (contatoNome) {
             const cNorm = normStr(contatoNome);
-            const match = lista.find(c => normStr(c.nome) === cNorm) || lista.find(c => normStr(c.nome).includes(cNorm));
+            const match = listaCli.find(c => normStr(c.nome) === cNorm && String(c.email || '').includes('@'))
+                || listaCli.find(c => normStr(c.nome) === cNorm)
+                || listaUni.find(c => normStr(c.nome) === cNorm && String(c.email || '').includes('@'))
+                || listaUni.find(c => normStr(c.nome) === cNorm)
+                || listaCli.find(c => normStr(c.nome).includes(cNorm) || cNorm.includes(normStr(c.nome)))
+                || listaUni.find(c => normStr(c.nome).includes(cNorm) || cNorm.includes(normStr(c.nome)));
             if (match) {
                 emailContato = String(match.email || '').trim();
                 celularContato = String(match.celular || '').trim();
                 nomeFinal = match.nome || contatoNome;
             }
         }
-        if (!emailContato && dados?.foundCli?.email) {
-            emailContato = String(dados.foundCli.email || '').trim();
-        }
-        if (!celularContato && dados?.foundCli) {
-            celularContato = String(dados.foundCli.celular || dados.foundCli.telefone || '').trim();
+        if (!estritoContatoSelecionado && !contatoNome) {
+            if (!emailContato && dados?.foundCli?.email) {
+                emailContato = String(dados.foundCli.email || '').trim();
+            }
+            if (!celularContato && dados?.foundCli) {
+                celularContato = String(dados.foundCli.celular || dados.foundCli.telefone || '').trim();
+            }
         }
     } catch (e) {
         console.error('[PROPOSTA] Erro ao buscar dados do contato:', e);
@@ -18780,10 +19383,14 @@ window.obterTipoEfetivoProposta = function(tipo) {
                     (idBase && String(p.id) === String(idBase)) ||
                     (numBase && String(p.contrato || p.numero_contrato || '').trim().replace(/^0+/, '') === numBase.replace(/^0+/, ''))
                 );
-                if (found && found.tipo) {
-                    tipoBase = String(found.tipo).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                if (found && (found.tipo || found.tabela_precos)) {
+                    tipoBase = String(found.tipo || found.tabela_precos).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                 }
             }
+        }
+        if (!tipoBase || tipoBase === 'ADITIVO') {
+            const tabVal = String(document.getElementById('prop-tabela')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tabVal && tabVal !== 'ADITIVO') tipoBase = tabVal;
         }
         if (tipoBase && tipoBase !== 'ADITIVO') return tipoBase;
     }
@@ -18866,13 +19473,19 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
 };
 
 window.tipoPropostaEhEvento = function(tipo) {
-    const t = window.obterTipoEfetivoProposta(tipo);
+    const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '')
+        ? tipo
+        : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const t = window.obterTipoEfetivoProposta(raw);
     return t === 'EVENTO';
 };
 
 window.tipoPropostaEhVenda = function(tipo) {
-    const t = window.obterTipoEfetivoProposta(tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || ''));
-    return t === 'VENDA';
+    const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '')
+        ? tipo
+        : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const t = window.obterTipoEfetivoProposta(raw);
+    return t === 'VENDA' || t === 'VENDAS';
 };
 
 window.validarMinimoQuantidadeVendaInput = function(inputEl) {
@@ -18887,20 +19500,22 @@ window.validarMinimoQuantidadeVendaInput = function(inputEl) {
 
 window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao = false) {
     const ehVenda = window.tipoPropostaEhVenda(tipo);
-    const wrapInicio = document.getElementById('prop-wrap-periodo-inicio');
-    const lblAte = document.getElementById('prop-lbl-periodo-ate');
+    const wrapFim = document.getElementById('prop-wrapper-periodo-fim');
+    const wrapDias = document.getElementById('prop-wrapper-dias-contrato');
+    const lblIni = document.getElementById('prop-lbl-periodo-ini');
     const lblDias = document.getElementById('prop-lbl-dias-contrato');
-    const rowPeriodo = document.getElementById('prop-periodo-grid-row');
+    const rowPeriodo = document.getElementById('prop-periodo-condicoes-grid');
     const inpQtd = document.getElementById('prop-prod-quantidade');
     const selCondPag = document.getElementById('prop-cond-pag');
 
-    if (wrapInicio) wrapInicio.style.display = ehVenda ? 'none' : '';
-    if (lblAte) lblAte.innerHTML = ehVenda ? 'Previsão de Entrega <span style="color:#ef4444;">*</span>' : 'Até <span style="color:#ef4444;">*</span>';
+    if (wrapFim) wrapFim.style.display = ehVenda ? 'none' : 'block';
+    if (wrapDias) wrapDias.style.order = ehVenda ? '-1' : '0';
+    if (lblIni) lblIni.textContent = ehVenda ? 'Previsão de Entrega *' : 'Período Início *';
     if (lblDias) lblDias.textContent = ehVenda ? 'Dias para Entrega' : 'Dias Contrato';
     if (rowPeriodo) {
         rowPeriodo.style.gridTemplateColumns = ehVenda
-            ? '145px 125px minmax(170px, 1fr) minmax(240px, 1.4fr)'
-            : '130px 130px 95px minmax(170px, 1fr) minmax(210px, 1.2fr)';
+            ? '0.85fr 1.1fr 1.5fr 1.6fr'
+            : '1fr 1fr 0.7fr 1.5fr 1.4fr';
     }
 
     if (inpQtd) {
@@ -18909,12 +19524,15 @@ window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao 
             const qAtual = parseInt(inpQtd.value, 10) || 0;
             if (qAtual < 10) {
                 inpQtd.value = '10';
-                if (typeof window.recalcularPreviewProdutoProposta === 'function') {
-                    window.recalcularPreviewProdutoProposta('qtd');
-                }
+            }
+            if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+                window.recalcularPreviewProdutoProposta('qtd');
             }
         } else if (!isCarregamentoEdicao && inpQtd.value === '10' && !(window._propProdutosAdicionados && window._propProdutosAdicionados.length)) {
             inpQtd.value = '1';
+            if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+                window.recalcularPreviewProdutoProposta('qtd');
+            }
         }
     }
 
@@ -20858,7 +21476,20 @@ window.ehProdutoMobilizacaoOuDesmobilizacaoZona = function(nomeOuObj, codigoOpt 
     const n = normStr(nome);
     if (!n) return false;
     if (!/\b(des)?mobilizac/.test(n)) return false;
-    return /\b(zc|za|zv)\b/.test(n) || /(?:mobilizac\w*|desmobilizac\w*)\s*[-_/]?\s*(zc|za|zv)\b/.test(n);
+    return /\b(zc|za|zv|vz)\b/.test(n) || /(?:mobilizac\w*|desmobilizac\w*)\s*[-_/]?\s*(zc|za|zv|vz)\b/.test(n);
+};
+
+window.ehProdutoServicoComZonaEvento = function(prodOuNome) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const obj = typeof prodOuNome === 'object' && prodOuNome !== null ? prodOuNome : { nome: prodOuNome };
+    const nome = normStr(obj.nome || obj.produto || obj.descricao || '');
+    if (!nome) return false;
+    const temSiglaZona = /\b(zc|za|zv|vz)\b/.test(nome) || /[-_/\s](zc|za|zv|vz)$/.test(nome);
+    if (!temSiglaZona) return false;
+    const grupo = normStr(obj.grupo_produto || obj.grupo || '');
+    const ehServico = grupo === 'servicos' || grupo === 'servico' || grupo.includes('servico')
+        || (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(obj));
+    return Boolean(ehServico);
 };
 
 window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaRaw = null) {
@@ -20879,8 +21510,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
                 return false;
             }
-            // Não mostrar produtos de mobilização ZC, ZA e ZV e nem desmobilização ZC, ZA e ZV em propostas de evento
-            if (tipoNorm === 'evento' && window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p)) {
+            // Não mostrar produtos de mobilização/desmobilização ZC, ZA, ZV, VZ nem produtos do tipo SERVIÇOS que tenham ZC, ZA, ZV ou VZ no nome em propostas/aditivos de evento
+            if (tipoNorm === 'evento' && (window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p) || window.ehProdutoServicoComZonaEvento(p))) {
                 return false;
             }
         } else if (tipoNorm === 'venda') {
@@ -21349,10 +21980,15 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
 
     if (!valUnitEl || !valTotalEl) return;
 
-    const minQtdPreview = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1;
-    const qtd = Math.max(minQtdPreview, parseFloat(qtdEl?.value) || minQtdPreview);
+    const ehVendaPreview = Boolean(typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda());
+    const minQtdPreview = ehVendaPreview ? 10 : 1;
+    let qtd = parseFloat(qtdEl?.value);
+    if (isNaN(qtd) || qtd < minQtdPreview) {
+        qtd = minQtdPreview;
+        if (qtdEl) qtdEl.value = String(minQtdPreview);
+    }
 
-    if (origem === 'total') {
+    if (origem === 'total' && !ehVendaPreview) {
         const totalDigitado = Math.max(0, window.parseMoedaProposta(valTotalEl.value));
         const unitCalculado = qtd > 0 ? (totalDigitado / qtd) : 0;
         valUnitEl.value = window.formatarMoedaCentavosProposta(unitCalculado);
@@ -21363,8 +21999,10 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
         return;
     }
 
-    if (origem === 'unit') {
-        const novoUnitDigitado = Math.max(0, window.parseMoedaProposta(valUnitEl.value));
+    if (origem === 'unit' || (origem === 'total' && ehVendaPreview)) {
+        const refEl = (origem === 'total' && ehVendaPreview) ? valTotalEl : valUnitEl;
+        const novoUnitDigitado = Math.max(0, window.parseMoedaProposta(refEl.value));
+        valUnitEl.value = window.formatarMoedaCentavosProposta(novoUnitDigitado);
         valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
         if (descPctEl) descPctEl.value = '0';
         if (descRsEl) descRsEl.value = '0,00';
@@ -21465,6 +22103,11 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
     }
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
+    const inputQtd = document.getElementById('prop-prod-quantidade');
+    if (inputQtd && typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) {
+        const qVal = parseInt(inputQtd.value, 10) || 0;
+        if (qVal < 10) inputQtd.value = '10';
+    }
     if (inputCodigo) {
         inputCodigo.value = nomeLimpo || cod || '';
         inputCodigo.setAttribute('data-codigo', cod || '');
@@ -21558,7 +22201,8 @@ window.adicionarProdutoProposta = function() {
     if (isNaN(totalDigitado)) totalDigitado = 0;
 
     if (unitDigitado <= 0 && totalDigitado > 0) {
-        unitDigitado = quantidade > 0 ? (totalDigitado / quantidade) : 0;
+        unitDigitado = ehVendaAdd ? totalDigitado : (quantidade > 0 ? (totalDigitado / quantidade) : 0);
+        if (ehVendaAdd) totalDigitado = unitDigitado * quantidade;
     } else if (totalDigitado <= 0 && unitDigitado > 0) {
         totalDigitado = unitDigitado * quantidade;
     }
@@ -21574,7 +22218,7 @@ window.adicionarProdutoProposta = function() {
     const descMode = inputValor?.getAttribute('data-desc-mode') || (descPct > 0 ? 'pct' : (descRs > 0 ? 'rs' : ''));
 
     let valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
-    let valorTotalFinal = totalDigitado > 0 ? totalDigitado : (valorUnitarioFinal * quantidade);
+    let valorTotalFinal = valorUnitarioFinal > 0 ? (valorUnitarioFinal * quantidade) : totalDigitado;
 
     let descontoTipo = '';
     if (descMode === 'pct' && descPct > 0) {
@@ -21587,7 +22231,7 @@ window.adicionarProdutoProposta = function() {
         valorUnitarioFinal = quantidade > 0 ? (valorTotalFinal / quantidade) : 0;
     } else {
         valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
-        valorTotalFinal = totalDigitado > 0 ? totalDigitado : (valorUnitarioFinal * quantidade);
+        valorTotalFinal = valorUnitarioFinal > 0 ? (valorUnitarioFinal * quantidade) : totalDigitado;
     }
 
     if (!window._propProdutosAdicionados) {

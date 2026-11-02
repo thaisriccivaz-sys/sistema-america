@@ -85,34 +85,94 @@ function uploadForm(urlPath, form) {
     });
 }
 
+// ─── CACHE EM MEMÓRIA DE SIGNATÁRIOS POR E-MAIL ─────────────────────────────
+const _signerEmailCache = new Map();
+
 // ─── HELPER: Busca paginada de signatário por e-mail ─────────────────────────
 // A API Assinafy IGNORA o filtro ?email= e retorna apenas 20 por página.
-// Esta função itera TODAS as páginas até encontrar o e-mail ou esgotar.
+// Esta função busca em lotes paralelos e popula o cache em memória.
 async function buscarSignatarioPorEmail(emailLower) {
-    let page = 1;
-    const MAX_PAGES = 20; // até 400 signatários
-    while (page <= MAX_PAGES) {
-        const res = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?page=${page}&per_page=20`, null);
-        const lista = Array.isArray(res.json?.data) ? res.json.data : [];
-        console.log(`[SIGNER PAGE ${page}] ${lista.length} registros`);
-        if (lista.length === 0) break; // sem mais páginas
-        const found = lista.find(s => s.email && s.email.toLowerCase() === emailLower);
-        if (found) return found;
-        if (lista.length < 20) break; // última página
-        page++;
+    if (_signerEmailCache.has(emailLower)) {
+        return { id: _signerEmailCache.get(emailLower), email: emailLower };
+    }
+    const cachearLista = (lista) => {
+        let match = null;
+        for (const s of lista) {
+            if (s && s.email && s.id) {
+                const em = String(s.email).trim().toLowerCase();
+                _signerEmailCache.set(em, s.id);
+                if (em === emailLower) match = s;
+            }
+        }
+        return match;
+    };
+
+    // Página 1 primeiro (mais rápida e comum)
+    const res1 = await req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?page=1&per_page=20`, null);
+    const lista1 = Array.isArray(res1.json?.data) ? res1.json.data : [];
+    console.log(`[SIGNER PAGE 1] ${lista1.length} registros`);
+    const found1 = cachearLista(lista1);
+    if (found1) return found1;
+    if (lista1.length < 20) return null;
+
+    // Demais páginas em lotes paralelos de 4 páginas por vez
+    const MAX_PAGES = 21;
+    const BATCH_SIZE = 4;
+    for (let startPage = 2; startPage <= MAX_PAGES; startPage += BATCH_SIZE) {
+        const pages = [];
+        for (let p = startPage; p < startPage + BATCH_SIZE && p <= MAX_PAGES; p++) {
+            pages.push(p);
+        }
+        const results = await Promise.all(
+            pages.map(p => req('GET', `/v1/accounts/${ACCOUNT_ID}/signers?page=${p}&per_page=20`, null).catch(() => ({ json: { data: [] } })))
+        );
+        let acabou = false;
+        for (let idx = 0; idx < results.length; idx++) {
+            const lista = Array.isArray(results[idx].json?.data) ? results[idx].json.data : [];
+            console.log(`[SIGNER PAGE ${pages[idx]}] ${lista.length} registros`);
+            const found = cachearLista(lista);
+            if (found) return found;
+            if (lista.length < 20) acabou = true;
+        }
+        if (acabou) break;
     }
     return null;
 }
 
 // ─── HELPER: Resolve ou cria signatário ──────────────────────────────────────
 async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_number }) {
-    const emailLower = email.toLowerCase();
+    const emailLower = String(email || '').trim().toLowerCase();
     const cpfClean   = (tax_id || '').replace(/\D/g, '');
+
+    if (_signerEmailCache.has(emailLower)) {
+        const cachedId = _signerEmailCache.get(emailLower);
+        console.log(`[SIGNER] Encontrado no cache em memória (${emailLower}): ID=${cachedId}`);
+        return cachedId;
+    }
+
+    // Se não tiver CPF informado (caso padrão de contatos comerciais), tentar criar direto primeiro (1 request em vez de varrer páginas)
+    if (cpfClean.length !== 11) {
+        console.log(`[SIGNER] Tentando criar/resolver direto: ${full_name} (${emailLower})...`);
+        const rDirect = await req('POST', `/v1/accounts/${ACCOUNT_ID}/signers`, {
+            full_name,
+            email: emailLower,
+            ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
+        });
+        if (rDirect.status >= 200 && rDirect.status < 300) {
+            const newId = rDirect.json?.data?.id || rDirect.json?.id;
+            if (newId) {
+                _signerEmailCache.set(emailLower, newId);
+                console.log(`[SIGNER] Criado direto ID=${newId}`);
+                return newId;
+            }
+        }
+    }
 
     // 1. Buscar em todas as páginas por e-mail
     console.log(`[SIGNER] Buscando por e-mail (paginado): ${email}`);
     const porEmail = await buscarSignatarioPorEmail(emailLower);
     if (porEmail) {
+        _signerEmailCache.set(emailLower, porEmail.id);
         console.log(`[SIGNER] Encontrado por e-mail: ID=${porEmail.id}`);
         return porEmail.id;
     }
@@ -128,6 +188,7 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
     if (exactCpfMatch) {
         const id = exactCpfMatch.id;
         if (exactCpfMatch.email?.toLowerCase() === emailLower) {
+            _signerEmailCache.set(emailLower, id);
             console.log(`[SIGNER] Encontrado por CPF com e-mail correto: ID=${id}`);
             return id;
         }
@@ -138,6 +199,7 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
             ...(whatsapp_phone_number ? { whatsapp_phone_number } : {})
         });
         if (putRes.status >= 200 && putRes.status < 300) {
+            _signerEmailCache.set(emailLower, id);
             console.log(`[SIGNER] E-mail atualizado OK → ${email} (ID=${id})`);
             return id;
         }
@@ -155,6 +217,7 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
 
     if (r.status >= 200 && r.status < 300) {
         const newId = r.json?.data?.id || r.json?.id;
+        if (newId) _signerEmailCache.set(emailLower, newId);
         console.log(`[SIGNER] Criado ID=${newId}`);
         return newId;
     }
@@ -165,6 +228,7 @@ async function resolverSignatario({ full_name, email, tax_id, whatsapp_phone_num
         console.warn(`[SIGNER] POST 400 "já existe". Re-buscando por e-mail (pode ter sido criado agora)...`);
         const recheck = await buscarSignatarioPorEmail(emailLower);
         if (recheck) {
+            _signerEmailCache.set(emailLower, recheck.id);
             console.log(`[SIGNER] Encontrado no re-check: ID=${recheck.id}`);
             return recheck.id;
         }
@@ -356,28 +420,6 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
     }
 
     const fileNameSafe = String(nomeArquivoPdf || 'Proposta_Aditivo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const form = new FormData();
-    form.append('file', pdfBuffer, {
-        filename: fileNameSafe,
-        contentType: 'application/pdf'
-    });
-
-    console.log(`[ASSINAFY ADITIVO] Upload: "${fileNameSafe}" (${pdfBuffer.length} bytes)`);
-    const upRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, form);
-    const assinafyDocId = (upRes.json?.data || upRes.json)?.id;
-    if (upRes.status < 200 || upRes.status >= 300 || !assinafyDocId) {
-        throw new Error(`Falha no upload do PDF para o Assinafy (HTTP ${upRes.status}): ${upRes.json?.message || upRes.raw.substring(0, 150)}`);
-    }
-    console.log(`[ASSINAFY ADITIVO] Upload OK! DocID: ${assinafyDocId}`);
-
-    for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 2000));
-        const st = await req('GET', `/v1/documents/${assinafyDocId}`, null);
-        const s = String(st.json?.data?.status || st.json?.status || '').toLowerCase();
-        console.log(`   [Polling ${i + 1}/60] status="${s}"`);
-        if (s === 'failed') throw new Error('Assinafy falhou ao processar o PDF do aditivo.');
-        if (s && !['uploading', 'uploaded', 'processing', 'pending_processing'].includes(s) && !s.includes('processing')) break;
-    }
 
     const cpfDigits = String(cpfSignatario || '').replace(/\D/g, '');
     const cpfValido = cpfDigits.length === 11 ? cpfDigits : '';
@@ -392,12 +434,41 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
         }
     }
 
-    const signerId = await resolverSignatario({
+    // Executa upload + processamento do PDF em paralelo com a resolução/criação do signatário
+    const uploadAndPollPromise = (async () => {
+        const form = new FormData();
+        form.append('file', pdfBuffer, {
+            filename: fileNameSafe,
+            contentType: 'application/pdf'
+        });
+
+        console.log(`[ASSINAFY ADITIVO] Upload: "${fileNameSafe}" (${pdfBuffer.length} bytes)`);
+        const upRes = await uploadForm(`/v1/accounts/${ACCOUNT_ID}/documents`, form);
+        const docId = (upRes.json?.data || upRes.json)?.id;
+        if (upRes.status < 200 || upRes.status >= 300 || !docId) {
+            throw new Error(`Falha no upload do PDF para o Assinafy (HTTP ${upRes.status}): ${upRes.json?.message || upRes.raw.substring(0, 150)}`);
+        }
+        console.log(`[ASSINAFY ADITIVO] Upload OK! DocID: ${docId}`);
+
+        for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, i === 0 ? 700 : 1000));
+            const st = await req('GET', `/v1/documents/${docId}`, null);
+            const s = String(st.json?.data?.status || st.json?.status || '').toLowerCase();
+            console.log(`   [Polling ${i + 1}/60] status="${s}"`);
+            if (s === 'failed') throw new Error('Assinafy falhou ao processar o PDF.');
+            if (s && !['uploading', 'uploaded', 'processing', 'pending_processing'].includes(s) && !s.includes('processing')) break;
+        }
+        return docId;
+    })();
+
+    const signerPromise = resolverSignatario({
         full_name: nome,
         email,
         tax_id: cpfValido,
         whatsapp_phone_number: fone || undefined
     });
+
+    const [assinafyDocId, signerId] = await Promise.all([uploadAndPollPromise, signerPromise]);
     if (!signerId) throw new Error('ID do signatário não obtido no Assinafy.');
     console.log(`[ASSINAFY ADITIVO] SignerID=${signerId}`);
 
