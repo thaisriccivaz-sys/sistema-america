@@ -48,7 +48,6 @@ const PROP_FASES = [
     'Pré aprovada',
     'Aprovada',
     'Reprovada',
-    'Cancelada',
     'Sem Resposta'
 ];
 const PROP_MODELOS = [
@@ -101,8 +100,8 @@ const PROP_FRETES = ['', 'CIF', 'FOB', 'Sem Frete'];
 
 const PROP_STATUS_CORES = {
     'Em Elaboração':        { bg: '#fef9c3', text: '#a16207', border: '#fde047', icon: 'ph-pencil' },
-    'Proposta Enviada':     { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-paper-plane-right' },
-    'Enviada':              { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-paper-plane-right' },
+    'Proposta Enviada':     { bg: '#f3e8ff', text: '#7e22ce', border: '#d8b4fe', icon: 'ph-paper-plane-right' },
+    'Enviada':              { bg: '#f3e8ff', text: '#7e22ce', border: '#d8b4fe', icon: 'ph-paper-plane-right' },
     'Pré aprovada':         { bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-seal-check' },
     'Em Negociação':        { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-arrows-left-right' },
     'Aguardando Aprovação': { bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-clock' },
@@ -110,7 +109,7 @@ const PROP_STATUS_CORES = {
     'Reprovada':            { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-x-circle' },
     'Cancelada':            { bg: '#0f172a', text: '#ffffff', border: '#0f172a', icon: 'ph-prohibit' },
     'Convertida em OS':     { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'ph-clipboard-text' },
-    'Sem Resposta':         { bg: '#e2e8f0', text: '#475569', border: '#cbd5e1', icon: 'ph-clock-countdown' },
+    'Sem Resposta':         { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-clock-countdown' },
 };
 
 window.obterConfigFaseNegociacao = function(faseRaw) {
@@ -188,7 +187,7 @@ window.renderBadgeSituacaoContratoHtml = function(sitRaw, mostrarStatusTipo = tr
         : (stUpper === 'FECHADO'
             ? 'background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;'
             : 'background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;');
-    return `<span style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:center;">
+    return `<span style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-start;">
         <span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
             <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${cfg.nome}
         </span>
@@ -925,6 +924,16 @@ function renderTelaPropostas() {
                     font-weight: 600 !important;
                     font-family: 'Inter', sans-serif !important;
                     cursor: pointer !important;
+                }
+
+                [id^="prop-view-"] form button#prop-fase-custom-btn,
+                [id^="prop-view-"] button#prop-fase-custom-btn,
+                #prop-fase-custom-btn {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    text-align: left !important;
+                    padding: 0 8px !important;
+                    width: 100% !important;
                 }
 
                 button[style*="display:none"],
@@ -2578,13 +2587,13 @@ function _renderFormPropostaInt() {
                             </select>
                             <div id="prop-fase-custom-wrap" style="position:relative; width:100%;">
                                 <button type="button" id="prop-fase-custom-btn" onclick="window.toggleDropdownFaseProposta(event)"
-                                    style="width:100%; height:36px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; box-sizing:border-box; outline:none;">
-                                    <span id="prop-fase-custom-btn-badge" style="display:inline-flex; align-items:center; overflow:hidden;">
+                                    style="width:100% !important; height:36px; padding:0 8px !important; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex !important; align-items:center; justify-content:space-between !important; text-align:left !important; gap:8px; cursor:pointer; box-sizing:border-box; outline:none;">
+                                    <span id="prop-fase-custom-btn-badge" style="display:inline-flex; align-items:center; justify-content:flex-start; overflow:hidden; flex:1;">
                                         ${window._modoTelaComercial === 'contrato'
                                             ? window.renderBadgeSituacaoContratoHtml(v('situacao_contrato'), true)
                                             : window.renderBadgeFaseNegociacaoHtml(v('fase_negociacao') || 'Em Elaboração')}
                                     </span>
-                                    <i class="ph ph-caret-down" style="font-size:0.9rem; color:#64748b; flex-shrink:0;"></i>
+                                    <i class="ph ph-caret-down" style="font-size:0.9rem; color:#64748b; flex-shrink:0; margin-left:auto;"></i>
                                 </button>
                                 <div id="prop-fase-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
                                     ${window._modoTelaComercial === 'contrato'
@@ -18542,7 +18551,9 @@ window._horarioEventoIntervaloValido = function(rawHorario) {
 window._parseDiasEventoItem = function(rawEntry) {
     if (!rawEntry) return { data: '', horario: '', horario_ini: '', horario_fim: '', comercial: false };
     if (typeof rawEntry === 'object') {
-        const dObj = String(rawEntry.data || rawEntry.dia || '').trim();
+        let dObj = String(rawEntry.data || rawEntry.dia || '').trim();
+        const mBrObj = dObj.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (mBrObj) dObj = `${mBrObj[3]}-${mBrObj[2]}-${mBrObj[1]}`;
         const hObj = String(rawEntry.horario || rawEntry.hora || '').trim();
         const hp = window._parseHorarioIntervaloEvento(hObj);
         return { data: dObj, horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim, comercial: Boolean(hp.comercial) };
@@ -18552,6 +18563,11 @@ window._parseDiasEventoItem = function(rawEntry) {
     if (m) {
         const hp = window._parseHorarioIntervaloEvento(m[2] || '');
         return { data: m[1], horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim, comercial: Boolean(hp.comercial) };
+    }
+    const mBr = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[\sT]+(.+))?$/);
+    if (mBr) {
+        const hp = window._parseHorarioIntervaloEvento(mBr[4] || '');
+        return { data: `${mBr[3]}-${mBr[2]}-${mBr[1]}`, horario: hp.formatado, horario_ini: hp.ini, horario_fim: hp.fim, comercial: Boolean(hp.comercial) };
     }
     return { data: str, horario: '', horario_ini: '', horario_fim: '', comercial: false };
 };
@@ -18908,7 +18924,7 @@ window.renderizarDiasEventoProposta = function() {
             }
         }
     });
-    const lista = [...new Set(normDatas)].sort();
+    const lista = [...new Set(normDatas)].sort((a, b) => String(a).localeCompare(String(b)));
     window._propDiasEventoSelecionados = lista;
 
     const chkManutEl = document.getElementById('prop-dias-manut-diarias');
@@ -18951,8 +18967,14 @@ window.renderizarDiasEventoProposta = function() {
     const chipsEl = document.getElementById('prop-dias-evento-chips');
     if (chipsEl) {
         if (lista.length === 0) {
+            chipsEl.style.display = 'flex';
+            chipsEl.style.gridTemplateColumns = '';
             chipsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.82rem; padding:2px 4px;">Clique aqui para selecionar pelo menos 1 dia de evento / sucção e informar o horário...</span>';
         } else {
+            chipsEl.style.display = 'grid';
+            chipsEl.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+            chipsEl.style.gap = '6px';
+            chipsEl.style.width = '100%';
             chipsEl.innerHTML = lista.map(iso => {
                 const fmt = iso.includes('-') ? iso.split('-').reverse().join('/') : iso;
                 const hp = window._parseHorarioIntervaloEvento(window._propDiasEventoHorarios[iso]);
@@ -18961,9 +18983,9 @@ window.renderizarDiasEventoProposta = function() {
                 const fimOk = /^\d{2}:\d{2}$/.test(hp.fim);
                 const temHorario = isComercial || (iniOk && fimOk);
                 return `
-                    <span class="prop-chip-dia-evento" onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; background:#ede9fe; color:#5b21b6; border:1px solid ${temHorario ? '#c4b5fd' : '#fca5a5'}; padding:3px 8px; border-radius:8px; font-size:0.78rem; font-weight:700;">
+                    <span class="prop-chip-dia-evento" onclick="event.stopPropagation();" style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; width:100%; box-sizing:border-box; background:#ede9fe; color:#5b21b6; border:1px solid ${temHorario ? '#c4b5fd' : '#fca5a5'}; padding:3px 8px; border-radius:8px; font-size:0.78rem; font-weight:700;">
                         <i class="ph ph-calendar-check" style="font-size:0.85rem;"></i>
-                        <span>${fmt}</span>
+                        <span style="font-variant-numeric:tabular-nums;">${fmt}</span>
                         <span style="font-size:0.72rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">de</span>
                         <input type="time"
                             data-dia-evento-iso="${iso}"
@@ -18995,7 +19017,7 @@ window.renderizarDiasEventoProposta = function() {
                                 style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;">
                             Horário comercial
                         </label>
-                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
+                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="margin-left:auto; background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
                     </span>
                 `;
             }).join('');
@@ -19030,6 +19052,7 @@ window.toggleDiaEventoProposta = function(isoDate, event) {
             return;
         }
         window._propDiasEventoSelecionados.push(d);
+        window._propDiasEventoSelecionados.sort((a, b) => String(a).localeCompare(String(b)));
     }
     window.renderizarDiasEventoProposta(false);
 };
@@ -19053,6 +19076,7 @@ window.adicionarDiaEventoProposta = function(isoDate, event) {
     if (!Array.isArray(window._propDiasEventoSelecionados)) window._propDiasEventoSelecionados = [];
     if (!window._propDiasEventoSelecionados.includes(d)) {
         window._propDiasEventoSelecionados.push(d);
+        window._propDiasEventoSelecionados.sort((a, b) => String(a).localeCompare(String(b)));
     }
     const parts = d.split('-');
     if (parts.length === 3) {

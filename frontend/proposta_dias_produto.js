@@ -282,16 +282,19 @@
 
     /* Diárias de um produto na tabela: chips com horário editável (de ... até ... ou Horário comercial), remover, + dia e replicar */
     window.htmlDiasProdutoGrid = function (p, idx, total) {
-        const dias = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
+        if (Array.isArray(p.dias_evento)) {
+            p.dias_evento = p.dias_evento.filter(Boolean).sort((a, b) => parse(a).data.localeCompare(parse(b).data));
+        }
+        const dias = Array.isArray(p.dias_evento) ? p.dias_evento : [];
         const expandido = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
-        const chips = expandido ? dias.map((d, dIdx) => {
+        const chips = expandido ? `<div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px; width:100%;">${dias.map((d, dIdx) => {
             const x = parse(d);
             const isComercial = Boolean(x.comercial || /^comercial$/i.test(String(x.horario || '').trim()));
             const hIni = isComercial ? '' : (x.horario_ini || '');
             const hFim = isComercial ? '' : (x.horario_fim || '');
             const ok = horaOk(x.horario);
-            return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid ${ok ? '#c4b5fd' : '#fca5a5'}; padding:2px 6px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${esc(fmtData(x.data))}
+            return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid ${ok ? '#c4b5fd' : '#fca5a5'}; padding:2px 6px; border-radius:6px; font-size:0.72rem; font-weight:700; display:flex; align-items:center; gap:4px; flex-wrap:wrap; width:100%; box-sizing:border-box;">
+                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> <span style="font-variant-numeric:tabular-nums;">${esc(fmtData(x.data))}</span>
                 <span style="font-size:0.68rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">de</span>
                 <input type="time" value="${esc(hIni)}" ${isComercial ? 'disabled' : ''} onchange="window.atualizarHorarioDiaProdutoProposta(${idx}, ${dIdx}, this.value, 'ini')" title="Horário inicial deste dia neste produto" style="border:1px solid ${isComercial ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(hIni) ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:20px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; ${isComercial ? 'opacity:0.55;' : ''}">
                 <span style="font-size:0.68rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">até</span>
@@ -299,9 +302,9 @@
                 <label style="display:inline-flex; align-items:center; gap:3px; font-size:0.68rem; color:${isComercial ? '#047857' : '#5b21b6'}; background:${isComercial ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isComercial ? '#6ee7b7' : '#ddd6fe'}; padding:1px 5px; border-radius:4px; cursor:pointer; font-weight:700; user-select:none;" title="Indicar que a manutenção neste dia pode ser feita em horário comercial">
                     <input type="checkbox" ${isComercial ? 'checked' : ''} onchange="window.toggleHorarioComercialDiaProdutoProposta(${idx}, ${dIdx}, this.checked)" style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;"> Horário comercial
                 </label>
-                <button type="button" onclick="window.removerDiaProdutoProposta(${idx}, ${dIdx})" title="Remover esta diária" style="background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.85rem; line-height:1;">&times;</button>
+                <button type="button" onclick="window.removerDiaProdutoProposta(${idx}, ${dIdx})" title="Remover esta diária" style="margin-left:auto; background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.85rem; line-height:1;">&times;</button>
             </span>`;
-        }).join('') : (() => {
+        }).join('')}</div>` : (() => {
             if (!dias.length) return '';
             const datasOrd = dias.map(d => parse(d).data).filter(Boolean);
             const resumo = datasOrd.length > 3
