@@ -662,8 +662,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const itens = itensRaw.map((it, idxIt) => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
+            const eqMatch = acharEquip(it, nome);
+            const grpNorm = norm(it.grupo_produto || it.grupo || (eqMatch && (eqMatch.grupo_produto || eqMatch.grupo)) || '');
+            const ehItemServico = Boolean(it.eh_servico === true || grpNorm === 'servicos' || grpNorm === 'servico');
             const dias = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = ehEventoCalcPub
+            const nDiarias = (ehEventoCalcPub && !ehItemServico)
                 ? (dias.length > 0
                     ? dias.length
                     : (diasContratoPubNum > 0
@@ -684,9 +687,10 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 foto_url: fotoDe(it, nome),
                 link_url: linkDe(it, nome),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
-                dias_evento_texto: formatarDiasCurtoItem(it),
-                quant_diarias: nDiarias, unit: base, por_dia: grossDia,
+                dias_evento_texto: ehItemServico ? '' : formatarDiasCurtoItem(it),
+                quant_diarias: ehItemServico ? '—' : nDiarias, unit: base, por_dia: grossDia,
                 desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0,
+                eh_servico: ehItemServico,
                 nao_aprovado: naoAprovado
             };
         });

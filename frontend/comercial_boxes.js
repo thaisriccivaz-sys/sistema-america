@@ -971,6 +971,7 @@
                 desconto: descDia * nDiarias,
                 total: netDia * nDiarias,
                 cortesia: netDia <= 0,
+                eh_servico: Boolean(ehItemServico),
                 nao_aprovado: naoAprovado
             };
         });
@@ -1172,6 +1173,7 @@
 
         const linhaItem = (it) => {
             const riscadoTxt = it.nao_aprovado ? 'text-decoration:line-through; opacity:0.65;' : '';
+            const ehItemServQuadro = Boolean(it.eh_servico || String(it.quant_diarias || '').trim() === '—');
             return `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
                 <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${it.foto_url ? u(84) : u(36)};">
@@ -1187,8 +1189,8 @@
                     ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${esc(it.quant_diarias)}</div>`}
-                ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>`}
-                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.por_dia, '#3b3b3b')}</div>`}
+                ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.unit, '#3b3b3b')}</div>`}
+                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.por_dia, '#3b3b3b')}</div>`}
                 <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
