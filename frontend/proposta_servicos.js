@@ -139,11 +139,18 @@
                 </div>
                 <div>
                     <label class="prop-lbl">Desconto (R$)</label>
-                    <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-desc-rs" value="${fobInicial ? 'FOB' : '0'}" ${fobInicial ? 'disabled' : 'min="0" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('rs')" style="${inputCss}">
+                    <input type="text" inputmode="numeric" id="prop-serv-desc-rs" value="${fobInicial ? 'FOB' : '0,00'}" ${fobInicial ? 'disabled' : 'placeholder="0,00"'}
+                        onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                        onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                        oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewServicoProposta('rs')"
+                        style="${inputCss}">
                 </div>
                 <div>
                     <label class="prop-lbl" id="prop-serv-valor-lbl">${fobInicial ? 'Valor (R$) — FOB' : 'Valor (R$) *'}</label>
-                    <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-valor" ${fobInicial ? 'disabled value="FOB"' : 'step="0.01" min="0" value="0" placeholder="0,00"'} oninput="window.recalcularPreviewServicoProposta('unit')"
+                    <input type="text" inputmode="numeric" id="prop-serv-valor" ${fobInicial ? 'disabled value="FOB"' : 'value="0,00" placeholder="0,00"'}
+                        onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                        onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                        oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewServicoProposta('unit')"
                         style="${inputCss} font-weight:700; color:#0f172a; background:#fff;">
                 </div>
                 <div id="prop-serv-fob-wrap" style="display:none;">
@@ -198,6 +205,9 @@
         const pctEl = document.getElementById('prop-serv-desc-pct');
         const rsEl = document.getElementById('prop-serv-desc-rs');
         const unitEl = document.getElementById('prop-serv-valor');
+        const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta
+            : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
         if (fob) {
             [pctEl, rsEl, unitEl].forEach(el => {
                 if (!el) return;
@@ -207,12 +217,12 @@
             });
         } else {
             if (pctEl) { pctEl.disabled = false; pctEl.type = 'number'; pctEl.value = '0'; }
-            if (rsEl) { rsEl.disabled = false; rsEl.type = 'number'; rsEl.value = '0'; }
+            if (rsEl) { rsEl.disabled = false; rsEl.type = 'text'; rsEl.value = '0,00'; }
             if (unitEl) {
                 const base = parseFloat(unitEl.getAttribute('data-preco-base')) || 0;
                 unitEl.disabled = false;
-                unitEl.type = 'number';
-                unitEl.value = base > 0 ? base.toFixed(2) : '0';
+                unitEl.type = 'text';
+                unitEl.value = fmtM(base);
                 unitEl.setAttribute('data-desc-mode', '');
             }
             window.recalcularPreviewServicoProposta('equip');
@@ -227,7 +237,7 @@
         if (!txt) {
             inp.removeAttribute('data-codigo');
             inp.removeAttribute('data-nome');
-            if (valEl) { valEl.setAttribute('data-preco-base', '0'); valEl.value = '0'; }
+            if (valEl) { valEl.setAttribute('data-preco-base', '0'); valEl.value = '0,00'; }
             window.recalcularPreviewServicoProposta('equip');
         }
         window.atualizarVisibilidadeFobServicoInput();
@@ -247,18 +257,24 @@
             });
             return;
         }
+        const parseM = typeof window.parseMoedaProposta === 'function'
+            ? window.parseMoedaProposta
+            : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
+        const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta
+            : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
 
         if (origem === 'unit' || origem === 'total') {
-            const u = Math.max(0, parseFloat(unitEl.value) || 0);
+            const u = Math.max(0, parseM(unitEl.value));
             unitEl.setAttribute('data-preco-base', String(u));
             unitEl.setAttribute('data-desc-mode', '');
             if (pctEl) pctEl.value = '0';
-            if (rsEl) rsEl.value = '0';
+            if (rsEl) rsEl.value = '0,00';
             return;
         }
         if (origem === 'pct') {
             unitEl.setAttribute('data-desc-mode', 'pct');
-            if (rsEl && parseFloat(rsEl.value) > 0) rsEl.value = '0';
+            if (rsEl && parseM(rsEl.value) > 0) rsEl.value = '0,00';
         } else if (origem === 'rs') {
             unitEl.setAttribute('data-desc-mode', 'rs');
             if (pctEl && parseFloat(pctEl.value) > 0) pctEl.value = '0';
@@ -266,19 +282,20 @@
 
         const baseAttr = unitEl.getAttribute('data-preco-base');
         const baseParsed = (baseAttr !== null && baseAttr !== '') ? parseFloat(baseAttr) : NaN;
-        const base = Math.max(0, !isNaN(baseParsed) && baseParsed > 0 ? baseParsed : (parseFloat(unitEl.value) || 0));
-        const modo = unitEl.getAttribute('data-desc-mode') || (parseFloat(pctEl?.value) > 0 ? 'pct' : (parseFloat(rsEl?.value) > 0 ? 'rs' : ''));
+        const base = Math.max(0, !isNaN(baseParsed) && baseParsed > 0 ? baseParsed : parseM(unitEl.value));
+        const rsVal = rsEl ? parseM(rsEl.value) : 0;
+        const modo = unitEl.getAttribute('data-desc-mode') || (parseFloat(pctEl?.value) > 0 ? 'pct' : (rsVal > 0 ? 'rs' : ''));
         let unitLiq = base;
         if (modo === 'pct' && parseFloat(pctEl?.value) > 0) {
             const pct = Math.min(100, Math.max(0, parseFloat(pctEl.value) || 0));
             const descRs = base * (pct / 100);
             unitLiq = Math.max(0, base - descRs);
-            if (rsEl) rsEl.value = descRs.toFixed(2);
-        } else if (modo === 'rs' && parseFloat(rsEl?.value) > 0) {
-            const descRs = Math.max(0, parseFloat(rsEl.value) || 0);
+            if (rsEl) rsEl.value = fmtM(descRs);
+        } else if (modo === 'rs' && rsVal > 0) {
+            const descRs = Math.max(0, rsVal);
             unitLiq = Math.max(0, base - descRs);
         }
-        unitEl.value = unitLiq.toFixed(2);
+        unitEl.value = fmtM(unitLiq);
     };
 
     window._listarServicosEstoque = async function () {
@@ -409,14 +426,17 @@
         window.atualizarVisibilidadeFobServicoInput();
         const base = (valor !== null && valor !== undefined && !isNaN(valor)) ? Number(valor) : 0;
         const fobAtivo = !!document.getElementById('prop-serv-fob')?.checked;
+        const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta
+            : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
         if (valEl) {
             valEl.setAttribute('data-preco-base', String(base));
-            if (!fobAtivo) valEl.value = base.toFixed(2);
+            if (!fobAtivo) valEl.value = fmtM(base);
             valEl.setAttribute('data-desc-mode', '');
         }
         if (!fobAtivo) {
             const pctEl = document.getElementById('prop-serv-desc-pct'); if (pctEl) pctEl.value = '0';
-            const rsEl = document.getElementById('prop-serv-desc-rs'); if (rsEl) rsEl.value = '0';
+            const rsEl = document.getElementById('prop-serv-desc-rs'); if (rsEl) rsEl.value = '0,00';
         }
         window.recalcularPreviewServicoProposta('equip');
         if (typeof Swal !== 'undefined') Swal.close();
@@ -447,8 +467,11 @@
         const rsEl = document.getElementById('prop-serv-desc-rs');
         const permiteFob = window.servicoPermiteFreteFob(nome, codigo);
         const fob = permiteFob && !!document.getElementById('prop-serv-fob')?.checked;
+        const parseM = typeof window.parseMoedaProposta === 'function'
+            ? window.parseMoedaProposta
+            : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
 
-        let unit = fob ? 0 : parseFloat(unitEl?.value); if (isNaN(unit)) unit = 0;
+        let unit = fob ? 0 : parseM(unitEl?.value); if (isNaN(unit)) unit = 0;
         let total = fob ? 0 : unit;
 
         if (!fob && total <= 0 && window.tipoPropostaServicoObrigatorio()) {
@@ -463,7 +486,7 @@
         const valorBase = fob ? 0 : ((!isNaN(baseAttr) && baseAttr > 0) ? baseAttr : unit);
         const modo = fob ? '' : (unitEl?.getAttribute('data-desc-mode') || '');
         const pct = fob ? 0 : Math.max(0, parseFloat(pctEl?.value) || 0);
-        const rs = fob ? 0 : Math.max(0, parseFloat(rsEl?.value) || 0);
+        const rs = fob ? 0 : Math.max(0, parseM(rsEl?.value));
         let descontoTipo = '';
         if (!fob) {
             if (modo === 'pct' && pct > 0) descontoTipo = 'pct';
@@ -492,8 +515,8 @@
         inp.removeAttribute('data-nome');
         const obsEl = document.getElementById('prop-serv-obs'); if (obsEl) obsEl.value = '';
         if (pctEl) pctEl.value = '0';
-        if (rsEl) rsEl.value = '0';
-        if (unitEl) { unitEl.value = '0'; unitEl.removeAttribute('data-preco-base'); unitEl.removeAttribute('data-desc-mode'); }
+        if (rsEl) rsEl.value = '0,00';
+        if (unitEl) { unitEl.value = '0,00'; unitEl.removeAttribute('data-preco-base'); unitEl.removeAttribute('data-desc-mode'); }
         const fobEl = document.getElementById('prop-serv-fob'); if (fobEl) fobEl.checked = false;
         window.alternarFreteFobServicoProposta();
         window.atualizarVisibilidadeFobServicoInput();
@@ -502,13 +525,78 @@
         window.renderizarServicosPropostaGrid();
     };
 
-    window.atualizarItemServicoProposta = function (idx, campo, valorNovo) {
+    window.atualizarDescontoItemServicoProposta = function (idx, tipoNovo, valorNovo, reRender = true) {
+        const item = (window._propServicosAdicionados || [])[idx];
+        if (!item || item.frete_fob) return;
+        const parseM = typeof window.parseMoedaProposta === 'function'
+            ? window.parseMoedaProposta
+            : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
+        const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta
+            : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
+        const vUnitAtual = parseFloat(item.valor ?? item.valor_unitario ?? item.valor_total ?? 0) || 0;
+        let vBase = parseFloat(item.valor_base);
+        if (isNaN(vBase) || vBase <= 0) {
+            if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0 && parseFloat(item.desconto_pct) < 100) {
+                vBase = vUnitAtual / (1 - (parseFloat(item.desconto_pct) / 100));
+            } else if (parseFloat(item.desconto_rs) > 0) {
+                vBase = vUnitAtual + parseFloat(item.desconto_rs);
+            } else {
+                vBase = vUnitAtual;
+            }
+            item.valor_base = vBase;
+        }
+        const tipo = (tipoNovo === 'pct' || tipoNovo === '%') ? 'pct' : 'valor';
+        const val = tipo === 'pct'
+            ? Math.max(0, parseFloat(String(valorNovo ?? '0').replace(',', '.')) || 0)
+            : Math.max(0, parseM(valorNovo));
+        if (val <= 0) {
+            item.desconto_tipo = tipo;
+            item.desconto_pct = 0;
+            item.desconto_rs = 0;
+            item.valor = vBase;
+            item.valor_unitario = vBase;
+            item.valor_total = vBase;
+        } else if (tipo === 'pct') {
+            const pct = Math.min(100, val);
+            item.desconto_tipo = 'pct';
+            item.desconto_pct = pct;
+            item.valor = Math.max(0, vBase * (1 - pct / 100));
+            item.valor_unitario = item.valor;
+            item.valor_total = item.valor;
+            item.desconto_rs = vBase * (pct / 100);
+        } else {
+            item.desconto_tipo = 'valor';
+            item.desconto_rs = val;
+            item.desconto_pct = 0;
+            item.valor = Math.max(0, vBase - val);
+            item.valor_unitario = item.valor;
+            item.valor_total = item.valor;
+        }
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+        if (reRender) {
+            window.renderizarServicosPropostaGrid();
+        } else {
+            const inpUnit = document.querySelector(`[data-serv-unit-input="${idx}"]`);
+            if (inpUnit && document.activeElement !== inpUnit) {
+                inpUnit.value = fmtM(item.valor);
+            }
+            if (typeof window.calcularValorTotalProposta === 'function') {
+                try { window.calcularValorTotalProposta(); } catch (e) {}
+            }
+        }
+    };
+
+    window.atualizarItemServicoProposta = function (idx, campo, valorNovo, reRender = true) {
         const item = (window._propServicosAdicionados || [])[idx];
         if (!item) return;
         item.quantidade = 1;
+        const parseM = typeof window.parseMoedaProposta === 'function'
+            ? window.parseMoedaProposta
+            : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
         if (campo === 'valor') {
             if (item.frete_fob) return;
-            const vNovo = Math.max(0, parseFloat(valorNovo) || 0);
+            const vNovo = Math.max(0, parseM(valorNovo));
             item.valor = vNovo;
             item.valor_unitario = vNovo;
             item.valor_base = vNovo;
@@ -531,7 +619,21 @@
             }
         }
         if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
-        window.renderizarServicosPropostaGrid();
+        if (reRender) {
+            window.renderizarServicosPropostaGrid();
+        } else if (typeof window.calcularValorTotalProposta === 'function') {
+            try { window.calcularValorTotalProposta(); } catch (e) {}
+        }
+    };
+
+    window.onInputDescontoRsItemServicoProposta = function (idx, inputEl) {
+        if (typeof window.aplicarMascaraCentavosInput === 'function') window.aplicarMascaraCentavosInput(inputEl);
+        window.atualizarDescontoItemServicoProposta(idx, 'valor', inputEl.value, false);
+    };
+
+    window.onInputValorItemServicoProposta = function (idx, inputEl) {
+        if (typeof window.aplicarMascaraCentavosInput === 'function') window.aplicarMascaraCentavosInput(inputEl);
+        window.atualizarItemServicoProposta(idx, 'valor', inputEl.value, false);
     };
 
     window.removerServicoProposta = function (idx) {
@@ -553,6 +655,9 @@
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>';
             return;
         }
+        const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta
+            : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
         const linhas = lista.map((s, idx) => {
             s.quantidade = 1;
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
@@ -563,10 +668,38 @@
             let descHtml = '<span style="color:#94a3b8;">—</span>';
             if (isFob) {
                 descHtml = '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:800; font-size:0.75rem;">FOB</span>';
-            } else if (s.desconto_tipo === 'pct' && parseFloat(s.desconto_pct) > 0) {
-                descHtml = `<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem;">${Number(s.desconto_pct).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</span>`;
-            } else if (parseFloat(s.desconto_rs) > 0) {
-                descHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-weight:700; font-size:0.75rem;">R$ ${fmtBRL(s.desconto_rs)}</span>`;
+            } else {
+                const descTipoAtual = s.desconto_tipo === 'pct' ? 'pct' : 'valor';
+                const descValAtual = descTipoAtual === 'pct'
+                    ? (parseFloat(s.desconto_pct) || 0)
+                    : (parseFloat(s.desconto_rs) || 0);
+                const temDescAtivo = descValAtual > 0;
+                const descBg = !temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7');
+                const descBorder = !temDescAtivo ? '#cbd5e1' : (descTipoAtual === 'pct' ? '#fde68a' : '#bbf7d0');
+                const descColor = !temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d');
+                const inputDescServHtml = descTipoAtual === 'pct'
+                    ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
+                            onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'pct', this.value)"
+                            title="Editar desconto (%)"
+                            style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`
+                    : `<input type="text" inputmode="numeric" value="${fmtM(descValAtual)}" placeholder="0,00"
+                            onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                            onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                            oninput="window.onInputDescontoRsItemServicoProposta(${idx}, this)"
+                            onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'valor', this.value)"
+                            title="Editar desconto (R$)"
+                            style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`;
+                descHtml = `
+                    <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
+                        <select onchange="window.atualizarDescontoItemServicoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"
+                            title="Tipo de desconto (R$ ou %)"
+                            style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:pointer; outline:none;">
+                            <option value="valor" ${descTipoAtual === 'valor' ? 'selected' : ''}>R$</option>
+                            <option value="pct" ${descTipoAtual === 'pct' ? 'selected' : ''}>%</option>
+                        </select>
+                        ${inputDescServHtml}
+                    </div>
+                `;
             }
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
@@ -584,7 +717,12 @@
                 <td style="padding:8px 10px; text-align:right;">
                     ${isFob
                         ? '<input type="text" value="FOB" disabled style="width:115px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed;">'
-                        : `<input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)" style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">`
+                        : `<input type="text" inputmode="numeric" data-serv-unit-input="${idx}" value="${fmtM(vUnit)}"
+                            onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                            onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                            oninput="window.onInputValorItemServicoProposta(${idx}, this)"
+                            onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)"
+                            style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">`
                     }
                 </td>
                 <td style="padding:8px 10px; text-align:center;">

@@ -516,6 +516,21 @@
         return normalizarUrl(achado.link_url);
     };
 
+    window.obterProximoCodigoPropostaPrevisto = function () {
+        const lista = (Array.isArray(window._propostasData) && window._propostasData.length)
+            ? window._propostasData
+            : ((window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas)) ? window._boxCacheDadosAux.propostasTodas : []);
+        let maxSeq = 0;
+        lista.forEach(r => {
+            const c = String((r && r.codigo) || '').trim();
+            if (/^\d+$/.test(c)) {
+                const n = parseInt(c, 10);
+                if (n > maxSeq) maxSeq = n;
+            }
+        });
+        return String(maxSeq + 1).padStart(2, '0');
+    };
+
     function formatarNumeroPropostaSequencial(codigoRaw, contratoRaw, idRaw) {
         const cand = String(codigoRaw || '').trim();
         if (/^\d+$/.test(cand)) return String(parseInt(cand, 10)).padStart(2, '0');
@@ -525,7 +540,7 @@
         const mCt = cont.match(/^(?:PR|CT)\d{4}\/?0*(\d+)$/i);
         if (mCt) return String(parseInt(mCt[1], 10)).padStart(2, '0');
         if (idRaw && /^\d+$/.test(String(idRaw))) return String(parseInt(idRaw, 10)).padStart(2, '0');
-        return (cand && cand.toUpperCase() !== 'AUTO') ? cand : '01';
+        return (cand && cand.toUpperCase() !== 'AUTO') ? cand : window.obterProximoCodigoPropostaPrevisto();
     }
 
     function gerarDatasIntervaloIsoBox(iniIso, fimIso) {

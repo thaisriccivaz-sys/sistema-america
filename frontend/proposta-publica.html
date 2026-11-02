@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <script src="/comercial_boxes.js?v=20261102v2"></script>
+    <script src="/comercial_boxes.js?v=20261102v4"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -344,11 +344,12 @@
             var d = estado.dados || {};
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             if (jaAssinado && d.assinatura_url) {
-                modalAceite.style.display = 'none';
-                desenhar();
-                var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
-                if (elAssin && typeof elAssin.scrollIntoView === 'function') {
-                    setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+                modalAceiteBody.innerHTML =
+                    montarHtmlQuadroAditivoAceite(visao()) +
+                    montarHtmlBlocoAssinaturaSalva();
+                modalAceite.style.display = 'flex';
+                if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
+                    requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(modalAceiteBody); });
                 }
                 return;
             }
@@ -488,7 +489,12 @@
                             if (prodsSelecionados.length > 0) estado.dados.produtos_aprovados = prodsSelecionados;
                             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
                         }
-                        exibirImagemAceite();
+                        modalAceite.style.display = 'none';
+                        desenhar();
+                        var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
+                        if (elAssin && typeof elAssin.scrollIntoView === 'function') {
+                            setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+                        }
                     }).catch(function () {
                         btnConfirmar.disabled = false;
                         btnConfirmar.textContent = '✓ Confirmar Assinatura e Aprovar';
@@ -524,23 +530,30 @@
             var d = estado.dados;
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             var btnAprovarEl = document.getElementById('pp-btn-aprovar');
-            if (jaAssinado && d.assinatura_url) {
-                raiz.innerHTML = montarHtmlQuadroAditivoAceite(v) + montarHtmlBlocoAssinaturaSalva();
-                if (secaoAceite) {
-                    secaoAceite.innerHTML = '';
-                    secaoAceite.style.display = 'none';
-                }
-                if (btnAprovarEl) btnAprovarEl.style.display = 'none';
+            var boxesParaRender = (jaAssinado && d.assinatura_url)
+                ? (estado.boxes || []).filter(function (b) { return !b || !b.origem_aditivo; })
+                : (estado.boxes || []);
+            if (typeof window.renderListaBoxesCompletaHtml === 'function') {
+                raiz.innerHTML = window.renderListaBoxesCompletaHtml(boxesParaRender, v, { proposta: estado.dados });
             } else {
-                if (typeof window.renderListaBoxesCompletaHtml === 'function') {
-                    raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
-                } else {
-                    raiz.innerHTML = estado.boxes.map(function (b) {
-                        return window.boxRenderHtml(b, v, { proposta: estado.dados });
-                    }).join('');
-                }
-                if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
+                raiz.innerHTML = boxesParaRender.map(function (b) {
+                    return window.boxRenderHtml(b, v, { proposta: estado.dados });
+                }).join('');
             }
+            if (jaAssinado && d.assinatura_url) {
+                var urlAdtFinal = obterUrlImagemAditivo();
+                var htmlAdtFinal = urlAdtFinal ? '<img src="' + esc(urlAdtFinal) + '" alt="Informação de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                var urlAceiteFinal = obterUrlImagemAceite();
+                var htmlAceiteFinal = urlAceiteFinal ? '<img src="' + esc(urlAceiteFinal) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+                if (secaoAceite) {
+                    secaoAceite.innerHTML = htmlAdtFinal + htmlAceiteFinal + montarHtmlBlocoAssinaturaSalva();
+                    secaoAceite.style.display = 'block';
+                }
+            } else if (secaoAceite) {
+                secaoAceite.innerHTML = '';
+                secaoAceite.style.display = 'none';
+            }
+            if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             if (fabBar) fabBar.style.display = 'flex';
             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
             if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {

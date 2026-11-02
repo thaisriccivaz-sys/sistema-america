@@ -1253,10 +1253,140 @@ function renderTelaPropostas() {
     }, 150);
 }
 
+window._snapshotsFormComercial = window._snapshotsFormComercial || { proposta: null, contrato: null };
+
+window.salvarSnapshotEstadoFormComercial = function(modo) {
+    const m = modo === 'contrato' ? 'contrato' : 'proposta';
+    const viewForm = document.getElementById('prop-view-form');
+    if (!viewForm || !viewForm.innerHTML.trim()) return;
+    const campos = {};
+    viewForm.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+        const attrs = {};
+        Array.from(el.attributes || []).forEach(a => {
+            if (a.name && a.name.startsWith('data-')) attrs[a.name] = a.value;
+        });
+        campos[el.id] = {
+            value: el.value,
+            checked: Boolean(el.checked),
+            type: el.type || '',
+            tag: el.tagName,
+            text: el.tagName === 'SELECT' && el.selectedOptions && el.selectedOptions[0] ? el.selectedOptions[0].textContent : '',
+            attrs
+        };
+    });
+    window._snapshotsFormComercial[m] = {
+        editandoId: _propostasEditandoId || null,
+        campos,
+        produtos: JSON.parse(JSON.stringify(window._propProdutosAdicionados || [])),
+        servicos: JSON.parse(JSON.stringify(window._propServicosAdicionados || [])),
+        diasEvento: JSON.parse(JSON.stringify(window._propDiasEventoSelecionados || [])),
+        diasHorarios: JSON.parse(JSON.stringify(window._propDiasEventoHorarios || {})),
+        ultimoHorario: window._ultimoHorarioDiaEventoEditado || '',
+        formEditadoNaoSalvo: Boolean(window._propFormEditadoNaoSalvo),
+        regiaoIdentificada: _propRegiaoIdentificada || '',
+        ultimoClienteAtivo: window._ultimoClienteNomePropostaAtivo || ''
+    };
+};
+
+window.restaurarSnapshotEstadoFormComercial = function(modo) {
+    const m = modo === 'contrato' ? 'contrato' : 'proposta';
+    const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[m];
+    if (!snap) return false;
+    _propostasEditandoId = snap.editandoId || null;
+    if (m === 'contrato') window._propostasEditandoId_contrato = _propostasEditandoId;
+    else window._propostasEditandoId_proposta = _propostasEditandoId;
+    _renderFormPropostaInt();
+    window._propProdutosAdicionados = JSON.parse(JSON.stringify(snap.produtos || []));
+    window._propServicosAdicionados = JSON.parse(JSON.stringify(snap.servicos || []));
+    window._propDiasEventoSelecionados = JSON.parse(JSON.stringify(snap.diasEvento || []));
+    window._propDiasEventoHorarios = JSON.parse(JSON.stringify(snap.diasHorarios || {}));
+    window._ultimoHorarioDiaEventoEditado = snap.ultimoHorario || '';
+    window._propFormEditadoNaoSalvo = Boolean(snap.formEditadoNaoSalvo);
+    _propRegiaoIdentificada = snap.regiaoIdentificada || '';
+    window._ultimoClienteNomePropostaAtivo = snap.ultimoClienteAtivo || '';
+
+    const campos = snap.campos || {};
+    Object.keys(campos).forEach(id => {
+        const el = document.getElementById(id);
+        const info = campos[id];
+        if (!el || !info) return;
+        if (info.attrs) {
+            Object.keys(info.attrs).forEach(k => el.setAttribute(k, info.attrs[k]));
+        }
+        if (info.type === 'checkbox' || info.type === 'radio') {
+            el.checked = Boolean(info.checked);
+        } else if (el.tagName === 'SELECT') {
+            if (info.value !== undefined && info.value !== '') {
+                let opt = Array.from(el.options || []).find(o => o.value === info.value);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = info.value;
+                    opt.textContent = info.text || info.value;
+                    el.appendChild(opt);
+                }
+            }
+            el.value = info.value ?? '';
+        } else {
+            el.value = info.value ?? '';
+        }
+    });
+
+    const tipoRestaurado = document.getElementById('prop-tipo')?.value || '';
+    const tipoLimpoRest = String(tipoRestaurado).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') window.atualizarVisibilidadeDiasEventoProposta(tipoLimpoRest);
+    if (typeof window.atualizarVisibilidadeServicosProposta === 'function') window.atualizarVisibilidadeServicosProposta(tipoLimpoRest);
+    if (typeof window.atualizarVisibilidadeContratoAditivo === 'function') window.atualizarVisibilidadeContratoAditivo(tipoLimpoRest);
+    if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
+    if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
+    if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
+    if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') window.atualizarVisibilidadeBotoesPosSalvoProposta();
+    const cliVal = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (cliVal && typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+        window.verificarBloqueioFaturamentoProposta(cliVal);
+    }
+    return true;
+};
+
+window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true) {
+    const m = modo === 'contrato' ? 'contrato' : 'proposta';
+    if (window._snapshotsFormComercial) {
+        window._snapshotsFormComercial[m] = null;
+    }
+    if (m === 'contrato') window._propostasEditandoId_contrato = null;
+    else window._propostasEditandoId_proposta = null;
+    const modoAtual = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
+    if (reRenderSeAtivo && modoAtual === m) {
+        _propostasEditandoId = null;
+        window._propProdutosAdicionados = [];
+        window._propDiasEventoSelecionados = [];
+        window._propDiasEventoHorarios = {};
+        window._ultimoHorarioDiaEventoEditado = '';
+        window._propServicosAdicionados = [];
+        _propRegiaoIdentificada = '';
+        window._ultimoClienteNomePropostaAtivo = '';
+        if (document.getElementById('prop-view-form')) {
+            _renderFormPropostaInt();
+        }
+    }
+};
+
 window.switchPropostaTab = function(tab) {
     let mudouModoComercial = false;
-    if (tab === 'contratos') { if (window._modoTelaComercial !== 'contrato') mudouModoComercial = true; window._modoTelaComercial = 'contrato'; _propostasEditandoId = window._propostasEditandoId_contrato || null; tab = 'form'; }
-    else if (tab === 'form' && window._modoTelaComercial === 'contrato') { mudouModoComercial = true; window._modoTelaComercial = 'proposta'; _propostasEditandoId = window._propostasEditandoId_proposta || null; }
+    const modoAnterior = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
+    if (tab === 'contratos') {
+        if (modoAnterior !== 'contrato') {
+            window.salvarSnapshotEstadoFormComercial('proposta');
+            mudouModoComercial = true;
+        }
+        window._modoTelaComercial = 'contrato';
+        _propostasEditandoId = window._propostasEditandoId_contrato || null;
+        tab = 'form';
+    } else if (tab === 'form' && modoAnterior === 'contrato') {
+        window.salvarSnapshotEstadoFormComercial('contrato');
+        mudouModoComercial = true;
+        window._modoTelaComercial = 'proposta';
+        _propostasEditandoId = window._propostasEditandoId_proposta || null;
+    }
     _currentPropostaTab = tab;
     
     const viewLista = document.getElementById('prop-view-lista');
@@ -1281,8 +1411,15 @@ window.switchPropostaTab = function(tab) {
     const elementsExist = viewLista && viewForm && viewCadastroCliente && viewCadastroContatos && viewEnderecos && viewCadastroEventos && viewServicosPrecificacao && viewModelosContrato && viewModelosPropostas && viewTabelaPrecos;
     if (elementsExist) {
         if (tab === 'form') {
-            if (mudouModoComercial || viewForm.innerHTML.trim() === '') {
-                _renderFormPropostaInt();
+            const modoNovo = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
+            if (mudouModoComercial) {
+                if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
+                    _renderFormPropostaInt();
+                }
+            } else if (viewForm.innerHTML.trim() === '') {
+                if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
+                    _renderFormPropostaInt();
+                }
             } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
                 window.verificarBloqueioFaturamentoProposta();
             }
@@ -2037,6 +2174,8 @@ window._filtrarServicosPrecificadosPorTabela = function(tabelaPreco, selectedSer
 /* ── Formulário (Modal) ─────────────────────────────────────────────── */
 window.abrirFormProposta = abrirFormProposta;
 async function abrirFormProposta(id, rascunhoDuplicado = null) {
+    const modoAtu = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
+    if (window._snapshotsFormComercial) window._snapshotsFormComercial[modoAtu] = null;
     window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
     if (window._modoTelaComercial === 'contrato') window._propostasEditandoId_contrato = id;
     else window._propostasEditandoId_proposta = id;
@@ -2529,20 +2668,26 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Desconto (R$)</label>
-                                <input type="number" id="prop-desc-rs" value="${vn('desconto_reais','0')}" min="0" step="0.01"
-                                    oninput="window.recalcularPreviewProdutoProposta('rs')"
+                                <input type="text" inputmode="numeric" id="prop-desc-rs" value="${window.formatarMoedaCentavosProposta ? window.formatarMoedaCentavosProposta((window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0) ? 0 : vn('desconto_reais','0')) : '0,00'}" placeholder="0,00"
+                                    onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewProdutoProposta('rs')"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Valor Unitário (R$)</label>
-                                <input type="number" id="prop-prod-valor" step="0.01" min="0" value="0" placeholder="0,00"
-                                    oninput="window.recalcularPreviewProdutoProposta('unit')"
+                                <input type="text" inputmode="numeric" id="prop-prod-valor" value="0,00" placeholder="0,00"
+                                    onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewProdutoProposta('unit')"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;background:#fff;box-sizing:border-box;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Valor Total (R$)</label>
-                                <input type="number" id="prop-valor-total" value="${vn('valor_total','0')}" min="0" step="0.01"
-                                    oninput="window.recalcularPreviewProdutoProposta('total')"
+                                <input type="text" inputmode="numeric" id="prop-valor-total" value="${window.formatarMoedaCentavosProposta ? window.formatarMoedaCentavosProposta((window._propProdutosAdicionados && window._propProdutosAdicionados.length > 0) ? 0 : vn('valor_total','0')) : '0,00'}" placeholder="0,00"
+                                    onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
+                                    oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this); window.recalcularPreviewProdutoProposta('total')"
                                     style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
                             </div>
                         </div>
@@ -6062,7 +6207,10 @@ function calcularDescontoReais() {
 
     const rsEl = document.getElementById('prop-desc-rs');
     if (rsEl && subtotal > 0) {
-        rsEl.value = (subtotal * pct / 100).toFixed(2);
+        const vDescRs = subtotal * pct / 100;
+        rsEl.value = typeof window.formatarMoedaCentavosProposta === 'function'
+            ? window.formatarMoedaCentavosProposta(vDescRs)
+            : vDescRs.toFixed(2);
     }
 
     if (typeof window.calcularValorTotalProposta === 'function') {
@@ -6094,7 +6242,9 @@ window.calcularValorTotalProposta = function() {
     }, 0);
 
     const prodInputAtivo = (document.getElementById('prop-prod-codigo')?.value || '').trim();
-    const unitInputAtivo = parseFloat(document.getElementById('prop-prod-valor')?.value || 0);
+    const unitInputAtivo = typeof window.parseMoedaProposta === 'function'
+        ? window.parseMoedaProposta(document.getElementById('prop-prod-valor')?.value)
+        : parseFloat(document.getElementById('prop-prod-valor')?.value || 0);
     if (prodInputAtivo || unitInputAtivo > 0) {
         return;
     }
@@ -6152,10 +6302,13 @@ window.calcularValorTotalProposta = function() {
     const subtotal = precoServico + freteIda + freteVolta + valorZona + valorDist;
 
     let desconto = 0;
+    const descRsVal = descRsEl
+        ? (typeof window.parseMoedaProposta === 'function' ? window.parseMoedaProposta(descRsEl.value) : parseFloat(descRsEl.value))
+        : 0;
     if (descPctEl && parseFloat(descPctEl.value) > 0) {
         desconto = subtotal * parseFloat(descPctEl.value) / 100;
-    } else if (descRsEl && parseFloat(descRsEl.value) > 0) {
-        desconto = parseFloat(descRsEl.value);
+    } else if (descRsVal > 0) {
+        desconto = descRsVal;
     }
 
     const totalCalculado = Math.max(0, subtotal - desconto);
@@ -6164,6 +6317,9 @@ window.calcularValorTotalProposta = function() {
 
 /* ── Botões CRUD e Envio ─────────────────────────────────────────────── */
 window.limparFormPropostaNovo = function() {
+    if (typeof window.limparEstadoAbaComercial === 'function') {
+        window.limparEstadoAbaComercial(window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta', false);
+    }
     if (window._modoTelaComercial === 'contrato') window._propostasEditandoId_contrato = null;
     else window._propostasEditandoId_proposta = null;
     _propostasEditandoId = null;
@@ -6192,7 +6348,9 @@ window.salvarPropostaNova = async function() {
     if (_propostasEditandoId && !window._propFormEditadoNaoSalvo) return;
     console.log('[DEBUG] salvarPropostaNova called. _propostasEditandoId =', _propostasEditandoId);
     const obter = (id) => document.getElementById(id)?.value || '';
-    const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const obterN = (id) => typeof window.parseMoedaProposta === 'function'
+        ? window.parseMoedaProposta(document.getElementById(id)?.value)
+        : (parseFloat(document.getElementById(id)?.value || 0) || 0);
 
     const tipo = obter('prop-tipo');
     const fase = obter('prop-fase');
@@ -6338,10 +6496,19 @@ window.salvarPropostaNova = async function() {
             if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
                 await window.carregarCacheDadosQuadroEvento(false);
             }
+            if (!_propostasEditandoId && typeof carregarPropostas === 'function') {
+                await carregarPropostas().catch(() => {});
+            }
             const propExist = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+            const codCampoAtual = String(document.getElementById('prop-codigo')?.value || '').trim();
+            const codPreviewCalc = (propExist && propExist.codigo)
+                ? propExist.codigo
+                : ((codCampoAtual && codCampoAtual.toUpperCase() !== 'AUTO')
+                    ? codCampoAtual
+                    : (typeof window.obterProximoCodigoPropostaPrevisto === 'function' ? window.obterProximoCodigoPropostaPrevisto() : '01'));
             const propPreview = Object.assign({}, propExist || {}, payload, {
                 id: _propostasEditandoId || null,
-                codigo: (propExist && propExist.codigo) || document.getElementById('prop-codigo')?.value || '01'
+                codigo: codPreviewCalc
             });
 
             const normMod = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
@@ -6637,7 +6804,9 @@ window.estornarPropostaEdicao = async function() {
     if (!confEstorno.isConfirmed) return;
 
     const obter = (id) => document.getElementById(id)?.value || '';
-    const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const obterN = (id) => typeof window.parseMoedaProposta === 'function'
+        ? window.parseMoedaProposta(document.getElementById(id)?.value)
+        : (parseFloat(document.getElementById(id)?.value || 0) || 0);
 
     const tipo = obter('prop-tipo');
     const dataCad = obter('prop-data-cadastro');
@@ -6780,7 +6949,9 @@ window.aprovarPropostaEdicao = async function() {
         await window.carregarCacheDadosQuadroEvento(false);
     }
     const obter = (id) => document.getElementById(id)?.value || '';
-    const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const obterN = (id) => typeof window.parseMoedaProposta === 'function'
+        ? window.parseMoedaProposta(document.getElementById(id)?.value)
+        : (parseFloat(document.getElementById(id)?.value || 0) || 0);
     let tipo = obter('prop-tipo');
     if (String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO' &&
         typeof window.propostaTemProdutoParceiros === 'function' &&
@@ -7428,7 +7599,7 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
             ? window.obterQtdDiariasProdutoEvento(it)
             : 1;
         return acc + (porDia * multDias);
-    }, 0) || parseFloat(document.getElementById('prop-valor-total')?.value || (p && p.valor_total) || 0);
+    }, 0) || (typeof window.parseMoedaProposta === 'function' ? window.parseMoedaProposta(document.getElementById('prop-valor-total')?.value) : parseFloat(document.getElementById('prop-valor-total')?.value || 0)) || parseFloat((p && p.valor_total) || 0);
     const totalFmt = 'R$ ' + Number(totalCalc || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const resumoItens = itensAtuais.length > 0
@@ -18899,16 +19070,20 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     const orig = btn ? btn.innerHTML : '';
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>'; btn.disabled = true; }
     try {
+        if (typeof window.obterClientesCache === 'function') {
+            await window.obterClientesCache().catch(() => []);
+        }
         const contratosAtivos = await window._listarContratosAtivosParaAditivo();
         if (termo) {
             const matches = window._filtrarContratosAtivosPorTermo(contratosAtivos, termo);
             if (matches.length === 1) {
                 const c = matches[0];
-                window.selecionarContratoAditivoBusca(
+                await window.selecionarContratoAditivoBusca(
                     String(c.numero_contrato || c.contrato || c.codigo || ''),
                     String(c.id || ''),
                     String(c.cliente_nome || c.razao_social || ''),
-                    String(c.tipo || '')
+                    String(c.tipo || ''),
+                    String(c.condicao_pagamento || '')
                 );
                 return;
             }
@@ -18919,19 +19094,50 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     }
 };
 
-window.selecionarContratoAditivoBusca = function(numContrato, idContrato, clienteNome, tipoContrato) {
+window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '') {
     const inp = document.getElementById('prop-contrato-aditivo');
+    let condPagOrig = String(condicaoPagamento || '').trim();
+    if (!condPagOrig && idContrato && Array.isArray(window._propostasData)) {
+        const pOrig = window._propostasData.find(p => String(p.id) === String(idContrato));
+        if (pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
+    }
     if (inp) {
         inp.value = String(numContrato || '').trim();
         if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
         else inp.removeAttribute('data-contrato-id');
         if (tipoContrato) inp.setAttribute('data-contrato-tipo', String(tipoContrato).trim());
         else inp.removeAttribute('data-contrato-tipo');
+        if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
+        else inp.removeAttribute('data-contrato-cond-pag');
     }
     const cliEl = document.getElementById('prop-cliente');
-    if (cliEl && !cliEl.value.trim() && clienteNome) {
-        cliEl.value = clienteNome;
-        if (typeof window.onClientePropostaChange === 'function') window.onClientePropostaChange(clienteNome);
+    const cliLimpo = String(clienteNome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (cliEl && cliLimpo) {
+        cliEl.value = cliLimpo;
+        if (typeof window.onChangeClientePropostaInput === 'function') {
+            window.onChangeClientePropostaInput(cliLimpo);
+        }
+        if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+            await window.verificarBloqueioFaturamentoProposta(cliLimpo);
+        }
+    } else if (cliEl && cliEl.value.trim()) {
+        if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+            await window.verificarBloqueioFaturamentoProposta(cliEl.value.trim());
+        }
+    }
+    const condPagEl = document.getElementById('prop-cond-pag');
+    if (condPagEl && condPagOrig) {
+        const bloqAtivo = condPagEl.getAttribute('data-faturamento-bloqueado') === '1' || document.getElementById('prop-cliente')?.classList.contains('input-faturamento-bloqueado');
+        if (!bloqAtivo) {
+            let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === condPagOrig.toUpperCase());
+            if (!opt) {
+                opt = document.createElement('option');
+                opt.value = condPagOrig;
+                opt.textContent = condPagOrig;
+                condPagEl.appendChild(opt);
+            }
+            condPagEl.value = opt.value;
+        }
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (typeof Swal !== 'undefined') Swal.close();
@@ -18943,6 +19149,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
         const m = String(iso || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
         return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '—');
     };
+    const normCli = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const rows = (lista) => {
         if (!lista.length) {
             return '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.6rem; font-size:0.85rem;">Nenhum contrato ativo encontrado.</td></tr>';
@@ -18950,15 +19157,25 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
         return lista.map(c => {
             const num = String(c.numero_contrato || c.contrato || c.codigo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const id = String(c.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            const cli = String(c.cliente_nome || c.razao_social || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const cliRaw = String(c.cliente_nome || c.razao_social || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            const cli = cliRaw.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const condPagC = String(c.condicao_pagamento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const per = (c.periodo_inicio || c.periodo_fim) ? `${fmtData(c.periodo_inicio)} a ${fmtData(c.periodo_fim)}` : '—';
             const badgeSit = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                 ? window.renderBadgeSituacaoContratoHtml(c.situacao_contrato || c.situacao, true)
                 : '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">ATIVO</span>';
-            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            const icoCli = typeof window.obterIconeGrupoPorNomeCliente === 'function'
+                ? window.obterIconeGrupoPorNomeCliente(cliRaw)
+                : '';
+            const cliObj = Array.isArray(_clientesCache)
+                ? _clientesCache.find(cl => normCli(cl.nome_razao_social) === normCli(cliRaw) || normCli(cl.nome_fantasia) === normCli(cliRaw))
+                : null;
+            const isBloqCli = cliObj && typeof window.clienteTemFaturamentoBloqueado === 'function' && window.clienteTemFaturamentoBloqueado(cliObj);
+            const estiloCli = isBloqCli ? 'font-weight:700; color:#dc2626;' : 'font-weight:600; color:#1e293b;';
+            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
-                <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(c.cliente_nome || c.razao_social || '—')}</td>
+                <td style="padding:10px 12px; ${estiloCli}">${icoCli ? `<span style="margin-right:5px;">${icoCli}</span>` : ''}${esc(cliRaw || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center;">${esc(c.tipo || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(per)}</td>
                 <td style="padding:10px 12px; text-align:center;">${badgeSit}</td>
@@ -19033,11 +19250,20 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         if (typeof window._aplicarEstiloCondPagBloqueado === 'function') {
             window._aplicarEstiloCondPagBloqueado(true);
         }
+    } else if (tipoLimpo === 'ADITIVO') {
+        const condAdtAttr = document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-cond-pag') || '';
+        if (condPagEl && condAdtAttr) {
+            condPagEl.value = condAdtAttr;
+        }
     } else {
         const condPadrao = window.obterCondicaoPagamentoPadraoPorTipo(tipoLimpo);
         if (condPagEl && condPadrao) {
             condPagEl.value = condPadrao;
         }
+    }
+    const cliValAtual = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (cliValAtual && typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+        window.verificarBloqueioFaturamentoProposta(cliValAtual);
     }
     const diasPadrao = window.obterDiasContratoPadraoPorTipo(tipoLimpo);
     const diasEl = document.getElementById('prop-dias');
@@ -19073,7 +19299,7 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         if (inputValor) {
             const numVal = val !== null ? Number(val) : 0;
             inputValor.setAttribute('data-preco-base', String(numVal));
-            inputValor.value = numVal.toFixed(2);
+            inputValor.value = typeof window.formatarMoedaCentavosProposta === 'function' ? window.formatarMoedaCentavosProposta(numVal) : numVal.toFixed(2);
         }
         if (typeof window.recalcularPreviewProdutoProposta === 'function') {
             window.recalcularPreviewProdutoProposta('equip');
@@ -19132,7 +19358,7 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         if (inputValor) {
             const numVal = val !== null ? Number(val) : 0;
             inputValor.setAttribute('data-preco-base', String(numVal));
-            inputValor.value = numVal.toFixed(2);
+            inputValor.value = typeof window.formatarMoedaCentavosProposta === 'function' ? window.formatarMoedaCentavosProposta(numVal) : numVal.toFixed(2);
         }
         if (typeof window.recalcularPreviewProdutoProposta === 'function') {
             window.recalcularPreviewProdutoProposta('equip');
@@ -19848,6 +20074,53 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     });
 };
 
+window.formatarMoedaCentavosProposta = function(valor) {
+    const n = Number(valor);
+    if (!Number.isFinite(n) || n <= 0) return '0,00';
+    const centavos = Math.round(n * 100);
+    const inteiro = Math.floor(centavos / 100);
+    const dec = String(centavos % 100).padStart(2, '0');
+    return inteiro.toLocaleString('pt-BR') + ',' + dec;
+};
+
+window.parseMoedaProposta = function(raw) {
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+    const s = String(raw ?? '').trim();
+    if (!s) return 0;
+    if (s.includes(',')) {
+        const limpo = s.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+        const n = parseFloat(limpo);
+        return Number.isFinite(n) ? n : 0;
+    }
+    const n = parseFloat(s.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+};
+
+window.posicionarCursorFimMoeda = function(el) {
+    if (!el || typeof el.setSelectionRange !== 'function') return;
+    setTimeout(() => {
+        try {
+            const len = String(el.value || '').length;
+            el.setSelectionRange(len, len);
+        } catch (_) {}
+    }, 0);
+};
+
+window.aplicarMascaraCentavosInput = function(el) {
+    if (!el) return 0;
+    const digitos = String(el.value || '').replace(/\D/g, '');
+    const centavos = parseInt(digitos || '0', 10) || 0;
+    const valorNum = centavos / 100;
+    el.value = window.formatarMoedaCentavosProposta(valorNum);
+    try {
+        if (typeof el.setSelectionRange === 'function') {
+            const len = el.value.length;
+            el.setSelectionRange(len, len);
+        }
+    } catch (_) {}
+    return valorNum;
+};
+
 window.onInputProdutoPropostaTexto = async function() {
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
@@ -19858,7 +20131,7 @@ window.onInputProdutoPropostaTexto = async function() {
         inputCodigo.removeAttribute('data-nome');
         if (inputValor) {
             inputValor.setAttribute('data-preco-base', '0');
-            inputValor.value = '0';
+            inputValor.value = '0,00';
         }
         window.recalcularPreviewProdutoProposta('equip');
         return;
@@ -19888,23 +20161,23 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
     const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
 
     if (origem === 'total') {
-        const totalDigitado = Math.max(0, parseFloat(valTotalEl.value) || 0);
+        const totalDigitado = Math.max(0, window.parseMoedaProposta(valTotalEl.value));
         const unitCalculado = qtd > 0 ? (totalDigitado / qtd) : 0;
-        valUnitEl.value = unitCalculado.toFixed(2);
+        valUnitEl.value = window.formatarMoedaCentavosProposta(unitCalculado);
         valUnitEl.setAttribute('data-preco-base', String(unitCalculado));
         if (descPctEl) descPctEl.value = '0';
-        if (descRsEl) descRsEl.value = '0';
+        if (descRsEl) descRsEl.value = '0,00';
         valUnitEl.setAttribute('data-desc-mode', '');
         return;
     }
 
     if (origem === 'unit') {
-        const novoUnitDigitado = Math.max(0, parseFloat(valUnitEl.value) || 0);
+        const novoUnitDigitado = Math.max(0, window.parseMoedaProposta(valUnitEl.value));
         valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
         if (descPctEl) descPctEl.value = '0';
-        if (descRsEl) descRsEl.value = '0';
+        if (descRsEl) descRsEl.value = '0,00';
         valUnitEl.setAttribute('data-desc-mode', '');
-        valTotalEl.value = (novoUnitDigitado * qtd).toFixed(2);
+        valTotalEl.value = window.formatarMoedaCentavosProposta(novoUnitDigitado * qtd);
         return;
     }
 
@@ -19919,12 +20192,13 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
 
     const precoBaseAttr = valUnitEl.getAttribute('data-preco-base');
     const precoBaseParsed = (precoBaseAttr !== null && precoBaseAttr !== '') ? parseFloat(precoBaseAttr) : NaN;
-    const unitAtual = parseFloat(valUnitEl.value) || 0;
+    const unitAtual = window.parseMoedaProposta(valUnitEl.value);
     const precoBase = Math.max(0, (!isNaN(precoBaseParsed) && precoBaseParsed > 0) ? precoBaseParsed : unitAtual);
     const brutoTotal = precoBase * qtd;
 
+    const descRsValAtual = descRsEl ? window.parseMoedaProposta(descRsEl.value) : 0;
     const descMode = valUnitEl.getAttribute('data-desc-mode') ||
-        (parseFloat(descPctEl?.value) > 0 ? 'pct' : (parseFloat(descRsEl?.value) > 0 ? 'rs' : ''));
+        (parseFloat(descPctEl?.value) > 0 ? 'pct' : (descRsValAtual > 0 ? 'rs' : ''));
 
     let unitLiquido = precoBase;
     let totalLiquido = brutoTotal;
@@ -19934,19 +20208,19 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
         const descRsCalc = brutoTotal * (pct / 100);
         totalLiquido = Math.max(0, brutoTotal - descRsCalc);
         unitLiquido = Math.max(0, precoBase * (1 - pct / 100));
-        if (descRsEl) descRsEl.value = descRsCalc.toFixed(2);
-    } else if (descMode === 'rs' && parseFloat(descRsEl?.value) > 0) {
-        const descRs = Math.max(0, parseFloat(descRsEl.value) || 0);
+        if (descRsEl) descRsEl.value = window.formatarMoedaCentavosProposta(descRsCalc);
+    } else if (descMode === 'rs' && descRsValAtual > 0) {
+        const descRs = Math.max(0, descRsValAtual);
         totalLiquido = Math.max(0, brutoTotal - descRs);
         unitLiquido = qtd > 0 ? (totalLiquido / qtd) : 0;
     } else {
         if (origem === 'pct' && descRsEl) {
-            descRsEl.value = '0';
+            descRsEl.value = '0,00';
         }
     }
 
-    valUnitEl.value = unitLiquido.toFixed(2);
-    valTotalEl.value = totalLiquido.toFixed(2);
+    valUnitEl.value = window.formatarMoedaCentavosProposta(unitLiquido);
+    valTotalEl.value = window.formatarMoedaCentavosProposta(totalLiquido);
 };
 
 window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) {
@@ -19970,7 +20244,7 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
     const precoBase = (valFinal !== null && valFinal !== undefined && !isNaN(valFinal)) ? Number(valFinal) : 0;
     if (inputValor) {
         inputValor.setAttribute('data-preco-base', String(precoBase));
-        inputValor.value = precoBase.toFixed(2);
+        inputValor.value = window.formatarMoedaCentavosProposta(precoBase);
     }
     window.recalcularPreviewProdutoProposta('equip');
     Swal.close();
@@ -20021,9 +20295,9 @@ window.adicionarProdutoProposta = function() {
 
     const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo, nome: produtoNome });
-    let unitDigitado = parseFloat(inputValor?.value);
+    let unitDigitado = window.parseMoedaProposta(inputValor?.value);
     if (isNaN(unitDigitado)) unitDigitado = 0;
-    let totalDigitado = parseFloat(valTotalEl?.value);
+    let totalDigitado = window.parseMoedaProposta(valTotalEl?.value);
     if (isNaN(totalDigitado)) totalDigitado = 0;
 
     if (unitDigitado <= 0 && totalDigitado > 0) {
@@ -20039,7 +20313,7 @@ window.adicionarProdutoProposta = function() {
         : (unitDigitado > 0 ? unitDigitado : (vTab !== null ? Number(vTab) : 0));
 
     const descPct = Math.max(0, parseFloat(descPctEl?.value) || 0);
-    const descRs = Math.max(0, parseFloat(descRsEl?.value) || 0);
+    const descRs = Math.max(0, window.parseMoedaProposta(descRsEl?.value));
     const descMode = inputValor?.getAttribute('data-desc-mode') || (descPct > 0 ? 'pct' : (descRs > 0 ? 'rs' : ''));
 
     let valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
@@ -20108,14 +20382,14 @@ window.adicionarProdutoProposta = function() {
     const inputManutReset = document.getElementById('prop-prod-manut');
     if (inputManutReset) { inputManutReset.value = ''; inputManutReset.dataset.prevManut = ''; }
     if (descPctEl) descPctEl.value = '0';
-    if (descRsEl) descRsEl.value = '0';
+    if (descRsEl) descRsEl.value = '0,00';
     if (inputValor) {
-        inputValor.value = '0';
+        inputValor.value = '0,00';
         inputValor.removeAttribute('data-preco-base');
         inputValor.removeAttribute('data-desc-mode');
     }
     if (valTotalEl) {
-        valTotalEl.value = '0';
+        valTotalEl.value = '0,00';
     }
 
     if (window.tipoPropostaUsaDiasEvento() && typeof window.manterDiasProximoProduto === 'function' && !window.manterDiasProximoProduto()) {
@@ -20129,7 +20403,7 @@ window.adicionarProdutoProposta = function() {
     window.renderizarProdutosPropostaGrid();
 };
 
-window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo) {
+window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo, reRender = true) {
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
     const item = window._propProdutosAdicionados[idx];
     const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
@@ -20147,7 +20421,9 @@ window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo)
     }
 
     const tipo = (tipoNovo === 'pct' || tipoNovo === '%') ? 'pct' : 'valor';
-    const val = Math.max(0, parseFloat(String(valorNovo ?? '0').replace(',', '.')) || 0);
+    const val = tipo === 'pct'
+        ? Math.max(0, parseFloat(String(valorNovo ?? '0').replace(',', '.')) || 0)
+        : Math.max(0, window.parseMoedaProposta(valorNovo));
 
     if (val <= 0) {
         item.desconto_tipo = tipo;
@@ -20173,10 +20449,14 @@ window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo)
         item.valor_unitario = item.valor;
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
-    window.renderizarProdutosPropostaGrid();
+    if (reRender) {
+        window.renderizarProdutosPropostaGrid();
+    } else {
+        window._atualizarCelulasTotaisLinhaProduto(idx);
+    }
 };
 
-window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
+window.atualizarItemProdutoProposta = function(idx, campo, valorNovo, reRender = true) {
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
     const item = window._propProdutosAdicionados[idx];
     if (campo === 'quantidade') {
@@ -20199,7 +20479,7 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
             item.valor_total = vUnit * qtd;
         }
     } else if (campo === 'valor') {
-        const vNovo = Math.max(0, parseFloat(valorNovo) || 0);
+        const vNovo = Math.max(0, window.parseMoedaProposta(valorNovo));
         const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
         item.valor = vNovo;
         item.valor_unitario = vNovo;
@@ -20216,7 +20496,45 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo) {
         item.manut_semana = (!isNaN(n) && n > 0) ? n : 0;
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
-    window.renderizarProdutosPropostaGrid();
+    if (reRender) {
+        window.renderizarProdutosPropostaGrid();
+    } else {
+        window._atualizarCelulasTotaisLinhaProduto(idx);
+    }
+};
+
+window._atualizarCelulasTotaisLinhaProduto = function(idx) {
+    const item = window._propProdutosAdicionados && window._propProdutosAdicionados[idx];
+    if (!item) return;
+    const ehEventoGrid = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
+    const qtd = parseInt(item.quantidade, 10) || 1;
+    const vUnit = parseFloat(item.valor ?? item.valor_unitario ?? 0) || 0;
+    const subtotal = (item.valor_total !== undefined && !isNaN(parseFloat(item.valor_total)))
+        ? parseFloat(item.valor_total)
+        : (qtd * vUnit);
+    const nDiariasLinha = (ehEventoGrid && typeof window.obterQtdDiariasProdutoEvento === 'function')
+        ? window.obterQtdDiariasProdutoEvento(item)
+        : 1;
+    const valorTotalFinalLinha = ehEventoGrid ? (subtotal * nDiariasLinha) : subtotal;
+    const tdSub = document.querySelector(`[data-prod-subtotal="${idx}"]`);
+    if (tdSub) tdSub.textContent = 'R$ ' + subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tdTot = document.querySelector(`[data-prod-total="${idx}"]`);
+    if (tdTot) tdTot.textContent = 'R$ ' + valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const inpUnit = document.querySelector(`[data-prod-unit-input="${idx}"]`);
+    if (inpUnit && document.activeElement !== inpUnit) {
+        inpUnit.value = window.formatarMoedaCentavosProposta(vUnit);
+    }
+    if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
+};
+
+window.onInputDescontoRsItemProdutoProposta = function(idx, inputEl) {
+    window.aplicarMascaraCentavosInput(inputEl);
+    window.atualizarDescontoItemProdutoProposta(idx, 'valor', inputEl.value, false);
+};
+
+window.onInputValorItemProdutoProposta = function(idx, inputEl) {
+    window.aplicarMascaraCentavosInput(inputEl);
+    window.atualizarItemProdutoProposta(idx, 'valor', inputEl.value, false);
 };
 
 window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorario, campo = 'ini') {
@@ -20329,18 +20647,27 @@ window.renderizarProdutosPropostaGrid = function() {
         const descBg = !temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7');
         const descBorder = !temDescAtivo ? '#cbd5e1' : (descTipoAtual === 'pct' ? '#fde68a' : '#bbf7d0');
         const descColor = !temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d');
+        const inputDescHtml = descTipoAtual === 'pct'
+            ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
+                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'pct', this.value)"
+                    title="Editar desconto (%)"
+                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`
+            : `<input type="text" inputmode="numeric" value="${window.formatarMoedaCentavosProposta(descValAtual)}" placeholder="0,00"
+                    onfocus="window.posicionarCursorFimMoeda(this)"
+                    onclick="window.posicionarCursorFimMoeda(this)"
+                    oninput="window.onInputDescontoRsItemProdutoProposta(${idx}, this)"
+                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'valor', this.value)"
+                    title="Editar desconto (R$)"
+                    style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`;
         const descHtml = `
             <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
-                <select onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.nextElementSibling.value)"
+                <select onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"
                     title="Tipo de desconto (R$ ou %)"
                     style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:pointer; outline:none;">
                     <option value="valor" ${descTipoAtual === 'valor' ? 'selected' : ''}>R$</option>
                     <option value="pct" ${descTipoAtual === 'pct' ? 'selected' : ''}>%</option>
                 </select>
-                <input type="number" step="0.01" min="0" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0,00"
-                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.previousElementSibling.value, this.value)"
-                    title="Editar desconto"
-                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">
+                ${inputDescHtml}
             </div>
         `;
 
@@ -20371,14 +20698,18 @@ window.renderizarProdutosPropostaGrid = function() {
                 </td>` : ''}
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
-                    <input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
+                    <input type="text" inputmode="numeric" data-prod-unit-input="${idx}" value="${window.formatarMoedaCentavosProposta(vUnit)}"
+                        onfocus="window.posicionarCursorFimMoeda(this)"
+                        onclick="window.posicionarCursorFimMoeda(this)"
+                        oninput="window.onInputValorItemProdutoProposta(${idx}, this)"
+                        onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
                         style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">
                 </td>
                 ${ehEventoGrid ? `
-                <td style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap;">
+                <td data-prod-subtotal="${idx}" style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap;">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>` : ''}
-                <td style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
+                <td data-prod-total="${idx}" style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
                     R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">

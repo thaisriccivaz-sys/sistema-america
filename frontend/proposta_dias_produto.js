@@ -91,7 +91,175 @@
         p.dias_evento.sort((a, b) => parse(a).data.localeCompare(parse(b).data));
         if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.renderizarProdutosPropostaGrid();
+        if (window._calProdGridAbertoIdx === pIdx) window._renderCalendarioPopoverProdutoGrid();
     };
+
+    /* Alterna (seleciona / desseleciona) uma diária no calendário do produto já adicionado */
+    window.toggleDiaProdutoPropostaCalendario = function (pIdx, iso, event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        const p = lista()[pIdx];
+        iso = String(iso || '').trim();
+        if (!p || !iso) return;
+        if (!Array.isArray(p.dias_evento)) p.dias_evento = [];
+        const existIdx = p.dias_evento.findIndex(d => parse(d).data === iso);
+        if (existIdx >= 0) {
+            if (p.dias_evento.length <= 1) {
+                alert('O produto precisa de pelo menos uma diária. Selecione outra data antes de desmarcar esta.');
+                return;
+            }
+            p.dias_evento.splice(existIdx, 1);
+        } else {
+            if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(iso)) {
+                const per = typeof window.obterIntervaloPeriodoProposta === 'function' ? window.obterIntervaloPeriodoProposta() : { ini: '', fim: '', valido: false };
+                if (!per.valido) {
+                    alert('Preencha primeiro os campos Período Início * e Até * antes de selecionar os dias de evento / sucção.');
+                } else {
+                    alert(`O Dia de Evento / Sucção deve estar dentro do Período Início (${fmtData(per.ini)}) Até (${fmtData(per.fim)}).`);
+                }
+                return;
+            }
+            const base = p.dias_evento.map(parse).find(x => horaOk(x.horario));
+            p.dias_evento.push(base ? `${iso} ${base.horario}` : iso);
+            p.dias_evento.sort((a, b) => parse(a).data.localeCompare(parse(b).data));
+        }
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+        window.renderizarProdutosPropostaGrid();
+        if (window._calProdGridAbertoIdx === pIdx) window._renderCalendarioPopoverProdutoGrid();
+    };
+
+    window.fecharCalendarioDiasProdutoGrid = function (event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        window._calProdGridAbertoIdx = null;
+        const pop = document.getElementById('prop-dias-produto-grid-popover');
+        if (pop) pop.style.display = 'none';
+    };
+
+    window.navegarMesCalendarioProdutoGrid = function (delta, event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        const d = new Date(window._calProdGridAno || new Date().getFullYear(), (window._calProdGridMes ?? new Date().getMonth()) + delta, 1);
+        window._calProdGridAno = d.getFullYear();
+        window._calProdGridMes = d.getMonth();
+        window._renderCalendarioPopoverProdutoGrid();
+    };
+
+    window.abrirCalendarioDiasProdutoGrid = function (pIdx, event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        if (window._calProdGridAbertoIdx === pIdx) {
+            window.fecharCalendarioDiasProdutoGrid();
+            return;
+        }
+        const p = lista()[pIdx];
+        if (!p) return;
+        window._calProdGridAbertoIdx = pIdx;
+        const btn = event && event.currentTarget ? event.currentTarget : null;
+        if (btn && typeof btn.getBoundingClientRect === 'function') {
+            const r = btn.getBoundingClientRect();
+            window._calProdGridAnchor = { top: r.bottom + 6, left: Math.max(12, Math.min(r.left, window.innerWidth - 376)) };
+        }
+        const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+            ? window.obterIntervaloPeriodoProposta()
+            : { ini: '', fim: '' };
+        const primeiraDataProd = (Array.isArray(p.dias_evento) && p.dias_evento[0]) ? parse(p.dias_evento[0]).data : '';
+        const refIso = (primeiraDataProd && /^\d{4}-\d{2}-\d{2}$/.test(primeiraDataProd))
+            ? primeiraDataProd
+            : ((per.ini && /^\d{4}-\d{2}-\d{2}$/.test(per.ini)) ? per.ini : new Date().toISOString().slice(0, 10));
+        const pts = refIso.split('-');
+        window._calProdGridAno = parseInt(pts[0], 10);
+        window._calProdGridMes = parseInt(pts[1], 10) - 1;
+        window._renderCalendarioPopoverProdutoGrid();
+    };
+
+    window._renderCalendarioPopoverProdutoGrid = function () {
+        const pIdx = window._calProdGridAbertoIdx;
+        if (pIdx === null || pIdx === undefined) return;
+        const p = lista()[pIdx];
+        if (!p) { window.fecharCalendarioDiasProdutoGrid(); return; }
+        let pop = document.getElementById('prop-dias-produto-grid-popover');
+        if (!pop) {
+            pop = document.createElement('div');
+            pop.id = 'prop-dias-produto-grid-popover';
+            pop.onclick = (ev) => ev.stopPropagation();
+            pop.style.cssText = 'display:none; position:fixed; z-index:99980; width:360px; box-sizing:border-box; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.22); padding:0.85rem; font-family:Inter,sans-serif;';
+            document.body.appendChild(pop);
+        }
+        const anc = window._calProdGridAnchor || { top: 180, left: 180 };
+        const maxTop = Math.max(12, window.innerHeight - 360);
+        pop.style.top = Math.min(anc.top, maxTop) + 'px';
+        pop.style.left = anc.left + 'px';
+        pop.style.display = 'block';
+
+        const ano = window._calProdGridAno ?? new Date().getFullYear();
+        const mes = window._calProdGridMes ?? new Date().getMonth();
+        const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
+        const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
+        const selecionados = new Set((Array.isArray(p.dias_evento) ? p.dias_evento : []).map(d => parse(d).data).filter(Boolean));
+        const hojeIso = new Date().toISOString().split('T')[0];
+        const { ini, fim, valido } = typeof window.obterIntervaloPeriodoProposta === 'function'
+            ? window.obterIntervaloPeriodoProposta()
+            : { ini: '', fim: '', valido: false };
+
+        let cellsHtml = '';
+        for (let i = 0; i < primeiroDiaSemana; i++) cellsHtml += '<div></div>';
+        for (let dia = 1; dia <= totalDiasMes; dia++) {
+            const mm = String(mes + 1).padStart(2, '0');
+            const dd = String(dia).padStart(2, '0');
+            const iso = `${ano}-${mm}-${dd}`;
+            const isSel = selecionados.has(iso);
+            const isHoje = iso === hojeIso;
+            const permitido = Boolean(valido && iso >= ini && iso <= fim);
+            if (permitido) {
+                cellsHtml += `<button type="button" onclick="window.toggleDiaProdutoPropostaCalendario(${pIdx}, '${iso}', event)"
+                    style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:${isSel ? '1px solid #5b21b6' : (isHoje ? '1px solid #7048e8' : '1px solid #e2e8f0')} !important; background:${isSel ? '#7048e8' : '#f8fafc'} !important; color:${isSel ? '#fff' : '#1e293b'} !important; font-weight:${isSel || isHoje ? '700' : '500'} !important; font-size:0.8rem !important; cursor:pointer;">${dia}</button>`;
+            } else {
+                const msgTitle = valido
+                    ? `Data fora do período permitido (${fmtData(ini)} até ${fmtData(fim)})`
+                    : 'Preencha primeiro Período Início * e Até * para liberar os dias';
+                cellsHtml += `<button type="button" disabled title="${esc(msgTitle)}"
+                    style="width:100% !important; min-width:0 !important; padding:0 !important; height:32px !important; box-sizing:border-box !important; border-radius:6px !important; border:1px solid #f1f5f9 !important; background:#f1f5f9 !important; color:#cbd5e1 !important; font-weight:400 !important; font-size:0.8rem !important; cursor:not-allowed !important; opacity:0.55 !important; pointer-events:none !important;">${dia}</button>`;
+            }
+        }
+        const avisoPeriodoHtml = valido
+            ? `<div style="background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe; border-radius:6px; padding:4px 8px; font-size:0.71rem; font-weight:600; margin-bottom:0.5rem; text-align:center;">Período permitido: <b>${fmtData(ini)}</b> até <b>${fmtData(fim)}</b></div>`
+            : `<div style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:6px; padding:5px 8px; font-size:0.72rem; font-weight:600; margin-bottom:0.5rem; text-align:center;">Preencha <b>Período Início *</b> e <b>Até *</b> para liberar os dias.</div>`;
+
+        pop.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.45rem;">
+                <button type="button" onclick="window.navegarMesCalendarioProdutoGrid(-1, event)"
+                    style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&lsaquo;</button>
+                <div style="font-size:0.86rem; font-weight:800; color:#1e293b;">${nomesMeses[mes]} ${ano}</div>
+                <button type="button" onclick="window.navegarMesCalendarioProdutoGrid(1, event)"
+                    style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; width:28px !important; height:28px !important; padding:0 !important; cursor:pointer; font-weight:700; color:#334155;">&rsaquo;</button>
+            </div>
+            ${avisoPeriodoHtml}
+            <div style="display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; text-align:center; margin-bottom:4px;">
+                ${diasSemana.map(d => `<div style="font-size:0.7rem; font-weight:700; color:#64748b;">${d}</div>`).join('')}
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; margin-bottom:0.65rem;">
+                ${cellsHtml}
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding-top:0.5rem; border-top:1px solid #e2e8f0;">
+                <input type="date" ${valido ? `min="${esc(ini)}" max="${esc(fim)}"` : 'disabled'} onchange="window.adicionarDiaProdutoProposta(${pIdx}, this.value); this.value='';"
+                    title="${valido ? 'Adicionar data específica dentro do período' : 'Preencha primeiro Período Início * e Até *'}"
+                    style="flex:1; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.76rem; ${valido ? '' : 'background:#f1f5f9; cursor:not-allowed; opacity:0.6;'}">
+                <button type="button" onclick="window.fecharCalendarioDiasProdutoGrid(event)"
+                    style="background:#16a34a; color:#fff; border:none; padding:5px 12px !important; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                    Concluir (${selecionados.size})
+                </button>
+            </div>
+        `;
+    };
+
+    if (!window._listenerCloseCalProdGridAdded && typeof document !== 'undefined') {
+        window._listenerCloseCalProdGridAdded = true;
+        document.addEventListener('click', (e) => {
+            const pop = document.getElementById('prop-dias-produto-grid-popover');
+            if (pop && pop.style.display === 'block' && !pop.contains(e.target)) {
+                window.fecharCalendarioDiasProdutoGrid();
+            }
+        });
+    }
 
     /* Aplica as diárias de um produto a todos os outros produtos da proposta */
     window.replicarDiasProdutoParaTodos = function (pIdx) {
@@ -146,14 +314,9 @@
         const semDias = dias.length === 0
             ? '<span style="color:#dc2626; font-size:0.72rem; font-weight:700;"><i class="ph ph-warning"></i> Informe a(s) diária(s) deste produto</span>'
             : '';
-        const per = typeof window.obterIntervaloPeriodoProposta === 'function'
-            ? window.obterIntervaloPeriodoProposta()
-            : { ini: '', fim: '', valido: false };
-        const minMaxAttr = `${per.ini ? `min="${esc(per.ini)}"` : ''} ${per.fim ? `max="${esc(per.fim)}"` : ''}`.trim();
-        const addDia = `<label title="Adicionar outra diária a este produto (dentro do Período Início / Até)" onclick="const i=this.querySelector('input'); try{ i.showPicker(); }catch(e){}" style="position:relative; display:inline-flex; align-items:center; gap:3px; border:1px dashed #a78bfa; border-radius:6px; padding:1px 8px; font-size:0.68rem; font-weight:700; color:#6d28d9; cursor:pointer; overflow:hidden;">
+        const addDia = `<button type="button" title="Adicionar ou editar diárias deste produto no calendário" onclick="window.abrirCalendarioDiasProdutoGrid(${idx}, event)" style="position:relative; display:inline-flex; align-items:center; gap:3px; border:1px dashed #a78bfa; background:#fff; border-radius:6px; padding:1px 8px; height:22px; font-size:0.68rem; font-weight:700; color:#6d28d9; cursor:pointer;">
                 <i class="ph ph-plus"></i> dia
-                <input type="date" ${minMaxAttr} onchange="window.adicionarDiaProdutoProposta(${idx}, this.value); this.value='';" style="position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; cursor:pointer; padding:0; margin:0; border:none;">
-            </label>`;
+            </button>`;
         return `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; align-items:center;">${chips}${semDias}${addDia}</div>`;
     };
 

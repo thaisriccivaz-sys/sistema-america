@@ -40047,7 +40047,7 @@ function classificarStatusSituacaoContrato(sitRaw) {
 app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
   db.all(
-    `SELECT id, codigo, contrato, cliente_nome, contato_nome, tipo, tabela_precos, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, status, fase_negociacao, situacao_contrato
+    `SELECT id, codigo, contrato, cliente_nome, contato_nome, tipo, tabela_precos, condicao_pagamento, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, status, fase_negociacao, situacao_contrato
      FROM propostas
      WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA'
        AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO')
@@ -40072,6 +40072,7 @@ app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
           cliente_nome: p.cliente_nome,
           contato_nome: p.contato_nome,
           tipo: p.tipo || p.tabela_precos || 'EVENTO',
+          condicao_pagamento: p.condicao_pagamento || '',
           periodo_inicio: p.periodo_inicio,
           periodo_fim: p.periodo_fim,
           endereco_instalacao: p.endereco_instalacao,

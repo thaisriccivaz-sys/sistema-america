@@ -1436,6 +1436,9 @@ window.navigateToTab = function (tabId) {
 window.closeAppTab = function (tabId) {
     const idx = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idx === -1) return;
+    if ((tabId === 'comercial-proposta' || tabId === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
+        window.limparEstadoAbaComercial(tabId === 'comercial-contratos' ? 'contrato' : 'proposta', true);
+    }
     const wasActive = appOpenTabs[idx].active;
     appOpenTabs.splice(idx, 1);
 
