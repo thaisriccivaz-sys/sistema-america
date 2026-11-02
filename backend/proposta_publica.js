@@ -627,17 +627,25 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
         };
 
-        const ehEventoCalcPub = ['EVENTO', 'EQUIPAMENTOS'].includes(String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
+        const tipoPropNorm = normalizarModeloTipoPublico(p.tipo);
+        const ehAditivo = tipoPropNorm === 'ADITIVO';
+        const temParceirosQuadro = await propostaTemProdutoParceirosPublico(p, equip);
+        const modeloEfetivo = (temParceirosQuadro && tipoPropNorm === 'EVENTO')
+            ? 'EQUIPAMENTOS'
+            : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
+        const ehEventoCalcPub = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const diasContratoPubNum = Number(p.dias_contrato || 0);
         const itens = itensRaw.map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const dias = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = dias.length > 0
-                ? dias.length
-                : ((ehEventoCalcPub && diasContratoPubNum > 0)
-                    ? diasContratoPubNum
-                    : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1));
+            const nDiarias = ehEventoCalcPub
+                ? (dias.length > 0
+                    ? dias.length
+                    : (diasContratoPubNum > 0
+                        ? diasContratoPubNum
+                        : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1)))
+                : 1;
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
@@ -728,12 +736,6 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             ? 'MANUTENÇÃO DIÁRIA'
             : (datasOrd.length > 0 ? datasOrd.map(dIso => fmtDataIso(dIso)).join(', ') : '');
         const numSeq = formatarSeq(p.codigo, p.contrato, p.id);
-        const tipoPropNorm = normalizarModeloTipoPublico(p.tipo);
-        const ehAditivo = tipoPropNorm === 'ADITIVO';
-        const temParceirosQuadro = await propostaTemProdutoParceirosPublico(p, equip);
-        const modeloEfetivo = (temParceirosQuadro && tipoPropNorm === 'EVENTO')
-            ? 'EQUIPAMENTOS'
-            : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
         const eventoLikeEfetivo = tipoEhEventoLike(modeloEfetivo);
 
         const valPub = fmtDataIso(p.validade_proposta || ultimoDiaValido(p));
