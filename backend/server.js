@@ -40303,7 +40303,17 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
             snapHasSig = Boolean(sp && sp.assinatura_r2_key);
           } catch (_) {}
         }
-        item.tem_documento = Boolean(ehTransicaoDoc);
+        const ehEventoApenasLinkOuAcao = [
+          'COPIAR LINK',
+          'DESATIVAR LINK',
+          'LINK DA PROPOSTA (DESATIVADO)',
+          'NOVO LINK DA PROPOSTA',
+          'DOWNLOAD DE PDF',
+          'ENVIO DE E-MAIL',
+          'ENVIO DE WHATSAPP',
+          'ASSINATURA / ACEITE'
+        ].includes(cNorm);
+        item.tem_documento = !ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc);
         item.tem_assinatura = Boolean(snapHasSig || atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO'));
         delete item.snapshot_json;
         return item;
@@ -40385,9 +40395,57 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
+        const lastIdCreated = this.lastID;
         const usuarioLog = req.user?.username || req.user?.nome || d.criado_por || 'unknown';
+        const snapCriacao = JSON.stringify({
+          id: lastIdCreated,
+          codigo,
+          contrato: contrato || null,
+          situacao_contrato: isNovaAprovada ? 'AGUARDANDO ASSINATURA' : null,
+          local: d.local,
+          tipo: d.tipo,
+          atendente: d.atendente,
+          data_cadastro: d.data_cadastro,
+          validade_proposta: d.validade_proposta || null,
+          previsao_fechamento: d.previsao_fechamento,
+          fase_negociacao: d.fase_negociacao || 'Em Elaboração',
+          modelo_impressao: d.modelo_impressao,
+          cliente_nome: d.cliente_nome,
+          contato_nome: d.contato_nome,
+          periodo_inicio: d.periodo_inicio,
+          periodo_fim: d.periodo_fim,
+          hora_inicio: d.hora_inicio || '00:00',
+          hora_fim: d.hora_fim || '00:00',
+          dias_contrato: d.dias_contrato || 0,
+          dias_evento: d.dias_evento ? (typeof d.dias_evento === 'string' ? d.dias_evento : JSON.stringify(d.dias_evento)) : '[]',
+          tabela_precos: d.tabela_precos,
+          nome_evento: d.nome_evento || null,
+          servico_frete_fob: d.servico_frete_fob ? 1 : 0,
+          contrato_vinculado: d.contrato_vinculado || null,
+          contrato_vinculado_id: d.contrato_vinculado_id || null,
+          contrato_vinculado_tipo: d.contrato_vinculado_tipo || null,
+          endereco_instalacao: d.endereco_instalacao,
+          desconto_percent: d.desconto_percent || 0,
+          desconto_reais: d.desconto_reais || 0,
+          condicao_pagamento: d.condicao_pagamento,
+          representante: d.representante,
+          transportadora: d.transportadora,
+          tipo_frete: d.tipo_frete,
+          valor_frete_ida: d.valor_frete_ida || 0,
+          valor_frete_volta: d.valor_frete_volta || 0,
+          observacoes: d.observacoes,
+          valor_total: d.valor_total || 0,
+          status: d.status || 'Ativa',
+          motivo_reprovacao: d.motivo_reprovacao || null,
+          criado_por: d.criado_por,
+          itens: d.itens ? (typeof d.itens === 'string' ? d.itens : JSON.stringify(d.itens)) : '[]',
+          itens_servicos: d.itens_servicos ? (typeof d.itens_servicos === 'string' ? d.itens_servicos : JSON.stringify(d.itens_servicos)) : '[]',
+          proposta_comparativa: d.proposta_comparativa ? 1 : 0,
+          produtos_aprovados: d.produtos_aprovados ? (typeof d.produtos_aprovados === 'string' ? d.produtos_aprovados : JSON.stringify(d.produtos_aprovados)) : '[]',
+          criado_em: agora,
+          atualizado_em: agora
+        });
         if (isNovaAprovada) {
-          const lastIdCreated = this.lastID;
           resolverContextoUsuarioComercial(req.user).then(ctx => {
             const nomeAprov = (ctx && ctx.nome_colaborador) || usuarioLog;
             db.run("UPDATE propostas SET situacao_contrato = 'AGUARDANDO ASSINATURA', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
@@ -40395,8 +40453,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
             db.run("UPDATE propostas SET situacao_contrato = 'AGUARDANDO ASSINATURA', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
           });
         }
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Criação', '', ?, ?)`,
-          [usuarioLog, contrato ? `Proposta criada com contrato ${contrato}` : `Proposta ${codigo} criada`, this.lastID]);
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Criação', '', ?, ?, ?)`,
+          [usuarioLog, contrato ? `Proposta criada com contrato ${contrato}` : `Proposta ${codigo} criada`, lastIdCreated, snapCriacao]);
         if (typeof evSincronizarPropostaNoEvento === 'function' && d.nome_evento && String(d.nome_evento).trim()) {
           evSincronizarPropostaNoEvento({
             cliente_nome: d.cliente_nome,
@@ -40545,14 +40603,11 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
           usuario: nomeAutorAcao
         });
       }
-      if (invalidarAssinaturaPorEdicao && tinhaAssinaturaOuPreAp) {
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Assinatura / Aceite', ?, ?, ?)`,
-          [nomeAutorAcao, 'Assinada pelo cliente', 'Invalidada por edição da proposta (necessário novo aceite)', proposalId]);
-      }
-      if (String(oldRow.situacao_contrato || '') !== String(sitContratoFinal || '')) {
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Situação do Contrato', ?, ?, ?)`,
-          [nomeAutorAcao, String(oldRow.situacao_contrato || '—'), String(sitContratoFinal || '—'), proposalId]);
-      }
+      // Preserva o snapshot da 1ª versão no registro de 'Criação' caso tenha sido criada antes de snapshot_json existir
+      db.run(
+        `UPDATE auditoria SET snapshot_json = ? WHERE programa = 'Proposta' AND registro_id = ? AND campo = 'Criação' AND (snapshot_json IS NULL OR snapshot_json = '')`,
+        [JSON.stringify(oldRow), proposalId]
+      );
 
       const snapEstadoAtual = JSON.stringify(Object.assign({}, oldRow, d, {
         id: Number(proposalId),
@@ -40569,6 +40624,15 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         proposta_comparativa: propComparativaFinal,
         produtos_aprovados: produtosAprovadosFinal
       }));
+
+      if (invalidarAssinaturaPorEdicao && tinhaAssinaturaOuPreAp) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Assinatura / Aceite', ?, ?, ?)`,
+          [nomeAutorAcao, 'Assinada pelo cliente', 'Invalidada por edição da proposta (necessário novo aceite)', proposalId]);
+      }
+      if (String(oldRow.situacao_contrato || '') !== String(sitContratoFinal || '')) {
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Situação do Contrato', ?, ?, ?, ?)`,
+          [nomeAutorAcao, String(oldRow.situacao_contrato || '—'), String(sitContratoFinal || '—'), proposalId, snapEstadoAtual]);
+      }
 
       // Auditoria: comparar campos alterados (no estorno compara apenas Fase de Negociação)
       const fieldsToCompare = d.acao_estornar
@@ -40639,16 +40703,16 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, ?, ?, ?, ?)`,
               [nomeAutorAcao, item.label, oldVal, valFaseFinalLog, proposalId, snapEstadoAtual]);
           } else {
-            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
-              [nomeAutorAcao, item.label, oldVal, newVal, proposalId]);
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, ?, ?, ?, ?)`,
+              [nomeAutorAcao, item.label, oldVal, newVal, proposalId, snapEstadoAtual]);
           }
         }
       });
 
       if (!d.acao_estornar && Number(oldRow.proposta_comparativa || 0) !== Number(propComparativaFinal || 0)) {
         houveAlteracaoNaProposta = true;
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Proposta Comparativa', ?, ?, ?)`,
-          [nomeAutorAcao, Number(oldRow.proposta_comparativa) === 1 ? 'Sim' : 'Não', propComparativaFinal === 1 ? 'Sim' : 'Não', proposalId]);
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Proposta Comparativa', ?, ?, ?, ?)`,
+          [nomeAutorAcao, Number(oldRow.proposta_comparativa) === 1 ? 'Sim' : 'Não', propComparativaFinal === 1 ? 'Sim' : 'Não', proposalId, snapEstadoAtual]);
       }
 
       // Comparar alterações nos produtos da proposta (itens)
@@ -40671,8 +40735,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const newItensFmt = fmtItensLog(d.itens);
       if (!d.acao_estornar && oldItensFmt !== newItensFmt) {
         houveAlteracaoNaProposta = true;
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
-          [nomeAutorAcao, 'Produtos da Proposta', oldItensFmt, newItensFmt, proposalId]);
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, ?, ?, ?, ?)`,
+          [nomeAutorAcao, 'Produtos da Proposta', oldItensFmt, newItensFmt, proposalId, snapEstadoAtual]);
       }
 
       // Comparar alteracoes nos servicos da proposta (obra)
@@ -40689,8 +40753,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const newServFmt = fmtServLog(d.itens_servicos);
       if (!d.acao_estornar && oldServFmt !== newServFmt) {
         houveAlteracaoNaProposta = true;
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, ?, ?, ?)`,
-          [nomeAutorAcao, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId]);
+        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, ?, ?, ?, ?)`,
+          [nomeAutorAcao, 'Servicos da Proposta', oldServFmt, newServFmt, proposalId, snapEstadoAtual]);
       }
 
       // Se a proposta estava em Proposta Enviada (ou já possuía link gerado) e sofreu qualquer alteração,

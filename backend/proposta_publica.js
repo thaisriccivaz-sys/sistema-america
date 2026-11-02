@@ -83,9 +83,27 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         if (!p.token_publico) return { ativo: false, motivo: 'sem_link' };
         if (Number(p.token_publico_revogado) === 1) return { ativo: false, motivo: 'revogado' };
         if (propostaInativa(p)) return { ativo: false, motivo: 'proposta_inativa' };
+        const faseUp = norm(p.fase_negociacao || '').toUpperCase();
+        const jaAprovadaOuPre = faseUp === 'APROVADA' || faseUp === 'PRE APROVADA' || Boolean(p.aceite_publico_em);
         const ate = ultimoDiaValido(p);
-        if (ate && hojeBr() > ate) return { ativo: false, motivo: 'expirado', expira_em: ate };
+        if (!jaAprovadaOuPre && ate && hojeBr() > ate) return { ativo: false, motivo: 'expirado', expira_em: ate };
         return { ativo: true, expira_em: ate };
+    }
+
+    function itemComparativaEstaAprovadoPub(it, idx, produtosAprovadosArr) {
+        if (!Array.isArray(produtosAprovadosArr) || produtosAprovadosArr.length === 0) return true;
+        if (it && typeof it.aprovado_comparativa === 'boolean') return it.aprovado_comparativa;
+        const nomeRaw = String((it && (it.produto || it.descricao || it.nome)) || '').replace(/^\d+\s*-\s*/, '').trim();
+        const nomeN = norm(nomeRaw).toUpperCase();
+        const qtdN = Math.max(1, Number((it && (it.quantidade ?? it.qtde)) || 1) || 1);
+        const prefixoQtd = `${nomeN} (QTD: ${qtdN})`;
+        return produtosAprovadosArr.some(ap => {
+            const apN = norm(ap).replace(/^\d+\s*-\s*/, '').trim().toUpperCase();
+            if (!apN || !nomeN) return false;
+            if (apN.startsWith(prefixoQtd)) return true;
+            const apSemQtd = apN.split(/\s*\(QTD:/)[0].split(/\s*[—-]\s*R\$/)[0].trim();
+            return apSemQtd === nomeN || apN === nomeN;
+        });
     }
 
     function tokenConfere(recebido, guardado) {
@@ -639,7 +657,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
         const ehEventoCalcPub = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const diasContratoPubNum = Number(p.dias_contrato || 0);
-        const itens = itensRaw.map(it => {
+        const isCompPub = Boolean(Number(p.proposta_comparativa) === 1);
+        const prodsAprovPub = lerJson(p.produtos_aprovados);
+        const itens = itensRaw.map((it, idxIt) => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nome = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const dias = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
@@ -654,8 +674,11 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
             const grossDia = base * qtd;
-            somaPorDia += netDia;
-            somaTotalGeral += netDia * nDiarias;
+            const naoAprovado = Boolean(isCompPub && prodsAprovPub.length > 0 && !itemComparativaEstaAprovadoPub(it, idxIt, prodsAprovPub));
+            if (!naoAprovado) {
+                somaPorDia += netDia;
+                somaTotalGeral += netDia * nDiarias;
+            }
             return {
                 quantidade: qtd, nome, descricao_proposta: descricaoDe(it, nome),
                 foto_url: fotoDe(it, nome),
@@ -663,7 +686,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 observacao: String(it.observacao || '').trim().toUpperCase(),
                 dias_evento_texto: formatarDiasCurtoItem(it),
                 quant_diarias: nDiarias, unit: base, por_dia: grossDia,
-                desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0
+                desconto: Math.max(0, grossDia - netDia) * nDiarias, total: netDia * nDiarias, cortesia: netDia <= 0,
+                nao_aprovado: naoAprovado
             };
         });
 
@@ -842,6 +866,31 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             .replace(/\{\{NUMERO_PROPOSTA\}\}/g, numSeq)
             .replace(/\{\{CONTRATO_BASE\}\}/g, String(p.contrato_vinculado || '—'));
 
+        let aprovadoPorFinal = p.aprovado_por || null;
+        let aprovadoEmFinal = p.aprovado_em || null;
+        if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') {
+            if (!aprovadoPorFinal || !aprovadoEmFinal) {
+                try {
+                    const logAp = await dbGet(
+                        "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND UPPER(TRIM(conteudo_atual)) LIKE 'APROVADA%' ORDER BY id DESC LIMIT 1",
+                        [p.id]
+                    );
+                    if (logAp) {
+                        if (!aprovadoPorFinal && logAp.usuario) aprovadoPorFinal = logAp.usuario;
+                        if (!aprovadoEmFinal && logAp.data_hora) aprovadoEmFinal = logAp.data_hora;
+                    }
+                } catch (_) {}
+            }
+            if (!aprovadoPorFinal) aprovadoPorFinal = p.atendente || p.criado_por || 'Sistema';
+            try {
+                const colabAp = await dbGet(
+                    "SELECT nome_completo FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) OR LOWER(REPLACE(TRIM(nome_completo), ' ', '.')) = LOWER(TRIM(?)) LIMIT 1",
+                    [aprovadoPorFinal, aprovadoPorFinal]
+                );
+                if (colabAp && colabAp.nome_completo) aprovadoPorFinal = colabAp.nome_completo;
+            } catch (_) {}
+        }
+
         return {
             tipo_titulo: tituloTopoFinal,
             modelo_tipo: modeloEfetivo || 'EVENTO',
@@ -850,8 +899,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             proposta_comparativa: Boolean(Number(p.proposta_comparativa) === 1),
             produtos_aprovados: lerJson(p.produtos_aprovados),
             fase_negociacao: p.fase_negociacao || '',
-            aprovado_por: p.aprovado_por || null,
-            aprovado_em: p.aprovado_em || null,
+            aprovado_por: aprovadoPorFinal,
+            aprovado_em: aprovadoEmFinal,
             aceite_publico_em: p.aceite_publico_em || null,
             assinatura_url: p.assinatura_r2_key ? (`/api/public/propostas/${p.id}/assinatura-arquivo?t=${encodeURIComponent(p.aceite_publico_em || '1')}`) : null,
             aceite: {
@@ -1025,7 +1074,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             } else {
                 // Para registros antigos anteriores ao snapshot_json, tenta buscar assinatura de pré-aprovação anterior se aplicável
                 const atuUpper = norm(log.conteudo_atual || '').toUpperCase();
-                if (atuUpper.startsWith('PROPOSTA ENVIADA')) {
+                const campoUpper = norm(log.campo || '').toUpperCase();
+                if (campoUpper === 'CRIACAO') {
+                    pBase.assinatura_r2_key = null;
+                    pBase.aceite_publico_em = null;
+                    pBase.aprovado_por = null;
+                    pBase.aprovado_em = null;
+                    pBase.fase_negociacao = 'Em Elaboração';
+                } else if (atuUpper.startsWith('PROPOSTA ENVIADA')) {
                     pBase.assinatura_r2_key = null;
                     pBase.aceite_publico_em = null;
                     pBase.aprovado_por = null;
@@ -1042,7 +1098,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
 
             const dados = await montarDadosQuadro(pBase);
             const atuNorm = norm(log.conteudo_atual || '').toUpperCase();
-            if (atuNorm.startsWith('PROPOSTA ENVIADA')) {
+            const campoNormDoc = norm(log.campo || '').toUpperCase();
+            if (campoNormDoc === 'CRIACAO' && !log.snapshot_json) {
+                dados.assinatura_url = null;
+                dados.aceite_publico_em = null;
+                dados.aprovado_por = null;
+                dados.aprovado_em = null;
+                dados.fase_negociacao = 'Em Elaboração';
+            } else if (atuNorm.startsWith('PROPOSTA ENVIADA')) {
                 dados.assinatura_url = null;
                 dados.aceite_publico_em = null;
                 dados.aprovado_por = null;
@@ -1238,6 +1301,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (!p || !tokenConfere(token, p.token_publico)) return naoEncontrada();
             const st = statusLink(p);
             if (!st.ativo) return res.status(410).json({ error: 'Este link expirou ou foi desativado.' });
+            if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA') {
+                return res.status(400).json({ error: 'Esta proposta já foi aprovada internamente.' });
+            }
 
             const assinaturaBase64 = String((req.body && req.body.assinatura_base64) || '').trim();
             if (!assinaturaBase64 || !assinaturaBase64.startsWith('data:image/')) {
@@ -1251,6 +1317,13 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 return res.status(400).json({ error: 'Selecione qual(is) produto(s) da proposta estão sendo aprovados antes de confirmar.' });
             }
             const produtosAprovadosJson = produtosAprovadosRaw.length > 0 ? JSON.stringify(produtosAprovadosRaw) : (p.produtos_aprovados || '[]');
+            let itensJsonAtualizado = p.itens || '[]';
+            if (Number(p.proposta_comparativa) === 1 && produtosAprovadosRaw.length > 0) {
+                const arrItens = lerJson(p.itens).map((it, idxIt) => Object.assign({}, it, {
+                    aprovado_comparativa: itemComparativaEstaAprovadoPub(it, idxIt, produtosAprovadosRaw)
+                }));
+                itensJsonAtualizado = JSON.stringify(arrItens);
+            }
 
             let assinaturaR2Key = p.assinatura_r2_key || null;
             const r2b = require('./utils/r2');
@@ -1274,8 +1347,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const novaFase = String(faseAnterior).trim().toUpperCase() === 'APROVADA' ? faseAnterior : 'Pré aprovada';
 
             await dbRun(
-                "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ?, produtos_aprovados = ? WHERE id = ?",
-                [agora, assinaturaR2Key, novaFase, produtosAprovadosJson, p.id]
+                "UPDATE propostas SET aceite_publico_em = ?, assinatura_r2_key = ?, assinatura_mime_type = 'image/png', fase_negociacao = ?, produtos_aprovados = ?, itens = ? WHERE id = ?",
+                [agora, assinaturaR2Key, novaFase, produtosAprovadosJson, itensJsonAtualizado, p.id]
             );
 
             const detalheProdsAudit = produtosAprovadosRaw.length > 0 ? ` | Produto(s): ${produtosAprovadosRaw.join(', ')}` : '';
@@ -1284,7 +1357,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 assinatura_r2_key: assinaturaR2Key,
                 assinatura_mime_type: 'image/png',
                 fase_negociacao: novaFase,
-                produtos_aprovados: produtosAprovadosJson
+                produtos_aprovados: produtosAprovadosJson,
+                itens: itensJsonAtualizado
             }));
             await dbRun(
                 `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)

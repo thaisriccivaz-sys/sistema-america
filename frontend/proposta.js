@@ -1390,6 +1390,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo) {
         editandoId: idRef || null,
         campos,
         produtos: JSON.parse(JSON.stringify(window._propProdutosAdicionados || [])),
+        produtosAprovadosAtual: JSON.parse(JSON.stringify(window._propProdutosAprovadosAtual || [])),
         servicos: JSON.parse(JSON.stringify(window._propServicosAdicionados || [])),
         diasEvento: JSON.parse(JSON.stringify(window._propDiasEventoSelecionados || [])),
         diasHorarios: JSON.parse(JSON.stringify(window._propDiasEventoHorarios || {})),
@@ -1411,6 +1412,7 @@ window.restaurarSnapshotEstadoFormComercial = function(modo) {
     else window._propostasEditandoId_proposta = _propostasEditandoId;
     _renderFormPropostaInt();
     window._propProdutosAdicionados = JSON.parse(JSON.stringify(snap.produtos || []));
+    window._propProdutosAprovadosAtual = JSON.parse(JSON.stringify(snap.produtosAprovadosAtual || []));
     window._propServicosAdicionados = JSON.parse(JSON.stringify(snap.servicos || []));
     window._propDiasEventoSelecionados = JSON.parse(JSON.stringify(snap.diasEvento || []));
     window._propDiasEventoHorarios = JSON.parse(JSON.stringify(snap.diasHorarios || {}));
@@ -2367,6 +2369,11 @@ function _renderFormPropostaInt() {
     if (!container) return;
 
     window._propProdutosAdicionados = prop && prop.itens ? (typeof prop.itens === 'string' ? JSON.parse(prop.itens) : prop.itens) : [];
+    try {
+        window._propProdutosAprovadosAtual = prop && prop.produtos_aprovados
+            ? (Array.isArray(prop.produtos_aprovados) ? prop.produtos_aprovados : JSON.parse(prop.produtos_aprovados || '[]'))
+            : [];
+    } catch (_) { window._propProdutosAprovadosAtual = []; }
     window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
@@ -2818,7 +2825,7 @@ function _renderFormPropostaInt() {
                                 <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
                             </h4>
                             <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:700; color:#1e3a8a; background:#eff6ff; border:1px solid #93c5fd; padding:3px 10px; border-radius:6px; cursor:pointer; user-select:none;" title="Ao marcar como Proposta comparativa, o sistema oculta a soma do valor total no link da proposta e pergunta quais produtos estão sendo aprovados no momento da aprovação.">
-                                <input type="checkbox" id="prop-comparativa" ${Number(v('proposta_comparativa')) === 1 ? 'checked' : ''} style="width:15px; height:15px; accent-color:#1d4ed8; cursor:pointer;">
+                                <input type="checkbox" id="prop-comparativa" ${Number(v('proposta_comparativa')) === 1 ? 'checked' : ''} onchange="if(!this.checked) window._propProdutosAprovadosAtual = []; if(typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();" style="width:15px; height:15px; accent-color:#1d4ed8; cursor:pointer;">
                                 <span>Proposta comparativa</span>
                             </label>
                         </div>
@@ -2923,26 +2930,11 @@ function _renderFormPropostaInt() {
                                     </div>
                                 </div>
                                 <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
-                                <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
+                                <div style="display:flex; width:100%;">
                                     <div id="prop-dias-evento-box" onclick="window.abrirCalendarioDiasEventoProposta(event)"
-                                        style="flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
+                                        style="width:100%; flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
                                         <div id="prop-dias-evento-chips" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;"></div>
                                     </div>
-                                    <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
-                                        title="Replicar o horário preenchido em um dia para todos os dias selecionados"
-                                        style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
-                                        <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
-                                    </button>
-                                    <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
-                                        title="Selecionar diárias no calendário"
-                                        style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                                        <i class="ph ph-calendar-blank" style="font-size:0.98rem;"></i> Selecionar Diárias
-                                    </button>
-                                    <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
-                                        title="Limpar todos os dias selecionados"
-                                        style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
-                                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
-                                    </button>
                                 </div>
                             </div>
                             <div id="prop-dias-replicar-bar" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; margin-top:0.45rem;">
@@ -2958,9 +2950,28 @@ function _renderFormPropostaInt() {
                                         </select>
                                     </div>
                                 </div>
-                                <button type="button" onclick="window.adicionarProdutoProposta()" style="margin-left:auto; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                                    <i class="ph ph-plus-circle" style="font-size:0.98rem;"></i> Adicionar
-                                </button>
+                                <div style="display:flex; align-items:center; gap:0.45rem; margin-left:auto; flex-wrap:wrap;">
+                                    <div id="prop-dias-botoes-acao-dir" style="display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
+                                        <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
+                                            title="Replicar o horário preenchido em um dia para todos os dias selecionados"
+                                            style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; height:32px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
+                                            <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
+                                        </button>
+                                        <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
+                                            title="Selecionar diárias no calendário"
+                                            style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; height:32px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                            <i class="ph ph-calendar-blank" style="font-size:0.95rem;"></i> Selecionar Diárias
+                                        </button>
+                                        <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
+                                            title="Limpar todos os dias selecionados"
+                                            style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; height:32px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
+                                            <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                        </button>
+                                    </div>
+                                    <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                                        <i class="ph ph-plus-circle" style="font-size:0.98rem;"></i> Adicionar
+                                    </button>
+                                </div>
                             </div>
                             <div id="prop-dias-evento-popover" onclick="event.stopPropagation()"
                                 style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:360px !important; box-sizing:border-box !important; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.85rem !important; font-family:'Inter',sans-serif;">
@@ -6481,7 +6492,12 @@ window.calcularValorTotalProposta = function() {
     if (!totalEl) return;
 
     const ehEvCalcTot = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
-    const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+    const isComparativaCalcTot = Boolean(document.getElementById('prop-comparativa')?.checked);
+    const prodsAprovCalcTot = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
+    const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p, idxP) => {
+        if (isComparativaCalcTot && prodsAprovCalcTot.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovCalcTot)) {
+            return acc;
+        }
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
@@ -6724,7 +6740,12 @@ window.salvarPropostaNova = async function() {
             const itensAtuais = window._propProdutosAdicionados || [];
             if (itensAtuais.length > 0) {
                 const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
-                return itensAtuais.reduce((acc, p) => {
+                const isCompSalvar = Boolean(document.getElementById('prop-comparativa')?.checked);
+                const prodsAprovSalvar = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
+                return itensAtuais.reduce((acc, p, idxP) => {
+                    if (isCompSalvar && prodsAprovSalvar.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovSalvar)) {
+                        return acc;
+                    }
                     const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
                         ? parseFloat(p.valor_total)
                         : ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
@@ -7291,15 +7312,22 @@ window.aprovarPropostaEdicao = async function() {
 
     const itensAtuaisAprov = window._propProdutosAdicionados || [];
     if (isComparativa && itensAtuaisAprov.length > 0) {
+        const ehEvAprov = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento(tipo) : false;
         const opcoesHtml = itensAtuaisAprov.map((it, idx) => {
-            const nomeIt = String(it.produto || it.descricao || it.nome || ('Produto ' + (idx + 1))).trim();
+            const nomeIt = String(it.produto || it.descricao || it.nome || ('Produto ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
             const qtdIt = Number(it.quantidade || 1);
-            const totIt = Number(it.valor_total ?? (qtdIt * Number(it.valor ?? it.valor_unitario ?? 0)) ?? 0);
+            const subIt = Number(it.valor_total ?? (qtdIt * Number(it.valor ?? it.valor_unitario ?? 0)) ?? 0);
+            const multDiasIt = (ehEvAprov && typeof window.obterQtdDiariasProdutoEvento === 'function')
+                ? window.obterQtdDiariasProdutoEvento(it)
+                : 1;
+            const totIt = subIt * multDiasIt;
             const totFmt = totIt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const rotulo = `${nomeIt} (Qtd: ${qtdIt}) — R$ ${totFmt}`;
-            const jaMarcado = produtosAprovadosSel.some(s => String(s).includes(nomeIt));
+            const jaMarcado = (typeof it.aprovado_comparativa === 'boolean')
+                ? it.aprovado_comparativa
+                : produtosAprovadosSel.some(s => String(s).toUpperCase().includes(nomeIt.toUpperCase()));
             return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; font-size:0.84rem; font-weight:700; color:#0f172a;">
-                <input type="checkbox" class="swal-chk-prod-aprov" value="${_escHtmlProp(rotulo)}" ${jaMarcado ? 'checked' : ''} style="width:17px; height:17px; margin-top:2px; accent-color:#1d4ed8; cursor:pointer;">
+                <input type="checkbox" class="swal-chk-prod-aprov" data-item-idx="${idx}" value="${_escHtmlProp(rotulo)}" ${jaMarcado ? 'checked' : ''} style="width:17px; height:17px; margin-top:2px; accent-color:#1d4ed8; cursor:pointer;">
                 <span>${_escHtmlProp(rotulo)}</span>
             </label>`;
         }).join('');
@@ -7317,16 +7345,23 @@ window.aprovarPropostaEdicao = async function() {
             confirmButtonText: 'Confirmar Aprovação',
             cancelButtonText: 'Cancelar',
             preConfirm: () => {
-                const marcados = Array.from(document.querySelectorAll('.swal-chk-prod-aprov:checked')).map(c => c.value).filter(Boolean);
+                const chks = Array.from(document.querySelectorAll('.swal-chk-prod-aprov'));
+                const marcados = chks.filter(c => c.checked).map(c => c.value).filter(Boolean);
+                const indicesMarcados = chks.filter(c => c.checked).map(c => Number(c.getAttribute('data-item-idx')));
                 if (marcados.length === 0) {
                     Swal.showValidationMessage('Selecione pelo menos um produto que está sendo aprovado.');
                     return false;
                 }
-                return marcados;
+                return { marcados, indicesMarcados };
             }
         });
         if (!selResp.isConfirmed) return;
-        produtosAprovadosSel = selResp.value || [];
+        produtosAprovadosSel = (selResp.value && selResp.value.marcados) || [];
+        const idxsAprov = (selResp.value && Array.isArray(selResp.value.indicesMarcados)) ? selResp.value.indicesMarcados : [];
+        itensAtuaisAprov.forEach((it, idx) => {
+            it.aprovado_comparativa = idxsAprov.includes(idx);
+        });
+        window._propProdutosAprovadosAtual = produtosAprovadosSel;
     }
 
     const faseSel = document.getElementById('prop-fase');
@@ -7370,7 +7405,10 @@ window.aprovarPropostaEdicao = async function() {
             const itensAtuais = window._propProdutosAdicionados || [];
             if (itensAtuais.length > 0) {
                 const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
-                return itensAtuais.reduce((acc, p) => {
+                return itensAtuais.reduce((acc, p, idxP) => {
+                    if (isComparativa && Array.isArray(produtosAprovadosSel) && produtosAprovadosSel.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, produtosAprovadosSel)) {
+                        return acc;
+                    }
                     const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
                         ? parseFloat(p.valor_total)
                         : ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
@@ -8166,7 +8204,7 @@ window.abrirLogsAlteracao = async function(id) {
                 atuNorm.startsWith('APROVADA') ||
                 atuNorm.includes('ACEITE ASSINADO')
             );
-            const mostrarOlho = Boolean(log.tem_documento || ehFaseTransicaoDoc);
+            const mostrarOlho = Boolean(log.tem_documento || ehFaseTransicaoDoc || cNorm === 'CRIACAO');
             const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
             const tituloBotaoOlho = ehAssinado
                 ? 'Visualizar documento assinado desta versão'
@@ -13340,7 +13378,7 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                     <div class="cc-section-title-modal">
                         <i class="ph ph-map-pin"></i> Detalhes do Endereço de Entrega
                     </div>
-                    <div class="cc-grid-modal cc-grid-modal-row1" style="margin-bottom: 0.4rem;">
+                    <div class="cc-grid-modal" style="grid-template-columns: 90px 1fr; margin-bottom: 0.4rem;">
                         <div>
                             <label class="prop-lbl-modal">Seq.</label>
                             <input type="text" id="modal-end-seq" readonly value="1" class="cc-input-modal" style="text-align:center; font-weight:bold;">
@@ -13351,17 +13389,6 @@ window.abrirModalEnderecosEntrega = async function(preSelectedClient = null) {
                                 <input type="text" id="modal-end-nome" class="cc-input-modal" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorNomeLocal();}">
                                 <button type="button" onclick="window.modalBuscarPorNomeLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
                             </div>
-                        </div>
-                        <div>
-                            <label class="prop-lbl-modal">CPF/CNPJ</label>
-                            <div style="display:flex; gap:0.35rem;">
-                                <input type="text" id="modal-end-cnpj" class="cc-input-modal" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.modalBuscarPorCNPJLocal();}">
-                                <button type="button" onclick="window.modalBuscarPorCNPJLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="prop-lbl-modal">Inscrição Estadual</label>
-                            <input type="text" id="modal-end-ie" class="cc-input-modal">
                         </div>
                     </div>
 
@@ -13558,8 +13585,8 @@ window.modalCarregarEnderecoForm = function(idx) {
     const seqNum = e.sequencia || (idx + 1);
     document.getElementById('modal-end-seq').value = seqNum;
     document.getElementById('modal-end-nome').value = e.nome_local || '';
-    document.getElementById('modal-end-cnpj').value = e.cpf_cnpj || '';
-    document.getElementById('modal-end-ie').value = e.inscricao_estadual || '';
+    if (document.getElementById('modal-end-cnpj')) document.getElementById('modal-end-cnpj').value = e.cpf_cnpj || '';
+    if (document.getElementById('modal-end-ie')) document.getElementById('modal-end-ie').value = e.inscricao_estadual || '';
     document.getElementById('modal-end-cep').value = e.cep || '';
     const parsedEnd = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
     document.getElementById('modal-end-rua').value = parsedEnd.rua;
@@ -13586,8 +13613,8 @@ window.modalNovoEndereco = function() {
 
     document.getElementById('modal-end-seq').value = nextSeq;
     document.getElementById('modal-end-nome').value = '';
-    document.getElementById('modal-end-cnpj').value = '';
-    document.getElementById('modal-end-ie').value = '';
+    if (document.getElementById('modal-end-cnpj')) document.getElementById('modal-end-cnpj').value = '';
+    if (document.getElementById('modal-end-ie')) document.getElementById('modal-end-ie').value = '';
     document.getElementById('modal-end-cep').value = '';
     document.getElementById('modal-end-rua').value = '';
     document.getElementById('modal-end-num').value = '';
@@ -13650,8 +13677,8 @@ window.modalSalvarEndereco = async function() {
         id: window._modalEnderecoEditandoId,
         sequencia: seqVal,
         nome_local: nomeVal,
-        cpf_cnpj: document.getElementById('modal-end-cnpj').value.trim(),
-        inscricao_estadual: document.getElementById('modal-end-ie').value.trim(),
+        cpf_cnpj: (document.getElementById('modal-end-cnpj')?.value || '').trim(),
+        inscricao_estadual: (document.getElementById('modal-end-ie')?.value || '').trim(),
         cep: cepVal,
         endereco: ruaVal,
         numero: numVal,
@@ -14094,7 +14121,7 @@ function _renderEnderecosInt() {
                 <div class="cc-section-title-end">
                     <i class="ph ph-map-pin"></i> Detalhes do Endereço de Entrega
                 </div>
-                <div class="cc-grid-end cc-grid-end-row1" style="margin-bottom: 0.75rem;">
+                <div class="cc-grid-end" style="grid-template-columns: 100px 1fr; margin-bottom: 0.75rem;">
                     <div>
                         <label class="prop-lbl-end">Seq.</label>
                         <input type="text" id="page-end-seq" readonly value="1" class="cc-input-end" style="text-align:center; font-weight:bold;">
@@ -14105,17 +14132,6 @@ function _renderEnderecosInt() {
                             <input type="text" id="page-end-nome" class="cc-input-end" placeholder="Ex: Endereço de Faturamento / Filial..." style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorNomeLocal();}">
                             <button type="button" onclick="window.pageBuscarPorNomeLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar por Nome do Local"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
                         </div>
-                    </div>
-                    <div>
-                        <label class="prop-lbl-end">CPF/CNPJ</label>
-                        <div style="display:flex; gap:0.35rem;">
-                            <input type="text" id="page-end-cnpj" class="cc-input-end" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.pageBuscarPorCNPJLocal();}">
-                            <button type="button" onclick="window.pageBuscarPorCNPJLocal()" style="background:#2563eb; color:#fff; border:none; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.2s; height:38px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Buscar CNPJ"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="prop-lbl-end">Inscrição Estadual</label>
-                        <input type="text" id="page-end-ie" class="cc-input-end">
                     </div>
                 </div>
 
@@ -14324,8 +14340,8 @@ window.pageCarregarEnderecoForm = function(idx) {
     const seqNum = e.sequencia || (idx + 1);
     document.getElementById('page-end-seq').value = seqNum;
     document.getElementById('page-end-nome').value = e.nome_local || '';
-    document.getElementById('page-end-cnpj').value = e.cpf_cnpj || '';
-    document.getElementById('page-end-ie').value = e.inscricao_estadual || '';
+    if (document.getElementById('page-end-cnpj')) document.getElementById('page-end-cnpj').value = e.cpf_cnpj || '';
+    if (document.getElementById('page-end-ie')) document.getElementById('page-end-ie').value = e.inscricao_estadual || '';
     document.getElementById('page-end-cep').value = e.cep || '';
     const parsedEnd = window._separarRuaENumeroEnderecos(e.endereco, e.numero);
     document.getElementById('page-end-rua').value = parsedEnd.rua;
@@ -14352,8 +14368,8 @@ window.pageNovoEndereco = function() {
 
     document.getElementById('page-end-seq').value = nextSeq;
     document.getElementById('page-end-nome').value = '';
-    document.getElementById('page-end-cnpj').value = '';
-    document.getElementById('page-end-ie').value = '';
+    if (document.getElementById('page-end-cnpj')) document.getElementById('page-end-cnpj').value = '';
+    if (document.getElementById('page-end-ie')) document.getElementById('page-end-ie').value = '';
     document.getElementById('page-end-cep').value = '';
     document.getElementById('page-end-rua').value = '';
     document.getElementById('page-end-num').value = '';
@@ -14416,8 +14432,8 @@ window.pageSalvarEndereco = async function() {
         id: window._pageEnderecoEditandoId,
         sequencia: seqVal,
         nome_local: nomeVal,
-        cpf_cnpj: document.getElementById('page-end-cnpj').value.trim(),
-        inscricao_estadual: document.getElementById('page-end-ie').value.trim(),
+        cpf_cnpj: (document.getElementById('page-end-cnpj')?.value || '').trim(),
+        inscricao_estadual: (document.getElementById('page-end-ie')?.value || '').trim(),
         cep: cepVal,
         endereco: ruaVal,
         numero: numVal,
@@ -19081,7 +19097,7 @@ window.renderizarDiasEventoProposta = function() {
                                 style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;">
                             Horário comercial
                         </label>
-                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="margin-left:auto; background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
+                        <button type="button" onclick="window.removerDiaEventoProposta('${iso}', event)" title="Remover esta data" style="margin-left:2px; background:transparent; border:none; color:#6d28d9; cursor:pointer; padding:0 2px !important; width:auto !important; height:auto !important; font-weight:800; font-size:0.88rem; line-height:1;">&times;</button>
                     </span>
                 `;
             }).join('');
@@ -20637,6 +20653,7 @@ window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado = function() {
     if (!wrapEl) return;
     const areaControles = document.getElementById('prop-dias-evento-controles-area');
     const areaReplicar = document.getElementById('prop-dias-replicar-opcoes-esq');
+    const areaBotoesDir = document.getElementById('prop-dias-botoes-acao-dir');
     const boxEl = document.getElementById('prop-dias-evento-box');
     const lblTitulo = document.getElementById('prop-dias-evento-lbl-titulo');
     const lblTxt = document.getElementById('prop-dias-evento-lbl-txt');
@@ -20672,6 +20689,11 @@ window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado = function() {
             areaReplicar.style.opacity = '0.5';
             areaReplicar.style.filter = 'grayscale(1)';
         }
+        if (areaBotoesDir) {
+            areaBotoesDir.style.pointerEvents = 'none';
+            areaBotoesDir.style.opacity = '0.5';
+            areaBotoesDir.style.filter = 'grayscale(1)';
+        }
         if (boxEl) {
             boxEl.style.background = '#e2e8f0';
             boxEl.style.borderColor = '#cbd5e1';
@@ -20696,6 +20718,11 @@ window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado = function() {
             areaReplicar.style.pointerEvents = '';
             areaReplicar.style.opacity = '';
             areaReplicar.style.filter = '';
+        }
+        if (areaBotoesDir) {
+            areaBotoesDir.style.pointerEvents = '';
+            areaBotoesDir.style.opacity = '';
+            areaBotoesDir.style.filter = '';
         }
         if (boxEl) {
             boxEl.style.background = '#fff';
@@ -21224,7 +21251,13 @@ window.renderizarProdutosPropostaGrid = function() {
         return;
     }
 
+    const isComparativaGrid = Boolean(document.getElementById('prop-comparativa')?.checked);
+    const prodsAprovGrid = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
+    const temFiltroCompGrid = Boolean(isComparativaGrid && prodsAprovGrid.length > 0 && typeof window.itemComparativaEstaAprovado === 'function');
+
     tbody.innerHTML = list.map((p, idx) => {
+        const naoAprovadoGrid = Boolean(temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idx, prodsAprovGrid));
+        const styleRiscadoGrid = naoAprovadoGrid ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
         const nomeProd = String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
         const obsProd = p.observacao !== undefined ? p.observacao : '';
         const qtd = parseInt(p.quantidade, 10) || 1;
@@ -21261,14 +21294,14 @@ window.renderizarProdutosPropostaGrid = function() {
             ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
                     onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'pct', this.value)"
                     title="Editar desconto (%)"
-                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`
+                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${styleRiscadoGrid}">`
             : `<input type="text" inputmode="numeric" value="${window.formatarMoedaCentavosProposta(descValAtual)}" placeholder="0,00"
                     onfocus="window.posicionarCursorFimMoeda(this)"
                     onclick="window.posicionarCursorFimMoeda(this)"
                     oninput="window.onInputDescontoRsItemProdutoProposta(${idx}, this)"
                     onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'valor', this.value)"
                     title="Editar desconto (R$)"
-                    style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`;
+                    style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${styleRiscadoGrid}">`;
         const descHtml = `
             <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
                 <select onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"
@@ -21287,16 +21320,16 @@ window.renderizarProdutosPropostaGrid = function() {
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div>${_escHtmlProp(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
+                    <div style="${styleRiscadoGrid}">${_escHtmlProp(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 10px;">
                     <input type="text" value="${_escHtmlProp(obsProd)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'observacao', this.value)"
-                        placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box;">
+                        placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box; ${styleRiscadoGrid}">
                 </td>
                 <td style="padding:8px 10px; text-align:center;">
                     <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
-                        style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700;">
+                        style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700; ${styleRiscadoGrid}">
                 </td>
                 ${usaManutGrid ? `
                 <td style="padding:8px 10px; text-align:center;">
@@ -21304,7 +21337,7 @@ window.renderizarProdutosPropostaGrid = function() {
                         oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
                         onchange="window.atualizarItemProdutoProposta(${idx}, 'manut_semana', this.value)"
                         title="Quantidade de manutenções por semana"
-                        style="width:76px; padding:4px 6px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff;">
+                        style="width:76px; padding:4px 6px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff; ${styleRiscadoGrid}">
                 </td>` : ''}
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
@@ -21313,13 +21346,13 @@ window.renderizarProdutosPropostaGrid = function() {
                         onclick="window.posicionarCursorFimMoeda(this)"
                         oninput="window.onInputValorItemProdutoProposta(${idx}, this)"
                         onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
-                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">
+                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a; ${styleRiscadoGrid}">
                 </td>
                 ${ehEventoGrid ? `
-                <td data-prod-subtotal="${idx}" style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap;">
+                <td data-prod-subtotal="${idx}" style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>` : ''}
-                <td data-prod-total="${idx}" style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap;">
+                <td data-prod-total="${idx}" style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
                     R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
@@ -21335,7 +21368,8 @@ window.renderizarProdutosPropostaGrid = function() {
     }).join('') + `
         <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
             <td colspan="${(usaManutGrid ? 6 : 5) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
-            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p) => {
+            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p, idxP) => {
+                if (temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid)) return acc;
                 const q = parseInt(p.quantidade, 10) || 1;
                 const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
                 const st = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vu);

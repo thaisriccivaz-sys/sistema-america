@@ -757,6 +757,23 @@
     }
 
     /* Monta todos os dados estruturados para o Quadro de Valores de qualquer Modelo de Proposta */
+    window.itemComparativaEstaAprovado = function (it, idx, produtosAprovadosArr) {
+        if (!Array.isArray(produtosAprovadosArr) || produtosAprovadosArr.length === 0) return true;
+        if (it && typeof it.aprovado_comparativa === 'boolean') return it.aprovado_comparativa;
+        const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+        const nomeRaw = String((it && (it.produto || it.descricao || it.nome)) || '').replace(/^\d+\s*-\s*/, '').trim();
+        const nomeN = normTxt(nomeRaw);
+        const qtdN = Math.max(1, Number((it && (it.quantidade ?? it.qtde)) || 1) || 1);
+        const prefixoQtd = `${nomeN} (QTD: ${qtdN})`;
+        return produtosAprovadosArr.some(ap => {
+            const apN = normTxt(ap).replace(/^\d+\s*-\s*/, '').trim();
+            if (!apN || !nomeN) return false;
+            if (apN.startsWith(prefixoQtd)) return true;
+            const apSemQtd = apN.split(/\s*\(QTD:/)[0].split(/\s*[—-]\s*R\$/)[0].trim();
+            return apSemQtd === nomeN || apN === nomeN;
+        });
+    };
+
     window.montarDadosQuadroEventoProposta = function (propostaExplicita, modeloForcado) {
         const c = window._boxCacheDadosAux || { clientes: [], contatos: [], enderecos: [], equipamentos: [], propostasEvento: [], propostasTodas: [] };
 
@@ -797,6 +814,8 @@
                     endereco_instalacao: document.getElementById('prop-endereco')?.value || '',
                     observacoes: document.getElementById('prop-obs')?.value || '',
                     manutencao_diaria: Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
+                    proposta_comparativa: Boolean(document.getElementById('prop-comparativa')?.checked),
+                    produtos_aprovados: Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual : [],
                     itens: window._propProdutosAdicionados || [],
                     itens_servicos: window._propServicosAdicionados || []
                 };
@@ -904,9 +923,19 @@
         let somaTotalGeral = 0;
         let somaTotalServicos = 0;
 
+        const isPropComparativa = prop.proposta_comparativa !== undefined
+            ? Boolean(Number(prop.proposta_comparativa) === 1 || prop.proposta_comparativa === true)
+            : Boolean(document.getElementById('prop-comparativa')?.checked);
+        let prodsAprov = [];
+        try {
+            prodsAprov = Array.isArray(prop.produtos_aprovados)
+                ? prop.produtos_aprovados
+                : JSON.parse(prop.produtos_aprovados || '[]');
+        } catch (_) { prodsAprov = []; }
+
         const ehModeloEventoCalc = ['EVENTO', 'EQUIPAMENTOS'].includes(String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const diasContratoPropNum = Number(prop.dias_contrato || 0);
-        const itensFormatados = (itensRaw || []).map(it => {
+        const itensFormatados = (itensRaw || []).map((it, idxIt) => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
             const ehItemServico = typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(it);
@@ -923,8 +952,11 @@
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
             const grossDia = base * qtd;
             const descDia = Math.max(0, grossDia - netDia);
-            somaPorDia += netDia;
-            somaTotalGeral += netDia * nDiarias;
+            const naoAprovado = Boolean(isPropComparativa && Array.isArray(prodsAprov) && prodsAprov.length > 0 && !window.itemComparativaEstaAprovado(it, idxIt, prodsAprov));
+            if (!naoAprovado) {
+                somaPorDia += netDia;
+                somaTotalGeral += netDia * nDiarias;
+            }
             return {
                 quantidade: qtd,
                 nome: nomeProd,
@@ -938,7 +970,8 @@
                 por_dia: grossDia,
                 desconto: descDia * nDiarias,
                 total: netDia * nDiarias,
-                cortesia: netDia <= 0
+                cortesia: netDia <= 0,
+                nao_aprovado: naoAprovado
             };
         });
 
@@ -969,16 +1002,6 @@
 
         const numSeq = formatarNumeroPropostaSequencial(prop.codigo, prop.contrato, prop.id);
         const resumoDiariasRodape = calcularResumoDiariasRodape(prop, itensRaw);
-
-        const isPropComparativa = prop.proposta_comparativa !== undefined
-            ? Boolean(Number(prop.proposta_comparativa) === 1 || prop.proposta_comparativa === true)
-            : Boolean(document.getElementById('prop-comparativa')?.checked);
-        let prodsAprov = [];
-        try {
-            prodsAprov = Array.isArray(prop.produtos_aprovados)
-                ? prop.produtos_aprovados
-                : JSON.parse(prop.produtos_aprovados || '[]');
-        } catch (_) { prodsAprov = []; }
 
         return {
             modelo_tipo: modeloEfetivo,
@@ -1074,11 +1097,14 @@
         const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
         const GAP = u(10);
 
-        const celula = (it, valor, cor) => it.fob
-            ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">FOB</span>'
-            : (it.cortesia
-                ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
-                : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
+        const celula = (it, valor, cor) => {
+            const riscado = it && it.nao_aprovado ? 'text-decoration:line-through; opacity:0.65;' : '';
+            return it.fob
+                ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em; ' + riscado + '">FOB</span>'
+                : (it.cortesia
+                    ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em; ' + riscado + '">CORTESIA</span>'
+                    : '<span style="color:' + cor + '; ' + riscado + '">' + fmtNum(valor) + '</span>');
+        };
 
         const cabecalhoColunas = (titulo) => ehQuadroLimpaFossa ? `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
@@ -1133,26 +1159,40 @@
 
         const celulaLinhaStyle = `text-align:center; font-size:${u(26)}; align-self:start; min-height:${u(36)}; display:flex; align-items:center; justify-content:center; line-height:1;`;
         const spanDescItem = ehQuadroLimpaFossa ? 'grid-column:2 / 6; ' : (ehQuadroObra ? 'grid-column:2 / 5; ' : '');
-        const linhaItem = (it) => `
+        const prodsAprovQuadro = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+        const temSelecaoComparativa = Boolean(d.proposta_comparativa && prodsAprovQuadro.length > 0);
+        const itensNormalizadosQuadro = Array.isArray(d.itens)
+            ? d.itens.map((it, idxIt) => {
+                const naoAp = typeof it.nao_aprovado === 'boolean'
+                    ? it.nao_aprovado
+                    : Boolean(temSelecaoComparativa && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(it, idxIt, prodsAprovQuadro));
+                return Object.assign({}, it, { nao_aprovado: naoAp });
+            })
+            : [];
+
+        const linhaItem = (it) => {
+            const riscadoTxt = it.nao_aprovado ? 'text-decoration:line-through; opacity:0.65;' : '';
+            return `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
                 <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${it.foto_url ? u(84) : u(36)};">
-                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
+                    ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block; ${it.nao_aprovado ? 'opacity:0.55;' : ''}" onerror="this.style.display='none'">` : ''}
                 </div>
                 <div style="${spanDescItem}min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
-                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
+                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span style="${riscadoTxt}">${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span style="${riscadoTxt}">${esc(it.nome)}</span></span>
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
-                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
-                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
-                    ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
+                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word; ${riscadoTxt}">${esc(it.descricao_proposta)}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
-                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${esc(it.quant_diarias)}</div>`}
+                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${esc(it.quant_diarias)}</div>`}
                 ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>`}
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.por_dia, '#3b3b3b')}</div>`}
-                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
+        };
 
         const linhaServico = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
@@ -1171,15 +1211,17 @@
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total !== undefined ? it.total : it.unit, ROXO)}</div>
             </div>`;
 
-        const itensHtml = (d.itens && d.itens.length > 0)
-            ? d.itens.map(linhaItem).join('')
+        const itensHtml = (itensNormalizadosQuadro.length > 0)
+            ? itensNormalizadosQuadro.map(linhaItem).join('')
             : `<div style="padding:${u(24)}; text-align:center; color:#94a3b8; font-size:${u(24)}; border:${u(2)} dashed #cbd5e1; border-radius:${u(10)}; margin-bottom:${u(20)};">Nenhum equipamento adicionado nesta proposta ainda.</div>`;
 
-        const totalProdutosQuadro = (d.valor_total_produtos !== undefined && !isNaN(Number(d.valor_total_produtos)))
-            ? Number(d.valor_total_produtos)
-            : (Array.isArray(d.itens) ? d.itens.reduce((acc, it) => acc + (it.cortesia || it.fob ? 0 : (Number(it.total) || 0)), 0) : Number(d.valor_total_geral || 0));
+        const totalProdutosQuadro = temSelecaoComparativa
+            ? itensNormalizadosQuadro.reduce((acc, it) => acc + (it.nao_aprovado || it.cortesia || it.fob ? 0 : (Number(it.total) || 0)), 0)
+            : ((d.valor_total_produtos !== undefined && !isNaN(Number(d.valor_total_produtos)))
+                ? Number(d.valor_total_produtos)
+                : (itensNormalizadosQuadro.length > 0 ? itensNormalizadosQuadro.reduce((acc, it) => acc + (it.cortesia || it.fob ? 0 : (Number(it.total) || 0)), 0) : Number(d.valor_total_geral || 0)));
 
-        const ocultarTotaisComparativa = Boolean(d.proposta_comparativa);
+        const ocultarTotaisComparativa = Boolean(d.proposta_comparativa && !temSelecaoComparativa);
 
         const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
             <div style="padding:${u(14)} ${u(60)} ${u(20)} ${u(50)};">
