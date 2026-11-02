@@ -12,19 +12,22 @@
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
     window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
-    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EVENTO', 'EQUIPAMENTOS', 'ADITIVO'];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = [];
 
     const tipoLimpo = (tipo) => {
+        if (typeof window.obterTipoEfetivoProposta === 'function') {
+            return window.obterTipoEfetivoProposta(tipo);
+        }
         const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
         return String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     };
 
-    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal */
+    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal (inclusive Aditivo de Obra) */
     window.tipoPropostaServicoObrigatorio = function (tipo) {
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tipoLimpo(tipo));
     };
 
-    /* O quadro de Serviços aparece em OBRA (obrigatório) e EVENTO (opcional) */
+    /* O quadro de Serviços aparece somente em OBRA (não aparece em EVENTO nem EQUIPAMENTOS) */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);

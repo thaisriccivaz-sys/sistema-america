@@ -138,8 +138,9 @@
 
     /* Campo "Quant. manut. semana": somente propostas de OBRA */
     window.tipoPropostaUsaManutencoes = function (tipo) {
-        const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-        const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const t = typeof window.obterTipoEfetivoProposta === 'function'
+            ? window.obterTipoEfetivoProposta(tipo)
+            : String((tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '')) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         return t === 'OBRA MENSAL' || t === 'OBRA QUINZENAL' || t === 'OBRA SEMANAL';
     };
 

@@ -100,16 +100,51 @@ const PROP_TRANSPORTADORAS = ['', 'América Rental', 'Terceirizado', 'Cliente Re
 const PROP_FRETES = ['', 'CIF', 'FOB', 'Sem Frete'];
 
 const PROP_STATUS_CORES = {
-    'Em Elaboração':        { bg: '#e0f2fe', text: '#0369a1', icon: 'ph-pencil' },
-    'Proposta Enviada':     { bg: '#fef9c3', text: '#92400e', icon: 'ph-paper-plane-right' },
-    'Pré aprovada':         { bg: '#ccfbf1', text: '#0f766e', icon: 'ph-seal-check' },
-    'Em Negociação':        { bg: '#fff7ed', text: '#c2410c', icon: 'ph-arrows-left-right' },
-    'Aguardando Aprovação': { bg: '#f3e8ff', text: '#6d28d9', icon: 'ph-clock' },
-    'Aprovada':             { bg: '#dcfce7', text: '#166534', icon: 'ph-check-circle' },
-    'Reprovada':            { bg: '#fee2e2', text: '#991b1b', icon: 'ph-x-circle' },
-    'Cancelada':            { bg: '#f1f5f9', text: '#64748b', icon: 'ph-prohibit' },
-    'Convertida em OS':     { bg: '#dbeafe', text: '#1e40af', icon: 'ph-clipboard-text' },
-    'Sem Resposta':         { bg: '#f1f5f9', text: '#475569', icon: 'ph-clock-countdown' },
+    'Em Elaboração':        { bg: '#fef9c3', text: '#a16207', border: '#fde047', icon: 'ph-pencil' },
+    'Proposta Enviada':     { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-paper-plane-right' },
+    'Enviada':              { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-paper-plane-right' },
+    'Pré aprovada':         { bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-seal-check' },
+    'Em Negociação':        { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-arrows-left-right' },
+    'Aguardando Aprovação': { bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-clock' },
+    'Aprovada':             { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-check-circle' },
+    'Reprovada':            { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-x-circle' },
+    'Cancelada':            { bg: '#0f172a', text: '#ffffff', border: '#0f172a', icon: 'ph-prohibit' },
+    'Convertida em OS':     { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'ph-clipboard-text' },
+    'Sem Resposta':         { bg: '#e2e8f0', text: '#475569', border: '#cbd5e1', icon: 'ph-clock-countdown' },
+};
+
+window.obterConfigFaseNegociacao = function(faseRaw) {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const f = normStr(faseRaw);
+    if (!f || f === 'EM ELABORACAO') {
+        return { nome: 'Em Elaboração', ...PROP_STATUS_CORES['Em Elaboração'] };
+    }
+    if (f === 'PROPOSTA ENVIADA' || f === 'ENVIADA') {
+        return { nome: 'Proposta Enviada', ...PROP_STATUS_CORES['Proposta Enviada'] };
+    }
+    if (f === 'PRE APROVADA' || f === 'PRE-APROVADA') {
+        return { nome: 'Pré aprovada', ...PROP_STATUS_CORES['Pré aprovada'] };
+    }
+    if (f === 'APROVADA' || f === 'APROVADO') {
+        return { nome: 'Aprovada', ...PROP_STATUS_CORES['Aprovada'] };
+    }
+    if (f === 'REPROVADA' || f === 'REPROVADO') {
+        return { nome: 'Reprovada', ...PROP_STATUS_CORES['Reprovada'] };
+    }
+    if (f === 'CANCELADA' || f === 'CANCELADO') {
+        return { nome: 'Cancelada', ...PROP_STATUS_CORES['Cancelada'] };
+    }
+    if (f === 'SEM RESPOSTA') {
+        return { nome: 'Sem Resposta', ...PROP_STATUS_CORES['Sem Resposta'] };
+    }
+    return { nome: String(faseRaw || 'Em Elaboração'), bg: '#e2e8f0', text: '#475569', border: '#cbd5e1', icon: 'ph-circle' };
+};
+
+window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
+    const cfg = window.obterConfigFaseNegociacao(faseRaw);
+    return `<span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border || cfg.bg}; padding:2px 10px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase;">
+        <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${cfg.nome}
+    </span>`;
 };
 
 const CONTRATO_SITUACOES_CONFIG = [
@@ -162,15 +197,65 @@ window.renderBadgeSituacaoContratoHtml = function(sitRaw, mostrarStatusTipo = tr
 };
 
 window.atualizarBadgeSituacaoContratoForm = function(val) {
-    const el = document.getElementById('prop-situacao-contrato-badge');
-    if (!el) return;
-    if (window._modoTelaComercial !== 'contrato') {
-        el.innerHTML = '';
-        return;
-    }
     const v = val !== undefined ? val : (document.getElementById('prop-fase')?.value || '');
-    el.innerHTML = window.renderBadgeSituacaoContratoHtml(v, true);
+    const el = document.getElementById('prop-situacao-contrato-badge');
+    if (el) {
+        el.innerHTML = window._modoTelaComercial === 'contrato'
+            ? ''
+            : '';
+    }
+    const btnBadge = document.getElementById('prop-fase-custom-btn-badge');
+    if (btnBadge) {
+        btnBadge.innerHTML = window._modoTelaComercial === 'contrato'
+            ? window.renderBadgeSituacaoContratoHtml(v, true)
+            : window.renderBadgeFaseNegociacaoHtml(v);
+    }
 };
+
+window.toggleDropdownFaseProposta = function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const sel = document.getElementById('prop-fase');
+    const btn = document.getElementById('prop-fase-custom-btn');
+    if ((sel && sel.disabled) || (btn && btn.disabled)) return;
+    const menu = document.getElementById('prop-fase-custom-menu');
+    if (!menu) return;
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+};
+
+window.selecionarFasePropostaCustom = function(valor, disabled, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    if (disabled) return;
+    const sel = document.getElementById('prop-fase');
+    if (sel) {
+        sel.value = valor;
+    }
+    window.atualizarBadgeSituacaoContratoForm(valor);
+    if (typeof window.toggleMotivoReprovacao === 'function') {
+        window.toggleMotivoReprovacao(valor);
+    }
+    if (typeof window.marcarPropostaComoEditada === 'function') {
+        window.marcarPropostaComoEditada();
+    }
+    const menu = document.getElementById('prop-fase-custom-menu');
+    if (menu) menu.style.display = 'none';
+};
+
+if (!window._listenerCloseFaseCustomMenu && typeof document !== 'undefined') {
+    window._listenerCloseFaseCustomMenu = true;
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('prop-fase-custom-wrap');
+        const menu = document.getElementById('prop-fase-custom-menu');
+        if (menu && menu.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
+}
 
 let _propostasData = [];
 let _dashboardStatsData = [];
@@ -1333,12 +1418,20 @@ window.restaurarSnapshotEstadoFormComercial = function(modo) {
 
     const tipoRestaurado = document.getElementById('prop-tipo')?.value || '';
     const tipoLimpoRest = String(tipoRestaurado).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const inpAdtRest = document.getElementById('prop-contrato-aditivo');
+    window._contratoVinculadoTipoAtivo = inpAdtRest?.getAttribute('data-contrato-tipo') || '';
+    const servicosSnapBackup = JSON.parse(JSON.stringify(snap.servicos || []));
+    const produtosSnapBackup = JSON.parse(JSON.stringify(snap.produtos || []));
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') window.atualizarVisibilidadeDiasEventoProposta(tipoLimpoRest);
     if (typeof window.atualizarVisibilidadeServicosProposta === 'function') window.atualizarVisibilidadeServicosProposta(tipoLimpoRest);
     if (typeof window.atualizarVisibilidadeContratoAditivo === 'function') window.atualizarVisibilidadeContratoAditivo(tipoLimpoRest);
+    window._propProdutosAdicionados = produtosSnapBackup;
+    window._propServicosAdicionados = servicosSnapBackup;
     if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
     if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
     if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
+    if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') window.atualizarBadgeSituacaoContratoForm();
+    if (typeof window.atualizarBloqueioPorTipoProposta === 'function') window.atualizarBloqueioPorTipoProposta();
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') window.atualizarVisibilidadeBotoesPosSalvoProposta();
     const cliVal = (document.getElementById('prop-cliente')?.value || '').trim();
     if (cliVal && typeof window.verificarBloqueioFaturamentoProposta === 'function') {
@@ -1604,9 +1697,7 @@ function _renderLinhasPropostas(lista) {
                 ${p.tipo || '—'}
             </td>
             <td style="padding:0.6rem 0.75rem;">
-                <span style="background:${faseStyle.bg}; color:${faseStyle.text}; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ${faseStyle.icon}" style="font-size:0.85rem;"></i> ${fase}
-                </span>
+                ${isModoContrato ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true) : window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração')}
             </td>
             <td style="padding:0.6rem 0.75rem; color:#1e293b; font-weight:600; white-space:nowrap;">
                 ${valorFmt}
@@ -2190,13 +2281,14 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
     if (document.getElementById('prop-view-form')) {
         _renderFormPropostaInt();
     }
-    window.switchPropostaTab('form');
+    window.switchPropostaTab(window._modoTelaComercial === 'contrato' ? 'contratos' : 'form');
 }
 
 function _renderFormPropostaInt() {
     const id = _propostasEditandoId;
     const prop = id ? _propostasData.find(p => p.id === id) : (window._propostaDuplicadaRascunho || null);
     _propRegiaoIdentificada = prop && prop.regiao ? prop.regiao : '';
+    window._contratoVinculadoTipoAtivo = prop ? String(prop.contrato_vinculado_tipo || '').trim() : '';
     const isNovo = !id;
     const hoje = new Date().toISOString().split('T')[0];
     const dataCadastroVal = prop && prop.data_cadastro ? prop.data_cadastro : hoje;
@@ -2298,7 +2390,7 @@ function _renderFormPropostaInt() {
                     <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${isNovo ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:${isNovo ? '#16a34a' : '#cbd5e1'}; color:${isNovo ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${isNovo ? 'pointer' : 'not-allowed'}; pointer-events:${isNovo ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
                     <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato')) ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
                     </button>
@@ -2411,9 +2503,9 @@ function _renderFormPropostaInt() {
                         <div>
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
                                 <label class="prop-lbl" style="margin-bottom:0;">${window._modoTelaComercial === 'contrato' ? 'Situação do Contrato *' : 'Fase de Negociação *'}</label>
-                                <span id="prop-situacao-contrato-badge">${window._modoTelaComercial === 'contrato' ? window.renderBadgeSituacaoContratoHtml(v('situacao_contrato'), true) : ''}</span>
+                                <span id="prop-situacao-contrato-badge"></span>
                             </div>
-                            <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value); if(window.atualizarBadgeSituacaoContratoForm) window.atualizarBadgeSituacaoContratoForm(this.value);" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                            <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value); if(window.atualizarBadgeSituacaoContratoForm) window.atualizarBadgeSituacaoContratoForm(this.value);" style="display:none;">
                                 ${window._modoTelaComercial === 'contrato'
                                     ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
                                         const sitSel = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
@@ -2421,7 +2513,7 @@ function _renderFormPropostaInt() {
                                         return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
                                     }).join('')
                                     : PROP_FASES.map(f => {
-                                        const faseAtiva = String(v('fase_negociacao') || '');
+                                        const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
                                         const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                         const isApBloq = f.toUpperCase() === 'APROVADA';
@@ -2432,6 +2524,43 @@ function _renderFormPropostaInt() {
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
                                     }).join('')}
                             </select>
+                            <div id="prop-fase-custom-wrap" style="position:relative; width:100%;">
+                                <button type="button" id="prop-fase-custom-btn" onclick="window.toggleDropdownFaseProposta(event)"
+                                    style="width:100%; height:36px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; box-sizing:border-box; outline:none;">
+                                    <span id="prop-fase-custom-btn-badge" style="display:inline-flex; align-items:center; overflow:hidden;">
+                                        ${window._modoTelaComercial === 'contrato'
+                                            ? window.renderBadgeSituacaoContratoHtml(v('situacao_contrato'), true)
+                                            : window.renderBadgeFaseNegociacaoHtml(v('fase_negociacao') || 'Em Elaboração')}
+                                    </span>
+                                    <i class="ph ph-caret-down" style="font-size:0.9rem; color:#64748b; flex-shrink:0;"></i>
+                                </button>
+                                <div id="prop-fase-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
+                                    ${window._modoTelaComercial === 'contrato'
+                                        ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
+                                            const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                            return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', false, event)"
+                                                style="padding:6px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
+                                                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                                ${window.renderBadgeSituacaoContratoHtml(cfg.nome, true)}
+                                            </div>`;
+                                        }).join('')
+                                        : PROP_FASES.map(f => {
+                                            const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
+                                            const isApBloq = f.toUpperCase() === 'APROVADA';
+                                            const isDisabled = isPreAp || isApBloq;
+                                            const disabledTitle = isPreAp
+                                                ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
+                                            const fEsc = f.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                            return `<div onclick="window.selecionarFasePropostaCustom('${fEsc}', ${isDisabled ? 'true' : 'false'}, event)"
+                                                ${disabledTitle ? `title="${disabledTitle}"` : ''}
+                                                style="padding:6px 8px; border-radius:6px; cursor:${isDisabled ? 'not-allowed' : 'pointer'}; opacity:${isDisabled ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
+                                                onmouseover="if(!${isDisabled}) this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                                ${window.renderBadgeFaseNegociacaoHtml(f)}
+                                            </div>`;
+                                        }).join('')}
+                                </div>
+                            </div>
                         </div>
                         <div style="display:none;">
                             <label class="prop-lbl">Modelo de Impressão</label>
@@ -2992,6 +3121,33 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnSalvar.style.cursor = 'not-allowed';
             btnSalvar.style.pointerEvents = 'none';
         }
+    }
+
+    const btnAprovar = document.getElementById('btn-prop-aprovar');
+    if (btnAprovar) {
+        const mostrarAprovar = Boolean(_propostasEditandoId) && window._modoTelaComercial !== 'contrato' && faseForm !== 'APROVADA';
+        btnAprovar.style.display = mostrarAprovar ? 'inline-flex' : 'none';
+        if (mostrarAprovar) {
+            const bloqueadoPorEdicao = Boolean(window._propFormEditadoNaoSalvo);
+            btnAprovar.disabled = bloqueadoPorEdicao;
+            if (bloqueadoPorEdicao) {
+                btnAprovar.style.background = '#cbd5e1';
+                btnAprovar.style.color = '#64748b';
+                btnAprovar.style.cursor = 'not-allowed';
+                btnAprovar.style.pointerEvents = 'none';
+                btnAprovar.title = 'Salve as alterações da proposta antes de aprovar';
+            } else {
+                btnAprovar.style.background = '#1b358f';
+                btnAprovar.style.color = '#ffffff';
+                btnAprovar.style.cursor = 'pointer';
+                btnAprovar.style.pointerEvents = 'auto';
+                btnAprovar.title = '';
+            }
+        }
+    }
+
+    if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+        window.atualizarBadgeSituacaoContratoForm();
     }
 };
 
@@ -6945,6 +7101,10 @@ window.estornarPropostaEdicao = async function() {
 };
 
 window.aprovarPropostaEdicao = async function() {
+    if (!_propostasEditandoId || window._propFormEditadoNaoSalvo) {
+        Swal.fire('Aviso', 'Salve a proposta antes de aprovar.', 'warning');
+        return;
+    }
     if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
         await window.carregarCacheDadosQuadroEvento(false);
     }
@@ -7139,8 +7299,14 @@ window.aprovarPropostaEdicao = async function() {
 };
 
 window.abrirContratoDaProposta = async function(id) {
-    const targetId = id || _propostasEditandoId;
+    const targetId = Number(id || _propostasEditandoId);
     if (!targetId) return;
+    if (window._modoTelaComercial !== 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial('proposta');
+    }
+    if (window._snapshotsFormComercial) {
+        window._snapshotsFormComercial.contrato = null;
+    }
     window._propostasEditandoId_contrato = targetId;
     window._modoTelaComercial = 'contrato';
     _propostasEditandoId = targetId;
@@ -7148,12 +7314,31 @@ window.abrirContratoDaProposta = async function(id) {
         window.navigateTo('comercial-contratos');
     }
     await carregarPropostas();
+    window._modoTelaComercial = 'contrato';
+    window._propostasEditandoId_contrato = targetId;
+    _propostasEditandoId = targetId;
     await abrirFormProposta(targetId);
+    if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial('contrato');
+    }
+    setTimeout(() => {
+        if (window._modoTelaComercial === 'contrato' && _propostasEditandoId !== targetId) {
+            _propostasEditandoId = targetId;
+            window._propostasEditandoId_contrato = targetId;
+            _renderFormPropostaInt();
+        }
+    }, 110);
 };
 
 window.abrirPropostaDiretoId = async function(id) {
     const targetId = Number(id);
     if (!targetId) return;
+    if (window._modoTelaComercial === 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial('contrato');
+    }
+    if (window._snapshotsFormComercial) {
+        window._snapshotsFormComercial.proposta = null;
+    }
     window._propostasEditandoId_proposta = targetId;
     window._modoTelaComercial = 'proposta';
     _propostasEditandoId = targetId;
@@ -7161,7 +7346,13 @@ window.abrirPropostaDiretoId = async function(id) {
         window.navigateTo('comercial-proposta');
     }
     await carregarPropostas();
+    window._modoTelaComercial = 'proposta';
+    window._propostasEditandoId_proposta = targetId;
+    _propostasEditandoId = targetId;
     await abrirFormProposta(targetId);
+    if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial('proposta');
+    }
 };
 
 window.duplicarPropostaAtual = async function() {
@@ -17911,7 +18102,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true)
-                    : (p.fase_negociacao || '—');
+                    : window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${codExib}</td>
@@ -18094,8 +18285,32 @@ window._garantirTabelasPrecoCarregadas = async function(force = false) {
     return window._comercialTabelasPrecoData;
 };
 
+window.obterTipoEfetivoProposta = function(tipo) {
+    const raw = (tipo !== undefined && tipo !== null) ? tipo : (document.getElementById('prop-tipo')?.value || '');
+    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (t === 'ADITIVO') {
+        const inpAdt = document.getElementById('prop-contrato-aditivo');
+        let tipoBase = String(inpAdt?.getAttribute('data-contrato-tipo') || window._contratoVinculadoTipoAtivo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (!tipoBase && inpAdt) {
+            const idBase = inpAdt.getAttribute('data-contrato-id') || '';
+            const numBase = String(inpAdt.value || '').trim();
+            if (Array.isArray(window._propostasData)) {
+                const found = window._propostasData.find(p =>
+                    (idBase && String(p.id) === String(idBase)) ||
+                    (numBase && String(p.contrato || p.numero_contrato || '').trim().replace(/^0+/, '') === numBase.replace(/^0+/, ''))
+                );
+                if (found && found.tipo) {
+                    tipoBase = String(found.tipo).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                }
+            }
+        }
+        if (tipoBase && tipoBase !== 'ADITIVO') return tipoBase;
+    }
+    return t;
+};
+
 window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCodeOrName) {
-    const tipo = String(tipoPropostaRaw || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const tipo = window.obterTipoEfetivoProposta(tipoPropostaRaw || document.getElementById('prop-tipo')?.value || '');
     if (!tipo || !window._comercialTabelasPrecoData || !Array.isArray(window._comercialTabelasPrecoData.itens)) return null;
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
@@ -18135,7 +18350,7 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
 };
 
 window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
-    const t = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const t = window.obterTipoEfetivoProposta(tipo);
     if (
         t === 'OBRA MENSAL' ||
         t === 'OBRA QUINZENAL' ||
@@ -18157,7 +18372,7 @@ window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
 };
 
 window.obterDiasContratoPadraoPorTipo = function(tipo) {
-    const t = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const t = window.obterTipoEfetivoProposta(tipo);
     if (!t) return null;
     if (t === 'OBRA MENSAL' || t === 'LIMPA FOSSA MENSAL') return 30;
     if (t === 'OBRA QUINZENAL') return 15;
@@ -18166,8 +18381,7 @@ window.obterDiasContratoPadraoPorTipo = function(tipo) {
 };
 
 window.tipoPropostaEhEvento = function(tipo) {
-    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const t = window.obterTipoEfetivoProposta(tipo);
     return t === 'EVENTO' || t === 'EQUIPAMENTOS';
 };
 
@@ -18180,8 +18394,7 @@ window.obterQtdDiariasProdutoEvento = function(p) {
 };
 
 window.tipoPropostaExigeNomeEvento = function(tipo) {
-    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const t = window.obterTipoEfetivoProposta(tipo).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return t === 'EVENTO' || t === 'LOCACAO CONTAINER' || t === 'EQUIPAMENTOS';
 };
 
@@ -18198,8 +18411,7 @@ window.atualizarVisibilidadeNomeEventoProposta = function(tipo) {
 };
 
 window.tipoPropostaUsaDiasEvento = function(tipo) {
-    const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const t = window.obterTipoEfetivoProposta(tipo);
     return t === 'EVENTO' || t === 'EQUIPAMENTOS';
 };
 
@@ -19026,11 +19238,13 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
     if (wrap) wrap.style.display = isAditivo ? 'block' : 'none';
     if (grid) grid.style.gridTemplateColumns = isAditivo ? '1fr 1.6fr 1.8fr 1.3fr' : '1fr 2fr 1.5fr';
     if (!isAditivo) {
+        window._contratoVinculadoTipoAtivo = '';
         const inp = document.getElementById('prop-contrato-aditivo');
         if (inp) {
             inp.value = '';
             inp.removeAttribute('data-contrato-id');
             inp.removeAttribute('data-contrato-tipo');
+            inp.removeAttribute('data-contrato-cond-pag');
         }
     }
 };
@@ -19097,18 +19311,48 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
 window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '') {
     const inp = document.getElementById('prop-contrato-aditivo');
     let condPagOrig = String(condicaoPagamento || '').trim();
-    if (!condPagOrig && idContrato && Array.isArray(window._propostasData)) {
-        const pOrig = window._propostasData.find(p => String(p.id) === String(idContrato));
-        if (pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
+    let pOrig = null;
+    if (idContrato && Array.isArray(window._propostasData)) {
+        pOrig = window._propostasData.find(p => String(p.id) === String(idContrato)) || null;
+        if (!condPagOrig && pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
+        if (!tipoContrato && pOrig && pOrig.tipo) tipoContrato = String(pOrig.tipo).trim();
     }
+    const tipoBaseLimpo = String(tipoContrato || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    window._contratoVinculadoTipoAtivo = tipoBaseLimpo;
     if (inp) {
         inp.value = String(numContrato || '').trim();
         if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
         else inp.removeAttribute('data-contrato-id');
-        if (tipoContrato) inp.setAttribute('data-contrato-tipo', String(tipoContrato).trim());
+        if (tipoBaseLimpo) inp.setAttribute('data-contrato-tipo', tipoBaseLimpo);
         else inp.removeAttribute('data-contrato-tipo');
         if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
         else inp.removeAttribute('data-contrato-cond-pag');
+    }
+    const tabelaEl = document.getElementById('prop-tabela');
+    if (tabelaEl && tipoBaseLimpo) {
+        tabelaEl.value = tipoBaseLimpo;
+    }
+    const diasPadrao = window.obterDiasContratoPadraoPorTipo('ADITIVO');
+    const diasEl = document.getElementById('prop-dias');
+    if (diasPadrao !== null) {
+        if (diasEl) diasEl.value = diasPadrao;
+        if (typeof window.calcularFimContrato === 'function') {
+            window.calcularFimContrato();
+        }
+    } else if (typeof calcularDiasContrato === 'function') {
+        calcularDiasContrato();
+    }
+    if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
+        window.atualizarVisibilidadeDiasEventoProposta('ADITIVO');
+    }
+    if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
+        window.atualizarVisibilidadeServicosProposta('ADITIVO');
+    }
+    if (pOrig && pOrig.nome_evento && window.tipoPropostaExigeNomeEvento('ADITIVO')) {
+        const inpNomeEv = document.getElementById('prop-nome-evento');
+        if (inpNomeEv && !inpNomeEv.value.trim()) {
+            inpNomeEv.value = String(pOrig.nome_evento).trim();
+        }
     }
     const cliEl = document.getElementById('prop-cliente');
     const cliLimpo = String(clienteNome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
@@ -19139,6 +19383,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             condPagEl.value = opt.value;
         }
     }
+    if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+        window.renderizarProdutosPropostaGrid();
+    }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (typeof Swal !== 'undefined') Swal.close();
 };
@@ -19158,6 +19405,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const num = String(c.numero_contrato || c.contrato || c.codigo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const id = String(c.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const cliRaw = String(c.cliente_nome || c.razao_social || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            const cliExib = cliRaw.length > 35 ? cliRaw.slice(0, 35) : cliRaw;
             const cli = cliRaw.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const condPagC = String(c.condicao_pagamento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -19175,10 +19423,14 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const estiloCli = isBloqCli ? 'font-weight:700; color:#dc2626;' : 'font-weight:600; color:#1e293b;';
             return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
-                <td style="padding:10px 12px; ${estiloCli}">${icoCli ? `<span style="margin-right:5px;">${icoCli}</span>` : ''}${esc(cliRaw || '—')}</td>
-                <td style="padding:10px 12px; color:#475569; text-align:center;">${esc(c.tipo || '—')}</td>
+                <td style="padding:10px 12px; min-width:250px; ${estiloCli}" title="${esc(cliRaw)}">
+                    <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; max-height:2.7em; word-break:normal; overflow-wrap:break-word;">
+                        ${icoCli ? `<span style="margin-right:5px;">${icoCli}</span>` : ''}${esc(cliExib || '—')}
+                    </div>
+                </td>
+                <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(c.tipo || '—')}</td>
                 <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(per)}</td>
-                <td style="padding:10px 12px; text-align:center;">${badgeSit}</td>
+                <td style="padding:10px 12px; text-align:center; white-space:nowrap;">${badgeSit}</td>
             </tr>`;
         }).join('');
     };
@@ -19196,11 +19448,11 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
                 <div style="max-height:320px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                         <thead><tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
-                            <th style="padding:10px 12px; width:130px; text-align:center; position:sticky; top:0; background:#f8fafc;">Nº Contrato</th>
-                            <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc;">Cliente</th>
-                            <th style="padding:10px 12px; width:130px; text-align:center; position:sticky; top:0; background:#f8fafc;">Tipo</th>
-                            <th style="padding:10px 12px; width:160px; text-align:center; position:sticky; top:0; background:#f8fafc;">Período</th>
-                            <th style="padding:10px 12px; width:95px; text-align:center; position:sticky; top:0; background:#f8fafc;">Situação</th>
+                            <th style="padding:10px 12px; width:110px; text-align:center; white-space:nowrap; position:sticky; top:0; background:#f8fafc;">Nº Contrato</th>
+                            <th style="padding:10px 12px; min-width:250px; white-space:nowrap; position:sticky; top:0; background:#f8fafc;">Cliente</th>
+                            <th style="padding:10px 12px; width:130px; text-align:center; white-space:nowrap; position:sticky; top:0; background:#f8fafc;">Tipo</th>
+                            <th style="padding:10px 12px; width:175px; text-align:center; white-space:nowrap; position:sticky; top:0; background:#f8fafc;">Período</th>
+                            <th style="padding:10px 12px; width:250px; text-align:center; white-space:nowrap; position:sticky; top:0; background:#f8fafc;">Situação</th>
                         </tr></thead>
                         <tbody id="modal-contrato-aditivo-tbody"></tbody>
                     </table>
@@ -19210,7 +19462,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
         </div>`,
         showConfirmButton: false,
         showCloseButton: true,
-        width: '820px',
+        width: '1080px',
         customClass: { popup: 'custom-swal-padding-zero' },
         didOpen: () => {
             const inp = document.getElementById('modal-contrato-aditivo-termo');
@@ -19759,8 +20011,9 @@ window.pesquisarEnderecoProposta = async function(btnEl = null) {
 window.obterFiltroPadraoEquipamentosPorTipo = function(tipoPropostaRaw = null) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const rawTipo = (tipoPropostaRaw !== null && tipoPropostaRaw !== undefined) ? tipoPropostaRaw : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const tipoEfetivo = typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(rawTipo) : rawTipo;
     const rawTabela = document.getElementById('prop-tabela')?.value || '';
-    const tipoNorm = normStr(String(rawTipo || '').replace(/^proposta\s+/i, ''));
+    const tipoNorm = normStr(String(tipoEfetivo || '').replace(/^proposta\s+/i, ''));
     const tabNorm = normStr(String(rawTabela || '').replace(/^proposta\s+/i, ''));
     if (tipoNorm === 'limpa fossa' || tipoNorm === 'limpa fossa mensal' || tabNorm === 'limpa fossa' || tabNorm === 'limpa fossa mensal') {
         return { grupo: 'SERVIÇOS', fonte: '', incluirServicos: true };
@@ -19773,7 +20026,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
     const rawTipo = (tipoPropostaRaw !== null && tipoPropostaRaw !== undefined)
         ? tipoPropostaRaw
         : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
-    const tipoNorm = normStr(String(rawTipo || '').replace(/^proposta\s+/i, ''));
+    const tipoEfetivo = typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(rawTipo) : rawTipo;
+    const tipoNorm = normStr(String(tipoEfetivo || '').replace(/^proposta\s+/i, ''));
 
     return (produtos || []).filter(p => {
         const fonteNorm = normStr(p.fonte_fornecimento);
@@ -19781,12 +20035,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         const nomeNorm = normStr(p.nome);
 
         if (tipoNorm === 'evento') {
-            // Tipo EVENTO: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos)
+            // Tipo EVENTO: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos); serviços aparecem em Produto
             if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
-                return false;
-            }
-            // Serviços aparecem apenas no quadro "Serviços da Proposta"
-            if (grupoNorm === 'servicos' || grupoNorm === 'servico') {
                 return false;
             }
         } else if (tipoNorm === 'venda') {
@@ -19801,8 +20051,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
             if (grupoNorm.includes('guarita') || nomeNorm.includes('guarita')) {
                 return false;
             }
-        } else if (['obra mensal', 'obra quinzenal', 'obra semanal', 'equipamentos'].includes(tipoNorm)) {
-            // Tipo OBRA e EQUIPAMENTOS: os servicos aparecem apenas no quadro "Servicos da Proposta"
+        } else if (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm)) {
+            // Tipo OBRA: os servicos não aparecem em Produto (aparecem apenas no quadro "Servicos da Proposta")
             if (grupoNorm === 'servicos' || grupoNorm === 'servico') {
                 return false;
             }
@@ -19908,7 +20158,8 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
 
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const tipoPropostaAtivo = document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '';
-    const tipoNorm = normStr(String(tipoPropostaAtivo || '').replace(/^proposta\s+/i, ''));
+    const tipoEfetivo = typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipoPropostaAtivo) : tipoPropostaAtivo;
+    const tipoNorm = normStr(String(tipoEfetivo || '').replace(/^proposta\s+/i, ''));
     const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
 
     const produtosBase = window.filtrarEquipamentosBasePorTipoProposta(produtos, tipoPropostaAtivo);
@@ -19919,7 +20170,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        (['obra mensal', 'obra quinzenal', 'obra semanal', 'evento', 'equipamentos'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
