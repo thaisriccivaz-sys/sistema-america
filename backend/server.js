@@ -40581,7 +40581,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       // Se a proposta estava em Proposta Enviada (ou já possuía link gerado) e sofreu qualquer alteração,
       // desativa o link anterior, gera um novo link público e registra ambos no Histórico
       const eraOuEstaEnviada = oldFaseUpper === 'PROPOSTA ENVIADA' || reqFaseUpper === 'PROPOSTA ENVIADA' || Boolean(oldRow.token_publico);
-      if (houveAlteracaoNaProposta && eraOuEstaEnviada && !d.acao_estornar) {
+      if (houveAlteracaoNaProposta && eraOuEstaEnviada && !d.acao_estornar && !isAgoraAprovada && !d.modo_contrato) {
         const baseLink = String(process.env.PUBLIC_LINK_BASE || 'https://fluxoar.com.br').replace(/\/+$/, '');
         const codRef = encodeURIComponent(oldRow.codigo || proposalId);
         const oldUrl = oldRow.token_publico ? `${baseLink}/proposta/${codRef}/${oldRow.token_publico}` : 'Sem link anterior';

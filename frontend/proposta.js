@@ -2068,7 +2068,7 @@ function _renderFormPropostaInt() {
                 </div>
 
                 <!-- Botões de Ação (Lado Direito) -->
-                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; flex:1; width:100%;">
                     <!-- Icon buttons -->
                     <button onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning')" : `abrirPopupEmail(${id})`}" title="Enviar email" style="display:none; background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
                         <i class="ph ph-envelope-simple" style="font-size:1.15rem;"></i>
@@ -2109,9 +2109,6 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-excluir" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder excluí-la.', 'warning')" : `excluirProposta(${id})`}" style="background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${(!isNovo && window.podeExcluirPropostaAtual(prop)) ? 'inline-flex' : 'none'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-trash" style="font-size:1rem;"></i> Excluir
                     </button>
-                    <button onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
-                        <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
-                    </button>
                     <button type="button" id="btn-prop-baixar-pdf" class="prop-btn-pos-salvo" onclick="window.baixarPdfProposta(${id || 'null'})" style="background:#0f172a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#0f172a'" onfocus="this.blur()">
                         <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Baixar PDF
                     </button>
@@ -2129,6 +2126,9 @@ function _renderFormPropostaInt() {
                     </button>
                     <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
+                    </button>
+                    <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="margin-left:auto; background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
+                        <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
                     </button>
                 </div>
             </div>
@@ -2216,7 +2216,12 @@ function _renderFormPropostaInt() {
                                         : String(v('fase_negociacao') || '');
                                     const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
                                     const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
-                                    return `<option value="${f}" ${isSel ? 'selected' : ''} ${isPreAp ? 'disabled title="Disponível apenas mediante assinatura do cliente pelo link da proposta"' : ''}>${f.toUpperCase()}</option>`;
+                                    const isApBloq = window._modoTelaComercial !== 'contrato' && f.toUpperCase() === 'APROVADA';
+                                    const isDisabled = isPreAp || isApBloq;
+                                    const disabledTitle = isPreAp
+                                        ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                        : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
+                                    return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
                                 }).join('')}
                             </select>
                         </div>
@@ -2564,9 +2569,9 @@ function _renderFormPropostaInt() {
                                         <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
                                         <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center; line-height:1.25;">Quant. Manut.<br>Semana</th>
                                         <th style="padding:10px 12px; font-weight:700; width:155px; text-align:center;">Desconto</th>
-                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'center' : 'right'}; line-height:1.25;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário<br>Diária' : 'Valor Unit.'}</th>
-                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:center; line-height:1.25;">Valor Total<br>por Dia</th>
-                                        <th id="prop-th-valor-total" style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
+                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'center' : 'right'}; line-height:1.25;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário<br>Diária R$' : 'Valor Unit.'}</th>
+                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:center; line-height:1.25;">Valor Total<br>por Dia R$</th>
+                                        <th id="prop-th-valor-total" style="padding:10px 12px; font-weight:700; width:125px; text-align:center; line-height:1.25;">Valor<br>Total R$</th>
                                         <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                                     </tr>
                                 </thead>
@@ -17388,17 +17393,12 @@ window.pesquisarPropostaPorCodigoInput = async function() {
             return achada;
         };
 
-        let encontrada = Array.isArray(_propostasData) && _propostasData.length > 0
-            ? localizarNaLista(_propostasData)
-            : null;
+        try {
+            const freshData = await apiGet('/propostas');
+            if (Array.isArray(freshData)) _propostasData = freshData;
+        } catch (e) {}
 
-        if (!encontrada) {
-            try {
-                const freshData = await apiGet('/propostas');
-                if (Array.isArray(freshData)) _propostasData = freshData;
-            } catch (e) {}
-            encontrada = localizarNaLista(_propostasData);
-        }
+        const encontrada = localizarNaLista(_propostasData);
 
         if (encontrada) {
             await abrirFormProposta(encontrada.id);
@@ -17415,8 +17415,8 @@ window.pesquisarPropostaPorCodigoInput = async function() {
 };
 
 window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
-    const temCachePronto = Array.isArray(_propostasData) && _propostasData.length > 0 && Array.isArray(_clientesData) && _clientesData.length > 0;
-    if (!temCachePronto) {
+    const temClientesEmCache = Array.isArray(_clientesData) && _clientesData.length > 0;
+    if (!temClientesEmCache) {
         Swal.fire({
             title: 'Carregando propostas...',
             allowOutsideClick: false,
@@ -17425,16 +17425,14 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
     }
 
     try {
-        if (!temCachePronto) {
-            const [propostasResp, clientesResp] = await Promise.all([
-                (Array.isArray(_propostasData) && _propostasData.length > 0) ? Promise.resolve(_propostasData) : apiGet('/propostas'),
-                (Array.isArray(_clientesData) && _clientesData.length > 0) ? Promise.resolve(_clientesData) : apiGet('/clientes'),
-                (async () => { try { await window.carregarContextoUsuarioComercial(); } catch (e) {} })()
-            ]);
-            if (Array.isArray(propostasResp)) _propostasData = propostasResp;
-            if (Array.isArray(clientesResp)) _clientesData = clientesResp;
-            Swal.close();
-        }
+        const [propostasResp, clientesResp] = await Promise.all([
+            apiGet('/propostas').catch(() => _propostasData),
+            temClientesEmCache ? Promise.resolve(_clientesData) : apiGet('/clientes'),
+            (async () => { try { await window.carregarContextoUsuarioComercial(); } catch (e) {} })()
+        ]);
+        if (Array.isArray(propostasResp)) _propostasData = propostasResp;
+        if (Array.isArray(clientesResp)) _clientesData = clientesResp;
+        if (!temClientesEmCache) Swal.close();
         const clientes = Array.isArray(_clientesData) ? _clientesData : [];
 
         // Mapeamento de Razão Social -> CNPJ
@@ -19987,14 +19985,19 @@ window.renderizarProdutosPropostaGrid = function() {
     }
     const thValUnit = document.getElementById('prop-th-valor-unit');
     if (thValUnit) {
-        thValUnit.innerHTML = ehEventoGrid ? 'Valor Unitário<br>Diária' : 'Valor Unit.';
+        thValUnit.innerHTML = ehEventoGrid ? 'Valor Unitário<br>Diária R$' : 'Valor Unit.';
         thValUnit.style.textAlign = ehEventoGrid ? 'center' : 'right';
     }
     const thValTotalDia = document.getElementById('prop-th-valor-total-dia');
     if (thValTotalDia) {
-        thValTotalDia.innerHTML = 'Valor Total<br>por Dia';
+        thValTotalDia.innerHTML = 'Valor Total<br>por Dia R$';
         thValTotalDia.style.textAlign = 'center';
         thValTotalDia.style.display = ehEventoGrid ? 'table-cell' : 'none';
+    }
+    const thValTotal = document.getElementById('prop-th-valor-total');
+    if (thValTotal) {
+        thValTotal.innerHTML = 'Valor<br>Total R$';
+        thValTotal.style.textAlign = 'center';
     }
     const list = window._propProdutosAdicionados || [];
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();

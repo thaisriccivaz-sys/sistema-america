@@ -13,7 +13,7 @@
         html, body { margin: 0; padding: 0; background: #f1f5f9; font-family: Arial, Helvetica, sans-serif; }
         #proposta-raiz { max-width: 1920px; margin: 0 auto; background: #fff; }
         #proposta-aceite-secao { max-width: 1920px; margin: 0 auto; background: #fff; display: none; }
-        #proposta-aceite-secao img { width: 100%; height: auto; display: block; }
+        #proposta-aceite-secao > img { width: 100%; height: auto; display: block; }
         #proposta-impressao-simples { display: none; }
         .pp-msg { max-width: 520px; margin: 18vh auto 0; padding: 32px 24px; text-align: center; color: #334155; background: #fff; border-radius: 12px; box-shadow: 0 6px 24px rgba(15,23,42,.08); }
         .pp-msg h1 { font-size: 1.15rem; margin: 0 0 8px; color: #5c4599; }
@@ -27,7 +27,7 @@
         .pp-btn-imprimir { background: #3b3b3b; }
         .pp-modal-aceite { position: fixed; inset: 0; z-index: 9999; background: rgba(15,23,42,.82); display: none; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; overflow-y: auto; }
         .pp-modal-aceite-card { position: relative; max-width: 1120px; width: 100%; max-height: 92vh; background: #fff; border-radius: 12px; overflow: auto; box-shadow: 0 20px 50px rgba(0,0,0,.45); }
-        .pp-modal-aceite-card img { width: 100%; height: auto; display: block; }
+        #pp-modal-aceite-body > img { width: 100%; height: auto; display: block; }
         .pp-modal-aceite-close { position: sticky; top: 10px; float: right; margin: 10px 10px -42px 0; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(15,23,42,.75); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
         @media (max-width: 768px) {
             .pp-fab-bar { right: 12px; bottom: 12px; gap: 8px; flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
@@ -299,11 +299,29 @@
             return estado.dados.aceite.url || null;
         }
 
-        function exibirImagemAceite() {
-            var urlImg = obterUrlImagemAceite();
+        function obterUrlImagemAditivo() {
+            if (!estado.dados || !estado.dados.eh_aditivo || !estado.dados.aditivo) return null;
+            if (visao() === 'mobile' && estado.dados.aditivo.mobile_url) return estado.dados.aditivo.mobile_url;
+            return estado.dados.aditivo.url || null;
+        }
+
+        function montarHtmlQuadroAditivoAceite(modoVisao) {
             var d = estado.dados || {};
-            var jaAssinado = !!(d.assinatura_url || estado.aprovado);
-            var imgHtml = urlImg ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+            var v = modoVisao || visao();
+            var htmlQuadro = '';
+            if (typeof window.renderBoxQuadroEventoHtml === 'function') {
+                htmlQuadro = window.renderBoxQuadroEventoHtml(d, v, { modelo_tipo: d.modelo_tipo || 'EVENTO' });
+            }
+            var urlAditivo = obterUrlImagemAditivo();
+            var htmlAditivo = urlAditivo ? '<img src="' + esc(urlAditivo) + '" alt="Informação de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+            var urlImg = obterUrlImagemAceite();
+            var htmlAceite = urlImg ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">' : '';
+            return '<div style="max-width:960px; margin:0 auto; background:#fff;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+        }
+
+        function montarHtmlBlocoAssinaturaSalva() {
+            var d = estado.dados || {};
+            if (!d.assinatura_url) return '';
             var prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
             var htmlProdsAprovSalvos = prodsAprovArr.length > 0 ? (
                 '<div style="margin:6px auto 10px auto; max-width:560px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 14px; text-align:left;">' +
@@ -311,20 +329,30 @@
                 prodsAprovArr.map(function (p) { return '<div style="font-size:12.5px; font-weight:700; color:#0f172a;">• ' + esc(p) + '</div>'; }).join('') +
                 '</div>'
             ) : '';
+            var faseUp = String(d.fase_negociacao || '').trim().toUpperCase();
+            var tituloAssinado = faseUp === 'APROVADA'
+                ? '✓ Proposta Aprovada e Assinada!'
+                : '✓ Proposta Pré-Aprovada e Assinada!';
+            return '<div id="pp-bloco-assinatura-confirmada" style="max-width:960px; margin:0 auto; padding:20px 24px; background:#f8fafc; border-top:1px solid #e2e8f0; text-align:center; box-sizing:border-box;">' +
+                '<div style="font-size:15px; font-weight:800; color:#16a34a; margin-bottom:8px;">' + tituloAssinado + '</div>' +
+                htmlProdsAprovSalvos +
+                '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+                '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura Salva" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
+                '</div>' +
+                (d.aceite_publico_em ? '<div style="font-size:12px; color:#64748b; margin-top:6px;">Data/Hora do Aceite: ' + esc(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+                '</div>';
+        }
+
+        function exibirImagemAceite() {
+            var d = estado.dados || {};
+            var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             if (jaAssinado && d.assinatura_url) {
-                var htmlFinal = imgHtml +
-                    '<div style="padding:20px 24px; background:#f8fafc; border-top:1px solid #e2e8f0; text-align:center;">' +
-                    '<div style="font-size:15px; font-weight:800; color:#16a34a; margin-bottom:8px;">✓ Proposta Pré-Aprovada e Assinada!</div>' +
-                    htmlProdsAprovSalvos +
-                    '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
-                    '<img src="' + esc(d.assinatura_url) + '" alt="Assinatura Salva" style="max-height:110px; max-width:340px; object-fit:contain; display:block; margin:0 auto;">' +
-                    '</div>' +
-                    (d.aceite_publico_em ? '<div style="font-size:12px; color:#64748b; margin-top:6px;">Data/Hora do Aceite: ' + esc(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
-                    '</div>';
-                secaoAceite.innerHTML = htmlFinal;
-                secaoAceite.style.display = 'block';
-                modalAceiteBody.innerHTML = htmlFinal;
-                modalAceite.style.display = 'flex';
+                modalAceite.style.display = 'none';
+                desenhar();
+                var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
+                if (elAssin && typeof elAssin.scrollIntoView === 'function') {
+                    setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+                }
                 return;
             }
 
@@ -350,8 +378,8 @@
             }
 
             modalAceiteBody.innerHTML =
-                imgHtml +
-                '<div style="padding:20px 24px; background:#f8fafc; border-top:2px solid #e2e8f0; text-align:center;">' +
+                montarHtmlQuadroAditivoAceite(visao()) +
+                '<div style="max-width:960px; margin:0 auto; padding:20px 24px; background:#f8fafc; border-top:2px solid #e2e8f0; text-align:center; box-sizing:border-box;">' +
                 blocoSelecaoProdutosHtml +
                 '<div style="font-size:15px; font-weight:800; color:#0f172a; margin-bottom:4px;">Assine abaixo para Aprovar a Proposta</div>' +
                 '<div style="font-size:12.5px; color:#475569; margin-bottom:12px;">Desenhe sua assinatura no quadro abaixo utilizando o mouse ou o dedo na tela:</div>' +
@@ -365,6 +393,9 @@
                 '</div>' +
                 '</div>';
             modalAceite.style.display = 'flex';
+            if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
+                requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(modalAceiteBody); });
+            }
 
             var canvas = document.getElementById('pp-canvas-assinatura');
             if (!canvas) return;
@@ -493,12 +524,25 @@
             if (!estado.dados) return;
             var v = visao();
             estado.view = v;
-            if (typeof window.renderListaBoxesCompletaHtml === 'function') {
-                raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
+            var d = estado.dados;
+            var jaAssinado = !!(d.assinatura_url || estado.aprovado);
+            var btnAprovarEl = document.getElementById('pp-btn-aprovar');
+            if (jaAssinado && d.assinatura_url) {
+                raiz.innerHTML = montarHtmlQuadroAditivoAceite(v) + montarHtmlBlocoAssinaturaSalva();
+                if (secaoAceite) {
+                    secaoAceite.innerHTML = '';
+                    secaoAceite.style.display = 'none';
+                }
+                if (btnAprovarEl) btnAprovarEl.style.display = 'none';
             } else {
-                raiz.innerHTML = estado.boxes.map(function (b) {
-                    return window.boxRenderHtml(b, v, { proposta: estado.dados });
-                }).join('');
+                if (typeof window.renderListaBoxesCompletaHtml === 'function') {
+                    raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
+                } else {
+                    raiz.innerHTML = estado.boxes.map(function (b) {
+                        return window.boxRenderHtml(b, v, { proposta: estado.dados });
+                    }).join('');
+                }
+                if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             }
             if (fabBar) fabBar.style.display = 'flex';
             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
