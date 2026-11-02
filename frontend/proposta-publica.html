@@ -343,15 +343,39 @@
                 '</div>';
         }
 
+        function montarHtmlFinalLinkAssinado() {
+            var d = estado.dados || {};
+            if (!d.assinatura_url) return '';
+            var urlAditivo = obterUrlImagemAditivo();
+            var jaTemBoxAditivo = Array.isArray(estado.boxes) && estado.boxes.some(function (b) {
+                return b && String(b.modelo_tipo || '').toUpperCase() === 'ADITIVO' && b.tipo !== 'quadro_evento';
+            });
+            var htmlAditivo = (urlAditivo && !jaTemBoxAditivo)
+                ? '<img src="' + esc(urlAditivo) + '" alt="Informação de Aditivo" style="width:100%; height:auto; display:block;">'
+                : '';
+            var urlImg = obterUrlImagemAceite();
+            var htmlAceite = urlImg
+                ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">'
+                : '';
+            return '<div style="max-width:960px; margin:0 auto; background:#fff;">' +
+                htmlAditivo +
+                htmlAceite +
+                '</div>' +
+                montarHtmlBlocoAssinaturaSalva();
+        }
+
         function exibirImagemAceite() {
             var d = estado.dados || {};
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             if (jaAssinado && d.assinatura_url) {
-                modalAceite.style.display = 'none';
-                desenhar();
-                var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
-                if (elAssin && typeof elAssin.scrollIntoView === 'function') {
-                    setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+                if (secaoAceite) {
+                    secaoAceite.innerHTML = montarHtmlFinalLinkAssinado();
+                    secaoAceite.style.display = 'block';
+                }
+                modalAceiteBody.innerHTML = montarHtmlQuadroAditivoAceite(visao()) + montarHtmlBlocoAssinaturaSalva();
+                modalAceite.style.display = 'flex';
+                if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
+                    requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(modalAceiteBody); });
                 }
                 return;
             }
@@ -527,23 +551,23 @@
             var d = estado.dados;
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             var btnAprovarEl = document.getElementById('pp-btn-aprovar');
-            if (jaAssinado && d.assinatura_url) {
-                raiz.innerHTML = montarHtmlQuadroAditivoAceite(v) + montarHtmlBlocoAssinaturaSalva();
-                if (secaoAceite) {
+            if (typeof window.renderListaBoxesCompletaHtml === 'function') {
+                raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
+            } else {
+                raiz.innerHTML = estado.boxes.map(function (b) {
+                    return window.boxRenderHtml(b, v, { proposta: estado.dados });
+                }).join('');
+            }
+            if (secaoAceite) {
+                if (jaAssinado && d.assinatura_url) {
+                    secaoAceite.innerHTML = montarHtmlFinalLinkAssinado();
+                    secaoAceite.style.display = 'block';
+                } else {
                     secaoAceite.innerHTML = '';
                     secaoAceite.style.display = 'none';
                 }
-                if (btnAprovarEl) btnAprovarEl.style.display = 'none';
-            } else {
-                if (typeof window.renderListaBoxesCompletaHtml === 'function') {
-                    raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
-                } else {
-                    raiz.innerHTML = estado.boxes.map(function (b) {
-                        return window.boxRenderHtml(b, v, { proposta: estado.dados });
-                    }).join('');
-                }
-                if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             }
+            if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             if (fabBar) fabBar.style.display = 'flex';
             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
             if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
