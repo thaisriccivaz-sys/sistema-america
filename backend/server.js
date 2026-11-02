@@ -40459,8 +40459,11 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     const isAgoraAprovada = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
     const tinhaAssinaturaOuPreAp = Boolean(oldRow.assinatura_r2_key || oldRow.aceite_publico_em || oldFaseUpper === 'PRÉ APROVADA');
     const invalidarAssinaturaPorEdicao = Boolean(d.acao_estornar || (!d.modo_contrato && !isAgoraAprovada && tinhaAssinaturaOuPreAp));
-    if (invalidarAssinaturaPorEdicao && String(d.fase_negociacao || '').trim().toUpperCase() === 'PRÉ APROVADA') {
-      d.fase_negociacao = 'Proposta Enviada';
+    if (!d.acao_estornar && !d.modo_contrato && !isAgoraAprovada) {
+      const fReqNorm = String(d.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+      if (fReqNorm === 'PROPOSTA ENVIADA' || fReqNorm === 'ENVIADA' || fReqNorm === 'PRE APROVADA') {
+        d.fase_negociacao = 'Em Elaboração';
+      }
     }
 
     const needNovoNumContrato = String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'

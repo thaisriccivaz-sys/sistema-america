@@ -818,6 +818,8 @@
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
             const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
             const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA');
+            const ehDemoLimpaFossa = String(modeloEfetivo || '').trim().toUpperCase().startsWith('LIMPA FOSSA');
+            const ehDemoSemDiarias = ehDemoObra || ehDemoLimpaFossa;
             return {
                 modelo_tipo: modeloEfetivo,
                 eh_aditivo: modeloNorm === 'ADITIVO',
@@ -844,7 +846,7 @@
                 instalacao_bairro_cidade: 'BAIRRO - CIDADE',
                 resumo_diarias_rodape: 'MANUTENÇÃO DIÁRIA',
                 observacoes: 'OBSERVAÇÕES PREENCHIDAS NA PROPOSTA APARECEM AQUI NO FINAL DO QUADRO',
-                itens: ehDemoObra ? [
+                itens: ehDemoSemDiarias ? [
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '', quant_diarias: 1, unit: 100, por_dia: 500, desconto: 0, total: 500 },
                     { quantidade: 5, nome: 'BANHEIRO QUÍMICO STANDARD 002XZV', descricao_proposta: descDemo, link_url: 'https://www.americarental.com.br', observacao: obsDemo, dias_evento_texto: '', quant_diarias: 1, unit: 100, por_dia: 500, desconto: 50, total: 450 },
                     { quantidade: 2, nome: 'LAVATÓRIO PORTÁTIL', descricao_proposta: descDemo, link_url: '', observacao: '', dias_evento_texto: '', quant_diarias: 1, unit: 0, por_dia: 0, desconto: 0, total: 0, cortesia: true }
@@ -857,9 +859,9 @@
                     { quantidade: 1, nome: 'LIMPEZA DURANTE O EVENTO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 350, por_dia: 350, desconto: 50, total: 300 }
                 ],
                 valor_total_por_dia_geral: 1000,
-                valor_total_produtos: ehDemoObra ? 950 : 5200,
+                valor_total_produtos: ehDemoSemDiarias ? 950 : 5200,
                 valor_total_servicos: 300,
-                valor_total_geral: ehDemoObra ? 950 : 5200
+                valor_total_geral: ehDemoSemDiarias ? 950 : 5200
             };
         }
 
@@ -1054,6 +1056,7 @@
         const modTipoQuadroUpper = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehModeloEventoPuro = modTipoQuadroUpper === 'EVENTO';
         const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
+        const ehQuadroLimpaFossa = modTipoQuadroUpper === 'LIMPA FOSSA' || modTipoQuadroUpper.startsWith('LIMPA FOSSA');
         const rotuloDiasItemQuadro = ehModeloEventoPuro ? 'Dia de Evento ou Sucção:' : 'Dia de Evento / Sucção:';
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
         const tituloServ = cfg.titulo_servicos || 'SERVIÇOS:';
@@ -1077,7 +1080,15 @@
                 ? '<span class="bq-d" style="font-size:' + u(22) + '; color:' + ROXO + '; letter-spacing:0.04em;">CORTESIA</span>'
                 : '<span style="color:' + cor + ';">' + fmtNum(valor) + '</span>');
 
-        const cabecalhoColunas = (titulo) => ehQuadroObra ? `
+        const cabecalhoColunas = (titulo) => ehQuadroLimpaFossa ? `
+            <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
+                <div></div>
+                <div style="grid-column:2 / 6; font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
+                    <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
+                </div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
+            </div>` : (ehQuadroObra ? `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
                 <div></div>
                 <div style="grid-column:2 / 5; font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
@@ -1097,7 +1108,7 @@
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
-            </div>`;
+            </div>`);
 
         const cabecalhoColunasServicos = (titulo) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
@@ -1121,23 +1132,24 @@
         };
 
         const celulaLinhaStyle = `text-align:center; font-size:${u(26)}; align-self:start; min-height:${u(36)}; display:flex; align-items:center; justify-content:center; line-height:1;`;
+        const spanDescItem = ehQuadroLimpaFossa ? 'grid-column:2 / 6; ' : (ehQuadroObra ? 'grid-column:2 / 5; ' : '');
         const linhaItem = (it) => `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(26)};">
                 <div style="display:flex; align-items:center; justify-content:center; width:${u(125)}; min-height:${it.foto_url ? u(84) : u(36)};">
                     ${it.foto_url ? `<img src="${esc(it.foto_url)}" alt="${esc(it.nome)}" onload="if(window.ajustarAlturaQuadroValoresBoxes) window.ajustarAlturaQuadroValoresBoxes(this.closest('.box-quadro-evento-proposta'));" style="max-width:${u(120)}; max-height:${u(120)}; width:auto; height:auto; object-fit:contain; display:block;" onerror="this.style.display='none'">` : ''}
                 </div>
-                <div style="${ehQuadroObra ? 'grid-column:2 / 5; ' : ''}min-width:0; padding-right:${u(20)}; align-self:start;">
+                <div style="${spanDescItem}min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
                         <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span>${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
-                    ${(!ehQuadroObra && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
+                    ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
-                ${ehQuadroObra ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${esc(it.quant_diarias)}</div>`}
-                <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>
-                ${ehQuadroObra ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.por_dia, '#3b3b3b')}</div>`}
+                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${esc(it.quant_diarias)}</div>`}
+                ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.unit, '#3b3b3b')}</div>`}
+                ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.por_dia, '#3b3b3b')}</div>`}
                 <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;

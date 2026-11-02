@@ -239,7 +239,7 @@ window.selecionarFasePropostaCustom = function(valor, disabled, event) {
         window.toggleMotivoReprovacao(valor);
     }
     if (typeof window.marcarPropostaComoEditada === 'function') {
-        window.marcarPropostaComoEditada();
+        window.marcarPropostaComoEditada({ preservarFase: true });
     }
     const menu = document.getElementById('prop-fase-custom-menu');
     if (menu) menu.style.display = 'none';
@@ -2492,8 +2492,8 @@ function _renderFormPropostaInt() {
             <div style="padding:1.5rem;">
                 <form id="form-proposta" data-modo-comercial="${window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta'}" data-editando-id="${id || ''}" autocomplete="off" onsubmit="return false;" oninput="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)" onchange="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)">
 
-                    <!-- Linha 1: Código, Tipo, Nº do Contrato (Aditivo), Atendente -->
-                    <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? '1fr 1.6fr 1.8fr 1.3fr' : '1fr 2fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 1: Código, Tipo, Atendente -->
+                    <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Nº do Contrato' : 'Código'}</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -2517,21 +2517,6 @@ function _renderFormPropostaInt() {
                                 </select>
                                 <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="display:none; background:#7048e8; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
                                     <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
-                                </button>
-                            </div>
-                        </div>
-                        <div id="prop-wrapper-contrato-aditivo" style="display:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? 'block' : 'none'};">
-                            <label class="prop-lbl">Nº do Contrato *</label>
-                            <div style="display:flex; gap:0.25rem; align-items:center;">
-                                <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(v('contrato_vinculado') || '')}"
-                                    data-contrato-id="${_escHtmlProp(v('contrato_vinculado_id') || '')}"
-                                    data-contrato-tipo="${_escHtmlProp(v('contrato_vinculado_tipo') || '')}"
-                                    placeholder="Nº do contrato ou cliente..."
-                                    title="Digite o número do contrato ou nome do cliente e pressione Enter ou clique na lupa para pesquisar (apenas contratos ativos)"
-                                    onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaContratoAditivo(); }"
-                                    style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-weight:700;font-size:0.85rem;box-sizing:border-box;height:36px;">
-                                <button type="button" id="btn-pesq-contrato-aditivo" onclick="window.pesquisarOuAbrirBuscaContratoAditivo()" style="background:#2563eb; border:none; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Contrato Ativo (por nº do contrato ou nome do cliente)">
-                                    <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
                                 </button>
                             </div>
                         </div>
@@ -2576,12 +2561,15 @@ function _renderFormPropostaInt() {
                                     : PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
+                                        const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
                                         const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                         const isApBloq = f.toUpperCase() === 'APROVADA';
-                                        const isDisabled = isPreAp || isApBloq;
-                                        const disabledTitle = isPreAp
-                                            ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                            : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
+                                        const isDisabled = isEnvBloq || isPreAp || isApBloq;
+                                        const disabledTitle = isEnvBloq
+                                            ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                            : (isPreAp
+                                                ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''));
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
                                     }).join('')}
                             </select>
@@ -2606,12 +2594,15 @@ function _renderFormPropostaInt() {
                                             </div>`;
                                         }).join('')
                                         : PROP_FASES.map(f => {
+                                            const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
                                             const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                             const isApBloq = f.toUpperCase() === 'APROVADA';
-                                            const isDisabled = isPreAp || isApBloq;
-                                            const disabledTitle = isPreAp
-                                                ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                                : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '');
+                                            const isDisabled = isEnvBloq || isPreAp || isApBloq;
+                                            const disabledTitle = isEnvBloq
+                                                ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                                : (isPreAp
+                                                    ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                    : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''));
                                             const fEsc = f.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                             return `<div onclick="window.selecionarFasePropostaCustom('${fEsc}', ${isDisabled ? 'true' : 'false'}, event)"
                                                 ${disabledTitle ? `title="${disabledTitle}"` : ''}
@@ -2646,7 +2637,7 @@ function _renderFormPropostaInt() {
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente
                         </h4>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
+                        <div id="prop-dados-cliente-grid" style="display:grid; grid-template-columns:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? '1.2fr 1.2fr 0.9fr' : '1fr 1fr'}; gap:0.5rem 0.75rem;">
                             <div>
                                 <label class="prop-lbl">Cliente <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
@@ -2693,6 +2684,22 @@ function _renderFormPropostaInt() {
                                     </button>
                                     <button type="button" onclick="window.cadastrarNovoContatoProposta()" title="Cadastrar Novo Contato" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s; outline:none;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
                                         <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="prop-wrapper-contrato-aditivo" style="display:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? 'block' : 'none'};">
+                                <label class="prop-lbl">Nº do Contrato <span style="color:#ef4444;">*</span></label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(v('contrato_vinculado') || '')}"
+                                        data-contrato-id="${_escHtmlProp(v('contrato_vinculado_id') || '')}"
+                                        data-contrato-tipo="${_escHtmlProp(v('contrato_vinculado_tipo') || '')}"
+                                        placeholder="Nº do contrato base..."
+                                        title="Preencha o Cliente primeiro e digite o nº do contrato ou clique na lupa (apenas contratos ativos do cliente)"
+                                        onfocus="if(typeof window.onFocusContratoAditivoInput === 'function') window.onFocusContratoAditivoInput(event);"
+                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.pesquisarOuAbrirBuscaContratoAditivo(); }"
+                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-weight:700;font-size:0.85rem;box-sizing:border-box;">
+                                    <button type="button" id="btn-pesq-contrato-aditivo" onclick="window.pesquisarOuAbrirBuscaContratoAditivo()" style="background:#2563eb; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Contrato Base Ativo do Cliente">
+                                        <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -3216,9 +3223,21 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     }
 };
 
-window.marcarPropostaComoEditada = function() {
+window.marcarPropostaComoEditada = function(opcoes = {}) {
     if (!_propostasEditandoId) return;
     window._propFormEditadoNaoSalvo = true;
+    if (window._modoTelaComercial !== 'contrato' && !(opcoes && opcoes.preservarFase)) {
+        const selFase = document.getElementById('prop-fase');
+        if (selFase) {
+            const faseNorm = String(selFase.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+            if (faseNorm === 'PROPOSTA ENVIADA' || faseNorm === 'ENVIADA' || faseNorm === 'PRE APROVADA') {
+                selFase.value = 'Em Elaboração';
+                if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                    window.atualizarBadgeSituacaoContratoForm('Em Elaboração');
+                }
+            }
+        }
+    }
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
     if (btnDocAssinado) btnDocAssinado.style.display = 'none';
     window.atualizarVisibilidadeBotoesPosSalvoProposta();
@@ -3228,6 +3247,10 @@ window._onEdicaoCampoFormProposta = function(event) {
     const t = event && event.target;
     if (!t) return;
     if (t.id === 'prop-codigo') return;
+    if (t.id === 'prop-fase') {
+        window.marcarPropostaComoEditada({ preservarFase: true });
+        return;
+    }
     window.marcarPropostaComoEditada();
 };
 
@@ -3241,6 +3264,14 @@ window.onChangeClientePropostaInput = function(novoValor) {
         if (contatoEl) contatoEl.value = '';
         const dropContato = document.getElementById('prop-contato-dropdown');
         if (dropContato) dropContato.style.display = 'none';
+        const inpContratoAdit = document.getElementById('prop-contrato-aditivo');
+        if (inpContratoAdit) {
+            inpContratoAdit.value = '';
+            inpContratoAdit.removeAttribute('data-contrato-id');
+            inpContratoAdit.removeAttribute('data-contrato-tipo');
+            inpContratoAdit.removeAttribute('data-contrato-cond-pag');
+            window._contratoVinculadoTipoAtivo = '';
+        }
         const enderecoEl = document.getElementById('prop-endereco');
         if (enderecoEl) enderecoEl.value = '';
         const dropEnd = document.getElementById('prop-endereco-dropdown');
@@ -6574,13 +6605,29 @@ window.salvarPropostaNova = async function() {
         : (parseFloat(document.getElementById(id)?.value || 0) || 0);
 
     const tipo = obter('prop-tipo');
-    const fase = obter('prop-fase');
+    let fase = obter('prop-fase');
+    if (_propostasEditandoId && window._modoTelaComercial !== 'contrato') {
+        const fNormSalvar = String(fase || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        if (fNormSalvar === 'PROPOSTA ENVIADA' || fNormSalvar === 'ENVIADA' || fNormSalvar === 'PRE APROVADA') {
+            fase = 'Em Elaboração';
+            const selF = document.getElementById('prop-fase');
+            if (selF) selF.value = 'Em Elaboração';
+            if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                window.atualizarBadgeSituacaoContratoForm('Em Elaboração');
+            }
+        }
+    }
     const dataCad = obter('prop-data-cadastro');
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
+    if (String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' && !obter('prop-contrato-aditivo').trim()) {
+        alert('O campo Nº do Contrato (contrato base) é obrigatório para propostas do tipo Aditivo.');
+        document.getElementById('prop-contrato-aditivo')?.focus();
+        return;
+    }
 
     if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();
@@ -19354,9 +19401,9 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
     const t = String(tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '')).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const isAditivo = t === 'ADITIVO';
     const wrap = document.getElementById('prop-wrapper-contrato-aditivo');
-    const grid = document.getElementById('prop-linha-topo-grid');
+    const gridCli = document.getElementById('prop-dados-cliente-grid');
     if (wrap) wrap.style.display = isAditivo ? 'block' : 'none';
-    if (grid) grid.style.gridTemplateColumns = isAditivo ? '1fr 1.6fr 1.8fr 1.3fr' : '1fr 2fr 1.5fr';
+    if (gridCli) gridCli.style.gridTemplateColumns = isAditivo ? '1.2fr 1.2fr 0.9fr' : '1fr 1fr';
     if (!isAditivo) {
         window._contratoVinculadoTipoAtivo = '';
         const inp = document.getElementById('prop-contrato-aditivo');
@@ -19369,17 +19416,69 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
     }
 };
 
-window._listarContratosAtivosParaAditivo = async function() {
+window.onFocusContratoAditivoInput = function(event) {
+    const cliEl = document.getElementById('prop-cliente');
+    const cliVal = String(cliEl?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (cliVal) return;
+    if (event && event.target && typeof event.target.blur === 'function') {
+        event.target.blur();
+    }
+    if (cliEl) {
+        cliEl.focus();
+        cliEl.style.borderColor = '#dc2626';
+        cliEl.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+        setTimeout(() => {
+            if (cliEl) {
+                cliEl.style.borderColor = '#cbd5e1';
+                cliEl.style.boxShadow = '';
+            }
+        }, 2000);
+    }
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'Preencha primeiro o campo Cliente (*) para pesquisar ou informar o contrato base.',
+            showConfirmButton: false,
+            timer: 2800
+        });
+    }
+};
+
+window._listarContratosAtivosParaAditivo = async function(clienteFiltro = null) {
     try {
+        const normCli = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const rawCli = clienteFiltro !== null && clienteFiltro !== undefined
+            ? clienteFiltro
+            : (document.getElementById('prop-cliente')?.value || '');
+        const cliBuscaNorm = normCli(rawCli);
+        if (!cliBuscaNorm) return [];
+
+        const nomesValidosCli = new Set([cliBuscaNorm]);
+        if (Array.isArray(_clientesCache)) {
+            const digitsBusca = cliBuscaNorm.replace(/\D/g, '');
+            const cliObjSel = _clientesCache.find(cl =>
+                normCli(cl.nome_razao_social) === cliBuscaNorm ||
+                normCli(cl.nome_fantasia) === cliBuscaNorm ||
+                (digitsBusca && cl.cpf_cnpj && String(cl.cpf_cnpj).replace(/\D/g, '') === digitsBusca)
+            );
+            if (cliObjSel) {
+                if (cliObjSel.nome_razao_social) nomesValidosCli.add(normCli(cliObjSel.nome_razao_social));
+                if (cliObjSel.nome_fantasia) nomesValidosCli.add(normCli(cliObjSel.nome_fantasia));
+            }
+        }
+
         const res = await apiGet('/contratos/ativos');
         const lista = Array.isArray(res) ? res : [];
         return lista.filter(c => {
             const sitEspecifica = String(c.situacao_contrato || c.situacao || '').trim();
-            if (typeof window.situacaoContratoEhAtiva === 'function') {
-                return window.situacaoContratoEhAtiva(sitEspecifica);
-            }
-            const st = String(c.status || '').trim().toUpperCase();
-            return st === 'ATIVO' || st === 'ATIVA';
+            const ehAtivo = (typeof window.situacaoContratoEhAtiva === 'function')
+                ? window.situacaoContratoEhAtiva(sitEspecifica)
+                : ['ATIVO', 'ATIVA'].includes(String(c.status || '').trim().toUpperCase());
+            if (!ehAtivo) return false;
+            const cCliNorm = normCli(c.cliente_nome || c.razao_social || '');
+            return Boolean(cCliNorm && nomesValidosCli.has(cCliNorm));
         });
     } catch (e) {
         return [];
@@ -19398,6 +19497,24 @@ window._filtrarContratosAtivosPorTermo = function(lista, termo) {
 };
 
 window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
+    const cliEl = document.getElementById('prop-cliente');
+    const cliNome = String(cliEl?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (!cliNome) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cliente obrigatório',
+                text: 'Preencha primeiro o campo Cliente antes de pesquisar o contrato base.',
+                confirmButtonColor: '#2563eb'
+            }).then(() => {
+                if (cliEl) cliEl.focus();
+            });
+        } else {
+            alert('Preencha primeiro o campo Cliente antes de pesquisar o contrato base.');
+            if (cliEl) cliEl.focus();
+        }
+        return;
+    }
     const inp = document.getElementById('prop-contrato-aditivo');
     const btn = document.getElementById('btn-pesq-contrato-aditivo');
     const termo = (inp?.value || '').trim();
@@ -19407,7 +19524,7 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
         if (typeof window.obterClientesCache === 'function') {
             await window.obterClientesCache().catch(() => []);
         }
-        const contratosAtivos = await window._listarContratosAtivosParaAditivo();
+        const contratosAtivos = await window._listarContratosAtivosParaAditivo(cliNome);
         if (termo) {
             const matches = window._filtrarContratosAtivosPorTermo(contratosAtivos, termo);
             if (matches.length === 1) {
@@ -19476,10 +19593,18 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     }
     const cliEl = document.getElementById('prop-cliente');
     const cliLimpo = String(clienteNome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
-    if (cliEl && cliLimpo) {
+    const normCmp = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (cliEl && cliLimpo && normCmp(cliEl.value) !== normCmp(cliLimpo)) {
         cliEl.value = cliLimpo;
         if (typeof window.onChangeClientePropostaInput === 'function') {
             window.onChangeClientePropostaInput(cliLimpo);
+        }
+        if (inp) {
+            inp.value = String(numContrato || '').trim();
+            if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
+            if (tipoBaseLimpo) inp.setAttribute('data-contrato-tipo', tipoBaseLimpo);
+            if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
+            window._contratoVinculadoTipoAtivo = tipoBaseLimpo;
         }
         if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
             await window.verificarBloqueioFaturamentoProposta(cliLimpo);
@@ -19519,7 +19644,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
     const normCli = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const rows = (lista) => {
         if (!lista.length) {
-            return '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.6rem; font-size:0.85rem;">Nenhum contrato ativo encontrado.</td></tr>';
+            return '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.6rem; font-size:0.85rem;">Nenhum contrato ativo encontrado para o cliente selecionado.</td></tr>';
         }
         return lista.map(c => {
             const num = String(c.numero_contrato || c.contrato || c.codigo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
