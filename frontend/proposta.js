@@ -2902,42 +2902,44 @@ function _renderFormPropostaInt() {
                                     font-size: 0.8rem !important;
                                 }
                             </style>
-                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:6px;">
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                    <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px;">
-                                        <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
-                                        Dia de Evento / Sucção * <span style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
-                                        <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
-                                    </label>
-                                    <label style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; user-select:none;" title="Considerar manutenções do primeiro ao último dia de Período Início * até Até *">
-                                        <input type="checkbox" id="prop-dias-manut-diarias" onchange="window.toggleManutencoesDiariasEventoProposta(this.checked, event)" style="width:auto; margin:0; accent-color:#7048e8; cursor:pointer;"> Manutenções diárias
-                                    </label>
+                            <div id="prop-dias-evento-controles-area">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                        <label class="prop-lbl" id="prop-dias-evento-lbl-titulo" style="margin:0; display:flex; align-items:center; gap:6px;">
+                                            <i class="ph ph-calendar-plus" style="color:#7048e8; font-size:0.95rem;"></i>
+                                            <span id="prop-dias-evento-lbl-txt">Dia de Evento / Sucção *</span> <span id="prop-dias-evento-lbl-sub" style="font-weight:500; color:#6d28d9; font-size:0.72rem;">(do produto que será adicionado)</span>
+                                            <span id="prop-dias-evento-badge" style="display:none; background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;"></span>
+                                        </label>
+                                        <label id="prop-dias-manut-diarias-lbl" style="display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; user-select:none;" title="Considerar manutenções do primeiro ao último dia de Período Início * até Até *">
+                                            <input type="checkbox" id="prop-dias-manut-diarias" onchange="window.toggleManutencoesDiariasEventoProposta(this.checked, event)" style="width:auto; margin:0; accent-color:#7048e8; cursor:pointer;"> Manutenções diárias
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                            <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
-                            <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
-                                <div id="prop-dias-evento-box" onclick="window.abrirCalendarioDiasEventoProposta(event)"
-                                    style="flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
-                                    <div id="prop-dias-evento-chips" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;"></div>
+                                <input type="hidden" id="prop-dias-evento" value="${_escHtmlProp(JSON.stringify(typeof window.obterDiasEventoComHorariosAtuais === 'function' ? window.obterDiasEventoComHorariosAtuais() : (window._propDiasEventoSelecionados || [])))}">
+                                <div style="display:flex; gap:0.45rem; align-items:stretch; flex-wrap:wrap;">
+                                    <div id="prop-dias-evento-box" onclick="window.abrirCalendarioDiasEventoProposta(event)"
+                                        style="flex:1; min-width:260px; min-height:40px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 8px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; cursor:pointer; box-sizing:border-box;">
+                                        <div id="prop-dias-evento-chips" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;"></div>
+                                    </div>
+                                    <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
+                                        title="Replicar o horário preenchido em um dia para todos os dias selecionados"
+                                        style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
+                                        <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
+                                    </button>
+                                    <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
+                                        title="Selecionar diárias no calendário"
+                                        style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                        <i class="ph ph-calendar-blank" style="font-size:0.98rem;"></i> Selecionar Diárias
+                                    </button>
+                                    <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
+                                        title="Limpar todos os dias selecionados"
+                                        style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
+                                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                    </button>
                                 </div>
-                                <button type="button" id="btn-replicar-horario-dias-evento" onclick="window.replicarHorarioDiasEventoProposta(event)"
-                                    title="Replicar o horário preenchido em um dia para todos os dias selecionados"
-                                    style="display:none; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.8rem; min-height:38px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; align-items:center; gap:5px; white-space:nowrap;">
-                                    <i class="ph ph-clock" style="font-size:0.95rem;"></i> Replicar horários
-                                </button>
-                                <button type="button" id="btn-abrir-cal-dias-evento" onclick="window.toggleCalendarioDiasEventoProposta(event)"
-                                    title="Selecionar diárias no calendário"
-                                    style="background:#7048e8; color:#fff; border:none; padding:0 0.85rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                                    <i class="ph ph-calendar-blank" style="font-size:0.98rem;"></i> Selecionar Diárias
-                                </button>
-                                <button type="button" id="btn-limpar-dias-evento" onclick="window.limparDiasEventoProposta(event)"
-                                    title="Limpar todos os dias selecionados"
-                                    style="display:none; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:0 0.65rem; min-height:38px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; align-items:center; justify-content:center;">
-                                    <i class="ph ph-trash" style="font-size:0.95rem;"></i>
-                                </button>
                             </div>
                             <div id="prop-dias-replicar-bar" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; margin-top:0.45rem;">
-                                <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                                <div id="prop-dias-replicar-opcoes-esq" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
                                     <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.76rem; font-weight:700; color:#5b21b6; cursor:pointer;">
                                         <input type="checkbox" id="prop-dias-manter" checked style="width:auto; margin:0;"> Manter estas diárias para o próximo produto
                                     </label>
@@ -6592,7 +6594,7 @@ window.salvarPropostaNova = async function() {
 
     if (window.tipoPropostaUsaDiasEvento(tipo)) {
         const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
-        if (diasGlobais.length > 0) {
+        if (diasGlobais.length > 0 && !window._propDiasEventoDesabilitadoPorServico) {
             if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
         const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
@@ -6602,6 +6604,10 @@ window.salvarPropostaNova = async function() {
         if (itensValidacao.length > 0) {
             for (let i = 0; i < itensValidacao.length; i++) {
                 const p = itensValidacao[i];
+                if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+                    p.dias_evento = [];
+                    continue;
+                }
                 const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
                 if (dItem.length === 0) {
                     alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário. Use "+ dia" na linha do produto ou copie as diárias de outro produto.');
@@ -7047,7 +7053,7 @@ window.estornarPropostaEdicao = async function() {
 
     if (window.tipoPropostaUsaDiasEvento(tipo)) {
         const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
-        if (diasGlobais.length > 0) {
+        if (diasGlobais.length > 0 && !window._propDiasEventoDesabilitadoPorServico) {
             if (!window.validarDiasEHorariosEventoSelecionados()) return;
         }
         const diasComHorariosGlobais = typeof window.obterDiasEventoComHorariosAtuais === 'function'
@@ -7057,6 +7063,10 @@ window.estornarPropostaEdicao = async function() {
         if (itensValidacao.length > 0) {
             for (let i = 0; i < itensValidacao.length; i++) {
                 const p = itensValidacao[i];
+                if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+                    p.dias_evento = [];
+                    continue;
+                }
                 const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
                 if (dItem.length === 0) {
                     alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário. Use "+ dia" na linha do produto ou copie as diárias de outro produto.');
@@ -7200,10 +7210,14 @@ window.aprovarPropostaEdicao = async function() {
     }
     if (window.tipoPropostaUsaDiasEvento(tipo)) {
         const diasGlobais = Array.isArray(window._propDiasEventoSelecionados) ? window._propDiasEventoSelecionados.filter(Boolean) : [];
-        if (diasGlobais.length > 0 && !window.validarDiasEHorariosEventoSelecionados()) return;
+        if (diasGlobais.length > 0 && !window._propDiasEventoDesabilitadoPorServico && !window.validarDiasEHorariosEventoSelecionados()) return;
         const itensValidacao = window._propProdutosAdicionados || [];
         for (let i = 0; i < itensValidacao.length; i++) {
             const p = itensValidacao[i];
+            if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+                p.dias_evento = [];
+                continue;
+            }
             const dItem = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
             if (dItem.length === 0) { alert('O produto "' + (p.produto || p.descricao || '') + '" precisa de pelo menos um Dia de Evento / Sucção com horário.'); return; }
             const faltaHorarioNoItem = dItem.some(entry => { const parsed = window._parseDiasEventoItem(entry); return !parsed.data || !window._horarioEventoIntervaloValido(parsed.horario); });
@@ -18457,6 +18471,9 @@ window.tipoPropostaEhEvento = function(tipo) {
 };
 
 window.obterQtdDiariasProdutoEvento = function(p) {
+    if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+        return 1;
+    }
     const diasArr = Array.isArray(p && p.dias_evento) ? p.dias_evento.filter(Boolean) : [];
     if (diasArr.length > 0) return diasArr.length;
     const diasContrato = parseInt(document.getElementById('prop-dias')?.value || 0, 10);
@@ -19028,6 +19045,9 @@ window.renderizarDiasEventoProposta = function() {
     if (pop && pop.style.display === 'block') {
         window._renderCalendarioPopoverDiasEvento();
     }
+    if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+    }
 };
 
 window.toggleDiaEventoProposta = function(isoDate, event) {
@@ -19115,6 +19135,7 @@ window.abrirCalendarioDiasEventoProposta = function(event) {
         event.preventDefault();
         event.stopPropagation();
     }
+    if (window._propDiasEventoDesabilitadoPorServico) return;
     const pop = document.getElementById('prop-dias-evento-popover');
     if (!pop) return;
     const { ini, fim } = typeof window.obterIntervaloPeriodoProposta === 'function'
@@ -19147,6 +19168,7 @@ window.toggleCalendarioDiasEventoProposta = function(event) {
         event.preventDefault();
         event.stopPropagation();
     }
+    if (window._propDiasEventoDesabilitadoPorServico) return;
     const pop = document.getElementById('prop-dias-evento-popover');
     if (!pop) return;
     if (pop.style.display === 'block') {
@@ -19256,13 +19278,25 @@ window._renderCalendarioPopoverDiasEvento = function() {
 
 if (!window._listenerCloseCalDiasEventoAdded && typeof document !== 'undefined') {
     window._listenerCloseCalDiasEventoAdded = true;
-    document.addEventListener('click', (e) => {
-        const wrap = document.getElementById('prop-wrapper-dias-evento');
+    const _fecharPopoverDiasEventoSeFora = (e) => {
         const pop = document.getElementById('prop-dias-evento-popover');
-        if (pop && pop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
-            pop.style.display = 'none';
+        if (!pop || pop.style.display !== 'block') return;
+        const t = e.target;
+        if (!t) return;
+        if (pop.contains(t)) return;
+        const btnAddDia = document.getElementById('btn-abrir-cal-dias-evento');
+        if (btnAddDia && btnAddDia.contains(t)) return;
+        const boxDias = document.getElementById('prop-dias-evento-box');
+        if (boxDias && boxDias.contains(t)) {
+            if (t.closest && (t.closest('.prop-chip-dia-evento') || t.closest('input') || t.closest('label') || t.closest('button'))) {
+                pop.style.display = 'none';
+            }
+            return;
         }
-    });
+        pop.style.display = 'none';
+    };
+    document.addEventListener('mousedown', _fecharPopoverDiasEventoSeFora, true);
+    document.addEventListener('click', _fecharPopoverDiasEventoSeFora, true);
 }
 
 window.atualizarBloqueioPorTipoProposta = function() {
@@ -20107,6 +20141,17 @@ window.obterFiltroPadraoEquipamentosPorTipo = function(tipoPropostaRaw = null) {
     return { grupo: '', fonte: '', incluirServicos: false };
 };
 
+window.ehProdutoMobilizacaoOuDesmobilizacaoZona = function(nomeOuObj, codigoOpt = '') {
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const nome = typeof nomeOuObj === 'object' && nomeOuObj !== null
+        ? (nomeOuObj.nome || nomeOuObj.produto || nomeOuObj.descricao || '')
+        : nomeOuObj;
+    const n = normStr(nome);
+    if (!n) return false;
+    if (!/\b(des)?mobilizac/.test(n)) return false;
+    return /\b(zc|za|zv)\b/.test(n) || /(?:mobilizac\w*|desmobilizac\w*)\s*[-_/]?\s*(zc|za|zv)\b/.test(n);
+};
+
 window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaRaw = null) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const rawTipo = (tipoPropostaRaw !== null && tipoPropostaRaw !== undefined)
@@ -20123,6 +20168,10 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         if (tipoNorm === 'evento') {
             // Tipo EVENTO: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos); serviços aparecem em Produto
             if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
+                return false;
+            }
+            // Não mostrar produtos de mobilização ZC, ZA e ZV e nem desmobilização ZC, ZA e ZV
+            if (window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p)) {
                 return false;
             }
         } else if (tipoNorm === 'venda') {
@@ -20458,6 +20507,85 @@ window.aplicarMascaraCentavosInput = function(el) {
     return valorNum;
 };
 
+window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado = function() {
+    const wrapEl = document.getElementById('prop-wrapper-dias-evento');
+    if (!wrapEl) return;
+    const areaControles = document.getElementById('prop-dias-evento-controles-area');
+    const areaReplicar = document.getElementById('prop-dias-replicar-opcoes-esq');
+    const boxEl = document.getElementById('prop-dias-evento-box');
+    const lblTitulo = document.getElementById('prop-dias-evento-lbl-titulo');
+    const lblTxt = document.getElementById('prop-dias-evento-lbl-txt');
+    const lblSub = document.getElementById('prop-dias-evento-lbl-sub');
+    const popEl = document.getElementById('prop-dias-evento-popover');
+
+    const inputCodigo = document.getElementById('prop-prod-codigo');
+    const cod = inputCodigo?.getAttribute('data-codigo') || '';
+    const nome = inputCodigo?.getAttribute('data-nome') || inputCodigo?.value?.trim() || '';
+    const temProd = Boolean(cod || nome);
+    const ehServico = Boolean(
+        temProd &&
+        typeof window.tipoPropostaUsaDiasEvento === 'function' &&
+        window.tipoPropostaUsaDiasEvento() &&
+        typeof window.produtoEhTipoServico === 'function' &&
+        window.produtoEhTipoServico({ codigo: cod, nome: nome, produto: nome })
+    );
+
+    window._propDiasEventoDesabilitadoPorServico = ehServico;
+
+    if (ehServico) {
+        if (popEl) popEl.style.display = 'none';
+        wrapEl.style.background = '#f1f5f9';
+        wrapEl.style.borderColor = '#cbd5e1';
+        if (areaControles) {
+            areaControles.style.pointerEvents = 'none';
+            areaControles.style.opacity = '0.55';
+            areaControles.style.filter = 'grayscale(1)';
+            areaControles.style.cursor = 'not-allowed';
+        }
+        if (areaReplicar) {
+            areaReplicar.style.pointerEvents = 'none';
+            areaReplicar.style.opacity = '0.5';
+            areaReplicar.style.filter = 'grayscale(1)';
+        }
+        if (boxEl) {
+            boxEl.style.background = '#e2e8f0';
+            boxEl.style.borderColor = '#cbd5e1';
+            boxEl.style.cursor = 'not-allowed';
+        }
+        if (lblTitulo) lblTitulo.style.color = '#64748b';
+        if (lblTxt) lblTxt.textContent = 'Dia de Evento / Sucção';
+        if (lblSub) {
+            lblSub.style.color = '#64748b';
+            lblSub.textContent = '(não aplicável para produto do tipo serviço)';
+        }
+    } else {
+        wrapEl.style.background = '#faf5ff';
+        wrapEl.style.borderColor = '#e9d5ff';
+        if (areaControles) {
+            areaControles.style.pointerEvents = '';
+            areaControles.style.opacity = '';
+            areaControles.style.filter = '';
+            areaControles.style.cursor = '';
+        }
+        if (areaReplicar) {
+            areaReplicar.style.pointerEvents = '';
+            areaReplicar.style.opacity = '';
+            areaReplicar.style.filter = '';
+        }
+        if (boxEl) {
+            boxEl.style.background = '#fff';
+            boxEl.style.borderColor = '#c4b5fd';
+            boxEl.style.cursor = 'pointer';
+        }
+        if (lblTitulo) lblTitulo.style.color = '#5b21b6';
+        if (lblTxt) lblTxt.textContent = 'Dia de Evento / Sucção *';
+        if (lblSub) {
+            lblSub.style.color = '#7c3aed';
+            lblSub.textContent = '(do produto que será adicionado)';
+        }
+    }
+};
+
 window.onInputProdutoPropostaTexto = async function() {
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputValor = document.getElementById('prop-prod-valor');
@@ -20471,6 +20599,9 @@ window.onInputProdutoPropostaTexto = async function() {
             inputValor.value = '0,00';
         }
         window.recalcularPreviewProdutoProposta('equip');
+        if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+            window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+        }
         return;
     }
     await window._garantirTabelasPrecoCarregadas(false);
@@ -20483,6 +20614,9 @@ window.onInputProdutoPropostaTexto = async function() {
         inputCodigo.setAttribute('data-nome', txt);
         inputValor.setAttribute('data-preco-base', String(Number(vTab)));
         window.recalcularPreviewProdutoProposta('equip');
+    }
+    if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
     }
 };
 
@@ -20584,6 +20718,9 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
         inputValor.value = window.formatarMoedaCentavosProposta(precoBase);
     }
     window.recalcularPreviewProdutoProposta('equip');
+    if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+    }
     Swal.close();
 };
 
@@ -20602,14 +20739,6 @@ window.adicionarProdutoProposta = function() {
         return;
     }
 
-    let diasSelecionados = [];
-    if (window.tipoPropostaUsaDiasEvento()) {
-        if (!window.validarDiasEHorariosEventoSelecionados()) {
-            return;
-        }
-        diasSelecionados = window.obterDiasEventoComHorariosAtuais();
-    }
-
     let codigo = inputCodigo?.getAttribute('data-codigo') || '';
     let produtoNome = inputCodigo?.getAttribute('data-nome') || '';
     if (!produtoNome || !rawProd.includes(produtoNome)) {
@@ -20622,6 +20751,16 @@ window.adicionarProdutoProposta = function() {
         }
     }
     produtoNome = String(produtoNome || '').replace(/^\d+\s*-\s*/, '').trim();
+
+    const ehProdServico = (typeof window.produtoEhTipoServico === 'function') && window.produtoEhTipoServico({ codigo, nome: produtoNome, produto: produtoNome });
+
+    let diasSelecionados = [];
+    if (window.tipoPropostaUsaDiasEvento() && !ehProdServico) {
+        if (!window.validarDiasEHorariosEventoSelecionados()) {
+            return;
+        }
+        diasSelecionados = window.obterDiasEventoComHorariosAtuais();
+    }
 
     const observacao = inputObservacao?.value?.trim() || '';
     const quantidade = parseInt(inputQuantidade?.value, 10) || 0;
@@ -20684,7 +20823,12 @@ window.adicionarProdutoProposta = function() {
         fonte_fornecimento: (typeof window.obterFonteFornecimentoEquipamento === 'function')
             ? window.obterFonteFornecimentoEquipamento({ codigo, produto: produtoNome })
             : '',
+        grupo_produto: (typeof window.obterGrupoProdutoEquipamento === 'function')
+            ? window.obterGrupoProdutoEquipamento({ codigo, produto: produtoNome })
+            : (ehProdServico ? 'SERVIÇOS' : ''),
+        eh_servico: Boolean(ehProdServico),
         manut_semana: (() => {
+            if (ehProdServico) return 0;
             const usaM = typeof window.tipoPropostaUsaManutencoes === 'function' ? window.tipoPropostaUsaManutencoes() : false;
             if (!usaM) return 0;
             const mSel = (typeof window.obterManutSemanaSelecionada === 'function') ? window.obterManutSemanaSelecionada() : 0;
@@ -20693,8 +20837,8 @@ window.adicionarProdutoProposta = function() {
         })(),
         observacao: observacao,
         quantidade: quantidade,
-        dias_evento: [...diasSelecionados],
-        manutencao_diaria: Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
+        dias_evento: ehProdServico ? [] : [...diasSelecionados],
+        manutencao_diaria: ehProdServico ? false : Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
         valor_base: precoBase,
         desconto_tipo: descontoTipo,
         desconto_pct: descontoTipo === 'pct' ? descPct : 0,
@@ -20729,11 +20873,15 @@ window.adicionarProdutoProposta = function() {
         valTotalEl.value = '0,00';
     }
 
-    if (window.tipoPropostaUsaDiasEvento() && typeof window.manterDiasProximoProduto === 'function' && !window.manterDiasProximoProduto()) {
+    if (!ehProdServico && window.tipoPropostaUsaDiasEvento() && typeof window.manterDiasProximoProduto === 'function' && !window.manterDiasProximoProduto()) {
         window._propDiasEventoSelecionados = [];
         window._propDiasEventoHorarios = {};
         window._ultimoHorarioDiaEventoEditado = '';
         if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
+    }
+
+    if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
     }
 
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();

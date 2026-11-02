@@ -456,6 +456,30 @@
         return String(achado.fonte_fornecimento || achado.fonte || achado.grupo_produto || '').trim();
     };
 
+    window.obterGrupoProdutoEquipamento = function (itemOuProd) {
+        if (!itemOuProd) return '';
+        const direto = String(itemOuProd.grupo_produto || itemOuProd.grupo || '').trim();
+        if (direto) return direto;
+        const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos && window._boxCacheDadosAux.equipamentos.length)
+            ? window._boxCacheDadosAux.equipamentos
+            : (window._equipamentosEstoqueData || []);
+        const cod = norm(itemOuProd.codigo);
+        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const achado = lista.find(eq =>
+            (cod && cod !== '—' && norm(eq.codigo || eq.id) === cod) ||
+            (nome && norm(eq.nome) === nome)
+        );
+        if (!achado) return '';
+        return String(achado.grupo_produto || achado.grupo || '').trim();
+    };
+
+    window.produtoEhTipoServico = function (itemOuProd) {
+        if (!itemOuProd) return false;
+        if (itemOuProd.eh_servico === true) return true;
+        const g = norm(window.obterGrupoProdutoEquipamento(itemOuProd));
+        return g === 'servicos' || g === 'servico';
+    };
+
     window.propostaTemProdutoParceiros = function (propOuItens) {
         let itensArr = [];
         if (Array.isArray(propOuItens)) {
@@ -883,8 +907,9 @@
         const itensFormatados = (itensRaw || []).map(it => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
             const nomeProd = String(it.produto || it.descricao || it.nome || 'EQUIPAMENTO').replace(/^\d+\s*-\s*/, '').trim();
+            const ehItemServico = typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(it);
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = ehModeloEventoCalc
+            const nDiarias = (ehModeloEventoCalc && !ehItemServico)
                 ? (diasArr.length > 0
                     ? diasArr.length
                     : (diasContratoPropNum > 0
@@ -905,8 +930,8 @@
                 foto_url: window.obterFotoPropostaEquipamento(it),
                 link_url: window.obterLinkPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
-                dias_evento_texto: formatarDiasEventoProdutoCurto(it, prop),
-                quant_diarias: nDiarias,
+                dias_evento_texto: ehItemServico ? '' : formatarDiasEventoProdutoCurto(it, prop),
+                quant_diarias: ehItemServico ? '—' : nDiarias,
                 unit: base,
                 por_dia: grossDia,
                 desconto: descDia * nDiarias,

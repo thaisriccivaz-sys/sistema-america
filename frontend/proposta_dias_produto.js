@@ -253,12 +253,15 @@
 
     if (!window._listenerCloseCalProdGridAdded && typeof document !== 'undefined') {
         window._listenerCloseCalProdGridAdded = true;
-        document.addEventListener('click', (e) => {
+        const _fecharSeClicouForaProdGrid = (e) => {
             const pop = document.getElementById('prop-dias-produto-grid-popover');
-            if (pop && pop.style.display === 'block' && !pop.contains(e.target)) {
-                window.fecharCalendarioDiasProdutoGrid();
-            }
-        });
+            if (!pop || pop.style.display !== 'block') return;
+            if (pop.contains(e.target)) return;
+            if (e.target && e.target.closest && e.target.closest('[onclick*="abrirCalendarioDiasProdutoGrid"]')) return;
+            window.fecharCalendarioDiasProdutoGrid();
+        };
+        document.addEventListener('mousedown', _fecharSeClicouForaProdGrid, true);
+        document.addEventListener('click', _fecharSeClicouForaProdGrid, true);
     }
 
     /* Aplica as diárias de um produto a todos os outros produtos da proposta */
@@ -269,7 +272,11 @@
         const outros = itens.length - 1;
         if (outros <= 0) return;
         if (!confirm(`Aplicar as diárias de "${nomeProduto(origem)}" aos outros ${outros} produto(s)? As diárias atuais deles serão substituídas.`)) return;
-        itens.forEach((p, i) => { if (i !== pIdx) p.dias_evento = [...origem.dias_evento]; });
+        itens.forEach((p, i) => {
+            if (i !== pIdx && !(typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p))) {
+                p.dias_evento = [...origem.dias_evento];
+            }
+        });
         window.renderizarProdutosPropostaGrid();
         if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Diárias replicadas em ${outros} produto(s).`);
     };
@@ -282,6 +289,9 @@
 
     /* Diárias de um produto na tabela: chips com horário editável (de ... até ... ou Horário comercial), remover, + dia e replicar */
     window.htmlDiasProdutoGrid = function (p, idx, total) {
+        if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+            return '';
+        }
         if (Array.isArray(p.dias_evento)) {
             p.dias_evento = p.dias_evento.filter(Boolean).sort((a, b) => parse(a).data.localeCompare(parse(b).data));
         }
@@ -327,6 +337,7 @@
     window.obterDiasEventoUniaoProposta = function () {
         const mapa = {};
         lista().forEach(p => {
+            if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) return;
             (Array.isArray(p.dias_evento) ? p.dias_evento : []).forEach(d => {
                 const x = parse(d);
                 if (!x.data) return;
@@ -344,6 +355,10 @@
         const legado = montar(info.datas, info.horarios);
         if (!legado.length) return;
         lista().forEach(p => {
+            if (typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(p)) {
+                p.dias_evento = [];
+                return;
+            }
             if (!Array.isArray(p.dias_evento) || p.dias_evento.length === 0) p.dias_evento = [...legado];
         });
     };
