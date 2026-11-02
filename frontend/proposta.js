@@ -17650,13 +17650,14 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="${exibirColExcluirModal ? 7 : 6}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
+                return `<tr><td colspan="${exibirColExcluirModal ? 8 : 7}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
             }
             return list.map(p => {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
                 const codExib = isModoContratoModal ? (p.contrato || '01') : (p.codigo || '—');
+                const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
                     ? ((p.situacao_contrato && !['APROVADA', 'APROVADO', 'ESTORNADO'].includes(String(p.situacao_contrato).trim().toUpperCase())) ? p.situacao_contrato : 'Em Elaboração')
                     : (p.fase_negociacao || '—');
@@ -17665,6 +17666,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${codExib}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
+                        <td style="padding:10px 12px; font-weight:600; color:#334155; text-align:center; white-space:nowrap;">${tipoExib}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${dataFmt}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${faseExib}</td>
@@ -17712,12 +17714,13 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Código'}</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Código'}</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:120px; white-space:nowrap;">Data</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center !important; width:130px; white-space:nowrap;"><div style="text-align:center !important; display:block !important; width:100% !important; margin:0 auto !important; padding:0 !important;">Valor</div></th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:180px; white-space:nowrap;">Fase</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:130px; white-space:nowrap;">Tipo</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:110px; white-space:nowrap;">Data</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center !important; width:125px; white-space:nowrap;"><div style="text-align:center !important; display:block !important; width:100% !important; margin:0 auto !important; padding:0 !important;">Valor</div></th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:165px; white-space:nowrap;">Fase</th>
                                         ${exibirColExcluirModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Excluir</th>' : ''}
                                     </tr>
                                 </thead>
