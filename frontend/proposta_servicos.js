@@ -50,7 +50,7 @@
         const chkFob = document.getElementById('prop-serv-fob');
         if (wrapFob) wrapFob.style.display = permite ? 'block' : 'none';
         if (gridVal) {
-            gridVal.style.gridTemplateColumns = permite ? '1fr 1fr 1.1fr 1.2fr 1.1fr' : '1fr 1fr 1.1fr 1.2fr';
+            gridVal.style.gridTemplateColumns = permite ? '1fr 1fr 1.2fr 1.1fr' : '1fr 1fr 1.2fr';
         }
         if (!permite && chkFob && chkFob.checked) {
             chkFob.checked = false;
@@ -91,7 +91,7 @@
         return (window._propServicosAdicionados || []).reduce((acc, s) => {
             if (s.frete_fob) return acc;
             if (s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) return acc + parseFloat(s.valor_total);
-            return acc + ((parseFloat(s.quantidade) || 0) * (parseFloat(s.valor ?? s.valor_unitario ?? 0) || 0));
+            return acc + (parseFloat(s.valor ?? s.valor_unitario ?? 0) || 0);
         }, 0);
     };
 
@@ -106,7 +106,7 @@
                 <span id="prop-servicos-hint" style="font-size:0.72rem; font-weight:500; color:#64748b;">${obrigatorio ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB' : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)'}</span>
             </h4>
 
-            <div style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
+            <div style="display:grid; grid-template-columns:2fr 2.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
                 <div>
                     <label class="prop-lbl">Serviço</label>
                     <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -125,10 +125,6 @@
                     <input type="text" id="prop-serv-obs" placeholder="Observação do serviço..." style="${inputCss} height:28px;">
                 </div>
                 <div>
-                    <label class="prop-lbl">Quantidade</label>
-                    <input type="number" id="prop-serv-qtd" value="1" min="1" oninput="window.recalcularPreviewServicoProposta('qtd')" style="${inputCss} height:28px;">
-                </div>
-                <div>
                     <button type="button" onclick="window.adicionarServicoProposta()"
                         style="background:#16a34a; color:#fff; border:none; border-radius:4px; padding:0 1.2rem; height:28px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
                         <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
@@ -136,7 +132,7 @@
                 </div>
             </div>
 
-            <div id="prop-serv-valores-grid" style="display:grid; grid-template-columns:1fr 1fr 1.1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
+            <div id="prop-serv-valores-grid" style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.65rem;">
                 <div>
                     <label class="prop-lbl">Desconto (%)</label>
                     <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-desc-pct" value="${fobInicial ? 'FOB' : '0'}" ${fobInicial ? 'disabled' : 'min="0" max="100" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('pct')" style="${inputCss}">
@@ -146,14 +142,9 @@
                     <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-desc-rs" value="${fobInicial ? 'FOB' : '0'}" ${fobInicial ? 'disabled' : 'min="0" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('rs')" style="${inputCss}">
                 </div>
                 <div>
-                    <label class="prop-lbl" id="prop-serv-valor-lbl">${fobInicial ? 'Valor Unitário (R$) — FOB' : 'Valor Unitário (R$) *'}</label>
+                    <label class="prop-lbl" id="prop-serv-valor-lbl">${fobInicial ? 'Valor (R$) — FOB' : 'Valor (R$) *'}</label>
                     <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-valor" ${fobInicial ? 'disabled value="FOB"' : 'step="0.01" min="0" value="0" placeholder="0,00"'} oninput="window.recalcularPreviewServicoProposta('unit')"
                         style="${inputCss} font-weight:700; color:#0f172a; background:#fff;">
-                </div>
-                <div>
-                    <label class="prop-lbl">Valor Total (R$)</label>
-                    <input type="${fobInicial ? 'text' : 'number'}" id="prop-serv-total" ${fobInicial ? 'disabled value="FOB"' : 'value="0" min="0" step="0.01"'} oninput="window.recalcularPreviewServicoProposta('total')"
-                        style="width:100%;padding:0.55rem;border:2px solid #7048e8;border-radius:6px;font-size:0.9rem;font-weight:800;color:#4c1d95;background:#fff;box-sizing:border-box;">
                 </div>
                 <div id="prop-serv-fob-wrap" style="display:none;">
                     <label class="prop-lbl" style="display:block;">Frete</label>
@@ -170,15 +161,13 @@
                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
                             <th style="padding:10px 12px; font-weight:700;">Serviço</th>
                             <th style="padding:10px 12px; font-weight:700;">Observação</th>
-                            <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
                             <th style="padding:10px 12px; font-weight:700; width:130px; text-align:center;">Desconto</th>
-                            <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Unit.</th>
-                            <th style="padding:10px 12px; font-weight:700; width:125px; text-align:right;">Valor Total</th>
+                            <th style="padding:10px 12px; font-weight:700; width:135px; text-align:right;">Valor</th>
                             <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="prop-servicos-tbody">
-                        <tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -205,13 +194,12 @@
         const fob = !!document.getElementById('prop-serv-fob')?.checked;
         const lbl = document.getElementById('prop-serv-valor-lbl');
         const obrig = window.tipoPropostaServicoObrigatorio();
-        if (lbl) lbl.textContent = fob ? 'Valor Unitário (R$) — FOB' : (obrig ? 'Valor Unitário (R$) *' : 'Valor Unitário (R$)');
+        if (lbl) lbl.textContent = fob ? 'Valor (R$) — FOB' : (obrig ? 'Valor (R$) *' : 'Valor (R$)');
         const pctEl = document.getElementById('prop-serv-desc-pct');
         const rsEl = document.getElementById('prop-serv-desc-rs');
         const unitEl = document.getElementById('prop-serv-valor');
-        const totalEl = document.getElementById('prop-serv-total');
         if (fob) {
-            [pctEl, rsEl, unitEl, totalEl].forEach(el => {
+            [pctEl, rsEl, unitEl].forEach(el => {
                 if (!el) return;
                 el.type = 'text';
                 el.value = 'FOB';
@@ -226,11 +214,6 @@
                 unitEl.type = 'number';
                 unitEl.value = base > 0 ? base.toFixed(2) : '0';
                 unitEl.setAttribute('data-desc-mode', '');
-            }
-            if (totalEl) {
-                totalEl.disabled = false;
-                totalEl.type = 'number';
-                totalEl.value = '0';
             }
             window.recalcularPreviewServicoProposta('equip');
         }
@@ -251,14 +234,12 @@
     };
 
     window.recalcularPreviewServicoProposta = function (origem = '') {
-        const qtdEl = document.getElementById('prop-serv-qtd');
         const pctEl = document.getElementById('prop-serv-desc-pct');
         const rsEl = document.getElementById('prop-serv-desc-rs');
         const unitEl = document.getElementById('prop-serv-valor');
-        const totalEl = document.getElementById('prop-serv-total');
-        if (!unitEl || !totalEl) return;
+        if (!unitEl) return;
         if (document.getElementById('prop-serv-fob')?.checked) {
-            [pctEl, rsEl, unitEl, totalEl].forEach(el => {
+            [pctEl, rsEl, unitEl].forEach(el => {
                 if (!el) return;
                 el.type = 'text';
                 el.value = 'FOB';
@@ -266,25 +247,13 @@
             });
             return;
         }
-        const qtd = Math.max(1, parseFloat(qtdEl?.value) || 1);
 
-        if (origem === 'total') {
-            const t = Math.max(0, parseFloat(totalEl.value) || 0);
-            const u = t / qtd;
-            unitEl.value = u.toFixed(2);
-            unitEl.setAttribute('data-preco-base', String(u));
-            unitEl.setAttribute('data-desc-mode', '');
-            if (pctEl) pctEl.value = '0';
-            if (rsEl) rsEl.value = '0';
-            return;
-        }
-        if (origem === 'unit') {
+        if (origem === 'unit' || origem === 'total') {
             const u = Math.max(0, parseFloat(unitEl.value) || 0);
             unitEl.setAttribute('data-preco-base', String(u));
             unitEl.setAttribute('data-desc-mode', '');
             if (pctEl) pctEl.value = '0';
             if (rsEl) rsEl.value = '0';
-            totalEl.value = (u * qtd).toFixed(2);
             return;
         }
         if (origem === 'pct') {
@@ -298,23 +267,18 @@
         const baseAttr = unitEl.getAttribute('data-preco-base');
         const baseParsed = (baseAttr !== null && baseAttr !== '') ? parseFloat(baseAttr) : NaN;
         const base = Math.max(0, !isNaN(baseParsed) && baseParsed > 0 ? baseParsed : (parseFloat(unitEl.value) || 0));
-        const bruto = base * qtd;
         const modo = unitEl.getAttribute('data-desc-mode') || (parseFloat(pctEl?.value) > 0 ? 'pct' : (parseFloat(rsEl?.value) > 0 ? 'rs' : ''));
         let unitLiq = base;
-        let totalLiq = bruto;
         if (modo === 'pct' && parseFloat(pctEl?.value) > 0) {
             const pct = Math.min(100, Math.max(0, parseFloat(pctEl.value) || 0));
-            const descRs = bruto * (pct / 100);
-            totalLiq = Math.max(0, bruto - descRs);
-            unitLiq = Math.max(0, base * (1 - pct / 100));
+            const descRs = base * (pct / 100);
+            unitLiq = Math.max(0, base - descRs);
             if (rsEl) rsEl.value = descRs.toFixed(2);
         } else if (modo === 'rs' && parseFloat(rsEl?.value) > 0) {
             const descRs = Math.max(0, parseFloat(rsEl.value) || 0);
-            totalLiq = Math.max(0, bruto - descRs);
-            unitLiq = qtd > 0 ? totalLiq / qtd : 0;
+            unitLiq = Math.max(0, base - descRs);
         }
         unitEl.value = unitLiq.toFixed(2);
-        totalEl.value = totalLiq.toFixed(2);
     };
 
     window._listarServicosEstoque = async function () {
@@ -476,22 +440,16 @@
         }
         nome = String(nome || '').replace(/^\d+\s*-\s*/, '').trim();
 
-        const qtd = parseInt(document.getElementById('prop-serv-qtd')?.value, 10) || 0;
-        if (qtd <= 0) { alert('A quantidade deve ser maior que zero.'); return; }
+        const qtd = 1;
 
         const unitEl = document.getElementById('prop-serv-valor');
-        const totalEl = document.getElementById('prop-serv-total');
         const pctEl = document.getElementById('prop-serv-desc-pct');
         const rsEl = document.getElementById('prop-serv-desc-rs');
         const permiteFob = window.servicoPermiteFreteFob(nome, codigo);
         const fob = permiteFob && !!document.getElementById('prop-serv-fob')?.checked;
 
         let unit = fob ? 0 : parseFloat(unitEl?.value); if (isNaN(unit)) unit = 0;
-        let total = fob ? 0 : parseFloat(totalEl?.value); if (isNaN(total)) total = 0;
-        if (!fob) {
-            if (unit <= 0 && total > 0) unit = total / qtd;
-            if (total <= 0 && unit > 0) total = unit * qtd;
-        }
+        let total = fob ? 0 : unit;
 
         if (!fob && total <= 0 && window.tipoPropostaServicoObrigatorio()) {
             alert(permiteFob
@@ -518,12 +476,12 @@
             servico: nome,
             descricao: nome,
             observacao: (document.getElementById('prop-serv-obs')?.value || '').trim(),
-            quantidade: qtd,
+            quantidade: 1,
             frete_fob: fob,
             valor_base: valorBase,
             desconto_tipo: descontoTipo,
             desconto_pct: descontoTipo === 'pct' ? pct : 0,
-            desconto_rs: descontoTipo === 'valor' ? rs : (descontoTipo === 'pct' ? (valorBase * qtd * pct / 100) : 0),
+            desconto_rs: descontoTipo === 'valor' ? rs : (descontoTipo === 'pct' ? (valorBase * pct / 100) : 0),
             valor: fob ? 0 : unit,
             valor_unitario: fob ? 0 : unit,
             valor_total: fob ? 0 : total
@@ -533,11 +491,9 @@
         inp.removeAttribute('data-codigo');
         inp.removeAttribute('data-nome');
         const obsEl = document.getElementById('prop-serv-obs'); if (obsEl) obsEl.value = '';
-        const qEl = document.getElementById('prop-serv-qtd'); if (qEl) qEl.value = '1';
         if (pctEl) pctEl.value = '0';
         if (rsEl) rsEl.value = '0';
         if (unitEl) { unitEl.value = '0'; unitEl.removeAttribute('data-preco-base'); unitEl.removeAttribute('data-desc-mode'); }
-        if (totalEl) totalEl.value = '0';
         const fobEl = document.getElementById('prop-serv-fob'); if (fobEl) fobEl.checked = false;
         window.alternarFreteFobServicoProposta();
         window.atualizarVisibilidadeFobServicoInput();
@@ -549,41 +505,17 @@
     window.atualizarItemServicoProposta = function (idx, campo, valorNovo) {
         const item = (window._propServicosAdicionados || [])[idx];
         if (!item) return;
-        if (campo === 'quantidade') {
-            const qtd = Math.max(1, parseInt(valorNovo, 10) || 1);
-            item.quantidade = qtd;
-            if (item.frete_fob) {
-                item.valor = 0;
-                item.valor_unitario = 0;
-                item.valor_total = 0;
-            } else {
-                const vBase = parseFloat(item.valor_base ?? item.valor ?? item.valor_unitario ?? 0) || 0;
-                if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
-                    const pct = parseFloat(item.desconto_pct) || 0;
-                    item.valor = Math.max(0, vBase * (1 - pct / 100));
-                    item.valor_unitario = item.valor;
-                    item.valor_total = item.valor * qtd;
-                    item.desconto_rs = (vBase * qtd) * (pct / 100);
-                } else if (item.desconto_tipo === 'valor' && parseFloat(item.desconto_rs) > 0) {
-                    const rs = parseFloat(item.desconto_rs) || 0;
-                    item.valor_total = Math.max(0, (vBase * qtd) - rs);
-                    item.valor = item.valor_total / qtd;
-                    item.valor_unitario = item.valor;
-                } else {
-                    item.valor_total = (parseFloat(item.valor ?? item.valor_unitario ?? 0) || 0) * qtd;
-                }
-            }
-        } else if (campo === 'valor') {
+        item.quantidade = 1;
+        if (campo === 'valor') {
             if (item.frete_fob) return;
             const vNovo = Math.max(0, parseFloat(valorNovo) || 0);
-            const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
             item.valor = vNovo;
             item.valor_unitario = vNovo;
             item.valor_base = vNovo;
             item.desconto_tipo = '';
             item.desconto_pct = 0;
             item.desconto_rs = 0;
-            item.valor_total = vNovo * qtd;
+            item.valor_total = vNovo;
         } else if (campo === 'observacao') {
             item.observacao = String(valorNovo || '');
         } else if (campo === 'frete_fob') {
@@ -618,17 +550,16 @@
         if (!tbody) return;
         const lista = window._propServicosAdicionados || [];
         if (lista.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>';
             return;
         }
         const linhas = lista.map((s, idx) => {
+            s.quantidade = 1;
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
             const permiteFobItem = window.servicoPermiteFreteFob(nome, s.codigo);
             if (!permiteFobItem && s.frete_fob) s.frete_fob = false;
-            const qtd = parseInt(s.quantidade, 10) || 1;
             const isFob = permiteFobItem && !!s.frete_fob;
-            const vUnit = isFob ? 0 : (parseFloat(s.valor ?? s.valor_unitario ?? 0) || 0);
-            const subtotal = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : qtd * vUnit);
+            const vUnit = isFob ? 0 : (parseFloat(s.valor ?? s.valor_unitario ?? s.valor_total ?? 0) || 0);
             let descHtml = '<span style="color:#94a3b8;">—</span>';
             if (isFob) {
                 descHtml = '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:800; font-size:0.75rem;">FOB</span>';
@@ -649,18 +580,13 @@
                     <input type="text" value="${esc(s.observacao || '')}" onchange="window.atualizarItemServicoProposta(${idx}, 'observacao', this.value)" placeholder="Observação..."
                         style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box;">
                 </td>
-                <td style="padding:8px 10px; text-align:center;">
-                    <input type="number" min="1" value="${qtd}" onchange="window.atualizarItemServicoProposta(${idx}, 'quantidade', this.value)"
-                        style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700;">
-                </td>
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
                     ${isFob
-                        ? '<input type="text" value="FOB" disabled style="width:105px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed;">'
-                        : `<input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)" style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">`
+                        ? '<input type="text" value="FOB" disabled style="width:115px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed;">'
+                        : `<input type="number" step="0.01" min="0" value="${vUnit.toFixed(2)}" onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)" style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">`
                     }
                 </td>
-                <td style="padding:8px 10px; font-weight:800; color:${isFob ? '#b45309' : '#16a34a'}; text-align:right; white-space:nowrap;">${isFob ? 'FOB' : 'R$ ' + fmtBRL(subtotal)}</td>
                 <td style="padding:8px 10px; text-align:center;">
                     <button type="button" onclick="window.removerServicoProposta(${idx})" title="Remover Serviço"
                         style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
@@ -669,12 +595,7 @@
                 </td>
             </tr>`;
         }).join('');
-        tbody.innerHTML = linhas + `
-            <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                <td colspan="5" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Serviços:</td>
-                <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${fmtBRL(window._somaServicosProposta())}</td>
-                <td></td>
-            </tr>`;
+        tbody.innerHTML = linhas;
     };
 
     /* Validação usada ao salvar/estornar. Retorna true se pode prosseguir. */

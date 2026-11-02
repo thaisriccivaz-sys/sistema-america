@@ -1534,8 +1534,11 @@ body.has-open-tabs .page-header {
 input:not([type="password"]):not([type="email"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not(#login-username):not(#login-password),
 select,
 select option,
-textarea {
+textarea:not(#equipamento-est-descricao-proposta) {
     text-transform: uppercase !important;
+}
+#equipamento-est-descricao-proposta {
+    text-transform: none !important;
 }
 input::placeholder,
 textarea::placeholder {

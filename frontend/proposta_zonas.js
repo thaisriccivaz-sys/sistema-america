@@ -149,7 +149,7 @@
         const thManut = document.getElementById('prop-th-manut-semana');
         const usa = window.tipoPropostaUsaManutencoes(tipo);
         if (wrap) wrap.style.display = usa ? 'block' : 'none';
-        if (grid) grid.style.gridTemplateColumns = usa ? '2fr 2.5fr 0.8fr 1fr' : '2fr 2.5fr 0.8fr';
+        if (grid) grid.style.gridTemplateColumns = usa ? '1fr 2fr 2.5fr 0.8fr' : '2fr 2.5fr 0.8fr';
         if (thManut) thManut.style.display = usa ? 'table-cell' : 'none';
         if (!usa) {
             const inp = document.getElementById('prop-prod-manut');

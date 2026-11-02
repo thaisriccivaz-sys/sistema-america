@@ -2093,7 +2093,7 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${isNovo ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
                     </button>
-                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#16a34a; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${isNovo ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:${isNovo ? '#16a34a' : '#cbd5e1'}; color:${isNovo ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${isNovo ? 'pointer' : 'not-allowed'}; pointer-events:${isNovo ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(window._modoTelaComercial === 'contrato' || String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#172554'" onmouseout="this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
@@ -2420,6 +2420,12 @@ function _renderFormPropostaInt() {
                         
                         <!-- Inputs para adicionar produto -->
                         <div id="prop-prod-add-grid" style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
+                            <div id="prop-wrapper-manut" style="display:none;">
+                                <label class="prop-lbl" title="Quantidade de manutenções por semana (1 x, 2 x, 3 x...). Destaca em azul os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
+                                <input type="text" id="prop-prod-manut" inputmode="numeric" placeholder="Ex: 1 x" title="1 x, 2 x, 3 x..."
+                                    oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
+                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
+                            </div>
                             <div>
                                 <label class="prop-lbl">Produto</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -2441,12 +2447,6 @@ function _renderFormPropostaInt() {
                                 <input type="number" id="prop-prod-quantidade" value="1" min="1"
                                     oninput="window.recalcularPreviewProdutoProposta('qtd')"
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
-                            </div>
-                            <div id="prop-wrapper-manut" style="display:none;">
-                                <label class="prop-lbl" title="Quantidade de manutenções por semana (1 x, 2 x, 3 x...). Destaca em azul os produtos com o código O01...ZV/ZA/ZC correspondente.">Quant. manut. semana</label>
-                                <input type="text" id="prop-prod-manut" inputmode="numeric" placeholder="Ex: 1 x" title="1 x, 2 x, 3 x..."
-                                    oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
-                                    style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
                             </div>
                         </div>
 
@@ -2762,6 +2762,23 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     if (btnExcluir) {
         btnExcluir.style.display = (_propostasEditandoId && window.podeExcluirPropostaAtual(prop)) ? 'inline-flex' : 'none';
     }
+
+    const btnSalvar = document.getElementById('btn-prop-salvar');
+    if (btnSalvar) {
+        const podeSalvar = !Boolean(_propostasEditandoId) || Boolean(window._propFormEditadoNaoSalvo);
+        btnSalvar.disabled = !podeSalvar;
+        if (podeSalvar) {
+            btnSalvar.style.background = '#16a34a';
+            btnSalvar.style.color = '#ffffff';
+            btnSalvar.style.cursor = 'pointer';
+            btnSalvar.style.pointerEvents = 'auto';
+        } else {
+            btnSalvar.style.background = '#cbd5e1';
+            btnSalvar.style.color = '#64748b';
+            btnSalvar.style.cursor = 'not-allowed';
+            btnSalvar.style.pointerEvents = 'none';
+        }
+    }
 };
 
 window.marcarPropostaComoEditada = function() {
@@ -2784,6 +2801,7 @@ window.onChangeClientePropostaInput = function(novoValor) {
     const antTrim = String(window._ultimoClienteNomePropostaAtivo || '').trim();
     if (valTrim !== antTrim) {
         window._ultimoClienteNomePropostaAtivo = valTrim;
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         const contatoEl = document.getElementById('prop-contato');
         if (contatoEl) contatoEl.value = '';
         const dropContato = document.getElementById('prop-contato-dropdown');
@@ -5404,6 +5422,7 @@ window.selecionarOpcaoDropdownContatoProposta = function(nome, empNome) {
         inp.value = nome;
         inp.blur();
     }
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     const cliInp = document.getElementById('prop-cliente');
     if (cliInp && !cliInp.value.trim() && empNome) {
         cliInp.value = empNome;
@@ -6101,6 +6120,7 @@ window.limparFormPropostaNovo = function() {
 };
 
 window.salvarPropostaNova = async function() {
+    if (_propostasEditandoId && !window._propFormEditadoNaoSalvo) return;
     console.log('[DEBUG] salvarPropostaNova called. _propostasEditandoId =', _propostasEditandoId);
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => parseFloat(document.getElementById(id)?.value || 0);
@@ -13270,6 +13290,7 @@ window.modalSelecionarEndereco = function(idx) {
     const propEnderecoInput = document.getElementById('prop-endereco');
     if (propEnderecoInput) {
         propEnderecoInput.value = fullAddress;
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         
         // Trigger classification and checkbox mapping immediately
         if (typeof window.classificarRegiaoEDias === 'function') {
@@ -19218,6 +19239,7 @@ window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coorden
         inp.value = textoCompleto;
         inp.blur();
     }
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (coordenadas && coordenadas.trim() && window._enderecoCoordenadasCache) {
         const parts = coordenadas.split(',');
         if (parts.length === 2) {
@@ -22574,12 +22596,6 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                     </tr>
                 `).join('')}
             </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="2" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS SERVIÇOS</td>
-                    <td style="padding:6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalValoresComp)}</td>
-                </tr>
-            </tfoot>
         </table>
     ` : '';
 

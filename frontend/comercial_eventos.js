@@ -153,6 +153,7 @@
         if (inp) {
             inp.value = String(nome || '');
         }
+        if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
         window.fecharDropdownEventosProposta();
     };
 

@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <script src="/comercial_boxes.js?v=20261101v26"></script>
+    <script src="/comercial_boxes.js?v=20261101v27"></script>
     <script>
     (function () {
         var raiz = document.getElementById('proposta-raiz');
@@ -224,14 +224,12 @@
                     '</tfoot></table>';
             }
 
-            var somaServicos = servicos.reduce(function (acc, sv) { return acc + ((sv.fob || sv.cortesia) ? 0 : (Number(sv.total) || 0)); }, 0);
             var valoresCompHtml = servicos.length > 0 ? (
                 '<div style="margin-top:10px; border-top:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:5px 0; text-align:center; font-weight:700; font-size:12px; color:#475569;">Serviços / Valores Complementares</div>' +
                 '<table style="width:100%; border-collapse:collapse; font-size:11px; color:#1e293b; margin-top:2px;">' +
                 '<thead><tr style="border-bottom:1px solid #cbd5e1; color:#334155; font-weight:700;">' +
                 '<th style="text-align:left; padding:5px 6px;">Descrição</th>' +
                 '<th style="text-align:left; padding:5px 6px;">Observação</th>' +
-                '<th style="text-align:center; padding:5px 6px; width:55px;">Qtde</th>' +
                 '<th style="text-align:right; padding:5px 6px; width:110px;">Valor</th>' +
                 '</tr></thead><tbody>' +
                 servicos.map(function (sv) {
@@ -239,11 +237,10 @@
                     return '<tr style="border-bottom:1px solid #e2e8f0;">' +
                         '<td style="padding:5px 6px;">' + esc(sv.nome) + '</td>' +
                         '<td style="padding:5px 6px;">' + esc(sv.observacao || '') + '</td>' +
-                        '<td style="padding:5px 6px; text-align:center;">' + esc(sv.quantidade || 1) + '</td>' +
                         '<td style="padding:5px 6px; text-align:right;">' + valExib + '</td>' +
                         '</tr>';
                 }).join('') +
-                '</tbody><tfoot><tr><td colspan="3" style="padding:6px; text-align:right; font-weight:700;">VALOR TOTAL DOS SERVIÇOS</td><td style="padding:6px; text-align:right; font-weight:700;">R$ ' + fmtMoeda(somaServicos) + '</td></tr></tfoot></table>'
+                '</tbody></table>'
             ) : '';
 
             var linhasInfo = Array.isArray(imp.linhas_informacoes) ? imp.linhas_informacoes : [];
@@ -343,39 +340,15 @@
                 '</div>';
         }
 
-        function montarHtmlFinalLinkAssinado() {
-            var d = estado.dados || {};
-            if (!d.assinatura_url) return '';
-            var urlAditivo = obterUrlImagemAditivo();
-            var jaTemBoxAditivo = Array.isArray(estado.boxes) && estado.boxes.some(function (b) {
-                return b && String(b.modelo_tipo || '').toUpperCase() === 'ADITIVO' && b.tipo !== 'quadro_evento';
-            });
-            var htmlAditivo = (urlAditivo && !jaTemBoxAditivo)
-                ? '<img src="' + esc(urlAditivo) + '" alt="Informação de Aditivo" style="width:100%; height:auto; display:block;">'
-                : '';
-            var urlImg = obterUrlImagemAceite();
-            var htmlAceite = urlImg
-                ? '<img src="' + esc(urlImg) + '" alt="Aceite da Proposta" style="width:100%; height:auto; display:block;">'
-                : '';
-            return '<div style="max-width:960px; margin:0 auto; background:#fff;">' +
-                htmlAditivo +
-                htmlAceite +
-                '</div>' +
-                montarHtmlBlocoAssinaturaSalva();
-        }
-
         function exibirImagemAceite() {
             var d = estado.dados || {};
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             if (jaAssinado && d.assinatura_url) {
-                if (secaoAceite) {
-                    secaoAceite.innerHTML = montarHtmlFinalLinkAssinado();
-                    secaoAceite.style.display = 'block';
-                }
-                modalAceiteBody.innerHTML = montarHtmlQuadroAditivoAceite(visao()) + montarHtmlBlocoAssinaturaSalva();
-                modalAceite.style.display = 'flex';
-                if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
-                    requestAnimationFrame(function () { window.ajustarAlturaQuadroValoresBoxes(modalAceiteBody); });
+                modalAceite.style.display = 'none';
+                desenhar();
+                var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
+                if (elAssin && typeof elAssin.scrollIntoView === 'function') {
+                    setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
                 }
                 return;
             }
@@ -551,23 +524,23 @@
             var d = estado.dados;
             var jaAssinado = !!(d.assinatura_url || estado.aprovado);
             var btnAprovarEl = document.getElementById('pp-btn-aprovar');
-            if (typeof window.renderListaBoxesCompletaHtml === 'function') {
-                raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
-            } else {
-                raiz.innerHTML = estado.boxes.map(function (b) {
-                    return window.boxRenderHtml(b, v, { proposta: estado.dados });
-                }).join('');
-            }
-            if (secaoAceite) {
-                if (jaAssinado && d.assinatura_url) {
-                    secaoAceite.innerHTML = montarHtmlFinalLinkAssinado();
-                    secaoAceite.style.display = 'block';
-                } else {
+            if (jaAssinado && d.assinatura_url) {
+                raiz.innerHTML = montarHtmlQuadroAditivoAceite(v) + montarHtmlBlocoAssinaturaSalva();
+                if (secaoAceite) {
                     secaoAceite.innerHTML = '';
                     secaoAceite.style.display = 'none';
                 }
+                if (btnAprovarEl) btnAprovarEl.style.display = 'none';
+            } else {
+                if (typeof window.renderListaBoxesCompletaHtml === 'function') {
+                    raiz.innerHTML = window.renderListaBoxesCompletaHtml(estado.boxes, v, { proposta: estado.dados });
+                } else {
+                    raiz.innerHTML = estado.boxes.map(function (b) {
+                        return window.boxRenderHtml(b, v, { proposta: estado.dados });
+                    }).join('');
+                }
+                if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             }
-            if (btnAprovarEl) btnAprovarEl.style.display = 'inline-flex';
             if (fabBar) fabBar.style.display = 'flex';
             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
             if (typeof window.ajustarAlturaQuadroValoresBoxes === 'function') {
