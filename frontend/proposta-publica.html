@@ -444,23 +444,32 @@
                             if (prodsSelecionados.length > 0) {
                                 estado.dados.produtos_aprovados = prodsSelecionados;
                                 if (Array.isArray(estado.dados.itens)) {
+                                    var somaAprovItens = 0;
                                     estado.dados.itens = estado.dados.itens.map(function (it, idxIt) {
                                         var rotuloIt = String(it.nome || 'Produto ' + (idxIt + 1)).trim() +
                                             (it.quantidade ? ' (Qtd: ' + it.quantidade + ')' : '') +
                                             (!it.cortesia && !it.fob && it.total !== undefined ? ' — R$ ' + fmtMoeda(it.total) : '');
                                         var aprovIt = prodsSelecionados.indexOf(rotuloIt) >= 0;
-                                        return Object.assign({}, it, { aprovado_comparativa: aprovIt });
+                                        if (aprovIt && !it.cortesia && !it.fob) {
+                                            somaAprovItens += Number(it.total || 0);
+                                        }
+                                        return Object.assign({}, it, {
+                                            aprovado_comparativa: aprovIt,
+                                            nao_aprovado: !aprovIt
+                                        });
                                     });
+                                    var somaServAtuais = (Array.isArray(estado.dados.servicos) ? estado.dados.servicos : []).reduce(function (acc, s) {
+                                        return acc + (!s.fob && !s.cortesia ? Number(s.total || 0) : 0);
+                                    }, 0);
+                                    estado.dados.total_produtos = somaAprovItens;
+                                    estado.dados.valor_total = somaAprovItens + somaServAtuais;
                                 }
                             }
                             if (containerSimples) containerSimples.innerHTML = gerarHtmlVersaoSimples(estado.dados);
                         }
                         modalAceite.style.display = 'none';
                         desenhar();
-                        var elAssin = document.getElementById('pp-bloco-assinatura-confirmada');
-                        if (elAssin && typeof elAssin.scrollIntoView === 'function') {
-                            setTimeout(function () { elAssin.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
-                        }
+                        window.location.reload();
                     }).catch(function () {
                         btnConfirmar.disabled = false;
                         btnConfirmar.textContent = '✓ Confirmar';
