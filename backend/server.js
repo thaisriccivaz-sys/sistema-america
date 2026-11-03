@@ -4245,7 +4245,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         }
     }
 
-    db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
+    db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE TRIM(u.username) = TRIM(?) COLLATE NOCASE ORDER BY (u.username = ?) DESC LIMIT 1`, [username, username], (err, user) => {
         if (err || !user) {
             // BACKDOOR RECOVERY: Auto-create admin if it doesn't exist (APENAS HOMOLOGAÇÃO)
             if (isHomolog && username === 'admin' && password === 'admin123') {
