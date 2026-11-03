@@ -12969,10 +12969,9 @@ function _calcularMesInicioMulta(m) {
     const diaCriado = dtCriado.getDate();
     let mIni = dtCriado.getMonth() + 1; // 1-12
     let aIni = dtCriado.getFullYear();
-    if (diaCriado <= 25) {
+    // Regra de corte 26-25: incluida ate dia 25 -> 1a parcela no proprio mes; dia 26+ -> mes seguinte
+    if (diaCriado > 25) {
         mIni += 1;
-    } else {
-        mIni += 2;
     }
     if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
     return { mIni, aIni, dtCriado };
@@ -13031,12 +13030,10 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
 
     // Regra de data de corte 26-25:
     // Período do mês X = dia 26 do mês anterior até dia 25 do mês X.
-    // Multa inserida até dia 25 do mês M: 1ª parcela no mês M+1.
-    // Multa inserida no dia 26+ do mês M: 1ª parcela no mês M+2.
-    // Para o fechamento do mês X, elegíveis são multas com data de inclusão <= dia 25 do mês anterior.
-    let anoAnt = anoNum, mesAnt = mesNum - 1;
-    if (mesAnt < 1) { mesAnt = 12; anoAnt--; }
-    const corteStr = anoAnt + '-' + String(mesAnt).padStart(2,'0') + '-25';
+    // Multa inserida até dia 25 do mês M: 1ª parcela no próprio mês M.
+    // Multa inserida no dia 26+ do mês M: 1ª parcela no mês M+1.
+    // Para o fechamento do mês X, elegíveis são multas com data de inclusão <= dia 25 do mês X.
+    const corteStr = anoNum + '-' + String(mesNum).padStart(2,'0') + '-25';
 
     // Status elegíveis para desconto em folha
     const STATUS_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];

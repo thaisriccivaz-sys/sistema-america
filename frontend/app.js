@@ -22204,10 +22204,8 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     let currentMonthBase = new Date(baseDate);
     const diaRef = currentMonthBase.getDate();
     currentMonthBase.setDate(1);
-    if (diaRef <= 25) {
+    if (diaRef > 25) {
         currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
-    } else {
-        currentMonthBase.setMonth(currentMonthBase.getMonth() + 2);
     }
     const minValidoYm = currentMonthBase.getFullYear() * 12 + (currentMonthBase.getMonth() + 1);
     if (systemHistorico && Array.isArray(systemHistorico)) {
@@ -22460,13 +22458,11 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         }
         
         var currentMonthBase = new Date(baseDate);
-        // Aplica a regra de corte (dia 25): até dia 25 = M+1, dia 26+ = M+2
+        // Aplica a regra de corte (dia 25): até dia 25 = mês M, dia 26+ = M+1
         var diaRef = currentMonthBase.getDate();
         currentMonthBase.setDate(1);
-        if (diaRef <= 25) {
+        if (diaRef > 25) {
             currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
-        } else {
-            currentMonthBase.setMonth(currentMonthBase.getMonth() + 2);
         }
         var minValidoYm = currentMonthBase.getFullYear() * 12 + (currentMonthBase.getMonth() + 1);
 
