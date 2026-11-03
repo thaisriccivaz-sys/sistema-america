@@ -1471,34 +1471,6 @@ window.closeAppTab = async function (tabId, forceClose = false) {
         if (wasActive && (tabObj.target === 'comercial-proposta' || tabObj.target === 'comercial-contratos') && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
             window.salvarSnapshotEstadoFormComercial(tabObj.target === 'comercial-contratos' ? 'contrato' : 'proposta', tabObj.tabId);
         }
-        let temNaoSalvo = false;
-        if (tabObj.target === 'comercial-proposta' && typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function') {
-            temNaoSalvo = Boolean(window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId));
-        } else if (typeof window.abaPossuiAlteracoesNaoSalvas === 'function') {
-            temNaoSalvo = Boolean(window.abaPossuiAlteracoesNaoSalvas(tabObj));
-        }
-        if (temNaoSalvo) {
-            let confirmado = false;
-            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-                const res = await Swal.fire({
-                    title: 'Informações não salvas',
-                    text: 'Tem certeza que gostaria de fechar a aba pois as informações não foram salvas?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Sim, fechar sem salvar',
-                    cancelButtonText: 'Cancelar'
-                });
-                confirmado = Boolean(res && res.isConfirmed);
-            } else {
-                confirmado = window.confirm('Tem certeza que gostaria de fechar a aba pois as informações não foram salvas?');
-            }
-            if (!confirmado) return;
-            if (typeof window.limparDirtyFlagAba === 'function') {
-                window.limparDirtyFlagAba(tabObj);
-            }
-        }
     }
     const idxAfter = appOpenTabs.findIndex(t => t.tabId === tabId);
     if (idxAfter === -1) return;
@@ -22217,20 +22189,8 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     
     if(window.Swal) Swal.close();
 
-    let maxAno = 0;
-    let maxMes = 0;
-    if (systemHistorico && Array.isArray(systemHistorico)) {
-        systemHistorico.forEach(function(h) {
-            if (h.ano > maxAno || (h.ano === maxAno && h.mes > maxMes)) {
-                maxAno = h.ano; maxMes = h.mes;
-            }
-        });
-    }
-    
     let baseDate = new Date();
-    if (maxAno > 0) {
-        baseDate = new Date(maxAno, maxMes - 1, 1);
-    } else if (dtStr) {
+    if (dtStr) {
         if (dtStr.includes('/')) {
             let parts = dtStr.split(' - ')[0].trim().split(/[\/\s]/);
             if (parts.length >= 3) baseDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10)-1, parseInt(parts[0], 10));
@@ -22242,14 +22202,22 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     }
     
     let currentMonthBase = new Date(baseDate);
-    if (maxAno > 0) {
-        currentMonthBase.setDate(1);
+    const diaRef = currentMonthBase.getDate();
+    currentMonthBase.setDate(1);
+    if (diaRef <= 25) {
         currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
     } else {
-        const diaRef = currentMonthBase.getDate();
-        currentMonthBase.setDate(1);
-        if (diaRef > 25) {
-            currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
+        currentMonthBase.setMonth(currentMonthBase.getMonth() + 2);
+    }
+    const minValidoYm = currentMonthBase.getFullYear() * 12 + (currentMonthBase.getMonth() + 1);
+    if (systemHistorico && Array.isArray(systemHistorico)) {
+        systemHistorico = systemHistorico.filter(function(h) {
+            const hYm = (parseInt(h.ano, 10) || 0) * 12 + (parseInt(h.mes, 10) || 0);
+            return hYm >= minValidoYm;
+        });
+        if (systemHistorico.length > 0) {
+            const primeira = systemHistorico.find(h => parseInt(h.parcela_num) === 1) || systemHistorico[0];
+            currentMonthBase = new Date(parseInt(primeira.ano, 10), (parseInt(primeira.mes, 10) - 1) - ((parseInt(primeira.parcela_num, 10) || 1) - 1), 1);
         }
     }
 
@@ -22340,11 +22308,9 @@ window._atualizarMepInputs = function(isInitial = false) {
         }
 
         if (!pMes || !pAno) {
-            pMes = currentCursor.getMonth() + 1;
-            pAno = currentCursor.getFullYear();
-            currentCursor.setMonth(currentCursor.getMonth() + 1);
-        } else {
-            currentCursor.setMonth(currentCursor.getMonth() + 1);
+            const expectedDate = new Date(window._mep_currentMonthBase.getFullYear(), window._mep_currentMonthBase.getMonth() + (i - 1), 1);
+            pMes = expectedDate.getMonth() + 1;
+            pAno = expectedDate.getFullYear();
         }
 
         let mesOptions = '';
@@ -22478,20 +22444,11 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         var maxAno = 0;
         var maxMes = 0;
         
-        if (Array.isArray(hist)) {
-            hist.forEach(function(h) {
-                parcelasCobradas[h.parcela_num] = h;
-                if (h.ano > maxAno || (h.ano === maxAno && h.mes > maxMes)) {
-                    maxAno = h.ano;
-                    maxMes = h.mes;
-                }
-            });
-        }
-        
+        var customConfig = [];
+        try { if (configParcelasStr) customConfig = JSON.parse(configParcelasStr); } catch(e) {}
+
         var baseDate = new Date();
-        if (maxAno > 0) {
-            baseDate = new Date(maxAno, maxMes - 1, 1);
-        } else if (dataRef) {
+        if (dataRef) {
             if (dataRef.includes('/')) {
                 let parts = dataRef.split(' - ')[0].trim().split(/[\/\s]/);
                 if (parts.length >= 3) baseDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10)-1, parseInt(parts[0], 10));
@@ -22503,24 +22460,35 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         }
         
         var currentMonthBase = new Date(baseDate);
-        if (maxAno > 0) {
-            currentMonthBase.setDate(1);
+        // Aplica a regra de corte (dia 25): até dia 25 = M+1, dia 26+ = M+2
+        var diaRef = currentMonthBase.getDate();
+        currentMonthBase.setDate(1);
+        if (diaRef <= 25) {
             currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
         } else {
-            // Aplica a regra de corte (dia 25)
-            var diaRef = currentMonthBase.getDate();
-            currentMonthBase.setDate(1);
-            if (diaRef > 25) {
-                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
-            }
+            currentMonthBase.setMonth(currentMonthBase.getMonth() + 2);
+        }
+        var minValidoYm = currentMonthBase.getFullYear() * 12 + (currentMonthBase.getMonth() + 1);
+
+        var histValido = [];
+        if (Array.isArray(hist)) {
+            hist.forEach(function(h) {
+                var hYm = (parseInt(h.ano, 10) || 0) * 12 + (parseInt(h.mes, 10) || 0);
+                var cfgMatch = customConfig.find(function(c) { return parseInt(c.num) === parseInt(h.parcela_num) && parseInt(c.mes) === parseInt(h.mes) && parseInt(c.ano) === parseInt(h.ano); });
+                if (hYm >= minValidoYm || cfgMatch) {
+                    parcelasCobradas[h.parcela_num] = h;
+                    histValido.push(h);
+                }
+            });
+        }
+        if (histValido.length > 0) {
+            var primeira = histValido.find(function(h) { return parseInt(h.parcela_num) === 1; }) || histValido[0];
+            currentMonthBase = new Date(parseInt(primeira.ano, 10), (parseInt(primeira.mes, 10) - 1) - ((parseInt(primeira.parcela_num, 10) || 1) - 1), 1);
         }
         
         var numParcelas = parseInt(totalParcelas) || 1;
         var valorTot = parseFloat(String(valorTotal).replace(/[^0-9,.-]/g, '').replace(',', '.')) || parseFloat(valorTotal) || 0;
         var valorPorParcela = numParcelas > 0 ? (valorTot / numParcelas) : 0;
-        
-        var customConfig = [];
-        try { if (configParcelasStr) customConfig = JSON.parse(configParcelasStr); } catch(e) {}
         
         for (let i = 1; i <= numParcelas; i++) {
             var vParcelaDef = valorPorParcela;
@@ -22554,6 +22522,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             // Determinar Mês e Ano a exibir
             // Regra de precedência: cfg.mes/cfg.ano (editado pelo usuário) > historico mes/ano > cursor automático
             // O valor (valFormatadoRow) ainda vem do historico quando cobrado
+            var expectedDate = new Date(currentMonthBase.getFullYear(), currentMonthBase.getMonth() + (i - 1), 1);
             var mObj, yObj, valFormatadoRow;
             if (cfg && cfg.mes && cfg.ano) {
                 // Usuário editou explicitamente: mês do cfg prevalece
@@ -22562,17 +22531,15 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 valFormatadoRow = parcelasCobradas[i]
                     ? parseFloat(parcelasCobradas[i].valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                     : valorFormatado;
-                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
             } else if (parcelasCobradas[i]) {
                 // Sem edição manual: usa o mês que o sistema cobrou
                 mObj = (parcelasCobradas[i].mes || 1) - 1;
                 yObj = parcelasCobradas[i].ano;
                 valFormatadoRow = parseFloat(parcelasCobradas[i].valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             } else {
-                mObj = currentMonthBase.getMonth();
-                yObj = currentMonthBase.getFullYear();
+                mObj = expectedDate.getMonth();
+                yObj = expectedDate.getFullYear();
                 valFormatadoRow = valorFormatado;
-                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
             }
             var mesNome = MESES[mObj] || mObj;
             

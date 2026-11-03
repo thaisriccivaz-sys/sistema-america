@@ -12950,16 +12950,93 @@ app.get('/api/test-thais-multas', async (req, res) => {
     res.json({ rows, hist });
 });
 
+function _calcularMesInicioMulta(m) {
+    const dtStr = (m && (m.status_updated_at || m.created_at || m.criado_em || m.atualizado_em)) || '';
+    let dtCriado;
+    if (dtStr.includes('/')) {
+        const parts = dtStr.split(' - ');
+        const dateParts = parts[0].trim().split(/[\/\s]/);
+        if (dateParts.length >= 3) {
+            const hhmm = (parts[1] || '00:00').trim().substring(0, 5);
+            dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${/^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '00:00'}:00-03:00`);
+        }
+    }
+    if (!dtCriado || isNaN(dtCriado.getTime())) {
+        dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+    }
+    if (isNaN(dtCriado.getTime())) dtCriado = new Date();
+
+    const diaCriado = dtCriado.getDate();
+    let mIni = dtCriado.getMonth() + 1; // 1-12
+    let aIni = dtCriado.getFullYear();
+    if (diaCriado <= 25) {
+        mIni += 1;
+    } else {
+        mIni += 2;
+    }
+    if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+    return { mIni, aIni, dtCriado };
+}
+
+async function _sanearHistoricoMulta(multaId) {
+    const m = await new Promise(resolve => db.get('SELECT id, parcelas, config_parcelas, status_rh, status_updated_at, criado_em, atualizado_em FROM multas_logistica WHERE id = ?', [multaId], (e, r) => resolve(r)));
+    if (!m) return [];
+    const { mIni, aIni } = _calcularMesInicioMulta(m);
+    const minValidoYm = aIni * 12 + mIni;
+    let parsedConfig = [];
+    try { if (m.config_parcelas) parsedConfig = JSON.parse(m.config_parcelas); } catch (e) {}
+
+    const rows = await new Promise(resolve => db.all('SELECT id, mes, ano, parcela_num, valor_parcela, criado_em FROM multas_cobranca_historico WHERE multa_id = ? ORDER BY ano ASC, mes ASC', [multaId], (e, r) => resolve(r || [])));
+    const validas = [];
+    let removeuAlguma = false;
+
+    for (const h of rows) {
+        const hYm = (parseInt(h.ano, 10) || 0) * 12 + (parseInt(h.mes, 10) || 0);
+        const cfgMatch = parsedConfig.find(c => parseInt(c.num) === parseInt(h.parcela_num) && parseInt(c.mes) === parseInt(h.mes) && parseInt(c.ano) === parseInt(h.ano));
+        if (hYm < minValidoYm && !cfgMatch) {
+            await new Promise(resolve => db.run('DELETE FROM multas_cobranca_historico WHERE id = ?', [h.id], () => resolve()));
+            removeuAlguma = true;
+        } else {
+            validas.push(h);
+        }
+    }
+
+    if (removeuAlguma) {
+        const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
+        const chargedSet = new Set();
+        validas.forEach(v => chargedSet.add(parseInt(v.parcela_num)));
+        parsedConfig.forEach(c => { if (c.alert) chargedSet.add(parseInt(c.num)); });
+        let novoStatusRh = 'Recebido';
+        if (chargedSet.size >= numParcelas) novoStatusRh = 'Cobrado';
+        else if (chargedSet.size > 0) novoStatusRh = 'Cobrado Parcela';
+        await new Promise(resolve => db.run('UPDATE multas_logistica SET status_rh = ? WHERE id = ?', [novoStatusRh, multaId], () => resolve()));
+    }
+
+    return validas;
+}
+
+// Saneia no boot registros antigos do histórico de cobrança gravados antes da inclusão no RH
+setTimeout(async () => {
+    try {
+        const ids = await new Promise(resolve => db.all('SELECT DISTINCT multa_id FROM multas_cobranca_historico', [], (e, r) => resolve(r || [])));
+        for (const item of ids) {
+            if (item && item.multa_id) await _sanearHistoricoMulta(item.multa_id);
+        }
+    } catch (e) { console.warn('[sanearHistoricoMulta boot]', e.message); }
+}, 3500);
+
 app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async (req, res) => {
     const mesNum = parseInt(req.params.mes);
     const anoNum = parseInt(req.params.ano);
 
     // Regra de data de corte 26-25:
     // Período do mês X = dia 26 do mês anterior até dia 25 do mês X.
-    // Multa inserida até dia 25 do mês M: 1ª parcela no próprio mês M.
-    // Multa inserida no dia 26+ do mês M: 1ª parcela no mês M+1.
-    // Para o fechamento do mês X, elegíveis são multas com criado_em <= dia 25 do mês X.
-    const corteStr = anoNum + '-' + String(mesNum).padStart(2,'0') + '-25';
+    // Multa inserida até dia 25 do mês M: 1ª parcela no mês M+1.
+    // Multa inserida no dia 26+ do mês M: 1ª parcela no mês M+2.
+    // Para o fechamento do mês X, elegíveis são multas com data de inclusão <= dia 25 do mês anterior.
+    let anoAnt = anoNum, mesAnt = mesNum - 1;
+    if (mesAnt < 1) { mesAnt = 12; anoAnt--; }
+    const corteStr = anoAnt + '-' + String(mesAnt).padStart(2,'0') + '-25';
 
     // Status elegíveis para desconto em folha
     const STATUS_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
@@ -12985,14 +13062,16 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
 
-            const historico = await new Promise((resolve) => {
-                db.all('SELECT id, mes, ano, parcela_num, valor_parcela FROM multas_cobranca_historico WHERE multa_id = ? ORDER BY ano ASC, mes ASC',
-                    [m.id],
-                    (err, rows) => resolve(rows || []));
-            });
+            const historico = await _sanearHistoricoMulta(m.id);
 
             let mIni, aIni;
             let blockedByCorte = false;
+
+            const calcBase = _calcularMesInicioMulta(m);
+            const corteDate = new Date(corteStr + 'T23:59:59-03:00');
+            if (calcBase.dtCriado.getTime() > corteDate.getTime()) {
+                blockedByCorte = true;
+            }
 
             if (historico.length > 0) {
                 const primeira = historico.find(h => h.parcela_num === 1) || historico[0];
@@ -13003,33 +13082,8 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                     while (mIni < 1) { mIni += 12; aIni--; }
                 }
             } else {
-                const dtStr = m.status_updated_at || m.created_at || m.criado_em || m.atualizado_em || '';
-                let dtCriado;
-                if (dtStr.includes('/')) {
-                    const parts = dtStr.split(' - ');
-                    const dateParts = parts[0].trim().split(/[\/\s]/);
-                    if (dateParts.length >= 3) {
-                        const hhmm = (parts[1] || '00:00').trim().substring(0, 5);
-                        dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${/^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '00:00'}:00-03:00`);
-                    }
-                }
-                if (!dtCriado || isNaN(dtCriado.getTime())) {
-                    dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
-                }
-                if (isNaN(dtCriado.getTime())) dtCriado = new Date();
-
-                const corteDate = new Date(corteStr + 'T23:59:59-03:00');
-                if (dtCriado.getTime() > corteDate.getTime()) {
-                    blockedByCorte = true;
-                }
-
-                const diaCriado = dtCriado.getDate();
-                mIni = dtCriado.getMonth() + 1; // 1-12
-                aIni = dtCriado.getFullYear();
-                if (diaCriado > 25) {
-                    mIni += 1;
-                }
-                if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+                mIni = calcBase.mIni;
+                aIni = calcBase.aIni;
             }
 
             let parsedConfig = [];
@@ -13122,11 +13176,13 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
 });
 
 // GET histórico de cobranças de uma multa específica
-app.get('/api/multas/:multaId/historico-cobranca', authenticateToken, (req, res) => {
-    db.all('SELECT mes, ano, parcela_num, valor_parcela, criado_em FROM multas_cobranca_historico WHERE multa_id = ? ORDER BY ano, mes',
-        [req.params.multaId],
-        (err, rows) => err ? res.status(500).json({ error: err.message }) : res.json(rows || [])
-    );
+app.get('/api/multas/:multaId/historico-cobranca', authenticateToken, async (req, res) => {
+    try {
+        const rows = await _sanearHistoricoMulta(req.params.multaId);
+        res.json(rows || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 

@@ -1616,25 +1616,8 @@ window.abaPropostaTemAlteracoesNaoSalvas = function(tabIdOverride = null) {
 
 window._dirtyTargetsMap = window._dirtyTargetsMap || {};
 
-window.abaPossuiAlteracoesNaoSalvas = function(tabObj) {
-    if (!tabObj) return false;
-    const target = String(tabObj.target || '').trim();
-    if (!target) return false;
-    if (target === 'comercial-proposta') {
-        return Boolean(window.abaPropostaTemAlteracoesNaoSalvas && window.abaPropostaTemAlteracoesNaoSalvas(tabObj.tabId));
-    }
-    if (target === 'comercial-contratos') {
-        if (tabObj.active && window._modoTelaComercial === 'contrato' && window._propFormEditadoNaoSalvo) {
-            return true;
-        }
-        const chaveCtr = typeof window._obterChaveSnapshotComercial === 'function'
-            ? window._obterChaveSnapshotComercial('contrato', tabObj.tabId)
-            : 'contrato';
-        const snapCtr = window._snapshotsFormComercial && (window._snapshotsFormComercial[chaveCtr] || window._snapshotsFormComercial.contrato);
-        if (snapCtr && snapCtr.formEditadoNaoSalvo) return true;
-        return Boolean(window._dirtyTargetsMap[tabObj.tabId] || window._dirtyTargetsMap[target]);
-    }
-    return Boolean(window._dirtyTargetsMap[tabObj.tabId] || window._dirtyTargetsMap[target]);
+window.abaPossuiAlteracoesNaoSalvas = function() {
+    return false;
 };
 
 window.limparDirtyFlagAba = function(tabObjOrTarget) {
@@ -1645,121 +1628,11 @@ window.limparDirtyFlagAba = function(tabObjOrTarget) {
     }
     if (tabObjOrTarget.tabId) delete window._dirtyTargetsMap[tabObjOrTarget.tabId];
     if (tabObjOrTarget.target) delete window._dirtyTargetsMap[tabObjOrTarget.target];
-    if (tabObjOrTarget.target === 'comercial-contratos' && window._snapshotsFormComercial) {
-        const chaveCtr = typeof window._obterChaveSnapshotComercial === 'function'
-            ? window._obterChaveSnapshotComercial('contrato', tabObjOrTarget.tabId)
-            : 'contrato';
-        if (window._snapshotsFormComercial[chaveCtr]) window._snapshotsFormComercial[chaveCtr].formEditadoNaoSalvo = false;
-        if (window._snapshotsFormComercial.contrato) window._snapshotsFormComercial.contrato.formEditadoNaoSalvo = false;
-        if (window._modoTelaComercial === 'contrato') window._propFormEditadoNaoSalvo = false;
-    }
 };
 
 window.sistemaPossuiAlteracoesNaoSalvas = function() {
-    const modoAtivo = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
-    const formProp = document.getElementById('form-proposta');
-    if (formProp && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        const tabKeyDom = formProp.getAttribute('data-tab-key') || undefined;
-        window.salvarSnapshotEstadoFormComercial(modoAtivo, tabKeyDom);
-    }
-    if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
-        for (const t of appOpenTabs) {
-            if (!t) continue;
-            if (t.target === 'comercial-proposta' && typeof window.abaPropostaTemAlteracoesNaoSalvas === 'function') {
-                if (window.abaPropostaTemAlteracoesNaoSalvas(t.tabId)) return true;
-            } else if (typeof window.abaPossuiAlteracoesNaoSalvas === 'function') {
-                if (window.abaPossuiAlteracoesNaoSalvas(t)) return true;
-            }
-        }
-    }
-    return Boolean(window._propFormEditadoNaoSalvo);
+    return false;
 };
-
-if (!window._listenerDirtySystemForms && typeof document !== 'undefined') {
-    window._listenerDirtySystemForms = true;
-    const isCampoIgnoradoDirty = (el) => {
-        if (!el || !el.tagName) return true;
-        const tag = el.tagName.toUpperCase();
-        if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') return true;
-        const type = String(el.type || '').toLowerCase();
-        if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'reset') return true;
-        const id = String(el.id || '').toLowerCase();
-        const cls = String(el.className || '').toLowerCase();
-        const ph = String(el.getAttribute('placeholder') || '').toLowerCase();
-        if (id === 'prop-codigo' || id === 'cli-codigo' || id === 'end-codigo' || id === 'evt-codigo' || id === 'global-screen-search') return true;
-        if (id.includes('filtro') || id.includes('busca') || id.includes('search') || id.includes('pesq')) return true;
-        if (cls.includes('swal') || el.closest('.swal2-container')) return true;
-        if (ph.includes('pesquisar') || ph.includes('buscar') || ph.includes('filtrar')) return true;
-        return false;
-    };
-    const marcarAbaAtivaDirty = (e) => {
-        const t = e && e.target;
-        if (isCampoIgnoradoDirty(t)) return;
-        const viewEl = t.closest('.content-view');
-        if (!viewEl || !viewEl.id) return;
-        const targetName = viewEl.id.replace(/^view-/, '');
-        if (!targetName || targetName === 'dashboard' || targetName === 'comercial-assinaturas') return;
-        if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
-            const activeTab = appOpenTabs.find(tb => tb && tb.active);
-            if (activeTab) {
-                window._dirtyTargetsMap[activeTab.tabId] = true;
-                window._dirtyTargetsMap[activeTab.target] = true;
-            }
-        }
-        window._dirtyTargetsMap[targetName] = true;
-    };
-    document.addEventListener('input', marcarAbaAtivaDirty, true);
-    document.addEventListener('change', marcarAbaAtivaDirty, true);
-
-    document.addEventListener('click', (e) => {
-        const btn = e.target && e.target.closest ? e.target.closest('button, a') : null;
-        if (!btn) return;
-        const txt = String(btn.textContent || '').trim().toLowerCase();
-        const onclickAttr = String(btn.getAttribute('onclick') || '').toLowerCase();
-        if (
-            onclickAttr.includes('limpar') ||
-            onclickAttr.includes('novo') ||
-            onclickAttr.includes('selecionar') ||
-            onclickAttr.includes('carregar') ||
-            onclickAttr.includes('editar') ||
-            txt === 'novo' ||
-            txt === 'limpar'
-        ) {
-            setTimeout(() => {
-                if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
-                    const activeTab = appOpenTabs.find(tb => tb && tb.active);
-                    if (activeTab && activeTab.target !== 'comercial-proposta') {
-                        window.limparDirtyFlagAba(activeTab);
-                    }
-                }
-            }, 120);
-        }
-    }, true);
-
-    setTimeout(() => {
-        if (typeof window.mostrarToastSucesso === 'function' && !window._wrappedToastDirtyClear) {
-            window._wrappedToastDirtyClear = true;
-            const origToast = window.mostrarToastSucesso;
-            window.mostrarToastSucesso = function(...args) {
-                if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
-                    const activeTab = appOpenTabs.find(tb => tb && tb.active);
-                    if (activeTab) window.limparDirtyFlagAba(activeTab);
-                }
-                return origToast.apply(this, args);
-            };
-        }
-    }, 600);
-
-    window.addEventListener('beforeunload', (e) => {
-        try {
-            if (window.sistemaPossuiAlteracoesNaoSalvas && window.sistemaPossuiAlteracoesNaoSalvas()) {
-                e.preventDefault();
-                e.returnValue = 'Você possui informações não salvas. Tem certeza que gostaria de sair ou atualizar a página?';
-                return e.returnValue;
-            }
-        } catch (_) {}
-    });
-}
 
 window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true, tabIdOverride = null) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
