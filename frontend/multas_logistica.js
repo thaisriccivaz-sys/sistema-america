@@ -684,14 +684,45 @@ window.atualizarLabelStatusRH = function() {
     else lbl.textContent = `${chks.length} selecionados`;
 };
 
-function _buildOptionsMotoristas(motorista_id_atual) {
-    let opts = `<option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>`;
-    let lista = (colaboradoresMultas || []).filter(c => c.status !== 'Desligado' || c.id == motorista_id_atual);
+function _normalizarTextoMultaColab(s) {
+    return String(s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function _colaboradorDeptoElegivelMultas(c) {
+    if (!c) return false;
+    const dept = _normalizarTextoMultaColab(c.departamento || '');
+    if (!dept) return false;
+    return (
+        dept.includes('motorista') ||
+        dept.includes('supervisao') ||
+        dept.includes('supervisor') ||
+        dept.includes('lideranca') ||
+        dept === 'lider' ||
+        dept.includes('diretoria')
+    );
+}
+
+function _obterListaMotoristasElegiveis(motorista_id_atual) {
+    const lista = (colaboradoresMultas || []).filter(c => {
+        if (motorista_id_atual && String(c.id) === String(motorista_id_atual)) return true;
+        if (c.status === 'Desligado' || c.status === 'Inativo') return false;
+        return _colaboradorDeptoElegivelMultas(c);
+    });
     lista.sort((a, b) => {
         const na = (a.nome_completo || a.nome || '').toLowerCase();
         const nb = (b.nome_completo || b.nome || '').toLowerCase();
-        return na.localeCompare(nb);
+        return na.localeCompare(nb, 'pt-BR');
     });
+    return lista;
+}
+
+function _buildOptionsMotoristas(motorista_id_atual) {
+    let opts = `<option value="">-- Selecione o Motorista (Deixe em branco se não souber) --</option>`;
+    let lista = _obterListaMotoristasElegiveis(motorista_id_atual);
     lista.forEach(c => {
         const nome = c.nome_completo || c.nome || 'Sem nome';
         const sel = motorista_id_atual == c.id ? 'selected' : '';
@@ -699,6 +730,192 @@ function _buildOptionsMotoristas(motorista_id_atual) {
     });
     return opts;
 }
+
+function _buildComboboxMotoristaMulta(selectId, motorista_id_atual, onChangeJs = '') {
+    const opts = _buildOptionsMotoristas(motorista_id_atual);
+    const colabAtual = motorista_id_atual
+        ? (colaboradoresMultas || []).find(c => String(c.id) === String(motorista_id_atual))
+        : null;
+    const nomeInicial = colabAtual ? (colabAtual.nome_completo || colabAtual.nome || '') : '';
+    const escAttr = (v) => String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `
+        <div class="multa-motorista-combobox" style="position:relative; width:100%;">
+            <select id="${selectId}" style="display:none;" onchange="${onChangeJs}">
+                ${opts}
+            </select>
+            <div style="position:relative; display:flex; align-items:center;">
+                <input type="text" id="${selectId}-search" value="${escAttr(nomeInicial)}"
+                    placeholder="Digite o nome do colaborador..."
+                    autocomplete="off"
+                    data-current-id="${motorista_id_atual ? String(motorista_id_atual) : ''}"
+                    onfocus="window._filtrarDropdownMotoristaMulta('${selectId}', this.value, true)"
+                    onclick="window._filtrarDropdownMotoristaMulta('${selectId}', this.value, true)"
+                    oninput="window._onInputMotoristaMultaCombobox('${selectId}', this.value)"
+                    onblur="window._onBlurMotoristaMultaCombobox('${selectId}')"
+                    style="width:100%; padding:0.55rem 2.2rem 0.55rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#fff; color:#0f172a; outline:none; box-sizing:border-box;">
+                <button type="button" id="${selectId}-clear" onclick="window._limparMotoristaMultaCombobox('${selectId}'); event.stopPropagation();"
+                    title="Limpar seleção"
+                    style="position:absolute; right:24px; background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; line-height:1; padding:2px 4px; display:${nomeInicial ? 'inline-flex' : 'none'}; align-items:center;">&times;</button>
+                <button type="button" tabindex="-1" onclick="window._toggleDropdownMotoristaMulta('${selectId}'); event.stopPropagation();"
+                    title="Mostrar colaboradores"
+                    style="position:absolute; right:6px; background:none; border:none; color:#64748b; cursor:pointer; font-size:0.9rem; line-height:1; padding:2px 4px; display:inline-flex; align-items:center;">
+                    <i class="ph ph-caret-down"></i>
+                </button>
+            </div>
+            <div id="${selectId}-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:240px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:10050;"></div>
+        </div>
+    `;
+}
+
+window._onInputMotoristaMultaCombobox = function(selectId, valorDigitado) {
+    const sel = document.getElementById(selectId);
+    const searchEl = document.getElementById(selectId + '-search');
+    const clearBtn = document.getElementById(selectId + '-clear');
+    if (clearBtn) clearBtn.style.display = valorDigitado ? 'inline-flex' : 'none';
+    if (sel && sel.value) {
+        const colabSel = (colaboradoresMultas || []).find(c => String(c.id) === String(sel.value));
+        const nomeSel = colabSel ? (colabSel.nome_completo || colabSel.nome || '') : '';
+        if (_normalizarTextoMultaColab(valorDigitado) !== _normalizarTextoMultaColab(nomeSel)) {
+            sel.value = '';
+            if (searchEl) searchEl.setAttribute('data-current-id', '');
+            if (typeof sel.onchange === 'function') sel.onchange();
+        }
+    }
+    window._filtrarDropdownMotoristaMulta(selectId, valorDigitado, false);
+};
+
+window._filtrarDropdownMotoristaMulta = function(selectId, termoRaw, isFocus = false) {
+    const dd = document.getElementById(selectId + '-dropdown');
+    const sel = document.getElementById(selectId);
+    if (!dd || !sel) return;
+
+    const listaBase = _obterListaMotoristasElegiveis(sel.value || null);
+    let termo = _normalizarTextoMultaColab(termoRaw || '');
+
+    // Se acabou de focar e o texto é exatamente o colaborador já selecionado, mostra todos ao clicar na seta ou filtra pelo termo digitado
+    let filtrados = listaBase.filter(c => {
+        if (!termo) return true;
+        const nome = _normalizarTextoMultaColab(c.nome_completo || c.nome || '');
+        return nome.includes(termo);
+    });
+
+    if (filtrados.length === 0) {
+        dd.innerHTML = `<div style="padding:10px 12px; color:#94a3b8; font-size:0.82rem; text-align:center;">Nenhum colaborador encontrado nos departamentos permitidos.</div>`;
+        dd.style.display = 'block';
+        return;
+    }
+
+    const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let html = '';
+    if (!termo) {
+        html += `<div onmousedown="event.preventDefault(); window._limparMotoristaMultaCombobox('${selectId}')"
+            style="padding:8px 12px; font-size:0.8rem; color:#64748b; border-bottom:1px solid #f1f5f9; cursor:pointer; font-style:italic;"
+            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+            -- Sem motorista selecionado --
+        </div>`;
+    }
+
+    filtrados.forEach(c => {
+        const nome = c.nome_completo || c.nome || 'Sem nome';
+        const depto = c.departamento || '';
+        const isSel = String(sel.value) === String(c.id);
+        html += `
+            <div onmousedown="event.preventDefault(); window._selecionarMotoristaMultaCombobox('${selectId}', '${c.id}')"
+                style="padding:8px 12px; font-size:0.83rem; color:${isSel ? '#1d4ed8' : '#0f172a'}; font-weight:${isSel ? '700' : '500'}; background:${isSel ? '#eff6ff' : '#fff'}; border-bottom:1px solid #f8fafc; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${isSel ? '#eff6ff' : '#fff'}'">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(nome)}</span>
+                ${depto ? `<span style="font-size:0.7rem; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:6px; white-space:nowrap; font-weight:600;">${escHtml(depto)}</span>` : ''}
+            </div>
+        `;
+    });
+
+    dd.innerHTML = html;
+    dd.style.display = 'block';
+};
+
+window._toggleDropdownMotoristaMulta = function(selectId) {
+    const dd = document.getElementById(selectId + '-dropdown');
+    const searchEl = document.getElementById(selectId + '-search');
+    if (!dd) return;
+    if (dd.style.display === 'block') {
+        dd.style.display = 'none';
+    } else {
+        window._filtrarDropdownMotoristaMulta(selectId, '', true);
+        if (searchEl) searchEl.focus();
+    }
+};
+
+window._selecionarMotoristaMultaCombobox = function(selectId, colabId) {
+    const sel = document.getElementById(selectId);
+    const searchEl = document.getElementById(selectId + '-search');
+    const clearBtn = document.getElementById(selectId + '-clear');
+    const dd = document.getElementById(selectId + '-dropdown');
+    const colab = (colaboradoresMultas || []).find(c => String(c.id) === String(colabId));
+    if (sel) {
+        if (!Array.from(sel.options).some(o => String(o.value) === String(colabId)) && colab) {
+            const opt = document.createElement('option');
+            opt.value = String(colab.id);
+            opt.textContent = colab.nome_completo || colab.nome || '';
+            sel.appendChild(opt);
+        }
+        sel.value = String(colabId || '');
+        if (typeof sel.onchange === 'function') sel.onchange();
+    }
+    if (searchEl) {
+        searchEl.value = colab ? (colab.nome_completo || colab.nome || '') : '';
+        searchEl.setAttribute('data-current-id', colab ? String(colab.id) : '');
+    }
+    if (clearBtn) clearBtn.style.display = colab ? 'inline-flex' : 'none';
+    if (dd) dd.style.display = 'none';
+};
+
+window._limparMotoristaMultaCombobox = function(selectId) {
+    const sel = document.getElementById(selectId);
+    const searchEl = document.getElementById(selectId + '-search');
+    const clearBtn = document.getElementById(selectId + '-clear');
+    const dd = document.getElementById(selectId + '-dropdown');
+    if (sel) {
+        sel.value = '';
+        if (typeof sel.onchange === 'function') sel.onchange();
+    }
+    if (searchEl) {
+        searchEl.value = '';
+        searchEl.setAttribute('data-current-id', '');
+    }
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (dd) dd.style.display = 'none';
+};
+
+window._onBlurMotoristaMultaCombobox = function(selectId) {
+    setTimeout(() => {
+        const dd = document.getElementById(selectId + '-dropdown');
+        if (dd) dd.style.display = 'none';
+        const sel = document.getElementById(selectId);
+        const searchEl = document.getElementById(selectId + '-search');
+        const clearBtn = document.getElementById(selectId + '-clear');
+        if (!sel || !searchEl) return;
+        const txt = _normalizarTextoMultaColab(searchEl.value);
+        if (!txt) {
+            sel.value = '';
+            searchEl.value = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (typeof sel.onchange === 'function') sel.onchange();
+            return;
+        }
+        if (!sel.value) {
+            const lista = _obterListaMotoristasElegiveis(null);
+            const exato = lista.find(c => _normalizarTextoMultaColab(c.nome_completo || c.nome || '') === txt);
+            const parciais = lista.filter(c => _normalizarTextoMultaColab(c.nome_completo || c.nome || '').includes(txt));
+            const escolhido = exato || (parciais.length === 1 ? parciais[0] : null);
+            if (escolhido) {
+                window._selecionarMotoristaMultaCombobox(selectId, escolhido.id);
+            } else {
+                searchEl.value = '';
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
+        }
+    }, 180);
+};
 
 function abrirModalNovaMulta() {
     document.getElementById('modal-nova-multa')?.remove();
@@ -802,9 +1019,7 @@ function abrirModalNovaMulta() {
                         <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motorista</label>
-                                <select id="nm-motorista" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
-                                    ${_buildOptionsMotoristas(null)}
-                                </select>
+                                ${_buildComboboxMotoristaMulta('nm-motorista', null, '')}
                             </div>
                         </div>
 
@@ -1209,9 +1424,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
                             <div style="flex:1.5; min-width:220px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Motorista Responsável</label>
-                                <select id="gm-motorista" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;" onchange="atualizarInfoMotoristaModal(this)">
-                                    ${optionsMotoristas}
-                                </select>
+                                ${_buildComboboxMotoristaMulta('gm-motorista', multa.motorista_id, 'atualizarInfoMotoristaModal(this)')}
                                 <input type="text" id="gm-ex-colaborador-nome" placeholder="Digite o nome do Ex Colaborador" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; margin-top:0.4rem; font-size:0.85rem; display:${multa.motorista_id == -1 ? 'block' : 'none'};" value="${multa.motorista_id == -1 ? (multa.motorista_nome || '') : ''}">
                             </div>
                             <div style="flex:1; min-width:160px;">
@@ -1400,7 +1613,8 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
     atualizarValoresMultaModal();
 
     if (focoMotorista && (multa.status !== 'Indicado' && multa.status !== 'Multa NIC')) {
-        document.getElementById('gm-motorista')?.focus();
+        const inpMot = document.getElementById('gm-motorista-search') || document.getElementById('gm-motorista');
+        if (inpMot) inpMot.focus();
     }
 }
 
