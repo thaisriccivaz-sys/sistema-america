@@ -22232,8 +22232,8 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
         baseDate = new Date(maxAno, maxMes - 1, 1);
     } else if (dtStr) {
         if (dtStr.includes('/')) {
-            let parts = dtStr.split(' - ')[0].split('/');
-            if (parts.length === 3) baseDate = new Date(parts[2], parseInt(parts[1])-1, parts[0]);
+            let parts = dtStr.split(' - ')[0].trim().split(/[\/\s]/);
+            if (parts.length >= 3) baseDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10)-1, parseInt(parts[0], 10));
         } else {
             let d = dtStr.replace(' ', 'T');
             if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
@@ -22493,8 +22493,8 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             baseDate = new Date(maxAno, maxMes - 1, 1);
         } else if (dataRef) {
             if (dataRef.includes('/')) {
-                let parts = dataRef.split(' - ')[0].split('/');
-                if (parts.length === 3) baseDate = new Date(parts[2], parseInt(parts[1])-1, parts[0]);
+                let parts = dataRef.split(' - ')[0].trim().split(/[\/\s]/);
+                if (parts.length >= 3) baseDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10)-1, parseInt(parts[0], 10));
             } else {
                 let d = dataRef.replace(' ', 'T');
                 if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
@@ -22717,7 +22717,7 @@ window.renderMultasMotoristaTab = async function (container) {
                         var v = parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
                         if (isNic) v = v * 3;
                         var cfg = det.getAttribute('data-config') || '';
-                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}', cfg);
+                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, v, '${m.status_updated_at || m.created_at || m.criado_em || m.atualizado_em || ''}', cfg);
                     }
                 })()" 
                 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"
@@ -22855,7 +22855,7 @@ window.renderMultasMotoristaTab = async function (container) {
                         
 
                         const cleanConfig = (m.config_parcelas || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-                        const safeDataCriado = (m.criado_em || m.created_at || m.atualizado_em || m.status_updated_at || '').replace(/'/g, '');
+                        const safeDataCriado = (m.status_updated_at || m.criado_em || m.created_at || m.atualizado_em || '').replace(/'/g, '');
                         botoes += `<button onclick="window.abrirModalEditarParcelasProntuario(${m.id || idx || 0}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}', '${safeDataCriado}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>`;
                         
                         if (!botoes) return '';

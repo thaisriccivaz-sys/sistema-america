@@ -10144,7 +10144,9 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             }
         }
 
-        const novoStatusUpdatedAt = (status && status !== oldData.status) ? getNowBR() : oldData.status_updated_at;
+        const STATUS_RH_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+        const jaEstavaNoRh = oldData.status_updated_at && STATUS_RH_ELEGIVEIS.includes(oldData.status);
+        const novoStatusUpdatedAt = (status && status !== oldData.status && !jaEstavaNoRh) ? getNowBR() : oldData.status_updated_at;
 
         db.run(
             `UPDATE multas_logistica SET
@@ -12259,7 +12261,7 @@ app.get('/api/fechamento/faltas-prontuario', authenticateToken, (req, res) => {
     const ini = ano + '-' + mm + '-01';
     const fim = ano + '-' + mm + '-31';
     db.all(
-        'SELECT id, colaborador_id, data_falta, turno, observacao FROM faltas WHERE substr(data_falta,1,10) >= ? AND substr(data_falta,1,10) <= ?',
+        'SELECT f.id, f.colaborador_id, f.data_falta, f.turno, f.observacao, c.nome_completo, c.status AS colab_status FROM faltas f LEFT JOIN colaboradores c ON c.id = f.colaborador_id WHERE substr(f.data_falta,1,10) >= ? AND substr(f.data_falta,1,10) <= ?',
         [ini, fim],
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -13001,13 +13003,14 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                     while (mIni < 1) { mIni += 12; aIni--; }
                 }
             } else {
-                const dtStr = m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || '';
+                const dtStr = m.status_updated_at || m.created_at || m.criado_em || m.atualizado_em || '';
                 let dtCriado;
-                if (dtStr.includes('/') && dtStr.includes('-')) {
+                if (dtStr.includes('/')) {
                     const parts = dtStr.split(' - ');
-                    const dateParts = parts[0].split('/');
-                    if (dateParts.length === 3) {
-                        dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`);
+                    const dateParts = parts[0].trim().split(/[\/\s]/);
+                    if (dateParts.length >= 3) {
+                        const hhmm = (parts[1] || '00:00').trim().substring(0, 5);
+                        dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${/^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '00:00'}:00-03:00`);
                     }
                 }
                 if (!dtCriado || isNaN(dtCriado.getTime())) {

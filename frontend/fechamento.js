@@ -3716,7 +3716,7 @@ function abrirLegenda() {
             var ehNovoColab = (item.colaborador_id !== prevColabId);
 
             linhasHtml += '<tr style="border-top:' + (ehNovoColab ? '2px solid #e2e8f0' : '1px solid #f1f5f9') + ';">'
-                + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;" title="' + _escF(nomeCompleto) + '">' + (ehNovoColab ? _escF(nomeExib) : '') + '</td>'
+                + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;" title="' + _escF(nomeCompleto) + '">' + _escF(nomeExib) + '</td>'
                 + '<td style="padding:6px 8px;white-space:nowrap;">' + dtTxt + '</td>'
                 + '<td style="padding:6px 8px;text-align:center;">' + (noPonto ? '✔' : '—') + '</td>'
                 + '<td style="padding:6px 8px;text-align:center;">' + (noPront ? '✔' : '—') + '</td>'
@@ -3853,6 +3853,33 @@ function abrirLegenda() {
             concluidos++;
             Swal.update({ html: concluidos + " / " + total + " colaboradores" });
         }));
+
+        // Também buscar ponto no RHID dos colaboradores Desligados para registrar/comparar faltas no prontuário digital deles
+        try {
+            var idsAtivos = {};
+            _dados.forEach(function(r) { idsAtivos[String(r.colaborador_id || r.id)] = true; });
+            var rAllColabs = await fetch("/api/colaboradores", { headers: { "Authorization": "Bearer " + getToken() } });
+            if (rAllColabs.ok) {
+                var allColabs = await rAllColabs.json();
+                var desligados = (Array.isArray(allColabs) ? allColabs : []).filter(function(c) {
+                    return c && c.id && !idsAtivos[String(c.id)] && c.cpf && String(c.status || "").toLowerCase() === "desligado";
+                });
+                await Promise.allSettled(desligados.map(async function(c) {
+                    var cpfLimpo = String(c.cpf || "").replace(/[.\-]/g, "");
+                    if (!cpfLimpo) return;
+                    try {
+                        var respD = await fetch("/api/diretoria/controlid/ponto-colaborador?cpf=" + encodeURIComponent(cpfLimpo) + "&mes=" + _mes + "&ano=" + _ano,
+                            { headers: { "Authorization": "Bearer " + getToken() } });
+                        var dadosD = await respD.json();
+                        if (dadosD && dadosD.success && dadosD.encontrado) {
+                            var _diasFaltaD = [];
+                            try { _diasFaltaD = JSON.parse(dadosD.data_faltas || "[]"); } catch (eDf) { _diasFaltaD = []; }
+                            pontosCarregados.push({ id: c.id, nome: c.nome_completo, dias: Array.isArray(_diasFaltaD) ? _diasFaltaD : [] });
+                        }
+                    } catch (eD) {}
+                }));
+            }
+        } catch (eDesl) { console.warn("[fechamento] Falha ao buscar ponto de desligados:", eDesl); }
 
         Swal.close();
         // Re-renderiza a tabela com os dados atualizados (_dados foi atualizado por aplicarPontoNaTabela)
