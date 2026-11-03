@@ -445,7 +445,7 @@
         if (typeof Swal !== 'undefined') Swal.close();
     };
 
-    window.adicionarServicoProposta = function () {
+    window.adicionarServicoProposta = async function () {
         const inp = document.getElementById('prop-serv-codigo');
         const rawServ = (inp?.value || '').trim();
         if (!rawServ) { alert('Por favor, informe ou selecione o serviço.'); return; }
@@ -494,6 +494,27 @@
         if (!fob) {
             if (modo === 'pct' && pct > 0) descontoTipo = 'pct';
             else if (rs > 0) descontoTipo = 'valor';
+        }
+
+        if (!fob && total <= 0) {
+            let confirmarCortesia = false;
+            if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                const resCort = await Swal.fire({
+                    icon: 'question',
+                    title: 'Serviço Cortesia (R$ 0,00)',
+                    text: 'Tem certeza que deseja adicionar o serviço cortesia?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, adicionar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#16a34a',
+                    cancelButtonColor: '#64748b',
+                    reverseButtons: true
+                });
+                confirmarCortesia = Boolean(resCort && resCort.isConfirmed);
+            } else {
+                confirmarCortesia = window.confirm('Tem certeza que deseja adicionar o serviço cortesia?');
+            }
+            if (!confirmarCortesia) return;
         }
 
         if (!window._propServicosAdicionados) window._propServicosAdicionados = [];

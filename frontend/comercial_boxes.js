@@ -240,7 +240,7 @@
         const inpContrato = document.getElementById('prop-contrato-aditivo');
         const subVinc = extrairSubtituloLimpaFossaTextoBox(p.contrato_vinculado_tipo) || extrairSubtituloLimpaFossaTextoBox(inpContrato?.getAttribute('data-contrato-tipo'));
         if (subVinc) return subVinc;
-        const numVinc = String(p.contrato_vinculado || inpContrato?.value || '').trim();
+        const numVinc = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || inpContrato?.value || '') : String(p.contrato_vinculado || inpContrato?.value || '').split(/\s*-\s*/)[0].trim());
         const idVinc = Number(p.contrato_vinculado_id || inpContrato?.getAttribute('data-contrato-id') || 0);
         const todasProps = (window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas))
             ? window._boxCacheDadosAux.propostasTodas
@@ -278,7 +278,7 @@
         const inpContrato = document.getElementById('prop-contrato-aditivo');
         const subVinc = extrairSubtituloObraTextoBox(p.contrato_vinculado_tipo) || extrairSubtituloObraTextoBox(inpContrato?.getAttribute('data-contrato-tipo'));
         if (subVinc) return subVinc;
-        const numVinc = String(p.contrato_vinculado || inpContrato?.value || '').trim();
+        const numVinc = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || inpContrato?.value || '') : String(p.contrato_vinculado || inpContrato?.value || '').split(/\s*-\s*/)[0].trim());
         const idVinc = Number(p.contrato_vinculado_id || inpContrato?.getAttribute('data-contrato-id') || 0);
         const todasProps = (window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas))
             ? window._boxCacheDadosAux.propostasTodas
@@ -312,7 +312,7 @@
             const m = window.normalizarModeloTipoBox(tipoAttr);
             if (m && m !== 'ADITIVO') return m;
         }
-        const numVinc = String(p.contrato_vinculado || inpContrato?.value || '').trim();
+        const numVinc = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || inpContrato?.value || '') : String(p.contrato_vinculado || inpContrato?.value || '').split(/\s*-\s*/)[0].trim());
         const idVinc = Number(p.contrato_vinculado_id || inpContrato?.getAttribute('data-contrato-id') || 0);
         const todasProps = (window._boxCacheDadosAux && Array.isArray(window._boxCacheDadosAux.propostasTodas))
             ? window._boxCacheDadosAux.propostasTodas
@@ -818,7 +818,7 @@
                     id: (typeof _propostasEditandoId !== 'undefined' && _propostasEditandoId) ? _propostasEditandoId : null,
                     tipo: tipoForm || 'EVENTO',
                     tabela_precos: document.getElementById('prop-tabela')?.value || '',
-                    contrato_vinculado: inpContratoAdt?.value || '',
+                    contrato_vinculado: (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(inpContratoAdt?.value || '') : String(inpContratoAdt?.value || '').split(/\s*-\s*/)[0].trim()),
                     contrato_vinculado_id: inpContratoAdt?.getAttribute('data-contrato-id') || null,
                     contrato_vinculado_tipo: inpContratoAdt?.getAttribute('data-contrato-tipo') || '',
                     codigo: document.getElementById('prop-codigo')?.value || 'AUTO',
@@ -927,7 +927,7 @@
         const fimFmt = fmtDataIso(prop.periodo_fim);
         const valFmt = fmtDataIso(prop.validade_proposta);
         const condPag = String(prop.condicao_pagamento || '').trim();
-        const contratoVinc = String(prop.contrato_vinculado || '').trim();
+        const contratoVinc = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(prop.contrato_vinculado || '') : String(prop.contrato_vinculado || '').split(/\s*-\s*/)[0].trim());
         let diariasContrato = '';
         if (iniFmt && fimFmt) diariasContrato = iniFmt === fimFmt ? iniFmt : iniFmt + ' A ' + fimFmt;
         else diariasContrato = iniFmt || fimFmt || '—';
@@ -968,10 +968,13 @@
                         : Math.max(1, Number(it.diarias ?? prop.dias_contrato ?? 1) || 1)))
                 : 1;
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
-            const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
+            const descRsItem = Number(it.desconto_rs) > 0 ? Number(it.desconto_rs) : 0;
+            const base = Number(it.valor_base) > 0
+                ? Number(it.valor_base)
+                : (unitLiq > 0 ? unitLiq : (descRsItem > 0 && qtd > 0 ? (descRsItem / qtd) : 0));
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
             const grossDia = base * qtd;
-            const descDia = Math.max(0, grossDia - netDia);
+            const descDia = Math.max(0, grossDia - netDia, descRsItem);
             const naoAprovado = Boolean(isPropComparativa && Array.isArray(prodsAprov) && prodsAprov.length > 0 && !window.itemComparativaEstaAprovado(it, idxIt, prodsAprov));
             if (!naoAprovado) {
                 somaPorDia += netDia;
@@ -1001,7 +1004,8 @@
             const nomeServ = String(s.servico || s.descricao || s.nome || 'SERVIÇO').replace(/^\d+\s*-\s*/, '').trim();
             const isFob = !!s.frete_fob;
             const unitLiq = isFob ? 0 : (Number(s.valor_unitario ?? s.valor ?? 0) || 0);
-            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
+            const descRsServ = isFob ? 0 : (Number(s.desconto_rs) > 0 ? Number(s.desconto_rs) : 0);
+            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : (unitLiq > 0 ? unitLiq : (descRsServ > 0 && qtd > 0 ? (descRsServ / qtd) : 0)));
             const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
             const gross = isFob ? 0 : (base * qtd);
             if (!isFob) somaTotalServicos += net;
@@ -1205,13 +1209,13 @@
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word; ${riscadoTxt}">${esc(it.descricao_proposta)}</div>` : ''}
-                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                     ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${esc(it.quant_diarias)}</div>`}
                 ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.unit, '#3b3b3b')}</div>`}
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.por_dia, '#3b3b3b')}</div>`}
-                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
         };
@@ -1227,9 +1231,9 @@
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
                     ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
-                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs. se houver: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                 </div>
-                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.cortesia || it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total !== undefined ? it.total : it.unit, ROXO)}</div>
             </div>`;
 

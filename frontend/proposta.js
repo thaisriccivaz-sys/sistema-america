@@ -2869,7 +2869,7 @@ function _renderFormPropostaInt() {
                             <div id="prop-wrapper-contrato-aditivo" style="display:${String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? 'block' : 'none'};">
                                 <label class="prop-lbl">Nº do Contrato <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(v('contrato_vinculado') || '')}"
+                                    <input type="text" id="prop-contrato-aditivo" value="${_escHtmlProp(typeof window.formatarNumeroContratoAditivoComTipo === 'function' ? window.formatarNumeroContratoAditivoComTipo(v('contrato_vinculado'), v('contrato_vinculado_tipo'), v('contrato_vinculado_id')) : (v('contrato_vinculado') || ''))}"
                                         data-contrato-id="${_escHtmlProp(v('contrato_vinculado_id') || '')}"
                                         data-contrato-tipo="${_escHtmlProp(v('contrato_vinculado_tipo') || '')}"
                                         data-contrato-cond-pag="${_escHtmlProp(String(v('tipo')||'').trim().toUpperCase().replace(/^PROPOSTA\s+/i,'')==='ADITIVO' ? (v('condicao_pagamento') || '') : '')}"
@@ -7071,7 +7071,7 @@ window.salvarPropostaNova = async function() {
         tabela_precos: obter('prop-tabela'),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
-        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
+        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
@@ -7544,7 +7544,7 @@ window.estornarPropostaEdicao = async function() {
         tabela_precos: obter('prop-tabela'),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
-        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
+        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
@@ -7751,7 +7751,7 @@ window.aprovarPropostaEdicao = async function() {
         tabela_precos: obter('prop-tabela'),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
-        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? obter('prop-contrato-aditivo').trim() : '',
+        contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
         endereco_instalacao: obter('prop-endereco'),
@@ -8023,7 +8023,7 @@ window.duplicarPropostaAtual = async function() {
         tabela_precos: obter('prop-tabela') ?? orig.tabela_precos ?? '',
         nome_evento: obter('prop-nome-evento') ?? orig.nome_evento ?? '',
         servico_frete_fob: orig.servico_frete_fob ? 1 : 0,
-        contrato_vinculado: obter('prop-contrato-aditivo') ?? orig.contrato_vinculado ?? '',
+        contrato_vinculado: (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo') ?? orig.contrato_vinculado ?? '') : (obter('prop-contrato-aditivo') ?? orig.contrato_vinculado ?? '')),
         contrato_vinculado_id: orig.contrato_vinculado_id || null,
         contrato_vinculado_tipo: orig.contrato_vinculado_tipo || '',
         endereco_instalacao: obter('prop-endereco') ?? orig.endereco_instalacao ?? '',
@@ -19250,7 +19250,7 @@ window.obterTipoEfetivoProposta = function(tipo) {
         let tipoBase = String(inpAdt?.getAttribute('data-contrato-tipo') || window._contratoVinculadoTipoAtivo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         if (!tipoBase && inpAdt) {
             const idBase = inpAdt.getAttribute('data-contrato-id') || '';
-            const numBase = String(inpAdt.value || '').trim();
+            const numBase = typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(inpAdt.value) : String(inpAdt.value || '').trim();
             if (Array.isArray(window._propostasData)) {
                 const found = window._propostasData.find(p =>
                     (idBase && String(p.id) === String(idBase)) ||
@@ -20371,14 +20371,21 @@ window.onInputContratoAditivo = function(inp) {
 window.onBlurContratoAditivoInput = async function() {
     const inp = document.getElementById('prop-contrato-aditivo');
     if (!inp) return;
-    const termo = String(inp.value || '').trim();
+    const termoBruto = String(inp.value || '').trim();
+    const termo = typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(termoBruto) : termoBruto;
     if (!termo) {
         if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
             window.atualizarBloqueioProdutoPorContratoBase();
         }
         return;
     }
-    if (inp.getAttribute('data-contrato-id')) return;
+    if (inp.getAttribute('data-contrato-id')) {
+        const tipoAttr = inp.getAttribute('data-contrato-tipo') || '';
+        if (typeof window.formatarNumeroContratoAditivoComTipo === 'function') {
+            inp.value = window.formatarNumeroContratoAditivoComTipo(termo, tipoAttr, inp.getAttribute('data-contrato-id'));
+        }
+        return;
+    }
     const cliEl = document.getElementById('prop-cliente');
     const cliNome = String(cliEl?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
     if (!cliNome) return;
@@ -20394,7 +20401,9 @@ window.onBlurContratoAditivoInput = async function() {
             String(c.cliente_nome || c.razao_social || ''),
             String(c.tipo || ''),
             String(c.condicao_pagamento || ''),
-            String(c.nome_evento || '')
+            String(c.nome_evento || ''),
+            String(c.periodo_inicio || ''),
+            String(c.periodo_fim || '')
         );
     }
 };
@@ -20427,6 +20436,45 @@ window.onClickCampoBloqueadoPorTipoProposta = function(event) {
             timer: 2600
         });
     }
+};
+
+window.extrairNumeroContratoBaseLimpo = function(val) {
+    const raw = String(val ?? '').trim();
+    if (!raw) return '';
+    return raw.split(/\s*-\s*(?:Evento|Obra|Limpa\s*Fossa|Equipamentos|Equipamento|Container|Venda|Aditivo)/i)[0]
+        .replace(/\s*-\s*[A-Za-zÀ-ÿ\s]+$/, '')
+        .trim();
+};
+
+window.formatarTipoContratoAditivoExibicao = function(tipoRaw) {
+    const t = String(tipoRaw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (!t || t === 'ADITIVO') return '';
+    if (t === 'EVENTO') return 'Evento';
+    if (t === 'OBRA' || t.startsWith('OBRA ')) return 'Obra';
+    if (t === 'LIMPA FOSSA' || t.startsWith('LIMPA FOSSA')) return 'Limpa Fossa';
+    if (t === 'EQUIPAMENTOS' || t === 'EQUIPAMENTO') return 'Equipamentos';
+    if (t === 'CONTAINER') return 'Container';
+    return t.toLowerCase().replace(/(?:^|\s)\S/g, m => m.toUpperCase());
+};
+
+window.formatarNumeroContratoAditivoComTipo = function(numContrato, tipoContrato, idContratoOpcional = null) {
+    const numLimpo = window.extrairNumeroContratoBaseLimpo(numContrato);
+    if (!numLimpo) return '';
+    let tipoRef = String(tipoContrato || '').trim();
+    if ((!tipoRef || tipoRef.toUpperCase() === 'ADITIVO') && Array.isArray(window._propostasData)) {
+        const idBusca = idContratoOpcional ? String(idContratoOpcional).trim() : '';
+        const normNum = (s) => window.extrairNumeroContratoBaseLimpo(s).replace(/^0+/, '').toUpperCase();
+        const pBase = (idBusca && window._propostasData.find(p => String(p.id) === idBusca))
+            || window._propostasData.find(p => String(p.tipo || '').trim().toUpperCase() !== 'ADITIVO' && normNum(p.contrato || p.numero_contrato || p.codigo) === normNum(numLimpo));
+        if (pBase && (pBase.tipo || pBase.tabela_precos)) {
+            tipoRef = String(pBase.tipo || pBase.tabela_precos).trim();
+        }
+    }
+    const labelTipo = window.formatarTipoContratoAditivoExibicao(tipoRef);
+    if (!labelTipo) {
+        return String(numContrato || '').includes('-') ? String(numContrato).trim() : numLimpo;
+    }
+    return `${numLimpo}- ${labelTipo}`;
 };
 
 window.atualizarVisibilidadeContratoAditivo = function(tipo) {
@@ -20555,7 +20603,8 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     }
     const inp = document.getElementById('prop-contrato-aditivo');
     const btn = document.getElementById('btn-pesq-contrato-aditivo');
-    const termo = (inp?.value || '').trim();
+    const termoBruto = (inp?.value || '').trim();
+    const termo = typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(termoBruto) : termoBruto;
     const orig = btn ? btn.innerHTML : '';
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>'; btn.disabled = true; }
     try {
@@ -20573,7 +20622,9 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
                     String(c.cliente_nome || c.razao_social || ''),
                     String(c.tipo || ''),
                     String(c.condicao_pagamento || ''),
-                    String(c.nome_evento || '')
+                    String(c.nome_evento || ''),
+                    String(c.periodo_inicio || ''),
+                    String(c.periodo_fim || '')
                 );
                 return;
             }
@@ -20584,22 +20635,29 @@ window.pesquisarOuAbrirBuscaContratoAditivo = async function() {
     }
 };
 
-window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '', nomeEvento = '') {
+window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, clienteNome, tipoContrato, condicaoPagamento = '', nomeEvento = '', periodoInicio = '', periodoFim = '') {
     const inp = document.getElementById('prop-contrato-aditivo');
+    const numContratoLimpo = typeof window.extrairNumeroContratoBaseLimpo === 'function'
+        ? window.extrairNumeroContratoBaseLimpo(numContrato)
+        : String(numContrato || '').trim();
     let condPagOrig = String(condicaoPagamento || '').trim();
     let nomeEventoOrig = String(nomeEvento || '').trim();
+    let perIniOrig = String(periodoInicio || '').trim();
+    let perFimOrig = String(periodoFim || '').trim();
     let pOrig = null;
     if (Array.isArray(window._propostasData)) {
-        const numLimpo = String(numContrato || '').trim().toUpperCase();
+        const numLimpoUpper = numContratoLimpo.toUpperCase();
         pOrig = (idContrato && window._propostasData.find(p => String(p.id) === String(idContrato)))
-            || (numLimpo && window._propostasData.find(p => String(p.contrato || p.codigo || '').trim().toUpperCase() === numLimpo))
+            || (numLimpoUpper && window._propostasData.find(p => String(p.contrato || p.codigo || '').trim().toUpperCase() === numLimpoUpper))
             || null;
         if (pOrig && !idContrato && pOrig.id) idContrato = String(pOrig.id);
         if (!condPagOrig && pOrig && pOrig.condicao_pagamento) condPagOrig = String(pOrig.condicao_pagamento).trim();
         if (!tipoContrato && pOrig && pOrig.tipo) tipoContrato = String(pOrig.tipo).trim();
         if (!nomeEventoOrig && pOrig && pOrig.nome_evento) nomeEventoOrig = String(pOrig.nome_evento).trim();
+        if (!perIniOrig && pOrig && pOrig.periodo_inicio) perIniOrig = String(pOrig.periodo_inicio).trim();
+        if (!perFimOrig && pOrig && pOrig.periodo_fim) perFimOrig = String(pOrig.periodo_fim).trim();
     }
-    if (idContrato && (!condPagOrig || !nomeEventoOrig || !tipoContrato)) {
+    if (idContrato && (!condPagOrig || !nomeEventoOrig || !tipoContrato || !perIniOrig || !perFimOrig)) {
         try {
             const pDet = await apiGet(`/propostas/${encodeURIComponent(idContrato)}`);
             if (pDet && pDet.id) {
@@ -20607,6 +20665,8 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
                 if (!condPagOrig && pDet.condicao_pagamento) condPagOrig = String(pDet.condicao_pagamento).trim();
                 if (!tipoContrato && pDet.tipo) tipoContrato = String(pDet.tipo).trim();
                 if (!nomeEventoOrig && pDet.nome_evento) nomeEventoOrig = String(pDet.nome_evento).trim();
+                if (!perIniOrig && pDet.periodo_inicio) perIniOrig = String(pDet.periodo_inicio).trim();
+                if (!perFimOrig && pDet.periodo_fim) perFimOrig = String(pDet.periodo_fim).trim();
             }
         } catch (_e) {}
     }
@@ -20615,8 +20675,11 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         condPagOrig = String(window.obterCondicaoPagamentoPadraoPorTipo(tipoBaseLimpo) || '').trim();
     }
     window._contratoVinculadoTipoAtivo = tipoBaseLimpo;
+    const valorContratoFormatado = typeof window.formatarNumeroContratoAditivoComTipo === 'function'
+        ? window.formatarNumeroContratoAditivoComTipo(numContratoLimpo, tipoBaseLimpo, idContrato)
+        : numContratoLimpo;
     if (inp) {
-        inp.value = String(numContrato || '').trim();
+        inp.value = valorContratoFormatado;
         if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
         else inp.removeAttribute('data-contrato-id');
         if (tipoBaseLimpo) inp.setAttribute('data-contrato-tipo', tipoBaseLimpo);
@@ -20630,6 +20693,24 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     if (tabelaEl && tipoBaseLimpo) {
         tabelaEl.value = tipoBaseLimpo;
     }
+    const normIsoDataContrato = (d) => {
+        const s = String(d || '').trim();
+        if (!s) return '';
+        const mIso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (mIso) return mIso[1];
+        const mBr = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+        return '';
+    };
+    const ehBaseEventoOuEquipamentos = (tipoBaseLimpo === 'EVENTO' || tipoBaseLimpo === 'EQUIPAMENTOS' || tipoBaseLimpo === 'EQUIPAMENTO');
+    if (ehBaseEventoOuEquipamentos) {
+        const iniIsoBase = normIsoDataContrato(perIniOrig);
+        const fimIsoBase = normIsoDataContrato(perFimOrig);
+        const iniEl = document.getElementById('prop-periodo-ini');
+        const fimEl = document.getElementById('prop-periodo-fim');
+        if (iniEl && iniIsoBase) iniEl.value = iniIsoBase;
+        if (fimEl && fimIsoBase) fimEl.value = fimIsoBase;
+    }
     const diasPadrao = window.obterDiasContratoPadraoPorTipo('ADITIVO');
     const diasEl = document.getElementById('prop-dias');
     if (diasPadrao !== null) {
@@ -20639,6 +20720,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         }
     } else if (typeof calcularDiasContrato === 'function') {
         calcularDiasContrato();
+    }
+    if (ehBaseEventoOuEquipamentos && typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') {
+        window.sincronizarDiasEventoComPeriodoProposta();
     }
     if (typeof window.atualizarVisibilidadeDiasEventoProposta === 'function') {
         window.atualizarVisibilidadeDiasEventoProposta('ADITIVO');
@@ -20661,7 +20745,7 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             window.onChangeClientePropostaInput(cliLimpo);
         }
         if (inp) {
-            inp.value = String(numContrato || '').trim();
+            inp.value = valorContratoFormatado;
             if (idContrato) inp.setAttribute('data-contrato-id', String(idContrato));
             if (tipoBaseLimpo) inp.setAttribute('data-contrato-tipo', tipoBaseLimpo);
             if (condPagOrig) inp.setAttribute('data-contrato-cond-pag', condPagOrig);
@@ -20726,6 +20810,8 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
             const tipoC = String(c.tipo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const condPagC = String(c.condicao_pagamento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const nomeEvC = String(c.nome_evento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const perIniC = String(c.periodo_inicio || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const perFimC = String(c.periodo_fim || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const per = (c.periodo_inicio || c.periodo_fim) ? `${fmtData(c.periodo_inicio)} a ${fmtData(c.periodo_fim)}` : '—';
             const badgeSit = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                 ? window.renderBadgeSituacaoContratoHtml(c.situacao_contrato || c.situacao, true)
@@ -20738,7 +20824,7 @@ window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) 
                 : null;
             const isBloqCli = cliObj && typeof window.clienteTemFaturamentoBloqueado === 'function' && window.clienteTemFaturamentoBloqueado(cliObj);
             const estiloCli = isBloqCli ? 'font-weight:700; color:#dc2626;' : 'font-weight:600; color:#1e293b;';
-            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}', '${nomeEvC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+            return `<tr onclick="window.selecionarContratoAditivoBusca('${num}', '${id}', '${cli}', '${tipoC}', '${condPagC}', '${nomeEvC}', '${perIniC}', '${perFimC}')" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                 <td style="padding:10px 12px; font-weight:800; color:#2563eb; text-align:center; white-space:nowrap;">${esc(c.numero_contrato || c.contrato || c.codigo || '—')}</td>
                 <td style="padding:10px 12px; min-width:250px; ${estiloCli}" title="${esc(cliRaw)}">
                     <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.35; max-height:2.7em; word-break:normal; overflow-wrap:break-word;">
@@ -21864,11 +21950,19 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
     if (origem === 'total' && !ehVendaPreview) {
         const totalDigitado = Math.max(0, window.parseMoedaProposta(valTotalEl.value));
         const unitCalculado = qtd > 0 ? (totalDigitado / qtd) : 0;
-        valUnitEl.value = window.formatarMoedaCentavosProposta(unitCalculado);
         valUnitEl.setAttribute('data-preco-base', String(unitCalculado));
-        if (descPctEl) descPctEl.value = '0';
-        if (descRsEl) descRsEl.value = '0,00';
-        valUnitEl.setAttribute('data-desc-mode', '');
+        const pctAtivo = Math.min(100, Math.max(0, parseFloat(descPctEl?.value) || 0));
+        if (pctAtivo > 0) {
+            valUnitEl.setAttribute('data-desc-mode', 'pct');
+            const descRsCalc = totalDigitado * (pctAtivo / 100);
+            if (descRsEl) descRsEl.value = window.formatarMoedaCentavosProposta(descRsCalc);
+            valUnitEl.value = window.formatarMoedaCentavosProposta(Math.max(0, unitCalculado * (1 - pctAtivo / 100)));
+        } else {
+            valUnitEl.value = window.formatarMoedaCentavosProposta(unitCalculado);
+            if (descPctEl) descPctEl.value = '0';
+            if (descRsEl) descRsEl.value = '0,00';
+            valUnitEl.setAttribute('data-desc-mode', '');
+        }
         return;
     }
 
@@ -21877,10 +21971,19 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
         const novoUnitDigitado = Math.max(0, window.parseMoedaProposta(refEl.value));
         valUnitEl.value = window.formatarMoedaCentavosProposta(novoUnitDigitado);
         valUnitEl.setAttribute('data-preco-base', String(novoUnitDigitado));
-        if (descPctEl) descPctEl.value = '0';
-        if (descRsEl) descRsEl.value = '0,00';
-        valUnitEl.setAttribute('data-desc-mode', '');
-        valTotalEl.value = window.formatarMoedaCentavosProposta(novoUnitDigitado * qtd);
+        const pctAtivo = Math.min(100, Math.max(0, parseFloat(descPctEl?.value) || 0));
+        if (pctAtivo > 0) {
+            valUnitEl.setAttribute('data-desc-mode', 'pct');
+            const brutoCalc = novoUnitDigitado * qtd;
+            const descRsCalc = brutoCalc * (pctAtivo / 100);
+            if (descRsEl) descRsEl.value = window.formatarMoedaCentavosProposta(descRsCalc);
+            valTotalEl.value = window.formatarMoedaCentavosProposta(Math.max(0, brutoCalc - descRsCalc));
+        } else {
+            if (descPctEl) descPctEl.value = '0';
+            if (descRsEl) descRsEl.value = '0,00';
+            valUnitEl.setAttribute('data-desc-mode', '');
+            valTotalEl.value = window.formatarMoedaCentavosProposta(novoUnitDigitado * qtd);
+        }
         return;
     }
 
@@ -22006,7 +22109,7 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
     Swal.close();
 };
 
-window.adicionarProdutoProposta = function() {
+window.adicionarProdutoProposta = async function() {
     const inputCodigo = document.getElementById('prop-prod-codigo');
     const inputObservacao = document.getElementById('prop-prod-descricao');
     const inputQuantidade = document.getElementById('prop-prod-quantidade');
@@ -22105,6 +22208,29 @@ window.adicionarProdutoProposta = function() {
     } else {
         valorUnitarioFinal = unitDigitado > 0 ? unitDigitado : precoBase;
         valorTotalFinal = valorUnitarioFinal > 0 ? (valorUnitarioFinal * quantidade) : totalDigitado;
+    }
+
+    if (valorTotalFinal <= 0) {
+        let confirmarCortesia = false;
+        if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+            const resCortesia = await Swal.fire({
+                icon: 'question',
+                title: 'Produto Cortesia (R$ 0,00)',
+                text: 'Tem certeza que deseja adicionar o produto cortesia?',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, adicionar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true
+            });
+            confirmarCortesia = Boolean(resCortesia && resCortesia.isConfirmed);
+        } else {
+            confirmarCortesia = window.confirm('Tem certeza que deseja adicionar o produto cortesia?');
+        }
+        if (!confirmarCortesia) {
+            return;
+        }
     }
 
     if (!window._propProdutosAdicionados) {

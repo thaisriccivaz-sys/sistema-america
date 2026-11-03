@@ -674,7 +674,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                         : Math.max(1, Number(it.diarias ?? p.dias_contrato ?? 1) || 1)))
                 : 1;
             const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
-            const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : unitLiq;
+            const descRsItem = Number(it.desconto_rs) > 0 ? Number(it.desconto_rs) : 0;
+            const base = Number(it.valor_base) > 0 ? Number(it.valor_base) : (unitLiq > 0 ? unitLiq : (descRsItem > 0 && qtd > 0 ? (descRsItem / qtd) : 0));
             const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : unitLiq * qtd;
             const grossDia = base * qtd;
             const naoAprovado = Boolean(isCompPub && prodsAprovPub.length > 0 && !itemComparativaEstaAprovadoPub(it, idxIt, prodsAprovPub));
@@ -700,7 +701,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const nome = String(s.servico || s.descricao || s.nome || 'SERVIÇO').replace(/^\d+\s*-\s*/, '').trim();
             const isFob = !!s.frete_fob;
             const unitLiq = isFob ? 0 : (Number(s.valor_unitario ?? s.valor ?? 0) || 0);
-            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : unitLiq);
+            const descRsServ = isFob ? 0 : (Number(s.desconto_rs) > 0 ? Number(s.desconto_rs) : 0);
+            const base = isFob ? 0 : (Number(s.valor_base) > 0 ? Number(s.valor_base) : (unitLiq > 0 ? unitLiq : (descRsServ > 0 && qtd > 0 ? (descRsServ / qtd) : 0)));
             const net = isFob ? 0 : ((s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : unitLiq * qtd);
             const gross = isFob ? 0 : (base * qtd);
             if (!isFob) somaTotalServicos += net;
