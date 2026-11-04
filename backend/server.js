@@ -34195,18 +34195,19 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const foto_base64 = String(d.foto_base64 || '').trim();
     const remover_foto = Boolean(d.remover_foto);
 
-    // Verificar duplicidade exata de nome com outro registro (id != ?)
-    db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?', [nome, id], (errDup, rowDup) => {
-        if (errDup) return res.status(500).json({ error: errDup.message });
-        if (rowDup) {
-            return res.status(400).json({
-                error: `Já existe outro equipamento cadastrado com exatamente o nome "${rowDup.nome}" (Código: ${rowDup.codigo}). Altere o nome antes de salvar.`
-            });
-        }
+    db.get('SELECT id, codigo, nome, r2_key, foto_url FROM estoque_equipamentos WHERE id = ?', [id], (errCur, rowCur) => {
+        if (errCur) return res.status(500).json({ error: errCur.message });
+        if (!rowCur) return res.status(404).json({ error: 'Equipamento não encontrado.' });
 
-        db.get('SELECT id, codigo, r2_key, foto_url FROM estoque_equipamentos WHERE id = ?', [id], async (errCur, rowCur) => {
-            if (errCur) return res.status(500).json({ error: errCur.message });
-            if (!rowCur) return res.status(404).json({ error: 'Equipamento não encontrado.' });
+        const manteveMesmoNome = String(rowCur.nome || '').trim().toLowerCase() === nome.toLowerCase();
+        // Verificar duplicidade exata de nome com outro registro apenas se o nome foi alterado
+        db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?', [nome, id], async (errDup, rowDup) => {
+            if (errDup) return res.status(500).json({ error: errDup.message });
+            if (rowDup && !manteveMesmoNome) {
+                return res.status(400).json({
+                    error: `Já existe outro equipamento cadastrado com exatamente o nome "${rowDup.nome}" (Código: ${rowDup.codigo}). Altere o nome antes de salvar.`
+                });
+            }
 
             try {
                 let novoR2Key = rowCur.r2_key || null;

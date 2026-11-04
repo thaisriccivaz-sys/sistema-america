@@ -2707,6 +2707,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
     if (id) {
         const item = (window._equipamentosEstoqueData || []).find(x => x.id == id);
         if (!item) return;
+        window._equipamentoOrigemIdModal = String(item.id);
         document.getElementById('equipamento-est-id').value = item.id;
         document.getElementById('equipamento-est-codigo').value = item.codigo || '';
         document.getElementById('equipamento-est-nome').value = item.nome || '';
@@ -2728,6 +2729,7 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         if (subEl) subEl.textContent = 'Edite os dados ou clique em Duplicar para criar uma cópia';
         if (btnDup) btnDup.style.display = 'inline-flex';
     } else {
+        window._equipamentoOrigemIdModal = '';
         document.getElementById('equipamento-est-id').value = '';
         document.getElementById('equipamento-est-codigo').value = 'Gerando...';
         document.getElementById('equipamento-est-nome').value = '';
@@ -2764,6 +2766,7 @@ window.duplicarEquipamentoEstoque = async function(id) {
     const modal = document.getElementById('modal-estoque-equipamento');
     if (!modal) return;
 
+    window._equipamentoOrigemIdModal = String(item.id);
     document.getElementById('equipamento-est-id').value = '';
     document.getElementById('equipamento-est-codigo').value = 'Gerando...';
     document.getElementById('equipamento-est-nome').value = item.nome || '';
@@ -2798,6 +2801,8 @@ window.duplicarEquipamentoEstoque = async function(id) {
 };
 
 window.duplicarEquipamentoDoModal = async function() {
+    const idAtual = (document.getElementById('equipamento-est-id')?.value || '').trim();
+    if (idAtual) window._equipamentoOrigemIdModal = idAtual;
     document.getElementById('equipamento-est-id').value = '';
     document.getElementById('equipamento-est-codigo').value = 'Gerando...';
     const titleEl = document.getElementById('modal-equipamento-estoque-title');
@@ -2824,7 +2829,7 @@ window.fecharModalEquipamentoEstoque = function() {
 window.salvarEquipamentoEstoque = async function(event) {
     if (event) event.preventDefault();
 
-    const id = (document.getElementById('equipamento-est-id')?.value || '').trim();
+    let id = (document.getElementById('equipamento-est-id')?.value || '').trim();
     const nome = (document.getElementById('equipamento-est-nome')?.value || '').trim();
     const unidade_medida = document.getElementById('equipamento-est-unidade')?.value || 'UNIDADE [UN]';
     const fonte_fornecimento = String(document.getElementById('equipamento-est-fonte')?.value || 'PACOTE OBRA').trim().toUpperCase();
@@ -2840,9 +2845,21 @@ window.salvarEquipamentoEstoque = async function(event) {
         return;
     }
 
-    // Validação no frontend: não permitir 2 equipamentos com o mesmo nome exato
     const nomeNorm = nome.toLowerCase();
-    const existente = (window._equipamentosEstoqueData || []).find(item =>
+    // Se abriu a partir de um produto (mesmo clicando em Duplicar) e manteve exatamente o mesmo nome dele,
+    // entender como edição do próprio produto em questão
+    if (!id && window._equipamentoOrigemIdModal) {
+        const itemOrigem = (window._equipamentosEstoqueData || []).find(item => String(item.id) === String(window._equipamentoOrigemIdModal));
+        if (itemOrigem && String(itemOrigem.nome || '').trim().toLowerCase() === nomeNorm) {
+            id = String(itemOrigem.id);
+        }
+    }
+
+    const itemEditado = id ? (window._equipamentosEstoqueData || []).find(item => String(item.id) === String(id)) : null;
+    const manteveMesmoNomeDoEditado = itemEditado && String(itemEditado.nome || '').trim().toLowerCase() === nomeNorm;
+
+    // Validação no frontend: não permitir 2 equipamentos com o mesmo nome exato (exceto o próprio que está sendo editado)
+    const existente = manteveMesmoNomeDoEditado ? null : (window._equipamentosEstoqueData || []).find(item =>
         String(item.nome || '').trim().toLowerCase() === nomeNorm && String(item.id) !== String(id)
     );
     if (existente) {
