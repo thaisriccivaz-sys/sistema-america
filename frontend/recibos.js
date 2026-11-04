@@ -636,6 +636,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
           style="width:72px;padding:.52rem .6rem;border:1.5px solid #2563eb;border-radius:8px;font-size:.97rem;font-weight:700;color:#1e3a8a;background:#eff6ff;text-align:center;"
           title="Total de dias do mês seguinte (base bruto VR) — editável"
           onchange="window._recibos_diasBruto = parseInt(this.value)||0">
+        <span id="rec-dias-bruto-ref" style="margin-left:8px;font-size:.85rem;font-weight:700;color:#2563eb;"></span>
       </div>
       <div style="width:1px;height:42px;background:#e2e8f0;align-self:flex-end;"></div>
       <!-- PAINEL DE AUDITORIA -->
@@ -2708,9 +2709,12 @@ window.carregarHistoricoRecibos = async function () {
     // Selecionando Maio (mes=5) → conta dias de Junho: new Date(ano, 6, 0) = 30
     const elBruto = document.getElementById('rec-dias-bruto');
     if (elBruto) {
-        const diasProxMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+        const diasProxMes = new Date(parseInt(ano), parseInt(mes) + 1, 0).getDate();
         elBruto.value = diasProxMes;
         window._recibos_diasBruto = diasProxMes;
+        const _nomesMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const elRefMes = document.getElementById('rec-dias-bruto-ref');
+        if (elRefMes) elRefMes.textContent = 'ref. ' + _nomesMes[parseInt(mes) % 12] + (parseInt(mes) === 12 ? '/' + (parseInt(ano) + 1) : '');
     }
     
     try {
