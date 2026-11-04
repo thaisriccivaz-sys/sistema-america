@@ -43873,7 +43873,19 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
             error: `Já existe um cliente cadastrado com este CPF/CNPJ (${dupRow.codigo ? dupRow.codigo + ' - ' : ''}${dupRow.nome_razao_social || ''}).`
           });
         }
-        proceedCreate();
+        // Novo cadastro com CNPJ: nao permitir CNPJ com situacao BAIXADA na Receita Federal
+        if (docLimpo.length === 14) {
+          consultarSituacaoCnpjReceita(docLimpo).then((sit) => {
+            if (sit && sit.baixado) {
+              return res.status(400).json({
+                error: 'CNPJ com situação BAIXADA na Receita Federal. Não é permitido cadastrar este cliente.'
+              });
+            }
+            proceedCreate();
+          }).catch(() => proceedCreate());
+        } else {
+          proceedCreate();
+        }
       }
     );
   } else {
@@ -43988,6 +44000,29 @@ app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
   });
 });
 
+// Extrai a situacao cadastral (Ativa, Baixada, Inapta...) da resposta de cnpj.ws / BrasilAPI
+function _extrairSituacaoCadastralCnpj(source, data) {
+  const bruto = source === 'cnpjws'
+    ? (data && data.estabelecimento && data.estabelecimento.situacao_cadastral)
+    : (data && (data.descricao_situacao_cadastral || data.situacao_cadastral));
+  const situacao = String(bruto || '').trim();
+  const norm = situacao.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  return { situacao, baixado: norm === 'BAIXADA' || norm === 'BAIXADO' || norm === '8' };
+}
+
+// Consulta a situacao cadastral na Receita (via APIs publicas). Retorna null se nao foi possivel consultar.
+async function consultarSituacaoCnpjReceita(cnpj) {
+  try {
+    const r1 = await fetch('https://publica.cnpj.ws/cnpj/' + cnpj, { signal: AbortSignal.timeout(7000) });
+    if (r1.ok) return _extrairSituacaoCadastralCnpj('cnpjws', await r1.json());
+  } catch (e) { /* tenta fallback */ }
+  try {
+    const r2 = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj, { signal: AbortSignal.timeout(7000) });
+    if (r2.ok) return _extrairSituacaoCadastralCnpj('brasilapi', await r2.json());
+  } catch (e) { /* sem consulta */ }
+  return null;
+}
+
 // GET /api/consulta-cnpj/:cnpj - Proxy para consulta de CNPJ com IE (cnpj.ws e fallback BrasilAPI)
 app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
   const cnpj = req.params.cnpj.replace(/\D/g, '');
@@ -44000,7 +44035,7 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
     const response = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
     if (response.ok) {
       const data = await response.json();
-      return res.json({ source: 'cnpjws', data });
+      return res.json({ source: 'cnpjws', data, ..._extrairSituacaoCadastralCnpj('cnpjws', data) });
     }
 
     console.warn(`[CNPJ] Erro na API cnpj.ws (Status ${response.status}). Tentando fallback BrasilAPI...`);
@@ -44013,7 +44048,7 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
     const fallbackResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
     if (fallbackResponse.ok) {
       const data = await fallbackResponse.json();
-      return res.json({ source: 'brasilapi', data });
+      return res.json({ source: 'brasilapi', data, ..._extrairSituacaoCadastralCnpj('brasilapi', data) });
     }
     return res.status(fallbackResponse.status).json({ error: 'CNPJ não encontrado nas bases públicas de consulta.' });
   } catch (err) {

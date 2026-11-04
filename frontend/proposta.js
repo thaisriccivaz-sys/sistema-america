@@ -5285,6 +5285,7 @@ window.modalBuscarCNPJ = async function() {
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
         }
+        if (window._bloquearCnpjBaixado(result)) return;
 
         const data = result.data;
         const source = result.source;
@@ -5392,6 +5393,18 @@ window.modalBuscarCNPJ = async function() {
         btn.innerHTML = origText;
         btn.disabled = false;
     }
+};
+
+// Bloqueia cadastro quando o CNPJ consultado esta com situacao BAIXADA na Receita Federal
+window._bloquearCnpjBaixado = function(result) {
+    if (!result || !result.baixado) return false;
+    const sit = result.situacao || 'BAIXADA';
+    Swal.fire({
+        icon: 'error',
+        title: 'CNPJ não permitido',
+        html: 'Este CNPJ está com a situação <b>' + String(sit).toUpperCase() + '</b> na Receita Federal.<br>Não é possível cadastrar cliente com CNPJ baixado.'
+    });
+    return true;
 };
 
 window.modalBuscarCEP = async function() {
@@ -10395,6 +10408,7 @@ window.buscarCNPJ = async function() {
         if (!result || !result.data) {
             throw new Error('Retorno inválido do servidor.');
         }
+        if (window._bloquearCnpjBaixado(result)) return;
 
         const data = result.data;
         const source = result.source;
@@ -13194,6 +13208,7 @@ window.buscarEmpresaClienteContato = async function(origem = 'razao', btnEl = nu
             try {
                 const result = await apiGet('/consulta-cnpj/' + qDigits);
                 if (result && result.data) {
+                    if (window._bloquearCnpjBaixado(result)) return;
                     const data = result.data;
                     const source = result.source;
                     if (source === 'cnpjws') {
@@ -14567,6 +14582,18 @@ window.modalExcluirEndereco = async function(idx) {
         console.error(err);
         alert('Erro ao excluir endereço: ' + err.message);
     }
+};
+
+// Bloqueia cadastro quando o CNPJ consultado esta com situacao BAIXADA na Receita Federal
+window._bloquearCnpjBaixado = function(result) {
+    if (!result || !result.baixado) return false;
+    const sit = result.situacao || 'BAIXADA';
+    Swal.fire({
+        icon: 'error',
+        title: 'CNPJ não permitido',
+        html: 'Este CNPJ está com a situação <b>' + String(sit).toUpperCase() + '</b> na Receita Federal.<br>Não é possível cadastrar cliente com CNPJ baixado.'
+    });
+    return true;
 };
 
 window.modalBuscarCEP = async function() {
