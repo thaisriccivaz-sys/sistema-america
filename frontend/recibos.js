@@ -630,7 +630,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
       </div>
       <div>
         <label style="font-size:.79rem;font-weight:600;color:#64748b;display:block;margin-bottom:.3rem;" title="Total de dias do mês seguinte — usado como base (bruto) para o VR">
-          <i class="ph ph-calendar-check" style="color:#2563eb;"></i> Dias (Mês Seg.)
+          <i class="ph ph-calendar-check" style="color:#2563eb;"></i> Dias (Mês)
         </label>
         <input type="number" id="rec-dias-bruto" min="1" max="31" value="0"
           style="width:72px;padding:.52rem .6rem;border:1.5px solid #2563eb;border-radius:8px;font-size:.97rem;font-weight:700;color:#1e3a8a;background:#eff6ff;text-align:center;"
@@ -2708,7 +2708,7 @@ window.carregarHistoricoRecibos = async function () {
     // Selecionando Maio (mes=5) → conta dias de Junho: new Date(ano, 6, 0) = 30
     const elBruto = document.getElementById('rec-dias-bruto');
     if (elBruto) {
-        const diasProxMes = new Date(parseInt(ano), parseInt(mes) + 1, 0).getDate();
+        const diasProxMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
         elBruto.value = diasProxMes;
         window._recibos_diasBruto = diasProxMes;
     }
