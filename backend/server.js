@@ -33705,7 +33705,7 @@ function normalizarGrupoEquipamento(val) {
     const grupos = [
         'ACESSÓRIO', 'AVARIA', 'BRINQUEDOS', 'CONTAINER', 'CONTENÇÃO',
         'ESTRUTURAS', 'EXTRA LUXO', 'LAVATÓRIOS', 'LUXO', 'MICTÓRIO', 'MOBILIÁRIO', 'PCD',
-        'PISOS', 'SERVIÇOS', 'STANDARD', 'TENDA', 'VAC', 'VIP'
+        'PISOS', 'SERVIÇOS', 'STANDARD', 'TENDA', 'TRAILER', 'VAC', 'VIP'
     ];
     for (const g of grupos) {
         const gNorm = g.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -47496,7 +47496,7 @@ db.serialize(() => {
         }
         maxCod++;
         const novoCodigo = String(maxCod).padStart(5, '0');
-        const grupo = nomeKey.includes(' VAC') ? 'VAC' : (nomeKey.includes('PCD') ? 'PCD' : (nomeKey.includes('LUXO') ? 'VIP' : 'ESTRUTURAS'));
+        const grupo = nomeKey.includes('TRAILER') ? 'TRAILER' : (nomeKey.includes(' VAC') ? 'VAC' : (nomeKey.includes('PCD') ? 'PCD' : (nomeKey.includes('LUXO') ? 'VIP' : 'ESTRUTURAS')));
         db.run(
           `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
            VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', 'Sistema', ?, ?)`,
@@ -47702,7 +47702,7 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
         if (mapEq.has(key)) return syncEquip(idx + 1, cb);
         maxCod++;
         const novoCod = String(maxCod).padStart(5, '0');
-        const grupo = key.includes(' VAC') ? 'VAC' : (key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS'));
+        const grupo = key.includes('TRAILER') ? 'TRAILER' : (key.includes(' VAC') ? 'VAC' : (key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS')));
         db.run(
           `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
            VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', ?, ?, ?)`,

@@ -3074,7 +3074,7 @@ window.abrirModalImportarEquipamentos = async function() {
                         <li><b>Código</b> (número de cadastro do equipamento — ex: 00001; deixe em branco para novos)</li>
                         <li><b>Nome</b> (obrigatório — se já existir, o sistema perguntará se deseja atualizar)</li>
                         <li><b>Unidade de medida</b> (ex: UNIDADE [UN], CAIXA [CX], LITRO [LT]...)</li>
-                        <li><b>Grupo</b> (ACESSÓRIO, AVARIA, BRINQUEDOS, CONTAINER, CONTENÇÃO, ESTRUTURAS, LAVATÓRIOS, MICTÓRIO, MOBILIÁRIO, PCD, PISOS, SERVIÇOS, TENDA, VAC, VIP)</li>
+                        <li><b>Grupo</b> (ACESSÓRIO, AVARIA, BRINQUEDOS, CONTAINER, CONTENÇÃO, ESTRUTURAS, LAVATÓRIOS, MICTÓRIO, MOBILIÁRIO, PCD, PISOS, SERVIÇOS, TENDA, TRAILER, VAC, VIP)</li>
                         <li><b>Fonte de fornecimento</b> (PACOTE OBRA, PRÓPRIO AVULSO, PARCEIROS)</li>
                         <li><b>Texto técnico</b> (Especificação técnica)</li>
                     </ul>
@@ -3140,6 +3140,7 @@ window._GRUPOS_EQUIPAMENTO_PADRAO = [
     'PISOS',
     'SERVIÇOS',
     'TENDA',
+    'TRAILER',
     'VAC',
     'VIP'
 ];

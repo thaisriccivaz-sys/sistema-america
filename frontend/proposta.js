@@ -21604,13 +21604,13 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm) ? ['CONTAINER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'VAC']).forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal'].includes(tipoNorm) ? ['CONTAINER', 'TRAILER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'TRAILER', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
         });
     } else {
-        ['CONTAINER'].forEach(gPad => {
+        ['CONTAINER', 'TRAILER'].forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
