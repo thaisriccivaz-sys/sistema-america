@@ -47460,6 +47460,162 @@ const SEED_TABELAS_PRECO_2026 = {
       "qtd_manutencao": 20,
       "valor_total": 4130
     }
+  ],
+  "EQUIPAMENTOS": [
+      {
+          "nome_equipamento": "APARELHO DE AR CONDICIONADO 9.000 BTUS DE CONTAINER",
+          "valor_produto": 580,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 580
+      },
+      {
+          "nome_equipamento": "CONTAINER CAIXA DE DEJETOS",
+          "valor_produto": 4000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 4000
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 10/0 - VÃO LIVRE",
+          "valor_produto": 900,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 900
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 10/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 1000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1000
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 13/0 - VÃO LIVRE",
+          "valor_produto": 1000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1000
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 13/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 1000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1000
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 13/7WC - SANITÁRIO COM 7 VASOS",
+          "valor_produto": 2000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 2000
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 5/0 - VÃO LIVRE",
+          "valor_produto": 700,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 700
+      },
+      {
+          "nome_equipamento": "CONTAINER EB 5/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 800,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 800
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 10/0 - VÃO LIVRE",
+          "valor_produto": 1500,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1500
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 10/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 1500,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1500
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/0 - BILHETERIA",
+          "valor_produto": 2500,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 2500
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/0 - VÃO LIVRE",
+          "valor_produto": 2000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 2000
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/1 - DUAS SALAS",
+          "valor_produto": 2300,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 2300
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 2500,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 2500
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/4W3CH - 4 BANHEIROS + 3 CHUVEIROS",
+          "valor_produto": 5000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 5000
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/7CH - 7 CHUVEIROS",
+          "valor_produto": 5000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 5000
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/7MF - 3 VASOS FEM + 4 VASOS M",
+          "valor_produto": 4000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 4000
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 13/7WC - SANITÁRIO COM 7 VASOS",
+          "valor_produto": 4000,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 4000
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 5/0 - VÃO LIVRE",
+          "valor_produto": 1100,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1100
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 5/1CH - VÃO LIVRE + BANHEIRO",
+          "valor_produto": 1300,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1300
+      },
+      {
+          "nome_equipamento": "CONTAINER EBTA 5/PCD",
+          "valor_produto": 1600,
+          "valor_manutencao": 0,
+          "qtd_manutencao": 0,
+          "valor_total": 1600
+      }
   ]
 };
 
@@ -47505,84 +47661,149 @@ db.serialize(() => {
   // Garantir configurações iniciais para todos os tipos de proposta
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
   TIPOS_PROPOSTA_PADRAO_PRECOS.forEach(tp => {
-    const arqDefault = SEED_TABELAS_PRECO_2026[tp.tipo] ? '01. Tabela de Preços_2026 1.xlsx' : '';
+    const arqDefault = tp.tipo === 'EQUIPAMENTOS'
+      ? '01. Tabela de Preços_2026 1 (1).xlsx'
+      : (SEED_TABELAS_PRECO_2026[tp.tipo] ? '01. Tabela de Preços_2026 1.xlsx' : '');
     db.run(
       `INSERT OR IGNORE INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em)
        VALUES (?, ?, ?, NULL, 'Sistema', ?)`,
       [tp.tipo, tp.contrato, arqDefault, agora]
     );
+    if (arqDefault) {
+      db.run(
+        `UPDATE comercial_tabelas_preco_config SET arquivo_nome = ?, atualizado_em = ? WHERE tipo_proposta = ? AND (arquivo_nome IS NULL OR TRIM(arquivo_nome) = '')`,
+        [arqDefault, agora, tp.tipo]
+      );
+    }
   });
 
-  // Sincronizar equipamentos da planilha 2026 na tabela estoque_equipamentos e popular comercial_tabelas_preco_itens se vazio
-  db.get('SELECT COUNT(*) as cnt FROM comercial_tabelas_preco_itens', [], (errCnt, rowCnt) => {
-    if (errCnt || (rowCnt && rowCnt.cnt > 0)) return;
+  // Sincronizar equipamentos da planilha 2026 na tabela estoque_equipamentos e popular comercial_tabelas_preco_itens de forma idempotente
+  const normEqKey = (s) => String(s || '').replace(/\s+/g, ' ').trim().toUpperCase();
+  const nomesContainerSet = new Set(
+    (SEED_TABELAS_PRECO_2026['EQUIPAMENTOS'] || []).map(it => normEqKey(it.nome_equipamento))
+  );
 
-    db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
-      if (errEq) return;
-      const mapEqByName = new Map();
-      let maxCod = 0;
-      (eqRows || []).forEach(r => {
-        if (r.nome) mapEqByName.set(String(r.nome).trim().toUpperCase(), r);
-        const m = String(r.codigo || '').match(/(\d+)/);
-        if (m) {
-          const n = parseInt(m[1], 10);
-          if (n > maxCod) maxCod = n;
+  db.all('SELECT id, codigo, nome, grupo_produto, fonte_fornecimento FROM estoque_equipamentos', [], (errEq, eqRows) => {
+    if (errEq) return;
+    const mapEqByName = new Map();
+    let maxCod = 0;
+    (eqRows || []).forEach(r => {
+      if (r.nome) mapEqByName.set(normEqKey(r.nome), r);
+      const m = String(r.codigo || '').match(/(\d+)/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxCod) maxCod = n;
+      }
+    });
+
+    const todosNomesMap = new Map();
+    Object.entries(SEED_TABELAS_PRECO_2026).forEach(([tipoProp, lista]) => {
+      (lista || []).forEach(it => {
+        const nomeLimpo = String(it.nome_equipamento || '').replace(/\s+/g, ' ').trim();
+        const key = normEqKey(nomeLimpo);
+        if (key && !todosNomesMap.has(key)) {
+          todosNomesMap.set(key, { nomeOriginal: nomeLimpo, tipoProp });
         }
       });
+    });
 
-      const todosNomesUnicos = new Set();
-      Object.values(SEED_TABELAS_PRECO_2026).forEach(lista => {
-        lista.forEach(it => todosNomesUnicos.add(String(it.nome_equipamento).trim()));
-      });
+    const entriesArray = Array.from(todosNomesMap.entries());
+    const ensureNextEquipamento = (idx, doneCb) => {
+      if (idx >= entriesArray.length) return doneCb();
+      const [nomeKey, info] = entriesArray[idx];
+      const nomeOriginal = info.nomeOriginal;
+      const isContainerItem = nomesContainerSet.has(nomeKey) || nomeKey.includes('CONTAINER');
 
-      const nomesArray = Array.from(todosNomesUnicos);
-      const ensureNextEquipamento = (idx, doneCb) => {
-        if (idx >= nomesArray.length) return doneCb();
-        const nomeOriginal = nomesArray[idx];
-        const nomeKey = nomeOriginal.toUpperCase();
-        if (mapEqByName.has(nomeKey)) {
-          return ensureNextEquipamento(idx + 1, doneCb);
+      if (mapEqByName.has(nomeKey)) {
+        const eqExist = mapEqByName.get(nomeKey);
+        if (isContainerItem && String(eqExist.grupo_produto || '').trim().toUpperCase() !== 'CONTAINER') {
+          db.run(
+            `UPDATE estoque_equipamentos SET grupo_produto = 'CONTAINER', updated_at = ? WHERE id = ?`,
+            [agora, eqExist.id],
+            () => ensureNextEquipamento(idx + 1, doneCb)
+          );
+          return;
         }
-        maxCod++;
-        const novoCodigo = String(maxCod).padStart(5, '0');
-        const grupo = nomeKey.includes('TRAILER') ? 'TRAILER' : (nomeKey.includes(' VAC') ? 'VAC' : (nomeKey.includes('PCD') ? 'PCD' : (nomeKey.includes('LUXO') ? 'VIP' : 'ESTRUTURAS')));
-        db.run(
-          `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
-           VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', 'Sistema', ?, ?)`,
-          [novoCodigo, nomeOriginal, grupo, agora, agora],
-          function(errIns) {
-            if (!errIns && this.lastID) {
-              mapEqByName.set(nomeKey, { id: this.lastID, codigo: novoCodigo, nome: nomeOriginal });
-            }
-            ensureNextEquipamento(idx + 1, doneCb);
+        return ensureNextEquipamento(idx + 1, doneCb);
+      }
+
+      maxCod++;
+      const novoCodigo = String(maxCod).padStart(5, '0');
+      const grupo = isContainerItem
+        ? 'CONTAINER'
+        : (nomeKey.includes('TRAILER') ? 'TRAILER' : (nomeKey.includes(' VAC') ? 'VAC' : (nomeKey.includes('PCD') ? 'PCD' : (nomeKey.includes('LUXO') ? 'VIP' : 'ESTRUTURAS'))));
+      const fonte = isContainerItem ? 'PRÓPRIO AVULSO' : 'PACOTE OBRA';
+
+      db.run(
+        `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at)
+         VALUES (?, ?, 'UNIDADE [UN]', ?, ?, '', 0, 'matriz', 'Sistema', ?, ?)`,
+        [novoCodigo, nomeOriginal, fonte, grupo, agora, agora],
+        function(errIns) {
+          if (!errIns && this.lastID) {
+            mapEqByName.set(nomeKey, { id: this.lastID, codigo: novoCodigo, nome: nomeOriginal, grupo_produto: grupo, fonte_fornecimento: fonte });
           }
-        );
-      };
+          ensureNextEquipamento(idx + 1, doneCb);
+        }
+      );
+    };
 
-      ensureNextEquipamento(0, () => {
-        const stmtItem = db.prepare(`INSERT INTO comercial_tabelas_preco_itens (
+    ensureNextEquipamento(0, () => {
+      db.all('SELECT id, tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento FROM comercial_tabelas_preco_itens', [], (errItens, existingItens) => {
+        if (errItens) return;
+        const listExist = existingItens || [];
+        const byTipo = new Map();
+        listExist.forEach(row => {
+          const tp = normEqKey(row.tipo_proposta);
+          if (!byTipo.has(tp)) byTipo.set(tp, new Map());
+          byTipo.get(tp).set(normEqKey(row.nome_equipamento), row);
+        });
+
+        const stmtInsert = db.prepare(`INSERT INTO comercial_tabelas_preco_itens (
           tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
           valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
+        const stmtUpdateLink = db.prepare(`UPDATE comercial_tabelas_preco_itens SET
+          equipamento_id = ?, codigo_equipamento = ?, nome_equipamento = ?
+          WHERE id = ?`);
+
+        let inseridosCount = 0;
         Object.entries(SEED_TABELAS_PRECO_2026).forEach(([tipoProp, itens]) => {
-          itens.forEach(it => {
-            const eq = mapEqByName.get(String(it.nome_equipamento).trim().toUpperCase());
-            stmtItem.run([
-              tipoProp,
-              eq ? eq.id : null,
-              eq ? eq.codigo : '',
-              String(it.nome_equipamento).trim(),
-              it.valor_produto || 0,
-              it.valor_manutencao || 0,
-              it.qtd_manutencao || 0,
-              it.valor_total || 0,
-              agora
-            ]);
+          const tpKey = normEqKey(tipoProp);
+          const mapTipo = byTipo.get(tpKey) || new Map();
+          const tipoVazio = mapTipo.size === 0;
+
+          (itens || []).forEach(it => {
+            const nomeLimpo = String(it.nome_equipamento || '').replace(/\s+/g, ' ').trim();
+            const itemKey = normEqKey(nomeLimpo);
+            const eq = mapEqByName.get(itemKey);
+            const existingRow = mapTipo.get(itemKey);
+
+            if (!existingRow && (tipoVazio || tpKey === 'EQUIPAMENTOS')) {
+              stmtInsert.run([
+                tipoProp,
+                eq ? eq.id : null,
+                eq ? eq.codigo : '',
+                nomeLimpo,
+                it.valor_produto || 0,
+                it.valor_manutencao || 0,
+                it.qtd_manutencao || 0,
+                it.valor_total || 0,
+                agora
+              ]);
+              inseridosCount++;
+            } else if (existingRow && eq && (!existingRow.equipamento_id || !existingRow.codigo_equipamento || existingRow.nome_equipamento !== nomeLimpo)) {
+              stmtUpdateLink.run([eq.id, eq.codigo, nomeLimpo, existingRow.id]);
+            }
           });
         });
-        stmtItem.finalize();
-        console.log('[COMERCIAL] Tabelas de Preços 2026 (OBRA MENSAL, OBRA QUINZENAL, OBRA SEMANAL) carregadas com sucesso.');
+
+        stmtInsert.finalize();
+        stmtUpdateLink.finalize(() => {
+          if (inseridosCount > 0) {
+            console.log(`[COMERCIAL] Tabelas de Preços 2026 sincronizadas (${inseridosCount} itens adicionados, incluindo CONTAINER na aba EQUIPAMENTOS).`);
+          }
+        });
       });
     });
   });
@@ -47593,7 +47814,7 @@ app.get('/api/comercial/tabelas-preco', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_tabelas_preco_config ORDER BY id ASC', [], (errCfg, configs) => {
     if (errCfg) return res.status(500).json({ error: errCfg.message });
     db.all(
-      `SELECT i.*, COALESCE(e.codigo, i.codigo_equipamento) as codigo_atual, COALESCE(e.id, i.equipamento_id) as eq_id_atual
+      `SELECT i.*, COALESCE(e.codigo, i.codigo_equipamento) as codigo_atual, COALESCE(e.id, i.equipamento_id) as eq_id_atual, COALESCE(e.grupo_produto, '') as grupo_produto
        FROM comercial_tabelas_preco_itens i
        LEFT JOIN estoque_equipamentos e ON (e.id = i.equipamento_id OR UPPER(TRIM(e.nome)) = UPPER(TRIM(i.nome_equipamento)))
        ORDER BY i.id ASC`,
@@ -47696,21 +47917,23 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       console.warn('[R2] Falha ao enviar planilha de preços ao R2:', eR2.message);
     }
 
-    // Ler linhas da aba
+    // Ler linhas da aba (suporta planilha com ou sem linha de cabeçalho)
     const header = (rows[0] || []).map(h => String(h || '').trim().toUpperCase());
+    const primeiraLinhaEhDados = rows[0] && rows[0].length >= 2 && !isNaN(parseFloat(String(rows[0][1] ?? '').replace(',', '.'))) && parseFloat(String(rows[0][1] ?? '').replace(',', '.')) > 0 && !['PRODUTO', 'VALOR', 'PREÇO', 'PRECO', 'CUSTO'].includes(header[1]);
+    const startRowIdx = primeiraLinhaEhDados ? 0 : 1;
     const parsedItems = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = startRowIdx; i < rows.length; i++) {
       const r = rows[i];
       if (!r || !r.some(x => x !== '')) continue;
       // Suporta formato [Nome, ValorProduto, ValorManutencao, QtdManutencao, CustoTotal] ou [Codigo, Nome, Valor]
-      let nome = String(r[0] || '').trim();
+      let nome = String(r[0] || '').replace(/\s+/g, ' ').trim();
       let valProd = parseFloat(String(r[1] ?? '0').replace(',', '.')) || 0;
       let valManut = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
       let qtdManut = parseInt(String(r[3] ?? '0'), 10) || 0;
       let valTotal = parseFloat(String(r[4] ?? '0').replace(',', '.')) || 0;
 
-      if (header[0] && (header[0].includes('COD') || header[0].includes('CÓD')) && r[1]) {
-        nome = String(r[1] || '').trim();
+      if (!primeiraLinhaEhDados && header[0] && (header[0].includes('COD') || header[0].includes('CÓD')) && r[1]) {
+        nome = String(r[1] || '').replace(/\s+/g, ' ').trim();
         valProd = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
         valTotal = parseFloat(String(r[5] ?? r[2] ?? '0').replace(',', '.')) || valProd;
       } else if (!valTotal && valProd > 0 && r.length <= 3) {
@@ -47736,7 +47959,7 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       const mapEq = new Map();
       let maxCod = 0;
       (eqRows || []).forEach(e => {
-        if (e.nome) mapEq.set(String(e.nome).trim().toUpperCase(), e);
+        if (e.nome) mapEq.set(String(e.nome).replace(/\s+/g, ' ').trim().toUpperCase(), e);
         const m = String(e.codigo || '').match(/(\d+)/);
         if (m) {
           const n = parseInt(m[1], 10);
@@ -47747,15 +47970,17 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       const syncEquip = (idx, cb) => {
         if (idx >= parsedItems.length) return cb();
         const it = parsedItems[idx];
-        const key = it.nome_equipamento.toUpperCase();
+        const key = it.nome_equipamento.replace(/\s+/g, ' ').trim().toUpperCase();
         if (mapEq.has(key)) return syncEquip(idx + 1, cb);
         maxCod++;
         const novoCod = String(maxCod).padStart(5, '0');
-        const grupo = key.includes('TRAILER') ? 'TRAILER' : (key.includes(' VAC') ? 'VAC' : (key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS')));
+        const ehContainer = key.includes('CONTAINER');
+        const grupo = ehContainer ? 'CONTAINER' : (key.includes('TRAILER') ? 'TRAILER' : (key.includes(' VAC') ? 'VAC' : (key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS'))));
+        const fonte = (ehContainer || tipoProposta === 'EQUIPAMENTOS' || tipoProposta === 'EVENTO') ? 'PRÓPRIO AVULSO' : 'PACOTE OBRA';
         db.run(
-          `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, criado_em, atualizado_em)
-           VALUES (?, ?, 'UNIDADE [UN]', 'PACOTE OBRA', ?, '', 0, 'matriz', ?, ?, ?)`,
-          [novoCod, it.nome_equipamento, grupo, usuario, agora, agora],
+          `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at)
+           VALUES (?, ?, 'UNIDADE [UN]', ?, ?, '', 0, 'matriz', ?, ?, ?)`,
+          [novoCod, it.nome_equipamento, fonte, grupo, usuario, agora, agora],
           function(errIns) {
             if (!errIns && this.lastID) {
               mapEq.set(key, { id: this.lastID, codigo: novoCod, nome: it.nome_equipamento });

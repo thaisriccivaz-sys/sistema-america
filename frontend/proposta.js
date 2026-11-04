@@ -19371,19 +19371,33 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
         }
     }
 
-    const itensDoTipo = window._comercialTabelasPrecoData.itens.filter(i => String(i.tipo_proposta || '').trim().toUpperCase() === tipo);
-    if (itensDoTipo.length === 0) return null;
+    const buscarEmLista = (lista) => {
+        if (!Array.isArray(lista) || lista.length === 0) return null;
+        let m = null;
+        if (idBusca) {
+            m = lista.find(i => Number(i.equipamento_id) === Number(idBusca));
+        }
+        if (!m && codBusca) {
+            m = lista.find(i => norm(i.codigo_equipamento) === codBusca);
+        }
+        if (!m && nomeBusca) {
+            m = lista.find(i => norm(i.nome_equipamento) === nomeBusca);
+        }
+        return m;
+    };
 
-    let itemMatch = null;
-    if (idBusca) {
-        itemMatch = itensDoTipo.find(i => Number(i.equipamento_id) === Number(idBusca));
+    const itensDoTipo = window._comercialTabelasPrecoData.itens.filter(i => String(i.tipo_proposta || '').trim().toUpperCase() === tipo);
+    let itemMatch = buscarEmLista(itensDoTipo);
+
+    // Fallback para produtos do grupo CONTAINER cadastrados na aba EQUIPAMENTOS
+    if (!itemMatch && tipo !== 'EQUIPAMENTOS') {
+        const itensEquip = window._comercialTabelasPrecoData.itens.filter(i =>
+            String(i.tipo_proposta || '').trim().toUpperCase() === 'EQUIPAMENTOS' &&
+            (String(i.grupo_produto || '').trim().toUpperCase() === 'CONTAINER' || norm(i.nome_equipamento).includes('container'))
+        );
+        itemMatch = buscarEmLista(itensEquip);
     }
-    if (!itemMatch && codBusca) {
-        itemMatch = itensDoTipo.find(i => norm(i.codigo_equipamento) === codBusca);
-    }
-    if (!itemMatch && nomeBusca) {
-        itemMatch = itensDoTipo.find(i => norm(i.nome_equipamento) === nomeBusca);
-    }
+
     return itemMatch ? (parseFloat(itemMatch.valor_total) || 0) : null;
 };
 
@@ -21542,8 +21556,8 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         const nomeNorm = normStr(p.nome);
 
         if (tipoNorm === 'evento' || tipoNorm === 'equipamentos') {
-            // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA, apenas os outros (parceiros e avulsos); serviços aparecem em Produto
-            if (fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) {
+            // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA (exceto CONTAINER), apenas os outros (parceiros e avulsos); serviços aparecem em Produto
+            if ((fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) && grupoNorm !== 'container') {
                 return false;
             }
             // Não mostrar produtos de mobilização/desmobilização ZC, ZA, ZV, VZ nem produtos do tipo SERVIÇOS que tenham ZC, ZA, ZV ou VZ no nome em propostas/aditivos de evento
@@ -22850,9 +22864,12 @@ window._renderTabelaPrecosInt = async function() {
                                 </td>
                             </tr>
                         ` : itensAba.map(item => `
-                            <tr class="tp-row-item" data-search="${_escHtmlProp((item.codigo_equipamento + ' ' + item.nome_equipamento).toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
+                            <tr class="tp-row-item" data-search="${_escHtmlProp((item.codigo_equipamento + ' ' + item.nome_equipamento + ' ' + (item.grupo_produto || '')).toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:8px 12px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(item.codigo_equipamento || '—')}</td>
-                                <td style="padding:8px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(item.nome_equipamento)}</td>
+                                <td style="padding:8px 12px; font-weight:600; color:#1e293b;">
+                                    <span>${_escHtmlProp(item.nome_equipamento)}</span>
+                                    ${item.grupo_produto ? `<span style="margin-left:6px; font-size:0.68rem; font-weight:700; padding:1px 6px; border-radius:999px; background:#ede9fe; color:#6d28d9; vertical-align:middle;">${_escHtmlProp(item.grupo_produto)}</span>` : ''}
+                                </td>
                                 <td style="padding:8px 12px; text-align:right;">
                                     <input type="number" step="0.01" id="tp-vt-${item.id}" value="${Number(item.valor_total || 0).toFixed(2)}"
                                         style="width:125px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
