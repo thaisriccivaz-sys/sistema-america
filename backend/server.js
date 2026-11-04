@@ -12242,7 +12242,7 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
          FROM colaboradores c
          LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
          LEFT JOIN fechamento_mensal fmant ON fmant.colaborador_id = c.id AND fmant.mes = ? AND fmant.ano = ?
-         WHERE c.status != 'Desligado'
+         WHERE (c.status != 'Desligado' OR (fm.apuracao_ponto IS NOT NULL AND fm.apuracao_ponto != ''))
          ORDER BY c.nome_completo ASC`,
         [mes, ano, mesAnt, anoAnt],
         (err, rows) => {

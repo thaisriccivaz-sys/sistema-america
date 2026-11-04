@@ -1030,6 +1030,7 @@ function abrirLegenda() {
             });
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
+            _ordenarDadosPorNome();
             _dados.forEach(row => {
                 row.edicoes_manuais = (function(em) {
                     if (!em) return {};
@@ -1174,7 +1175,7 @@ function abrirLegenda() {
             tr.dataset.idx = idx;
             tr.dataset.nome = (row.nome_completo || '').substring(0, 60);
             tr.innerHTML = `
-<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;${nameColor}" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}<button onclick="window.abrirObsFechamento(${idx})" title="${_dados[idx] && _dados[idx].observacao ? 'Obs: '+_dados[idx].observacao : 'Adicionar observacao'}" style="background:transparent;border:1px solid ${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};border-radius:4px;color:${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};cursor:pointer;padding:0 4px;font-size:0.75rem;margin-left:4px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;"><i class='ph ph-plus'></i></button></td>
+<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;${nameColor}" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}${_badgeDesligadoFechamento(row)}<button onclick="window.abrirObsFechamento(${idx})" title="${_dados[idx] && _dados[idx].observacao ? 'Obs: '+_dados[idx].observacao : 'Adicionar observacao'}" style="background:transparent;border:1px solid ${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};border-radius:4px;color:${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};cursor:pointer;padding:0 4px;font-size:0.75rem;margin-left:4px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;"><i class='ph ph-plus'></i></button></td>
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="display:none;"></td>
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
@@ -3808,6 +3809,68 @@ function abrirLegenda() {
         return true;
     }
 
+    // ── Desligados: so entram no fechamento se tiverem apontamento de ponto no mes ──
+    function _diaDoMesPonto(s) {
+        var str = String(s || '').substring(0, 10);
+        var p = str.split(/[-\/]/);
+        if (p.length !== 3) return 0;
+        return parseInt(p[0].length === 4 ? p[2] : p[0], 10) || 0;
+    }
+    function _diaTemApontamentoPonto(d) {
+        if (!d || d.isFerias === true) return false;
+        return (Array.isArray(d.listAfdtManutencao) && d.listAfdtManutencao.length > 0)
+            || (Array.isArray(d.marcacoes) && d.marcacoes.length > 0)
+            || ((parseInt(d.totalHorasTrabalhadas) || 0) > 0);
+    }
+    function _ultimoDiaApontamento(dadosPonto) {
+        var arr = _extrairSlimPonto(dadosPonto) || [];
+        var ultimo = 0;
+        arr.forEach(function(d) { var n = _diaDoMesPonto(d.date); if (n > ultimo && _diaTemApontamentoPonto(d)) ultimo = n; });
+        return ultimo;
+    }
+    // Retorna copia do ponto considerando apenas ate o ultimo dia com apontamento (dias sem apontamento
+    // apos isso nao contam como falta nem folga). Retorna null se nao houve nenhum apontamento no mes.
+    function _ajustarPontoDesligado(dados) {
+        var ultimo = _ultimoDiaApontamento(dados);
+        if (!ultimo) return null;
+        var arr = Array.isArray(dados.apuracaoRaw) ? dados.apuracaoRaw : (_extrairSlimPonto(dados) || []);
+        var faltasDias = [], faltas = 0, ajusteAtraso = 0;
+        arr.forEach(function(d) {
+            var n = _diaDoMesPonto(d.date || d.dateTimeStr);
+            var fi = parseInt(d.faltasDiasInteiro) || 0;
+            var fa = parseInt(d.horasFaltaAtraso) || 0;
+            if (n && n <= ultimo) {
+                if (fi > 0) { faltas += fi; faltasDias.push(n); }
+            } else if (n) {
+                var jornada = (parseInt(d.horasUteis) || 0) || (parseInt(d.horasApenasFalta) || 0) || fa;
+                ajusteAtraso += fa - (fi > 0 && fa > 0 ? Math.min(fa, jornada) : 0);
+            }
+        });
+        var copia = Object.assign({}, dados);
+        copia.faltas = faltas;
+        copia.data_faltas = JSON.stringify(faltasDias);
+        copia.minutosAtraso = Math.max(0, (parseInt(dados.minutosAtraso) || 0) - ajusteAtraso);
+        copia.ultimoDiaApontamento = ultimo;
+        return copia;
+    }
+    function _badgeDesligadoFechamento(row) {
+        if (!row || String(row.colab_status || '').toLowerCase() !== 'desligado') return '';
+        var u = _dadosPonto[row.colaborador_id] ? _ultimoDiaApontamento(_dadosPonto[row.colaborador_id]) : 0;
+        var tit = 'Colaborador desligado' + (u ? ' - dias a pagar: ' + u + ' (ate o ultimo apontamento, dia ' + u + ')' : '');
+        return '<span title="' + tit + '" style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:0 4px;font-size:.62rem;font-weight:700;margin-left:4px;vertical-align:middle;">DESL.' + (u ? ' ' + u + 'd' : '') + '</span>';
+    }
+    function _normalizarRowFechamento(row) {
+        function _js(v, vazio) { if (!v) return vazio; if (typeof v === 'object') return v; try { return JSON.parse(v) || vazio; } catch(e) { return vazio; } }
+        row.edicoes_manuais = _js(row.edicoes_manuais, {});
+        row.divergencias_comparacao = _js(row.divergencias_comparacao, {});
+        row.multas_detalhes = _js(row.multas_detalhes, []);
+        row.sinistros_detalhes = _js(row.sinistros_detalhes, []);
+        return row;
+    }
+    function _ordenarDadosPorNome() {
+        _dados.sort(function(a, b) { return String(a.nome_completo || '').localeCompare(String(b.nome_completo || ''), 'pt-BR', { sensitivity: 'base' }); });
+    }
+
     async function buscarPontoTodos() {
         if (!_mes || !_ano) { Swal.fire({ icon: "warning", text: "Busque um mês antes de carregar o ponto." }); return; }
         limparDivergenciasComparacao();
@@ -3820,6 +3883,7 @@ function abrirLegenda() {
         var ok = 0, semCadastro = 0, erros = 0;
         var nomesOk = [], nomesSem = [];
         var pontosCarregados = []; // { id, nome, dias[] } para comparar faltas com o prontuario
+        var _desligSemApont = []; // desligados sem nenhum apontamento no mes (nao entram no fechamento)
 
         Swal.fire({ title: "Buscando ponto...", html: "0 / " + colabsComCpf.length + " colaboradores", allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
 
@@ -3834,6 +3898,11 @@ function abrirLegenda() {
                 var resp = await fetch("/api/diretoria/controlid/ponto-colaborador?cpf=" + encodeURIComponent(cpf) + "&mes=" + _mes + "&ano=" + _ano,
                     { headers: { "Authorization": "Bearer " + getToken() } });
                 var dados = await resp.json();
+                if (dados.success && dados.encontrado && String(row.colab_status || '').toLowerCase() === 'desligado') {
+                    var _ajD = _ajustarPontoDesligado(dados);
+                    if (!_ajD) { _desligSemApont.push(row); concluidos++; return; }
+                    dados = _ajD;
+                }
                 if (dados.success && dados.encontrado) {
                     _dadosPonto[row.colaborador_id || row.id] = dados;
                     aplicarPontoNaTabela(idx, dados);
@@ -3864,6 +3933,7 @@ function abrirLegenda() {
                 var desligados = (Array.isArray(allColabs) ? allColabs : []).filter(function(c) {
                     return c && c.id && !idsAtivos[String(c.id)] && c.cpf && String(c.status || "").toLowerCase() === "desligado";
                 });
+                var _novosDesl = [];
                 await Promise.allSettled(desligados.map(async function(c) {
                     var cpfLimpo = String(c.cpf || "").replace(/[.\-]/g, "");
                     if (!cpfLimpo) return;
@@ -3872,16 +3942,37 @@ function abrirLegenda() {
                             { headers: { "Authorization": "Bearer " + getToken() } });
                         var dadosD = await respD.json();
                         if (dadosD && dadosD.success && dadosD.encontrado) {
+                            var _ajDD = _ajustarPontoDesligado(dadosD);
+                            if (!_ajDD) return; // sem apontamento no mes: nao entra no fechamento
                             var _diasFaltaD = [];
-                            try { _diasFaltaD = JSON.parse(dadosD.data_faltas || "[]"); } catch (eDf) { _diasFaltaD = []; }
+                            try { _diasFaltaD = JSON.parse(_ajDD.data_faltas || "[]"); } catch (eDf) { _diasFaltaD = []; }
                             pontosCarregados.push({ id: c.id, nome: c.nome_completo, dias: Array.isArray(_diasFaltaD) ? _diasFaltaD : [] });
+                            _novosDesl.push({ c: c, dados: _ajDD });
                         }
                     } catch (eD) {}
                 }));
+                // Desligados com apontamento: salvar ponto, trazer a linha do fechamento e aplicar na tabela
+                if (_novosDesl.length) {
+                    var _itensD = _novosDesl.map(function(x) { var sl = _extrairSlimPonto(x.dados); return sl ? { colaborador_id: x.c.id, apuracao_ponto: JSON.stringify(sl) } : null; }).filter(Boolean);
+                    await fetch('/api/fechamento/salvar-ponto', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() }, body: JSON.stringify({ mes: _mes, ano: _ano, itens: _itensD }) });
+                    var rLista = await fetch('/api/fechamento/' + _ano + '/' + _mes, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+                    if (rLista.ok) {
+                        var lista = await rLista.json();
+                        lista.forEach(function(r) {
+                            if (!_dados.some(function(d) { return String(d.colaborador_id) === String(r.colaborador_id); })) _dados.push(_normalizarRowFechamento(r));
+                        });
+                        _novosDesl.forEach(function(x) {
+                            var ix = _dados.findIndex(function(d) { return String(d.colaborador_id) === String(x.c.id); });
+                            if (ix >= 0) { _dadosPonto[x.c.id] = x.dados; aplicarPontoNaTabela(ix, x.dados); ok++; nomesOk.push(x.c.nome_completo); }
+                        });
+                    }
+                }
             }
         } catch (eDesl) { console.warn("[fechamento] Falha ao buscar ponto de desligados:", eDesl); }
 
         Swal.close();
+        _desligSemApont.forEach(function(r) { var i = _dados.indexOf(r); if (i >= 0) _dados.splice(i, 1); });
+        _ordenarDadosPorNome();
         // Re-renderiza a tabela com os dados atualizados (_dados foi atualizado por aplicarPontoNaTabela)
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
