@@ -3497,6 +3497,49 @@ window._onEdicaoCampoFormProposta = function(event) {
     window.marcarPropostaComoEditada();
 };
 
+// Impede selecionar cliente cujo CNPJ esta BAIXADO na Receita Federal (proposta e contrato)
+window.validarClienteCnpjBaixadoProposta = async function(valor, opcoes = {}) {
+    const limpar = opcoes.limpar !== false;
+    try {
+        const raw = String(valor || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+        if (!raw) return false;
+        const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const qNorm = normStr(raw);
+        const qDigits = raw.replace(/\D/g, '');
+        const clientes = await window.obterClientesCache();
+        const matches = (clientes || []).filter(c =>
+            normStr(c.nome_razao_social) === qNorm ||
+            normStr(c.nome_fantasia) === qNorm ||
+            String(c.codigo) === raw ||
+            (qDigits.length >= 11 && String(c.cpf_cnpj || '').replace(/\D/g, '') === qDigits)
+        );
+        const cli = matches.find(c => String(c.cpf_cnpj || '').replace(/\D/g, '').length === 14);
+        if (!cli) return false;
+        const cnpj = String(cli.cpf_cnpj).replace(/\D/g, '');
+        window._situacaoCnpjClienteCache = window._situacaoCnpjClienteCache || {};
+        if (!window._situacaoCnpjClienteCache[cnpj]) {
+            window._situacaoCnpjClienteCache[cnpj] = await apiGet('/consulta-cnpj-situacao/' + cnpj);
+        }
+        const sit = window._situacaoCnpjClienteCache[cnpj];
+        if (!sit || !sit.baixado) return false;
+        const modoContrato = window._modoTelaComercial === 'contrato';
+        if (limpar) {
+            const inp = document.getElementById('prop-cliente');
+            if (inp) inp.value = '';
+            if (typeof window.onChangeClientePropostaInput === 'function') window.onChangeClientePropostaInput('');
+        }
+        Swal.fire({
+            icon: 'error',
+            title: 'Cliente com CNPJ baixado',
+            html: 'O cliente selecionado (<b>' + _escHtmlProp(cli.nome_razao_social || raw) + '</b>) está com a situação <b>' + _escHtmlProp(String(sit.situacao || 'BAIXADA').toUpperCase()) + '</b> na Receita Federal.<br>Não é possível gerar ' + (modoContrato ? 'este contrato' : 'esta proposta') + '.'
+        });
+        return true;
+    } catch (e) {
+        console.warn('[CNPJ] Falha ao validar situacao do cliente:', e);
+        return false;
+    }
+};
+
 window.onChangeClientePropostaInput = function(novoValor) {
     const valTrim = String(novoValor || '').trim();
     const antTrim = String(window._ultimoClienteNomePropostaAtivo || '').trim();
@@ -3541,6 +3584,9 @@ window.onChangeClientePropostaInput = function(novoValor) {
     }
     if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
         window.carregarEnderecosVinculadosClienteProposta(novoValor, false);
+    }
+    if (String(novoValor || '').trim() && typeof window.validarClienteCnpjBaixadoProposta === 'function') {
+        window.validarClienteCnpjBaixadoProposta(novoValor);
     }
 };
 
@@ -6953,6 +6999,10 @@ window.limparFormPropostaNovo = function() {
 window.salvarPropostaNova = async function() {
     if (_propostasEditandoId && !window._propFormEditadoNaoSalvo) return;
     console.log('[DEBUG] salvarPropostaNova called. _propostasEditandoId =', _propostasEditandoId);
+    if (!_propostasEditandoId && typeof window.validarClienteCnpjBaixadoProposta === 'function') {
+        const _cliBaixado = await window.validarClienteCnpjBaixadoProposta(document.getElementById('prop-cliente')?.value, { limpar: false });
+        if (_cliBaixado) return;
+    }
     const obter = (id) => document.getElementById(id)?.value || '';
     const obterN = (id) => typeof window.parseMoedaProposta === 'function'
         ? window.parseMoedaProposta(document.getElementById(id)?.value)

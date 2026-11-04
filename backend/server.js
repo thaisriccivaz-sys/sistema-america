@@ -44057,6 +44057,19 @@ app.get('/api/consulta-cnpj/:cnpj', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/consulta-cnpj-situacao/:cnpj - Situacao cadastral (Receita) para bloquear proposta/contrato de CNPJ baixado
+const _cacheSituacaoCnpj = new Map();
+app.get('/api/consulta-cnpj-situacao/:cnpj', authenticateToken, async (req, res) => {
+  const cnpj = String(req.params.cnpj || '').replace(/\D/g, '');
+  if (cnpj.length !== 14) return res.status(400).json({ error: 'CNPJ inválido.' });
+  const hit = _cacheSituacaoCnpj.get(cnpj);
+  if (hit && (Date.now() - hit.t) < 10 * 60 * 1000) return res.json(hit.v);
+  const sit = await consultarSituacaoCnpjReceita(cnpj);
+  const v = sit ? { consultado: true, situacao: sit.situacao, baixado: sit.baixado } : { consultado: false, situacao: '', baixado: false };
+  if (sit) _cacheSituacaoCnpj.set(cnpj, { t: Date.now(), v });
+  res.json(v);
+});
+
 // GET /api/contatos - Listar todos os contatos (com filtro opcional ?cliente_id=)
 app.get('/api/contatos', authenticateToken, (req, res) => {
   const cliId = req.query.cliente_id;
