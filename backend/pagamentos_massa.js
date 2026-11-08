@@ -352,10 +352,18 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     let r2Key = null;
     if (r2Mod.isReady()) {
         try {
-            const nomeColabNorm = normalizarNome(nomeColab || '').replace(/\s+/g, '_');
+            // Se o nome não veio (ex.: upload-pdf-colab), busca no banco pelo ID — evita chave R2 igual para todos
+            let nomeResolvido = nomeColab || '';
+            if (!String(nomeResolvido).trim()) {
+                try {
+                    const rowNome = await new Promise((rs) => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [colaboradorId], (e, r) => rs(r)));
+                    nomeResolvido = (rowNome && rowNome.nome_completo) || '';
+                } catch (_) {}
+            }
+            const nomeColabNorm = normalizarNome(nomeResolvido || `colab_${colaboradorId}`).replace(/\s+/g, '_') || `colab_${colaboradorId}`;
             const anoStr  = String(ano);
             const mesStr  = String(mes || '').padStart(2, '0');
-            r2Key = `Colaboradores/${nomeColabNorm}/Documentos/Pagamentos/${anoStr}/${mesStr}_${tipoDocumento}_${nomeColabNorm}.pdf`;
+            r2Key = `Colaboradores/${nomeColabNorm}/Documentos/Pagamentos/${anoStr}/${mesStr}_${tipoDocumento}_${nomeColabNorm}_id${colaboradorId}.pdf`;
             await r2Mod.uploadToR2(r2Key, Buffer.from(bufferPDF), 'application/pdf');
             console.log('[PAGAMENTOS-MASSA] Documento enviado ao R2:', r2Key);
         } catch (r2Err) {
