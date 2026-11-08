@@ -373,6 +373,7 @@
             extra.tipo_titulo = 'VENDA';
             extra.ocultar_nome_evento = true;
             extra.ocultar_data_fim = true;
+            extra.ocultar_instalacao = true;
             extra.mostrar_condicoes_topo = true;
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
@@ -1102,6 +1103,7 @@
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const modTipoQuadroUpper = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ocultarInstalacaoTopo = cfg.ocultar_instalacao !== undefined ? Boolean(cfg.ocultar_instalacao) : (Boolean(d.ocultar_instalacao) || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'VENDAS');
         const ehModeloEventoPuro = modTipoQuadroUpper === 'EVENTO';
         const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'EQUIPAMENTOS';
         const ehQuadroLimpaFossa = modTipoQuadroUpper === 'LIMPA FOSSA' || modTipoQuadroUpper.startsWith('LIMPA FOSSA');
@@ -1302,7 +1304,7 @@
                             <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(220) : u(224)}; width:auto; display:block;">
                         </div>
                         ${mostrarCondicoesTopo ? `
-                        <div class="bq-dados-topo-grid bq-topo-3col">
+                        <div class="bq-dados-topo-grid bq-topo-3col" ${ocultarInstalacaoTopo ? `style="grid-template-columns:1fr auto;"` : ''}>
                             <div style="min-width:0;">
                                 <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
@@ -1315,6 +1317,7 @@
                                     <div style="font-size:${u(18.5)}; line-height:1.25;">CEL.: <span class="bq-d">${esc(d.contato_celular)}</span></div>
                                 </div>
                             </div>
+                            ${ocultarInstalacaoTopo ? '' : `
                             <div style="min-width:0; overflow:hidden;">
                                 <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
@@ -1326,7 +1329,7 @@
                                     ${endRuaTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endRuaTopo)}">${esc(endRuaTopo)}</div>` : ''}
                                     ${endBairroCidTopo ? `<div class="bq-d" style="font-size:${u(18)}; line-height:1.35; color:#333; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(endBairroCidTopo)}">${esc(endBairroCidTopo)}</div>` : ''}
                                 </div>
-                            </div>
+                            </div>`}
                             <div style="min-width:0; text-align:right;">
                                 <div style="font-size:${u(30.5)}; line-height:1.15; color:#333; display:flex; align-items:center; justify-content:flex-end; gap:${u(8)}; white-space:nowrap;">
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>

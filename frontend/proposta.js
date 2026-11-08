@@ -2950,7 +2950,7 @@ function _renderFormPropostaInt() {
                         </div>
 
                         <!-- Linha: Nome do Evento (quando EVENTO) + Endereço de Instalação (Lista de Seleção Vinculada ao Cliente + Pesquisa + Botão +) -->
-                        <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.65); padding:0.4rem 0.65rem; border:1px solid #bbf7d0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
+                        <div id="prop-linha-evento-instalacao" style="display:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'none' : 'flex'}; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.65); padding:0.4rem 0.65rem; border:1px solid #bbf7d0; border-radius:6px; box-sizing:border-box; width:100%; flex-wrap:wrap;">
                             <div id="prop-wrapper-nome-evento" style="display:${window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(v('tipo')) ? 'flex' : 'none'}; gap:0.4rem; align-items:center; flex:1 1 320px; max-width:600px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento <span style="color:#dc2626;">*</span>:</span>
                                 <div id="prop-evento-combo-wrap" style="position:relative; flex:1;">
@@ -2972,10 +2972,10 @@ function _renderFormPropostaInt() {
                                     <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                             </div>
-                            <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
+                            <div id="prop-wrapper-endereco-instalacao" style="display:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'none' : 'flex'}; gap:0.4rem; align-items:center; flex:2 1 360px;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
                                 <div id="prop-endereco-combo-wrap" style="position:relative; flex:1;">
-                                    <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(v('endereco_instalacao'))}"
+                                    <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '' : v('endereco_instalacao'))}"
                                         autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
                                         onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
                                         onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
@@ -6793,11 +6793,13 @@ window.calcularDiasContrato = function() {
     const fim = document.getElementById('prop-periodo-fim')?.value;
     if (!ini || !fim || !diasEl) {
         if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
+        if (typeof window.atualizarPrecosContainerPorDiasContrato === 'function') window.atualizarPrecosContainerPorDiasContrato();
         return;
     }
     const diff = Math.ceil((new Date(fim + 'T12:00:00') - new Date(ini + 'T12:00:00')) / (1000 * 60 * 60 * 24));
     if (diff >= 0) diasEl.value = Math.max(1, diff);
     if (typeof window.sincronizarDiasEventoComPeriodoProposta === 'function') window.sincronizarDiasEventoComPeriodoProposta();
+    if (typeof window.atualizarPrecosContainerPorDiasContrato === 'function') window.atualizarPrecosContainerPorDiasContrato();
 };
 
 window.calcularFimContrato = function() {
@@ -6817,6 +6819,7 @@ window.calcularFimContrato = function() {
     const ini = document.getElementById('prop-periodo-ini')?.value;
     const dias = parseInt(document.getElementById('prop-dias')?.value || 0);
     const fimEl = document.getElementById('prop-periodo-fim');
+    if (typeof window.atualizarPrecosContainerPorDiasContrato === 'function') window.atualizarPrecosContainerPorDiasContrato();
     if (!ini || !fimEl || dias <= 0) {
         if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
         return;
@@ -7137,7 +7140,7 @@ window.salvarPropostaNova = async function() {
         contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
-        endereco_instalacao: obter('prop-endereco'),
+        endereco_instalacao: (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda(tipo)) ? '' : obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
         condicao_pagamento: obter('prop-cond-pag'),
@@ -7610,7 +7613,7 @@ window.estornarPropostaEdicao = async function() {
         contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
-        endereco_instalacao: obter('prop-endereco'),
+        endereco_instalacao: (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda(tipo)) ? '' : obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
         condicao_pagamento: obter('prop-cond-pag'),
@@ -7783,11 +7786,13 @@ window.aprovarPropostaEdicao = async function() {
         window._propProdutosAprovadosAtual = produtosAprovadosSel;
     }
 
-    const ehAditivoAprov = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
+    const tipoLimpoAprov = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ehAditivoAprov = tipoLimpoAprov === 'ADITIVO';
     const ehVendaAprov = typeof window.tipoPropostaEhVenda === 'function'
         ? window.tipoPropostaEhVenda(tipo)
-        : String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'VENDA';
-    const usaFluxoAssinafy = ehAditivoAprov || ehVendaAprov;
+        : (tipoLimpoAprov === 'VENDA' || tipoLimpoAprov === 'VENDAS');
+    const ehAvariaAprov = tipoLimpoAprov === 'AVARIA' || tipoLimpoAprov === 'AVARIAS';
+    const usaFluxoAssinafy = ehAditivoAprov || ehVendaAprov || ehAvariaAprov;
     const faseSel = document.getElementById('prop-fase');
     if (!usaFluxoAssinafy) {
         if (faseSel) faseSel.value = 'Aprovada';
@@ -7817,7 +7822,7 @@ window.aprovarPropostaEdicao = async function() {
         contrato_vinculado: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
         contrato_vinculado_id: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
         contrato_vinculado_tipo: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
-        endereco_instalacao: obter('prop-endereco'),
+        endereco_instalacao: (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda(tipo)) ? '' : obter('prop-endereco'),
         desconto_percent: obterN('prop-desc-pct'),
         desconto_reais: obterN('prop-desc-rs'),
         condicao_pagamento: obter('prop-cond-pag'),
@@ -7862,7 +7867,7 @@ window.aprovarPropostaEdicao = async function() {
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
     if (usaFluxoAssinafy) {
-        const labelDocAssinafy = ehVendaAprov ? 'Proposta de Venda' : 'Aditivo';
+        const labelDocAssinafy = ehVendaAprov ? 'Proposta de Venda' : (ehAvariaAprov ? 'Proposta de Avaria' : 'Aditivo');
         Swal.fire({ title: `Gerando documento (${labelDocAssinafy}) e enviando via Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
             const respSave = _propostasEditandoId
@@ -19347,6 +19352,29 @@ window.obterTipoEfetivoProposta = function(tipo) {
     return t;
 };
 
+window.produtoEhGrupoContainer = function(prodObjOrCodeOrName) {
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (!prodObjOrCodeOrName) return false;
+    if (typeof prodObjOrCodeOrName === 'object') {
+        const gDir = norm(prodObjOrCodeOrName.grupo_produto || prodObjOrCodeOrName.grupo || '');
+        if (gDir === 'container' || gDir === 'containers') return true;
+        if (typeof window.obterGrupoProdutoEquipamento === 'function') {
+            const gEq = norm(window.obterGrupoProdutoEquipamento(prodObjOrCodeOrName));
+            if (gEq === 'container' || gEq === 'containers') return true;
+        }
+        const nObj = norm(prodObjOrCodeOrName.nome || prodObjOrCodeOrName.produto || prodObjOrCodeOrName.descricao || prodObjOrCodeOrName.nome_equipamento || '');
+        if (nObj.includes('container')) return true;
+    } else {
+        const raw = norm(prodObjOrCodeOrName);
+        if (raw.includes('container')) return true;
+        if (typeof window.obterGrupoProdutoEquipamento === 'function') {
+            const gEq = norm(window.obterGrupoProdutoEquipamento({ codigo: raw, nome: raw, produto: raw }));
+            if (gEq === 'container' || gEq === 'containers') return true;
+        }
+    }
+    return false;
+};
+
 window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCodeOrName) {
     const tipo = window.obterTipoEfetivoProposta(tipoPropostaRaw || document.getElementById('prop-tipo')?.value || '');
     if (!tipo || !window._comercialTabelasPrecoData || !Array.isArray(window._comercialTabelasPrecoData.itens)) return null;
@@ -19398,7 +19426,81 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
         itemMatch = buscarEmLista(itensEquip);
     }
 
-    return itemMatch ? (parseFloat(itemMatch.valor_total) || 0) : null;
+    if (!itemMatch) return null;
+    let valorBaseTabela = parseFloat(itemMatch.valor_total) || 0;
+
+    // Regra CONTAINER: menos de 90 dias no campo Dias Contrato -> dobro do valor da tabela; 90 dias ou mais -> valor da tabela
+    const ehVenda = typeof window.tipoPropostaEhVenda === 'function' ? window.tipoPropostaEhVenda(tipo) : (tipo === 'VENDA' || tipo === 'VENDAS');
+    const ehContainer = window.produtoEhGrupoContainer(prodObjOrCodeOrName)
+        || String(itemMatch.grupo_produto || '').trim().toUpperCase() === 'CONTAINER'
+        || norm(itemMatch.nome_equipamento).includes('container');
+    if (ehContainer && !ehVenda) {
+        const diasContrato = parseInt(document.getElementById('prop-dias')?.value || '0', 10) || 0;
+        if (diasContrato < 90) {
+            valorBaseTabela = valorBaseTabela * 2;
+        }
+    }
+
+    return valorBaseTabela;
+};
+
+window.atualizarPrecosContainerPorDiasContrato = function() {
+    if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) return;
+    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+
+    // 1) Atualizar produto atualmente selecionado no campo de adição, se for CONTAINER
+    const inputProd = document.getElementById('prop-prod-codigo');
+    const inputValor = document.getElementById('prop-prod-valor');
+    if (inputProd && inputProd.value.trim()) {
+        const codSel = inputProd.getAttribute('data-codigo') || '';
+        const nomeSel = inputProd.getAttribute('data-nome') || inputProd.value.trim();
+        const refSel = { codigo: codSel, nome: nomeSel, produto: nomeSel };
+        if (window.produtoEhGrupoContainer(refSel)) {
+            const valTab = window.obterValorTabelaPorTipoEProduto(tipoRef, refSel);
+            if (valTab !== null && inputValor) {
+                inputValor.setAttribute('data-preco-base', String(Number(valTab)));
+                if (typeof window.recalcularPreviewProdutoProposta === 'function') {
+                    window.recalcularPreviewProdutoProposta('equip');
+                }
+            }
+        }
+    }
+
+    // 2) Atualizar produtos do grupo CONTAINER já adicionados na proposta
+    if (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0) {
+        let mudou = false;
+        window._propProdutosAdicionados.forEach(item => {
+            if (!window.produtoEhGrupoContainer(item)) return;
+            const valTab = window.obterValorTabelaPorTipoEProduto(tipoRef, {
+                codigo: item.codigo,
+                nome: item.produto || item.descricao,
+                grupo_produto: item.grupo_produto
+            });
+            if (valTab !== null && Number(item.valor_base) !== Number(valTab)) {
+                item.valor_base = Number(valTab);
+                const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+                if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
+                    const pct = parseFloat(item.desconto_pct) || 0;
+                    item.valor = Math.max(0, item.valor_base * (1 - pct / 100));
+                    item.valor_unitario = item.valor;
+                    item.valor_total = item.valor * qtd;
+                } else if (item.desconto_tipo === 'valor' && parseFloat(item.desconto_rs) > 0) {
+                    const rs = parseFloat(item.desconto_rs) || 0;
+                    item.valor_total = Math.max(0, (item.valor_base * qtd) - rs);
+                    item.valor = item.valor_total / qtd;
+                    item.valor_unitario = item.valor;
+                } else {
+                    item.valor = item.valor_base;
+                    item.valor_unitario = item.valor_base;
+                    item.valor_total = item.valor_base * qtd;
+                }
+                mudou = true;
+            }
+        });
+        if (mudou && typeof window.renderizarProdutosPropostaGrid === 'function') {
+            window.renderizarProdutosPropostaGrid();
+        }
+    }
 };
 
 window.CONDICAO_PAGAMENTO_VENDA_FIXA = '50% na formalização do pedido / 50% na coleta do material';
@@ -19471,6 +19573,11 @@ window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao 
     const rowPeriodo = document.getElementById('prop-periodo-condicoes-grid');
     const inpQtd = document.getElementById('prop-prod-quantidade');
     const selCondPag = document.getElementById('prop-cond-pag');
+    const linhaEvInst = document.getElementById('prop-linha-evento-instalacao');
+    const wrapEndInst = document.getElementById('prop-wrapper-endereco-instalacao');
+    const inpEndInst = document.getElementById('prop-endereco');
+    const dropEndInst = document.getElementById('prop-endereco-dropdown');
+    const badgeRegiao = document.getElementById('prop-regiao-ia-badge');
 
     if (wrapFim) wrapFim.style.display = ehVenda ? 'none' : 'block';
     if (wrapDias) wrapDias.style.order = ehVenda ? '-1' : '0';
@@ -19480,6 +19587,13 @@ window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao 
         rowPeriodo.style.gridTemplateColumns = ehVenda
             ? '0.85fr 1.1fr 1.5fr 1.6fr'
             : '1fr 1fr 0.7fr 1.5fr 1.4fr';
+    }
+    if (wrapEndInst) wrapEndInst.style.display = ehVenda ? 'none' : 'flex';
+    if (linhaEvInst) linhaEvInst.style.display = ehVenda ? 'none' : 'flex';
+    if (ehVenda) {
+        if (inpEndInst) inpEndInst.value = '';
+        if (dropEndInst) dropEndInst.style.display = 'none';
+        if (badgeRegiao) badgeRegiao.style.display = 'none';
     }
 
     if (inpQtd) {
@@ -21555,9 +21669,13 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         const grupoNorm = normStr(p.grupo_produto);
         const nomeNorm = normStr(p.nome);
 
-        if (tipoNorm === 'evento' || tipoNorm === 'equipamentos') {
+        if (tipoNorm === 'evento' || tipoNorm === 'equipamentos' || tipoNorm === 'equipamento') {
             // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA (exceto CONTAINER), apenas os outros (parceiros e avulsos); serviços aparecem em Produto
             if ((fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) && grupoNorm !== 'container') {
+                return false;
+            }
+            // Quando for uma proposta do tipo EQUIPAMENTOS, não mostrar os produtos do grupo AVARIA
+            if ((tipoNorm === 'equipamentos' || tipoNorm === 'equipamento') && (grupoNorm === 'avaria' || grupoNorm === 'avarias' || grupoNorm.includes('avaria'))) {
                 return false;
             }
             // Não mostrar produtos de mobilização/desmobilização ZC, ZA, ZV, VZ nem produtos do tipo SERVIÇOS que tenham ZC, ZA, ZV ou VZ no nome em propostas/aditivos de evento
@@ -22125,6 +22243,9 @@ window.validarProprioAvulsoEquipamentosDiasContrato = function(prodRef, tipoOver
         ? window.obterTipoEfetivoProposta(tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || ''))
         : String(tipoOverride || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (t !== 'EQUIPAMENTOS') return true;
+    if (typeof window.produtoEhGrupoContainer === 'function' && window.produtoEhGrupoContainer(prodRef)) {
+        return true;
+    }
 
     const fonteBruta = (prodRef && prodRef.fonte_fornecimento)
         ? String(prodRef.fonte_fornecimento)

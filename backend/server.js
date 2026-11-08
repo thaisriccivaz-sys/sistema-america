@@ -41292,8 +41292,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
     const tipoNorm = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const ehAditivo = tipoNorm === 'ADITIVO';
     const ehVenda = tipoNorm === 'VENDA' || tipoNorm === 'VENDAS';
-    if (!ehAditivo && !ehVenda) {
-      return res.status(400).json({ error: 'O envio automático para assinatura via Assinafy aplica-se a propostas do tipo ADITIVO ou VENDA.' });
+    const ehAvaria = tipoNorm === 'AVARIA' || tipoNorm === 'AVARIAS';
+    if (!ehAditivo && !ehVenda && !ehAvaria) {
+      return res.status(400).json({ error: 'O envio automático para assinatura via Assinafy aplica-se a propostas do tipo ADITIVO, VENDA ou AVARIA.' });
     }
 
     try {
@@ -41424,14 +41425,14 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
           const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
           const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
           const hash = Math.random().toString(36).substring(2, 8);
-          const prefixoDoc = ehVenda ? 'VENDA' : 'ADITIVO';
+          const prefixoDoc = ehVenda ? 'VENDA' : (ehAvaria ? 'AVARIA' : 'ADITIVO');
           const novaKey = `Comercial/AditivosEnviados/${yyyy}/${mm}/${dd}_${prefixoDoc}_PROP_${p.id}_${hash}.pdf`;
           await r2.uploadToR2(novaKey, pdfBuffer, 'application/pdf');
           pdfEnviadoR2Key = novaKey;
         }
       })();
 
-      const prefixoArq = ehVenda ? 'Proposta_Venda' : 'Proposta_Aditivo';
+      const prefixoArq = ehVenda ? 'Proposta_Venda' : (ehAvaria ? 'Proposta_Avaria' : 'Proposta_Aditivo');
       const nomeArquivoPdf = `${prefixoArq}_${String(p.codigo || p.id).replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
       const [resultadoAssinafy] = await Promise.all([
         novoProcessoAssinafy.enviarPdfBufferParaAssinafy({
@@ -41606,6 +41607,7 @@ app.get('/api/comercial/assinaturas', authenticateToken, async (req, res) => {
       let cat = 'Obra';
       if (tEfetivo.includes('EVENTO')) cat = 'Evento';
       else if (tEfetivo.includes('VENDA')) cat = 'Venda';
+      else if (tEfetivo.includes('AVARIA')) cat = 'Avaria';
       else if (tEfetivo.includes('FOSSA')) cat = 'Limpa Fossa';
       else if (tEfetivo.includes('EQUIPAMENTO')) cat = 'Equipamentos';
       else if (tEfetivo.includes('OBRA')) cat = 'Obra';
@@ -41730,7 +41732,7 @@ function gerarHtmlProposta(p) {
                 <div class="col-4"><div class="field"><label>Período Fim</label><span>${fmtData(p.periodo_fim)||'—'}</span></div></div>
                 <div class="col-4"><div class="field"><label>Hora Início / Fim</label><span>${p.hora_inicio||'00:00'} — ${p.hora_fim||'00:00'}</span></div></div>
                 <div class="col-4"><div class="field"><label>Dias de Contrato</label><span>${p.dias_contrato||0}</span></div></div>
-                <div class="col-12" style="margin-top:4px;"><div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div></div>
+                ${String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').startsWith('VENDA') ? '' : `<div class="col-12" style="margin-top:4px;"><div class="field"><label>Endereço de Instalação</label><span>${p.endereco_instalacao||'—'}</span></div></div>`}
             </div>
         </div>
 
