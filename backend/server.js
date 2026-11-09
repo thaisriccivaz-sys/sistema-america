@@ -11682,6 +11682,15 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento, status } = req.body;
     if (!validateTextSanity(nome)) return res.status(400).json({ error: 'Caracteres inválidos detectados no nome. Por favor, digite novamente sem copiar/colar de fontes com formatação estranha.' });
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+    // Pré-checagem: informa se o cargo existente está INATIVO (a lista padrão só mostra os ativos)
+    db.get("SELECT id, nome, status, departamento FROM cargos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nome], (errDup, dup) => {
+    if (dup) {
+        const st = String(dup.status || 'Ativo');
+        const msg = st.toLowerCase() === 'ativo'
+            ? `Já existe um cargo com o nome "${dup.nome}" (ID ${dup.id}).`
+            : `Já existe um cargo "${dup.nome}" (ID ${dup.id}) com status ${st}. Na lista de cargos, mude o filtro de status para ver os inativos e edite-o para reativar.`;
+        return res.status(400).json({ error: msg });
+    }
     db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento, status) VALUES (?, ?, ?, ?)",
         [nome, documentos_obrigatorios || "", departamento || "", status || "Ativo"], function (err) {
             if (err) {
@@ -11695,6 +11704,7 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
                 [loggedUser, 'Cargos', 'Inclusão', '', nome, newId]);
             res.status(201).json({ id: newId, nome });
         });
+    });
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {

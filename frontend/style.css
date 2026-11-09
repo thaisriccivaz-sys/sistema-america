@@ -1531,14 +1531,15 @@ body.has-open-tabs .page-header {
 }
 
 /* Deixar a fonte de tudo que está preenchido no sistema em letras maiúsculas (caixa alta) */
-input:not([type="password"]):not([type="email"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not(#login-username):not(#login-password):not(#login-user):not(#login-pass):not(#fu-username):not(#fu-password),
+input:not([type="password"]):not([type="email"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not(#login-username):not(#login-password):not(#login-user):not(#login-pass):not(#fu-username):not(#fu-password):not(#cargo-input-name),
 select,
 select option,
 textarea:not(#equipamento-est-especificacao):not(#equipamento-est-descricao-proposta) {
     text-transform: uppercase !important;
 }
 #equipamento-est-especificacao,
-#equipamento-est-descricao-proposta {
+#equipamento-est-descricao-proposta,
+#cargo-input-name {
     text-transform: none !important;
 }
 input::placeholder,
