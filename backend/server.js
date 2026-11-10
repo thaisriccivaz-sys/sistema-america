@@ -4101,6 +4101,13 @@ try {
     console.error('[ACADEMIA] ERRO ao carregar módulo:', eAcademia.message);
 }
 
+// --- RH > PAGAMENTOS > PADARIA (imagem do fechamento lida via IA, planilha e envio ao financeiro) ---
+try {
+    require('./routes_padaria')(app, db, authenticateToken, r2, sendMailHelper);
+} catch (ePadaria) {
+    console.error('[PADARIA] ERRO ao carregar modulo:', ePadaria.message);
+}
+
 // --- INTEGRAÇÃO IA (GEMINI) ---
 app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
     try {
