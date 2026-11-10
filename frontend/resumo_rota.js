@@ -1583,7 +1583,7 @@ async function _rrRenderColabDisponiveis() {
                 const refDom = new Date(c.escala_ciclo_inicio + 'T00:00:00');
                 while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
                 const semanas = Math.round((hoje - refDom) / MS_SEMANA);
-                return ((semanas % 3) + 3) % 3 === 2;
+                return ((semanas % 3) + 3) % 3 === 0;
             }
             return false;
         }

@@ -197,7 +197,7 @@ function _ehDiaFolgaEscala(colab, dateStr) {
             while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
             const semanas = Math.round((d - refDom) / MS_SEMANA);
             const pos = ((semanas % 3) + 3) % 3;
-            return pos === 2; // posição 2 = folga no ciclo
+            return pos === 0; // posição 0 = folga no ciclo
         }
         return false;
     }
@@ -275,8 +275,8 @@ async function _calcularDiasEscala(colab, ano, mes) {
         const refDom = new Date(cicloRef);
         while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
         const semanas = Math.round((dataDom - refDom) / MS_SEMANA);
-        const pos = ((semanas % 3) + 3) % 3; // 0=trab, 1=trab, 2=folga
-        return pos !== 2;
+        const pos = ((semanas % 3) + 3) % 3; // 0=folga, 1=trab, 2=trab
+        return pos !== 0;
     }
 
     const cicloRef = colab.escala_ciclo_inicio

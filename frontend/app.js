@@ -2591,8 +2591,8 @@ window.atualizarLabelCiclo = function (modo) {
             + 'Sem essa data o sistema não saberá qual sábado é folga.';
     } else {
         lbl.innerHTML = '<i class="ph ph-calendar-blank"></i> Domingo de Lei — Data de Referência do Ciclo';
-        small.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>domingo</strong> onde o ciclo começa (<em>1º domingo trabalhado</em>). '
-            + 'A cada 3 domingos, o sistema automaticamente marca o 3º como <strong>Domingo de Lei</strong> (folga obrigatória).<br>'
+        small.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>domingo de folga (Domingo de Lei)</strong> de referência. '
+            + 'A partir dessa data, a cada 3 domingos (folga → trabalha → trabalha → folga), o sistema marca automaticamente o <strong>Domingo de Lei</strong>.<br>'
             + 'Para Folga 2 dias: na semana do Domingo de Lei, o 1º dia fixo se torna trabalho para manter a carga horária.<br>'
             + 'Para Folga 1 dia: o Domingo de Lei é somado à folga fixa (semana com menos horas — legal).';
     }

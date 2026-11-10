@@ -305,8 +305,8 @@ function _isHojeFolga(m) {
           const refDom = new Date(m.escala_ciclo_inicio + 'T00:00:00');
           while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
           const semanas = Math.round((hoje - refDom) / MS_SEMANA);
-          const pos = ((semanas % 3) + 3) % 3; // 0=trab, 1=trab, 2=folga
-          return pos === 2;
+          const pos = ((semanas % 3) + 3) % 3; // 0=folga, 1=trab, 2=trab
+          return pos === 0;
       }
       return false;
   }

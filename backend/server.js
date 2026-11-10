@@ -31448,16 +31448,15 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 // ??ndice do 1?? dia fixo de folga (para Tipo B: à o 1?? dia que "cede" ao domingo de lei, virando trabalho)
                 const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
 
-                const isDomingoDeLei = (dateStr) => {
+                                const isDomingoDeLei = (dateStr) => {
                     if (!temCiclo || !cicloBase) return false;
                     const d = new Date(dateStr + 'T12:00:00');
-                    if (d.getDay() !== 0) return false; // s?? testa domingos
-                    // Contar quantos domingos desde o ciclo_inicio
-                    const diffMs = d - cicloBase;
-                    if (diffMs < 0) return false; // antes do ciclo
-                    const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                    if (d.getDay() !== 0) return false;
+                    const refDom = new Date(cicloBase);
+                    while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+                    const diffDias = Math.round((d - refDom) / (1000 * 60 * 60 * 24));
                     const nDomingo = Math.round(diffDias / 7);
-                    return nDomingo % 3 === 2; // 0=trab, 1=trab, 2=folga, 3=trab...
+                    return ((nDomingo % 3) + 3) % 3 === 0; // 0=folga (Domingo de Lei), 1=trab, 2=trab
                 };
 
                 const getFolga = (dateStr) => {
@@ -31671,8 +31670,11 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
                 const isDDL = (ds) => {
                     if (!temC||!cicB) return false;
                     const dd = new Date(ds+'T12:00:00'); if (dd.getDay()!==0) return false;
-                    const diff = Math.round((dd-cicB)/86400000); if (diff<0) return false;
-                    return Math.round(diff/7)%3===2;
+                    const refDom = new Date(cicB);
+                    while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+                    const diff = Math.round((dd-refDom)/86400000);
+                    const nDom = Math.round(diff/7);
+                    return ((nDom % 3) + 3) % 3 === 0;
                 };
                 const getF = (ds) => {
                     const dd = new Date(ds+'T12:00:00'); const dow = dd.getDay();
@@ -31737,11 +31739,11 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
             if (!temCiclo || !cicloBase) return false;
             const dd = new Date(ds + 'T12:00:00');
             if (dd.getDay() !== 0) return false;
-            const diffMs = dd - cicloBase;
-            if (diffMs < 0) return false;
-            const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            const refDom = new Date(cicloBase);
+            while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+            const diffDias = Math.round((dd - refDom) / (1000 * 60 * 60 * 24));
             const nDomingo = Math.round(diffDias / 7);
-            return nDomingo % 3 === 2;
+            return ((nDomingo % 3) + 3) % 3 === 0;
         };
 
         if (escalaStr.includes('12x36')) {
