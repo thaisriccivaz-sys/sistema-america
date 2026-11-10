@@ -16593,6 +16593,47 @@ app.get('/api/debug/satisfacao-raw', authenticateToken, (req, res) => {
     });
 });
 
+function obterPeriodoAtivoAvaliacao(tipoAval) {
+    const hoje = new Date();
+    const mes = hoje.getMonth() + 1; // 1 a 12
+    const dia = hoje.getDate();
+    let expectedTrim;
+    let expectedAno = hoje.getFullYear();
+
+    if (String(tipoAval || '').toLowerCase() === 'desempenho') {
+        if ((mes === 1 && dia >= 15) || mes === 2 || mes === 3) expectedTrim = 1;
+        else if ((mes === 4 && dia >= 15) || mes === 5 || mes === 6) expectedTrim = 2;
+        else if ((mes === 7 && dia >= 15) || mes === 8 || mes === 9) expectedTrim = 3;
+        else if ((mes === 10 && dia >= 15) || mes === 11 || mes === 12) expectedTrim = 4;
+        else {
+            if (mes === 1) { expectedTrim = 4; expectedAno--; }
+            else if (mes === 4) { expectedTrim = 1; }
+            else if (mes === 7) { expectedTrim = 2; }
+            else if (mes === 10) { expectedTrim = 3; }
+        }
+    } else {
+        if (mes >= 1 && mes <= 3) expectedTrim = 1;
+        else if (mes >= 4 && mes <= 6) expectedTrim = 2;
+        else if (mes >= 7 && mes <= 9) expectedTrim = 3;
+        else expectedTrim = 4;
+    }
+
+    return { ano: expectedAno, trimestre: expectedTrim };
+}
+
+function garantirPeriodoAtivoNaLista(periodosDb, tipoAval) {
+    const lista = Array.isArray(periodosDb) ? periodosDb.map(p => ({ ano: Number(p.ano), trimestre: Number(p.trimestre) })) : [];
+    const ativo = obterPeriodoAtivoAvaliacao(tipoAval);
+    if (ativo && ativo.ano && ativo.trimestre) {
+        const jaExiste = lista.some(p => Number(p.ano) === Number(ativo.ano) && Number(p.trimestre) === Number(ativo.trimestre));
+        if (!jaExiste) {
+            lista.push({ ano: Number(ativo.ano), trimestre: Number(ativo.trimestre) });
+        }
+    }
+    lista.sort((a, b) => (b.ano - a.ano) || (b.trimestre - a.trimestre));
+    return lista.slice(0, 4);
+}
+
 // GET /api/avaliacoes/satisfacao/dashboard
 // Retorna médias por departamento/grupo/t??pico nas últimas 4 pesquisas (ano+trimestre distintos)
 app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
@@ -16601,8 +16642,9 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
     db.all(
         `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
         [tipoAval],
-        (err, periodos) => {
+        (err, periodosDb) => {
             if (err) return res.status(500).json({ error: err.message });
+            const periodos = garantirPeriodoAtivoNaLista(periodosDb, tipoAval);
             if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
 
             // Buscar todas as avaliações de satisfação dos últimos 4 períodos
@@ -16728,8 +16770,9 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
     db.all(
         `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
         [tipoAval],
-        (err, periodos) => {
+        (err, periodosDb) => {
             if (err) return res.status(500).json({ error: err.message });
+            const periodos = garantirPeriodoAtivoNaLista(periodosDb, tipoAval);
             const periodosOrdenados = (periodos || []).slice().reverse();
 
             db.all(
@@ -16801,7 +16844,7 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     // Verificar se o colaborador estava admitido nessa ??poca
                                     const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
                                     // Refer??ncia da pesquisa: 1o dia do trimestre
-                                    const _mesInicioMap = { 1: 1, 2: 4, 3: 7, 4: 9 };
+                                    const _mesInicioMap = { 1: 1, 2: 4, 3: 7, 4: 10 };
                                     const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
                                     const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
                                     const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;

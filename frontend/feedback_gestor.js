@@ -53,7 +53,7 @@
         return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
-        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Setembro' }[p.trimestre] || `T${p.trimestre}`;
+        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' }[p.trimestre] || `T${p.trimestre}`;
         return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function grupoLabel(g) {
@@ -574,10 +574,10 @@
                     return `<td style="text-align:center;background:#f8fafc;"><span style="color:#cbd5e1;font-size:.75rem;">N/A</span></td>`;
                 }
                 if (!ps.respondido) {
-                    return `<td style="text-align:center;background:#fef9c3;"><span style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
+                    return `<td style="text-align:center;background:#fef9c3;"><span id="score-${c.id}-${key}" style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
                 }
                 return `<td style="text-align:center;">
-                    <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
+                    <span id="score-${c.id}-${key}" class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
@@ -1175,6 +1175,8 @@
                 const scorePill = document.getElementById(scoreId);
                 console.log('DEBUG: Procurando elemento da nota:', scoreId, 'Encontrado?', !!scorePill);
                 if (scorePill && media !== null) {
+                    if (scorePill.parentElement) scorePill.parentElement.style.background = "";
+                    scorePill.className = "score-pill";
                     scorePill.style.background = scoreBg(media);
                     scorePill.style.color = scoreColor(media);
                     scorePill.textContent = fmtScore(media);

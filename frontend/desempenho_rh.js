@@ -53,7 +53,7 @@
         return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
-        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Setembro' }[p.trimestre] || `T${p.trimestre}`;
+        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' }[p.trimestre] || `T${p.trimestre}`;
         return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function grupoLabel(g) {
@@ -491,6 +491,8 @@
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
                     data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
+                    data-ano="${lastKey ? lastKey.split('-T')[0] : ''}"
+                    data-trim="${lastKey ? lastKey.split('-T')[1] : ''}"
                     onclick="window._desOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
