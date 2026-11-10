@@ -677,7 +677,11 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             const warnIcon = isLow ? '<i class="ph ph-warning-circle" style="color:#ef4444;margin-right:4px;" title="Estoque Mínimo"></i>' : "";
 
             // ── Botões de ação ──
+            const regrasEpiBtn = item.regras_epi_url
+                ? '<button class="btn btn-sm" onclick="event.stopPropagation(); window.ampliarFotoEstoque(\'' + item.regras_epi_url + '\', \'Regras EPI - ' + safeItemNome + '\')" style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;margin-left:4px;" title="Visualizar Regras EPI"><i class="ph ph-file-image"></i></button>'
+                : '';
             const acoesBtns =
+                regrasEpiBtn +
                 '<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.editarEstoque(window._estoqueCache[' + item.id + '])" title="Editar / Gerenciar Tamanhos" style="margin-left:4px;"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button class="btn btn-sm" onclick="event.stopPropagation(); window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;" title="Excluir"><i class="ph ph-trash"></i></button>';
 
@@ -1462,6 +1466,20 @@ window.abrirModalEstoque = async function() {
     document.getElementById("estoque-foto-preview").src = "";
     document.getElementById("estoque-foto-preview").style.display = "none";
     document.getElementById("estoque-foto-icon").style.display = "block";
+    const fiRegras = document.getElementById("estoque-regras-epi-file");
+    if (fiRegras) fiRegras.value = "";
+    const b64Regras = document.getElementById("estoque-regras-epi-base64");
+    if (b64Regras) b64Regras.value = "";
+    const remRegras = document.getElementById("estoque-regras-epi-remover");
+    if (remRegras) remRegras.value = "0";
+    const prevRegras = document.getElementById("estoque-regras-epi-preview");
+    if (prevRegras) { prevRegras.src = ""; prevRegras.style.display = "none"; }
+    const iconRegras = document.getElementById("estoque-regras-epi-icon");
+    if (iconRegras) iconRegras.style.display = "block";
+    const btnRemRegras = document.getElementById("estoque-regras-epi-remover-btn");
+    if (btnRemRegras) btnRemRegras.style.display = "none";
+    const stRegras = document.getElementById("estoque-regras-epi-status");
+    if (stRegras) stRegras.textContent = "Nenhuma imagem anexada";
     const modalEl = document.getElementById("modal-estoque");
     if (modalEl && modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
     document.getElementById("modal-estoque-title").innerHTML = '<i class="ph ph-package"></i> Adicionar Item de Estoque';
@@ -1520,6 +1538,24 @@ window.editarEstoque = async function(item, tamanhoFoco) {
     document.getElementById("estoque-foto-preview").src = src;
     document.getElementById("estoque-foto-preview").style.display = src ? "block" : "none";
     document.getElementById("estoque-foto-icon").style.display   = src ? "none"  : "block";
+    const fiRegrasEd = document.getElementById("estoque-regras-epi-file");
+    if (fiRegrasEd) fiRegrasEd.value = "";
+    const b64RegrasEd = document.getElementById("estoque-regras-epi-base64");
+    if (b64RegrasEd) b64RegrasEd.value = "";
+    const remRegrasEd = document.getElementById("estoque-regras-epi-remover");
+    if (remRegrasEd) remRegrasEd.value = "0";
+    const srcRegras = item.regras_epi_url || "";
+    const prevRegrasEd = document.getElementById("estoque-regras-epi-preview");
+    if (prevRegrasEd) {
+        prevRegrasEd.src = srcRegras;
+        prevRegrasEd.style.display = srcRegras ? "block" : "none";
+    }
+    const iconRegrasEd = document.getElementById("estoque-regras-epi-icon");
+    if (iconRegrasEd) iconRegrasEd.style.display = srcRegras ? "none" : "block";
+    const btnRemRegrasEd = document.getElementById("estoque-regras-epi-remover-btn");
+    if (btnRemRegrasEd) btnRemRegrasEd.style.display = srcRegras ? "inline-flex" : "none";
+    const stRegrasEd = document.getElementById("estoque-regras-epi-status");
+    if (stRegrasEd) stRegrasEd.textContent = srcRegras ? "Imagem Regras EPI cadastrada (clique na miniatura para ampliar)" : "Nenhuma imagem anexada";
 
     // Carregar endereços já vinculados
     window._enderecoLinhas = [];
@@ -1641,6 +1677,8 @@ window.salvarEstoque = async function(e) {
         quantidade_minima: parseInt(document.getElementById("estoque-min").value) || 0,
         quantidade_maxima: parseInt(document.getElementById("estoque-max").value) || 0,
         foto_base64:       document.getElementById("estoque-foto-base64").value,
+        regras_epi_base64: document.getElementById("estoque-regras-epi-base64") ? document.getElementById("estoque-regras-epi-base64").value : "",
+        remover_regras_epi: document.getElementById("estoque-regras-epi-remover") ? (document.getElementById("estoque-regras-epi-remover").value === "1") : false,
         placas_vinculadas: Array.from(document.querySelectorAll('.estoque-placa-chk:checked')).map(el => el.value).join(',')
     };
     const token  = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
@@ -1829,6 +1867,50 @@ window.previewEstoqueFoto = function(event) {
         document.getElementById("estoque-foto-icon").style.display    = "none";
     };
     reader.readAsDataURL(file);
+};
+
+window.previewEstoqueRegrasEpi = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const b64El = document.getElementById("estoque-regras-epi-base64");
+        if (b64El) b64El.value = e.target.result;
+        const remEl = document.getElementById("estoque-regras-epi-remover");
+        if (remEl) remEl.value = "0";
+        const prevEl = document.getElementById("estoque-regras-epi-preview");
+        if (prevEl) {
+            prevEl.src = e.target.result;
+            prevEl.style.display = "block";
+        }
+        const iconEl = document.getElementById("estoque-regras-epi-icon");
+        if (iconEl) iconEl.style.display = "none";
+        const btnRem = document.getElementById("estoque-regras-epi-remover-btn");
+        if (btnRem) btnRem.style.display = "inline-flex";
+        const stEl = document.getElementById("estoque-regras-epi-status");
+        if (stEl) stEl.textContent = "Nova imagem selecionada: " + (file.name || "Regras EPI");
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removerEstoqueRegrasEpi = function() {
+    const fi = document.getElementById("estoque-regras-epi-file");
+    if (fi) fi.value = "";
+    const b64El = document.getElementById("estoque-regras-epi-base64");
+    if (b64El) b64El.value = "";
+    const remEl = document.getElementById("estoque-regras-epi-remover");
+    if (remEl) remEl.value = "1";
+    const prevEl = document.getElementById("estoque-regras-epi-preview");
+    if (prevEl) {
+        prevEl.src = "";
+        prevEl.style.display = "none";
+    }
+    const iconEl = document.getElementById("estoque-regras-epi-icon");
+    if (iconEl) iconEl.style.display = "block";
+    const btnRem = document.getElementById("estoque-regras-epi-remover-btn");
+    if (btnRem) btnRem.style.display = "none";
+    const stEl = document.getElementById("estoque-regras-epi-status");
+    if (stEl) stEl.textContent = "Imagem removida (salve o item para confirmar)";
 };
 
 // ── Permissões por Aba do Estoque (Itens de Estoque vs Equipamentos) ──────────
@@ -2329,6 +2411,11 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
     }
 
     window.togglePlacasEstoque = function(cat) {
+        const regrasCont = document.getElementById('estoque-regras-epi-container');
+        if (regrasCont) {
+            const isEpiCat = String(cat || '').trim().toUpperCase() === 'EPI';
+            regrasCont.style.display = isEpiCat ? 'block' : 'none';
+        }
         const c = document.getElementById('estoque-placas-container');
         if (!c) return;
         if (_ehCategoriaVeiculoEstoque(cat)) {

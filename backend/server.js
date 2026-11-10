@@ -18537,6 +18537,9 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                 db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
                     if (errEstoque || !todosItens) return;
 
+                    const itensComRegrasEpi = [];
+                    const seenRegrasKeys = new Set();
+
                     Object.values(epiContagem).forEach(({ count, original }) => {
                         const originalNome = original.trim();
                         // Preprocessar: converte "(TAM 38)" → "38" para alinhar com nomes do estoque
@@ -18664,7 +18667,164 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                         } else {
                             console.warn(`[ESTOQUE] Item "${originalNome}" nao encontrado no estoque após tentativas.`);
                         }
+
+                        // Verificar se o EPI retirado possui imagem de Regras EPI cadastrada no estoque
+                        let itemRegra = (match && (match.regras_epi_r2_key || match.regras_epi_url)) ? match : null;
+                        if (!itemRegra) {
+                            const STOP_W = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR','TAM','CA']);
+                            const tksEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 3 && !STOP_W.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t) && !/^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|\d+)$/.test(t));
+                            if (tksEpi.length > 0) {
+                                itemRegra = todosItens.find(it => {
+                                    if (!it.regras_epi_r2_key && !it.regras_epi_url) return false;
+                                    const itNorm = (it.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                    const itTks = itNorm.split(/[\s\-\.\/,;]+/).filter(Boolean);
+                                    return tksEpi.every(tk => itTks.includes(tk));
+                                }) || null;
+                            }
+                        }
+                        if (itemRegra && (itemRegra.regras_epi_r2_key || itemRegra.regras_epi_url)) {
+                            const dedupKey = String(itemRegra.regras_epi_r2_key || itemRegra.regras_epi_url || itemRegra.id);
+                            if (!seenRegrasKeys.has(dedupKey)) {
+                                seenRegrasKeys.add(dedupKey);
+                                itensComRegrasEpi.push({
+                                    estoqueId: itemRegra.id,
+                                    nomeEpi: originalNome,
+                                    nomeEstoque: itemRegra.nome || originalNome,
+                                    r2Key: itemRegra.regras_epi_r2_key || null,
+                                    url: itemRegra.regras_epi_url || null
+                                });
+                            }
+                        }
                     });
+
+                    // Se houver imagens de Regras EPI nos EPIs retirados, gerar PDF consolidado e enviar para assinatura via Assinafy no e-mail pessoal do colaborador
+                    if (itensComRegrasEpi.length > 0) {
+                        (async () => {
+                            try {
+                                const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+                                const pdfDoc = await PDFDocument.create();
+                                const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+                                const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                                const dataEntregaFmtRegras = data_entrega || new Date().toLocaleDateString('pt-BR');
+                                const safeWinAnsi = (str) => String(str || '').replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+
+                                let pagesAdded = 0;
+                                for (const itemR of itensComRegrasEpi) {
+                                    let imgBuf = null;
+                                    if (itemR.r2Key && r2 && r2.isReady()) {
+                                        try {
+                                            const fData = await r2.downloadStreamFromR2(itemR.r2Key);
+                                            if (fData && fData.stream && typeof fData.stream.transformToByteArray === 'function') {
+                                                const bytes = await fData.stream.transformToByteArray();
+                                                imgBuf = Buffer.from(bytes);
+                                            }
+                                        } catch (eDl) {
+                                            console.warn('[REGRAS EPI] Falha ao baixar imagem do R2 (' + itemR.r2Key + '):', eDl.message);
+                                        }
+                                    }
+                                    if (!imgBuf && itemR.url && itemR.url.startsWith('data:')) {
+                                        const b64Part = itemR.url.split(',')[1];
+                                        if (b64Part) imgBuf = Buffer.from(b64Part, 'base64');
+                                    }
+                                    if (!imgBuf && itemR.url && /^https?:\/\//i.test(itemR.url)) {
+                                        try {
+                                            const respImg = await axios.get(itemR.url, { responseType: 'arraybuffer', timeout: 15000 });
+                                            imgBuf = Buffer.from(respImg.data);
+                                        } catch (eHttp) {
+                                            console.warn('[REGRAS EPI] Falha ao baixar imagem via URL (' + itemR.url + '):', eHttp.message);
+                                        }
+                                    }
+                                    if (!imgBuf) continue;
+
+                                    const pngBuf = await sharp(imgBuf).rotate().png().toBuffer();
+                                    const embeddedImg = await pdfDoc.embedPng(pngBuf);
+                                    const pageW = 595.28;
+                                    const pageH = 841.89;
+                                    const page = pdfDoc.addPage([pageW, pageH]);
+
+                                    // Cabeçalho da página
+                                    const tituloRegras = safeWinAnsi('REGRAS EPI - ' + (itemR.nomeEstoque || itemR.nomeEpi)).substring(0, 75);
+                                    const subtituloRegras = safeWinAnsi('Colaborador: ' + nomeColabEpi + '   |   Data da Retirada: ' + dataEntregaFmtRegras).substring(0, 95);
+                                    page.drawText(tituloRegras, { x: 28, y: pageH - 34, size: 12, font: fontBold, color: rgb(0.12, 0.16, 0.23) });
+                                    page.drawText(subtituloRegras, { x: 28, y: pageH - 50, size: 9.5, font: fontReg, color: rgb(0.39, 0.45, 0.55) });
+
+                                    // Imagem ajustada proporcionalmente na área útil da página
+                                    const marginX = 24;
+                                    const topReserved = 64;
+                                    const bottomMargin = 24;
+                                    const maxW = pageW - marginX * 2;
+                                    const maxH = pageH - topReserved - bottomMargin;
+                                    const scale = Math.min(maxW / embeddedImg.width, maxH / embeddedImg.height);
+                                    const drawW = embeddedImg.width * scale;
+                                    const drawH = embeddedImg.height * scale;
+                                    const drawX = marginX + (maxW - drawW) / 2;
+                                    const drawY = bottomMargin + (maxH - drawH) / 2;
+
+                                    page.drawImage(embeddedImg, { x: drawX, y: drawY, width: drawW, height: drawH });
+                                    pagesAdded++;
+                                }
+
+                                if (pagesAdded === 0) {
+                                    console.warn('[REGRAS EPI] Nenhuma imagem pôde ser carregada para a entrega ID=' + entregaId);
+                                    return;
+                                }
+
+                                const pdfBytes = await pdfDoc.save();
+                                const pdfBuffer = Buffer.from(pdfBytes);
+
+                                const safeColabFolder = String(nomeColabEpi || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '_');
+                                const fileNameRegras = `Regras_EPI_${safeColabFolder}_Entrega_${entregaId}.pdf`;
+                                const dirLocalEpi = path.join(BASE_UPLOAD_PATH, safeColabFolder, 'EPI');
+                                let localFilePathRegras = '';
+                                try {
+                                    if (!fs.existsSync(dirLocalEpi)) fs.mkdirSync(dirLocalEpi, { recursive: true });
+                                    localFilePathRegras = path.join(dirLocalEpi, fileNameRegras);
+                                    fs.writeFileSync(localFilePathRegras, pdfBuffer);
+                                } catch (eFs) {
+                                    console.warn('[REGRAS EPI] Aviso ao salvar PDF local:', eFs.message);
+                                }
+
+                                let r2KeyRegrasPdf = null;
+                                if (r2 && r2.isReady()) {
+                                    try {
+                                        r2KeyRegrasPdf = buildR2Key('EPI', 'Regras_Assinafy', nomeColabEpi, 'Regras_EPI_Entrega_' + entregaId, 'pdf');
+                                        await r2.uploadToR2(r2KeyRegrasPdf, pdfBuffer, 'application/pdf');
+                                        console.log('[REGRAS EPI] PDF enviado ao R2:', r2KeyRegrasPdf);
+                                    } catch (eUpPdf) {
+                                        console.error('[REGRAS EPI] Erro ao enviar PDF ao R2:', eUpPdf.message);
+                                        r2KeyRegrasPdf = null;
+                                    }
+                                }
+
+                                const nomesEpisResumo = itensComRegrasEpi.map(x => x.nomeEstoque || x.nomeEpi).join(', ');
+                                const docTypeRegras = ('Regras EPI - ' + nomesEpisResumo).substring(0, 120);
+
+                                const regrasDocId = await new Promise((resolve, reject) => {
+                                    db.run(
+                                        `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, r2_key, assinafy_status) VALUES (?, 'EPI', ?, ?, ?, ?, 'Pendente')`,
+                                        [colaborador_id, docTypeRegras, localFilePathRegras || fileNameRegras, fileNameRegras, r2KeyRegrasPdf],
+                                        function(errDoc) {
+                                            if (errDoc) reject(errDoc);
+                                            else resolve(this.lastID);
+                                        }
+                                    );
+                                });
+
+                                const resultadoAssinafy = await novoProcesso.enviarDocumentoParaAssinafy(regrasDocId, colaborador_id);
+                                console.log(`[REGRAS EPI] Enviado para Assinafy com sucesso! DocID=${regrasDocId} | AssinafyID=${resultadoAssinafy.assinafyDocId}`);
+
+                                db.run(
+                                    `UPDATE epi_entregas SET regras_doc_id = ?, regras_assinafy_id = ?, regras_assinafy_url = ? WHERE id = ?`,
+                                    [regrasDocId, resultadoAssinafy.assinafyDocId || null, resultadoAssinafy.urlAssinatura || null, entregaId],
+                                    (errUpEnt) => {
+                                        if (errUpEnt) console.warn('[REGRAS EPI] Erro ao atualizar epi_entregas:', errUpEnt.message);
+                                    }
+                                );
+                            } catch (errRegrasAssinafy) {
+                                console.error('[REGRAS EPI] Erro ao gerar/enviar Regras EPI para Assinafy:', errRegrasAssinafy.message);
+                            }
+                        })();
+                    }
                 });
                 }); // fim db.get sexo
             }
@@ -32089,6 +32249,11 @@ db.run("ALTER TABLE estoque ADD COLUMN placas_vinculadas TEXT", (err) => { /* ig
 db.run("ALTER TABLE estoque ADD COLUMN subcategoria TEXT", (err) => { /* ignorar se ja existe */ });
 db.run("ALTER TABLE estoque ADD COLUMN tem_tamanho INTEGER DEFAULT 0", (err) => { /* ignorar se ja existe */ });
 db.run("ALTER TABLE estoque ADD COLUMN tamanhos_lista TEXT DEFAULT '[]'", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE estoque ADD COLUMN regras_epi_r2_key TEXT", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE estoque ADD COLUMN regras_epi_url TEXT", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE epi_entregas ADD COLUMN regras_doc_id INTEGER", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE epi_entregas ADD COLUMN regras_assinafy_id TEXT", (err) => { /* ignorar se ja existe */ });
+db.run("ALTER TABLE epi_entregas ADD COLUMN regras_assinafy_url TEXT", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33100,7 +33265,7 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, regras_epi_base64, placas_vinculadas } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -33128,9 +33293,34 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
             }
         }
 
+        // Upload da imagem de Regras EPI para R2 se fornecida
+        let regras_epi_r2_key = null;
+        let regras_epi_url = null;
+        if (regras_epi_base64 && regras_epi_base64.startsWith('data:')) {
+            if (r2 && r2.isReady()) {
+                try {
+                    const mimeMatchR = regras_epi_base64.match(/^data:([^;]+);base64,/);
+                    const mimeR = mimeMatchR ? mimeMatchR[1] : 'image/jpeg';
+                    const extMapR = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                    const extR = extMapR[mimeR] || 'jpg';
+                    const bufferR = Buffer.from(regras_epi_base64.split(',')[1], 'base64');
+                    regras_epi_r2_key = buildR2Key('Estoque', 'Regras_EPI', 'EPI', nome || 'EPI', extR);
+                    regras_epi_url = await r2.uploadToR2(regras_epi_r2_key, bufferR, mimeR);
+                    console.log('[ESTOQUE] Regras EPI enviada ao R2:', regras_epi_r2_key);
+                } catch (eR) {
+                    console.error('[ESTOQUE] Erro ao enviar Regras EPI ao R2, salvando base64 como fallback:', eR.message);
+                    regras_epi_url = regras_epi_base64;
+                    regras_epi_r2_key = null;
+                }
+            } else {
+                console.warn('[R2] Storage nao configurado — Regras EPI salva como base64.');
+                regras_epi_url = regras_epi_base64;
+            }
+        }
+
         db.run(
-            'INSERT INTO estoque (nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nome, departamento, categoria, subcategoria || null, tem_tamanho ? 1 : 0, typeof tamanhos_lista === 'string' ? tamanhos_lista : JSON.stringify(tamanhos_lista || []), quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null],
+            'INSERT INTO estoque (nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, foto_url, placas_vinculadas, regras_epi_r2_key, regras_epi_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, departamento, categoria, subcategoria || null, tem_tamanho ? 1 : 0, typeof tamanhos_lista === 'string' ? tamanhos_lista : JSON.stringify(tamanhos_lista || []), quantidade_atual || 0, quantidade_minima || 0, quantidade_maxima || 0, foto_b64_salvar || null, foto_url || null, placas_vinculadas || null, regras_epi_r2_key, regras_epi_url],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newItemId = this.lastID;
@@ -33156,7 +33346,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        let { nome, departamento, categoria, subcategoria, tem_tamanho, tamanhos_lista, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, regras_epi_base64, remover_regras_epi, placas_vinculadas, skip_history } = req.body;
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
@@ -33196,10 +33386,46 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             }
         }
 
+        // Gerenciar imagem de Regras EPI no R2
+        let regras_epi_r2_key = oldRow.regras_epi_r2_key || null;
+        let regras_epi_url = oldRow.regras_epi_url || null;
+        if (remover_regras_epi === true || remover_regras_epi === '1' || remover_regras_epi === 1) {
+            if (oldRow.regras_epi_r2_key && r2 && r2.isReady()) {
+                try { await r2.deleteFromR2(oldRow.regras_epi_r2_key); } catch (eDel) { console.warn('[ESTOQUE] Erro ao remover Regras EPI antiga do R2:', eDel.message); }
+            }
+            regras_epi_r2_key = null;
+            regras_epi_url = null;
+        }
+        if (regras_epi_base64 && regras_epi_base64.startsWith('data:')) {
+            if (oldRow.regras_epi_r2_key && r2 && r2.isReady()) {
+                try { await r2.deleteFromR2(oldRow.regras_epi_r2_key); } catch (eDel) { console.warn('[ESTOQUE] Erro ao substituir Regras EPI antiga no R2:', eDel.message); }
+            }
+            if (r2 && r2.isReady()) {
+                try {
+                    const mimeMatchR = regras_epi_base64.match(/^data:([^;]+);base64,/);
+                    const mimeR = mimeMatchR ? mimeMatchR[1] : 'image/jpeg';
+                    const extMapR = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+                    const extR = extMapR[mimeR] || 'jpg';
+                    const bufferR = Buffer.from(regras_epi_base64.split(',')[1], 'base64');
+                    regras_epi_r2_key = buildR2Key('Estoque', 'Regras_EPI', 'EPI', nome || oldRow.nome || 'EPI', extR);
+                    regras_epi_url = await r2.uploadToR2(regras_epi_r2_key, bufferR, mimeR);
+                    console.log('[ESTOQUE] Regras EPI atualizada no R2:', regras_epi_r2_key);
+                } catch (eR) {
+                    console.error('[ESTOQUE] Erro ao enviar Regras EPI ao R2, mantendo base64 como fallback:', eR.message);
+                    regras_epi_url = regras_epi_base64;
+                    regras_epi_r2_key = null;
+                }
+            } else {
+                console.warn('[R2] Storage nao configurado — Regras EPI salva como base64.');
+                regras_epi_url = regras_epi_base64;
+                regras_epi_r2_key = null;
+            }
+        }
+
         await new Promise((resolve, reject) => {
             db.run(
-                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, subcategoria = ?, tem_tamanho = ?, tamanhos_lista = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
-                [nome, departamento, categoria, subcatSalvar, temTamSalvar, tamListaSalvar, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, id],
+                'UPDATE estoque SET nome = ?, departamento = ?, categoria = ?, subcategoria = ?, tem_tamanho = ?, tamanhos_lista = ?, quantidade_atual = ?, quantidade_minima = ?, quantidade_maxima = ?, foto_base64 = ?, foto_url = ?, placas_vinculadas = ?, regras_epi_r2_key = ?, regras_epi_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?',
+                [nome, departamento, categoria, subcatSalvar, temTamSalvar, tamListaSalvar, quantidade_atual, quantidade_minima, quantidade_maxima, foto_b64_salvar, foto_url, placas_vinculadas || null, regras_epi_r2_key, regras_epi_url, id],
                 function(err) { if (err) reject(err); else resolve(this); }
             );
         });
@@ -33244,7 +33470,17 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
 
 
 // Excluir Item
-app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
+app.delete('/api/estoque/:id', authenticateToken, async (req, res) => {
+    try {
+        const rowDel = await new Promise((resolve) => {
+            db.get('SELECT regras_epi_r2_key FROM estoque WHERE id = ?', [req.params.id], (e, r) => resolve(r || null));
+        });
+        if (rowDel && rowDel.regras_epi_r2_key && r2 && r2.isReady()) {
+            await r2.deleteFromR2(rowDel.regras_epi_r2_key).catch(e => console.warn('[ESTOQUE DELETE] Erro ao remover Regras EPI do R2:', e.message));
+        }
+    } catch (eDelR2) {
+        console.warn('[ESTOQUE DELETE] Falha ao verificar R2:', eDelR2.message);
+    }
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
         db.run('DELETE FROM estoque_historico WHERE estoque_id = ?', [req.params.id], function(err) {

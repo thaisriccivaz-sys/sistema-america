@@ -33,7 +33,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261021v3" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261104v2" defer></script>
+    <script src="estoque.js?v=20261110v1" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
@@ -3999,6 +3999,31 @@
                                             <input type="checkbox" id="estoque-tem-tamanho" onchange="window.toggleTemTamanhoEstoque(this.checked)" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;">
                                             <span>Este produto possui tamanho? <span style="font-weight:500;color:#475569;font-size:0.8rem;">(Marque para gerenciar tamanhos, entradas/baixas e endereços por tamanho)</span></span>
                                         </label>
+                                    </div>
+                                    <div id="estoque-regras-epi-container" style="margin-bottom:1rem;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:10px 14px;">
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.88rem;color:#9a3412;">
+                                            <i class="ph ph-file-image" style="color:#ea580c;"></i> Regras EPI <span style="font-weight:500;color:#7c2d12;font-size:0.78rem;">(Imagem enviada para assinatura via Assinafy na retirada do EPI)</span>
+                                        </label>
+                                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                            <div id="estoque-regras-epi-thumb-wrap" style="width:68px;height:68px;border-radius:8px;border:1.5px dashed #fdba74;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                                                <img id="estoque-regras-epi-preview" src="" onclick="if(this.src && window.ampliarFotoEstoque) window.ampliarFotoEstoque(this.src, 'Regras EPI - ' + (document.getElementById('estoque-nome')?.value || 'EPI'))" title="Clique para ampliar" style="width:100%;height:100%;object-fit:cover;display:none;cursor:zoom-in;">
+                                                <i id="estoque-regras-epi-icon" class="ph ph-image" style="font-size:1.6rem;color:#fb923c;"></i>
+                                            </div>
+                                            <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:180px;">
+                                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                                    <label class="btn btn-sm" style="background:#ea580c;border:1px solid #ea580c;color:#fff;cursor:pointer;margin:0;display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                                                        <i class="ph ph-upload-simple"></i> Anexar Imagem Regras EPI
+                                                        <input type="file" id="estoque-regras-epi-file" accept="image/*" style="display:none;" onchange="window.previewEstoqueRegrasEpi(event)">
+                                                    </label>
+                                                    <button type="button" id="estoque-regras-epi-remover-btn" onclick="window.removerEstoqueRegrasEpi()" class="btn btn-sm" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;cursor:pointer;align-items:center;gap:4px;font-weight:600;">
+                                                        <i class="ph ph-trash"></i> Remover
+                                                    </button>
+                                                </div>
+                                                <span id="estoque-regras-epi-status" style="font-size:0.78rem;color:#9a3412;">Nenhuma imagem anexada</span>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" id="estoque-regras-epi-base64">
+                                        <input type="hidden" id="estoque-regras-epi-remover" value="0">
                                     </div>
                                     <div id="estoque-placas-container" style="display:none; margin-bottom:1rem;">
                                         <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.85rem;color:#475569;">Placas Vinculadas</label>
