@@ -1993,10 +1993,12 @@
                                                     <datalist id="colab-cargo-list"></datalist>
                                                 </div>
                                                 <div class="input-group" style="padding-left: 0.5rem;">
-                                                    <label>Departamento (Automático) *</label>
-                                                    <input type="text" id="colab-departamento"
-                                                        style="background: #f8f9fa; color: #666; font-weight: 500;"
-                                                        readonly required>
+                                                    <label>Departamento *</label>
+                                                    <input type="text" id="colab-departamento" list="colab-departamento-list"
+                                                        autocomplete="off" placeholder="Preenchido pelo cargo (pode ser alterado)"
+                                                        style="font-weight: 500;"
+                                                        oninput="window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();" required>
+                                                    <datalist id="colab-departamento-list"></datalist>
                                                 </div>
                                             </div>
                                         </div>
@@ -6779,7 +6781,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1791550714718"></script>
-    <script src="app.js?v=20261103v2"></script>
+    <script src="app.js?v=20261110v1"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->

@@ -3009,6 +3009,10 @@ async function loadSelects() {
         selectCargoDepto.innerHTML = '<option value="" selected disabled>Selecionar</option>';
         deptos.forEach(d => selectCargoDepto.innerHTML += `<option value="${d.nome}">${d.nome}</option>`);
     }
+    const dlColabDepto = document.getElementById('colab-departamento-list');
+    if (dlColabDepto && deptos) {
+        dlColabDepto.innerHTML = deptos.map(d => `<option value="${d.nome}"></option>`).join('');
+    }
     loadFaculdadeCursosDropdown();
 }
 
