@@ -76,8 +76,15 @@ window.initEquipes = async function (showSkeleton = true) {
       'Equipe Noturna': 5,
       'Ajudantes noturnos 12x36': 6,
       'Equipe Intermitente': 7,
-      'Equipe Reserva': 8
+      'Equipe Reserva': 8,
+      'Equipe Técnica': 9
     };
+    if (_equipes.length > 0 && !_equipes.some(eq => eq.nome === 'Equipe Técnica')) {
+      try {
+        const eqTec = await _eq_post('/equipes', { nome: 'Equipe Técnica', descricao: '', cor: '#0284c7', ordem: 9 });
+        if (eqTec && eqTec.id) _equipes.push({ nome: 'Equipe Técnica', descricao: '', cor: '#0284c7', ordem: 9, ...eqTec, membros: [] });
+      } catch (e) { console.error('[EQUIPES] Erro ao criar Equipe Técnica:', e); }
+    }
     _equipes.forEach(eq => {
       if (orderMap[eq.nome]) {
         eq.ordem = orderMap[eq.nome];
@@ -103,7 +110,8 @@ window.initEquipes = async function (showSkeleton = true) {
         { nome: 'Equipe Noturna', descricao: '', cor: '#4f46e5', ordem: 5 },
         { nome: 'Ajudantes noturnos 12x36', descricao: '', cor: '#14b8a6', ordem: 6 },
         { nome: 'Equipe Intermitente', descricao: '', cor: '#f59e0b', ordem: 7 },
-        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 8 }
+        { nome: 'Equipe Reserva', descricao: '', cor: '#db2777', ordem: 8 },
+        { nome: 'Equipe Técnica', descricao: '', cor: '#0284c7', ordem: 9 }
       ];
       for (const d of defaults) {
         const eq = await _eq_post('/equipes', d);
@@ -385,8 +393,10 @@ window._eqToggleDestaque = async function(e, colabId) {
           _reRenderFora();
           const { vEq } = _getVirtualData();
           const reservaEq = vEq.find(eq => eq.nome === 'Equipe Reserva');
+          const tecnicaEq = vEq.find(eq => eq.nome === 'Equipe Técnica');
           const intermitenteEq = vEq.find(eq => eq.nome === 'Equipe Intermitente');
           if (reservaEq) _reRenderColuna(reservaEq.id);
+          if (tecnicaEq) _reRenderColuna(tecnicaEq.id);
           if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
       }
   } catch (err) {
@@ -512,8 +522,10 @@ window._eqSalvarHabilidades = async function() {
             _reRenderFora();
             const { vEq } = _getVirtualData();
             const reservaEq = vEq.find(eq => eq.nome === 'Equipe Reserva');
+            const tecnicaEq = vEq.find(eq => eq.nome === 'Equipe Técnica');
             const intermitenteEq = vEq.find(eq => eq.nome === 'Equipe Intermitente');
             if (reservaEq) _reRenderColuna(reservaEq.id);
+            if (tecnicaEq) _reRenderColuna(tecnicaEq.id);
             if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
         }
     } catch (err) {
@@ -545,7 +557,7 @@ function _getVirtualData() {
   const vSem = JSON.parse(JSON.stringify(_semEquipe));
 
   vEq.forEach(eq => {
-      if (eq.nome === 'Equipe Reserva' || eq.nome === 'Equipe Intermitente') return;
+      if (eq.nome === 'Equipe Reserva' || eq.nome === 'Equipe Técnica' || eq.nome === 'Equipe Intermitente') return;
       const remaining = [];
       eq.membros.forEach(m => {
           let onVacation = false;
@@ -591,16 +603,17 @@ function _renderFora() {
       ondragleave="this.classList.remove('drag-over-zone');"
       ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
-  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Intermitente empilhados
+  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Técnica + Equipe Intermitente empilhados
   const sidebar = document.getElementById('equipes-sidebar');
   if (sidebar) {
     const { vEq } = _getVirtualData();
     const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
+    const tecnicaEq = vEq.find(e => e.nome === 'Equipe Técnica');
     const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
     
     let sidebarHtml = foraHtml;
     
-    [reservaEq, intermitenteEq].forEach(eq => {
+    [reservaEq, tecnicaEq, intermitenteEq].forEach(eq => {
       if (eq) {
         const membrosEq = _busca ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : eq.membros;
         const { cor: indEq } = _eqStatus(membrosEq);
@@ -648,7 +661,7 @@ function _renderBoard(busca) {
     summaryEl.innerHTML = '';
   }
 
-  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Intermitente').map(eq => {
+  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Técnica' && eq.nome !== 'Equipe Intermitente').map(eq => {
     const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
     const { cor: indicadorCor } = _eqStatus(membros);
     const alertas = _eqAlertas(membros);
@@ -818,8 +831,10 @@ window._equipesSearch = function(val) {
   _reRenderFora();
   const { vEq } = _getVirtualData();
   const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
+  const tecnicaEq = vEq.find(e => e.nome === 'Equipe Técnica');
   const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
   if (reservaEq) _reRenderColuna(reservaEq.id);
+  if (tecnicaEq) _reRenderColuna(tecnicaEq.id);
   if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
 };
 
