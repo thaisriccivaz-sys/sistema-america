@@ -4093,6 +4093,14 @@ function authenticateToken(req, res, next) {
     });
 }
 
+// --- RH › PAGAMENTOS › ACADEMIA (controle, planilha, envio e conferência de NF) ---
+// Registrado aqui (logo após authenticateToken) para o hook de /api/colaboradores valer antes das rotas de colaboradores.
+try {
+    require('./routes_academia')(app, db, authenticateToken, r2, sendMailHelper);
+} catch (eAcademia) {
+    console.error('[ACADEMIA] ERRO ao carregar módulo:', eAcademia.message);
+}
+
 // --- INTEGRAÇÃO IA (GEMINI) ---
 app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
     try {
