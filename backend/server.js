@@ -18701,6 +18701,8 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                     if (itensComRegrasEpi.length > 0) {
                         (async () => {
                             try {
+                                const novoProcesso = require('./novo_processo_assinafy');
+                                const axios = require('axios');
                                 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
                                 const pdfDoc = await PDFDocument.create();
                                 const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
