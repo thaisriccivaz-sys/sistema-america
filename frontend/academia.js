@@ -107,10 +107,9 @@
 
     function renderCorpo(d) {
         const cards = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem;">
-            ${card('Total do mês — ' + esc(mesLabel(d.mes)), esc(brl(d.total)), '#7c3aed', 'ph-currency-dollar', d.qtd_mes + ' colaborador(es) × ' + esc(brl(d.valor_unitario)))}
-            ${card('Colaboradores no mês', d.qtd_mes, '#2563eb', 'ph-users', 'Ativos em algum dia do mês')}
-            ${card('Ativos hoje', d.qtd_ativos, '#16a34a', 'ph-check-circle')}
-            ${card('Inativos', d.qtd_inativos, '#64748b', 'ph-x-circle', 'Já tiveram academia')}
+            ${card('Total do mês — ' + esc(mesLabel(d.mes)), esc(brl(d.total)), '#7c3aed', 'ph-currency-dollar', d.qtd_ativos + ' ativo(s) × ' + esc(brl(d.valor_unitario)))}
+            ${card('Ativos na academia', d.qtd_ativos, '#16a34a', 'ph-check-circle', 'Valor cobrado: ' + esc(brl(d.valor_unitario)))}
+            ${card('Inativos', d.qtd_inativos, '#64748b', 'ph-x-circle', 'Valor zerado (não somado)')}
         </div>`;
         const aviso = d.alterado_apos_envio
             ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin-bottom:1rem;font-size:0.85rem;"><i class="ph ph-warning"></i> A lista mudou depois do último envio para a academia (enviado ${esc(brl(d.envio.valor_total))}; total atual ${esc(brl(d.total))}). Se necessário, envie novamente.</div>`
@@ -120,10 +119,9 @@
             const badge = ativo
                 ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Ativo</span>'
                 : `<span title="${i.data_saida ? 'Inativo desde ' + esc(fmtData(i.data_saida)) : 'Inativo'}" style="background:#e2e8f0;color:#475569;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Inativo</span>`;
-            const deslig = (i.desligado && ativo) ? ' <span title="Colaborador desligado, mas ainda com Academia = Sim no cadastro" style="background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 6px;font-size:0.68rem;font-weight:700;">DESLIGADO</span>' : '';
-            const valor = i.cobrado_mes ? esc(brl(i.valor)) : '<span style="color:#94a3b8;">—</span>';
+            const valor = ativo ? esc(brl(i.valor)) : '<span style="color:#94a3b8;font-weight:600;">' + esc(brl(0)) + '</span>';
             return `<tr style="${ativo ? '' : 'opacity:0.78;'}">
-                <td style="padding:8px 12px;font-weight:600;color:#0f172a;">${esc(i.nome)}${deslig}</td>
+                <td style="padding:8px 12px;font-weight:600;color:#0f172a;">${esc(i.nome)}</td>
                 <td style="padding:8px 12px;text-align:center;">${esc(fmtData(i.data_nascimento))}</td>
                 <td style="padding:8px 12px;text-align:center;white-space:nowrap;">${esc(i.cpf)}</td>
                 <td style="padding:8px 12px;text-align:center;">${badge}</td>

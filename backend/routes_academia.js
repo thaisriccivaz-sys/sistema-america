@@ -184,9 +184,11 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         const primeiraVez = nPer === 0;
         if (primeiraVez) await backfillAuditoria();
 
-        // 1) Quem está com Academia = Sim e não tem período aberto → abre período
+        const DESLIG_SQL = "LOWER(TRIM(COALESCE(c.status,''))) = 'desligado'";
+
+        // 1a) Quem está com Academia = Sim, NÃO está desligado e não tem período aberto → abre período
         const abrir = await dbAll(`SELECT c.id, c.academia_data_inicio FROM colaboradores c
-            WHERE ${SIM_SQL}
+            WHERE ${SIM_SQL} AND NOT (${DESLIG_SQL})
               AND NOT EXISTS (SELECT 1 FROM academia_periodos p WHERE p.colaborador_id = c.id AND p.data_saida IS NULL)`);
         for (const c of abrir) {
             const ult = await dbGet('SELECT MAX(data_saida) AS ult FROM academia_periodos WHERE colaborador_id = ?', [c.id]);
@@ -197,10 +199,20 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             await dbRun('INSERT INTO academia_periodos (colaborador_id, data_entrada, data_saida) VALUES (?, ?, NULL)', [c.id, entrada]);
         }
 
-        // 2) Período aberto, mas o colaborador não está mais com Academia = Sim → fecha período
+        // 1b) Quem está desligado mas tem Academia = Sim e nunca teve período gravado → grava período já encerrado (inativo)
+        const desligSemPeriodo = await dbAll(`SELECT c.id, c.academia_data_inicio FROM colaboradores c
+            WHERE ${SIM_SQL} AND (${DESLIG_SQL})
+              AND NOT EXISTS (SELECT 1 FROM academia_periodos p WHERE p.colaborador_id = c.id)`);
+        for (const c of desligSemPeriodo) {
+            const inicio = isoDate(c.academia_data_inicio) || '2000-01-01';
+            const saida = hoje < inicio ? inicio : hoje;
+            await dbRun('INSERT INTO academia_periodos (colaborador_id, data_entrada, data_saida) VALUES (?, ?, ?)', [c.id, inicio, saida]);
+        }
+
+        // 2) Período aberto, mas o colaborador não está mais com Academia = Sim OU está Desligado → fecha período
         const fechar = await dbAll(`SELECT p.id, p.data_entrada FROM academia_periodos p
             LEFT JOIN colaboradores c ON c.id = p.colaborador_id
-            WHERE p.data_saida IS NULL AND (c.id IS NULL OR NOT (${SIM_SQL}))`);
+            WHERE p.data_saida IS NULL AND (c.id IS NULL OR NOT (${SIM_SQL}) OR (${DESLIG_SQL}))`);
         for (const p of fechar) {
             await dbRun('UPDATE academia_periodos SET data_saida = ? WHERE id = ?', [hoje < p.data_entrada ? p.data_entrada : hoje, p.id]);
         }
@@ -209,6 +221,12 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         await dbRun(`INSERT OR IGNORE INTO academia_colaboradores (colaborador_id)
                      SELECT DISTINCT p.colaborador_id FROM academia_periodos p
                      WHERE EXISTS (SELECT 1 FROM colaboradores c WHERE c.id = p.colaborador_id)`);
+
+        // 4) Colaboradores desligados: preencher automaticamente "Colaborador desligado" na observação se estiver vazia
+        await dbRun(`UPDATE academia_colaboradores
+                     SET observacoes = 'Colaborador desligado', atualizado_em = CURRENT_TIMESTAMP
+                     WHERE COALESCE(TRIM(observacoes), '') = ''
+                       AND colaborador_id IN (SELECT c.id FROM colaboradores c WHERE ${DESLIG_SQL})`);
     }
     let _syncChain = Promise.resolve();
     function sync() {
@@ -244,29 +262,32 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         pers.forEach(p => { (porColab[p.colaborador_id] = porColab[p.colaborador_id] || []).push(p); });
         const itens = rows.map(r => {
             const ps = porColab[r.colaborador_id] || [];
-            const aberto = ps.find(p => !p.data_saida);
+            const desligado = normTxt(r.colab_status) === 'desligado';
+            const aberto = !desligado ? ps.find(p => !p.data_saida) : null;
             const ult = ps[ps.length - 1] || null;
-            const cobrado = periodoNoMes(ps, mes);
+            const isAtivo = !!aberto;
+            const obsRaw = String(r.observacoes || '').trim();
+            const obsFinal = (desligado && !obsRaw) ? 'Colaborador desligado' : (r.observacoes || '');
             return {
                 colaborador_id: r.colaborador_id,
                 nome: r.nome_completo || '',
                 data_nascimento: r.data_nascimento || '',
                 cpf: r.cpf || '',
-                status: aberto ? 'ativo' : 'inativo',
-                data_saida: aberto ? null : (ult ? ult.data_saida : null),
-                desligado: normTxt(r.colab_status) === 'desligado',
-                cobrado_mes: cobrado,
-                valor: cobrado ? unit : 0,
-                observacoes: r.observacoes || ''
+                status: isAtivo ? 'ativo' : 'inativo',
+                data_saida: isAtivo ? null : (ult ? ult.data_saida : null),
+                desligado,
+                cobrado_mes: isAtivo,
+                valor: isAtivo ? unit : 0,
+                observacoes: obsFinal
             };
         });
         itens.sort((a, b) => (a.status === b.status ? 0 : (a.status === 'ativo' ? -1 : 1)) || a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
-        const qtdMes = itens.filter(i => i.cobrado_mes).length;
+        const qtdAtivos = itens.filter(i => i.status === 'ativo').length;
         return {
             mes, valor_unitario: unit, itens,
-            qtd_mes: qtdMes,
-            total: Math.round(qtdMes * unit * 100) / 100,
-            qtd_ativos: itens.filter(i => i.status === 'ativo').length,
+            qtd_mes: qtdAtivos,
+            total: Math.round(qtdAtivos * unit * 100) / 100,
+            qtd_ativos: qtdAtivos,
             qtd_inativos: itens.filter(i => i.status === 'inativo').length
         };
     }
@@ -292,16 +313,18 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             c.alignment = { vertical: 'middle', horizontal: 'center' };
         });
         itens.forEach(i => {
-            const r = ws.addRow([i.nome, fmtDataBR(i.data_nascimento), i.cpf, i.status === 'ativo' ? 'Ativo' : 'Inativo', i.cobrado_mes ? (i.valor != null ? i.valor : unit) : null, i.observacoes || '']);
-            r.getCell(5).numFmt = '"R$" #,##0.00';
+            const isAtivo = i.status === 'ativo';
+            const valCell = isAtivo ? (i.valor != null && i.valor > 0 ? i.valor : unit) : null;
+            const r = ws.addRow([i.nome, fmtDataBR(i.data_nascimento), i.cpf, isAtivo ? 'Ativo' : 'Inativo', valCell, i.observacoes || '']);
+            if (isAtivo) r.getCell(5).numFmt = '"R$" #,##0.00';
             r.getCell(2).alignment = { horizontal: 'center' };
             r.getCell(4).alignment = { horizontal: 'center' };
-            r.getCell(4).font = { bold: true, color: { argb: i.status === 'ativo' ? 'FF15803D' : 'FF64748B' } };
+            r.getCell(4).font = { bold: true, color: { argb: isAtivo ? 'FF15803D' : 'FF64748B' } };
             r.getCell(6).alignment = { wrapText: true, vertical: 'top' };
         });
-        const total = itens.reduce((acc, i) => acc + (i.cobrado_mes ? (i.valor != null ? i.valor : unit) : 0), 0);
-        const qtd = itens.filter(i => i.cobrado_mes).length;
-        const tr = ws.addRow([`TOTAL — ${qtd} colaborador(es) no mês`, '', '', '', Math.round(total * 100) / 100, '']);
+        const total = itens.reduce((acc, i) => acc + (i.status === 'ativo' ? (i.valor != null && i.valor > 0 ? i.valor : unit) : 0), 0);
+        const qtd = itens.filter(i => i.status === 'ativo').length;
+        const tr = ws.addRow([`TOTAL — ${qtd} colaborador(es) ativo(s)`, '', '', '', Math.round(total * 100) / 100, '']);
         tr.font = { bold: true };
         tr.getCell(5).numFmt = '"R$" #,##0.00';
         tr.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; });
