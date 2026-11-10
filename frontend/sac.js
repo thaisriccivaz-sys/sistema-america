@@ -3952,8 +3952,10 @@
         const t = _tickets.find(x => x.id === ticketId);
         if (!t) return;
         window._modalContactsTicketId = ticketId;
-        // fallback
-        const initialContacts = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ id: Date.now(), type: 'Contato de Instalação', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
+        // fallback garantindo id único em todos os contatos
+        const initialContacts = (t.contacts && t.contacts.length > 0)
+            ? t.contacts.map((c, idx) => ({ id: c.id || (Date.now() + idx), type: c.type || 'Contato de Instalação', name: c.name || '', phone: c.phone || '', email: c.email || '' }))
+            : [{ id: Date.now(), type: 'Contato de Instalação', name: t.contactName || '', phone: t.contactPhone || '', email: t.contactEmail || '' }];
         window._modalContacts = JSON.parse(JSON.stringify(initialContacts)); // deep copy
         
         let overlay = document.getElementById('sac-edit-contacts-overlay');
@@ -4044,15 +4046,15 @@
             showToast('O chamado precisa de pelo menos 1 contato.', 'warning');
             return;
         }
-        window._modalContacts = window._modalContacts.filter(x => x.id !== id);
+        window._modalContacts = window._modalContacts.filter(x => String(x.id) !== String(id));
         SAC._renderContactsModal();
     },
     updateContactInModal(id, field, value) {
         if (!window._modalContacts) return;
-        const c = window._modalContacts.find(x => x.id === id);
+        const c = window._modalContacts.find(x => String(x.id) === String(id));
         if (c) c[field] = value;
     },
-    saveContactsModal() {
+    async saveContactsModal() {
         if (!window._modalContacts || !window._modalContactsTicketId) return;
         
         // Validation
@@ -4065,21 +4067,23 @@
         if (!t) return;
         
         // Format and clean up
-        t.contacts = window._modalContacts.map(c => ({ ...c, name: c.name.trim(), phone: (c.phone||'').trim(), email: (c.email||'').trim() }));
+        t.contacts = window._modalContacts.map((c, idx) => ({ ...c, id: c.id || (Date.now() + idx), name: c.name.trim(), phone: (c.phone||'').trim(), email: (c.email||'').trim() }));
         
         // Update fallbacks for old readers just in case
         t.contactName = t.contacts[0].name;
         t.contactPhone = t.contacts[0].phone;
         t.contactEmail = t.contacts[0].email;
         
-        updateTicket(t);
+        const ov = document.getElementById('sac-edit-contacts-overlay');
+        if (ov) ov.remove();
+        
+        await updateTicket(t);
         
         // Refresh details modal if it's the open one
         if (_selectedTicket && _selectedTicket.id === t.id) {
             renderDetailModal();
         }
         
-        document.getElementById('sac-edit-contacts-overlay').remove();
         showToast('Contatos atualizados com sucesso!', 'success');
     },
     removeCostCenter(ccId) {

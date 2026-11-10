@@ -50132,6 +50132,7 @@ function _sacBuildTicketsPayload(cb) {
             clientName: r.client_name,
             cnpjCpf: r.cnpj_cpf,
             osNumber: r.os_number,
+            contacts: (() => { try { const arr = JSON.parse(r.contacts || '[]'); return Array.isArray(arr) ? arr : []; } catch(e) { return []; } })(),
             contactName: r.contact_name,
             contactPhone: r.contact_phone,
             contactEmail: r.contact_email,
@@ -50234,6 +50235,7 @@ app.get('/api/sac/tickets/:id', authenticateToken, (req, res) => {
             clientName: r.client_name,
             cnpjCpf: r.cnpj_cpf,
             osNumber: r.os_number,
+            contacts: (() => { try { const arr = JSON.parse(r.contacts || '[]'); return Array.isArray(arr) ? arr : []; } catch(e) { return []; } })(),
             contactName: r.contact_name,
             contactPhone: r.contact_phone,
             contactEmail: r.contact_email,
@@ -50278,6 +50280,7 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN conferido INTEGER DEFAULT 0`,
   `ALTER TABLE sac_tickets ADD COLUMN conferido_por TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN conferido_at TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN contacts TEXT`,
 ];
 db.serialize(() => {
   sacMigrations.forEach(sql => {
@@ -50383,8 +50386,8 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date,
         aguard_deadline, aguard_notified, aguard_pending_justification,
         sla_overdue_notified, sla_overdue_pending_justification, tags, sac_checklist,
-        os_date, opened_by_from_os
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        os_date, opened_by_from_os, contacts
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
@@ -50394,7 +50397,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null,
         t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0,
         t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0, JSON.stringify(t.tags||[]), JSON.stringify(t.sacChecklist||null),
-        t.osDate||null, t.openedByFromOS||null
+        t.osDate||null, t.openedByFromOS||null, JSON.stringify(Array.isArray(t.contacts) ? t.contacts : [])
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
@@ -50482,12 +50485,18 @@ app.patch('/api/sac/tickets/:id/conferido', authenticateToken, (req, res) => {
 
 app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
+    const firstContact = (Array.isArray(t.contacts) && t.contacts.length > 0) ? t.contacts[0] : null;
+    const contactNameVal = (t.contactName !== undefined ? t.contactName : (firstContact ? firstContact.name : '')) || '';
+    const contactPhoneVal = (t.contactPhone !== undefined ? t.contactPhone : (firstContact ? firstContact.phone : '')) || '';
+    const contactEmailVal = (t.contactEmail !== undefined ? t.contactEmail : (firstContact ? firstContact.email : '')) || '';
+    const contactsJson = JSON.stringify(Array.isArray(t.contacts) ? t.contacts : []);
         db.run(`UPDATE sac_tickets SET
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
         checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, 
         sla_frozen_at = ?, sla_elapsed_ms = ?, follow_up_deadline = ?, follow_up_notified = ?, follow_up_pending_justification = ?, close_date = ?,
         aguard_deadline = ?, aguard_notified = ?, aguard_pending_justification = ?,
         sla_overdue_notified = ?, sla_overdue_pending_justification = ?, tags = ?, sac_checklist = ?, description = ?, type_key = ?,
+        contact_name = ?, contact_phone = ?, contact_email = ?, contacts = ?,
         updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
@@ -50497,6 +50506,7 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         t.slaFrozenAt || null, t.slaElapsedMs || null, t.followUpDeadline || null, t.followUpNotified ? 1 : 0, t.followUpPendingJustification ? 1 : 0, t.closeDate || null,
         t.aguardDeadline || null, t.aguardNotified ? 1 : 0, t.aguardPendingJustification ? 1 : 0,
         t.slaOverdueNotified ? 1 : 0, t.slaOverduePendingJustification ? 1 : 0, JSON.stringify(t.tags||[]), JSON.stringify(t.sacChecklist||null), t.description || '', t.typeKey,
+        contactNameVal, contactPhoneVal, contactEmailVal, contactsJson,
         req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
