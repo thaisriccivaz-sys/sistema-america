@@ -4881,7 +4881,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
 
         // Para cada equipe, buscar membros com dados do colaborador
         const promises = equipes.map(eq => new Promise((resolve) => {
-            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe, c.habilidades_equipe
+            db.all(`SELECT em.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.status as colab_status, c.cnh_categoria, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.ferias_fracionadas, c.ferias_fracionadas_tipo, c.ferias_fracionadas_inicio2, c.ferias_fracionadas_fim2, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe, c.habilidades_equipe
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
                 WHERE em.equipe_id = ? AND LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
@@ -5072,7 +5072,7 @@ app.post('/api/equipes/verificar-ferias', authenticateToken, (req, res) => {
 
 // ?????? GET /api/equipes/colaboradores-sem-equipe ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe, c.habilidades_equipe
+    db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.ferias_fracionadas, c.ferias_fracionadas_tipo, c.ferias_fracionadas_inicio2, c.ferias_fracionadas_fim2, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe, c.habilidades_equipe
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
@@ -21970,13 +21970,57 @@ function parseDataLocal(d) {
     return new Date(`${d}T00:00:00`);
 }
 
+function _isColabEmFeriasNaData(c, dataRef) {
+    const ini1 = parseDataLocal(c.ferias_programadas_inicio);
+    const fim1 = parseDataLocal(c.ferias_programadas_fim);
+    const em1 = !!(ini1 && fim1 && dataRef >= ini1 && dataRef <= fim1);
+
+    const usaFrac2 = c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada';
+    const ini2 = usaFrac2 ? parseDataLocal(c.ferias_fracionadas_inicio2) : null;
+    const fim2 = usaFrac2 ? parseDataLocal(c.ferias_fracionadas_fim2) : null;
+    const em2 = !!(ini2 && fim2 && dataRef >= ini2 && dataRef <= fim2);
+
+    if (em1 || em2) return true;
+
+    const st = (c.status || '').toLowerCase();
+    if (st === 'férias' || st === 'ferias') {
+        const datasFim = [fim1, fim2].filter(Boolean);
+        if (datasFim.length > 0) {
+            const ultimoFim = datasFim.sort((a, b) => a - b)[datasFim.length - 1];
+            if (dataRef > ultimoFim) return false; // Férias já encerradas
+        }
+        // Se não há período ativo hoje (ex.: datas limpas ou futuras), não está de férias hoje
+        return false;
+    }
+    return false;
+}
+
 async function verificarFeriasEquipes() {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
 
     try {
+        // 1) Normalizar no banco colaboradores cujo status ficou 'Férias' após o término do período
+        const colabsStatusFerias = await new Promise((resolve, reject) => {
+            db.all(`SELECT id, nome_completo, status, ferias_programadas_inicio, ferias_programadas_fim,
+                           ferias_fracionadas, ferias_fracionadas_tipo, ferias_fracionadas_inicio2, ferias_fracionadas_fim2
+                    FROM colaboradores
+                    WHERE LOWER(TRIM(status)) IN ('férias', 'ferias')`, (err, rows) => {
+                if (err) reject(err); else resolve(rows || []);
+            });
+        });
+
+        for (const cf of colabsStatusFerias) {
+            if (!_isColabEmFeriasNaData(cf, hoje)) {
+                await new Promise((res) => db.run("UPDATE colaboradores SET status = 'Ativo' WHERE id = ?", [cf.id], res));
+            }
+        }
+
         const emEquipe = await new Promise((resolve, reject) => {
-            db.all(`SELECT em.colaborador_id, em.equipe_id, c.nome_completo, c.status, c.ferias_programadas_inicio, c.ferias_programadas_fim, eq.nome as equipe_nome
+            db.all(`SELECT em.colaborador_id, em.equipe_id, c.nome_completo, c.status,
+                           c.ferias_programadas_inicio, c.ferias_programadas_fim,
+                           c.ferias_fracionadas, c.ferias_fracionadas_tipo, c.ferias_fracionadas_inicio2, c.ferias_fracionadas_fim2,
+                           eq.nome as equipe_nome
                     FROM equipes_membros em
                     JOIN colaboradores c ON c.id = em.colaborador_id
                     JOIN equipes eq ON eq.id = em.equipe_id`, (err, rows) => {
@@ -21985,17 +22029,7 @@ async function verificarFeriasEquipes() {
         });
 
         for (const m of emEquipe) {
-            let taDeFerias = false;
-            const st = (m.status || '').toLowerCase();
-            if (st === 'férias' || st === 'ferias') taDeFerias = true;
-            
-            if (!taDeFerias && m.ferias_programadas_inicio && m.ferias_programadas_fim) {
-                const ini = parseDataLocal(m.ferias_programadas_inicio);
-                const fim = parseDataLocal(m.ferias_programadas_fim);
-                if (ini && fim && hoje >= ini && hoje <= fim) {
-                    taDeFerias = true;
-                }
-            }
+            const taDeFerias = _isColabEmFeriasNaData(m, hoje);
 
             if (taDeFerias) {
                 await new Promise((res) => db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [m.colaborador_id], res));

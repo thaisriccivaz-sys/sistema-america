@@ -717,26 +717,35 @@ const STATUS_COR = { ativo: '#22c55e', folga: '#94a3b8', ferias: '#8b5cf6', afas
 function _renderCard(m) {
   const fs = FUNC_STYLE[m.funcao] || FUNC_STYLE.ajudante;
   let st = (m.colab_status || m.status || '').toLowerCase();
-  
-  if (m.ferias_programadas_inicio && m.ferias_programadas_fim) {
-    const parseData = (d) => {
-      if (!d) return null;
-      if (d.includes('/')) {
-        const p = d.split('/');
-        return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-      }
-      return new Date(`${d}T00:00:00`);
-    };
-    const ini = parseData(m.ferias_programadas_inicio);
-    const fim = parseData(m.ferias_programadas_fim);
-    const hoje = new Date();
-    hoje.setHours(0,0,0,0);
-    if (ini && fim && hoje >= ini && hoje <= fim) {
-      st = 'ferias';
-    }
-  }
-
   if (st === 'férias') st = 'ferias';
+
+  const parseData = (d) => {
+    if (!d) return null;
+    const s = String(d).split('T')[0];
+    if (s.includes('/')) {
+      const p = s.split('/');
+      return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    }
+    return new Date(`${s}T00:00:00`);
+  };
+  const hoje = new Date(window._dataRefEquipes || new Date());
+  hoje.setHours(0,0,0,0);
+
+  const ini1 = parseData(m.ferias_programadas_inicio);
+  const fim1 = parseData(m.ferias_programadas_fim);
+  const emFerias1 = !!(ini1 && fim1 && hoje >= ini1 && hoje <= fim1);
+
+  const usaFrac2 = m.ferias_fracionadas === 'Sim' && m.ferias_fracionadas_tipo === 'Tirada';
+  const ini2 = usaFrac2 ? parseData(m.ferias_fracionadas_inicio2) : null;
+  const fim2 = usaFrac2 ? parseData(m.ferias_fracionadas_fim2) : null;
+  const emFerias2 = !!(ini2 && fim2 && hoje >= ini2 && hoje <= fim2);
+
+  if (emFerias1 || emFerias2) {
+    st = 'ferias';
+  } else if (st === 'ferias') {
+    // Se não está dentro de nenhum período de férias ativo na data de referência, volta para ativo
+    st = 'ativo';
+  }
   const isAfastado = st === 'afastado';
   const isFerias = st === 'ferias' || st === 'férias';
   const isLaranja = isAfastado || isFerias; // Mantemos o nome para a lógica de experiencia abaixo
