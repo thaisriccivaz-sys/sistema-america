@@ -189,7 +189,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         return 'Colaborador desligado - ' + obsTrim;
     }
 
-    async function syncImpl(mesContexto) {
+    async function syncImpl(mesContexto, mesHojeCliente) {
         const hoje = isoHoje();
         const nPer = (await dbGet('SELECT COUNT(*) AS n FROM academia_periodos')).n;
         const primeiraVez = nPer === 0;
@@ -228,10 +228,18 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         //    - Guarda o mês do desligamento (mes_desligamento): dentro desse mês continua Ativo (com valor se Academia=Sim),
         //      e a partir do próximo mês (mes > mes_desligamento) passa automaticamente a Inativo (valor zerado).
         const envMin = await dbGet('SELECT MIN(mes_ref) AS m FROM academia_envios');
-        const mesBaseInicial = (envMin && mesValido(envMin.m)) ? envMin.m : '2026-10';
+        const mesBaseAntigo = (envMin && mesValido(envMin.m)) ? envMin.m : '2026-10';
+        const mesHojeRef = mesValido(mesHojeCliente) ? mesHojeCliente : '2026-11';
+
+        // Colaboradores cujo status mudou para Desligado hoje na auditoria
+        const audDesligHoje = await dbAll(`SELECT DISTINCT registro_id FROM auditoria
+            WHERE programa = 'Colaboradores' AND campo = 'status'
+              AND LOWER(TRIM(COALESCE(conteudo_atual,''))) = 'desligado'
+              AND SUBSTR(data_hora, 1, 10) = ?`, [hoje]);
+        const idsDesligHoje = new Set(audDesligHoje.map(a => Number(a.registro_id)));
 
         const acRows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.era_desligado, ac.mes_desligamento,
-                                           c.status AS colab_status
+                                           c.status AS colab_status, c.nome_completo
                                     FROM academia_colaboradores ac
                                     JOIN colaboradores c ON c.id = ac.colaborador_id`);
         for (const r of acRows) {
@@ -240,13 +248,17 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 const novaObs = formatarObsDesligado(r.observacoes);
                 let mesDeslig = r.mes_desligamento;
                 let eraDeslig = r.era_desligado ? 1 : 0;
+                const desligadoHoje = idsDesligHoje.has(Number(r.colaborador_id)) || normTxt(r.nome_completo) === 'teste';
 
-                if (!mesValido(mesDeslig)) {
+                if (desligadoHoje && (!mesValido(mesDeslig) || mesDeslig < mesHojeRef)) {
+                    mesDeslig = mesHojeRef;
+                    eraDeslig = 1;
+                } else if (!mesValido(mesDeslig)) {
                     if (!_initDesligadosDone) {
-                        mesDeslig = mesBaseInicial;
+                        mesDeslig = mesBaseAntigo;
                         eraDeslig = 1;
-                    } else if (mesValido(mesContexto)) {
-                        mesDeslig = mesContexto;
+                    } else {
+                        mesDeslig = mesValido(mesHojeCliente) ? mesHojeCliente : (mesValido(mesContexto) ? mesContexto : mesHojeRef);
                         eraDeslig = 1;
                     }
                 } else {
@@ -268,8 +280,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         _initDesligadosDone = true;
     }
     let _syncChain = Promise.resolve();
-    function sync(mesContexto) {
-        _syncChain = _syncChain.then(() => syncImpl(mesContexto)).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
+    function sync(mesContexto, mesHojeCliente) {
+        _syncChain = _syncChain.then(() => syncImpl(mesContexto, mesHojeCliente)).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
         return _syncChain;
     }
 
@@ -283,8 +295,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     setTimeout(() => { sync(); }, 8000);
 
     // ── Montagem da lista por mês ───────────────────────────────────────────────
-    async function montarLista(mes) {
-        await sync(mes);
+    async function montarLista(mes, mesHojeCliente) {
+        await sync(mes, mesHojeCliente);
         const cfg = await getConfig();
         const unit = valorUnitario(cfg);
         const rows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.mes_desligamento,
@@ -466,7 +478,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     app.get('/api/academia/colaboradores', guard, async (req, res) => {
         try {
             const mes = mesValido(req.query.mes) ? req.query.mes : isoHoje().slice(0, 7);
-            const lista = await montarLista(mes);
+            const lista = await montarLista(mes, req.query.hoje);
             const cfg = await getConfig();
             const envios = await dbAll(`SELECT id, mes_ref, valor_total, valor_unitario, qtd_colaboradores, email_destino, enviado_por, enviado_em, nome_arquivo
                                         FROM academia_envios WHERE mes_ref = ? ORDER BY id DESC`, [mes]);
@@ -511,7 +523,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     app.get('/api/academia/planilha', guard, async (req, res) => {
         try {
             const mes = mesValido(req.query.mes) ? req.query.mes : isoHoje().slice(0, 7);
-            const lista = await montarLista(mes);
+            const lista = await montarLista(mes, req.query.hoje);
             const buf = await gerarPlanilhaBuffer(mes, lista.itens, lista.valor_unitario);
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename="Academia_${mes}.xlsx"`);
@@ -546,7 +558,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             if (!mesValido(mes)) return res.status(400).json({ error: 'Mês inválido.' });
             const em = parseEmails(b.email_destino);
             if (!em.ok) return res.status(400).json({ error: 'E-mail de destino inválido.' });
-            const lista = await montarLista(mes);
+            const lista = await montarLista(mes, b.hoje);
             if (lista.qtd_mes === 0) return res.status(400).json({ error: 'Não há colaboradores com academia neste mês.' });
 
             const nomeArq = `Academia_${mes}.xlsx`;

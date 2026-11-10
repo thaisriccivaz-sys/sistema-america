@@ -84,7 +84,7 @@
         const body = document.getElementById('acad-body');
         if (!body) return;
         try {
-            _data = await api('/academia/colaboradores?mes=' + encodeURIComponent(_mes));
+            _data = await api('/academia/colaboradores?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()));
             body.innerHTML = renderCorpo(_data);
         } catch (e) {
             body.innerHTML = `<div style="padding:2rem;text-align:center;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;"><i class="ph ph-warning-circle"></i> ${esc(e.message)}</div>`;
@@ -219,7 +219,7 @@
     };
 
     window._acadGerarPlanilha = async function () {
-        try { await baixarArquivo('/academia/planilha?mes=' + encodeURIComponent(_mes), 'Academia_' + _mes + '.xlsx'); }
+        try { await baixarArquivo('/academia/planilha?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()), 'Academia_' + _mes + '.xlsx'); }
         catch (e) { erroSwal('Erro ao gerar planilha', e.message); }
     };
     window._acadBaixarEnvio = async function (id) {
@@ -256,7 +256,7 @@
         if (!r.isConfirmed) return;
         Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
-            await api('/academia/enviar', { method: 'POST', body: JSON.stringify(Object.assign({ mes: _mes }, r.value)) });
+            await api('/academia/enviar', { method: 'POST', body: JSON.stringify(Object.assign({ mes: _mes, hoje: mesAtual() }, r.value)) });
             await Swal.fire({ icon: 'success', title: 'E-mail enviado!', text: 'A relação foi enviada para ' + r.value.email_destino + '.', confirmButtonColor: '#7c3aed' });
             carregar();
         } catch (e) { erroSwal('Falha no envio', e.message); }
