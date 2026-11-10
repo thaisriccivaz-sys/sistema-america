@@ -26,6 +26,7 @@
         return isNaN(d.getTime()) ? String(s) : d.toLocaleString('pt-BR');
     };
     const mesAtual = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+    const dataHoje = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
     const getToken = () => window.currentToken || (typeof currentToken !== 'undefined' ? currentToken : '') || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
 
     async function api(path, opts) {
@@ -84,7 +85,7 @@
         const body = document.getElementById('acad-body');
         if (!body) return;
         try {
-            _data = await api('/academia/colaboradores?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()));
+            _data = await api('/academia/colaboradores?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()) + '&data_hoje=' + encodeURIComponent(dataHoje()));
             body.innerHTML = renderCorpo(_data);
         } catch (e) {
             body.innerHTML = `<div style="padding:2rem;text-align:center;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;"><i class="ph ph-warning-circle"></i> ${esc(e.message)}</div>`;
@@ -188,8 +189,8 @@
         html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;">
             <button class="btn btn-secondary" onclick="window._acadVerNf(${n.id})"><i class="ph ph-eye"></i> Ver nota</button>
             ${btnAnexar('Anexar outra nota')}
+            <button class="btn btn-primary" onclick="window._acadEnviarFin(${n.id})" style="background:#16a34a;border-color:#16a34a;"><i class="ph ph-paper-plane-tilt"></i> Enviar para o Financeiro</button>
             ${n.status === 'nao_lida' ? `<button class="btn btn-secondary" onclick="window._acadValorManual(${n.id})"><i class="ph ph-pencil-simple"></i> Informar valor manualmente</button>` : ''}
-            ${(n.status === 'conferida' && !n.desatualizada) ? `<button class="btn btn-primary" onclick="window._acadEnviarFin(${n.id})" style="background:#16a34a;border-color:#16a34a;"><i class="ph ph-paper-plane-tilt"></i> Enviar para o Financeiro</button>` : ''}
         </div>`;
         if (n.enviado_financeiro_em) {
             html += `<div style="margin-top:10px;font-size:0.82rem;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;"><i class="ph ph-check-circle"></i> Enviado ao financeiro (${esc(n.financeiro_email)}) em ${esc(fmtDataHora(n.enviado_financeiro_em))} por ${esc(n.enviado_financeiro_por || '-')}.</div>`;
@@ -219,7 +220,7 @@
     };
 
     window._acadGerarPlanilha = async function () {
-        try { await baixarArquivo('/academia/planilha?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()), 'Academia_' + _mes + '.xlsx'); }
+        try { await baixarArquivo('/academia/planilha?mes=' + encodeURIComponent(_mes) + '&hoje=' + encodeURIComponent(mesAtual()) + '&data_hoje=' + encodeURIComponent(dataHoje()), 'Academia_' + _mes + '.xlsx'); }
         catch (e) { erroSwal('Erro ao gerar planilha', e.message); }
     };
     window._acadBaixarEnvio = async function (id) {
@@ -256,7 +257,7 @@
         if (!r.isConfirmed) return;
         Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
-            await api('/academia/enviar', { method: 'POST', body: JSON.stringify(Object.assign({ mes: _mes, hoje: mesAtual() }, r.value)) });
+            await api('/academia/enviar', { method: 'POST', body: JSON.stringify(Object.assign({ mes: _mes, hoje: mesAtual(), data_hoje: dataHoje() }, r.value)) });
             await Swal.fire({ icon: 'success', title: 'E-mail enviado!', text: 'A relação foi enviada para ' + r.value.email_destino + '.', confirmButtonColor: '#7c3aed' });
             carregar();
         } catch (e) { erroSwal('Falha no envio', e.message); }
@@ -308,16 +309,17 @@
         const d = _data;
         const n = d && d.nota;
         if (!n) return;
-        const assunto = 'Academia — Nota fiscal para pagamento — ' + mesLabel(n.mes_ref);
-        const msg = 'Prezados,\n\nSegue em anexo a nota fiscal da academia, já conferida com o valor da relação de colaboradores, para pagamento referente a ' + mesLabel(n.mes_ref) + '.\n\nTambém segue a planilha com a relação de colaboradores enviada à academia.\n\nAtenciosamente,\nRH — América Rental';
+        const valNfTxt = n.nf_valor != null ? brl(n.nf_valor) : brl(d.total);
+        const assunto = 'Academia — Solicitação de pagamento — ' + mesLabel(n.mes_ref);
+        const msg = 'Prezados,\n\nSegue em anexo a planilha da academia e a nota fiscal emitida pela academia referente a ' + mesLabel(n.mes_ref) + ', solicitando o pagamento.\n\nValor total da planilha (' + d.qtd_ativos + ' colaborador(es) ativo(s)): ' + brl(d.total) + '\nValor da Nota Fiscal' + (n.nf_numero ? ' (NFS-e nº ' + n.nf_numero + ')' : '') + ': ' + valNfTxt + '\n\nAtenciosamente,\nRH — América Rental';
         const r = await Swal.fire({
             title: 'Enviar para o Financeiro',
             width: 640,
             html: campoModal('Para (e-mail do financeiro — pode ser editado)', `<input id="acad-fin-to" type="text" value="${esc(d.email_financeiro)}" style="${estiloInput}">`)
                 + campoModal('Assunto', `<input id="acad-fin-subj" type="text" value="${esc(assunto)}" style="${estiloInput}">`)
-                + campoModal('Mensagem', `<textarea id="acad-fin-msg" rows="8" style="${estiloInput}resize:vertical;">${esc(msg)}</textarea>`)
+                + campoModal('Mensagem', `<textarea id="acad-fin-msg" rows="9" style="${estiloInput}resize:vertical;">${esc(msg)}</textarea>`)
                 + `<label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#475569;text-align:left;"><input id="acad-fin-def" type="checkbox"> Salvar este e-mail como padrão</label>
-                   <div style="text-align:left;font-size:0.78rem;color:#64748b;margin-top:8px;"><i class="ph ph-paperclip"></i> Anexos: nota fiscal (${esc(brl(n.nf_valor))}) e a planilha enviada à academia — mês ${esc(mesLabel(n.mes_ref))}.</div>`,
+                   <div style="text-align:left;font-size:0.78rem;color:#64748b;margin-top:8px;"><i class="ph ph-paperclip"></i> Anexos: planilha da academia (${esc(brl(d.total))}) e nota fiscal (${esc(valNfTxt)}) — mês ${esc(mesLabel(n.mes_ref))}.</div>`,
             showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Cancelar', confirmButtonColor: '#16a34a',
             preConfirm: () => {
                 const to = document.getElementById('acad-fin-to').value.trim();
@@ -328,7 +330,7 @@
         if (!r.isConfirmed) return;
         Swal.fire({ title: 'Enviando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
-            await api('/academia/nota/' + id + '/enviar-financeiro', { method: 'POST', body: JSON.stringify(r.value) });
+            await api('/academia/nota/' + id + '/enviar-financeiro', { method: 'POST', body: JSON.stringify(Object.assign({ hoje: mesAtual(), data_hoje: dataHoje() }, r.value)) });
             await Swal.fire({ icon: 'success', title: 'Enviado ao financeiro!', text: 'Nota fiscal e planilha enviadas para ' + r.value.email_destino + '.', confirmButtonColor: '#16a34a' });
             carregar();
         } catch (e) { erroSwal('Falha no envio', e.message); }

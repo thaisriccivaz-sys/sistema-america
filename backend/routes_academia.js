@@ -198,8 +198,29 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         return 'Colaborador desligado - ' + obsTrim;
     }
 
-    async function syncImpl(mesContexto, mesHojeCliente) {
-        const hoje = isoHoje();
+    function addMes(ym, delta) {
+        const [y, m] = String(ym).split('-').map(Number);
+        const d = new Date(Date.UTC(y, (m - 1) + delta, 1));
+        return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
+    }
+
+    function formatarObsSaida(obs, dataSaida) {
+        const iso = isoDate(dataSaida);
+        if (!iso || iso.startsWith('2000-')) return String(obs || '').trim();
+        const dtBr = fmtDataBR(iso);
+        const obsTrim = String(obs || '').trim();
+        const tag = `Solicitado Não em ${dtBr}`;
+        if (normTxt(obsTrim).includes('solicitado nao em')) return obsTrim;
+        if (!obsTrim) return tag;
+        return `${tag} - ${obsTrim}`;
+    }
+
+    function limparObsSaida(obs) {
+        return String(obs || '').replace(/^Solicitado N[aã]o em \d{2}\/\d{2}\/\d{4}(?:\s*-\s*)?/i, '').trim();
+    }
+
+    async function syncImpl(mesContexto, mesHojeCliente, dataHojeCliente) {
+        const hoje = isoDate(dataHojeCliente) || isoHoje();
         const nPer = (await dbGet('SELECT COUNT(*) AS n FROM academia_periodos')).n;
         const primeiraVez = nPer === 0;
         if (primeiraVez) await backfillAuditoria();
@@ -220,11 +241,18 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         }
 
         // 2) Período aberto, mas o colaborador não está mais com Academia = Sim → fecha período
-        const fechar = await dbAll(`SELECT p.id, p.data_entrada FROM academia_periodos p
+        const fechar = await dbAll(`SELECT p.id, p.colaborador_id, p.data_entrada FROM academia_periodos p
             LEFT JOIN colaboradores c ON c.id = p.colaborador_id
             WHERE p.data_saida IS NULL AND (c.id IS NULL OR NOT (${SIM_SQL}))`);
         for (const p of fechar) {
-            await dbRun('UPDATE academia_periodos SET data_saida = ? WHERE id = ?', [hoje < p.data_entrada ? p.data_entrada : hoje, p.id]);
+            const audNao = await dbGet(`SELECT data_hora FROM auditoria
+                WHERE programa = 'Colaboradores' AND campo = 'academia_participa' AND registro_id = ?
+                  AND LOWER(TRIM(COALESCE(conteudo_atual,''))) != 'sim'
+                ORDER BY id DESC LIMIT 1`, [p.colaborador_id]);
+            const dtAud = audNao ? isoDate(audNao.data_hora) : null;
+            const dtBase = (dtAud && dtAud >= hoje) ? dtAud : hoje;
+            const dtSaida = dtBase < p.data_entrada ? p.data_entrada : dtBase;
+            await dbRun('UPDATE academia_periodos SET data_saida = ? WHERE id = ?', [dtSaida, p.id]);
         }
 
         // 3) Garante linha de controle (observações) para todos que já tiveram academia
@@ -248,13 +276,22 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         const idsDesligHoje = new Set(audDesligHoje.map(a => Number(a.registro_id)));
 
         const acRows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.era_desligado, ac.mes_desligamento,
-                                           c.status AS colab_status, c.nome_completo
+                                           c.status AS colab_status, c.nome_completo, c.academia_participa
                                     FROM academia_colaboradores ac
                                     JOIN colaboradores c ON c.id = ac.colaborador_id`);
         for (const r of acRows) {
             const isDeslig = normTxt(r.colab_status) === 'desligado';
+            const temSim = isSim(r.academia_participa);
+            const ultPer = await dbGet('SELECT data_saida FROM academia_periodos WHERE colaborador_id = ? ORDER BY id DESC LIMIT 1', [r.colaborador_id]);
+            let obsBase = String(r.observacoes || '');
+            if (!temSim && ultPer && ultPer.data_saida) {
+                obsBase = formatarObsSaida(obsBase, ultPer.data_saida);
+            } else if (temSim) {
+                obsBase = limparObsSaida(obsBase);
+            }
+
             if (isDeslig) {
-                const novaObs = formatarObsDesligado(r.observacoes);
+                const novaObs = formatarObsDesligado(obsBase);
                 let mesDeslig = r.mes_desligamento;
                 let eraDeslig = r.era_desligado ? 1 : 0;
                 const desligadoHoje = idsDesligHoje.has(Number(r.colaborador_id)) || normTxt(r.nome_completo) === 'teste';
@@ -280,17 +317,17 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                                  WHERE colaborador_id = ?`,
                         [novaObs, eraDeslig, mesDeslig || null, r.colaborador_id]);
                 }
-            } else if (r.era_desligado || r.mes_desligamento) {
+            } else if (r.era_desligado || r.mes_desligamento || obsBase !== String(r.observacoes || '')) {
                 await dbRun(`UPDATE academia_colaboradores
-                             SET era_desligado = 0, mes_desligamento = NULL, atualizado_em = CURRENT_TIMESTAMP
-                             WHERE colaborador_id = ?`, [r.colaborador_id]);
+                             SET observacoes = ?, era_desligado = 0, mes_desligamento = NULL, atualizado_em = CURRENT_TIMESTAMP
+                             WHERE colaborador_id = ?`, [obsBase, r.colaborador_id]);
             }
         }
         _initDesligadosDone = true;
     }
     let _syncChain = Promise.resolve();
-    function sync(mesContexto, mesHojeCliente) {
-        _syncChain = _syncChain.then(() => syncImpl(mesContexto, mesHojeCliente)).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
+    function sync(mesContexto, mesHojeCliente, dataHojeCliente) {
+        _syncChain = _syncChain.then(() => syncImpl(mesContexto, mesHojeCliente, dataHojeCliente)).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
         return _syncChain;
     }
 
@@ -304,8 +341,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     setTimeout(() => { sync(); }, 8000);
 
     // ── Montagem da lista por mês ───────────────────────────────────────────────
-    async function montarLista(mes, mesHojeCliente) {
-        await sync(mes, mesHojeCliente);
+    async function montarLista(mes, mesHojeCliente, dataHojeCliente) {
+        await sync(mes, mesHojeCliente, dataHojeCliente);
         const cfg = await getConfig();
         const unit = valorUnitario(cfg);
         const rowsRaw = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.mes_desligamento,
@@ -321,12 +358,31 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             const desligado = normTxt(r.colab_status) === 'desligado';
             const temSim = isSim(r.academia_participa);
             const mesDeslig = mesValido(r.mes_desligamento) ? r.mes_desligamento : mes;
+            const dataSaida = (!temSim && ult && ult.data_saida) ? isoDate(ult.data_saida) : null;
 
-            // Se colaborador NÃO é desligado: Ativo quando academia_participa = Sim.
-            // Se colaborador É desligado: se estava marcado como Sim na academia, fica com valor (Ativo)
-            // dentro do mês do desligamento (mes <= mesDeslig) e no próximo mês (mes > mesDeslig) fica automaticamente Inativo (valor zerado).
-            const isAtivo = !desligado ? temSim : (temSim && mes <= mesDeslig);
-            const obsFinal = desligado ? formatarObsDesligado(r.observacoes) : (r.observacoes || '');
+            // Regra de corte da Academia (ciclo dia 25 ao dia 26):
+            // - Se o colaborador mudou de Sim para Não até o dia 26 do mês M (dia <= 26), já é considerado Não (Inativo) a partir do fechamento de M.
+            // - Se o colaborador mudou de Sim para Não no dia 27 ou depois do mês M (dia >= 27), permanece Ativo (com valor) em M e no próximo mês (M+1),
+            //   passando a Inativo apenas no outro fechamento (M+2 em diante).
+            let ativoPorCorteSaida = false;
+            if (!temSim && dataSaida && !dataSaida.startsWith('2000-')) {
+                const ymSaida = dataSaida.slice(0, 7);
+                const diaSaida = parseInt(dataSaida.slice(8, 10), 10);
+                const ymEntrada = (ult && isoDate(ult.data_entrada)) ? isoDate(ult.data_entrada).slice(0, 7) : '2000-01';
+                const mesUltimoAtivo = diaSaida >= 27 ? addMes(ymSaida, 1) : addMes(ymSaida, -1);
+                ativoPorCorteSaida = (mes >= ymEntrada && mes <= mesUltimoAtivo);
+            }
+
+            const ativoAcademia = temSim || ativoPorCorteSaida;
+            const isAtivo = !desligado ? ativoAcademia : (ativoAcademia && mes <= mesDeslig);
+
+            let obsFinal = r.observacoes || '';
+            if (!temSim && dataSaida && !dataSaida.startsWith('2000-')) {
+                obsFinal = formatarObsSaida(obsFinal, dataSaida);
+            }
+            if (desligado) {
+                obsFinal = formatarObsDesligado(obsFinal);
+            }
 
             return {
                 colaborador_id: r.colaborador_id,
@@ -334,7 +390,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 data_nascimento: r.data_nascimento || '',
                 cpf: r.cpf || '',
                 status: isAtivo ? 'ativo' : 'inativo',
-                data_saida: isAtivo ? null : (ult ? ult.data_saida : null),
+                data_saida: dataSaida || (ult ? ult.data_saida : null),
                 desligado,
                 mes_desligamento: desligado ? mesDeslig : null,
                 cobrado_mes: isAtivo,
@@ -489,7 +545,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     app.get('/api/academia/colaboradores', guard, async (req, res) => {
         try {
             const mes = mesValido(req.query.mes) ? req.query.mes : isoHoje().slice(0, 7);
-            const lista = await montarLista(mes, req.query.hoje);
+            const lista = await montarLista(mes, req.query.hoje, req.query.data_hoje);
             const cfg = await getConfig();
             const envios = await dbAll(`SELECT id, mes_ref, valor_total, valor_unitario, qtd_colaboradores, email_destino, enviado_por, enviado_em, nome_arquivo
                                         FROM academia_envios WHERE mes_ref = ? ORDER BY id DESC`, [mes]);
@@ -534,7 +590,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     app.get('/api/academia/planilha', guard, async (req, res) => {
         try {
             const mes = mesValido(req.query.mes) ? req.query.mes : isoHoje().slice(0, 7);
-            const lista = await montarLista(mes, req.query.hoje);
+            const lista = await montarLista(mes, req.query.hoje, req.query.data_hoje);
             const buf = await gerarPlanilhaBuffer(mes, lista.itens, lista.valor_unitario);
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             res.setHeader('Content-Disposition', `attachment; filename="Academia_${mes}.xlsx"`);
@@ -569,7 +625,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             if (!mesValido(mes)) return res.status(400).json({ error: 'Mês inválido.' });
             const em = parseEmails(b.email_destino);
             if (!em.ok) return res.status(400).json({ error: 'E-mail de destino inválido.' });
-            const lista = await montarLista(mes, b.hoje);
+            const lista = await montarLista(mes, b.hoje, b.data_hoje);
             if (lista.qtd_mes === 0) return res.status(400).json({ error: 'Não há colaboradores com academia neste mês.' });
 
             const nomeArq = `Academia_${mes}.xlsx`;
@@ -680,31 +736,32 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
-    // Enviar NF conferida + planilha para o financeiro
+    // Enviar NF + planilha para o financeiro solicitando pagamento
     app.post('/api/academia/nota/:id/enviar-financeiro', guard, async (req, res) => {
         try {
             const nota = await dbGet('SELECT * FROM academia_notas WHERE id = ?', [req.params.id]);
             if (!nota) return res.status(404).json({ error: 'Nota não encontrada.' });
-            if (nota.status !== 'conferida') return res.status(400).json({ error: 'Só é possível enviar ao financeiro uma nota fiscal conferida.' });
-            const ultimo = await dbGet('SELECT id FROM academia_envios WHERE mes_ref = ? ORDER BY id DESC LIMIT 1', [nota.mes_ref]);
-            if (!ultimo || ultimo.id !== nota.envio_id) return res.status(400).json({ error: 'A planilha foi reenviada após esta nota. Anexe a nota fiscal novamente para conferir.' });
-            const envio = await dbGet('SELECT * FROM academia_envios WHERE id = ?', [nota.envio_id]);
-            if (!envio) return res.status(400).json({ error: 'Envio da planilha não encontrado.' });
             const b = req.body || {};
             const em = parseEmails(b.email_destino);
             if (!em.ok) return res.status(400).json({ error: 'E-mail do financeiro inválido.' });
 
-            const [nfBuf, planBuf] = await Promise.all([bufferDaNota(nota), planilhaDoEnvio(envio)]);
-            const assunto = String(b.assunto || '').trim() || `Academia — Nota fiscal para pagamento — ${mesLabel(nota.mes_ref)}`;
+            const lista = await montarLista(nota.mes_ref, b.hoje, b.data_hoje);
+            const [nfBuf, planBuf] = await Promise.all([
+                bufferDaNota(nota),
+                gerarPlanilhaBuffer(nota.mes_ref, lista.itens, lista.valor_unitario)
+            ]);
+            const valNfTxt = nota.nf_valor != null ? brl(nota.nf_valor) : brl(lista.total);
+            const assunto = String(b.assunto || '').trim() || `Academia — Solicitação de pagamento — ${mesLabel(nota.mes_ref)}`;
             const mensagem = String(b.mensagem || '').trim()
-                || `Prezados,\n\nSegue em anexo a nota fiscal da academia, já conferida com o valor da relação de colaboradores, para pagamento referente a ${mesLabel(nota.mes_ref)}.\n\nTambém segue a planilha com a relação de colaboradores enviada à academia.\n\nAtenciosamente,\nRH — América Rental`;
+                || `Prezados,\n\nSegue em anexo a planilha da academia e a nota fiscal emitida pela academia referente a ${mesLabel(nota.mes_ref)}, solicitando o pagamento.\n\nValor total da planilha (${lista.qtd_ativos} colaborador(es) ativo(s)): ${brl(lista.total)}\nValor da Nota Fiscal${nota.nf_numero ? ' (NFS-e nº ' + nota.nf_numero + ')' : ''}: ${valNfTxt}\n\nAtenciosamente,\nRH — América Rental`;
             const linhas = [
                 ['Mês de referência', mesLabel(nota.mes_ref)],
+                ['Colaboradores ativos', String(lista.qtd_ativos)],
+                ['Valor total da planilha', brl(lista.total)],
                 ['Nota fiscal', nota.nf_numero ? `nº ${nota.nf_numero}` : (nota.nome_arquivo || '-')],
-                ['Valor da nota fiscal', brl(nota.nf_valor)],
-                ['Colaboradores na academia', String(envio.qtd_colaboradores)]
+                ['Valor da nota fiscal', valNfTxt]
             ];
-            const html = emailShell('Academia — Nota Fiscal para Pagamento', paragrafos(mensagem) + caixaResumo(linhas));
+            const html = emailShell('Academia — Solicitação de Pagamento', paragrafos(mensagem) + caixaResumo(linhas));
             await sendMailHelper({
                 to: em.lista.join(', '),
                 subject: assunto,
@@ -712,7 +769,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 attachments: [
                     logoAttachment(),
                     { filename: `NF_Academia_${nota.mes_ref}${nota.nf_numero ? '_' + nota.nf_numero : ''}.pdf`, content: nfBuf, contentType: 'application/pdf' },
-                    { filename: envio.nome_arquivo || `Academia_${nota.mes_ref}.xlsx`, content: planBuf, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+                    { filename: `Academia_${nota.mes_ref}.xlsx`, content: planBuf, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
                 ]
             });
             await dbRun('UPDATE academia_notas SET enviado_financeiro_em = CURRENT_TIMESTAMP, financeiro_email = ?, enviado_financeiro_por = ? WHERE id = ?',
