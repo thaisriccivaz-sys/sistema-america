@@ -182,6 +182,15 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
 
     let _initDesligadosDone = false;
 
+    // Colaboradores ocultos da tela Academia, da planilha e do e-mail: "Teste" e "Thais Ricci Vaz"
+    function academiaColabOculto(nome) {
+        const n = normTxt(nome);
+        if (!n) return false;
+        if (n === 'teste' || /\bteste\b/.test(n)) return true;
+        if (n.includes('thais') && n.includes('ricci')) return true;
+        return false;
+    }
+
     function formatarObsDesligado(obs) {
         const obsTrim = String(obs || '').trim();
         if (!obsTrim) return 'Colaborador desligado';
@@ -299,9 +308,10 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         await sync(mes, mesHojeCliente);
         const cfg = await getConfig();
         const unit = valorUnitario(cfg);
-        const rows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.mes_desligamento,
-                                         c.nome_completo, c.cpf, c.data_nascimento, c.status AS colab_status, c.academia_participa
-                                  FROM academia_colaboradores ac JOIN colaboradores c ON c.id = ac.colaborador_id`);
+        const rowsRaw = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.mes_desligamento,
+                                            c.nome_completo, c.cpf, c.data_nascimento, c.status AS colab_status, c.academia_participa
+                                     FROM academia_colaboradores ac JOIN colaboradores c ON c.id = ac.colaborador_id`);
+        const rows = rowsRaw.filter(r => !academiaColabOculto(r.nome_completo));
         const pers = await dbAll('SELECT colaborador_id, data_entrada, data_saida FROM academia_periodos ORDER BY data_entrada, id');
         const porColab = {};
         pers.forEach(p => { (porColab[p.colaborador_id] = porColab[p.colaborador_id] || []).push(p); });
@@ -345,6 +355,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
 
     // ── Planilha XLSX ───────────────────────────────────────────────────────────
     async function gerarPlanilhaBuffer(mes, itens, unit) {
+        itens = (itens || []).filter(i => !academiaColabOculto(i && i.nome));
         const wb = new ExcelJS.Workbook();
         wb.creator = 'América Rental';
         const ws = wb.addWorksheet('Academia');
