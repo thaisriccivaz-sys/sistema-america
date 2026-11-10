@@ -777,6 +777,7 @@ const BREADCRUMB_MAP = {
     'fechamento': { path: 'RH → Pagamentos → Fechamento', code: 'RHPAG02' },
     'rh-academia': { path: 'RH → Pagamentos → Academia', code: 'RHPAG03' },
     'rh-padaria': { path: 'RH → Pagamentos → Padaria', code: 'RHPAG04' },
+    'rh-faculdade-pagamentos': { path: 'RH → Pagamentos → Faculdade', code: 'RHPAG05' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
@@ -1203,6 +1204,7 @@ const TAB_META = {
     'fechamento': { color: '#f503c5', icon: 'ph-calculator', title: 'Fechamento' },
     'rh-academia': { color: '#f503c5', icon: 'ph-barbell', title: 'Academia' },
     'rh-padaria': { color: '#f503c5', icon: 'ph-cookie', title: 'Padaria' },
+    'rh-faculdade-pagamentos': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
@@ -1694,6 +1696,8 @@ function navigateTo(target) {
         if (typeof window.renderAcademia === 'function') setTimeout(() => window.renderAcademia(), 80);
     } else if (target === 'rh-padaria') {
         if (typeof window.renderPadaria === 'function') setTimeout(() => window.renderPadaria(), 80);
+    } else if (target === 'rh-faculdade-pagamentos') {
+        if (typeof window.renderFaculdadePagamentos === 'function') setTimeout(() => window.renderFaculdadePagamentos(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'logistica-epi') {

@@ -4108,6 +4108,13 @@ try {
     console.error('[PADARIA] ERRO ao carregar modulo:', ePadaria.message);
 }
 
+// --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
+try {
+    require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);
+} catch (eFacPag) {
+    console.error('[FACULDADE-PAG] ERRO ao carregar modulo:', eFacPag.message);
+}
+
 // --- INTEGRAÇÃO IA (GEMINI) ---
 app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
     try {

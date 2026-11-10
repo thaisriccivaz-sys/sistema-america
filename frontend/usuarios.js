@@ -21,6 +21,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
     { modulo: 'RH', pagina_id: 'rh-academia',          pagina_nome: 'Academia', icone: 'ph-barbell' },
     { modulo: 'RH', pagina_id: 'rh-padaria',          pagina_nome: 'Padaria', icone: 'ph-cookie' },
+    { modulo: 'RH', pagina_id: 'rh-faculdade-pagamentos',          pagina_nome: 'Faculdade (Pagamentos)', icone: 'ph-graduation-cap' },
     { modulo: 'RH', pagina_id: 'rh-logistica-sinistros', pagina_nome: 'Sinistros (RH)', icone: 'ph-warning-circle' },
     { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'fechamento',              pagina_nome: 'Fechamento', icone: 'ph-calculator' },
@@ -606,7 +607,7 @@ const MENU_HIERARQUIA = [
             {
                 titulo: 'Pagamentos',
                 telas: [
-                    'fechamento', 'recibos', 'pagamentos-massa', 'rh-academia', 'rh-padaria'
+                    'fechamento', 'recibos', 'pagamentos-massa', 'rh-academia', 'rh-padaria', 'rh-faculdade-pagamentos'
                 ]
             },
             {
