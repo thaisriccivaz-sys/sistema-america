@@ -548,10 +548,13 @@ db.run(`
         senha_encriptada TEXT,
         owner_id INTEGER,
         tipo TEXT DEFAULT 'compartilhada',
+        observacao TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-`);
+`, () => {
+    db.run("ALTER TABLE administrativo_senhas ADD COLUMN observacao TEXT;", (err) => { });
+});
 
 db.run(`
     CREATE TABLE IF NOT EXISTS administrativo_senhas_historico (
@@ -8612,11 +8615,11 @@ app.get('/api/administrativo/senhas', authenticateToken, (req, res) => {
 });
 
 app.post('/api/administrativo/senhas', authenticateToken, (req, res) => {
-    const { nome, servico, link, usuario, senha, tipo } = req.body;
+    const { nome, servico, link, usuario, senha, tipo, observacao } = req.body;
 
     const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
     const senhaEncriptada = senha ? encryptPassword(senha) : '';
-    db.run("INSERT INTO administrativo_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function (err) {
+    db.run("INSERT INTO administrativo_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal, observacao || ''], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         const newId = this.lastID;
         db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'criacao', 'servico', null, ?, ?, ?)",
@@ -8626,7 +8629,7 @@ app.post('/api/administrativo/senhas', authenticateToken, (req, res) => {
 });
 
 app.put('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
-    const { nome, servico, link, usuario, senha, tipo } = req.body;
+    const { nome, servico, link, usuario, senha, tipo, observacao } = req.body;
     const updates = [];
     const params = [];
     const senhaId = req.params.id;
@@ -8636,6 +8639,7 @@ app.put('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
     if (link !== undefined) { updates.push("link = ?"); params.push(link); }
     if (usuario !== undefined) { updates.push("usuario = ?"); params.push(usuario); }
     if (tipo !== undefined) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
+    if (observacao !== undefined) { updates.push("observacao = ?"); params.push(observacao); }
     if (senha !== undefined) {
         updates.push("senha_encriptada = ?");
         params.push(senha ? encryptPassword(senha) : '');
@@ -8653,6 +8657,7 @@ app.put('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
             if (usuario !== undefined && oldRow && oldRow.usuario !== usuario) camposAlterados.push({ campo: 'usuario', de: oldRow.usuario, para: usuario });
             if (nome !== undefined && oldRow && oldRow.nome !== nome) camposAlterados.push({ campo: 'nome', de: oldRow.nome, para: nome });
             if (link !== undefined && oldRow && oldRow.link !== link) camposAlterados.push({ campo: 'link', de: oldRow.link, para: link });
+            if (observacao !== undefined && oldRow && (oldRow.observacao || '') !== (observacao || '')) camposAlterados.push({ campo: 'observacao', de: oldRow.observacao || '', para: observacao || '' });
             if (senha !== undefined) camposAlterados.push({ campo: 'senha', de: '***', para: '***' });
             if (camposAlterados.length === 0) camposAlterados.push({ campo: 'registro', de: null, para: null });
             camposAlterados.forEach(c => {

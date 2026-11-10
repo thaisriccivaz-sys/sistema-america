@@ -97,10 +97,14 @@ function initAdministrativoSenhas() {
                             <label>Usuário</label>
                             <input type="text" id="adm-senha-usuario" placeholder="Login ou e-mail" autocomplete="off">
                         </div>
-                        <div class="input-group mb-4" style="position:relative;">
+                        <div class="input-group mb-3" style="position:relative;">
                             <label>Senha</label>
                             <input type="password" id="adm-senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
                             <i class="ph ph-eye" id="toggle-adm-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibilityAdm('adm-senha-valor', 'toggle-adm-senha-visibility')"></i>
+                        </div>
+                        <div class="input-group mb-4">
+                            <label>Observação</label>
+                            <textarea id="adm-senha-observacao" rows="2" placeholder="Observações sobre esta senha..." style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;text-transform:none;"></textarea>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
                             <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-adm-senhas').style.display='none'">Cancelar</button>
@@ -154,7 +158,7 @@ function renderSenhasAdm() {
     
     const viewList = senhasAdmList.filter(s => {
         const matchTab = (s.tipo === currentSenhaAdmTab || (!s.tipo && currentSenhaAdmTab === 'compartilhada'));
-        const textToSearch = [s.servico, s.usuario, s.nome, s.dono_nome].filter(Boolean).join(' ').toLowerCase();
+        const textToSearch = [s.servico, s.usuario, s.nome, s.dono_nome, s.observacao].filter(Boolean).join(' ').toLowerCase();
         const matchFiltro = textToSearch.includes(filtroTexto);
         return matchTab && matchFiltro;
     });
@@ -194,9 +198,17 @@ function renderSenhasAdm() {
         const statusClass = (s.colab_status === 'Desligado') ? 'color:#ef4444;background:#fee2e2;' : 'color:#155724;background:#d4edda;';
         const statusIcon = (s.colab_status === 'Desligado') ? '🔴 Inativo' : '🟢 Ativo';
         
+        const obsText = (s.observacao || '').trim();
+        const escObs = obsText.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const nomeCellHtml = s.nome
+            ? `<span onmouseenter="window._admShowObsTooltip(event, ${s.id})" onmousemove="window._admMoveObsTooltip(event)" onmouseleave="window._admHideObsTooltip()" title="${escObs}" style="display:inline-flex;align-items:center;gap:5px;${obsText ? 'cursor:help;border-bottom:1px dashed #cbd5e1;' : ''}">${s.nome}${obsText ? '<i class="ph ph-info" style="color:#e8590c;font-size:0.95rem;"></i>' : ''}</span>`
+            : (obsText
+                ? `<span onmouseenter="window._admShowObsTooltip(event, ${s.id})" onmousemove="window._admMoveObsTooltip(event)" onmouseleave="window._admHideObsTooltip()" title="${escObs}" style="display:inline-flex;align-items:center;gap:5px;color:#94a3b8;cursor:help;">- <i class="ph ph-info" style="color:#e8590c;font-size:0.95rem;"></i></span>`
+                : '<span style="color:#94a3b8;">-</span>');
+
         tr.innerHTML = `
             <td><span style="${statusClass} padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${statusIcon}</span></td>
-            <td style="font-weight:600; color:#1e293b;">${s.nome || '<span style="color:#94a3b8;">-</span>'}</td>
+            <td style="font-weight:600; color:#1e293b;">${nomeCellHtml}</td>
             <td>${s.servico || '-'}</td>
             <td>${linkHtml}</td>
             <td style="font-family:monospace; font-size:0.95rem;">${usuarioHtml}</td>
@@ -213,10 +225,41 @@ function renderSenhasAdm() {
     });
 }
 
+window._admShowObsTooltip = function(ev, id) {
+    const s = (senhasAdmList || []).find(x => x.id === id);
+    if (!s || !s.observacao || !s.observacao.trim()) return;
+    let tt = document.getElementById('adm-senha-obs-tooltip');
+    if (!tt) {
+        tt = document.createElement('div');
+        tt.id = 'adm-senha-obs-tooltip';
+        tt.style.cssText = 'position:fixed;z-index:999999;background:#1e293b;color:#f8fafc;border-radius:10px;padding:10px 14px;font-size:0.8rem;line-height:1.45;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,0.25);max-width:320px;white-space:pre-wrap;word-break:break-word;display:none;border:1px solid rgba(255,255,255,0.1);';
+        document.body.appendChild(tt);
+    }
+    const safeObs = s.observacao.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    tt.innerHTML = '<div style="font-size:0.7rem;font-weight:700;color:#fb923c;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.04em;">Observação</div><div>' + safeObs + '</div>';
+    tt.style.display = 'block';
+    window._admMoveObsTooltip(ev);
+};
+
+window._admMoveObsTooltip = function(ev) {
+    const tt = document.getElementById('adm-senha-obs-tooltip');
+    if (!tt || tt.style.display === 'none') return;
+    const x = Math.min(ev.clientX + 14, window.innerWidth - 340);
+    const y = Math.min(ev.clientY + 14, window.innerHeight - 100);
+    tt.style.left = Math.max(8, x) + 'px';
+    tt.style.top = Math.max(8, y) + 'px';
+};
+
+window._admHideObsTooltip = function() {
+    const tt = document.getElementById('adm-senha-obs-tooltip');
+    if (tt) tt.style.display = 'none';
+};
+
 function openSenhasAdmModal() {
     document.getElementById('form-senha').reset();
     document.getElementById('adm-senha-id').value = '';
     document.getElementById('adm-senha-tipo').value = currentSenhaAdmTab;
+    if (document.getElementById('adm-senha-observacao')) document.getElementById('adm-senha-observacao').value = '';
     document.getElementById('modal-adm-senhas-title').innerHTML = '<i class="ph ph-lock-key" style="margin-right:8px; color:#e8590c;"></i>Cadastrar Nova Senha';
     senhaAdmSendoEditada = null;
     
@@ -238,6 +281,7 @@ function abrirModalEditarSenha(id) {
     document.getElementById('adm-senha-link').value = s.link || '';
     document.getElementById('adm-senha-usuario').value = s.usuario;
     document.getElementById('adm-senha-valor').value = s.senha;
+    if (document.getElementById('adm-senha-observacao')) document.getElementById('adm-senha-observacao').value = s.observacao || '';
     document.getElementById('modal-adm-senhas-title').innerHTML = '<i class="ph ph-pencil" style="margin-right:8px; color:#e8590c;"></i>Editar Senha';
     
     const pwdInput = document.getElementById('adm-senha-valor');
@@ -256,8 +300,9 @@ async function salvarSenhaAdministrativo(e) {
     const usuario = document.getElementById('adm-senha-usuario').value.trim();
     const senha = document.getElementById('adm-senha-valor').value.trim();
     const tipo = document.getElementById('adm-senha-tipo').value;
+    const observacao = (document.getElementById('adm-senha-observacao')?.value || '').trim();
 
-    const payload = { nome, servico, link, usuario, senha, tipo };
+    const payload = { nome, servico, link, usuario, senha, tipo, observacao };
     const method = id ? 'PUT' : 'POST';
     const url = id ? '/api/administrativo/senhas/' + id : '/api/administrativo/senhas';
 
@@ -492,7 +537,7 @@ function _renderHistoricoSenhasAdm(rows) {
     }
 
     const acaoLabel = { criacao: { txt: '✅ Criação', bg:'#d1fae5', cor:'#065f46' }, edicao: { txt: '✏️ Edição', bg:'#dbeafe', cor:'#1e40af' }, exclusao: { txt: '🗑️ Exclusão', bg:'#fee2e2', cor:'#991b1b' } };
-    const campoLabel = { servico: 'Serviço', usuario: 'Usuário/Login', nome: 'Nome', link: 'Link', senha: 'Senha', registro: 'Geral' };
+    const campoLabel = { servico: 'Serviço', usuario: 'Usuário/Login', nome: 'Nome', link: 'Link', senha: 'Senha', observacao: 'Observação', registro: 'Geral' };
 
     tbody.innerHTML = rows.map(r => {
         const dt = new Date(r.criado_em);
