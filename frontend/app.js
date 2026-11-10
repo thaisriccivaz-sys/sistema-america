@@ -1439,6 +1439,18 @@ window.navigateToTab = function (tabId) {
     if (tab.target === 'logistica-agenda' && typeof window.renderAgendaLogistica === 'function') {
         setTimeout(() => window.renderAgendaLogistica(), 80);
     }
+    if (tab.target === 'pagamentos-massa' && typeof window.renderPagamentosMassa === 'function') {
+        setTimeout(() => window.renderPagamentosMassa(), 80);
+    }
+    if (tab.target === 'rh-academia' && typeof window.renderAcademia === 'function') {
+        setTimeout(() => window.renderAcademia(), 80);
+    }
+    if (tab.target === 'rh-padaria' && typeof window.renderPadaria === 'function') {
+        setTimeout(() => window.renderPadaria(), 80);
+    }
+    if (tab.target === 'rh-faculdade-pagamentos' && typeof window.renderFaculdadePagamentos === 'function') {
+        setTimeout(() => window.renderFaculdadePagamentos(), 80);
+    }
     if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
         setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
     }
@@ -9654,6 +9666,7 @@ function getEffectiveStatus(c) {
     return status;
 }
 
+window.updateStatusChip = updateStatusChip;
 function updateStatusChip(val) {
     document.querySelectorAll('.status-chip').forEach(c => {
         c.classList.remove('active');

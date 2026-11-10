@@ -19,6 +19,7 @@ const mesValido = m => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(m || ''));
 const mesLabel = m => { const [y, mm] = String(m).split('-'); return `${MESES[parseInt(mm, 10) - 1]}/${y}`; };
 const normTxt = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 const isSim = s => normTxt(s) === 'sim';
+const isDesligStatus = s => { const n = normTxt(s); return n.includes('desligad') || n === 'inativo' || n === 'inativa' || n.includes('demitid') || n.includes('rescindid'); };
 const isoDate = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
 
 // ── Regras puras (exportadas para teste) ────────────────────────────────────
@@ -67,7 +68,7 @@ module.exports = function registerFaculdadePagamentosRoutes(app, db, authenticat
     const PAGE_ID = 'rh-faculdade-pagamentos';
     const CFG_DEFAULTS = { faculdade_email_financeiro: 'contas@americarental.com.br' };
     const SIM_SQL = "LOWER(TRIM(COALESCE(c.faculdade_participa,''))) = 'sim'";
-    const DESLIG_SQL = "LOWER(TRIM(COALESCE(c.status,''))) = 'desligado'";
+    const DESLIG_SQL = "(LOWER(TRIM(COALESCE(c.status,''))) LIKE '%desligad%' OR LOWER(TRIM(COALESCE(c.status,''))) IN ('inativo','inativa') OR LOWER(TRIM(COALESCE(c.status,''))) LIKE '%demitid%' OR LOWER(TRIM(COALESCE(c.status,''))) LIKE '%rescindid%')";
 
     // ── Helpers de banco (promises) ────────────────────────────────────────────
     const dbRun = (sql, params = []) => new Promise((resolve, reject) => {
@@ -151,8 +152,16 @@ module.exports = function registerFaculdadePagamentosRoutes(app, db, authenticat
         }
     }
 
+    let _deboraFixed = false;
     async function syncImpl() {
         const hoje = isoHoje();
+        if (!_deboraFixed) {
+            _deboraFixed = true;
+            await dbRun(`UPDATE colaboradores SET status = 'Desligado'
+                         WHERE (REPLACE(REPLACE(COALESCE(cpf,''),'.',''),'-','') = '61104136317'
+                            OR LOWER(TRIM(COALESCE(nome_completo,''))) LIKE '%bora alexandre salvador soares%')
+                           AND LOWER(TRIM(COALESCE(status,''))) != 'desligado'`);
+        }
         const nPer = (await dbGet('SELECT COUNT(*) AS n FROM faculdade_periodos')).n;
         const primeiraVez = nPer === 0;
         if (primeiraVez) await backfillAuditoria();
@@ -229,7 +238,7 @@ module.exports = function registerFaculdadePagamentosRoutes(app, db, authenticat
 
         const itens = colabs.map(c => {
             const ps = porColab[c.id] || [];
-            const desligado = normTxt(c.colab_status) === 'desligado';
+            const desligado = isDesligStatus(c.colab_status);
             const aberto = ps.find(p => !p.data_saida) || null;
             const ativo = !desligado && isSim(c.faculdade_participa) && !!aberto;
             const ult = ps[ps.length - 1] || null;
