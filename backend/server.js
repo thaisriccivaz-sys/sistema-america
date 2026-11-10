@@ -22029,11 +22029,12 @@ async function verificarFeriasEquipes() {
         });
 
         for (const m of emEquipe) {
+            const nomeEq = (m.equipe_nome || '').toLowerCase();
+            if (nomeEq.includes('técnica') || nomeEq.includes('tecnica')) continue;
             const taDeFerias = _isColabEmFeriasNaData(m, hoje);
 
             if (taDeFerias) {
                 await new Promise((res) => db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [m.colaborador_id], res));
-                const nomeEq = (m.equipe_nome || '').toLowerCase();
                 if (!nomeEq.includes('reserva') && !nomeEq.includes('intermitente')) {
                     const msg = `O colaborador <strong>${m.nome_completo}</strong> entrou em férias/afastamento e foi <strong>removido</strong> da <strong>${m.equipe_nome}</strong>. à necessário realocar algu??m para a equipe.`;
                     await notificarResponsaveisEquipes(msg, 'Equipe Desfalcada por Férias', 'ph-warning', '#eab308', true);
