@@ -723,6 +723,7 @@ const BREADCRUMB_MAP = {
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
     'feedback-gestor': { path: 'Gestão → Feedback', code: 'GES001' },
+    'experiencia-gestor': { path: 'Gestão → Experiência', code: 'GES002' },
     'satisfacao-rh': { path: 'RH → Avaliações → Satisfação', code: 'RHSAT01' },
     'experiencia': { path: 'RH → Experiência', code: 'RHEXP01' },
     'experiencia-rh': { path: 'RH → Avaliações → Experiência', code: 'RHEXP01' },
@@ -1275,6 +1276,7 @@ const TAB_META = {
     'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Logística — Multas' },
     'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
     'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
+    'experiencia-gestor': { color: '#4b5563', icon: 'ph-user-check', title: 'Experiência' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
     'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'Rota de Sucesso — Ajudantes' },
     'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'Rota de Sucesso — Motoristas' },
@@ -1610,6 +1612,8 @@ function navigateTo(target) {
         if (typeof window.initDesempenhoRH === 'function') setTimeout(() => window.initDesempenhoRH(), 80);
     } else if (target === 'feedback-gestor') {
         if (typeof window.initFeedbackGestor === 'function') setTimeout(() => window.initFeedbackGestor(), 80);
+    } else if (target === 'experiencia-gestor') {
+        if (typeof window.loadExperienciaGestor === 'function') setTimeout(() => window.loadExperienciaGestor(), 80);
     } else if (target === 'gestao-departamentos') {
         // Menu pai "Gestão" não tem tela própria — redireciona para Feedback
         navigateTo('feedback-gestor');
@@ -18566,9 +18570,9 @@ function getNormalizedPageSearchData() {
                 permId = 'usuarios-permissoes';
             } else if (targetKey === 'conf-integracao') {
                 permId = 'integracao';
-            } else if (targetKey === 'feedback-gestor') {
+            } else if (targetKey === 'feedback-gestor' || targetKey === 'experiencia-gestor') {
                 const isMgr = window._myManagedDeptsGlob && window._myManagedDeptsGlob.length > 0;
-                if (!isMgr && window.activeUserPerms && !window.activeUserPerms['feedback-gestor']) {
+                if (!isMgr && window.activeUserPerms && !window.activeUserPerms[targetKey]) {
                     continue;
                 }
                 pages.push({ key: targetKey, name: obj.path, code: rootCode });

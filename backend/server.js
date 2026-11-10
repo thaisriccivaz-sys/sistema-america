@@ -21402,9 +21402,11 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     // Uses subquery to guarantee only 1 (most recent) form per collaborator, avoiding duplicate rows
     db.all(`
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
-               c.foto_base64,
+               c.foto_base64, c.foto_path,
+               (SELECT d_foto.r2_key FROM documentos d_foto WHERE d_foto.colaborador_id = c.id AND d_foto.tab_name = 'Fotos' ORDER BY d_foto.id DESC LIMIT 1) as foto_r2_key,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
                ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
+               d.responsavel_id as responsavel_id,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
         LEFT JOIN experiencia_formularios ef ON ef.id = (
@@ -21434,8 +21436,12 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
             if (daysSinceAdm > 120 && !r.form_id) return null;
 
             const diasRestantes = Math.ceil((prazo2End - hoje) / 86400000);
+            const foto_url = r.foto_base64
+                ? (r.foto_base64.startsWith('data:') ? r.foto_base64 : 'data:image/jpeg;base64,' + r.foto_base64)
+                : ((r.foto_path || r.foto_r2_key) ? `/api/colaboradores/foto/${r.id}` : null);
             return {
                 ...r,
+                foto_url,
                 prazo1_fim: prazos.prazo1_fim,
                 prazo2_fim: prazos.prazo2_fim,
                 dias_restantes: diasRestantes,
@@ -21518,7 +21524,7 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
     db.run(`INSERT INTO experiencia_formularios 
             (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao, criado_em, atualizado_em)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [colaborador_id, req.user?.nome || '', respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, now],
+        [colaborador_id, req.user?.nome || '', respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', (situacao === 'rascunho' ? 'iniciado' : (situacao || 'iniciado')), now, now],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
 
@@ -21560,12 +21566,22 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                         });
 
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        if (situacao_avaliacao === 'Aprovado') {
+                            db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [c.id], (errInt) => {
+                                if (errInt) console.error("Erro ao liberar integracao de experiencia:", errInt);
+                            });
+                        }
                     }
                 });
             } else {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
                     if (!e && c) {
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        if (situacao_avaliacao === 'Aprovado') {
+                            db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [c.id], (errInt) => {
+                                if (errInt) console.error("Erro ao liberar integracao de experiencia:", errInt);
+                            });
+                        }
                     }
                 });
             }
@@ -21584,7 +21600,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
 
     db.run(`UPDATE experiencia_formularios SET respostas=?, pontuacao=?, situacao_avaliacao=?, comentarios=?, situacao=?, atualizado_em=?
             WHERE id=?`,
-        [respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, id],
+        [respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', (situacao === 'rascunho' ? 'iniciado' : (situacao || 'iniciado')), now, id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
 
@@ -21625,12 +21641,22 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                         });
 
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        if (situacao_avaliacao === 'Aprovado') {
+                            db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [c.id], (errInt) => {
+                                if (errInt) console.error("Erro ao liberar integracao de experiencia:", errInt);
+                            });
+                        }
                     }
                 });
             } else {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
                     if (!e && c) {
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        if (situacao_avaliacao === 'Aprovado') {
+                            db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [c.id], (errInt) => {
+                                if (errInt) console.error("Erro ao liberar integracao de experiencia:", errInt);
+                            });
+                        }
                     }
                 });
             }

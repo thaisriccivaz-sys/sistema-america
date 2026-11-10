@@ -630,8 +630,125 @@ function updateExperienciaStats(lista) {
     if (el('exp-stat-reprovados')) el('exp-stat-reprovados').textContent = reprovados;
 }
 
-function renderExperienciaList(lista) {
-    const tbody = document.getElementById('table-experiencia-body');
+function getColabAvatarExp(c, size = 32) {
+    const initials = (c.nome_completo || '?').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const fotoSrc = c.foto_base64
+        ? (c.foto_base64.startsWith('data:') ? c.foto_base64 : 'data:image/jpeg;base64,' + c.foto_base64)
+        : (c.foto_url || (c.id ? `/api/colaboradores/foto/${c.id}` : ''));
+    const fontSize = size >= 48 ? '1.1rem' : '0.65rem';
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-size:${fontSize};font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;flex-shrink:0;">
+        <span>${initials}</span>
+        ${fotoSrc ? `<img src="${fotoSrc}" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:50%;border:2px solid #e2e8f0;box-sizing:border-box;background:#fff;">` : ''}
+    </div>`;
+}
+
+function buildExpRowData(c) {
+    const admissao = c.data_admissao ? formatarDataBR(c.data_admissao) : '-';
+    const prazo2Fim = c.prazo2_fim ? formatarDataBR(c.prazo2_fim) : '-';
+
+    // Status badge (sempre em 1 linha com white-space:nowrap e inline-flex)
+    let statusBadge = '';
+    const situacao = c.formulario_situacao || 'pendente';
+    const basePillStyle = 'white-space:nowrap;display:inline-flex;align-items:center;gap:4px;width:fit-content;';
+    if (situacao === 'finalizado') {
+        const resultado = c.formulario_resultado || '';
+        if (resultado === 'Aprovado') {
+            statusBadge = `<span style="${basePillStyle}background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Aprovado</span>`;
+        } else if (resultado === 'Reprovado') {
+            statusBadge = `<span style="${basePillStyle}background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Reprovado</span>`;
+        } else {
+            statusBadge = `<span style="${basePillStyle}background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
+        }
+    } else {
+        const hoje_sb = new Date(); hoje_sb.setHours(0,0,0,0);
+        const fim2_sb = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
+        if (fim2_sb && fim2_sb < hoje_sb) {
+            statusBadge = `<span style="${basePillStyle}background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-warning-circle"></i> Vencido</span>`;
+        } else {
+            const diffSb = fim2_sb ? Math.ceil((fim2_sb - hoje_sb) / 86400000) : null;
+            if (diffSb !== null && diffSb <= 15) {
+                statusBadge = `<span style="${basePillStyle}background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-clock"></i> Andamento</span>`;
+            } else {
+                statusBadge = `<span style="${basePillStyle}background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
+            }
+        }
+    }
+
+    // Situação formulário badge
+    let formBadge = '';
+    const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
+    const fim2 = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
+    const diasParaVencer = fim2 ? Math.ceil((fim2 - hoje2) / 86400000) : null;
+    const estaEnviando = c._enviando;
+
+    if (situacao === 'finalizado') {
+        const resultado = c.formulario_resultado || '';
+        let badgeHtml = '';
+        if (resultado === 'Aprovado') {
+            badgeHtml = `<span style="${basePillStyle}background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizado</span>`;
+        } else if (resultado === 'Reprovado') {
+            badgeHtml = `<span style="${basePillStyle}background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Finalizado</span>`;
+        } else {
+            badgeHtml = `<span style="${basePillStyle}background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
+        }
+
+        const finalizadoDateStr = c.atualizado_em || c.data_envio_email;
+        let finalDateHtml = '';
+        if (finalizadoDateStr) {
+            const finalDate = new Date(finalizadoDateStr).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+            finalDateHtml = `<span style="white-space:nowrap;font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${finalDate}</span>`;
+        }
+
+        formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+            ${badgeHtml}
+            ${finalDateHtml}
+        </div>`;
+    } else if (situacao === 'iniciado') {
+        formBadge = `<span style="${basePillStyle}background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
+    } else if (situacao === 'enviado') {
+        const envioDate = c.data_envio_email
+            ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})
+            : '';
+        formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+            <span style="${basePillStyle}background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviado</span>
+            ${envioDate ? `<span style="white-space:nowrap;font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${envioDate}</span>` : ''}
+        </div>`;
+    } else if (estaEnviando) {
+        formBadge = `<span style="${basePillStyle}background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...</span>`;
+    } else if (diasParaVencer !== null && diasParaVencer > 0 && diasParaVencer <= 15) {
+        formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
+            <span style="${basePillStyle}background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;"><i class="ph ph-clock"></i> Pendente</span>
+            <span style="white-space:nowrap;font-size:0.6rem;color:#f59e0b;padding-left:3px;"><i class="ph ph-bell"></i> Envio automático</span>
+        </div>`;
+    } else {
+        formBadge = `<span style="${basePillStyle}background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;"><i class="ph ph-clock"></i> Pendente</span>`;
+    }
+
+    // Days left warning
+    let diasRestantesHtml = '';
+    if (c.prazo2_fim) {
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const fim = parseDateBR_or_ISO(c.prazo2_fim);
+        if (fim) {
+            const diff = Math.ceil((fim - hoje) / 86400000);
+            if (diff < 0) {
+                diasRestantesHtml = `<br><span style="white-space:nowrap;color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> Vencido!</span>`;
+            } else if (diff <= 15) {
+                const printDiff = diff + 1;
+                const word = printDiff === 1 ? 'dia restante' : 'dias restantes';
+                diasRestantesHtml = `<br><span style="white-space:nowrap;color:#d97706;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${printDiff} ${word}!</span>`;
+            }
+        }
+    }
+
+    const avatarHtml = getColabAvatarExp(c, 32);
+    const isFinalized = situacao === 'finalizado';
+
+    return { admissao, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized };
+}
+
+function renderExperienciaList(lista, targetTbodyId = 'table-experiencia-body', isGestorView = false) {
+    const tbody = document.getElementById(targetTbodyId);
     if (!tbody) return;
 
     tbody.innerHTML = '';
@@ -642,126 +759,28 @@ function renderExperienciaList(lista) {
     }
 
     lista.forEach(c => {
-        const admissao = c.data_admissao ? formatarDataBR(c.data_admissao) : '-';
-        const prazo1Fim = c.prazo1_fim ? formatarDataBR(c.prazo1_fim) : '-';
-        const prazo2Fim = c.prazo2_fim ? formatarDataBR(c.prazo2_fim) : '-';
-
-        // Status badge
-        let statusBadge = '';
-        const situacao = c.formulario_situacao || 'pendente';
-        if (situacao === 'finalizado') {
-            const resultado = c.formulario_resultado || '';
-            if (resultado === 'Aprovado') {
-                statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Aprovado</span>`;
-            } else if (resultado === 'Reprovado') {
-                statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Reprovado</span>`;
-            } else {
-                statusBadge = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
-            }
-        } else {
-            const hoje_sb = new Date(); hoje_sb.setHours(0,0,0,0);
-            const fim2_sb = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
-            if (fim2_sb && fim2_sb < hoje_sb) {
-                statusBadge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-warning-circle"></i> Vencido</span>`;
-            } else {
-                const diffSb = fim2_sb ? Math.ceil((fim2_sb - hoje_sb) / 86400000) : null;
-                if (diffSb !== null && diffSb <= 15) {
-                    statusBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;"><i class="ph ph-clock"></i> Andamento</span>`;
-                } else {
-                    statusBadge = `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px;font-size:0.75rem;"><i class="ph ph-clock"></i> Andamento</span>`;
-                }
-            }
-        }
-
-        // Situação formulário badge
-        let formBadge = '';
-        const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
-        const fim2 = c.prazo2_fim ? parseDateBR_or_ISO(c.prazo2_fim) : null;
-        const diasParaVencer = fim2 ? Math.ceil((fim2 - hoje2) / 86400000) : null;
-        const estaEnviando = c._enviando;
-        
-        if (situacao === 'finalizado') {
-            const resultado = c.formulario_resultado || '';
-            let badgeHtml = '';
-            if (resultado === 'Aprovado') {
-                badgeHtml = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check-circle"></i> Finalizado</span>`;
-            } else if (resultado === 'Reprovado') {
-                badgeHtml = `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-x-circle"></i> Finalizado</span>`;
-            } else {
-                badgeHtml = `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;"><i class="ph ph-check"></i> Finalizado</span>`;
-            }
-            
-            const finalizadoDateStr = c.atualizado_em || c.data_envio_email;
-            let finalDateHtml = '';
-            if (finalizadoDateStr) {
-                const finalDate = new Date(finalizadoDateStr).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
-                finalDateHtml = `<span style="font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${finalDate}</span>`;
-            }
-            
-            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
-                ${badgeHtml}
-                ${finalDateHtml}
-            </div>`;
-        } else if (situacao === 'iniciado') {
-            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;"><i class="ph ph-pencil"></i> Iniciado</span>`;
-        } else if (situacao === 'enviado') {
-            const envioDate = c.data_envio_email
-                ? new Date(c.data_envio_email).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})
-                : '';
-            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
-                <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-paper-plane-tilt"></i> Enviado</span>
-                ${envioDate ? `<span style="font-size:0.62rem;color:#64748b;padding-left:3px;"><i class="ph ph-clock"></i> ${envioDate}</span>` : ''}
-            </div>`;
-        } else if (estaEnviando) {
-            formBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...</span>`;
-        } else if (diasParaVencer !== null && diasParaVencer > 0 && diasParaVencer <= 15) {
-            formBadge = `<div style="display:flex;flex-direction:column;gap:1px;">
-                <span style="background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Pendente</span>
-                <span style="font-size:0.6rem;color:#f59e0b;padding-left:3px;"><i class="ph ph-bell"></i> Envio automático</span>
-            </div>`;
-        } else {
-            formBadge = `<span style="background:#f1f5f9;color:#94a3b8;padding:2px 7px;border-radius:10px;font-size:0.72rem;"><i class="ph ph-clock"></i> Pendente</span>`;
-        }
-
-        // Days left warning
-        let diasRestantesHtml = '';
-        if (c.prazo2_fim) {
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            const fim = parseDateBR_or_ISO(c.prazo2_fim);
-            if (fim) {
-                const diff = Math.ceil((fim - hoje) / 86400000);
-                if (diff < 0) {
-                    diasRestantesHtml = `<br><span style="color:#dc2626;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> Vencido!</span>`;
-                } else if (diff <= 15) {
-                    const printDiff = diff + 1;
-                    const word = printDiff === 1 ? 'dia restante' : 'dias restantes';
-                    diasRestantesHtml = `<br><span style="color:#d97706;font-size:0.75rem;font-weight:700;"><i class="ph ph-warning"></i> ${printDiff} ${word}!</span>`;
-                }
-            }
-        }
-
-        const initials = (c.nome_completo || '?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-        const avatarHtml = c.foto_base64
-            ? `<img src="${c.foto_base64.startsWith('data:') ? c.foto_base64 : 'data:image/jpeg;base64,' + c.foto_base64}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;">`
-            : `<div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#1d4ed8;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;">${initials}</div>`;
+        const { admissao, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized } = buildExpRowData(c);
 
         const tr = document.createElement('tr');
-        const isFinalized = situacao === 'finalizado';
+        const colabCell = isGestorView
+            ? `<span style="color:#0f172a;font-size:0.82rem;font-weight:600;">${c.nome_completo}</span>`
+            : `<a href="#" style="color:#1c7ed6;text-decoration:none;font-size:0.82rem;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a>`;
+
         tr.innerHTML = `
             <td style="padding:6px 4px;">${avatarHtml}</td>
-            <td style="font-weight:600;padding:6px 8px;"><a href="#" style="color:#1c7ed6;text-decoration:none;font-size:0.82rem;" onclick="event.preventDefault();viewColaborador(${c.id})">${c.nome_completo}</a></td>
+            <td style="font-weight:600;padding:6px 8px;">${colabCell}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${c.departamento || '-'}</td>
-            <td style="padding:6px 8px;font-size:0.82rem;">${admissao}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;white-space:nowrap;">${admissao}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${c.responsavel_nome || '-'}</td>
-            <td style="padding:6px 8px;font-size:0.82rem;">${prazo2Fim}${diasRestantesHtml}</td>
-            <td style="padding:6px 8px;">${statusBadge}</td>
-            <td style="padding:6px 8px;max-width:130px;">${formBadge}</td>
-            <td style="text-align:right;padding:6px 8px;">
+            <td style="padding:6px 8px;font-size:0.82rem;white-space:nowrap;">${prazo2Fim}${diasRestantesHtml}</td>
+            <td style="padding:6px 8px;white-space:nowrap;">${statusBadge}</td>
+            <td style="padding:6px 8px;white-space:nowrap;">${formBadge}</td>
+            <td style="text-align:right;padding:6px 8px;white-space:nowrap;">
                 ${isFinalized
-                    ? `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Visualizar Formulário Preenchido">
+                    ? `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="white-space:nowrap;display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Visualizar Formulário Preenchido">
                         <i class="ph ph-eye"></i> Visualizar
                        </button>`
-                    : `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Ver/Editar Formulário">
+                    : `<button onclick="openExperienciaModal(${c.id})" class="btn btn-sm" style="white-space:nowrap;display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-size:0.8rem;padding:4px 10px;border-radius:6px;cursor:pointer;" title="Ver/Editar Formulário">
                         <i class="ph ph-clipboard-text"></i> Formulário
                        </button>`
                 }
@@ -958,9 +977,9 @@ async function openExperienciaModal(colaboradorId) {
                 <!-- Actions -->
                 <div style="display:flex;gap:1rem;justify-content:space-between;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
                     <div>
-                        <button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                        ${isRH ? `<button type="button" onclick="reenviarEmailExperiencia(${colab.id}, this)" style="padding:0.6rem 1rem;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#475569;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
                             <i class="ph ph-envelope-simple"></i> Reenviar E-mail de Formulário para Gestor
-                        </button>
+                        </button>` : ''}
                     </div>
                     <div style="display:flex;gap:1rem;">
                         <button type="button" onclick="document.getElementById('modal-experiencia-overlay').remove()" style="padding:0.6rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:#f1f5f9;color:#334155;cursor:pointer;font-weight:600;">Fechar</button>
@@ -1052,6 +1071,23 @@ async function salvarFormularioExp(situacaoForm) {
     const inputs = form.querySelectorAll('input[name^="nota_"], input[name^="obs_"]');
     inputs.forEach(inp => { respostas[inp.name] = inp.value; });
 
+    if (situacaoForm === 'finalizado') {
+        const notaInputs = form.querySelectorAll('input[name^="nota_"]');
+        for (let i = 0; i < notaInputs.length; i++) {
+            if (!notaInputs[i].value || notaInputs[i].value === '0') {
+                if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Por favor, avalie (de 1 a 5) todos os pontos listados antes de finalizar.', 'warning');
+                else showToast('Avalie todos os pontos (de 1 a 5) antes de finalizar.', 'warning');
+                return;
+            }
+        }
+        const sitEl = document.getElementById('exp-situacao-avaliacao');
+        if (!sitEl || !sitEl.value) {
+            if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione se o colaborador foi Aprovado ou Reprovado antes de finalizar a avaliação.', 'warning');
+            else showToast('Selecione Aprovado ou Reprovado antes de finalizar.', 'warning');
+            return;
+        }
+    }
+
     const pontuacao = parseFloat(document.getElementById('exp-pontuacao-total').textContent) || 0;
     const situacaoAvaliacao = document.getElementById('exp-situacao-avaliacao').value;
     const comentarios = document.getElementById('exp-comentarios').value;
@@ -1093,6 +1129,7 @@ async function salvarFormularioExp(situacaoForm) {
 
     // Reload list
     loadExperiencia();
+    if (typeof window.loadExperienciaGestor === 'function') window.loadExperienciaGestor(true);
 }
 
 async function reenviarEmailExperiencia(colaboradorId, btn) {
@@ -1164,7 +1201,7 @@ window.renderPublicExpForm = function(colab, form, token, templateBanco) {
         <div style="margin-bottom:2rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
             <p style="margin:0 0 12px 0; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.85rem;">Colaborador</p>
             <div style="display:flex;align-items:center;gap:12px;">
-                ${colab.foto_base64 ? `<img src="${colab.foto_base64}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;">` : `<div style="width:56px;height:56px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#64748b;font-size:1.2rem;">${colab.nome_completo.charAt(0)}</div>`}
+                ${getColabAvatarExp(colab, 56)}
                 <div>
                     <h3 style="margin:0; color:#1e293b; font-size:1.25rem;">${colab.nome_completo}</h3>
                     <p style="margin:4px 0 0; color:#475569;">${colab.cargo || ''} - ${colab.departamento || ''}</p>
@@ -1534,3 +1571,302 @@ window.verificarBotaoFinalizar = function() {
         situacaoEl._listenerAdicionado = true;
     }
 };
+
+
+// ===========================================================
+// TELA DE EXPERIÊNCIA — MENU GESTÃO (POR ÁREA DO GESTOR)
+// ===========================================================
+let _expGestorLista = [];
+let _expGestorStatFilter = 'em_experiencia';
+let _expGestorSortField = '';
+let _expGestorSortAsc = true;
+
+async function resolveManagedDeptsAndUserExp() {
+    let cUserId = null, cNome = '', cUsername = '';
+    try {
+        const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+        if (erpUser && (erpUser.id || erpUser.nome || erpUser.username)) {
+            cUserId = erpUser.id ? String(erpUser.id) : null;
+            cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+            cUsername = (erpUser.username || '').toLowerCase().trim();
+        }
+    } catch (e) {}
+
+    if (!cUserId && window.currentUser) {
+        cUserId = window.currentUser.id ? String(window.currentUser.id) : null;
+        cNome = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
+        cUsername = (window.currentUser.username || '').toLowerCase().trim();
+    }
+
+    const cleanStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    let myDepts = Array.isArray(window._myManagedDeptsGlob) && window._myManagedDeptsGlob.length > 0
+        ? [...window._myManagedDeptsGlob]
+        : [];
+
+    if (myDepts.length === 0) {
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+            const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+            const depts = deptsRes.ok ? await deptsRes.json() : [];
+            const meuNome = cleanStr(cNome);
+            const managed = (depts || []).filter(d => {
+                const gestorId = d.responsavel_id ? String(d.responsavel_id) : null;
+                const gestorNome = cleanStr(d.responsavel_nome);
+                const gestorUsername = cleanStr(d.responsavel_username);
+                return (gestorId && cUserId && gestorId === cUserId) ||
+                       (gestorNome && meuNome && meuNome.length > 3 &&
+                        (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome))) ||
+                       (gestorUsername && cUsername && gestorUsername === cUsername);
+            });
+            myDepts = managed.map(d => d.nome);
+            if (myDepts.length > 0) window._myManagedDeptsGlob = myDepts;
+        } catch (e) {}
+    }
+
+    return { myDepts, cUserId, cNome, cUsername, cleanStr };
+}
+
+function renderExperienciaGestorShell() {
+    const container = document.getElementById('experiencia-gestor-container');
+    if (!container) return;
+    if (document.getElementById('table-experiencia-gestor-body')) return;
+
+    container.innerHTML = `
+        <div class="page-header flex-between"
+            style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1.25rem 0;margin-top:-1.5rem;margin-bottom:2rem;border-bottom:1px solid var(--border-color);">
+            <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div style="width:56px;height:56px;border-radius:14px;background:#dbeafe;display:flex;align-items:center;justify-content:center;color:#1d4ed8;font-size:1.8rem;">
+                    <i class="ph ph-user-check"></i>
+                </div>
+                <div>
+                    <h1 style="margin:0;font-size:1.6rem;font-weight:700;color:#0f172a;">Avaliação de Experiência</h1>
+                    <p style="margin:4px 0 0;color:#64748b;font-size:0.85rem;">Acompanhe e responda os formulários de experiência dos colaboradores da sua área</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:center;">
+                <input type="text" id="exp-gestor-search" placeholder="Buscar colaborador..."
+                    oninput="filterExperienciaGestorList(this.value)"
+                    style="padding:0.55rem 0.75rem 0.55rem 2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:220px;background:#f8fafc;">
+                <select id="exp-gestor-filter-situacao" onchange="filterExperienciaGestorList()"
+                    style="padding:0.55rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
+                    <option value="">Todos os status</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="iniciado">Iniciado</option>
+                    <option value="finalizado">Finalizado</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;" id="exp-gestor-stats-row">
+            <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="filterByStatExpGestor('em_experiencia')">
+                <div style="font-size:2rem;font-weight:800;color:#1d4ed8;" id="exp-gestor-stat-total">-</div>
+                <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">EM EXPERIÊNCIA</div>
+            </div>
+            <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="filterByStatExpGestor('vencendo')">
+                <div style="font-size:2rem;font-weight:800;color:#dc2626;" id="exp-gestor-stat-vencendo">-</div>
+                <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">VENCENDO EM 15 DIAS</div>
+            </div>
+            <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="filterByStatExpGestor('aprovados')">
+                <div style="font-size:2rem;font-weight:800;color:#059669;" id="exp-gestor-stat-aprovados">-</div>
+                <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">APROVADOS</div>
+            </div>
+            <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="filterByStatExpGestor('reprovados')">
+                <div style="font-size:2rem;font-weight:800;color:#d97706;" id="exp-gestor-stat-reprovados">-</div>
+                <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">REPROVADOS</div>
+            </div>
+            <div class="card p-3" style="text-align:center;cursor:pointer;transition:transform 0.2s;"
+                onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="filterByStatExpGestor('')">
+                <div style="font-size:2rem;font-weight:800;color:#475569;" id="exp-gestor-stat-todos">-</div>
+                <div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-top:2px;">TODOS</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table" style="font-size:0.82rem;">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;padding:6px 4px;"></th>
+                            <th id="th-exp-gestor-nome" style="cursor:pointer;padding:6px 8px;" onclick="sortExperienciaGestorList('nome')">Colaborador <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
+                            <th style="padding:6px 8px;">Departamento</th>
+                            <th id="th-exp-gestor-admissao" style="cursor:pointer;padding:6px 8px;" onclick="sortExperienciaGestorList('admissao')">Admissão <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
+                            <th style="padding:6px 8px;">Responsável</th>
+                            <th id="th-exp-gestor-vencimento" style="cursor:pointer;padding:6px 8px;" onclick="sortExperienciaGestorList('vencimento')">Fim 2º Prazo <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
+                            <th style="padding:6px 8px;">Resultado</th>
+                            <th style="padding:6px 8px;">Formulário</th>
+                            <th style="text-align:right;padding:6px 8px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-experiencia-gestor-body">
+                        <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function updateExperienciaGestorStats(lista) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    let vencendo = 0, aprovados = 0, reprovados = 0, emExperiencia = 0;
+    (lista || []).forEach(c => {
+        if (c.prazo2_fim) {
+            const fim = parseDateBR_or_ISO(c.prazo2_fim);
+            if (fim) {
+                const diff = Math.ceil((fim - hoje) / 86400000);
+                if (diff > 0 && diff <= 15) vencendo++;
+            }
+        }
+        if (c.formulario_resultado === 'Aprovado') aprovados++;
+        else if (c.formulario_resultado === 'Reprovado') reprovados++;
+        else emExperiencia++;
+    });
+    const el = s => document.getElementById(s);
+    if (el('exp-gestor-stat-total'))      el('exp-gestor-stat-total').textContent = emExperiencia;
+    if (el('exp-gestor-stat-todos'))      el('exp-gestor-stat-todos').textContent = (lista || []).length;
+    if (el('exp-gestor-stat-vencendo'))   el('exp-gestor-stat-vencendo').textContent = vencendo;
+    if (el('exp-gestor-stat-aprovados'))  el('exp-gestor-stat-aprovados').textContent = aprovados;
+    if (el('exp-gestor-stat-reprovados')) el('exp-gestor-stat-reprovados').textContent = reprovados;
+}
+
+function updateExperienciaGestorUIState() {
+    const cards = document.querySelectorAll('#exp-gestor-stats-row .card');
+    cards.forEach((card, idx) => {
+        card.style.border = '1px solid #e2e8f0';
+        card.style.background = '#fff';
+        card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        const isSelected = (idx === 0 && _expGestorStatFilter === 'em_experiencia') ||
+                           (idx === 1 && _expGestorStatFilter === 'vencendo') ||
+                           (idx === 2 && _expGestorStatFilter === 'aprovados') ||
+                           (idx === 3 && _expGestorStatFilter === 'reprovados') ||
+                           (idx === 4 && _expGestorStatFilter === '');
+        if (isSelected) {
+            card.style.border = '2px solid #1d4ed8';
+            card.style.background = '#f8fafc';
+            card.style.boxShadow = '0 4px 6px -1px rgba(29, 78, 216, 0.1)';
+        }
+    });
+}
+
+function filterByStatExpGestor(stat) {
+    _expGestorStatFilter = stat;
+    filterExperienciaGestorList();
+}
+window.filterByStatExpGestor = filterByStatExpGestor;
+
+function sortExperienciaGestorList(field) {
+    if (_expGestorSortField === field) {
+        _expGestorSortAsc = !_expGestorSortAsc;
+    } else {
+        _expGestorSortField = field;
+        _expGestorSortAsc = true;
+    }
+    filterExperienciaGestorList();
+}
+window.sortExperienciaGestorList = sortExperienciaGestorList;
+
+function filterExperienciaGestorList(searchVal) {
+    const search = (typeof searchVal === 'string' ? searchVal : document.getElementById('exp-gestor-search')?.value || '').toLowerCase();
+    const situacaoFiltro = document.getElementById('exp-gestor-filter-situacao')?.value || '';
+
+    let filtered = (_expGestorLista || []).filter(c => {
+        const matchSearch = !search || (c.nome_completo || '').toLowerCase().includes(search) ||
+            (c.departamento || '').toLowerCase().includes(search) ||
+            (c.cargo || '').toLowerCase().includes(search);
+        const matchSituacao = !situacaoFiltro || (c.formulario_situacao || 'pendente') === situacaoFiltro;
+
+        let matchStat = true;
+        if (_expGestorStatFilter === 'em_experiencia') {
+            matchStat = c.formulario_resultado !== 'Aprovado' && c.formulario_resultado !== 'Reprovado';
+        } else if (_expGestorStatFilter === 'aprovados') {
+            matchStat = (c.formulario_resultado || '').toLowerCase() === 'aprovado';
+        } else if (_expGestorStatFilter === 'reprovados') {
+            matchStat = (c.formulario_resultado || '').toLowerCase() === 'reprovado';
+        } else if (_expGestorStatFilter === 'vencendo') {
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            if (c.prazo2_fim) {
+                const fim = parseDateBR_or_ISO(c.prazo2_fim);
+                if (fim) {
+                    const diff = Math.ceil((fim - hoje) / 86400000);
+                    matchStat = (diff >= 0 && diff <= 15);
+                } else matchStat = false;
+            } else matchStat = false;
+        }
+
+        return matchSearch && matchSituacao && matchStat;
+    });
+
+    if (_expGestorSortField) {
+        filtered.sort((a, b) => {
+            let valA = '', valB = '';
+            if (_expGestorSortField === 'nome') {
+                valA = a.nome_completo || '';
+                valB = b.nome_completo || '';
+            } else if (_expGestorSortField === 'admissao') {
+                valA = parseDateBR_or_ISO(a.data_admissao) || new Date(0);
+                valB = parseDateBR_or_ISO(b.data_admissao) || new Date(0);
+            } else if (_expGestorSortField === 'vencimento') {
+                valA = parseDateBR_or_ISO(a.prazo2_fim) || new Date(0);
+                valB = parseDateBR_or_ISO(b.prazo2_fim) || new Date(0);
+            }
+            if (valA < valB) return _expGestorSortAsc ? -1 : 1;
+            if (valA > valB) return _expGestorSortAsc ? 1 : -1;
+            return 0;
+        });
+    }
+
+    renderExperienciaList(filtered, 'table-experiencia-gestor-body', true);
+    updateExperienciaGestorUIState();
+}
+window.filterExperienciaGestorList = filterExperienciaGestorList;
+
+async function loadExperienciaGestor(silent = false) {
+    const section = document.getElementById('view-experiencia-gestor');
+    if (!section) return;
+
+    renderExperienciaGestorShell();
+
+    if (!silent) {
+        window.currentBreadcrumbKey = 'experiencia-gestor';
+        if (typeof window.renderBookmarks === 'function') window.renderBookmarks();
+    }
+
+    const data = await apiGet('/experiencia');
+    const tbody = document.getElementById('table-experiencia-gestor-body');
+    if (!data) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ef4444;padding:2rem;">Erro ao carregar dados. Verifique a conexão.</td></tr>';
+        return;
+    }
+
+    const { myDepts, cUserId, cNome, cleanStr } = await resolveManagedDeptsAndUserExp();
+    const myDeptsNorm = (myDepts || []).map(d => cleanStr(d));
+    const meuNomeNorm = cleanStr(cNome);
+
+    if (window.isTopAdmin) {
+        _expGestorLista = data;
+    } else {
+        _expGestorLista = data.filter(c => {
+            const deptNorm = cleanStr(c.departamento);
+            const respNomeNorm = cleanStr(c.responsavel_nome);
+            const respId = c.responsavel_id ? String(c.responsavel_id) : null;
+            const matchDept = deptNorm && myDeptsNorm.some(md => md === deptNorm || deptNorm.includes(md) || md.includes(deptNorm));
+            const matchRespNome = respNomeNorm && meuNomeNorm && meuNomeNorm.length > 3 && (respNomeNorm === meuNomeNorm || respNomeNorm.includes(meuNomeNorm) || meuNomeNorm.includes(respNomeNorm));
+            const matchRespId = respId && cUserId && respId === cUserId;
+            return matchDept || matchRespNome || matchRespId;
+        });
+    }
+
+    updateExperienciaGestorStats(_expGestorLista);
+    filterExperienciaGestorList();
+}
+window.loadExperienciaGestor = loadExperienciaGestor;
