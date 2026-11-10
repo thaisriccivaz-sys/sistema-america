@@ -57,7 +57,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         'doc_r2_key TEXT',
         'retornou_teste_extra INTEGER DEFAULT 0',
         'resultado_teste TEXT',
-        'avaliacao_token TEXT'
+        'avaliacao_token TEXT',
+        'tipo_teste_extra TEXT'
     ];
     db.run("UPDATE candidatos_teste SET status = 'Dias de Teste' WHERE status IN ('Teste 1\u00ba Dia', 'Teste 2\u00ba Dia', 'Teste Extra')");
     newCols.forEach(colDef => {
@@ -573,8 +574,17 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
 
 
     // ── LINKS DE AVALIAÇÃO ─────────────────────────────────────────────────────
+    app.put("/api/candidatos-teste/:id/tipo-extra", authenticateToken, (req, res) => {
+        const { tipo_extra } = req.body;
+        const val = (tipo_extra === 'interno' || tipo_extra === 'externo') ? tipo_extra : null;
+        db.run("UPDATE candidatos_teste SET tipo_teste_extra = ?, updated_at = datetime('now','localtime') WHERE id = ?", [val, req.params.id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, tipo_teste_extra: val });
+        });
+    });
+
     app.get("/api/candidatos-teste/:id/avaliacao-links", authenticateToken, (req, res) => {
-        db.get("SELECT id, nome, data_teste_1, data_teste_2, data_teste_extra, avaliacao_token FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
+        db.get("SELECT id, nome, data_teste_1, data_teste_2, data_teste_extra, avaliacao_token, tipo_teste_extra FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Não encontrado" });
             // Generate or reuse token
             let tok = row.avaliacao_token;
@@ -587,6 +597,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 data_teste_1: row.data_teste_1,
                 data_teste_2: row.data_teste_2,
                 data_teste_extra: row.data_teste_extra,
+                tipo_teste_extra: row.tipo_teste_extra || null
             });
         });
     });
@@ -595,7 +606,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     app.get("/api/public/avaliacao-candidato/:id/:dia", (req, res) => {
         const { id, dia } = req.params;
         const { t } = req.query;
-        db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra, rota_motorista FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
+        db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra, rota_motorista, tipo_teste_extra FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
             if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido ou expirado." });
             db.get("SELECT id FROM candidatos_teste_avaliacoes WHERE candidato_id = ? AND dia = ?", [id, dia], (errCheck, rowCheck) => {
@@ -624,6 +635,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                         data_teste_1: row.data_teste_1,
                         data_teste_2: row.data_teste_2,
                         data_teste_extra: row.data_teste_extra,
+                        tipo_teste_extra: row.tipo_teste_extra || null,
                         avaliador_nome: motorista,
                         avaliador_foto: rowColab ? rowColab.foto_base64 : null
                     });
@@ -636,6 +648,9 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     app.post("/api/public/avaliacao-candidato/:id/:dia", multerMemory.single('audio'), async (req, res) => {
         const { id, dia } = req.params;
         const { t, avaliador_nome, respostas } = req.body;
+        if (!req.file) {
+            return res.status(400).json({ error: "O áudio é obrigatório para enviar a avaliação." });
+        }
         db.get("SELECT avaliacao_token FROM candidatos_teste WHERE id = ?", [id], async (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
             if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido." });
@@ -645,7 +660,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 
                 let respostasObj = {};
             try { respostasObj = JSON.parse(respostas || '{}'); } catch(e) {}
-            const notas = Object.values(respostasObj).map(v => parseFloat(v)).filter(v => !isNaN(v));
+            const notas = Object.entries(respostasObj).filter(([k]) => /^\d+$/.test(k)).map(([, v]) => parseFloat(v)).filter(v => !isNaN(v));
             const media = notas.length > 0 ? (notas.reduce((a, b) => a + b, 0) / notas.length) : null;
 
             let audioUrl = null;

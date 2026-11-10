@@ -3,40 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Avaliacao de Candidato - America Rental</title>
+<title>Avaliação de Candidato - América Rental</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;min-height:100vh;}
 .header-img{width:100%;display:block;max-height:220px;object-fit:cover;}
-.container{max-width:620px;margin:0 auto;padding:0 0 60px;}
+.container{max-width:640px;margin:0 auto;padding:0 0 60px;}
 .ccard{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);display:flex;align-items:center;gap:16px;padding:20px 24px;color:#fff;}
 .ccard img,.av{width:72px;height:72px;border-radius:50%;flex-shrink:0;border:3px solid rgba(255,255,255,.5);}
 .ccard img{object-fit:cover;}
 .av{background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:#fff;}
 .cname{font-size:1.2rem;font-weight:700;}
 .crole{font-size:.82rem;opacity:.85;margin-top:4px;}
-.cday{font-size:.78rem;opacity:.7;margin-top:2px;}
+.cday{font-size:.78rem;opacity:.8;margin-top:2px;}
 .sec{background:#fff;margin:16px 12px 0;border-radius:12px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
 .sec h2{font-size:1rem;color:#1e3a8a;margin-bottom:14px;}
-.qb{margin-bottom:20px;border-bottom:1px solid #f1f5f9;padding-bottom:18px;}
+.qb{margin-bottom:22px;border-bottom:1px solid #f1f5f9;padding-bottom:20px;}
 .qb:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
-.qt{font-size:.88rem;font-weight:600;color:#334155;margin-bottom:10px;line-height:1.4;}
-.sr{display:flex;gap:6px;}
-.sb{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;padding:8px 2px;background:#f8fafc;transition:all .15s;user-select:none;}
-.sb .num{font-size:1.1rem;font-weight:700;line-height:1;}
-.sb .lbl{font-size:.55rem;text-align:center;line-height:1.2;color:#94a3b8;margin-top:2px;}
-.sb[data-v="1"]{--c:#ef4444;}.sb[data-v="2"]{--c:#f97316;}.sb[data-v="3"]{--c:#eab308;}.sb[data-v="4"]{--c:#22c55e;}.sb[data-v="5"]{--c:#10b981;}
-.sb.sel{border-color:var(--c);background:var(--c);}
-.sb.sel .num{color:#fff;}.sb.sel .lbl{color:rgba(255,255,255,.85);}
-.sb:not(.sel) .num{color:var(--c);}
-.inr{margin-bottom:14px;}
-.inr label{font-size:.85rem;font-weight:600;color:#334155;display:block;margin-bottom:5px;}
-.inr input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:.88rem;color:#1e293b;}
-.inr input:focus{outline:none;border-color:#1d4ed8;}
-#rec-btn{background:#ef4444;color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:.88rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
+.qt{font-size:.9rem;font-weight:600;color:#1e293b;margin-bottom:12px;line-height:1.45;}
+.sr{display:flex;gap:6px;justify-content:space-between;align-items:stretch;}
+.sb{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:2px solid transparent;border-radius:14px;padding:8px 4px 10px;background:#fff;transition:all .18s ease;user-select:none;-webkit-tap-highlight-color:transparent;}
+.sb:hover{background:#f8fafc;transform:translateY(-2px);}
+.sb .face-svg{width:54px;height:54px;max-width:100%;display:block;transition:transform .18s ease;}
+.sb .stars-pill{background:#0a0a0a;border-radius:999px;padding:3px 6px;display:inline-flex;align-items:center;justify-content:center;gap:1.5px;margin-top:7px;max-width:100%;}
+.sb .stars-pill svg{width:9px;height:9px;flex-shrink:0;}
+.sb[data-v="1"]{--c:#f02828;--bg:#fef2f2;}
+.sb[data-v="2"]{--c:#f47b16;--bg:#fff7ed;}
+.sb[data-v="3"]{--c:#f4b41a;--bg:#fefce8;}
+.sb[data-v="4"]{--c:#00b84c;--bg:#f0fdf4;}
+.sb[data-v="5"]{--c:#098a3b;--bg:#ecfdf5;}
+.sr.has-sel .sb:not(.sel){opacity:.38;transform:scale(.95);}
+.sb.sel{border-color:var(--c);background:var(--bg);box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px) scale(1.04);}
+.sb.sel .face-svg{transform:scale(1.06);}
+@media (max-width:420px){
+  .sr{gap:3px;}
+  .sb{padding:6px 2px 8px;border-radius:10px;}
+  .sb .face-svg{width:44px;height:44px;}
+  .sb .stars-pill{padding:2.5px 4px;gap:1px;}
+  .sb .stars-pill svg{width:7.5px;height:7.5px;}
+}
+.mode-box{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.mode-btn{flex:1;min-width:140px;padding:12px 14px;border:2px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#334155;font-weight:700;font-size:.88rem;cursor:pointer;text-align:center;transition:all .15s;}
+.mode-btn.active{border-color:#1d4ed8;background:#eff6ff;color:#1d4ed8;box-shadow:0 2px 8px rgba(29,78,216,.15);}
+#rec-btn{background:#ef4444;color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:.9rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
 #rec-btn.rec{animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
-#rst{font-size:.78rem;color:#64748b;margin-top:6px;text-align:center;min-height:18px;}
+#rst{font-size:.8rem;color:#64748b;margin-top:8px;text-align:center;min-height:18px;font-weight:600;}
 #aprev{width:100%;margin-top:10px;display:none;}
 .sbtn2{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);color:#fff;border:none;border-radius:12px;padding:16px;font-size:1rem;font-weight:700;cursor:pointer;width:calc(100% - 24px);margin:20px 12px 0;display:flex;align-items:center;justify-content:center;gap:8px;}
 .sbtn2:disabled{opacity:.6;cursor:not-allowed;}
@@ -55,7 +67,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;min-height:100vh
 <script>
 const Q=new URLSearchParams(location.search);
 const cId=Q.get('id'),dia=Q.get('dia'),tok=Q.get('t'),BASE='/api';
-const SL={1:'Pessimo',2:'Ruim',3:'Regular',4:'Bom',5:'Otimo'};
+let modoExtra=Q.get('modo')||null;
+
 const PQ={
 A1:[
   'Demonstrou disposição e vontade de trabalhar?',
@@ -76,9 +89,21 @@ A2:[
   'Demonstrou educação e postura adequada ao representar a imagem da empresa perante os clientes?',
   'Demonstrou facilidade e rapidez para aprender as atividades?',
   'Trabalhou com agilidade, atenção e foco nas atividades?',
+  'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?',
+  'Demonstra proatividade em auxiliar o motorista em manobras e atividades do dia a dia?'
+],
+M1:[
+  'Demonstrou disposição e vontade de trabalhar?',
+  'Demonstrou respeito, educação e bom comportamento com a equipe?',
+  'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+  'Demonstrou capacidade de aprender a manusear o motor de sucção e executar a atividade corretamente, estando apto para acompanhar uma rota?',
+  'Demonstrou atenção às normas de segurança e ao uso correto dos EPIs, sem precisar de advertências?',
+  'Demonstrou iniciativa e procurou ajudar sem precisar ser constantemente orientado?',
+  'Demonstrou facilidade e rapidez para aprender as atividades?',
+  'Trabalhou com agilidade, atenção e foco nas atividades?',
   'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
 ],
-M:[
+M2:[
   'Demonstrou capacidade de verificar as condições básicas do veículo antes de sair?',
   'Demonstrou habilidade no manuseio correto do motor de sucção?',
   'Dirigiu com atenção, segurança e cuidado?',
@@ -93,82 +118,236 @@ M:[
   'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
 ]
 };
-function getPQ(t,d){if(t&&t.toLowerCase().includes('motorista'))return PQ.M;return d==='1'?PQ.A1:PQ.A2;}
-function dN(d){return d==='1'?'1o Dia de Teste':d==='2'?'2o Dia de Teste':'Dia Extra de Teste';}
+
+const FACE_COLORS={1:'#f02828',2:'#f47b16',3:'#f4b41a',4:'#00b84c',5:'#098a3b'};
+
+function renderFaceSVG(v){
+  const c=FACE_COLORS[v];
+  if(v===1){
+    return '<svg class="face-svg" viewBox="0 0 100 100">'
+      +'<circle cx="50" cy="50" r="43" fill="none" stroke="'+c+'" stroke-width="6.5"/>'
+      +'<path d="M29 34 L41 46 M41 34 L29 46" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+      +'<path d="M59 34 L71 46 M71 34 L59 46" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+      +'<path d="M31 73 C31 53, 69 53, 69 73 Z" fill="'+c+'"/>'
+      +'</svg>';
+  }
+  if(v===2){
+    return '<svg class="face-svg" viewBox="0 0 100 100">'
+      +'<circle cx="50" cy="50" r="43" fill="none" stroke="'+c+'" stroke-width="6.5"/>'
+      +'<circle cx="35" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<circle cx="65" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<path d="M34 70 Q50 56 66 70" fill="none" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+      +'</svg>';
+  }
+  if(v===3){
+    return '<svg class="face-svg" viewBox="0 0 100 100">'
+      +'<circle cx="50" cy="50" r="43" fill="none" stroke="'+c+'" stroke-width="6.5"/>'
+      +'<circle cx="35" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<circle cx="65" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<line x1="35" y1="65" x2="65" y2="65" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+      +'</svg>';
+  }
+  if(v===4){
+    return '<svg class="face-svg" viewBox="0 0 100 100">'
+      +'<circle cx="50" cy="50" r="43" fill="none" stroke="'+c+'" stroke-width="6.5"/>'
+      +'<circle cx="35" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<circle cx="65" cy="41" r="5.8" fill="'+c+'"/>'
+      +'<path d="M34 61 Q50 76 66 61" fill="none" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+      +'</svg>';
+  }
+  return '<svg class="face-svg" viewBox="0 0 100 100">'
+    +'<circle cx="50" cy="50" r="43" fill="none" stroke="'+c+'" stroke-width="6.5"/>'
+    +'<path d="M28 44 Q35 32 42 44" fill="none" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+    +'<path d="M58 44 Q65 32 72 44" fill="none" stroke="'+c+'" stroke-width="6.5" stroke-linecap="round"/>'
+    +'<path d="M31 58 C31 78, 69 78, 69 58 Z" fill="'+c+'"/>'
+    +'</svg>';
+}
+
+function renderStarsPill(v){
+  const c=FACE_COLORS[v];
+  let s='<div class="stars-pill">';
+  for(let k=1;k<=5;k++){
+    const fill=k<=v?c:'#ffffff';
+    s+='<svg viewBox="0 0 24 24"><path fill="'+fill+'" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+  }
+  s+='</div>';
+  return s;
+}
+
+function getEffectiveDay(d){
+  if(d==='1')return '1';
+  if(d==='2')return '2';
+  return modoExtra==='interno'?'1':'2';
+}
+
+function getPQ(t,d){
+  const isMot=t&&t.toLowerCase().includes('motorista');
+  const eff=getEffectiveDay(d);
+  if(isMot)return eff==='1'?PQ.M1:PQ.M2;
+  return eff==='1'?PQ.A1:PQ.A2;
+}
+
+function dN(d){
+  if(d==='1')return '1º Dia de Teste';
+  if(d==='2')return '2º Dia de Teste';
+  if(modoExtra==='interno')return 'Dia Extra de Teste (Trabalhos Internos)';
+  if(modoExtra==='externo')return 'Dia Extra de Teste (Trabalhos Externos)';
+  return 'Dia Extra de Teste';
+}
+
 let cand=null,resp={},aBlob=null,mRec=null,aCh=[],isRec=false;
+
 async function load(){
-try{
-const r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia+'?t='+encodeURIComponent(tok));
-const d=await r.json();
-if(!r.ok)throw new Error(d.error||'Link invalido.');
-cand=d;renderPage();
-}catch(e){
-document.getElementById('app').innerHTML='<div class="err"><div style="font-size:3rem;">X</div><h2 style="color:#ef4444;margin:12px 0 8px;">Link invalido</h2><p style="color:#64748b;">'+e.message+'</p></div>';
+  try{
+    const r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia+'?t='+encodeURIComponent(tok));
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Link inválido.');
+    cand=d;
+    if(dia==='extra'&&!modoExtra&&cand.tipo_teste_extra){
+      modoExtra=cand.tipo_teste_extra;
+    }
+    renderPage();
+  }catch(e){
+    document.getElementById('app').innerHTML='<div class="err"><div style="font-size:3rem;">✕</div><h2 style="color:#ef4444;margin:12px 0 8px;">Link inválido</h2><p style="color:#64748b;">'+e.message+'</p></div>';
+  }
 }
+
+function selectModoExtra(m){
+  modoExtra=m;
+  resp={};
+  renderPage();
 }
+
 function renderPage(){
-const ps=getPQ(cand.tipo,dia);
-const isMot=cand.tipo&&cand.tipo.toLowerCase().includes('motorista');
-const tl=isMot?'Motorista - '+cand.tipo:'Ajudante';
-const fto=cand.foto_base64?'<img src="'+cand.foto_base64+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.5);flex-shrink:0;">':'<div class="av">'+(cand.nome||'?')[0].toUpperCase()+'</div>';
-const qs=ps.map(function(q,i){
-return '<div class="qb" id="qb'+i+'"><div class="qt">'+(i+1)+'. '+q+'</div><div class="sr">'
-+[1,2,3,4,5].map(function(v){return '<div class="sb" data-v="'+v+'" onclick="sel('+i+','+v+')"><span class="num">'+v+'</span><span class="lbl">'+SL[v]+'</span></div>';}).join('')
-+'</div></div>';}).join('');
-document.getElementById('app').innerHTML=
-'<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display=\'none\'">'
-+(function(){
-return '<div class="ccard" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">'
-+ '<div style="display:flex;align-items:center;gap:15px;">' + fto + '<div><div class="cname">'+cand.nome+'</div><div class="crole">'+tl+'</div><div class="cday">'+dN(dia)+'</div></div></div>'
-+ '</div>';
-})()
-+'<div class="sec">'
-+'<h2>Perguntas de Avaliacao</h2>'
-+'<p style="font-size:.78rem;color:#64748b;margin-bottom:14px;">Avalie cada item de 1 (Pessimo) a 5 (Otimo).</p>'
-+qs+'</div>'
-+'<div class="sec"><h2>Audio - Observacoes</h2><p style="font-size:.78rem;color:#64748b;margin-bottom:10px;">Opcional: grave um comentario de voz sobre o desempenho.</p><button id="rec-btn" onclick="tgRec()">Gravar Audio</button><div id="rst"></div><audio id="aprev" controls></audio></div>'
-+'<button class="sbtn2" id="sub" onclick="enviar()">Enviar Avaliacao</button>';
+  const isMot=cand.tipo&&cand.tipo.toLowerCase().includes('motorista');
+  const tl=isMot?'Motorista - '+cand.tipo:'Ajudante Geral';
+  const fto=cand.foto_base64?'<img src="'+cand.foto_base64+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.5);flex-shrink:0;">':'<div class="av">'+(cand.nome||'?')[0].toUpperCase()+'</div>';
+
+  const headerHtml='<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display='none'">'
+    +'<div class="ccard" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">'
+    +'<div style="display:flex;align-items:center;gap:15px;">'+fto+'<div><div class="cname">'+cand.nome+'</div><div class="crole">'+tl+'</div><div class="cday">'+dN(dia)+'</div></div></div>'
+    +'</div>';
+
+  const extraSelectorHtml=(dia==='extra')
+    ?('<div class="sec"><h2>Tipo de Trabalho Realizado (Dia Extra)</h2>'
+      +'<p style="font-size:.82rem;color:#64748b;">Selecione se o colaborador realizou trabalhos Internos ou Externos neste dia extra:</p>'
+      +'<div class="mode-box">'
+      +'<button type="button" class="mode-btn '+(modoExtra==='interno'?'active':'')+'" onclick="selectModoExtra('interno')">🏠 Trabalhos Internos</button>'
+      +'<button type="button" class="mode-btn '+(modoExtra==='externo'?'active':'')+'" onclick="selectModoExtra('externo')">🚚 Trabalhos Externos</button>'
+      +'</div></div>')
+    :'';
+
+  if(dia==='extra'&&!modoExtra){
+    document.getElementById('app').innerHTML=headerHtml+extraSelectorHtml;
+    return;
+  }
+
+  const ps=getPQ(cand.tipo,dia);
+  const qs=ps.map(function(q,i){
+    const cur=resp[i];
+    return '<div class="qb" id="qb'+i+'"><div class="qt">'+(i+1)+'. '+q+'</div><div class="sr '+(cur?'has-sel':'')+'">'
+      +[1,2,3,4,5].map(function(v){
+        return '<div class="sb '+(cur===v?'sel':'')+'" data-v="'+v+'" onclick="sel('+i+','+v+')" title="Nota '+v+'">'
+          +renderFaceSVG(v)
+          +renderStarsPill(v)
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  }).join('');
+
+  document.getElementById('app').innerHTML=
+    headerHtml
+    +extraSelectorHtml
+    +'<div class="sec">'
+    +'<h2>Perguntas de Avaliação</h2>'
+    +'<p style="font-size:.8rem;color:#64748b;margin-bottom:16px;">Toque na carinha correspondente para avaliar cada item (de 1 a 5 estrelas).</p>'
+    +qs+'</div>'
+    +'<div class="sec" id="audio-sec">'
+    +'<h2>Áudio Obrigatório <span style="color:#ef4444;">*</span></h2>'
+    +'<p style="font-size:.84rem;color:#334155;margin-bottom:12px;line-height:1.45;font-weight:500;">Deixe um audio (obrigatório) explicando sobre o dia de teste do candidato, com pontos de atenção, elogios e observações necessárias.</p>'
+    +'<button id="rec-btn" onclick="tgRec()">🎤 Gravar Áudio Obrigatório</button>'
+    +'<div id="rst"></div>'
+    +'<audio id="aprev" controls></audio>'
+    +'</div>'
+    +'<button class="sbtn2" id="sub" onclick="enviar()">Enviar Avaliação</button>';
+
+  if(aBlob){
+    var u=URL.createObjectURL(aBlob);
+    var p=document.getElementById('aprev');if(p){p.src=u;p.style.display='block';}
+    var s=document.getElementById('rst');if(s){s.textContent='✔ Áudio gravado. Pode regravar se quiser.';s.style.color='#10b981';}
+  }
 }
+
 function sel(i,v){
-resp[i]=v;
-var qb=document.getElementById('qb'+i);if(!qb)return;
-qb.querySelectorAll('.sb').forEach(function(b){b.classList.toggle('sel',parseInt(b.getAttribute('data-v'))===v);});
+  resp[i]=v;
+  var qb=document.getElementById('qb'+i);if(!qb)return;
+  var sr=qb.querySelector('.sr');if(sr)sr.classList.add('has-sel');
+  qb.querySelectorAll('.sb').forEach(function(b){b.classList.toggle('sel',parseInt(b.getAttribute('data-v'))===v);});
 }
+
 async function tgRec(){
-if(isRec){mRec.stop();isRec=false;var b=document.getElementById('rec-btn');if(b){b.textContent='Gravar Audio';b.classList.remove('rec');}return;}
-try{
-var st=await navigator.mediaDevices.getUserMedia({audio:true});
-aCh=[];mRec=new MediaRecorder(st);
-mRec.ondataavailable=function(e){if(e.data.size>0)aCh.push(e.data);};
-mRec.onstop=function(){
-aBlob=new Blob(aCh,{type:'audio/webm'});
-var u=URL.createObjectURL(aBlob);
-var p=document.getElementById('aprev');if(p){p.src=u;p.style.display='block';}
-var s=document.getElementById('rst');if(s)s.textContent='Audio gravado. Pode regravar se quiser.';
-st.getTracks().forEach(function(t){t.stop();});
-};
-mRec.start();isRec=true;
-var b=document.getElementById('rec-btn');if(b){b.textContent='Parar Gravacao';b.classList.add('rec');}
-var s=document.getElementById('rst');if(s)s.textContent='Gravando... Clique em Parar quando terminar.';
-}catch(e){alert('Nao foi possivel acessar o microfone.');}
+  if(isRec){
+    mRec.stop();isRec=false;
+    var b=document.getElementById('rec-btn');
+    if(b){b.textContent='🎤 Regravar Áudio';b.classList.remove('rec');}
+    return;
+  }
+  try{
+    var st=await navigator.mediaDevices.getUserMedia({audio:true});
+    aCh=[];mRec=new MediaRecorder(st);
+    mRec.ondataavailable=function(e){if(e.data.size>0)aCh.push(e.data);};
+    mRec.onstop=function(){
+      aBlob=new Blob(aCh,{type:'audio/webm'});
+      var u=URL.createObjectURL(aBlob);
+      var p=document.getElementById('aprev');if(p){p.src=u;p.style.display='block';}
+      var s=document.getElementById('rst');if(s){s.textContent='✔ Áudio gravado com sucesso! Pode regravar se quiser.';s.style.color='#10b981';}
+      st.getTracks().forEach(function(t){t.stop();});
+    };
+    mRec.start();isRec=true;
+    var b=document.getElementById('rec-btn');if(b){b.textContent='⏹ Parar Gravação';b.classList.add('rec');}
+    var s=document.getElementById('rst');if(s){s.textContent='🔴 Gravando... Clique em Parar Gravação quando terminar.';s.style.color='#ef4444';}
+  }catch(e){
+    alert('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+  }
 }
+
 async function enviar(){
-var nome=cand.avaliador_nome || 'Avaliador';
-var ps=getPQ(cand.tipo,dia);
-var miss=ps.map(function(_,i){return resp[i];}).filter(function(v){return v==null;});
-if(miss.length>0){alert('Por favor, avalie todas as '+ps.length+' perguntas antes de enviar.');return;}
-var btn=document.getElementById('sub');
-if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Enviando...';}
-try{
-var fd=new FormData();
-fd.append('t',tok);fd.append('avaliador_nome',nome.trim());
-var ro={};ps.forEach(function(_,i){ro[i]=resp[i];});fd.append('respostas',JSON.stringify(ro));
-if(aBlob)fd.append('audio',aBlob,'audio.webm');
-var r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia,{method:'POST',body:fd});
-var data=await r.json();
-if(!r.ok)throw new Error(data.error||'Erro ao enviar.');
-document.getElementById('app').innerHTML='<img src="/assets/avaliacao-header.png" class="header-img" onerror="this.style.display=\'none\'"><div class="suc"><div style="font-size:3rem;">OK</div><h2 style="color:#10b981;margin:12px 0 8px;">Avaliacao Enviada!</h2><p style="color:#64748b;">Muito obrigado pelas informações fornecidas.<br>Vamos avaliar o candidato com base em todas as etapas do processo seletivo para uma avaliação justa!</p></div>';
-}catch(e){if(btn){btn.disabled=false;btn.innerHTML='Enviar Avaliacao';}alert('Erro ao enviar: '+e.message);}
+  var nome=cand.avaliador_nome||'Avaliador';
+  var ps=getPQ(cand.tipo,dia);
+  var miss=ps.map(function(_,i){return resp[i];}).filter(function(v){return v==null;});
+  if(miss.length>0){
+    alert('Por favor, avalie todas as '+ps.length+' perguntas antes de enviar.');
+    return;
+  }
+  if(isRec){
+    alert('Por favor, clique em "Parar Gravação" para finalizar o áudio antes de enviar.');
+    return;
+  }
+  if(!aBlob){
+    alert('O áudio é obrigatório! Por favor, grave um áudio explicando sobre o dia de teste do candidato, com pontos de atenção, elogios e observações necessárias.');
+    var aSec=document.getElementById('audio-sec');
+    if(aSec)aSec.scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  var btn=document.getElementById('sub');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Enviando...';}
+  try{
+    var fd=new FormData();
+    fd.append('t',tok);
+    fd.append('avaliador_nome',nome.trim());
+    var ro={};
+    ps.forEach(function(_,i){ro[i]=resp[i];});
+    if(dia==='extra'&&modoExtra)ro._modo=modoExtra;
+    fd.append('respostas',JSON.stringify(ro));
+    fd.append('audio',aBlob,'audio.webm');
+    var r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia,{method:'POST',body:fd});
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Erro ao enviar.');
+    document.getElementById('app').innerHTML='<img src="/assets/avaliacao-header.png" class="header-img" onerror="this.style.display='none'"><div class="suc"><div style="font-size:3rem;">✅</div><h2 style="color:#10b981;margin:12px 0 8px;">Avaliação Enviada!</h2><p style="color:#64748b;">Muito obrigado pelas informações fornecidas.<br>Vamos avaliar o candidato com base em todas as etapas do processo seletivo para uma avaliação justa!</p></div>';
+  }catch(e){
+    if(btn){btn.disabled=false;btn.innerHTML='Enviar Avaliação';}
+    alert('Erro ao enviar: '+e.message);
+  }
 }
 load();
 </script>

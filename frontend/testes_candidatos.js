@@ -405,6 +405,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         let dId = label === '1º Dia' ? '1' : (label === '2º Dia' ? '2' : 'extra');
         let aval = (c.avaliacoes || []).find(a => String(a.dia) === dId);
         let rightSide = '';
+        let extraModeHtml = '';
         
         if (aval) {
             let n = aval.media_notas || 0;
@@ -417,6 +418,16 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                 </div>
             `;
         } else {
+            if (label === 'Extra' && data) {
+                const curModo = c.tipo_teste_extra || '';
+                extraModeHtml = `
+                    <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-size:0.72rem;font-weight:600;color:#475569;">Trabalhos:</span>
+                        <button type="button" onclick="window._tcSetTipoExtra(${c.id}, 'interno')" style="padding:3px 8px;font-size:0.72rem;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid ${curModo==='interno'?'#3b82f6':'#cbd5e1'};background:${curModo==='interno'?'#eff6ff':'#fff'};color:${curModo==='interno'?'#1d4ed8':'#475569'};">🏠 Internos (Dia 1)</button>
+                        <button type="button" onclick="window._tcSetTipoExtra(${c.id}, 'externo')" style="padding:3px 8px;font-size:0.72rem;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid ${curModo==='externo'?'#8b5cf6':'#cbd5e1'};background:${curModo==='externo'?'#f5f3ff':'#fff'};color:${curModo==='externo'?'#6d28d9':'#475569'};">🚚 Externos (Dia 2)</button>
+                    </div>
+                `;
+            }
             rightSide = `
                 ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Limpar Data"><i class="ph ph-trash"></i></button>` : ""}
                 ${data ? `<button onclick="window._tcCopyLinkAval(${c.id}, '${label}')" style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;color:#7c3aed;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Copiar Link do Formulário (${label})"><i class="ph ph-link"></i></button>` : ""}
@@ -427,7 +438,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         return `
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
             <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
-            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? getMotoristaChipHtml(data) : ''}</div>
+            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? getMotoristaChipHtml(data) : ''}${extraModeHtml}</div>
             <div style="display:flex;gap:4px;">
                 ${rightSide}
             </div>
@@ -438,7 +449,10 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
     const avaliacoesList = (c.avaliacoes || []);
     const avaliacoesHtml = avaliacoesList.length > 0
         ? avaliacoesList.map(function(av) {
-            const diaNome = av.dia === '1' ? '1º Dia' : (av.dia === '2' ? '2º Dia' : 'Extra');
+            let resps = {};
+            try { resps = JSON.parse(av.respostas_json || '{}'); } catch(e){}
+            const modoExtra = resps._modo || c.tipo_teste_extra || null;
+            const diaNome = av.dia === '1' ? '1º Dia' : (av.dia === '2' ? '2º Dia' : ('Extra' + (modoExtra === 'interno' ? ' (Internos)' : (modoExtra === 'externo' ? ' (Externos)' : ''))));
             const media = av.media_notas != null ? parseFloat(av.media_notas).toFixed(1) : '—';
             const mediaColor = parseFloat(av.media_notas) >= 4 ? '#10b981' : (parseFloat(av.media_notas) >= 3 ? '#f59e0b' : '#ef4444');
             return '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid '+mediaColor+';">' +
@@ -449,15 +463,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                 '<div style="font-size:0.73rem;color:#64748b;">Por: '+(av.avaliador_nome||'—')+'</div>' +
                 (av.audio_url ? '<audio controls src="'+av.audio_url+'" style="width:100%;height:34px;margin-top:6px;"></audio>' : '') +
             (function(){
-                let resps = {};
-                try { resps = JSON.parse(av.respostas_json || '{}'); } catch(e){}
-                const isMot = c.tipo && c.tipo.toLowerCase().includes('motorista');
-                const pqLists = {
-                    A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-                    A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-                    M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
-                };
-                const ps = isMot ? pqLists.M : (String(av.dia)==='1' ? pqLists.A1 : pqLists.A2);
+                const ps = _getPerguntasCandidato(c.tipo, av.dia, resps, c.tipo_teste_extra);
                 let qHtml = '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">' + 
                             '<div style="font-weight:700;font-size:0.75rem;color:#334155;margin-bottom:6px;">Respostas detalhadas:</div>' + 
                             '<ul style="padding-left:15px;margin:0;font-size:0.75rem;color:#475569;">';
@@ -819,13 +825,127 @@ window._tcSetDTeste = async function(id, status) {
     };
 
 
-window._tcCopyLinkAval = async function(id, label) {
+function _getPerguntasCandidato(tipo, dia, resps, candTipoExtra) {
+    const isMot = tipo && tipo.toLowerCase().includes('motorista');
+    const pqLists = {
+        A1:[
+            'Demonstrou disposição e vontade de trabalhar?',
+            'Demonstrou respeito, educação e bom comportamento com a equipe?',
+            'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+            'Demonstrou capacidade de aprender a lavar os banheiros e executar a atividade corretamente, estando apto para acompanhar uma rota?',
+            'Demonstrou atenção às normas de segurança e ao uso correto dos EPIs, sem precisar de advertências?',
+            'Demonstrou iniciativa e procurou ajudar sem precisar ser constantemente orientado?',
+            'Demonstrou facilidade e rapidez para aprender as atividades?',
+            'Trabalhou com agilidade, atenção e foco nas atividades?',
+            'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+        ],
+        A2:[
+            'Demonstrou disposição e vontade de trabalhar?',
+            'Demonstrou respeito, educação e bom comportamento com a equipe?',
+            'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+            'Demonstrou atenção às normas de segurança, sem precisar de advertências?',
+            'Demonstrou educação e postura adequada ao representar a imagem da empresa perante os clientes?',
+            'Demonstrou facilidade e rapidez para aprender as atividades?',
+            'Trabalhou com agilidade, atenção e foco nas atividades?',
+            'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?',
+            'Demonstra proatividade em auxiliar o motorista em manobras e atividades do dia a dia?'
+        ],
+        M1:[
+            'Demonstrou disposição e vontade de trabalhar?',
+            'Demonstrou respeito, educação e bom comportamento com a equipe?',
+            'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+            'Demonstrou capacidade de aprender a manusear o motor de sucção e executar a atividade corretamente, estando apto para acompanhar uma rota?',
+            'Demonstrou atenção às normas de segurança e ao uso correto dos EPIs, sem precisar de advertências?',
+            'Demonstrou iniciativa e procurou ajudar sem precisar ser constantemente orientado?',
+            'Demonstrou facilidade e rapidez para aprender as atividades?',
+            'Trabalhou com agilidade, atenção e foco nas atividades?',
+            'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+        ],
+        M2:[
+            'Demonstrou capacidade de verificar as condições básicas do veículo antes de sair?',
+            'Demonstrou habilidade no manuseio correto do motor de sucção?',
+            'Dirigiu com atenção, segurança e cuidado?',
+            'Respeitou as leis e regras de trânsito durante o teste?',
+            'Demonstrou disposição e vontade de trabalhar?',
+            'Demonstrou respeito, educação e bom comportamento com a equipe?',
+            'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+            'Demonstrou atenção às normas de segurança, sem precisar de advertências?',
+            'Demonstrou educação e postura adequada ao representar a imagem da empresa perante os clientes?',
+            'Demonstrou facilidade e rapidez para aprender as atividades?',
+            'Trabalhou com agilidade, atenção e foco nas atividades?',
+            'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+        ]
+    };
+    const dStr = String(dia);
+    let effDia = '2';
+    if (dStr === '1') {
+        effDia = (isMot && resps && resps[9] != null) ? '2' : '1';
+    } else if (dStr === '2') {
+        effDia = '2';
+    } else {
+        const modo = (resps && resps._modo) || candTipoExtra;
+        if (modo === 'interno') effDia = '1';
+        else if (modo === 'externo') effDia = '2';
+        else if (isMot && resps && resps[9] != null) effDia = '2';
+        else effDia = '2';
+    }
+    if (isMot) return effDia === '1' ? pqLists.M1 : pqLists.M2;
+    return effDia === '1' ? pqLists.A1 : pqLists.A2;
+}
+
+window._tcSetTipoExtra = async function(id, tipoExtra) {
+    try {
+        await fetch(API('/api/candidatos-teste/' + id + '/tipo-extra'), {
+            method: 'PUT',
+            headers: authH(),
+            body: JSON.stringify({ tipo_extra: tipoExtra })
+        });
+        await _load();
+        await window._tcDetalhes(id);
+        await window._tcCopyLinkAval(id, 'Extra', tipoExtra);
+    } catch(e) {
+        Swal.fire({icon:'error',title:'Erro',text:e.message});
+    }
+};
+
+window._tcCopyLinkAval = async function(id, label, modoForcado) {
     try {
         const r = await fetch(API('/api/candidatos-teste/' + id + '/avaliacao-links'), { headers: { Authorization: 'Bearer ' + token() } });
         const d = await r.json();
         if (!r.ok) { Swal.fire({icon:'error',title:'Erro',text:d.error}); return; }
         var dId = label === '1º Dia' ? '1' : (label === '2º Dia' ? '2' : 'extra');
-        var url = window.location.origin + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + '&t=' + d.token;
+        var modoExtra = modoForcado || null;
+
+        if (dId === 'extra' && !modoExtra) {
+            const choice = await Swal.fire({
+                title: 'Teste Extra — Tipo de Trabalho',
+                html: '<p style="font-size:0.9rem;color:#475569;margin:0 0 8px;">O colaborador fez trabalhos <b>Internos</b> ou <b>Externos</b>?</p><p style="font-size:0.78rem;color:#64748b;margin:0;">• <b>Internos:</b> gera o link com as perguntas do 1º Dia<br>• <b>Externos:</b> gera o link com as perguntas do 2º Dia</p>',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonColor: '#2563eb',
+                denyButtonColor: '#7c3aed',
+                confirmButtonText: '🏠 Internos (Dia 1)',
+                denyButtonText: '🚚 Externos (Dia 2)',
+                cancelButtonText: 'Cancelar'
+            });
+            if (choice.isConfirmed) {
+                modoExtra = 'interno';
+            } else if (choice.isDenied) {
+                modoExtra = 'externo';
+            } else {
+                return;
+            }
+            await fetch(API('/api/candidatos-teste/' + id + '/tipo-extra'), {
+                method: 'PUT',
+                headers: authH(),
+                body: JSON.stringify({ tipo_extra: modoExtra })
+            });
+            await _load();
+            window._tcDetalhes(id);
+        }
+
+        var url = window.location.origin + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + (modoExtra ? '&modo=' + modoExtra : '') + '&t=' + d.token;
         var dataOriginal = dId === '1' ? d.data_teste_1 : (dId === '2' ? d.data_teste_2 : d.data_teste_extra);
         var dataFmt = "DD/MM/AAAA";
         if (dataOriginal && dataOriginal.includes('-')) {
@@ -833,6 +953,25 @@ window._tcCopyLinkAval = async function(id, label) {
             dataFmt = pts[2] + '/' + pts[1] + '/' + pts[0];
         }
         var textToCopy = "*América Rental*\nA sua opinião é muito importante para continuarmos crescendo.\n\n" + url + "\n\nDeixe sua opinião sobre o teste do dia *" + dataFmt + "*";
+        if (dId === 'extra' && modoExtra) {
+            const labelModo = modoExtra === 'interno' ? 'Trabalhos Internos (Perguntas Dia 1)' : 'Trabalhos Externos (Perguntas Dia 2)';
+            navigator.clipboard.writeText(textToCopy).catch(function(){});
+            Swal.fire({
+                icon: 'success',
+                title: 'Link do Teste Extra Gerado!',
+                html: '<div style="text-align:left;font-size:0.83rem;">'
+                    + '<div style="margin-bottom:8px;color:#475569;">Modo selecionado: <b style="color:#7c3aed;">' + labelModo + '</b></div>'
+                    + '<div style="display:flex;gap:6px;align-items:center;">'
+                    + '<input id="swal-extra-link-inp" type="text" readonly value="' + url + '" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;color:#334155;background:#f8fafc;">'
+                    + '<button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'swal-extra-link-inp\').value);this.textContent=\'✔ Copiado!\';" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copiar Link</button>'
+                    + '</div>'
+                    + '<div style="margin-top:8px;font-size:0.75rem;color:#10b981;font-weight:600;">✔ A mensagem com o link já foi copiada para a área de transferência!</div>'
+                    + '</div>',
+                confirmButtonColor: '#7c3aed',
+                confirmButtonText: 'Fechar'
+            });
+            return;
+        }
         navigator.clipboard.writeText(textToCopy).then(function() {
             if(typeof Swal !== 'undefined') Swal.fire({icon:'success',title:'Link Copiado!',text:'O link de avaliação foi copiado para a área de transferência.',timer:1500,showConfirmButton:false});
         }).catch(function(err) {
@@ -853,13 +992,7 @@ window._tcVerAvaliacao = function(cId, dia) {
     let resps = {};
     try { resps = JSON.parse(aval.respostas_json || '{}'); } catch(e){}
 
-    const isMot = c.tipo && c.tipo.toLowerCase().includes('motorista');
-    const pqLists = {
-        A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-        A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-        M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
-    };
-    const ps = isMot ? pqLists.M : (String(dia)==='1' ? pqLists.A1 : pqLists.A2);
+    const ps = _getPerguntasCandidato(c.tipo, dia, resps, c.tipo_teste_extra);
 
     let html = '<div style="text-align:left;font-size:0.85rem;font-family:sans-serif;">';
     html += '<p><b>Avaliador:</b> ' + (aval.avaliador_nome||'N/A') + '<br><b>Média Final:</b> ' + Number(aval.media_notas||0).toFixed(1) + '</p>';
