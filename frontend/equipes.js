@@ -603,17 +603,16 @@ function _renderFora() {
       ondragleave="this.classList.remove('drag-over-zone');"
       ondrop="this.classList.remove('drag-over-zone'); window._eqDrop(event,0)"><div style="text-align:center;font-size:.72rem;color:#94a3b8;padding:.25rem;">Arraste para uma equipe</div></div>
   </div>`;
-  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Técnica + Equipe Intermitente empilhados
+  // Renderiza na sidebar: Fora de Equipe + Equipe Reserva + Equipe Técnica empilhados
   const sidebar = document.getElementById('equipes-sidebar');
   if (sidebar) {
     const { vEq } = _getVirtualData();
     const reservaEq = vEq.find(e => e.nome === 'Equipe Reserva');
     const tecnicaEq = vEq.find(e => e.nome === 'Equipe Técnica');
-    const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
     
     let sidebarHtml = foraHtml;
     
-    [reservaEq, tecnicaEq, intermitenteEq].forEach(eq => {
+    [reservaEq, tecnicaEq].forEach(eq => {
       if (eq) {
         const membrosEq = _busca ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(_busca.toLowerCase())) : eq.membros;
         const { cor: indEq } = _eqStatus(membrosEq);
@@ -661,7 +660,7 @@ function _renderBoard(busca) {
     summaryEl.innerHTML = '';
   }
 
-  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Técnica' && eq.nome !== 'Equipe Intermitente').map(eq => {
+  const renderSingleCol = (eq) => {
     const membros = b ? eq.membros.filter(m => (m.nome_completo||m.nome||'').toLowerCase().includes(b)) : eq.membros;
     const { cor: indicadorCor } = _eqStatus(membros);
     const alertas = _eqAlertas(membros);
@@ -701,6 +700,18 @@ function _renderBoard(busca) {
         </button>
       </div>
     </div>`;
+  };
+
+  const intermitenteEq = vEq.find(e => e.nome === 'Equipe Intermitente');
+
+  return vEq.filter(eq => eq.nome !== 'Equipe Reserva' && eq.nome !== 'Equipe Técnica' && eq.nome !== 'Equipe Intermitente').map(eq => {
+    if (eq.nome === 'Ajudantes noturnos 12x36' && intermitenteEq) {
+      return `<div style="display:flex;flex-direction:column;gap:.5rem;flex-shrink:0;">
+        ${renderSingleCol(eq)}
+        ${renderSingleCol(intermitenteEq)}
+      </div>`;
+    }
+    return renderSingleCol(eq);
   }).join('');
 }
 
