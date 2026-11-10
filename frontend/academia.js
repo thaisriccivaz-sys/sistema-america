@@ -237,7 +237,7 @@
         if (!d || d.mes !== _mes) { return erroSwal('Aguarde', 'Os dados do mês ainda estão carregando.'); }
         if (!d.qtd_mes) { return erroSwal('Sem colaboradores', 'Não há colaboradores com academia neste mês.'); }
         const assunto = 'Academia — Relação de colaboradores — ' + mesLabel(d.mes);
-        const msg = 'Prezados,\n\nSegue em anexo a relação de colaboradores da academia referente a ' + mesLabel(d.mes) + '.\n\nTotal de colaboradores: ' + d.qtd_mes + '\nValor total: ' + brl(d.total) + '\n\nSolicitamos o envio da nota fiscal referente a este valor para darmos andamento ao pagamento.\n\nAtenciosamente,\nAmérica Rental';
+        const msg = 'Prezados,\n\nSegue em anexo a relação de colaboradores da academia referente a ' + mesLabel(d.mes) + '.\n\nTotal de colaboradores ativos: ' + d.qtd_ativos + '\nValor total: ' + brl(d.total) + '\n\nSolicitamos o envio da nota fiscal referente a este valor para darmos andamento ao pagamento.\n\nAtenciosamente,\nAmérica Rental';
         const r = await Swal.fire({
             title: 'Enviar para a Academia',
             width: 640,
@@ -245,7 +245,7 @@
                 + campoModal('Assunto', `<input id="acad-em-subj" type="text" value="${esc(assunto)}" style="${estiloInput}">`)
                 + campoModal('Mensagem', `<textarea id="acad-em-msg" rows="9" style="${estiloInput}resize:vertical;">${esc(msg)}</textarea>`)
                 + `<label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#475569;text-align:left;"><input id="acad-em-def" type="checkbox"> Salvar este e-mail como padrão</label>
-                   <div style="text-align:left;font-size:0.78rem;color:#64748b;margin-top:8px;"><i class="ph ph-paperclip"></i> A planilha de ${esc(mesLabel(d.mes))} segue em anexo (${d.qtd_mes} colaborador(es), ${esc(brl(d.total))}).</div>`,
+                   <div style="text-align:left;font-size:0.78rem;color:#64748b;margin-top:8px;"><i class="ph ph-paperclip"></i> A planilha de ${esc(mesLabel(d.mes))} segue em anexo (${d.qtd_ativos} colaborador(es) ativo(s), ${esc(brl(d.total))}).</div>`,
             showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Cancelar', confirmButtonColor: '#7c3aed',
             preConfirm: () => {
                 const to = document.getElementById('acad-em-to').value.trim();

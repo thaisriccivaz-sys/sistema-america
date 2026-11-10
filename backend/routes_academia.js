@@ -56,6 +56,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             data_saida     TEXT,
             criado_em      DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
+        db.run(`ALTER TABLE academia_colaboradores ADD COLUMN era_desligado INTEGER DEFAULT 0`, () => {});
+        db.run(`ALTER TABLE academia_colaboradores ADD COLUMN mes_desligamento TEXT`, () => {});
         db.run(`CREATE INDEX IF NOT EXISTS idx_academia_periodos_colab ON academia_periodos (colaborador_id)`);
         db.run(`CREATE TABLE IF NOT EXISTS academia_envios (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,41 +180,40 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         }
     }
 
-    async function syncImpl() {
+    let _initDesligadosDone = false;
+
+    function formatarObsDesligado(obs) {
+        const obsTrim = String(obs || '').trim();
+        if (!obsTrim) return 'Colaborador desligado';
+        if (normTxt(obsTrim).startsWith('colaborador desligado')) return obsTrim;
+        return 'Colaborador desligado - ' + obsTrim;
+    }
+
+    async function syncImpl(mesContexto) {
         const hoje = isoHoje();
         const nPer = (await dbGet('SELECT COUNT(*) AS n FROM academia_periodos')).n;
         const primeiraVez = nPer === 0;
         if (primeiraVez) await backfillAuditoria();
 
-        const DESLIG_SQL = "LOWER(TRIM(COALESCE(c.status,''))) = 'desligado'";
-
-        // 1a) Quem está com Academia = Sim, NÃO está desligado e não tem período aberto → abre período
+        // 1) Quem está com Academia = Sim e não tem período aberto → abre período (ou reabre se ainda está marcado como Sim)
         const abrir = await dbAll(`SELECT c.id, c.academia_data_inicio FROM colaboradores c
-            WHERE ${SIM_SQL} AND NOT (${DESLIG_SQL})
+            WHERE ${SIM_SQL}
               AND NOT EXISTS (SELECT 1 FROM academia_periodos p WHERE p.colaborador_id = c.id AND p.data_saida IS NULL)`);
         for (const c of abrir) {
-            const ult = await dbGet('SELECT MAX(data_saida) AS ult FROM academia_periodos WHERE colaborador_id = ?', [c.id]);
+            const ultRow = await dbGet('SELECT id, data_saida FROM academia_periodos WHERE colaborador_id = ? ORDER BY id DESC LIMIT 1', [c.id]);
             const inicio = isoDate(c.academia_data_inicio);
-            let entrada;
-            if (ult && ult.ult) entrada = (inicio && inicio >= ult.ult) ? inicio : hoje;      // reativação
-            else entrada = inicio || (primeiraVez ? '2000-01-01' : hoje);                     // 1ª vez
-            await dbRun('INSERT INTO academia_periodos (colaborador_id, data_entrada, data_saida) VALUES (?, ?, NULL)', [c.id, entrada]);
+            if (ultRow && ultRow.id) {
+                await dbRun('UPDATE academia_periodos SET data_saida = NULL WHERE id = ?', [ultRow.id]);
+            } else {
+                const entrada = inicio || (primeiraVez ? '2000-01-01' : hoje);
+                await dbRun('INSERT INTO academia_periodos (colaborador_id, data_entrada, data_saida) VALUES (?, ?, NULL)', [c.id, entrada]);
+            }
         }
 
-        // 1b) Quem está desligado mas tem Academia = Sim e nunca teve período gravado → grava período já encerrado (inativo)
-        const desligSemPeriodo = await dbAll(`SELECT c.id, c.academia_data_inicio FROM colaboradores c
-            WHERE ${SIM_SQL} AND (${DESLIG_SQL})
-              AND NOT EXISTS (SELECT 1 FROM academia_periodos p WHERE p.colaborador_id = c.id)`);
-        for (const c of desligSemPeriodo) {
-            const inicio = isoDate(c.academia_data_inicio) || '2000-01-01';
-            const saida = hoje < inicio ? inicio : hoje;
-            await dbRun('INSERT INTO academia_periodos (colaborador_id, data_entrada, data_saida) VALUES (?, ?, ?)', [c.id, inicio, saida]);
-        }
-
-        // 2) Período aberto, mas o colaborador não está mais com Academia = Sim OU está Desligado → fecha período
+        // 2) Período aberto, mas o colaborador não está mais com Academia = Sim → fecha período
         const fechar = await dbAll(`SELECT p.id, p.data_entrada FROM academia_periodos p
             LEFT JOIN colaboradores c ON c.id = p.colaborador_id
-            WHERE p.data_saida IS NULL AND (c.id IS NULL OR NOT (${SIM_SQL}) OR (${DESLIG_SQL}))`);
+            WHERE p.data_saida IS NULL AND (c.id IS NULL OR NOT (${SIM_SQL}))`);
         for (const p of fechar) {
             await dbRun('UPDATE academia_periodos SET data_saida = ? WHERE id = ?', [hoje < p.data_entrada ? p.data_entrada : hoje, p.id]);
         }
@@ -222,21 +223,59 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                      SELECT DISTINCT p.colaborador_id FROM academia_periodos p
                      WHERE EXISTS (SELECT 1 FROM colaboradores c WHERE c.id = p.colaborador_id)`);
 
-        // 4) Colaboradores desligados: preencher automaticamente "Colaborador desligado" na observação se estiver vazia
-        await dbRun(`UPDATE academia_colaboradores
-                     SET observacoes = 'Colaborador desligado', atualizado_em = CURRENT_TIMESTAMP
-                     WHERE COALESCE(TRIM(observacoes), '') = ''
-                       AND colaborador_id IN (SELECT c.id FROM colaboradores c WHERE ${DESLIG_SQL})`);
+        // 4) Controle de colaboradores desligados:
+        //    - Na observação, prefixa "Colaborador desligado"
+        //    - Guarda o mês do desligamento (mes_desligamento): dentro desse mês continua Ativo (com valor se Academia=Sim),
+        //      e a partir do próximo mês (mes > mes_desligamento) passa automaticamente a Inativo (valor zerado).
+        const envMin = await dbGet('SELECT MIN(mes_ref) AS m FROM academia_envios');
+        const mesBaseInicial = (envMin && mesValido(envMin.m)) ? envMin.m : '2026-10';
+
+        const acRows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.era_desligado, ac.mes_desligamento,
+                                           c.status AS colab_status
+                                    FROM academia_colaboradores ac
+                                    JOIN colaboradores c ON c.id = ac.colaborador_id`);
+        for (const r of acRows) {
+            const isDeslig = normTxt(r.colab_status) === 'desligado';
+            if (isDeslig) {
+                const novaObs = formatarObsDesligado(r.observacoes);
+                let mesDeslig = r.mes_desligamento;
+                let eraDeslig = r.era_desligado ? 1 : 0;
+
+                if (!mesValido(mesDeslig)) {
+                    if (!_initDesligadosDone) {
+                        mesDeslig = mesBaseInicial;
+                        eraDeslig = 1;
+                    } else if (mesValido(mesContexto)) {
+                        mesDeslig = mesContexto;
+                        eraDeslig = 1;
+                    }
+                } else {
+                    eraDeslig = 1;
+                }
+
+                if (novaObs !== String(r.observacoes || '') || mesDeslig !== r.mes_desligamento || eraDeslig !== (r.era_desligado ? 1 : 0)) {
+                    await dbRun(`UPDATE academia_colaboradores
+                                 SET observacoes = ?, era_desligado = ?, mes_desligamento = ?, atualizado_em = CURRENT_TIMESTAMP
+                                 WHERE colaborador_id = ?`,
+                        [novaObs, eraDeslig, mesDeslig || null, r.colaborador_id]);
+                }
+            } else if (r.era_desligado || r.mes_desligamento) {
+                await dbRun(`UPDATE academia_colaboradores
+                             SET era_desligado = 0, mes_desligamento = NULL, atualizado_em = CURRENT_TIMESTAMP
+                             WHERE colaborador_id = ?`, [r.colaborador_id]);
+            }
+        }
+        _initDesligadosDone = true;
     }
     let _syncChain = Promise.resolve();
-    function sync() {
-        _syncChain = _syncChain.then(syncImpl).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
+    function sync(mesContexto) {
+        _syncChain = _syncChain.then(() => syncImpl(mesContexto)).catch(e => { console.error('[ACADEMIA] Erro na sincronização:', e.message); });
         return _syncChain;
     }
 
-    // Quando um colaborador é criado/alterado, atualiza o histórico da academia
+    // Quando um colaborador é criado/alterado/inativado, atualiza o histórico da academia
     app.use('/api/colaboradores', (req, res, next) => {
-        if ((req.method === 'PUT' || req.method === 'POST') && /^\/(\d+)?\/?$/.test(req.path)) {
+        if ((req.method === 'PUT' || req.method === 'POST' || req.method === 'DELETE') && /^\/(\d+)?\/?$/.test(req.path)) {
             res.on('finish', () => { if (res.statusCode >= 200 && res.statusCode < 300) sync(); });
         }
         next();
@@ -244,30 +283,29 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
     setTimeout(() => { sync(); }, 8000);
 
     // ── Montagem da lista por mês ───────────────────────────────────────────────
-    function periodoNoMes(periodos, mes) {
-        const [y, m] = mes.split('-').map(Number);
-        const ini = `${mes}-01`;
-        const fim = `${mes}-${pad2(new Date(y, m, 0).getDate())}`;
-        return periodos.some(p => p.data_entrada <= fim && (!p.data_saida || p.data_saida >= ini));
-    }
-
     async function montarLista(mes) {
-        await sync();
+        await sync(mes);
         const cfg = await getConfig();
         const unit = valorUnitario(cfg);
-        const rows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, c.nome_completo, c.cpf, c.data_nascimento, c.status AS colab_status
+        const rows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.mes_desligamento,
+                                         c.nome_completo, c.cpf, c.data_nascimento, c.status AS colab_status, c.academia_participa
                                   FROM academia_colaboradores ac JOIN colaboradores c ON c.id = ac.colaborador_id`);
         const pers = await dbAll('SELECT colaborador_id, data_entrada, data_saida FROM academia_periodos ORDER BY data_entrada, id');
         const porColab = {};
         pers.forEach(p => { (porColab[p.colaborador_id] = porColab[p.colaborador_id] || []).push(p); });
         const itens = rows.map(r => {
             const ps = porColab[r.colaborador_id] || [];
-            const desligado = normTxt(r.colab_status) === 'desligado';
-            const aberto = !desligado ? ps.find(p => !p.data_saida) : null;
             const ult = ps[ps.length - 1] || null;
-            const isAtivo = !!aberto;
-            const obsRaw = String(r.observacoes || '').trim();
-            const obsFinal = (desligado && !obsRaw) ? 'Colaborador desligado' : (r.observacoes || '');
+            const desligado = normTxt(r.colab_status) === 'desligado';
+            const temSim = isSim(r.academia_participa);
+            const mesDeslig = mesValido(r.mes_desligamento) ? r.mes_desligamento : mes;
+
+            // Se colaborador NÃO é desligado: Ativo quando academia_participa = Sim.
+            // Se colaborador É desligado: se estava marcado como Sim na academia, fica com valor (Ativo)
+            // dentro do mês do desligamento (mes <= mesDeslig) e no próximo mês (mes > mesDeslig) fica automaticamente Inativo (valor zerado).
+            const isAtivo = !desligado ? temSim : (temSim && mes <= mesDeslig);
+            const obsFinal = desligado ? formatarObsDesligado(r.observacoes) : (r.observacoes || '');
+
             return {
                 colaborador_id: r.colaborador_id,
                 nome: r.nome_completo || '',
@@ -276,6 +314,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 status: isAtivo ? 'ativo' : 'inativo',
                 data_saida: isAtivo ? null : (ult ? ult.data_saida : null),
                 desligado,
+                mes_desligamento: desligado ? mesDeslig : null,
                 cobrado_mes: isAtivo,
                 valor: isAtivo ? unit : 0,
                 observacoes: obsFinal
@@ -514,11 +553,11 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             const buf = await gerarPlanilhaBuffer(mes, lista.itens, lista.valor_unitario);
             const assunto = String(b.assunto || '').trim() || `Academia — Relação de colaboradores — ${mesLabel(mes)}`;
             const mensagem = String(b.mensagem || '').trim()
-                || `Prezados,\n\nSegue em anexo a relação de colaboradores da academia referente a ${mesLabel(mes)}.\n\nTotal de colaboradores: ${lista.qtd_mes}\nValor total: ${brl(lista.total)}\n\nSolicitamos o envio da nota fiscal referente a este valor para darmos andamento ao pagamento.\n\nAtenciosamente,\nAmérica Rental`;
+                || `Prezados,\n\nSegue em anexo a relação de colaboradores da academia referente a ${mesLabel(mes)}.\n\nTotal de colaboradores ativos: ${lista.qtd_ativos}\nValor total: ${brl(lista.total)}\n\nSolicitamos o envio da nota fiscal referente a este valor para darmos andamento ao pagamento.\n\nAtenciosamente,\nAmérica Rental`;
 
             const html = emailShell('Academia — Relação de Colaboradores', paragrafos(mensagem) + caixaResumo([
                 ['Mês de referência', mesLabel(mes)],
-                ['Colaboradores', String(lista.qtd_mes)],
+                ['Colaboradores ativos', String(lista.qtd_ativos)],
                 ['Valor por colaborador', brl(lista.valor_unitario)],
                 ['Valor total', brl(lista.total)]
             ]));
