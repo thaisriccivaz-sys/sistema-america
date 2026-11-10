@@ -1358,6 +1358,8 @@ window.exportarExcelRecibos = async function() {
         sheet.getRow(1).font = { bold: true };
         sheet.getRow(1).alignment = { horizontal: 'center' };
 
+        let somaVT = 0, somaVC = 0, somaVR = 0, somaVA = 0;
+
         _recibosFiltrados.forEach(c => {
             const s = _recibosSelecoes[c.id] || {};
             
@@ -1374,6 +1376,12 @@ window.exportarExcelRecibos = async function() {
             else if (window._isVT(mTransp)) vt = (s.valorVT != null ? Number(s.valorVT) : (s.valVTEdit != null ? Number(s.valVTEdit) : totais.totalFinalTransp)) || 0;
             if (inpVC) vc = parseFloat(inpVC.value) || 0;
             else if (window._isVC(mTransp)) vc = (s.valVTEdit != null ? Number(s.valVTEdit) : totais.totalFinalTransp) || 0;
+            const va = (c.folha_va && c.folha_va_valor > 0) ? (parseFloat(c.folha_va_valor) || 0) : 0;
+
+            somaVT += vt;
+            somaVC += vc;
+            somaVR += vr;
+            somaVA += va;
 
             const cargo = c.cargo || '—';
             const depto = c.departamento || '—';
@@ -1390,9 +1398,25 @@ window.exportarExcelRecibos = async function() {
                 folgasVR: s.folgasVR || 0,
                 faltasVR: s.faltasVR || 0,
                 valorVR: vr,
-                valorVA: (c.folha_va && c.folha_va_valor > 0) ? c.folha_va_valor : 0
+                valorVA: va
             });
         });
+
+        const rowTotal = sheet.addRow({
+            colaborador: 'TOTAL',
+            cargoDepto: '',
+            transporte: '',
+            folgasVT: '',
+            faltasVT: '',
+            valorVT: Math.round(somaVT * 100) / 100,
+            valorVC: Math.round(somaVC * 100) / 100,
+            jantar: '',
+            folgasVR: '',
+            faltasVR: '',
+            valorVR: Math.round(somaVR * 100) / 100,
+            valorVA: Math.round(somaVA * 100) / 100
+        });
+        rowTotal.font = { bold: true };
 
         sheet.getColumn('valorVT').numFmt = '"R$" #,##0.00';
         sheet.getColumn('valorVC').numFmt = '"R$" #,##0.00';
