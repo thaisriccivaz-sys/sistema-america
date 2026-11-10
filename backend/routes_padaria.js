@@ -48,7 +48,7 @@ function parseDataDDMM(txt) {
 
 // ── Análise da imagem via IA (Gemini) ───────────────────────────────────────
 async function candidatosGemini() {
-    const preferencia = ['models/gemini-3.6-flash', 'models/gemini-3.5-flash', 'models/gemini-3.7-flash', 'models/gemini-flash-latest', 'models/gemini-2.5-flash', 'models/gemini-pro-latest'];
+    const preferencia = ['models/gemini-3.6-flash', 'models/gemini-3.5-flash', 'models/gemini-3.7-flash', 'models/gemini-flash-latest', 'models/gemini-2.5-flash'];
     let disponiveis = [];
     try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
@@ -86,30 +86,51 @@ Regras:
 - "total_escrito": o total escrito à mão no campo "Valor" do rodapé (número decimal com ponto). Se houver um número de telefone/PIX ao lado, ignore-o e use apenas o valor monetário. Use null se não houver.
 - "observacao_geral": qualquer outra anotação relevante da folha (ex.: nome da firma, avisos). Use "" se não houver.`;
 
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+const resumoErro = e => String((e && e.message) || e || '')
+    .replace(/\[GoogleGenerativeAI Error\]: Error fetching from \S+: /i, '')
+    .replace(/\s+/g, ' ').trim().slice(0, 140);
+
 async function analisarImagemIA(buffer, mimeType) {
     if (!process.env.GEMINI_API_KEY) throw new Error('Chave da API do Gemini não configurada no servidor.');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const candidatos = await candidatosGemini();
     const parte = { inlineData: { data: buffer.toString('base64'), mimeType: mimeType || 'image/jpeg' } };
-    let ultimoErro = null;
+    const tentativas = [];     // relatório de TODAS as falhas (a mensagem final mostra a causa real, não só o último modelo)
+    const MAX_TENTATIVAS_POR_MODELO = 3;
+
     for (const nome of candidatos) {
-        try {
-            console.log(`[PADARIA][Gemini] Tentando modelo: ${nome}`);
-            const model = genAI.getGenerativeModel({ model: nome, generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
-            const result = await model.generateContent([PROMPT_PADARIA, parte]);
-            const texto = result.response.text();
-            const json = extrairJson(texto);
-            console.log(`[PADARIA][Gemini] Sucesso com modelo: ${nome}`);
-            return json;
-        } catch (e) {
-            const msg = String(e.message || '');
-            console.warn(`[PADARIA][Gemini] Falha com ${nome}: ${msg.substring(0, 140)}`);
-            ultimoErro = e;
-            const tentarOutro = /503|high demand|404|no longer available|not found|JSON|429|overloaded/i.test(msg);
-            if (!tentarOutro) break;
+        let pularModelo = false;
+        for (let t = 1; t <= MAX_TENTATIVAS_POR_MODELO && !pularModelo; t++) {
+            try {
+                console.log(`[PADARIA][Gemini] Modelo ${nome} (tentativa ${t}/${MAX_TENTATIVAS_POR_MODELO})`);
+                const model = genAI.getGenerativeModel({ model: nome, generationConfig: { temperature: 0, responseMimeType: 'application/json' } });
+                const result = await model.generateContent([PROMPT_PADARIA, parte]);
+                const json = extrairJson(result.response.text());
+                console.log(`[PADARIA][Gemini] Sucesso com modelo: ${nome}`);
+                return json;
+            } catch (e) {
+                const msg = String((e && e.message) || '');
+                console.warn(`[PADARIA][Gemini] Falha com ${nome} (tentativa ${t}): ${msg.substring(0, 200)}`);
+                tentativas.push(`${nome}: ${resumoErro(e)}`);
+
+                const semCota = /429|quota|RESOURCE_EXHAUSTED/i.test(msg);
+                const cotaZerada = semCota && /limit:\s*0|per day|PerDay/i.test(msg);
+                const modeloIndisponivel = /404|no longer available|not found|not supported/i.test(msg);
+                const transitorio = /503|500|502|504|high demand|overloaded|unavailable|fetch failed|ECONNRESET|ETIMEDOUT|JSON|Unexpected token|Unterminated|truncad/i.test(msg);
+
+                if (cotaZerada || modeloIndisponivel) { pularModelo = true; continue; }          // próximo modelo
+                if (semCota || transitorio) {                                                      // mesmo modelo, após uma pausa
+                    if (t < MAX_TENTATIVAS_POR_MODELO) await esperar(semCota ? 6000 : 2000 * t);
+                    continue;
+                }
+                // Erro inesperado (ex.: chave inválida, imagem recusada): tentar outro modelo não adianta
+                throw new Error('Falha ao analisar a imagem via IA: ' + resumoErro(e));
+            }
         }
     }
-    throw new Error('Falha ao analisar a imagem via IA: ' + (ultimoErro ? ultimoErro.message : 'erro desconhecido'));
+    const detalhe = tentativas.slice(0, 6).join(' | ');
+    throw new Error('Não foi possível analisar a imagem agora (serviço de IA indisponível ou sem cota). Tente novamente em instantes. Detalhes: ' + detalhe);
 }
 
 function extrairJson(texto) {
