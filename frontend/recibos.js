@@ -1347,6 +1347,7 @@ window.exportarExcelRecibos = async function() {
             { header: 'FOLGAS VT', key: 'folgasVT', width: 15 },
             { header: 'FALTAS TRANSP.', key: 'faltasVT', width: 18 },
             { header: 'VALOR TRANSP.', key: 'valorVT', width: 18 },
+            { header: 'VALOR VC', key: 'valorVC', width: 15 },
             { header: 'JANTAR', key: 'jantar', width: 12 },
             { header: 'FOLGAS VR', key: 'folgasVR', width: 15 },
             { header: 'FALTAS VR', key: 'faltasVR', width: 15 },
@@ -1362,10 +1363,17 @@ window.exportarExcelRecibos = async function() {
             
             const inpVR = document.getElementById(`inp-valvr-${c.id}`);
             const inpVT = document.getElementById(`inp-valvt-${c.id}`);
+            const inpVC = document.getElementById(`inp-valvc-${c.id}`);
+            const mTransp = (c.meio_transporte || '').toLowerCase();
+            const totais = _calcTotaisRecibo(c, s);
             
-            let vr = 0, vt = 0;
+            let vr = 0, vt = 0, vc = 0;
             if (inpVR) vr = parseFloat(inpVR.value) || 0;
+            else vr = (s.valVREdit != null ? Number(s.valVREdit) : totais.totalFinalVR) || 0;
             if (inpVT) vt = parseFloat(inpVT.value) || 0;
+            else if (window._isVT(mTransp)) vt = (s.valorVT != null ? Number(s.valorVT) : (s.valVTEdit != null ? Number(s.valVTEdit) : totais.totalFinalTransp)) || 0;
+            if (inpVC) vc = parseFloat(inpVC.value) || 0;
+            else if (window._isVC(mTransp)) vc = (s.valVTEdit != null ? Number(s.valVTEdit) : totais.totalFinalTransp) || 0;
 
             const cargo = c.cargo || '—';
             const depto = c.departamento || '—';
@@ -1377,6 +1385,7 @@ window.exportarExcelRecibos = async function() {
                 folgasVT: s.folgasVT || 0,
                 faltasVT: s.faltasVT || 0,
                 valorVT: vt,
+                valorVC: vc,
                 jantar: s.diasExtra || 0,
                 folgasVR: s.folgasVR || 0,
                 faltasVR: s.faltasVR || 0,
@@ -1386,6 +1395,7 @@ window.exportarExcelRecibos = async function() {
         });
 
         sheet.getColumn('valorVT').numFmt = '"R$" #,##0.00';
+        sheet.getColumn('valorVC').numFmt = '"R$" #,##0.00';
         sheet.getColumn('valorVR').numFmt = '"R$" #,##0.00';
         sheet.getColumn('valorVA').numFmt = '"R$" #,##0.00';
         
