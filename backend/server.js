@@ -18582,7 +18582,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                             // Remove as tags de modelo para nao interferir na extração de tokens base e do tamanho final
                             const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
                             const lastToken = tokensEpi.length > 0 ? tokensEpi[tokensEpi.length - 1] : '';
-                            const isSize = /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(lastToken);
+                            const isSize = /^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|XXGG|EGG|EXGG|G1|G2|G3|G4|\d{2})$/.test(lastToken);
                             
                             let bestScore = -9999;
                             let bestItem = null;
@@ -18678,18 +18678,33 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
                             console.warn(`[ESTOQUE] Item "${originalNome}" nao encontrado no estoque após tentativas.`);
                         }
 
-                        // Verificar se o EPI retirado possui imagem de Regras EPI cadastrada no estoque
+                        // Verificar se o EPI ou Uniforme retirado possui imagem de Regras EPI cadastrada no estoque
                         let itemRegra = (match && (match.regras_epi_r2_key || match.regras_epi_url)) ? match : null;
                         if (!itemRegra) {
                             const STOP_W = new Set(['DE','DO','DA','DOS','DAS','E','A','O','OS','AS','EM','NO','NA','NOS','NAS','UM','UMA','POR','TAM','CA']);
-                            const tksEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 3 && !STOP_W.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t) && !/^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|\d+)$/.test(t));
+                            const tksEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 3 && !STOP_W.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t) && !/^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|XXGG|EGG|EXGG|G1|G2|G3|G4|\d+)$/.test(t));
                             if (tksEpi.length > 0) {
-                                itemRegra = todosItens.find(it => {
+                                const candidatosRegra = todosItens.filter(it => {
                                     if (!it.regras_epi_r2_key && !it.regras_epi_url) return false;
                                     const itNorm = (it.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                                     const itTks = itNorm.split(/[\s\-\.\/,;]+/).filter(Boolean);
                                     return tksEpi.every(tk => itTks.includes(tk));
-                                }) || null;
+                                });
+                                if (candidatosRegra.length > 0) {
+                                    itemRegra = candidatosRegra.find(it => {
+                                        const itNorm = (it.nome || '').toUpperCase();
+                                        if (isFeminino && itNorm.includes('FEMININ')) return true;
+                                        if (isMasculino && itNorm.includes('MASCULIN')) return true;
+                                        return false;
+                                    }) || candidatosRegra[0];
+                                } else {
+                                    itemRegra = todosItens.find(it => {
+                                        if (!it.regras_epi_r2_key && !it.regras_epi_url) return false;
+                                        const itNorm = (it.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                                        const itTksBase = itNorm.split(/[\s\-\.\/,;]+/).filter(t => t.length >= 3 && !STOP_W.has(t) && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t) && !/^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|XXGG|EGG|EXGG|G1|G2|G3|G4|\d+)$/.test(t));
+                                        return itTksBase.length > 0 && itTksBase.every(tk => tksEpi.includes(tk));
+                                    }) || null;
+                                }
                             }
                         }
                         if (itemRegra && (itemRegra.regras_epi_r2_key || itemRegra.regras_epi_url)) {
@@ -32420,6 +32435,8 @@ function _consolidarProdutosComTamanhoEstoque() {
             const master = grp.exactBaseItem || grp.variants[0].item;
             let fotoUrl = master.foto_url || null;
             let fotoB64 = master.foto_base64 || null;
+            let regrasR2Key = master.regras_epi_r2_key || null;
+            let regrasUrl = master.regras_epi_url || null;
             const allSizesSet = new Set();
             try {
                 const existingList = JSON.parse(master.tamanhos_lista || '[]');
@@ -32430,6 +32447,8 @@ function _consolidarProdutosComTamanhoEstoque() {
                 allSizesSet.add(v.tamanho);
                 if (!fotoUrl && v.item.foto_url) fotoUrl = v.item.foto_url;
                 if (!fotoB64 && v.item.foto_base64) fotoB64 = v.item.foto_base64;
+                if (!regrasR2Key && v.item.regras_epi_r2_key) regrasR2Key = v.item.regras_epi_r2_key;
+                if (!regrasUrl && v.item.regras_epi_url) regrasUrl = v.item.regras_epi_url;
             });
 
             const sortedSizes = Array.from(allSizesSet).sort((a, b) => {
@@ -32470,8 +32489,8 @@ function _consolidarProdutosComTamanhoEstoque() {
                     db.get('SELECT COALESCE(SUM(quantidade), 0) as total FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [master.id], (errT, rowT) => {
                         const totalQtd = rowT ? rowT.total : master.quantidade_atual;
                         db.run(
-                            'UPDATE estoque SET nome = ?, tem_tamanho = 1, tamanhos_lista = ?, quantidade_atual = ?, foto_url = COALESCE(foto_url, ?), foto_base64 = COALESCE(foto_base64, ?) WHERE id = ?',
-                            [grp.baseNome, JSON.stringify(sortedSizes), totalQtd, fotoUrl, fotoB64, master.id]
+                            'UPDATE estoque SET nome = ?, tem_tamanho = 1, tamanhos_lista = ?, quantidade_atual = ?, foto_url = COALESCE(foto_url, ?), foto_base64 = COALESCE(foto_base64, ?), regras_epi_r2_key = COALESCE(regras_epi_r2_key, ?), regras_epi_url = COALESCE(regras_epi_url, ?) WHERE id = ?',
+                            [grp.baseNome, JSON.stringify(sortedSizes), totalQtd, fotoUrl, fotoB64, regrasR2Key, regrasUrl, master.id]
                         );
                     });
                 }, 300);
@@ -34675,7 +34694,7 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
                     
                     const tokensEpi = nomeNormalizado.split(/[\s\-\.\/,;]+/).filter(t => t.length > 0 && !['FEMININA','FEMININO','MASCULINA','MASCULINO'].includes(t));
                     const lastToken = tokensEpi.length > 0 ? tokensEpi[tokensEpi.length - 1] : '';
-                    const isSize = /^(P|M|G|GG|XG|EG|EXG|XGG|\d{2})$/.test(lastToken);
+                    const isSize = /^(PP|P|M|G|GG|XG|EG|EXG|XGG|XXG|XXGG|EGG|EXGG|G1|G2|G3|G4|\d{2})$/.test(lastToken);
                     
                     let bestScore = -9999; let bestItem = null;
                     todosItens.forEach(item => {

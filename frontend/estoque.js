@@ -2413,8 +2413,9 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
     window.togglePlacasEstoque = function(cat) {
         const regrasCont = document.getElementById('estoque-regras-epi-container');
         if (regrasCont) {
-            const isEpiCat = String(cat || '').trim().toUpperCase() === 'EPI';
-            regrasCont.style.display = isEpiCat ? 'block' : 'none';
+            const catUp = String(cat || '').trim().toUpperCase();
+            const isEpiOrUniforme = catUp === 'EPI' || catUp === 'UNIFORME' || catUp === 'UNIFORMES';
+            regrasCont.style.display = isEpiOrUniforme ? 'block' : 'none';
         }
         const c = document.getElementById('estoque-placas-container');
         if (!c) return;
