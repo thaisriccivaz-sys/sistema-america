@@ -297,11 +297,11 @@ async function renderGaForm(template) {
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;">
                     <div>
                         <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Nome do Template *</label>
-                        <input id="ga-nome" type="text" value="${template.nome || ''}" placeholder="Ex: Avaliação de Satisfação - Motoristas" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
+                        <input id="ga-nome" type="text" value="${template.nome || ''}" placeholder="Ex: Avaliação de Satisfação - Motoristas" style="text-transform:none !important;width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
                     </div>
                     <div>
                         <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Tipo *</label>
-                        <select id="ga-tipo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;" onchange="window.gaChangeTipo(this.value)">
+                        <select id="ga-tipo" style="text-transform:none !important;width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;" onchange="window.gaChangeTipo(this.value)">
                             <option value="experiencia" ${template.tipo === 'experiencia' ? 'selected' : ''}>Experiência (6 campos/Soma)</option>
                             <option value="desempenho" ${template.tipo === 'desempenho' ? 'selected' : ''}>Desempenho (4 campos/Média)</option>
                             <option value="satisfacao" ${template.tipo === 'satisfacao' ? 'selected' : ''}>Satisfação (4 campos/Média)</option>
@@ -388,7 +388,7 @@ function gaRenderCatBlock(catNome, perguntas, idx, tipoReq = null) {
             <div style="background:linear-gradient(90deg,#f0f7ff,#fff);padding:0.85rem 1.1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0; gap: 1rem;">
                 <div style="display:flex;align-items:center;gap:0.75rem;flex:1;">
                     <i class="ph ph-tag" style="color:#0f4c81;font-size:1.1rem;"></i>
-                    <input class="ga-cat-nome" value="${catNome.replace(/"/g, '&quot;')}" placeholder="Título da categoria (Ex: Liderança, Segurança)" title="Clique para editar" style="border:1.5px solid #cbd5e1;border-radius:6px;padding:0.5rem 0.6rem;background:#fff;font-weight:700;font-size:0.95rem;color:#0f172a;outline:none;flex:1;min-width:0;transition:all 0.2s;box-shadow:inset 0 1px 2px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#0f4c81'; this.style.boxShadow='0 0 0 3px rgba(15,76,129,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='inset 0 1px 2px rgba(0,0,0,0.02)'" />
+                    <input class="ga-cat-nome" value="${catNome.replace(/"/g, '&quot;')}" placeholder="Título da categoria (Ex: Liderança, Segurança)" title="Clique para editar" style="text-transform:none !important;border:1.5px solid #cbd5e1;border-radius:6px;padding:0.5rem 0.6rem;background:#fff;font-weight:700;font-size:0.95rem;color:#0f172a;outline:none;flex:1;min-width:0;transition:all 0.2s;box-shadow:inset 0 1px 2px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#0f4c81'; this.style.boxShadow='0 0 0 3px rgba(15,76,129,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='inset 0 1px 2px rgba(0,0,0,0.02)'" />
                 </div>
                 <button onclick="this.closest('.ga-cat-block').remove()" style="background:#fef2f2;border:1px solid #fecaca;color:#ef4444;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center; flex-shrink:0;" title="Remover categoria">
                     <i class="ph ph-trash"></i>
@@ -399,7 +399,7 @@ function gaRenderCatBlock(catNome, perguntas, idx, tipoReq = null) {
                 ${p6.map((p, qi) => `
                     <div class="ga-pergunta-row-${qi+1}" style="display:${(!isExp && qi >= 4) ? 'none' : 'flex'};align-items:center;gap:0.6rem;">
                         <span style="background:#eff6ff;color:#0f4c81;font-weight:700;font-size:0.78rem;min-width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;">${qi+1}</span>
-                        <input class="ga-pergunta" value="${p.replace(/"/g, '&quot;')}" placeholder="Pergunta ${qi+1}..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.87rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#e2e8f0'">
+                        <input class="ga-pergunta" value="${p.replace(/"/g, '&quot;')}" placeholder="Pergunta ${qi+1}..." style="text-transform:none !important;flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.87rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#e2e8f0'">
                     </div>
                 `).join('')}
             </div>

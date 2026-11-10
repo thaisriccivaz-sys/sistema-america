@@ -1539,7 +1539,16 @@ textarea:not(#equipamento-est-especificacao):not(#equipamento-est-descricao-prop
 }
 #equipamento-est-especificacao,
 #equipamento-est-descricao-proposta,
-#cargo-input-name {
+#cargo-input-name,
+#ga-nome,
+#ga-tipo,
+#ga-tipo option,
+.ga-cat-nome,
+.ga-pergunta,
+#view-gerenciar-avaliacoes input,
+#view-gerenciar-avaliacoes select,
+#view-gerenciar-avaliacoes select option,
+#view-gerenciar-avaliacoes textarea {
     text-transform: none !important;
 }
 input::placeholder,
