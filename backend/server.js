@@ -24638,7 +24638,11 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 dias_semana: parseField(r.dias_semana)
             };
             const t = (r.tipo_servico || '').toLowerCase();
-            if (t.includes('entrega')) {
+            // Visita Técnica nunca fica em Entrega/Retirada: se TODOS os produtos forem visita técnica, vai para Avulso
+            const _soVisitaTecnica = row.produtos.length > 0 && row.produtos.every(p => /VISITA/.test(String((p && (p.desc || p.produto)) || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+            if (_soVisitaTecnica) {
+                result.avulso.push(row);
+            } else if (t.includes('entrega')) {
                 result.entrega.push(row);
             } else if (t.includes('retirada')) {
                 result.retirada.push(row);

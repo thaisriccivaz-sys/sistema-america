@@ -33,6 +33,7 @@ const PIPELINE_EQ_ICONS = {
     'GUARITA INDIVIDUAL OBRA':'⬜','GUARITA INDIVIDUAL EVENTO':'⬜',
     'GUARITA DUPLA OBRA':'⚪','GUARITA DUPLA EVENTO':'⚪',
     'LIMPA FOSSA':'💧','VISITA TECNICA':'⚙️','CARRINHO':'🛞',
+    'VISITA TECNICA OBRA':'⚙️','VISITA TECNICA EVENTO':'⚙️','VISITA TÉCNICA':'⚙️','VISITA TÉCNICA OBRA':'⚙️','VISITA TÉCNICA EVENTO':'⚙️',
 };
 
 const PIPELINE_DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
