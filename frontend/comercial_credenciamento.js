@@ -58,7 +58,8 @@ async function _carregarLicencasAgrupadas(licsSelecionadas = []) {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-        const todas = Array.isArray(data) ? data : [];
+        // Excluir "Outras Licenças" do credenciamento (apenas controle interno)
+        const todas = (Array.isArray(data) ? data : []).filter(l => !String(l.empresa || '').toLowerCase().includes('outra'));
 
         // Agrupar por empresa
         const grupos = {};
@@ -712,7 +713,7 @@ window.carregarLicencasCred = async function() {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-        const todas = Array.isArray(data) ? data : [];
+        const todas = (Array.isArray(data) ? data : []).filter(l => !String(l.empresa || '').toLowerCase().includes('outra'));
 
         // Agrupar por empresa
         const grupos = {};

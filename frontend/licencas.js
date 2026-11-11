@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 //  MÓDULO DE LICENÇAS EMPRESARIAIS
-//  Empresas: América Rental | Attend Ambiental | BRK
+//  Empresas: América Rental | Attend Ambiental | BRK | Outras Licenças
 // ═══════════════════════════════════════════════════════════
 
 const LICENCAS_CONFIG = {
@@ -39,8 +39,123 @@ const LICENCAS_CONFIG = {
             'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'Contrato',
             'CTF IBAMA', 'LO - CETESB'
         ]
+    },
+    'outras-licencas': {
+        label: 'Outras Licenças',
+        color: '#7c3aed',
+        bg: '#f5f3ff',
+        border: '#ddd6fe',
+        icon: 'ph-folders',
+        apenasControle: true,
+        docs: [
+            'Cadastro Mobiliário',
+            'Cadesp – Inscrição Estadual',
+            'Consulta optante pelo Simples Nacional',
+            'CRF – FGTS',
+            'Certidão de falência',
+            'Certidão Estadual de Distribuições Criminais',
+            'Certidão Estadual de Distribuições Cíveis',
+            'Certidão de Ação Trabalhista em Tramitação'
+        ]
     }
 };
+
+// ── Regras especiais de vencimento por empresa/documento ──────
+function adicionarDiasISO(isoDate, dias) {
+    if (!isoDate) return '';
+    const [y, m, d] = isoDate.split('-').map(Number);
+    const dt = new Date(y, m - 1, d, 12, 0, 0);
+    dt.setDate(dt.getDate() + dias);
+    const yy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+}
+
+function getDia01MesAtualISO() {
+    const hj = new Date();
+    return `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function getProximoDia01ISO() {
+    const hj = new Date();
+    const prox = new Date(hj.getFullYear(), hj.getMonth() + 1, 1, 12, 0, 0);
+    return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function getHojeISO() {
+    const hj = new Date();
+    return `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-${String(hj.getDate()).padStart(2, '0')}`;
+}
+
+function getRegraLicenca(empresa, nome) {
+    const emp = String(empresa || '').toLowerCase().trim();
+    const n = String(nome || '').trim();
+    const nNorm = n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    // 1. Cartão de CNPJ dentro da América Rental: vencimento fixo todo dia 01, liberado no credenciamento mesmo vencido
+    if (emp === 'america-rental' && nNorm.includes('cartao de cnpj')) {
+        return {
+            tipo: 'dia_01',
+            permiteCredenciamentoVencido: true,
+            badgeTexto: 'Vencimento fixo: todo dia 01 • Liberado no Credenciamento'
+        };
+    }
+
+    // 2. Outras Licenças — 4 licenças com vencimento fixo todo dia 01 de cada mês
+    if (emp === 'outras-licencas') {
+        if (
+            nNorm.includes('cadastro mobiliario') ||
+            nNorm.includes('cadesp') ||
+            nNorm.includes('simples nacional') ||
+            nNorm.includes('crf') || nNorm.includes('fgts')
+        ) {
+            return {
+                tipo: 'dia_01',
+                badgeTexto: 'Vencimento fixo: todo dia 01 do mês (notifica dia 01)'
+            };
+        }
+
+        // 3. Outras Licenças — 4 certidões com ciclo de 90 dias (3 meses)
+        if (nNorm.includes('falencia')) {
+            return {
+                tipo: '90_dias',
+                cicloDias: 90,
+                defaultValidade: '2026-12-16',
+                badgeTexto: 'Vencimento fixo a cada 90 dias'
+            };
+        }
+        if (nNorm.includes('distribuicoes criminais')) {
+            return {
+                tipo: '90_dias',
+                cicloDias: 90,
+                defaultValidade: '2026-12-11',
+                badgeTexto: 'Válida por 3 meses (90 dias)'
+            };
+        }
+        if (nNorm.includes('distribuicoes civeis')) {
+            const defaultEmissao = '2026-08-01';
+            const defaultValidade = adicionarDiasISO(defaultEmissao, 90); // 2026-10-30
+            return {
+                tipo: '90_dias',
+                cicloDias: 90,
+                defaultEmissao,
+                defaultValidade,
+                badgeTexto: 'Renovação a cada 90 dias (3 meses)'
+            };
+        }
+        if (nNorm.includes('acao trabalhista')) {
+            return {
+                tipo: '90_dias',
+                cicloDias: 90,
+                defaultValidade: '2026-12-10',
+                badgeTexto: 'Válida por 3 meses (90 dias)'
+            };
+        }
+    }
+
+    return null;
+}
 
 let licencasData = {}; // { 'america-rental': [...licencas], ... }
 let licencasActiveTab = 'america-rental';
@@ -49,14 +164,12 @@ let licencasFiltro = ''; // texto de busca atual
 // ── Filtro de busca em tempo real ───────────────────────────
 window.filtrarLicencas = function(val) {
     licencasFiltro = val.toLowerCase().trim();
-    // Filtra os cards já renderizados sem re-renderizar tudo
     document.querySelectorAll('.licenca-card, .licenca-card-empty').forEach(card => {
         const nomeEl = card.querySelector('.licenca-doc-nome');
         if (!nomeEl) return;
         const nomeCard = nomeEl.textContent.toLowerCase();
         card.style.display = (!licencasFiltro || nomeCard.includes(licencasFiltro)) ? '' : 'none';
     });
-    // Atualiza aviso de nenhum resultado
     const grid = document.getElementById('licencas-grid-main');
     if (grid) {
         const visiveis = [...grid.querySelectorAll('.licenca-card, .licenca-card-empty')].filter(c => c.style.display !== 'none');
@@ -68,8 +181,63 @@ window.filtrarLicencas = function(val) {
 // ── Inicializar módulo ───────────────────────────────────────
 window.initLicencas = async function() {
     renderLicencasTabs();
-    await loadLicencas();
+    await Promise.all([
+        loadLicencas(),
+        carregarEmailNotificacaoLicencas()
+    ]);
     renderLicencasContent();
+};
+
+// ── Carregar e salvar e-mail de notificação ──────────────────
+async function carregarEmailNotificacaoLicencas() {
+    const input = document.getElementById('licencas-email-notificacao');
+    if (!input) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/config', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.email_notificacao) {
+            input.value = data.email_notificacao;
+        }
+    } catch (e) {
+        console.warn('[Licenças] Erro ao carregar config de e-mail:', e);
+    }
+}
+
+window.salvarEmailNotificacaoLicencas = async function() {
+    const input = document.getElementById('licencas-email-notificacao');
+    const btn = document.getElementById('btn-salvar-email-licencas');
+    if (!input) return;
+    const email = input.value.trim();
+    if (!email || !email.includes('@')) {
+        if (typeof showToast !== 'undefined') showToast('Informe um e-mail válido para notificação.', 'warning');
+        else alert('Informe um e-mail válido para notificação.');
+        input.focus();
+        return;
+    }
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner"></i> Salvando...'; }
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/config', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email_notificacao: email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar e-mail');
+        if (typeof showToast !== 'undefined') showToast('E-mail de notificação salvo com sucesso!', 'success');
+        else alert('E-mail de notificação salvo com sucesso!');
+    } catch (e) {
+        if (typeof showToast !== 'undefined') showToast('Erro: ' + e.message, 'error');
+        else alert('Erro: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    }
 };
 
 // ── Renderizar abas de empresa ───────────────────────────────
@@ -92,7 +260,6 @@ async function loadLicencas() {
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const all = await res.json();
-        // Agrupar por empresa
         licencasData = {};
         Object.keys(LICENCAS_CONFIG).forEach(k => licencasData[k] = []);
         (all || []).forEach(l => {
@@ -111,6 +278,34 @@ window.switchLicencaTab = function(key) {
     renderLicencasContent();
 };
 
+// ── Verificar se documento não possui validade ──────────────
+function isDocumentoSemValidade(empresa, nome) {
+    const regra = getRegraLicenca(empresa, nome);
+    if (regra) return false; // Se tem regra especial (ex: Cartão de CNPJ na América Rental ou Cadesp em Outras), TEM validade!
+    const SEM_VALIDADE_NOMES = ['cnpj', 'inscrição estadual', 'inscricao estadual', 'inscrição municipal', 'inscricao municipal', 'ltcat', 'contrato'];
+    const nLow = String(nome || '').toLowerCase();
+    return SEM_VALIDADE_NOMES.some(s => nLow.includes(s));
+}
+
+// ── Resolver validade efetiva de uma licença ─────────────────
+function getValidadeEfetiva(empresa, nome, licenca) {
+    const regra = getRegraLicenca(empresa, nome);
+    if (regra && regra.tipo === 'dia_01') {
+        const inicioMes = getDia01MesAtualISO();
+        const updatedIso = licenca && licenca.updated_at ? String(licenca.updated_at).substring(0, 10) : '';
+        // Se tem validade futura (> hoje), respeita; se não foi atualizado no mês atual ou não tem validade, vence no dia 01 do mês atual
+        if (licenca && licenca.validade && licenca.validade > getHojeISO() && updatedIso >= inicioMes) {
+            return licenca.validade;
+        }
+        return (licenca && licenca.validade && licenca.validade <= getHojeISO()) ? licenca.validade : inicioMes;
+    }
+    if (regra && regra.tipo === '90_dias') {
+        if (licenca && licenca.validade) return licenca.validade;
+        return regra.defaultValidade || null;
+    }
+    return licenca ? licenca.validade : null;
+}
+
 // ── Renderizar conteúdo da aba ativa ────────────────────────
 function renderLicencasContent() {
     const container = document.getElementById('licencas-content');
@@ -120,18 +315,18 @@ function renderLicencasContent() {
     const docs = licencasData[licencasActiveTab] || [];
     const hoje = new Date(); hoje.setHours(0,0,0,0);
 
-    // Status helper
-    const SEM_VALIDADE_NOMES = ['cnpj', 'inscrição estadual', 'inscricao estadual', 'inscrição municipal', 'inscricao municipal', 'ltcat', 'contrato'];
-    const isSemValidade = (nome) => SEM_VALIDADE_NOMES.some(s => nome.toLowerCase().includes(s));
-
-    const getStatus = (validade, nome, temArquivo) => {
-        if (isSemValidade(nome)) {
+    const getStatus = (validade, nome, temArquivo, regra) => {
+        if (isDocumentoSemValidade(licencasActiveTab, nome)) {
             if (temArquivo) return { label: 'Sem vencimento', color: '#16a34a', bg: '#dcfce7', icon: 'ph-check-circle' };
             return { label: 'Sem documento', color: '#94a3b8', bg: '#f1f5f9', icon: 'ph-minus' };
         }
         if (!validade) return { label: 'Sem data', color: '#94a3b8', bg: '#f1f5f9', icon: 'ph-minus' };
         const d = new Date(validade + 'T12:00:00');
         const diff = Math.ceil((d - hoje) / 86400000);
+        // Licenças com vencimento fixo todo dia 01: consideradas vencidas já no próprio dia 01 (diff <= 0)
+        if (regra && regra.tipo === 'dia_01' && diff <= 0) {
+            return { label: 'Vencida (Dia 01)', color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle', diff };
+        }
         if (diff < 0)  return { label: 'Vencida',          color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle',       diff };
         if (diff <= 30) return { label: `Vence em ${diff}d`, color: '#d97706', bg: '#fef3c7', icon: 'ph-warning-circle',  diff };
         if (diff <= 90) return { label: `Vence em ${diff}d`, color: '#0891b2', bg: '#e0f7fa', icon: 'ph-clock',          diff };
@@ -144,17 +339,36 @@ function renderLicencasContent() {
         return `${d}/${m}/${y}`;
     };
 
+    let vencidasCount = 0;
+    let proximasCount = 0;
+    let semDocCount = 0;
+
     // Construir cards de documentos fixos
     const cards = cfg.docs.map(nome => {
         const licenca = docs.find(d => d.nome === nome || (nome === 'PRG' && (d.nome === 'PGR' || d.nome === 'PRG')));
         const temArquivo = !!(licenca && (licenca.file_name || licenca.file_path || licenca.r2_key));
-        const status = getStatus(licenca ? licenca.validade : null, nome, temArquivo);
-        const vencFormatted = licenca ? formatDate(licenca.validade) : null;
+        const regra = getRegraLicenca(licencasActiveTab, nome);
+        const validadeEfetiva = getValidadeEfetiva(licencasActiveTab, nome, licenca);
+        const emissaoEfetiva = (licenca && licenca.data_emissao) || (regra && regra.defaultEmissao) || null;
+        const status = getStatus(validadeEfetiva, nome, temArquivo, regra);
+        const vencFormatted = formatDate(validadeEfetiva);
+        const emissaoFormatted = emissaoEfetiva ? formatDate(emissaoEfetiva) : null;
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
+        const semVal = isDocumentoSemValidade(licencasActiveTab, nome);
+
+        if (!temArquivo) semDocCount++;
+        if (validadeEfetiva && !semVal) {
+            const dObj = new Date(validadeEfetiva + 'T12:00:00');
+            const diffDias = Math.ceil((dObj - hoje) / 86400000);
+            if ((regra && regra.tipo === 'dia_01' && diffDias <= 0) || diffDias < 0) vencidasCount++;
+            else if (diffDias >= 0 && diffDias <= 30) proximasCount++;
+        }
+
+        const mostrarCardAtivo = !!(licenca || validadeEfetiva);
 
         return `
-        <div class="licenca-card ${licenca ? '' : 'licenca-card-empty'}" id="card-${idSafe}"
-             style="border:1.5px solid ${licenca ? status.color + '44' : '#e2e8f0'}; background:${licenca ? status.bg : '#fafafa'};">
+        <div class="licenca-card ${mostrarCardAtivo ? '' : 'licenca-card-empty'}" id="card-${idSafe}"
+             style="border:1.5px solid ${mostrarCardAtivo ? status.color + '44' : '#e2e8f0'}; background:${mostrarCardAtivo ? status.bg : '#fafafa'};">
             <!-- Status strip -->
             <div class="licenca-status-strip" style="background:${status.color};"></div>
 
@@ -166,8 +380,11 @@ function renderLicencasContent() {
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div class="licenca-doc-nome">${nome}</div>
-                        <div class="licenca-empresa-badge" style="background:${cfg.bg}; color:${cfg.color}; border:1px solid ${cfg.border};">
-                            ${cfg.label}
+                        <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:2px;">
+                            <div class="licenca-empresa-badge" style="background:${cfg.bg}; color:${cfg.color}; border:1px solid ${cfg.border};">
+                                ${cfg.label}
+                            </div>
+                            ${regra ? `<span style="font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:999px; background:#fff; color:#475569; border:1px solid #cbd5e1;">${regra.badgeTexto}</span>` : ''}
                         </div>
                     </div>
                     <!-- Badge status -->
@@ -177,17 +394,18 @@ function renderLicencasContent() {
                 </div>
 
                 <!-- Validade -->
-                ${licenca ? `
-                <div class="licenca-validade-row">
-                    <i class="ph ${isSemValidade(nome) ? 'ph-infinity' : 'ph-calendar-blank'}" style="color:${status.color};"></i>
-                    <span>${isSemValidade(nome) ? '<strong>Documento sem vencimento</strong>' : `Validade: <strong>${vencFormatted}</strong>`}</span>
-                    ${licenca.updated_at ? `<span class="licenca-upload-date">• Atualizado: ${formatDate(licenca.updated_at.substring(0,10))}</span>` : ''}
+                ${(licenca || validadeEfetiva) ? `
+                <div class="licenca-validade-row" style="flex-wrap:wrap; gap:6px;">
+                    <i class="ph ${semVal ? 'ph-infinity' : 'ph-calendar-blank'}" style="color:${status.color};"></i>
+                    ${emissaoFormatted ? `<span>Emissão: <strong>${emissaoFormatted}</strong> •</span>` : ''}
+                    <span>${semVal ? '<strong>Documento sem vencimento</strong>' : `Validade: <strong>${vencFormatted}</strong>`}</span>
+                    ${(licenca && licenca.updated_at && temArquivo) ? `<span class="licenca-upload-date">• Atualizado: ${formatDate(licenca.updated_at.substring(0,10))}</span>` : ''}
+                    ${!temArquivo ? `<span style="font-size:0.75rem; color:#d97706; font-weight:600;">• PDF pendente de anexo</span>` : ''}
                 </div>` : `
                 <div class="licenca-validade-row" style="color:#94a3b8;">
                     <i class="ph ph-upload-simple"></i>
                     <span>Nenhum documento cadastrado</span>
                 </div>`}
-
 
                 <!-- Ações -->
                 <div class="licenca-card-actions">
@@ -195,7 +413,7 @@ function renderLicencasContent() {
                         <button class="licenca-btn licenca-btn-view" onclick="viewLicenca(${licenca.id})" title="Visualizar PDF">
                             <i class="ph ph-eye"></i> Ver PDF
                         </button>
-                        <button class="licenca-btn licenca-btn-edit" onclick="editLicencaModal('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}', ${licenca.id}, '${licenca.validade || ''}')">
+                        <button class="licenca-btn licenca-btn-edit" onclick="editLicencaModal('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}', ${licenca.id}, '${validadeEfetiva || ''}', '${emissaoEfetiva || ''}')">
                             <i class="ph ph-pencil"></i> Atualizar
                         </button>
                         <button class="licenca-btn licenca-btn-del" onclick="deleteLicenca(${licenca.id}, '${nome.replace(/'/g,"\\'")}', this)" title="Excluir">
@@ -205,30 +423,31 @@ function renderLicencasContent() {
                         <label class="licenca-btn licenca-btn-upload" style="cursor:pointer;">
                             <i class="ph ph-upload-simple"></i> Anexar PDF
                             <input type="file" accept=".pdf" style="display:none;"
-                                onchange="uploadLicenca(this, '${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}')">
+                                onchange="uploadLicenca(this, '${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}', '${validadeEfetiva || ''}', '${emissaoEfetiva || ''}')">
                         </label>
+                        ${licenca ? `
+                        <button class="licenca-btn licenca-btn-edit" onclick="editLicencaModal('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}', ${licenca.id}, '${validadeEfetiva || ''}', '${emissaoEfetiva || ''}')" title="Alterar data de vencimento">
+                            <i class="ph ph-calendar"></i> Data
+                        </button>` : ''}
                     `}
                 </div>
             </div>
         </div>`;
     }).join('');
 
-    // Resumo de alertas
-    const vencidas  = docs.filter(d => d.validade && new Date(d.validade + 'T12:00:00') < hoje).length;
-    const proximas  = docs.filter(d => {
-        if (!d.validade) return false;
-        const diff = Math.ceil((new Date(d.validade + 'T12:00:00') - hoje) / 86400000);
-        return diff >= 0 && diff <= 30;
-    }).length;
-    const semDoc    = cfg.docs.filter(n => !docs.find(d => d.nome === n)).length;
-
     container.innerHTML = `
+        ${cfg.apenasControle ? `
+        <div style="margin-bottom:12px; padding:10px 14px; border-radius:10px; background:#f5f3ff; border:1px solid #ddd6fe; color:#5b21b6; font-size:0.84rem; display:flex; align-items:center; gap:8px; font-weight:600;">
+            <i class="ph-bold ph-info" style="font-size:1.1rem;"></i>
+            <span>As licenças desta aba (<strong>Outras Licenças</strong>) são exclusivas para controle interno de vencimentos e não aparecem no Credenciamento.</span>
+        </div>` : ''}
+
         <!-- Alertas resumo -->
-        ${(vencidas || proximas || semDoc) ? `
+        ${(vencidasCount || proximasCount || semDocCount) ? `
         <div class="licencas-alert-bar">
-            ${vencidas  ? `<div class="licencas-alert-chip" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;"><i class="ph ph-x-circle"></i> ${vencidas} vencida${vencidas > 1 ? 's' : ''}</div>` : ''}
-            ${proximas  ? `<div class="licencas-alert-chip" style="background:#fef3c7; color:#d97706; border:1px solid #fcd34d;"><i class="ph ph-warning-circle"></i> ${proximas} vence${proximas > 1 ? 'm' : ''} em 30 dias</div>` : ''}
-            ${semDoc    ? `<div class="licencas-alert-chip" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1;"><i class="ph ph-file-dashed"></i> ${semDoc} sem documento</div>` : ''}
+            ${vencidasCount ? `<div class="licencas-alert-chip" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;"><i class="ph ph-x-circle"></i> ${vencidasCount} vencida${vencidasCount > 1 ? 's' : ''}</div>` : ''}
+            ${proximasCount ? `<div class="licencas-alert-chip" style="background:#fef3c7; color:#d97706; border:1px solid #fcd34d;"><i class="ph ph-warning-circle"></i> ${proximasCount} vence${proximasCount > 1 ? 'm' : ''} em 30 dias</div>` : ''}
+            ${semDocCount   ? `<div class="licencas-alert-chip" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1;"><i class="ph ph-file-dashed"></i> ${semDocCount} sem PDF anexado</div>` : ''}
         </div>` : `
         <div class="licencas-alert-bar">
             <div class="licencas-alert-chip" style="background:#dcfce7; color:#16a34a; border:1px solid #86efac;"><i class="ph ph-check-circle"></i> Todas as licenças em dia</div>
@@ -259,24 +478,30 @@ function renderLicencasContent() {
                 <p style="margin-top:8px;">Nenhum documento encontrado para "<span id="lsr-texto"></span>"</p>
             </div>
         </div>
-
     `;
 }
 
 // ── Upload de licença ────────────────────────────────────────
-window.uploadLicenca = async function(input, empresa, nome) {
+window.uploadLicenca = async function(input, empresa, nome, valSugerida = '', emissaoSugerida = '') {
     const file = input.files[0];
     if (!file) return;
-    
+
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat') || nLow.includes('contrato');
-    
+    const semValidade = isDocumentoSemValidade(empresa, nome);
+    const regra = getRegraLicenca(empresa, nome);
+
     let venc = '';
-    
-    if (!semValidade) {
-        let valAtual = '';
-        if (file.type === 'application/pdf') {
+    let dataEmissao = emissaoSugerida || '';
+
+    if (regra && regra.tipo === 'dia_01') {
+        // Vencimento fixo todo dia 01: ao anexar/atualizar no mês, o próximo vencimento é dia 01 do próximo mês
+        const proxDia01 = getProximoDia01ISO();
+        const promptRes = await promptValidade(nome, proxDia01, empresa, '');
+        if (promptRes === null) { input.value = ''; return; }
+        venc = promptRes.validade || proxDia01;
+    } else if (!semValidade) {
+        let valAtual = valSugerida || '';
+        if (file.type === 'application/pdf' && (!regra || regra.tipo !== '90_dias')) {
             try {
                 if (typeof showToast !== 'undefined') showToast('Analisando documento...', 'info');
                 const extractData = new FormData();
@@ -294,12 +519,12 @@ window.uploadLicenca = async function(input, empresa, nome) {
             } catch(e) { console.error('Erro na extração:', e); }
         }
 
-        // Prompt para validade
-        const promptRes = await promptValidade(nome, valAtual);
-        if (promptRes === null) { input.value = ''; return; } // cancelado
-        venc = promptRes;
+        const promptRes = await promptValidade(nome, valAtual, empresa, dataEmissao);
+        if (promptRes === null) { input.value = ''; return; }
+        venc = promptRes.validade;
+        dataEmissao = promptRes.data_emissao || '';
     }
-    
+
     input.value = '';
 
     const formData = new FormData();
@@ -307,6 +532,7 @@ window.uploadLicenca = async function(input, empresa, nome) {
     formData.append('empresa', empresa);
     formData.append('nome', nome);
     formData.append('validade', venc);
+    if (dataEmissao) formData.append('data_emissao', dataEmissao);
 
     try {
         const btn = input.closest('label');
@@ -329,28 +555,34 @@ window.uploadLicenca = async function(input, empresa, nome) {
 };
 
 // ── Modal atualizar licença ──────────────────────────────────
-window.editLicencaModal = async function(empresa, nome, id, valAtual) {
-    const nLow = nome.toLowerCase();
-    const semValidade = nLow.includes('cnpj') || nLow.includes('inscrição estadual') || nLow.includes('inscricao estadual') || nLow.includes('inscrição municipal') || nLow.includes('inscricao municipal') || nLow.includes('ltcat') || nLow.includes('contrato');
+window.editLicencaModal = async function(empresa, nome, id, valAtual, emissaoAtual = '') {
+    const semValidade = isDocumentoSemValidade(empresa, nome);
+    const regra = getRegraLicenca(empresa, nome);
     let venc = '';
-    
-    if (!semValidade) {
-        const promptRes = await promptValidade(nome, valAtual);
+    let dataEmissao = emissaoAtual || '';
+
+    if (regra && regra.tipo === 'dia_01') {
+        const proxDia01 = getProximoDia01ISO();
+        const promptRes = await promptValidade(nome, proxDia01, empresa, '');
         if (promptRes === null) return;
-        venc = promptRes;
+        venc = promptRes.validade || proxDia01;
+    } else if (!semValidade) {
+        const promptRes = await promptValidade(nome, valAtual, empresa, dataEmissao);
+        if (promptRes === null) return;
+        venc = promptRes.validade;
+        dataEmissao = promptRes.data_emissao || '';
     }
 
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.pdf';
 
-    // Atualiza só a validade se não selecionar arquivo
     const patchValidade = async () => {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch(`/api/licencas/${id}`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ validade: venc })
+            body: JSON.stringify({ validade: venc, data_emissao: dataEmissao })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao atualizar');
@@ -360,9 +592,9 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
     };
 
     input.onchange = async function() {
-        if (!this.files[0]) { 
-            if (!semValidade) await patchValidade(); 
-            return; 
+        if (!this.files[0]) {
+            if (!semValidade) await patchValidade();
+            return;
         }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const formData = new FormData();
@@ -370,6 +602,7 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
         formData.append('empresa', empresa);
         formData.append('nome', nome);
         formData.append('validade', venc);
+        if (dataEmissao) formData.append('data_emissao', dataEmissao);
         formData.append('_method', 'PUT');
         try {
             const res = await fetch(`/api/licencas/${id}`, {
@@ -385,11 +618,10 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual) {
         } catch(e) { alert('Erro: ' + e.message); }
     };
 
-    // Perguntar se quer trocar o arquivo também
     if (semValidade) {
         input.click();
     } else {
-        if (confirm('Deseja também substituir o arquivo PDF?')) {
+        if (confirm('Deseja também substituir/anexar o arquivo PDF?')) {
             input.click();
         } else {
             await patchValidade();
@@ -422,29 +654,60 @@ window.deleteLicenca = async function(id, nome, btn) {
 };
 
 // ── Prompt de validade (modal nativo ou SweetAlert) ──────────
-async function promptValidade(nome, valAtual) {
+async function promptValidade(nome, valAtual, empresa = '', emissaoAtual = '') {
+    const regra = getRegraLicenca(empresa, nome);
+    const is90Dias = !!(regra && regra.tipo === '90_dias');
+    const isDia01 = !!(regra && regra.tipo === 'dia_01');
+
     if (window.Swal) {
+        let extraHtml = '';
+        if (isDia01) {
+            extraHtml = `
+                <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:0.82rem; color:#9a3412; text-align:left;">
+                    <strong>Regra fixa:</strong> Este documento vence todo <strong>dia 01 de cada mês</strong>. Ao atualizar neste mês, o próximo vencimento é <strong>${valAtual.split('-').reverse().join('/')}</strong>.
+                </div>
+            `;
+        } else if (is90Dias) {
+            const emInit = emissaoAtual || regra.defaultEmissao || '';
+            extraHtml = `
+                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.82rem; color:#5b21b6; text-align:left;">
+                    <strong>Renovação a cada 90 dias:</strong> Informe a data de emissão para calcular +90 dias automaticamente, ou defina a data de vencimento abaixo.
+                    <div style="margin-top:8px;">
+                        <label style="display:block; font-size:0.76rem; font-weight:700; margin-bottom:3px;">Data de Emissão (calcula +90 dias):</label>
+                        <input id="swal-emissao" type="date" value="${emInit}"
+                            onchange="if(this.value){ const [y,m,d]=this.value.split('-').map(Number); const dt=new Date(y,m-1,d,12,0,0); dt.setDate(dt.getDate()+90); document.getElementById('swal-validade').value=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }"
+                            style="width:100%; padding:6px 10px; border:1px solid #c4b5fd; border-radius:6px; font-size:0.9rem;">
+                    </div>
+                </div>
+            `;
+        }
+
         const result = await Swal.fire({
             title: `Validade — ${nome}`,
             html: `
-                <p style="color:#475569; font-size:0.9rem; margin-bottom:1rem;">
-                    Informe a data de validade indicada no documento.<br>
-                    <small style="color:#94a3b8;">Deixe em branco se o documento não tiver validade.</small>
+                ${extraHtml}
+                <p style="color:#475569; font-size:0.9rem; margin-bottom:0.6rem;">
+                    Data de vencimento do documento:
                 </p>
                 <input id="swal-validade" type="date" class="swal2-input"
                     value="${valAtual || ''}"
-                    style="font-size:1rem; padding:0.5rem;">
+                    style="font-size:1rem; padding:0.5rem; margin-top:0;">
             `,
             showCancelButton: true,
             confirmButtonText: 'Confirmar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#d9480f',
-            preConfirm: () => document.getElementById('swal-validade').value || ''
+            preConfirm: () => {
+                const validade = document.getElementById('swal-validade').value || '';
+                const emEl = document.getElementById('swal-emissao');
+                const data_emissao = emEl ? (emEl.value || '') : '';
+                return { validade, data_emissao };
+            }
         });
         if (result.isDismissed) return null;
         return result.value;
     }
-    // Fallback simples
     const val = prompt(`Data de validade de "${nome}" (AAAA-MM-DD, ou vazio):`, valAtual || '');
-    return val; // null se cancelado
+    if (val === null) return null;
+    return { validade: val, data_emissao: emissaoAtual || '' };
 }

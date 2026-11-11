@@ -254,8 +254,9 @@
             section.classList.remove('hidden');
             const hoje = new Date(); hoje.setHours(0,0,0,0);
             list.innerHTML = licencas.map(l => {
-                const vencida = l.validade && new Date(l.validade + 'T12:00:00') < hoje;
-                const valStr = l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento definido';
+                const isCartaoCnpj = /cnpj/i.test(l.nome || '');
+                const vencida = !isCartaoCnpj && l.validade && new Date(l.validade + 'T12:00:00') < hoje;
+                const valStr = isCartaoCnpj ? 'Válido' : (l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento definido');
                 const temArquivo = !!l.file_name;
                 return `
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-50 p-4 rounded border ${vencida ? 'border-red-300 bg-red-50' : 'border-green-200'} gap-3">

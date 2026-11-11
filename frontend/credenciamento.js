@@ -50,7 +50,8 @@ async function _carregarLicencasAgrupadasLogistica(licsSelecionadas = []) {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-        const todas = Array.isArray(data) ? data : [];
+        // Excluir "Outras Licenças" do credenciamento (apenas controle interno)
+        const todas = (Array.isArray(data) ? data : []).filter(l => !String(l.empresa || '').toLowerCase().includes('outra'));
         
         credenciamentoState.licencas = todas; // For validation fallback
         const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
@@ -96,9 +97,10 @@ async function _carregarLicencasAgrupadasLogistica(licsSelecionadas = []) {
                     const checked = isChecked ? 'checked' : '';
                     
                     const hj = new Date(); hj.setHours(0,0,0,0);
-                    const isVencida = l.validade && new Date(l.validade + 'T12:00:00') < hj;
+                    const isCartaoCnpj = /cnpj/i.test(l.nome || '');
+                    const isVencida = !isCartaoCnpj && l.validade && new Date(l.validade + 'T12:00:00') < hj;
                     const vencStyle = isVencida ? 'color:#dc2626;font-weight:bold;' : 'color:#94a3b8;';
-                    const vencIcon = isVencida ? '⚠ Vencida' : (l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento');
+                    const vencIcon = isCartaoCnpj ? 'Liberado' : (isVencida ? '⚠ Vencida' : (l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento'));
 
                     return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:4px 0;">
                         <input type="checkbox" name="cred_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" data-validade="${l.validade || ''}" ${checked} onchange="window._updateLicencasTabCountsCred(); if(typeof window._autoSalvarSelecoesCredenciamento === 'function') window._autoSalvarSelecoesCredenciamento();">
@@ -197,7 +199,7 @@ async function loadLicencasCred() {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
-        credenciamentoState.licencas = await res.json() || [];
+        credenciamentoState.licencas = ((await res.json()) || []).filter(l => !String(l.empresa || '').toLowerCase().includes('outra'));
     } catch (e) {
         console.error('[Credenciamento] Erro ao carregar licenças:', e);
         credenciamentoState.licencas = [];
@@ -585,7 +587,8 @@ async function validarVencimentosCredenciamento() {
             const cb = licsCheckedDom.find(c => String(c.value) === id);
             if (cb) lic = { id, nome: cb.dataset.nome, empresa: cb.dataset.empresa, validade: cb.dataset.validade };
         }
-        if (lic && lic.validade) {
+        const isCartaoCnpj = lic && /cnpj/i.test(lic.nome || '');
+        if (lic && lic.validade && !isCartaoCnpj) {
             const dataVenc = new Date(lic.validade + (lic.validade.includes('T') ? '' : 'T23:59:59'));
             if (dataVenc < hoje) {
                 const valFormatada = lic.validade.split('T')[0].split('-').reverse().join('/');
@@ -1777,9 +1780,11 @@ window.solDocsProximo = async function() {
         _solDocState.veiculos = (await rV.json()) || [];
 
         const licsRaw = (rL && rL.ok) ? (await rL.json()) : [];
-        _solDocState.licencas = (Array.isArray(licsRaw) ? licsRaw : []).map(l => Object.assign({}, l, {
-            empresa_norm: _solNormalizarEmpresaLicenca(l.empresa)
-        }));
+        _solDocState.licencas = (Array.isArray(licsRaw) ? licsRaw : [])
+            .filter(l => !String(l.empresa || '').toLowerCase().includes('outra'))
+            .map(l => Object.assign({}, l, {
+                empresa_norm: _solNormalizarEmpresaLicenca(l.empresa)
+            }));
     } catch(e) {
         _solDocState.colaboradores = [];
         _solDocState.veiculos = [];
