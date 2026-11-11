@@ -779,6 +779,7 @@ const BREADCRUMB_MAP = {
     'rh-padaria': { path: 'RH → Pagamentos → Padaria', code: 'RHPAG04' },
     'rh-faculdade-pagamentos': { path: 'RH → Pagamentos → Faculdade', code: 'RHPAG05' },
     'app-lideranca-candidatos': { path: 'APP \u2192 Lideran\u00e7a \u2192 Candidatos', code: 'APP001' },
+    'app-lideranca-retiradas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Retiradas', code: 'APP002' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
@@ -1207,6 +1208,7 @@ const TAB_META = {
     'rh-padaria': { color: '#f503c5', icon: 'ph-cookie', title: 'Padaria' },
     'rh-faculdade-pagamentos': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
     'app-lideranca-candidatos': { color: '#0d9488', icon: 'ph-user-list', title: 'Candidatos (APP)' },
+    'app-lideranca-retiradas': { color: '#ca8a04', icon: 'ph-arrow-u-down-left', title: 'Retiradas (APP)' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
@@ -1455,6 +1457,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'app-lideranca-candidatos' && typeof window.renderAppLiderancaCandidatos === 'function') {
         setTimeout(() => window.renderAppLiderancaCandidatos(), 80);
+    }
+    if (tab.target === 'app-lideranca-retiradas' && typeof window.renderAppLiderancaRetiradas === 'function') {
+        setTimeout(() => window.renderAppLiderancaRetiradas(), 80);
     }
     if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
         setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
@@ -1717,6 +1722,8 @@ function navigateTo(target) {
         if (typeof window.renderFaculdadePagamentos === 'function') setTimeout(() => window.renderFaculdadePagamentos(), 80);
     } else if (target === 'app-lideranca-candidatos') {
         if (typeof window.renderAppLiderancaCandidatos === 'function') setTimeout(() => window.renderAppLiderancaCandidatos(), 80);
+    } else if (target === 'app-lideranca-retiradas') {
+        if (typeof window.renderAppLiderancaRetiradas === 'function') setTimeout(() => window.renderAppLiderancaRetiradas(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'logistica-epi') {

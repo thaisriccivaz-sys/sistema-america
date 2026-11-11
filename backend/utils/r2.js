@@ -81,12 +81,13 @@ async function deleteFromR2(destinationKey) {
     }
 }
 
-async function downloadStreamFromR2(destinationKey) {
+async function downloadStreamFromR2(destinationKey, range) {
     if (!s3Client) throw new Error("Cliente R2 não configurado.");
     
     const command = new GetObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: destinationKey,
+        ...(range ? { Range: range } : {}),
     });
     
     try {
@@ -94,7 +95,8 @@ async function downloadStreamFromR2(destinationKey) {
         return {
             stream: response.Body,
             contentType: response.ContentType,
-            contentLength: response.ContentLength
+            contentLength: response.ContentLength,
+            contentRange: response.ContentRange
         };
     } catch (e) {
         console.error(`[R2 Storage] Erro ao baixar ${destinationKey}:`, e.message);

@@ -228,7 +228,8 @@
     window._alcMenu = function () { document.body.classList.toggle('app-rail-open'); };
     function aplicarModoCelular() {
         const v = document.getElementById('view-app-lideranca-candidatos');
-        const ativo = !!(v && v.classList.contains('active'));
+        const vRet = document.getElementById('view-app-lideranca-retiradas'); // modo celular também vale para APP › Retiradas
+        const ativo = !!((v && v.classList.contains('active')) || (vRet && vRet.classList.contains('active')));
         document.body.classList.toggle('app-mobile-on', ativo && window.innerWidth <= 768);
         if (!ativo) document.body.classList.remove('app-rail-open');
     }

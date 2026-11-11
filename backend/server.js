@@ -4156,6 +4156,13 @@ try {
     console.error('[APP-LIDERANCA] ERRO ao carregar modulo:', eAppLid.message);
 }
 
+// --- APP > LIDERANCA > RETIRADAS (checklist de equipamentos retirados, fotos no R2) ---
+try {
+    require('./routes_app_retiradas')(app, db, authenticateToken, r2);
+} catch (eAppRet) {
+    console.error('[APP-RETIRADAS] ERRO ao carregar modulo:', eAppRet.message);
+}
+
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
 try {
     require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);
