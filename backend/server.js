@@ -4108,6 +4108,13 @@ try {
     console.error('[PADARIA] ERRO ao carregar modulo:', ePadaria.message);
 }
 
+// --- APP > LIDERANCA > CANDIDATOS (checklist e avaliacao do 1o dia, mobile, push) ---
+try {
+    require('./routes_app_lideranca')(app, db, authenticateToken, r2);
+} catch (eAppLid) {
+    console.error('[APP-LIDERANCA] ERRO ao carregar modulo:', eAppLid.message);
+}
+
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
 try {
     require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);

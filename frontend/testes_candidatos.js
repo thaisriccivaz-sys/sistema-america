@@ -485,6 +485,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         : '';
 const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status === col.id ? 'selected' : ''}>${col.id}</option>`).join('');
 
+    setTimeout(function(){ window._tcCarregarChecklistLider(c.id); }, 120);
     _modal(`<div style="width:85vw;max-width:1200px;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:20px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0;">
             ${foto}
@@ -571,7 +572,7 @@ const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status =
                     ${rotaHtml}
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         ${testesStr}
-                ${avaliacoesSection}
+                ${avaliacoesSection}<div id="tc-chk-lider"></div>
                     </div>
                 </div>
             </div>
@@ -892,6 +893,27 @@ function _getPerguntasCandidato(tipo, dia, resps, candTipoExtra) {
     if (isMot) return effDia === '1' ? pqLists.M1 : pqLists.M2;
     return effDia === '1' ? pqLists.A1 : pqLists.A2;
 }
+
+// Checklist preenchido pelo líder no menu APP > Liderança > Candidatos (1º dia)
+window._tcCarregarChecklistLider = async function(id) {
+    const box = document.getElementById("tc-chk-lider");
+    if (!box) return;
+    try {
+        const r = await fetch(API("/api/app/lideranca/candidatos/" + id + "/checklist-rh"), { headers: { Authorization: "Bearer " + token() } });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d.existe) return;
+        const cor = d.concluido ? "#16a34a" : "#d97706";
+        const itens = (d.itens || []).map(function(i) {
+            return "<li style=\"display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;\"><i class=\"ph " + (i.ok ? "ph-check-circle" : "ph-circle") + "\" style=\"color:" + (i.ok ? "#16a34a" : "#94a3b8") + ";font-size:1rem;flex-shrink:0;margin-top:1px;\"></i><span>" + i.texto + (i.obs ? " <em style=\"color:#64748b;\">— " + String(i.obs).replace(/</g, "&lt;") + "</em>" : "") + "</span></li>";
+        }).join("");
+        box.innerHTML = "<div style=\"padding:16px 20px 0;\"><div style=\"font-weight:700;font-size:0.88rem;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px;\"><i class=\"ph ph-list-checks\" style=\"color:" + cor + ";\"></i> Checklist do líder — 1º Dia</div>"
+            + "<div style=\"background:#f8fafc;border-radius:8px;padding:12px;border-left:3px solid " + cor + ";\">"
+            + "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;\"><span style=\"font-size:0.73rem;color:#64748b;\">Por: " + (d.lider_nome || "—") + (d.concluido_em ? " · " + fmtDTBR(d.concluido_em) : "") + (d.cnh_categoria ? " · CNH " + d.cnh_categoria : "") + "</span>"
+            + "<span style=\"background:" + cor + ";color:#fff;border-radius:99px;padding:2px 10px;font-size:0.75rem;font-weight:700;\">" + d.feitos + "/" + d.total + (d.concluido ? " concluído" : " em andamento") + "</span></div>"
+            + "<ul style=\"list-style:none;padding:0;margin:0;font-size:0.78rem;color:#475569;\">" + itens + "</ul></div></div>";
+    } catch (e) { /* checklist é opcional na tela do RH */ }
+};
 
 window._tcSetTipoExtra = async function(id, tipoExtra) {
     try {

@@ -148,6 +148,9 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         }
     }
 
+    // Disponibiliza o notificador do RH para o menu APP > Liderança (avaliação do 1º dia)
+    app.locals.notificarTestesCandidatos = notificarTestesCandidatos;
+
     function addLog(candidatoId, tipo, texto, req) {
         const u = getUser(req);
         db.run(

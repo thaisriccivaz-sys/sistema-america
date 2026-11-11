@@ -26,6 +26,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'fechamento',              pagina_nome: 'Fechamento', icone: 'ph-calculator' },
     { modulo: 'RH', pagina_id: 'testes-candidatos',        pagina_nome: 'Candidatos (RH)', icone: 'ph-clipboard-text' },
+    { modulo: 'APP', pagina_id: 'app-lideranca-candidatos', pagina_nome: 'Lideran\u00e7a \u203a Candidatos', icone: 'ph-user-list' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-ajudantes',   pagina_nome: 'Ajudantes',  icone: 'ph-rocket' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-motoristas',  pagina_nome: 'Motoristas', icone: 'ph-rocket' },
     // Prontuário Digital Abas
@@ -671,6 +672,10 @@ const MENU_HIERARQUIA = [
     {
         modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',
         grupos: [{ titulo: 'Telas', telas: ['sac', 'sac-atribuidos'] }]
+    },
+    {
+        modulo: 'APP', icone: 'ph-device-mobile', cor: '#0d9488',
+        grupos: [{ titulo: 'Lideran\u00e7a', telas: ['app-lideranca-candidatos'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',

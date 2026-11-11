@@ -1,0 +1,15 @@
+{
+  "name": "América Rental — Liderança",
+  "short_name": "Liderança AR",
+  "description": "Candidatos em teste: agenda, checklist e avaliação do 1º dia.",
+  "start_url": "/?abrir=app-lideranca-candidatos",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#f503c5",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

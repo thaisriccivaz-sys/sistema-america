@@ -26,6 +26,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="style.css?v=20261110v3">
+    <link rel="stylesheet" href="app_mobile.css?v=20261111v1">
+    <link rel="manifest" href="/manifest-app-lideranca.webmanifest">
+    <meta name="theme-color" content="#f503c5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Liderança AR">
     <script src="experiencia.js?v=20261110v2" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=1792102900000" defer></script>
@@ -496,6 +502,29 @@
                     </div>
                 </div>
 
+                <!-- APP (uso operacional / celular) -->
+                <div class="dept-item" style="--dept-color:#0d9488; --dept-bg:#ccfbf1;">
+                    <button class="dept-btn" title="APP">
+                        <i class="ph ph-device-mobile"></i>
+                        <span>APP</span>
+                    </button>
+                    <div class="dept-submenu">
+                        <div class="dept-submenu-header" style="color:#0d9488;"><i class="ph ph-device-mobile"></i> APP</div>
+                        <div class="nav-group" id="nav-group-app-lideranca">
+                            <button class="nav-group-label nav-group-toggle" onclick="toggleNavGroup('nav-group-app-lideranca')">
+                                <span style="display:flex;align-items:center;gap:0.55rem;">
+                                    <i class="ph ph-users-three"></i>
+                                    Lideran&ccedil;a
+                                </span>
+                                <i class="ph ph-caret-right nav-group-chevron"></i>
+                            </button>
+                            <div class="nav-group-items" id="nav-group-items-app-lideranca">
+                                <a href="#" class="nav-item nav-item-sub" data-target="app-lideranca-candidatos" onclick="navigateTo('app-lideranca-candidatos'); return false;"><i class="ph ph-user-list"></i>
+                                    Candidatos</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Diretoria -->
                 <div class="dept-item" style="--dept-color:#d9480f; --dept-bg:#ffedd5;">
                     <button class="dept-btn" title="Diretoria">
@@ -4839,6 +4868,10 @@
                     <div id="rh-faculdade-pagamentos-container"></div>
                 </section>
 
+                <section id="view-app-lideranca-candidatos" class="content-view" style="padding:0;background:#f8fafc;overflow-y:auto;">
+                    <div id="app-lideranca-candidatos-container"></div>
+                </section>
+
                 <!-- VIEW: FERIAS -->
                 <section id="view-ferias" class="content-view">
                     <div id="ferias-container">
@@ -6780,6 +6813,7 @@
     <script src="academia.js?v=20261110v2"></script>
     <script src="padaria.js?v=20261110v2"></script>
     <script src="faculdade_pagamentos.js?v=20261110v1"></script>
+    <script src="app_lideranca_candidatos.js?v=20261111v1"></script>
     <script src="pipeline.js?v=20261110v1"></script>
     <script src="clientes_itinerantes.js?v=1778869020176"></script>
     <script src="multas_logistica.js?v=20261103v2"></script>
