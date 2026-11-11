@@ -267,8 +267,9 @@
     window._alrMenu = function () { document.body.classList.toggle('app-rail-open'); };
     function aplicarModoCelular() {
         const v = document.getElementById('view-app-lideranca-retiradas');
-        const vCand = document.getElementById('view-app-lideranca-candidatos'); // mesma regra da tela de Candidatos (as duas compartilham o modo celular)
-        const ativo = !!((v && v.classList.contains('active')) || (vCand && vCand.classList.contains('active')));
+        const vCand = document.getElementById('view-app-lideranca-candidatos'); // mesma regra para Candidatos e Entregas
+        const vEnt = document.getElementById('view-app-lideranca-entregas');
+        const ativo = !!((v && v.classList.contains('active')) || (vCand && vCand.classList.contains('active')) || (vEnt && vEnt.classList.contains('active')));
         document.body.classList.toggle('app-mobile-on', ativo && window.innerWidth <= 768);
         if (!ativo) document.body.classList.remove('app-rail-open');
     }

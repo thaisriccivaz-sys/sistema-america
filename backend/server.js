@@ -4163,6 +4163,13 @@ try {
     console.error('[APP-RETIRADAS] ERRO ao carregar modulo:', eAppRet.message);
 }
 
+// --- APP > LIDERANCA > ENTREGAS (checklist de equipamentos entregues, fotos no R2) ---
+try {
+    require('./routes_app_entregas')(app, db, authenticateToken, r2);
+} catch (eAppEnt) {
+    console.error('[APP-ENTREGAS] ERRO ao carregar modulo:', eAppEnt.message);
+}
+
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
 try {
     require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);
