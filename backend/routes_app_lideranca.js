@@ -36,7 +36,14 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
 
     // ── Utilidades ──────────────────────────────────────────────────────────────
     const normTxt = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-    const isoDate = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
+    const isoDate = s => {
+        const str = String(s || '').trim();
+        const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+        const mBr = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+        return null;
+    };
     const hojeSP = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ });
     const usuarioReq = req => (req.user && (req.user.nome || req.user.username)) || 'Líder';
     const isTipoMotorista = t => normTxt(t).includes('motorista');
@@ -277,13 +284,15 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
     app.get('/api/app/lideranca/candidatos', guard, async (req, res) => {
         try {
             const hoje = isoDate(req.query.hoje) || hojeSP();
-            const limite = new Date(hoje + 'T12:00:00'); limite.setDate(limite.getDate() - 45);
-            const minData = limite.toISOString().split('T')[0];
 
-            const cands = await dbAll(`SELECT id, nome, tipo, status, data_teste_1, cnh_categoria, (foto_base64 IS NOT NULL AND foto_base64 != '') AS tem_foto
+            const cands = await dbAll(`SELECT id, nome, tipo, status,
+                                              COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
+                                              cnh_categoria,
+                                              (foto_base64 IS NOT NULL AND foto_base64 != '') AS tem_foto
                                        FROM candidatos_teste
-                                       WHERE status = 'Dias de Teste' AND data_teste_1 IS NOT NULL AND TRIM(data_teste_1) != ''
-                                       ORDER BY data_teste_1, nome`);
+                                       WHERE COALESCE(status, '') != 'ARQUIVADO'
+                                         AND COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) IS NOT NULL
+                                       ORDER BY COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) DESC, nome`);
             const checks = await dbAll(`SELECT candidato_id, tipo, itens_json, concluido_em FROM candidatos_checklist_lider WHERE dia = '1'`);
             const avals = await dbAll(`SELECT candidato_id FROM candidatos_teste_avaliacoes WHERE dia = '1'`);
             const chkMap = {}; checks.forEach(c => { chkMap[c.candidato_id] = c; });
@@ -301,7 +310,6 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 const data = isoDate(c.data_teste_1);
                 if (!data) continue;
                 const respondido = avSet.has(c.id);
-                if (data < minData && respondido) continue;
                 const ck = resumoChecklist(c.tipo, chkMap[c.id]);
                 let situacao;
                 if (respondido) situacao = 'respondido';
@@ -341,7 +349,10 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
     // Detalhe: dados, checklist, perguntas e (se já respondido) as respostas
     app.get('/api/app/lideranca/candidatos/:id', guard, async (req, res) => {
         try {
-            const c = await dbGet('SELECT id, nome, tipo, status, data_teste_1, cnh_categoria FROM candidatos_teste WHERE id = ?', [req.params.id]);
+            const c = await dbGet(`SELECT id, nome, tipo, status,
+                                          COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
+                                          cnh_categoria
+                                   FROM candidatos_teste WHERE id = ?`, [req.params.id]);
             if (!c) return res.status(404).json({ error: 'Candidato não encontrado.' });
             const ckRow = await dbGet(`SELECT * FROM candidatos_checklist_lider WHERE candidato_id = ? AND dia = '1'`, [c.id]);
             const ck = resumoChecklist(c.tipo, ckRow);
@@ -589,7 +600,8 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         try {
             const hoje = hojeSP();
             const cands = await dbAll(`SELECT ct.id, ct.nome, ct.tipo FROM candidatos_teste ct
-                                       WHERE ct.status = 'Dias de Teste' AND SUBSTR(ct.data_teste_1, 1, 10) = ?
+                                       WHERE COALESCE(ct.status, '') != 'ARQUIVADO'
+                                         AND SUBSTR(COALESCE(NULLIF(TRIM(ct.data_teste_1), ''), NULLIF(TRIM(ct.data_teste), '')), 1, 10) = ?
                                          AND NOT EXISTS (SELECT 1 FROM candidatos_teste_avaliacoes a WHERE a.candidato_id = ct.id AND a.dia = '1')`, [hoje]);
             if (!cands.length) return;
             const plantao = (await plantonistasDoDia(hoje)).filter(p => p.usuario_id);
