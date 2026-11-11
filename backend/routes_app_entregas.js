@@ -1,969 +1,577 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// APP › Liderança › Entregas
-// Conferência operacional (mobile-first) dos equipamentos de OS de ENTREGA no
-// Pipeline Logística, com checklist por modelo (joinha OK / avaria), foto
-// obrigatória por item e vídeo opcional por equipamento no Cloudflare R2.
+// ROTAS: APP › LIDERANÇA › ENTREGAS  (uso operacional, mobile-first)
+// Arquivo: backend/routes_app_entregas.js
+// Registro no server.js:
+//   require('./routes_app_entregas')(app, db, authenticateToken, r2);
+//
+// - Lista as entregas do pipeline (os_logistica) por data (agenda) com filtros
+// - Cada equipamento entregue (1 por unidade da OS) tem um checklist por modelo
+//   (👍 OK / 👎 avariado, observação, FOTO obrigatória por item, vídeo opcional)
+// - Motorista + veículo vêm do Resumo de Rota do dia (logistica_resumo_rota)
+// - Pendência vale para TODOS os líderes liberados no Controle de Acesso (sem regra de turno)
+// - Arquivos: Cloudflare R2 (nunca disco local) — streaming privado via /midia/:id
 // ═══════════════════════════════════════════════════════════════════════════════
+"use strict";
 
+const multer = require('multer');
 const crypto = require('crypto');
 
-const PAGE_ID = 'app-lideranca-entregas';
-const INICIO_PADRAO = '2026-11-10'; // ontem (referência: 11/11/2026)
-
-// Modelos e itens oficiais definidos pela operação
-const MODELOS_CHECKLIST = {
-    STD: {
-        nome: 'Banheiro Modelo STD',
-        curto: 'STD',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'assento_sanitario', label: 'Assento sanitário' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'tubo_respiro', label: 'Tubo de respiro' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'caixa_dejetos', label: 'Caixa de dejetos' },
-            { key: 'mictorio', label: 'Mictório' }
-        ]
-    },
-    LX: {
-        nome: 'Banheiro Modelo LX',
-        curto: 'LX',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'assento_sanitario', label: 'Assento sanitário' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'tubo_respiro', label: 'Tubo de respiro' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'caixa_dejetos', label: 'Caixa de dejetos' },
-            { key: 'mictorio', label: 'Mictório' },
-            { key: 'cuba', label: 'Cuba' },
-            { key: 'bomba_descarga', label: 'Bomba de descarga' }
-        ]
-    },
-    ELX: {
-        nome: 'Banheiro Modelo ELX',
-        curto: 'ELX',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'assento_sanitario', label: 'Assento sanitário' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'tubo_respiro', label: 'Tubo de respiro' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'caixa_dejetos', label: 'Caixa de dejetos' },
-            { key: 'mictorio', label: 'Mictório' },
-            { key: 'cuba', label: 'Cuba' },
-            { key: 'bomba_descarga', label: 'Bomba de descarga' },
-            { key: 'pia_lavatorio', label: 'Pia/lavatório' },
-            { key: 'torneira', label: 'Torneira' },
-            { key: 'dispensers', label: 'Dispensers' }
-        ]
-    },
-    GUARITA: {
-        nome: 'Guarita',
-        curto: 'Guarita',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'lateral', label: 'Lateral' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'pintura', label: 'Pintura' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'chave', label: 'Chave' },
-            { key: 'vidros_janelas', label: 'Vidros/janelas' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'soquete', label: 'Soquete' },
-            { key: 'interruptor', label: 'Interruptor' },
-            { key: 'balcao', label: 'Balcão' }
-        ]
-    },
-    MICTORIO: {
-        nome: 'Mictório (Kros)',
-        curto: 'Mictório',
-        itens: [
-            { key: 'tampinhas', label: 'Tampinhas' },
-            { key: 'parte_cima', label: 'Parte de cima' },
-            { key: 'parte_baixo', label: 'Parte de baixo' }
-        ]
-    },
-    PIA: {
-        nome: 'Pia PBII / PBIII',
-        curto: 'Pia',
-        itens: [
-            { key: 'torneiras', label: 'Torneiras' },
-            { key: 'dispensers', label: 'Dispensers' },
-            { key: 'reservatorio_limpa', label: 'Reservatório de água limpa' },
-            { key: 'reservatorio_suja', label: 'Reservatório de água suja' },
-            { key: 'bomba', label: 'Bomba' },
-            { key: 'chicotes', label: 'Chicotes' }
-        ]
-    },
-    HIDRAULICO: {
-        nome: 'Hidráulico',
-        curto: 'Hidráulico',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'assento_sanitario', label: 'Assento sanitário' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'vaso_sanitario', label: 'Vaso sanitário' },
-            { key: 'caixa_descarga', label: 'Caixa de descarga' },
-            { key: 'tubo_descarga', label: 'Tubo para descarga' },
-            { key: 'pia_lavatorio', label: 'Pia/lavatório' },
-            { key: 'torneira', label: 'Torneira' },
-            { key: 'chicotes', label: 'Chicotes' },
-            { key: 'dispensers', label: 'Dispensers' }
-        ]
-    },
-    CHUVEIRO: {
-        nome: 'Chuveiro',
-        curto: 'Chuveiro',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'encanamentos', label: 'Encanamentos' },
-            { key: 'ralo', label: 'Ralo' }
-        ]
-    },
-    PCD: {
-        nome: 'Banheiro PCD',
-        curto: 'PCD',
-        itens: [
-            { key: 'porta', label: 'Porta' },
-            { key: 'dobradica', label: 'Dobradiça' },
-            { key: 'cabo_aco_porta', label: 'Cabo de aço porta' },
-            { key: 'laterais', label: 'Laterais' },
-            { key: 'teto', label: 'Teto' },
-            { key: 'fechadura', label: 'Fechadura' },
-            { key: 'telas', label: 'Telas' },
-            { key: 'assento_sanitario', label: 'Assento sanitário' },
-            { key: 'placa_adesivo', label: 'Placa/adesivo' },
-            { key: 'tubo_respiro', label: 'Tubo de respiro' },
-            { key: 'piso', label: 'Piso' },
-            { key: 'caixa_dejetos', label: 'Caixa de dejetos' },
-            { key: 'barras_apoio', label: 'Barras de apoio' }
-        ]
-    }
-};
-
-// Mapeia uma descrição de produto da OS (ex.: "ELX C/ PIA", "KROS", "PBII") para um modelo
-function mapearModelo(descricao) {
-    const s = String(descricao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-    if (!s) return null;
-    if (/CARRINHO|LIMPA\s*FOSSA|VISITA\s*TECNICA|CAMINHAO|FRETE|HIGIENIZ|SUC(?:C|Ç)AO/.test(s)) return null;
-    if (/\bPCD\b|PNE/.test(s)) return 'PCD';
-    if (/GUARITA/.test(s)) return 'GUARITA';
-    if (/CHUVEIRO/.test(s)) return 'CHUVEIRO';
-    if (/HIDR[AÁ]ULIC/.test(s)) return 'HIDRAULICO';
-    if (/KROS|MICT[OÓ]RIO/.test(s)) return 'MICTORIO';
-    if (/\bPB\s*I{2,3}\b|\bPB[23]\b|\bPIA\b|LAVAT[OÓ]RIO\s*PORT/.test(s)) return 'PIA';
-    if (/\bS\s*ELX\b|\bELX\b|EXTRA\s*LUXO/.test(s)) return 'ELX';
-    if (/\bLX\b|\bLUXO\b/.test(s)) return 'LX';
-    if (/\bSTD\b|STANDARD/.test(s)) return 'STD';
-    return null;
-}
-
-// Expande itens_json de uma OS em unidades individuais conferíveis (ex.: 3 STD → STD_1, STD_2, STD_3)
-function explodirUnidades(itensJson) {
-    let arr = [];
-    try { arr = JSON.parse(itensJson || '[]'); } catch (_) { arr = []; }
-    if (!Array.isArray(arr)) arr = [];
-
-    const porModelo = {};
-    const semChecklist = [];
-    for (const raw of arr) {
-        const desc = (raw && (raw.descricao || raw.produto || raw.nome)) ? String(raw.descricao || raw.produto || raw.nome).trim() : '';
-        const qtd = Math.max(1, parseInt(raw && (raw.qtd ?? raw.quantidade), 10) || 1);
-        if (!desc) continue;
-        const modelo = mapearModelo(desc);
-        if (!modelo) {
-            semChecklist.push({ descricao: desc, qtd });
-            continue;
-        }
-        if (!porModelo[modelo]) porModelo[modelo] = [];
-        for (let i = 0; i < qtd; i++) porModelo[modelo].push(desc);
-    }
-
-    const unidades = [];
-    for (const modelo of Object.keys(porModelo)) {
-        const lista = porModelo[modelo];
-        const total = lista.length;
-        lista.forEach((desc, idx) => {
-            const indice = idx + 1;
-            unidades.push({
-                unidade_key: `${modelo}_${indice}`,
-                modelo,
-                modelo_nome: MODELOS_CHECKLIST[modelo].nome,
-                modelo_curto: MODELOS_CHECKLIST[modelo].curto,
-                indice,
-                total_modelo: total,
-                rotulo: total > 1 ? `${MODELOS_CHECKLIST[modelo].curto} ${indice}/${total}` : MODELOS_CHECKLIST[modelo].curto,
-                descricao_item: desc
-            });
-        });
-    }
-    return { unidades, semChecklist };
-}
-
-function parseDataOS(str) {
-    const s = String(str || '').trim();
-    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    return null;
-}
-
-function hojeISO() {
-    const agora = new Date(Date.now() - 3 * 3600 * 1000);
-    return agora.toISOString().slice(0, 10);
-}
-
 module.exports = function registerAppEntregasRoutes(app, db, authenticateToken, r2) {
-    const run = (sql, params = []) => new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) { if (err) reject(err); else resolve(this); });
+
+    const PAGE_ID = 'app-lideranca-entregas';
+    const ORIGEM = 'entrega';
+    const ORIGEM_TXT = 'entrega';
+    const TZ = 'America/Sao_Paulo';
+    const INICIO_CONTROLE_PADRAO = '2026-11-10'; // "a partir de ontem" (pedido em 11/11/2026)
+    const MAX_VIDEO_MB = 60;
+    const uploadMem = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_VIDEO_MB * 1024 * 1024 } });
+
+    // ── Helpers de banco (promises) ────────────────────────────────────────────
+    const dbRun = (sql, params = []) => new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) { if (err) reject(err); else resolve({ lastID: this.lastID, changes: this.changes }); });
     });
-    const get = (sql, params = []) => new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => { if (err) reject(err); else resolve(row); });
+    const dbGet = (sql, params = []) => new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => err ? reject(err) : resolve(row || null));
     });
-    const all = (sql, params = []) => new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => { if (err) reject(err); else resolve(rows || []); });
-    });
-
-    // ── Migração idempotente ──────────────────────────────────────────────────
-    db.serialize(() => {
-        db.run(`CREATE TABLE IF NOT EXISTS entregas_checklist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            os_id INTEGER NOT NULL,
-            numero_os TEXT,
-            data_entrega TEXT,
-            unidade_key TEXT NOT NULL,
-            modelo TEXT NOT NULL,
-            indice INTEGER DEFAULT 1,
-            total_modelo INTEGER DEFAULT 1,
-            descricao_item TEXT,
-            checklist_json TEXT DEFAULT '{}',
-            status TEXT DEFAULT 'em_andamento',
-            tem_avaria INTEGER DEFAULT 0,
-            conferido_por_id INTEGER,
-            conferido_por_nome TEXT,
-            conferido_por_foto TEXT,
-            conferido_em DATETIME,
-            reaberto_por_id INTEGER,
-            reaberto_em DATETIME,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(os_id, unidade_key)
-        )`);
-
-        db.run(`CREATE TABLE IF NOT EXISTS entregas_checklist_midias (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            os_id INTEGER NOT NULL,
-            unidade_key TEXT NOT NULL,
-            tipo TEXT NOT NULL,
-            item_key TEXT,
-            r2_key TEXT NOT NULL,
-            mime TEXT,
-            nome_original TEXT,
-            tamanho INTEGER DEFAULT 0,
-            criado_por_id INTEGER,
-            criado_por_nome TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
-
-        db.run(`CREATE INDEX IF NOT EXISTS idx_ent_chk_os ON entregas_checklist(os_id)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_ent_chk_data ON entregas_checklist(data_entrega)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_ent_mid_os ON entregas_checklist_midias(os_id, unidade_key)`);
-
-        db.run(`CREATE TABLE IF NOT EXISTS app_lideranca_config (
-            chave TEXT PRIMARY KEY,
-            valor TEXT,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`, () => {
-            db.run(`INSERT OR IGNORE INTO app_lideranca_config (chave, valor) VALUES ('entregas_inicio_controle', ?)`, [INICIO_PADRAO]);
-        });
+    const dbAll = (sql, params = []) => new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []));
     });
 
-    // ── Controle de acesso (mesmo padrão da tela Candidatos / Retiradas) ──────
-    function isAdmin(user) {
-        if (!user) return false;
-        const r = String(user.role || '').toLowerCase();
-        return r === 'admin' || r === 'rh' || r === 'master';
-    }
-    async function temPermissao(user) {
-        if (!user) return false;
-        if (isAdmin(user)) return true;
-        if (user.perfil_id) {
-            const p = await get(`SELECT permitido FROM perfis_permissoes WHERE perfil_id = ? AND pagina_id = ?`, [user.perfil_id, PAGE_ID]);
-            if (p) return p.permitido === 1;
-        }
-        const u = await get(`SELECT permitido FROM usuarios_permissoes WHERE usuario_id = ? AND pagina_id = ?`, [user.id, PAGE_ID]);
-        return !!(u && u.permitido === 1);
-    }
-    function exigirAcesso(req, res, next) {
-        temPermissao(req.user).then(ok => {
-            if (!ok) return res.status(403).json({ error: 'Acesso negado à tela Liderança › Entregas.' });
-            next();
-        }).catch(err => res.status(500).json({ error: err.message }));
-    }
+    // ── Utilidades ──────────────────────────────────────────────────────────────
+    const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const isoDate = s => {
+        const str = String(s || '').trim();
+        const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+        const mBr = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+        return null;
+    };
+    const hojeSP = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+    const somaDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+    const slug = s => norm(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const parseJson = (s, fb) => { try { const v = JSON.parse(s); return v == null ? fb : v; } catch (e) { return fb; } };
+    const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
-    async function getInicioControle() {
-        const r = await get(`SELECT valor FROM app_lideranca_config WHERE chave = 'entregas_inicio_controle'`);
-        return (r && r.valor) ? r.valor : INICIO_PADRAO;
-    }
+    // ── Checklists por modelo (exatamente os itens enviados pelo RH/Diretoria) ──
+    const BASE_STD = ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Tubo de respiro', 'Piso', 'Caixa de dejetos', 'Mictório'];
+    const BASE_LX = BASE_STD.concat(['Cuba', 'Bomba de descarga']);
+    const MODELOS = {
+        STD: { nome: 'Banheiro STD', icone: 'ph-toilet', itens: BASE_STD },
+        LX: { nome: 'Banheiro LX', icone: 'ph-toilet', itens: BASE_LX },
+        ELX: { nome: 'Banheiro ELX', icone: 'ph-toilet', itens: BASE_LX.concat(['Pia/lavatório', 'Torneira', 'Saboneteira', 'Papeleira']) },
+        GUARITA: { nome: 'Guarita', icone: 'ph-house-line', itens: ['Porta', 'Lateral', 'Teto', 'Pintura', 'Fechadura', 'Chave', 'Vidros/janelas', 'Piso', 'Soquete', 'Interruptor', 'Balcão'] },
+        MICTORIO: { nome: 'Mictório', icone: 'ph-drop', itens: ['Tampinhas', 'Parte de cima', 'Parte de baixo'] },
+        PIA: { nome: 'Pia PBII e PBIII', icone: 'ph-drop-half', itens: ['Torneiras', 'Saboneteira', 'Papeleira', 'Reservatório de água limpa', 'Reservatório de água suja', 'Bomba', 'Chicotes'] },
+        HIDRAULICO: { nome: 'Hidráulico', icone: 'ph-toilet', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Piso', 'Vaso sanitário', 'Caixa de descarga', 'Tubo para descarga', 'Pia/lavatório', 'Torneira', 'Chicotes', 'Saboneteira', 'Papeleira'] },
+        CHUVEIRO: { nome: 'Chuveiro', icone: 'ph-shower', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Placa/adesivo', 'Piso', 'Encanamentos', 'Ralo', 'Chuveiro'] },
+        PCD: { nome: 'Banheiro PCD', icone: 'ph-wheelchair', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Tubo de respiro', 'Piso', 'Caixa de dejetos', 'Barras de apoio'] }
+    };
+    Object.keys(MODELOS).forEach(k => { MODELOS[k].itens = MODELOS[k].itens.map(t => ({ id: slug(t), texto: t })); });
 
-    // Resolve foto e nome completo do usuário logado (vinculando com colaboradores se possível)
-    async function dadosLider(user) {
-        const u = await get(`SELECT id, username, email, avatar_url, colaborador_id FROM usuarios WHERE id = ?`, [user.id]);
-        let nome = (u && u.username) || user.username || 'Líder';
-        let foto = (u && u.avatar_url) || null;
-        if (u && u.colaborador_id) {
-            const c = await get(`SELECT nome_completo, avatar_url FROM colaboradores WHERE id = ?`, [u.colaborador_id]);
-            if (c) {
-                if (c.nome_completo) nome = c.nome_completo;
-                if (!foto && c.avatar_url) foto = c.avatar_url;
-            }
-        }
-        return { id: user.id, nome, foto };
-    }
-
-    // ── Mapa de motorista/veículo a partir do Resumo de Rota ──────────────────
-    async function montarMapaResumo(datasIso) {
-        if (!datasIso.length) return {};
-        const unicas = Array.from(new Set(datasIso));
-        const placeholders = unicas.map(() => '?').join(',');
-        const rows = await all(`SELECT data_rota, cards_json FROM logistica_resumo_rota WHERE data_rota IN (${placeholders})`, unicas);
-        const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9 ]/gi, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
-        const porData = {};
-        for (const r of rows) {
-            let cards = [];
-            try { cards = JSON.parse(r.cards_json || '[]'); } catch (_) { cards = []; }
-            if (!Array.isArray(cards)) continue;
-            const lista = [];
-            for (const c of cards) {
-                const veiculo = c.veiculo || '';
-                const motorista = c.motorista || '';
-                const ajudante = c.ajudante || '';
-                const itens = Array.isArray(c.itens) ? c.itens : [];
-                itens.forEach((it, idx) => {
-                    const tipo = String(it.tipo || '').toUpperCase();
-                    if (!/ENTREGA/.test(tipo)) return;
-                    lista.push({
-                        veiculo,
-                        motorista,
-                        ajudante,
-                        clienteNorm: norm(it.cliente),
-                        enderecoNorm: norm(it.endereco),
-                        cidadeNorm: norm(it.cidade),
-                        horario: it.horario || '',
-                        ordem: idx + 1,
-                        totalParadas: itens.length
-                    });
-                });
-            }
-            porData[r.data_rota] = lista;
-        }
-        return { porData, norm };
-    }
-
-    function casarRota(osRow, dataIso, mapa) {
-        if (!mapa || !mapa.porData || !mapa.porData[dataIso]) return null;
-        const lista = mapa.porData[dataIso];
-        if (!lista.length) return null;
-        const cliOs = mapa.norm(osRow.cliente);
-        const endOs = mapa.norm(osRow.endereco);
-        for (const it of lista) {
-            if (cliOs && it.clienteNorm && (cliOs.includes(it.clienteNorm) || it.clienteNorm.includes(cliOs))) return it;
-        }
-        for (const it of lista) {
-            if (endOs && it.enderecoNorm && endOs.slice(0, 18) === it.enderecoNorm.slice(0, 18)) return it;
-        }
+    // Nome do produto na OS → modelo do checklist (Carrinho, Limpa Fossa e Visita Técnica não têm checklist)
+    function mapModelo(desc) {
+        const t = norm(desc).toUpperCase();
+        if (!t) return null;
+        if (/VISITA|CARRINHO|FOSSA/.test(t)) return null;
+        if (/\bPCD\b/.test(t)) return 'PCD';
+        if (/GUARITA/.test(t)) return 'GUARITA';
+        if (/CHUVEIRO/.test(t)) return 'CHUVEIRO';
+        if (/HIDRAUL/.test(t)) return 'HIDRAULICO';
+        if (/MICTORIO/.test(t)) return 'MICTORIO';
+        if (/\bPIA\b|PB\s?I{2,3}\b/.test(t)) return 'PIA';
+        if (/\b(ELX|SLX)\b|EXTRA\s?LUXO/.test(t)) return 'ELX';
+        if (/\bLX\b/.test(t)) return 'LX';
+        if (/\bSTD\b|STANDARD/.test(t)) return 'STD';
         return null;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 1. LISTAGEM DA AGENDA + FILTROS + PENDÊNCIAS
-    // ═══════════════════════════════════════════════════════════════════════════
-    app.get('/api/app/entregas', authenticateToken, exigirAcesso, async (req, res) => {
+    // Uma "unidade" por equipamento entregue (OS com 3 STD → 3 checklists independentes)
+    function unidadesDaOS(os) {
+        const prods = parseJson(os.produtos, []);
+        const units = [];
+        (Array.isArray(prods) ? prods : []).forEach((p, pi) => {
+            const modelo = mapModelo(p && (p.desc || p.produto));
+            if (!modelo) return;
+            const qtd = Math.min(50, Math.max(1, parseInt(p.qtd, 10) || 1));
+            for (let n = 1; n <= qtd; n++) units.push({ key: `${pi + 1}-${n}`, modelo, produto: String((p.desc || p.produto || '')).trim() });
+        });
+        const total = {}; units.forEach(u => { total[u.modelo] = (total[u.modelo] || 0) + 1; });
+        const visto = {};
+        units.forEach(u => {
+            visto[u.modelo] = (visto[u.modelo] || 0) + 1;
+            u.indice = visto[u.modelo];
+            u.total = total[u.modelo];
+            u.rotulo = MODELOS[u.modelo].nome + (u.total > 1 ? ` ${u.indice}/${u.total}` : '');
+        });
+        return units;
+    }
+    const soVisitaTecnica = os => {
+        const prods = parseJson(os.produtos, []);
+        return Array.isArray(prods) && prods.length > 0 && prods.every(p => /VISITA/.test(norm(p && (p.desc || p.produto)).toUpperCase()));
+    };
+
+    // ── Migrações ───────────────────────────────────────────────────────────────
+    db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
+        db.run(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('entregas_inicio_controle', '${INICIO_CONTROLE_PADRAO}')`);
+        db.run(`CREATE TABLE IF NOT EXISTS entregas_checklist (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            os_id          INTEGER NOT NULL,
+            unit_key       TEXT NOT NULL,
+            numero_os      TEXT,
+            data_entrega  TEXT,
+            modelo         TEXT,
+            unidade_idx    INTEGER,
+            unidade_total  INTEGER,
+            itens_json     TEXT,
+            tem_avaria     INTEGER DEFAULT 0,
+            veiculo        TEXT,
+            motorista      TEXT,
+            lider_id       INTEGER,
+            lider_nome     TEXT,
+            lider_colab_id INTEGER,
+            iniciado_em    DATETIME DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            concluido_em   DATETIME,
+            UNIQUE (os_id, unit_key)
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS entregas_checklist_midias (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            checklist_id INTEGER NOT NULL,
+            tipo         TEXT NOT NULL,
+            item         TEXT,
+            r2_key       TEXT,
+            content_type TEXT,
+            criado_em    DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_ent_ck_data ON entregas_checklist (data_entrega)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_ent_mid_ck ON entregas_checklist_midias (checklist_id)`);
+    });
+
+    // ── Permissão (Controle de Acesso → página 'app-lideranca-entregas') ──────
+    function isTopAdmin(u) {
+        return !!u && (u.role === 'Diretoria' || u.role === 'Administrador' || u.departamento === 'Diretoria'
+            || (u.grupo_nome && String(u.grupo_nome).toLowerCase() === 'diretoria'));
+    }
+    async function requireApp(req, res, next) {
         try {
-            const inicioControle = await getInicioControle();
-            const hoje = hojeISO();
-            const de = /^\d{4}-\d{2}-\d{2}$/.test(req.query.de || '') ? req.query.de : '2020-01-01';
-            const ate = /^\d{4}-\d{2}-\d{2}$/.test(req.query.ate || '') ? req.query.ate : '2099-12-31';
+            if (isTopAdmin(req.user)) return next();
+            const gid = req.user && req.user.grupo_permissao_id;
+            if (!gid) return res.status(403).json({ error: 'Sem permissão para acessar Entregas.' });
+            const row = await dbGet('SELECT visualizar FROM permissoes_grupo WHERE grupo_id = ? AND pagina_id = ?', [gid, PAGE_ID]);
+            const v = row && row.visualizar;
+            if (v === 1 || v === '1' || v === true || v === 'true') return next();
+            return res.status(403).json({ error: 'Sem permissão para acessar Entregas.' });
+        } catch (e) { return res.status(500).json({ error: e.message }); }
+    }
+    const guard = [authenticateToken, requireApp];
 
-            const osRows = await all(`
-                SELECT id, numero_os, cliente, contrato, data_os, endereco, complemento,
-                       responsavel, telefone, diurno, noturno, horario_ini, horario_fim,
-                       tipo_servico, obs_internas, obs_motoristas, itens_json, coluna,
-                       veiculo_id, motorista_id, usuario_nome
-                  FROM os_logistica
-                 WHERE LOWER(tipo_servico) LIKE '%entrega%'
-                 ORDER BY id DESC
-            `);
+    async function inicioControle() {
+        const r = await dbGet(`SELECT valor FROM configuracoes_sistema WHERE chave = 'entregas_inicio_controle'`);
+        return (r && isoDate(r.valor)) || INICIO_CONTROLE_PADRAO;
+    }
 
-            const filtradas = [];
-            const datasParaRota = [];
-            const osIds = [];
-            for (const o of osRows) {
-                const dataIso = parseDataOS(o.data_os);
-                if (!dataIso) continue;
-                const noPeriodo = dataIso >= de && dataIso <= ate;
-                const noControle = dataIso >= inicioControle && dataIso <= hoje;
-                if (!noPeriodo && !noControle) continue;
-                o._dataIso = dataIso;
-                filtradas.push(o);
-                datasParaRota.push(dataIso);
-                osIds.push(o.id);
+    // Líder que está conferindo (nome do usuário + colaborador para a foto)
+    async function liderDoReq(req) {
+        const uid = (req.user && req.user.id) || null;
+        let nome = (req.user && (req.user.nome || req.user.username)) || 'Líder';
+        try {
+            const u = await dbGet("SELECT COALESCE(NULLIF(TRIM(nome),''), username) AS n FROM usuarios WHERE id = ?", [uid]);
+            if (u && u.n) nome = u.n;
+        } catch (e) { /* usa fallback */ }
+        let colabId = null;
+        try {
+            const cfg = uid ? await dbGet('SELECT colaborador_id FROM app_lider_config WHERE usuario_id = ?', [uid]) : null;
+            if (cfg) colabId = cfg.colaborador_id;
+            if (!colabId) {
+                const c = await dbGet('SELECT id FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) LIMIT 1', [nome]);
+                if (c) colabId = c.id;
             }
+        } catch (e) { /* sem foto */ }
+        return { id: uid, nome, colabId };
+    }
 
-            const chkPorOs = {};
-            const midCountPorOs = {};
-            if (osIds.length) {
-                const ph = osIds.map(() => '?').join(',');
-                const chks = await all(`SELECT * FROM entregas_checklist WHERE os_id IN (${ph})`, osIds);
-                for (const c of chks) {
-                    if (!chkPorOs[c.os_id]) chkPorOs[c.os_id] = {};
-                    chkPorOs[c.os_id][c.unidade_key] = c;
-                }
-                const mids = await all(`SELECT os_id, unidade_key, tipo, COUNT(*) AS qtd FROM entregas_checklist_midias WHERE os_id IN (${ph}) GROUP BY os_id, unidade_key, tipo`, osIds);
-                for (const m of mids) {
-                    const k = `${m.os_id}:${m.unidade_key}`;
-                    if (!midCountPorOs[k]) midCountPorOs[k] = { foto: 0, video: 0 };
-                    midCountPorOs[k][m.tipo] = m.qtd;
-                }
-            }
-
-            const mapaRota = await montarMapaResumo(datasParaRota);
-
-            const itens = filtradas.map(o => {
-                const { unidades, semChecklist } = explodirUnidades(o.itens_json);
-                const chks = chkPorOs[o.id] || {};
-                let concluidas = 0;
-                let comAvaria = 0;
-                let emAndamento = 0;
-                let ultimoConferente = null;
-
-                const unidadesResumo = unidades.map(u => {
-                    const reg = chks[u.unidade_key];
-                    const totalItens = MODELOS_CHECKLIST[u.modelo].itens.length;
-                    let respondidos = 0;
-                    let avariasUnidade = 0;
-                    if (reg && reg.checklist_json) {
-                        try {
-                            const obj = JSON.parse(reg.checklist_json);
-                            for (const it of MODELOS_CHECKLIST[u.modelo].itens) {
-                                const v = obj[it.key];
-                                if (v && (v.status === 'ok' || v.status === 'avaria')) {
-                                    respondidos++;
-                                    if (v.status === 'avaria') avariasUnidade++;
-                                }
-                            }
-                        } catch (_) {}
-                    }
-                    const status = reg ? reg.status : 'pendente';
-                    if (status === 'concluido') concluidas++;
-                    else if (respondidos > 0) emAndamento++;
-                    if ((reg && reg.tem_avaria) || avariasUnidade > 0) comAvaria++;
-                    if (reg && reg.conferido_por_nome && (!ultimoConferente || (reg.conferido_em || '') >= (ultimoConferente.em || ''))) {
-                        ultimoConferente = {
-                            id: reg.conferido_por_id,
-                            nome: reg.conferido_por_nome,
-                            foto: reg.conferido_por_foto,
-                            em: reg.conferido_em
-                        };
-                    }
-                    const mc = midCountPorOs[`${o.id}:${u.unidade_key}`] || { foto: 0, video: 0 };
-                    return {
-                        unidade_key: u.unidade_key,
-                        modelo: u.modelo,
-                        rotulo: u.rotulo,
-                        descricao_item: u.descricao_item,
-                        status,
-                        tem_avaria: !!((reg && reg.tem_avaria) || avariasUnidade > 0),
-                        avarias: avariasUnidade,
-                        respondidos,
-                        total_itens: totalItens,
-                        fotos: mc.foto || 0,
-                        videos: mc.video || 0,
-                        conferido_por_nome: reg ? reg.conferido_por_nome : null,
-                        conferido_por_foto: reg ? reg.conferido_por_foto : null,
-                        conferido_em: reg ? reg.conferido_em : null
-                    };
-                });
-
-                const totalUnidades = unidades.length;
-                const tudoConcluido = totalUnidades > 0 && concluidas === totalUnidades;
-                const pendente = totalUnidades > 0 && !tudoConcluido && o._dataIso >= inicioControle && o._dataIso <= hoje;
-
-                let situacao = 'pendente';
-                if (totalUnidades === 0) situacao = 'sem_checklist';
-                else if (tudoConcluido && comAvaria > 0) situacao = 'avaria';
-                else if (tudoConcluido) situacao = 'ok';
-                else if (emAndamento > 0 || concluidas > 0) situacao = 'andamento';
-
-                const rota = casarRota(o, o._dataIso, mapaRota);
-
-                return {
-                    os_id: o.id,
-                    numero_os: o.numero_os || String(o.id),
-                    cliente: o.cliente || 'Cliente não informado',
-                    contrato: o.contrato || '',
-                    data_iso: o._dataIso,
-                    data_br: o.data_os,
-                    endereco: o.endereco || '',
-                    complemento: o.complemento || '',
-                    horario_ini: o.horario_ini || '',
-                    horario_fim: o.horario_fim || '',
-                    turno: o.noturno ? 'noturno' : 'diurno',
-                    tipo_servico: o.tipo_servico || '',
-                    coluna_pipeline: o.coluna || '',
-                    motorista: (rota && rota.motorista) || o.motorista_id || '',
-                    ajudante: (rota && rota.ajudante) || '',
-                    veiculo: (rota && rota.veiculo) || o.veiculo_id || '',
-                    ordem_rota: rota ? `${rota.ordem}/${rota.totalParadas}` : '',
-                    horario_rota: rota ? rota.horario : '',
-                    total_unidades: totalUnidades,
-                    unidades_concluidas: concluidas,
-                    unidades_com_avaria: comAvaria,
-                    tem_avaria: comAvaria > 0,
-                    situacao,
-                    pendente,
-                    futura: o._dataIso > hoje,
-                    conferente: ultimoConferente,
-                    unidades: unidadesResumo,
-                    sem_checklist: semChecklist
+    // ── Rota do dia: numero_os → veículo / motorista (Resumo de Rota) ──────────
+    const cacheResumo = new Map(); // id → { len, mapa }
+    function montarMapaResumo(nome, dadosStr) {
+        const mapa = {};
+        const dados = parseJson(dadosStr, null);
+        const veic = Array.isArray(dados) ? dados : (dados && Array.isArray(dados.veiculos) ? dados.veiculos : []);
+        const turno = /NOITE/i.test(norm(nome)) ? 'Noite' : 'Dia';
+        veic.forEach(v => {
+            (v.os || []).forEach(o => {
+                const num = String(o._numero_os || '').trim();
+                if (!num) return;
+                const tipo = norm((o.tipo || '') + ' ' + (o.servico || '')).toUpperCase();
+                if (!/ENTREGA/.test(tipo)) return;
+                mapa[num] = {
+                    veiculo: v.veiculo || '', motorista: v.motorista || '', ajudante: v.ajudante || '',
+                    motorista_foto: v._fotoMotorista || null, ajudante_foto: v._fotoAjudante || null,
+                    resumo: nome, turno
                 };
             });
+        });
+        return mapa;
+    }
+    async function mapaRotaDoDia(iso) {
+        const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return {};
+        const prefixo = `${m[3]}-${m[2]}-${m[1]}`;
+        const rows = await dbAll(`SELECT id, nome, length(dados) AS len FROM logistica_resumo_rota WHERE nome LIKE ? ORDER BY id ASC`, [prefixo + '%']);
+        const mapa = {};
+        for (const r of rows) {
+            let c = cacheResumo.get(r.id);
+            if (!c || c.len !== r.len) {
+                const full = await dbGet('SELECT dados FROM logistica_resumo_rota WHERE id = ?', [r.id]);
+                c = { len: r.len, mapa: montarMapaResumo(r.nome, full && full.dados) };
+                cacheResumo.set(r.id, c);
+            }
+            Object.assign(mapa, c.mapa);
+        }
+        return mapa;
+    }
 
-            res.json({
-                inicio_controle: inicioControle,
-                hoje,
-                itens
+    // ── Montagem de uma entrega (OS) com situação por unidade ─────────────────
+    function estadoDoRow(row) { return row ? parseJson(row.itens_json, {}) : {}; }
+    function resumoUnidade(u, row, fotosItem) {
+        const itens = MODELOS[u.modelo].itens;
+        const estado = estadoDoRow(row);
+        const feitos = itens.filter(i => { const e = estado[i.id]; return e && (e.ok || e.nao) && fotosItem.has(i.id); }).length;
+        const concluido = !!(row && row.concluido_em);
+        const avaria = concluido && !!row.tem_avaria;
+        return {
+            key: u.key, modelo: u.modelo, modelo_nome: MODELOS[u.modelo].nome, icone: MODELOS[u.modelo].icone,
+            rotulo: u.rotulo, produto: u.produto, indice: u.indice, total: u.total,
+            itens_total: itens.length, itens_feitos: feitos,
+            status: concluido ? (avaria ? 'avaria' : 'ok') : (feitos > 0 ? 'andamento' : 'pendente'),
+            concluido, tem_avaria: avaria,
+            lider_nome: concluido ? row.lider_nome : null, lider_colab_id: concluido ? row.lider_colab_id : null,
+            concluido_em: concluido ? row.concluido_em : null
+        };
+    }
+    function resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio) {
+        const unidades = units.map(u => {
+            const row = rows[`${os.id}|${u.key}`];
+            return resumoUnidade(u, row, row ? (fotosPorCk[row.id] || new Set()) : new Set());
+        });
+        const concl = unidades.filter(u => u.concluido).length;
+        const algumaAvaria = unidades.some(u => u.tem_avaria);
+        let situacao;
+        if (!unidades.length) situacao = 'sem_checklist';
+        else if (concl === unidades.length) situacao = algumaAvaria ? 'avaria' : 'ok';
+        else if (concl > 0 || unidades.some(u => u.itens_feitos > 0)) situacao = 'andamento';
+        else situacao = 'pendente';
+        const data = isoDate(os.data_os);
+        const incompleta = unidades.length > 0 && concl < unidades.length;
+        return {
+            os_id: os.id, numero_os: os.numero_os, cliente: os.cliente, endereco: os.endereco, complemento: os.complemento || '',
+            contrato: os.contrato || '', data_entrega: data, tipo_servico: os.tipo_servico,
+            hora_inicio: os.hora_inicio || '', hora_fim: os.hora_fim || '', turno_os: os.turno || '',
+            unidades, concluidas: concl, total_unidades: unidades.length,
+            situacao, tem_avaria: algumaAvaria,
+            pendente: incompleta && data >= inicio && data <= hoje,
+            futura: data > hoje,
+            rota: rota || null
+        };
+    }
+
+    async function carregarRowsEFotos(osIds, de, ate) {
+        const rows = {}; const fotosPorCk = {};
+        if (!osIds.length) return { rows, fotosPorCk };
+        for (const lote of chunk(osIds, 400)) {
+            const ph = lote.map(() => '?').join(',');
+            const rs = await dbAll(`SELECT * FROM entregas_checklist WHERE os_id IN (${ph})`, lote);
+            rs.forEach(r => { rows[`${r.os_id}|${r.unit_key}`] = r; });
+        }
+        const ckIds = Object.values(rows).map(r => r.id);
+        for (const lote of chunk(ckIds, 400)) {
+            const ph = lote.map(() => '?').join(',');
+            const ms = await dbAll(`SELECT checklist_id, item FROM entregas_checklist_midias WHERE tipo = 'foto' AND checklist_id IN (${ph})`, lote);
+            ms.forEach(m => { (fotosPorCk[m.checklist_id] = fotosPorCk[m.checklist_id] || new Set()).add(m.item); });
+        }
+        return { rows, fotosPorCk };
+    }
+
+    // ── GET lista (agenda + filtros no front) ───────────────────────────────────
+    // ?de=YYYY-MM-DD&ate=YYYY-MM-DD   (entregas do intervalo + TODAS as pendentes desde o início do controle)
+    app.get('/api/app/entregas', guard, async (req, res) => {
+        try {
+            const hoje = hojeSP();
+            const inicio = await inicioControle();
+            const de = isoDate(req.query.de) || somaDias(hoje, -7);
+            const ate = isoDate(req.query.ate) || somaDias(hoje, 14);
+            const q = String(req.query.q || '').replace(/[^\w-]/g, '').slice(0, 20); // pesquisa por nº da OS (em qualquer data)
+            const oss = (await dbAll(`SELECT id, numero_os, cliente, endereco, complemento, contrato, data_os, tipo_servico, produtos, hora_inicio, hora_fim, turno
+                FROM os_logistica
+                WHERE status = 'ativo' AND LOWER(tipo_servico) LIKE '%entrega%' AND data_os IS NOT NULL AND data_os != ''
+                  AND ((data_os >= ? AND data_os <= ?) OR (data_os >= ? AND data_os <= ?)${q ? ' OR CAST(numero_os AS TEXT) LIKE ?' : ''})
+                ORDER BY data_os ASC, cliente ASC, CAST(numero_os AS REAL) ASC`, q ? [de, ate, inicio, hoje, '%' + q + '%'] : [de, ate, inicio, hoje]))
+                .filter(os => !soVisitaTecnica(os));
+            const { rows, fotosPorCk } = await carregarRowsEFotos(oss.map(o => o.id));
+            const datas = [...new Set(oss.map(o => isoDate(o.data_os)).filter(Boolean))];
+            const rotas = {};
+            for (const d of datas) rotas[d] = await mapaRotaDoDia(d);
+            const itens = oss.map(os => {
+                const data = isoDate(os.data_os);
+                const rota = (rotas[data] || {})[String(os.numero_os || '').trim()] || null;
+                return resumoOS(os, unidadesDaOS(os), rows, fotosPorCk, rota, hoje, inicio);
             });
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro na listagem:', err);
-            res.status(500).json({ error: err.message });
+            res.json({ hoje, inicio_controle: inicio, de, ate, itens });
+        } catch (e) {
+            console.error('[APP-ENTREGAS] GET lista:', e);
+            res.status(500).json({ error: 'Erro ao carregar entregas: ' + e.message });
         }
     });
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 2. DETALHE COMPLETO DE UMA OS DE ENTREGA + TODAS AS UNIDADES E MÍDIAS
-    // ═══════════════════════════════════════════════════════════════════════════
-    app.get('/api/app/entregas/os/:id', authenticateToken, exigirAcesso, async (req, res) => {
+    // ── Detalhe de uma entrega (OS) com itens, estado e mídias ────────────────
+    async function detalheOS(osId) {
+        const os = await dbGet(`SELECT id, numero_os, cliente, endereco, complemento, contrato, data_os, tipo_servico, produtos, hora_inicio, hora_fim, turno, observacoes
+            FROM os_logistica WHERE id = ? AND status = 'ativo'`, [osId]);
+        if (!os) return null;
+        const hoje = hojeSP(); const inicio = await inicioControle();
+        const data = isoDate(os.data_os);
+        const rota = ((await mapaRotaDoDia(data))[String(os.numero_os || '').trim()]) || null;
+        const units = unidadesDaOS(os);
+        const { rows, fotosPorCk } = await carregarRowsEFotos([os.id]);
+        const base = resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio);
+        const midiasPorCk = {};
+        const ckIds = Object.values(rows).map(r => r.id);
+        if (ckIds.length) {
+            const ms = await dbAll(`SELECT id, checklist_id, tipo, item FROM entregas_checklist_midias WHERE checklist_id IN (${ckIds.map(() => '?').join(',')}) ORDER BY id ASC`, ckIds);
+            ms.forEach(m => { (midiasPorCk[m.checklist_id] = midiasPorCk[m.checklist_id] || []).push({ id: m.id, tipo: m.tipo, item: m.item }); });
+        }
+        base.observacoes = os.observacoes || '';
+        base.unidades = base.unidades.map(u => {
+            const row = rows[`${os.id}|${u.key}`];
+            return Object.assign({}, u, {
+                itens: MODELOS[u.modelo].itens,
+                estado: estadoDoRow(row),
+                midias: row ? (midiasPorCk[row.id] || []) : []
+            });
+        });
+        return base;
+    }
+    app.get('/api/app/entregas/os/:id', guard, async (req, res) => {
         try {
-            const osId = Number(req.params.id);
-            const o = await get(`SELECT * FROM os_logistica WHERE id = ? AND LOWER(tipo_servico) LIKE '%entrega%'`, [osId]);
-            if (!o) return res.status(404).json({ error: 'OS de entrega não encontrada.' });
-
-            const dataIso = parseDataOS(o.data_os) || hojeISO();
-            const mapaRota = await montarMapaResumo([dataIso]);
-            const rota = casarRota(o, dataIso, mapaRota);
-            const { unidades, semChecklist } = explodirUnidades(o.itens_json);
-
-            const chks = await all(`SELECT * FROM entregas_checklist WHERE os_id = ?`, [osId]);
-            const chkMap = {};
-            for (const c of chks) chkMap[c.unidade_key] = c;
-
-            const mids = await all(`SELECT id, os_id, unidade_key, tipo, item_key, mime, nome_original, tamanho, criado_por_nome, created_at FROM entregas_checklist_midias WHERE os_id = ? ORDER BY id ASC`, [osId]);
-            const midPorUnidade = {};
-            for (const m of mids) {
-                if (!midPorUnidade[m.unidade_key]) midPorUnidade[m.unidade_key] = [];
-                midPorUnidade[m.unidade_key].push({
-                    ...m,
-                    url: `/api/app/entregas/midia/${m.id}`
-                });
-            }
-
-            const unidadesDetalhe = unidades.map(u => {
-                const reg = chkMap[u.unidade_key];
-                let respostas = {};
-                if (reg && reg.checklist_json) {
-                    try { respostas = JSON.parse(reg.checklist_json) || {}; } catch (_) { respostas = {}; }
-                }
-                const midiasUnidade = midPorUnidade[u.unidade_key] || [];
-                const fotosPorItem = {};
-                const videos = [];
-                for (const m of midiasUnidade) {
-                    if (m.tipo === 'video') videos.push(m);
-                    else if (m.item_key) fotosPorItem[m.item_key] = m;
-                }
-                const itensModelo = MODELOS_CHECKLIST[u.modelo].itens.map(it => {
-                    const r = respostas[it.key] || {};
-                    return {
-                        key: it.key,
-                        label: it.label,
-                        status: r.status || null,
-                        obs: r.obs || '',
-                        foto: fotosPorItem[it.key] || null
-                    };
-                });
-                return {
-                    ...u,
-                    status: reg ? reg.status : 'pendente',
-                    tem_avaria: !!(reg && reg.tem_avaria),
-                    conferido_por_id: reg ? reg.conferido_por_id : null,
-                    conferido_por_nome: reg ? reg.conferido_por_nome : null,
-                    conferido_por_foto: reg ? reg.conferido_por_foto : null,
-                    conferido_em: reg ? reg.conferido_em : null,
-                    itens: itensModelo,
-                    videos
-                };
-            });
-
-            res.json({
-                os: {
-                    id: o.id,
-                    numero_os: o.numero_os || String(o.id),
-                    cliente: o.cliente || '',
-                    contrato: o.contrato || '',
-                    data_iso: dataIso,
-                    data_br: o.data_os,
-                    endereco: o.endereco || '',
-                    complemento: o.complemento || '',
-                    responsavel: o.responsavel || '',
-                    telefone: o.telefone || '',
-                    horario_ini: o.horario_ini || '',
-                    horario_fim: o.horario_fim || '',
-                    turno: o.noturno ? 'noturno' : 'diurno',
-                    tipo_servico: o.tipo_servico || '',
-                    obs_internas: o.obs_internas || '',
-                    obs_motoristas: o.obs_motoristas || '',
-                    motorista: (rota && rota.motorista) || o.motorista_id || '',
-                    ajudante: (rota && rota.ajudante) || '',
-                    veiculo: (rota && rota.veiculo) || o.veiculo_id || '',
-                    ordem_rota: rota ? `${rota.ordem}/${rota.totalParadas}` : '',
-                    horario_rota: rota ? rota.horario : ''
-                },
-                unidades: unidadesDetalhe,
-                sem_checklist: semChecklist,
-                pode_reabrir: isAdmin(req.user)
-            });
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro no detalhe:', err);
-            res.status(500).json({ error: err.message });
+            const d = await detalheOS(parseInt(req.params.id, 10));
+            if (!d) return res.status(404).json({ error: 'Entrega não encontrada.' });
+            res.json(d);
+        } catch (e) {
+            console.error('[APP-ENTREGAS] GET detalhe:', e);
+            res.status(500).json({ error: e.message });
         }
     });
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 3. AUTOSAVE DO CHECKLIST DE UMA UNIDADE (joinha 👍/👎 + observação por item)
-    // ═══════════════════════════════════════════════════════════════════════════
-    app.put('/api/app/entregas/os/:id/unidades/:key/checklist', authenticateToken, exigirAcesso, async (req, res) => {
+    // Localiza OS + unidade e garante a linha do checklist
+    async function contextoUnidade(osId, key) {
+        const os = await dbGet(`SELECT id, numero_os, data_os, tipo_servico, produtos FROM os_logistica WHERE id = ? AND status = 'ativo'`, [osId]);
+        if (!os) return { erro: 'Entrega não encontrada.', status: 404 };
+        const unit = unidadesDaOS(os).find(u => u.key === key);
+        if (!unit) return { erro: 'Equipamento não encontrado nesta entrega.', status: 404 };
+        const data = isoDate(os.data_os);
+        const rota = ((await mapaRotaDoDia(data))[String(os.numero_os || '').trim()]) || {};
+        let row = await dbGet('SELECT * FROM entregas_checklist WHERE os_id = ? AND unit_key = ?', [os.id, unit.key]);
+        if (!row) {
+            await dbRun(`INSERT OR IGNORE INTO entregas_checklist (os_id, unit_key, numero_os, data_entrega, modelo, unidade_idx, unidade_total, itens_json, veiculo, motorista)
+                VALUES (?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)`,
+                [os.id, unit.key, String(os.numero_os || ''), data, unit.modelo, unit.indice, unit.total, rota.veiculo || null, rota.motorista || null]);
+            row = await dbGet('SELECT * FROM entregas_checklist WHERE os_id = ? AND unit_key = ?', [os.id, unit.key]);
+        }
+        return { os, unit, row, data, rota };
+    }
+
+    // ── PUT rascunho do checklist (a cada toque) ────────────────────────────────
+    app.put('/api/app/entregas/os/:id/unidades/:key/checklist', guard, async (req, res) => {
         try {
-            const osId = Number(req.params.id);
-            const unidadeKey = String(req.params.key || '').trim();
-            const o = await get(`SELECT id, numero_os, data_os, itens_json FROM os_logistica WHERE id = ?`, [osId]);
-            if (!o) return res.status(404).json({ error: 'OS não encontrada.' });
+            const ctx = await contextoUnidade(parseInt(req.params.id, 10), req.params.key);
+            if (ctx.erro) return res.status(ctx.status).json({ error: ctx.erro });
+            if (ctx.row.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
+            const entrada = (req.body && req.body.itens) || {};
+            const antigo = estadoDoRow(ctx.row);
+            const limpo = {};
+            MODELOS[ctx.unit.modelo].itens.forEach(it => {
+                const e = entrada[it.id];
+                if (!e) { if (antigo[it.id]) limpo[it.id] = antigo[it.id]; return; }
+                const ok = !!e.ok;
+                limpo[it.id] = { ok, nao: !!e.nao && !ok, obs: String(e.obs || '').slice(0, 500), em: e.em || (antigo[it.id] && antigo[it.id].em) || new Date().toISOString() };
+            });
+            await dbRun(`UPDATE entregas_checklist SET itens_json = ?, atualizado_em = CURRENT_TIMESTAMP,
+                veiculo = COALESCE(?, veiculo), motorista = COALESCE(?, motorista) WHERE id = ?`,
+                [JSON.stringify(limpo), ctx.rota.veiculo || null, ctx.rota.motorista || null, ctx.row.id]);
+            res.json({ ok: true });
+        } catch (e) {
+            console.error('[APP-ENTREGAS] PUT checklist:', e);
+            res.status(500).json({ error: e.message });
+        }
+    });
 
-            const { unidades } = explodirUnidades(o.itens_json);
-            const u = unidades.find(x => x.unidade_key === unidadeKey);
-            if (!u) return res.status(404).json({ error: 'Unidade não encontrada nesta OS.' });
+    // ── POST foto (1 por item) ou vídeo (opcional, 1 por equipamento) → R2 ─────
+    app.post('/api/app/entregas/os/:id/unidades/:key/midia', guard, uploadMem.single('arquivo'), async (req, res) => {
+        try {
+            if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            const ctx = await contextoUnidade(parseInt(req.params.id, 10), req.params.key);
+            if (ctx.erro) return res.status(ctx.status).json({ error: ctx.erro });
+            if (ctx.row.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
+            if (!r2 || !r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não está configurado. Tente novamente mais tarde.' });
 
-            const existente = await get(`SELECT * FROM entregas_checklist WHERE os_id = ? AND unidade_key = ?`, [osId, unidadeKey]);
-            if (existente && existente.status === 'concluido') {
-                return res.status(409).json({ error: 'Checklist já concluído. Reabra para editar.' });
-            }
-
-            let atual = {};
-            if (existente && existente.checklist_json) {
-                try { atual = JSON.parse(existente.checklist_json) || {}; } catch (_) { atual = {}; }
-            }
-
-            const itensPermitidos = new Set(MODELOS_CHECKLIST[u.modelo].itens.map(i => i.key));
-            const entrada = req.body && req.body.itens ? req.body.itens : {};
-            for (const k of Object.keys(entrada)) {
-                if (!itensPermitidos.has(k)) continue;
-                const v = entrada[k] || {};
-                const st = v.status === 'ok' || v.status === 'avaria' ? v.status : null;
-                const obs = typeof v.obs === 'string' ? v.obs.slice(0, 1000) : (atual[k] ? atual[k].obs || '' : '');
-                atual[k] = { status: st, obs };
-            }
-
-            let temAvaria = 0;
-            for (const k of Object.keys(atual)) {
-                if (atual[k] && atual[k].status === 'avaria') { temAvaria = 1; break; }
-            }
-
-            const dataIso = parseDataOS(o.data_os) || hojeISO();
-            const jsonStr = JSON.stringify(atual);
-
-            if (!existente) {
-                await run(`
-                    INSERT INTO entregas_checklist
-                        (os_id, numero_os, data_entrega, unidade_key, modelo, indice, total_modelo, descricao_item, checklist_json, status, tem_avaria)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'em_andamento', ?)
-                `, [osId, o.numero_os || String(o.id), dataIso, unidadeKey, u.modelo, u.indice, u.total_modelo, u.descricao_item, jsonStr, temAvaria]);
+            const item = String((req.body && req.body.item) || '').trim();
+            const mime = String(req.file.mimetype || '').toLowerCase();
+            const ehVideo = item === 'video';
+            if (ehVideo) {
+                if (!/^video\//.test(mime)) return res.status(400).json({ error: 'O arquivo precisa ser um vídeo.' });
             } else {
-                await run(`
-                    UPDATE entregas_checklist
-                       SET checklist_json = ?, tem_avaria = ?, updated_at = CURRENT_TIMESTAMP
-                     WHERE id = ?
-                `, [jsonStr, temAvaria, existente.id]);
+                if (!/^image\//.test(mime)) return res.status(400).json({ error: 'O arquivo precisa ser uma foto.' });
+                if (!MODELOS[ctx.unit.modelo].itens.some(i => i.id === item)) return res.status(400).json({ error: 'Item inválido para este equipamento.' });
+                if (req.file.size > 12 * 1024 * 1024) return res.status(413).json({ error: 'Foto muito grande (máx. 12 MB).' });
             }
-
-            res.json({ ok: true, tem_avaria: !!temAvaria, checklist: atual });
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro ao salvar checklist:', err);
-            res.status(500).json({ error: err.message });
-        }
-    });
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 4. UPLOAD DE FOTO (por item) OU VÍDEO (por equipamento) NO CLOUDFLARE R2
-    // ═══════════════════════════════════════════════════════════════════════════
-    app.post('/api/app/entregas/os/:id/unidades/:key/midia', authenticateToken, exigirAcesso, async (req, res) => {
-        try {
-            if (!r2 || !r2.isReady()) {
-                return res.status(503).json({ error: 'Cloudflare R2 não está configurado no servidor.' });
-            }
-            const osId = Number(req.params.id);
-            const unidadeKey = String(req.params.key || '').trim();
-            const { tipo, item_key, base64, mime, nome } = req.body || {};
-
-            if (tipo !== 'foto' && tipo !== 'video') {
-                return res.status(400).json({ error: 'Tipo de mídia inválido (use foto ou video).' });
-            }
-            const o = await get(`SELECT id, numero_os, data_os, itens_json FROM os_logistica WHERE id = ?`, [osId]);
-            if (!o) return res.status(404).json({ error: 'OS não encontrada.' });
-
-            const { unidades } = explodirUnidades(o.itens_json);
-            const u = unidades.find(x => x.unidade_key === unidadeKey);
-            if (!u) return res.status(404).json({ error: 'Unidade não encontrada nesta OS.' });
-
-            const existente = await get(`SELECT status FROM entregas_checklist WHERE os_id = ? AND unidade_key = ?`, [osId, unidadeKey]);
-            if (existente && existente.status === 'concluido') {
-                return res.status(409).json({ error: 'Checklist já concluído. Reabra para alterar mídias.' });
-            }
-
-            if (tipo === 'foto') {
-                const valido = MODELOS_CHECKLIST[u.modelo].itens.some(i => i.key === item_key);
-                if (!valido) return res.status(400).json({ error: 'Item do checklist inválido para foto.' });
-            }
-
-            const limpo = String(base64 || '').replace(/^data:[^;]+;base64,/, '');
-            if (!limpo) return res.status(400).json({ error: 'Arquivo vazio.' });
-            const buffer = Buffer.from(limpo, 'base64');
-
-            const ehVideo = tipo === 'video';
-            const limite = ehVideo ? 60 * 1024 * 1024 : 15 * 1024 * 1024;
-            if (buffer.length > limite) {
-                return res.status(413).json({ error: ehVideo ? 'Vídeo acima do limite de 60 MB.' : 'Foto acima do limite de 15 MB.' });
-            }
-
-            const contentType = mime || (ehVideo ? 'video/mp4' : 'image/jpeg');
-            const ext = ehVideo
-                ? (contentType.includes('webm') ? 'webm' : contentType.includes('quicktime') ? 'mov' : 'mp4')
-                : (contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg');
-
-            const dataIso = parseDataOS(o.data_os) || hojeISO();
-            const [y, m, d] = dataIso.split('-');
+            const ext = ehVideo ? (/quicktime/.test(mime) ? 'mov' : (/webm/.test(mime) ? 'webm' : 'mp4')) : (/png/.test(mime) ? 'png' : (/webp/.test(mime) ? 'webp' : 'jpg'));
+            const [y, m, d] = (ctx.data || hojeSP()).split('-');
             const hash = crypto.randomBytes(4).toString('hex');
-            const r2Key = `entregas-checklist/${y}/${m}/${d}/OS${o.numero_os || osId}_${u.modelo}${u.indice}_${ehVideo ? 'video' : item_key}_${Date.now()}_${hash}.${ext}`;
+            const r2Key = `entregas-checklist/${y}/${m}/${d}/OS${String(ctx.os.numero_os || ctx.os.id).replace(/[^\w-]/g, '')}_${ctx.unit.modelo}${ctx.unit.indice}_${ehVideo ? 'video' : item}_${Date.now()}_${hash}.${ext}`;
+            await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
 
-            // Se for foto de item e já existir uma foto anterior para o mesmo item, remove do R2 e do banco
-            if (tipo === 'foto' && item_key) {
-                const ant = await all(`SELECT id, r2_key FROM entregas_checklist_midias WHERE os_id = ? AND unidade_key = ? AND tipo = 'foto' AND item_key = ?`, [osId, unidadeKey, item_key]);
-                for (const a of ant) {
-                    if (a.r2_key) await r2.deleteFromR2(a.r2_key).catch(() => {});
-                    await run(`DELETE FROM entregas_checklist_midias WHERE id = ?`, [a.id]);
-                }
+            // substitui a mídia anterior do mesmo item (foto) / do vídeo
+            const antigas = await dbAll(`SELECT id, r2_key FROM entregas_checklist_midias WHERE checklist_id = ? AND tipo = ? AND item = ?`,
+                [ctx.row.id, ehVideo ? 'video' : 'foto', ehVideo ? 'video' : item]);
+            const ins = await dbRun(`INSERT INTO entregas_checklist_midias (checklist_id, tipo, item, r2_key, content_type) VALUES (?, ?, ?, ?, ?)`,
+                [ctx.row.id, ehVideo ? 'video' : 'foto', ehVideo ? 'video' : item, r2Key, req.file.mimetype]);
+            for (const a of antigas) {
+                try { await r2.deleteFromR2(a.r2_key); } catch (e2) { /* segue */ }
+                await dbRun('DELETE FROM entregas_checklist_midias WHERE id = ?', [a.id]);
             }
-
-            await r2.uploadToR2(r2Key, buffer, contentType);
-            const lider = await dadosLider(req.user);
-
-            const ins = await run(`
-                INSERT INTO entregas_checklist_midias
-                    (os_id, unidade_key, tipo, item_key, r2_key, mime, nome_original, tamanho, criado_por_id, criado_por_nome)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [osId, unidadeKey, tipo, ehVideo ? null : item_key, r2Key, contentType, nome || `${tipo}.${ext}`, buffer.length, lider.id, lider.nome]);
-
-            res.json({
-                ok: true,
-                midia: {
-                    id: ins.lastID,
-                    os_id: osId,
-                    unidade_key: unidadeKey,
-                    tipo,
-                    item_key: ehVideo ? null : item_key,
-                    mime: contentType,
-                    tamanho: buffer.length,
-                    url: `/api/app/entregas/midia/${ins.lastID}`
-                }
-            });
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro no upload de mídia:', err);
-            res.status(500).json({ error: err.message });
+            await dbRun('UPDATE entregas_checklist SET atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [ctx.row.id]);
+            res.json({ ok: true, midia: { id: ins.lastID, tipo: ehVideo ? 'video' : 'foto', item: ehVideo ? 'video' : item } });
+        } catch (e) {
+            console.error('[APP-ENTREGAS] POST midia:', e);
+            if (e && e.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Arquivo acima de ${MAX_VIDEO_MB} MB.` });
+            res.status(500).json({ error: 'Erro ao enviar arquivo: ' + e.message });
         }
     });
+    // multer: erro de tamanho cai aqui antes do handler
+    app.use('/api/app/entregas', (err, req, res, next) => {
+        if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Arquivo acima de ${MAX_VIDEO_MB} MB.` });
+        next(err);
+    });
 
-    // Stream privado de foto/vídeo a partir do R2
-    app.get('/api/app/entregas/midia/:id', authenticateToken, exigirAcesso, async (req, res) => {
+    // ── DELETE mídia (antes de concluir): apaga do R2 e depois do banco ────────
+    app.delete('/api/app/entregas/midia/:id', guard, async (req, res) => {
         try {
-            const m = await get(`SELECT r2_key, mime, nome_original FROM entregas_checklist_midias WHERE id = ?`, [Number(req.params.id)]);
-            if (!m || !m.r2_key) return res.status(404).send('Mídia não encontrada.');
-            const { stream, contentType, contentLength } = await r2.downloadStreamFromR2(m.r2_key);
-            res.setHeader('Content-Type', m.mime || contentType || 'application/octet-stream');
-            if (contentLength) res.setHeader('Content-Length', String(contentLength));
+            const m = await dbGet(`SELECT m.id, m.r2_key, c.concluido_em FROM entregas_checklist_midias m JOIN entregas_checklist c ON c.id = m.checklist_id WHERE m.id = ?`, [req.params.id]);
+            if (!m) return res.status(404).json({ error: 'Arquivo não encontrado.' });
+            if (m.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
+            if (m.r2_key && r2 && r2.isReady()) { try { await r2.deleteFromR2(m.r2_key); } catch (e2) { /* segue */ } }
+            await dbRun('DELETE FROM entregas_checklist_midias WHERE id = ?', [m.id]);
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ── GET mídia (stream privado do R2; aceita ?token= para <img>/<video>) ────
+    app.get('/api/app/entregas/midia/:id', guard, async (req, res) => {
+        try {
+            const m = await dbGet('SELECT r2_key, content_type FROM entregas_checklist_midias WHERE id = ?', [req.params.id]);
+            if (!m || !m.r2_key) return res.status(404).end();
+            if (!r2 || !r2.isReady()) return res.status(503).end();
+            const range = req.headers.range || null;
+            const f = await r2.downloadStreamFromR2(m.r2_key, range);
+            res.setHeader('Content-Type', m.content_type || f.contentType || 'application/octet-stream');
             res.setHeader('Cache-Control', 'private, max-age=3600');
-            stream.pipe(res);
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro ao baixar mídia:', err.message);
-            res.status(404).send('Arquivo não encontrado no storage.');
+            res.setHeader('Accept-Ranges', 'bytes');
+            if (range && f.contentRange) {
+                res.status(206);
+                res.setHeader('Content-Range', f.contentRange);
+            }
+            if (f.contentLength != null) res.setHeader('Content-Length', f.contentLength);
+            f.stream.on('error', () => { try { res.end(); } catch (e2) { /* ignora */ } });
+            f.stream.pipe(res);
+        } catch (e) {
+            console.error('[APP-ENTREGAS] GET midia:', e.message);
+            if (!res.headersSent) res.status(404).end(); else try { res.end(); } catch (e2) { /* ignora */ }
         }
     });
 
-    // Exclusão de mídia (deleta do R2 antes do banco)
-    app.delete('/api/app/entregas/midia/:id', authenticateToken, exigirAcesso, async (req, res) => {
+
+    // ── Notificação de avaria (Notificações → quadro "Avaria de equipamento"): popup + e-mail ──
+    async function notificarAvaria(ctx, estado, lider) {
+        const os = await dbGet('SELECT cliente FROM os_logistica WHERE id = ?', [ctx.os.id]);
+        const cliente = String((os && os.cliente) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim() || '-'; // sem emoji (e-mail externo ao sistema)
+        const modelo = MODELOS[ctx.unit.modelo];
+        const equipamento = modelo.nome + (ctx.unit.total > 1 ? ` ${ctx.unit.indice}/${ctx.unit.total}` : '');
+        const itensAv = modelo.itens.filter(it => estado[it.id] && estado[it.id].nao).map(it => ({ item: it.texto, obs: String(estado[it.id].obs || '').trim() }));
+        const dataBr = (ctx.data || '').split('-').reverse().join('/');
+        const dados = {
+            origem: ORIGEM, os_id: ctx.os.id, numero_os: String(ctx.os.numero_os || ''), cliente, equipamento,
+            motorista: ctx.rota.motorista || '', veiculo: ctx.rota.veiculo || '', data: dataBr, lider: lider.nome, itens: itensAv
+        };
+        const msg = `Avaria em ${equipamento} — OS ${dados.numero_os} (${cliente}): ${itensAv.map(i => i.item).join(', ')}`;
+        const dest = await dbAll("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'avaria_equipamento'");
+        for (const d of dest) {
+            try { await dbRun('INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)', [d.usuario_id, 'avaria_equipamento', msg, JSON.stringify(dados)]); } catch (e) { console.error('[APP-ENTREGAS] popup avaria:', e.message); }
+        }
+        const sendMail = app.locals && app.locals.sendEmailParaNotificados;
+        if (typeof sendMail !== 'function') return;
+        const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const td = 'padding:8px 12px;border:1px solid #fecaca;';
+        const linhas = itensAv.map(i => `<tr><td style="${td}font-weight:bold;color:#dc2626;">${e(i.item)}</td><td style="${td}">${e(i.obs || '—')}</td></tr>`).join('');
+        const html = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:640px;margin:0 auto;border:1px solid #eee;border-radius:10px;overflow:hidden;">'
+            + '<div style="text-align:center;padding:20px 20px 10px;"><img src="cid:empresa-logo" style="max-height:80px;"></div>'
+            + '<div style="padding:20px 24px;"><h2 style="color:#dc2626;border-bottom:2px solid #ef4444;padding-bottom:10px;margin-top:0;">⚠️ Avaria registrada na ' + ORIGEM_TXT + '</h2>'
+            + `<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;width:34%;">Cliente</td><td style="${td}">${e(cliente)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Número da OS</td><td style="${td}">${e(dados.numero_os)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Motorista</td><td style="${td}">${e(dados.motorista || 'Não definido')}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Veículo</td><td style="${td}">${e(dados.veiculo || 'Não definido')}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Data da ${ORIGEM_TXT}</td><td style="${td}">${e(dataBr)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Equipamento</td><td style="${td}">${e(equipamento)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Conferido por</td><td style="${td}">${e(lider.nome)}</td></tr>
+            </table>`
+            + '<h3 style="color:#b91c1c;margin:0 0 8px;">Avarias registradas</h3>'
+            + `<table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:#fee2e2;color:#991b1b;"><th style="${td}text-align:left;">Item avariado</th><th style="${td}text-align:left;">Observação</th></tr></thead><tbody>${linhas}</tbody></table>`
+            + '<p style="margin-top:24px;font-size:0.9em;color:#64748b;">Atenciosamente,<br>Sistema América Rental</p></div></div>';
+        await sendMail('avaria_equipamento', { subject: `⚠️ Avaria na ${ORIGEM_TXT} — OS ${dados.numero_os} — ${cliente}`, html });
+    }
+
+    // ── POST concluir conferência de uma unidade ────────────────────────────────
+    app.post('/api/app/entregas/os/:id/unidades/:key/concluir', guard, async (req, res) => {
         try {
-            const m = await get(`SELECT * FROM entregas_checklist_midias WHERE id = ?`, [Number(req.params.id)]);
-            if (!m) return res.status(404).json({ error: 'Mídia não encontrada.' });
-            const chk = await get(`SELECT status FROM entregas_checklist WHERE os_id = ? AND unidade_key = ?`, [m.os_id, m.unidade_key]);
-            if (chk && chk.status === 'concluido') {
-                return res.status(409).json({ error: 'Checklist concluído. Reabra para remover mídias.' });
-            }
-            if (m.r2_key && r2 && r2.isReady()) {
-                await r2.deleteFromR2(m.r2_key).catch(() => {});
-            }
-            await run(`DELETE FROM entregas_checklist_midias WHERE id = ?`, [m.id]);
-            res.json({ ok: true });
-        } catch (err) {
-            res.status(500).json({ error: err.message });
+            const ctx = await contextoUnidade(parseInt(req.params.id, 10), req.params.key);
+            if (ctx.erro) return res.status(ctx.status).json({ error: ctx.erro });
+            if (ctx.row.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
+            const estado = estadoDoRow(ctx.row);
+            const fotos = new Set((await dbAll(`SELECT item FROM entregas_checklist_midias WHERE checklist_id = ? AND tipo = 'foto'`, [ctx.row.id])).map(r => r.item));
+            const semMarca = [], semFoto = [];
+            let avaria = false;
+            MODELOS[ctx.unit.modelo].itens.forEach(it => {
+                const e = estado[it.id];
+                if (!e || !(e.ok || e.nao)) { semMarca.push(it.texto); return; }
+                if (e.nao) avaria = true; // observação é opcional (positivo ou negativo)
+                if (!fotos.has(it.id)) semFoto.push(it.texto);
+            });
+            const lista = a => a.slice(0, 4).join(', ') + (a.length > 4 ? ` e mais ${a.length - 4}` : '');
+            if (semMarca.length) return res.status(400).json({ error: `Faltam marcar 👍 ou 👎: ${lista(semMarca)}.` });
+            if (semFoto.length) return res.status(400).json({ error: `Falta a foto de: ${lista(semFoto)}.` });
+
+            const lider = await liderDoReq(req);
+            await dbRun(`UPDATE entregas_checklist SET concluido_em = CURRENT_TIMESTAMP, atualizado_em = CURRENT_TIMESTAMP, tem_avaria = ?,
+                lider_id = ?, lider_nome = ?, lider_colab_id = ?, veiculo = COALESCE(?, veiculo), motorista = COALESCE(?, motorista) WHERE id = ?`,
+                [avaria ? 1 : 0, lider.id, lider.nome, lider.colabId, ctx.rota.veiculo || null, ctx.rota.motorista || null, ctx.row.id]);
+            if (avaria) { notificarAvaria(ctx, estado, lider).catch(e3 => console.error('[APP-ENTREGAS] notificar avaria:', e3.message)); }
+            res.json({ ok: true, tem_avaria: avaria });
+        } catch (e) {
+            console.error('[APP-ENTREGAS] POST concluir:', e);
+            res.status(500).json({ error: e.message });
         }
     });
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 5. CONCLUIR E REABRIR CONFERÊNCIA DA UNIDADE
-    //    Regras: todos os itens com 👍 ou 👎, 1 foto por item, observação se 👎
-    // ═══════════════════════════════════════════════════════════════════════════
-    app.post('/api/app/entregas/os/:id/unidades/:key/concluir', authenticateToken, exigirAcesso, async (req, res) => {
+    // ── POST reabrir (somente Diretoria/Administrador) ──────────────────────────
+    app.post('/api/app/entregas/os/:id/unidades/:key/reabrir', authenticateToken, async (req, res) => {
         try {
-            const osId = Number(req.params.id);
-            const unidadeKey = String(req.params.key || '').trim();
-            const o = await get(`SELECT id, numero_os, data_os, itens_json FROM os_logistica WHERE id = ?`, [osId]);
-            if (!o) return res.status(404).json({ error: 'OS não encontrada.' });
-
-            const { unidades } = explodirUnidades(o.itens_json);
-            const u = unidades.find(x => x.unidade_key === unidadeKey);
-            if (!u) return res.status(404).json({ error: 'Unidade não encontrada nesta OS.' });
-
-            const chk = await get(`SELECT * FROM entregas_checklist WHERE os_id = ? AND unidade_key = ?`, [osId, unidadeKey]);
-            let respostas = {};
-            if (chk && chk.checklist_json) {
-                try { respostas = JSON.parse(chk.checklist_json) || {}; } catch (_) { respostas = {}; }
-            }
-
-            const fotos = await all(`SELECT item_key FROM entregas_checklist_midias WHERE os_id = ? AND unidade_key = ? AND tipo = 'foto'`, [osId, unidadeKey]);
-            const itensComFoto = new Set(fotos.map(f => f.item_key));
-
-            const faltandoResposta = [];
-            const faltandoFoto = [];
-            const faltandoObs = [];
-            let temAvaria = 0;
-
-            for (const it of MODELOS_CHECKLIST[u.modelo].itens) {
-                const r = respostas[it.key] || {};
-                if (r.status !== 'ok' && r.status !== 'avaria') {
-                    faltandoResposta.push(it.label);
-                } else if (r.status === 'avaria') {
-                    temAvaria = 1;
-                    if (!String(r.obs || '').trim()) faltandoObs.push(it.label);
-                }
-                if (!itensComFoto.has(it.key)) {
-                    faltandoFoto.push(it.label);
-                }
-            }
-
-            if (faltandoResposta.length || faltandoFoto.length || faltandoObs.length) {
-                const partes = [];
-                if (faltandoResposta.length) partes.push(`Marque 👍 ou 👎 em: ${faltandoResposta.join(', ')}`);
-                if (faltandoFoto.length) partes.push(`Tire a foto obrigatória de: ${faltandoFoto.join(', ')}`);
-                if (faltandoObs.length) partes.push(`Descreva a avaria (👎) em: ${faltandoObs.join(', ')}`);
-                return res.status(400).json({
-                    error: partes.join(' · '),
-                    faltando_resposta: faltandoResposta,
-                    faltando_foto: faltandoFoto,
-                    faltando_obs: faltandoObs
-                });
-            }
-
-            const lider = await dadosLider(req.user);
-            const dataIso = parseDataOS(o.data_os) || hojeISO();
-
-            if (!chk) {
-                await run(`
-                    INSERT INTO entregas_checklist
-                        (os_id, numero_os, data_entrega, unidade_key, modelo, indice, total_modelo, descricao_item,
-                         checklist_json, status, tem_avaria, conferido_por_id, conferido_por_nome, conferido_por_foto, conferido_em)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'concluido', ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                `, [osId, o.numero_os || String(o.id), dataIso, unidadeKey, u.modelo, u.indice, u.total_modelo, u.descricao_item,
-                    JSON.stringify(respostas), temAvaria, lider.id, lider.nome, lider.foto]);
-            } else {
-                await run(`
-                    UPDATE entregas_checklist
-                       SET status = 'concluido',
-                           tem_avaria = ?,
-                           conferido_por_id = ?,
-                           conferido_por_nome = ?,
-                           conferido_por_foto = ?,
-                           conferido_em = CURRENT_TIMESTAMP,
-                           updated_at = CURRENT_TIMESTAMP
-                     WHERE id = ?
-                `, [temAvaria, lider.id, lider.nome, lider.foto, chk.id]);
-            }
-
-            res.json({ ok: true, tem_avaria: !!temAvaria, conferente: lider });
-        } catch (err) {
-            console.error('[APP-ENTREGAS] Erro ao concluir:', err);
-            res.status(500).json({ error: err.message });
-        }
+            if (!isTopAdmin(req.user)) return res.status(403).json({ error: 'Apenas Diretoria/Administrador pode reabrir.' });
+            const r = await dbRun(`UPDATE entregas_checklist SET concluido_em = NULL, tem_avaria = 0, lider_id = NULL, lider_nome = NULL, lider_colab_id = NULL,
+                atualizado_em = CURRENT_TIMESTAMP WHERE os_id = ? AND unit_key = ?`, [parseInt(req.params.id, 10), req.params.key]);
+            res.json({ ok: true, changes: r.changes });
+        } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
-    app.post('/api/app/entregas/os/:id/unidades/:key/reabrir', authenticateToken, exigirAcesso, async (req, res) => {
-        try {
-            if (!isAdmin(req.user)) {
-                return res.status(403).json({ error: 'Somente administradores podem reabrir um checklist concluído.' });
-            }
-            const osId = Number(req.params.id);
-            const unidadeKey = String(req.params.key || '').trim();
-            await run(`
-                UPDATE entregas_checklist
-                   SET status = 'em_andamento',
-                       reaberto_por_id = ?,
-                       reaberto_em = CURRENT_TIMESTAMP,
-                       updated_at = CURRENT_TIMESTAMP
-                 WHERE os_id = ? AND unidade_key = ?
-            `, [req.user.id, osId, unidadeKey]);
-            res.json({ ok: true });
-        } catch (err) {
-            res.status(500).json({ error: err.message });
-        }
-    });
+    console.log('[APP-ENTREGAS] Rotas registradas (/api/app/entregas).');
 };

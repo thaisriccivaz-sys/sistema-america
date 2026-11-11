@@ -4156,6 +4156,9 @@ try {
     console.error('[APP-LIDERANCA] ERRO ao carregar modulo:', eAppLid.message);
 }
 
+// Disponibiliza o envio de e-mail aos usuarios do quadro de Notificacoes para os modulos APP (avaria de equipamento)
+app.locals.sendEmailParaNotificados = sendEmailParaNotificados;
+
 // --- APP > LIDERANCA > RETIRADAS (checklist de equipamentos retirados, fotos no R2) ---
 try {
     require('./routes_app_retiradas')(app, db, authenticateToken, r2);

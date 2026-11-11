@@ -297,3 +297,10 @@ body.app-mobile-on #view-app-lideranca-retiradas { padding: 0 !important; }
 .alr-lightbox { position: fixed; inset: 0; z-index: 9600; background: rgba(0, 0, 0, .92); display: flex; align-items: center; justify-content: center; }
 .alr-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .alr-lightbox .alc-icon-btn { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 2; }
+
+/* Busca por nº da OS (Retiradas / Entregas) */
+.alr-busca { position: relative; display: flex; align-items: center; margin: 8px 12px 0; }
+.alr-busca > i { position: absolute; left: 14px; font-size: 20px; color: #64748b; pointer-events: none; }
+.alr-busca input { width: 100%; min-height: 48px; padding: 0 44px 0 44px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 14px; background: #fff; color: #0f172a; outline: none; }
+.alr-busca input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+.alr-busca-x { position: absolute; right: 6px; width: 40px; height: 40px; border: 0; background: transparent; font-size: 22px; color: #94a3b8; cursor: pointer; }

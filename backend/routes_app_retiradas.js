@@ -19,6 +19,8 @@ const crypto = require('crypto');
 module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken, r2) {
 
     const PAGE_ID = 'app-lideranca-retiradas';
+    const ORIGEM = 'retirada';
+    const ORIGEM_TXT = 'retirada';
     const TZ = 'America/Sao_Paulo';
     const INICIO_CONTROLE_PADRAO = '2026-11-10'; // "a partir de ontem" (pedido em 11/11/2026)
     const MAX_VIDEO_MB = 60;
@@ -57,12 +59,12 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
     const MODELOS = {
         STD: { nome: 'Banheiro STD', icone: 'ph-toilet', itens: BASE_STD },
         LX: { nome: 'Banheiro LX', icone: 'ph-toilet', itens: BASE_LX },
-        ELX: { nome: 'Banheiro ELX', icone: 'ph-toilet', itens: BASE_LX.concat(['Pia/lavatório', 'Torneira', 'Dispensers']) },
+        ELX: { nome: 'Banheiro ELX', icone: 'ph-toilet', itens: BASE_LX.concat(['Pia/lavatório', 'Torneira', 'Saboneteira', 'Papeleira']) },
         GUARITA: { nome: 'Guarita', icone: 'ph-house-line', itens: ['Porta', 'Lateral', 'Teto', 'Pintura', 'Fechadura', 'Chave', 'Vidros/janelas', 'Piso', 'Soquete', 'Interruptor', 'Balcão'] },
         MICTORIO: { nome: 'Mictório', icone: 'ph-drop', itens: ['Tampinhas', 'Parte de cima', 'Parte de baixo'] },
-        PIA: { nome: 'Pia PBII e PBIII', icone: 'ph-drop-half', itens: ['Torneiras', 'Dispensers', 'Reservatório de água limpa', 'Reservatório de água suja', 'Bomba', 'Chicotes'] },
-        HIDRAULICO: { nome: 'Hidráulico', icone: 'ph-toilet', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Piso', 'Vaso sanitário', 'Caixa de descarga', 'Tubo para descarga', 'Pia/lavatório', 'Torneira', 'Chicotes', 'Dispensers'] },
-        CHUVEIRO: { nome: 'Chuveiro', icone: 'ph-shower', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Placa/adesivo', 'Piso', 'Encanamentos', 'Ralo'] },
+        PIA: { nome: 'Pia PBII e PBIII', icone: 'ph-drop-half', itens: ['Torneiras', 'Saboneteira', 'Papeleira', 'Reservatório de água limpa', 'Reservatório de água suja', 'Bomba', 'Chicotes'] },
+        HIDRAULICO: { nome: 'Hidráulico', icone: 'ph-toilet', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Piso', 'Vaso sanitário', 'Caixa de descarga', 'Tubo para descarga', 'Pia/lavatório', 'Torneira', 'Chicotes', 'Saboneteira', 'Papeleira'] },
+        CHUVEIRO: { nome: 'Chuveiro', icone: 'ph-shower', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Placa/adesivo', 'Piso', 'Encanamentos', 'Ralo', 'Chuveiro'] },
         PCD: { nome: 'Banheiro PCD', icone: 'ph-wheelchair', itens: ['Porta', 'Dobradiça', 'Cabo de aço porta', 'Laterais', 'Teto', 'Fechadura', 'Telas', 'Assento sanitário', 'Placa/adesivo', 'Tubo de respiro', 'Piso', 'Caixa de dejetos', 'Barras de apoio'] }
     };
     Object.keys(MODELOS).forEach(k => { MODELOS[k].itens = MODELOS[k].itens.map(t => ({ id: slug(t), texto: t })); });
@@ -299,11 +301,12 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             const inicio = await inicioControle();
             const de = isoDate(req.query.de) || somaDias(hoje, -7);
             const ate = isoDate(req.query.ate) || somaDias(hoje, 14);
+            const q = String(req.query.q || '').replace(/[^\w-]/g, '').slice(0, 20); // pesquisa por nº da OS (em qualquer data)
             const oss = (await dbAll(`SELECT id, numero_os, cliente, endereco, complemento, contrato, data_os, tipo_servico, produtos, hora_inicio, hora_fim, turno
                 FROM os_logistica
                 WHERE status = 'ativo' AND LOWER(tipo_servico) LIKE '%retirada%' AND data_os IS NOT NULL AND data_os != ''
-                  AND ((data_os >= ? AND data_os <= ?) OR (data_os >= ? AND data_os <= ?))
-                ORDER BY data_os ASC, cliente ASC, CAST(numero_os AS REAL) ASC`, [de, ate, inicio, hoje]))
+                  AND ((data_os >= ? AND data_os <= ?) OR (data_os >= ? AND data_os <= ?)${q ? ' OR CAST(numero_os AS TEXT) LIKE ?' : ''})
+                ORDER BY data_os ASC, cliente ASC, CAST(numero_os AS REAL) ASC`, q ? [de, ate, inicio, hoje, '%' + q + '%'] : [de, ate, inicio, hoje]))
                 .filter(os => !soVisitaTecnica(os));
             const { rows, fotosPorCk } = await carregarRowsEFotos(oss.map(o => o.id));
             const datas = [...new Set(oss.map(o => isoDate(o.data_os)).filter(Boolean))];
@@ -487,6 +490,47 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         }
     });
 
+
+    // ── Notificação de avaria (Notificações → quadro "Avaria de equipamento"): popup + e-mail ──
+    async function notificarAvaria(ctx, estado, lider) {
+        const os = await dbGet('SELECT cliente FROM os_logistica WHERE id = ?', [ctx.os.id]);
+        const cliente = String((os && os.cliente) || '').replace(/^[^\p{L}\p{N}]+/u, '').trim() || '-'; // sem emoji (e-mail externo ao sistema)
+        const modelo = MODELOS[ctx.unit.modelo];
+        const equipamento = modelo.nome + (ctx.unit.total > 1 ? ` ${ctx.unit.indice}/${ctx.unit.total}` : '');
+        const itensAv = modelo.itens.filter(it => estado[it.id] && estado[it.id].nao).map(it => ({ item: it.texto, obs: String(estado[it.id].obs || '').trim() }));
+        const dataBr = (ctx.data || '').split('-').reverse().join('/');
+        const dados = {
+            origem: ORIGEM, os_id: ctx.os.id, numero_os: String(ctx.os.numero_os || ''), cliente, equipamento,
+            motorista: ctx.rota.motorista || '', veiculo: ctx.rota.veiculo || '', data: dataBr, lider: lider.nome, itens: itensAv
+        };
+        const msg = `Avaria em ${equipamento} — OS ${dados.numero_os} (${cliente}): ${itensAv.map(i => i.item).join(', ')}`;
+        const dest = await dbAll("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'avaria_equipamento'");
+        for (const d of dest) {
+            try { await dbRun('INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)', [d.usuario_id, 'avaria_equipamento', msg, JSON.stringify(dados)]); } catch (e) { console.error('[APP-RETIRADAS] popup avaria:', e.message); }
+        }
+        const sendMail = app.locals && app.locals.sendEmailParaNotificados;
+        if (typeof sendMail !== 'function') return;
+        const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const td = 'padding:8px 12px;border:1px solid #fecaca;';
+        const linhas = itensAv.map(i => `<tr><td style="${td}font-weight:bold;color:#dc2626;">${e(i.item)}</td><td style="${td}">${e(i.obs || '—')}</td></tr>`).join('');
+        const html = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:640px;margin:0 auto;border:1px solid #eee;border-radius:10px;overflow:hidden;">'
+            + '<div style="text-align:center;padding:20px 20px 10px;"><img src="cid:empresa-logo" style="max-height:80px;"></div>'
+            + '<div style="padding:20px 24px;"><h2 style="color:#dc2626;border-bottom:2px solid #ef4444;padding-bottom:10px;margin-top:0;">⚠️ Avaria registrada na ' + ORIGEM_TXT + '</h2>'
+            + `<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;width:34%;">Cliente</td><td style="${td}">${e(cliente)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Número da OS</td><td style="${td}">${e(dados.numero_os)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Motorista</td><td style="${td}">${e(dados.motorista || 'Não definido')}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Veículo</td><td style="${td}">${e(dados.veiculo || 'Não definido')}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Data da ${ORIGEM_TXT}</td><td style="${td}">${e(dataBr)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Equipamento</td><td style="${td}">${e(equipamento)}</td></tr>
+                <tr><td style="${td}background:#fef2f2;font-weight:bold;">Conferido por</td><td style="${td}">${e(lider.nome)}</td></tr>
+            </table>`
+            + '<h3 style="color:#b91c1c;margin:0 0 8px;">Avarias registradas</h3>'
+            + `<table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:#fee2e2;color:#991b1b;"><th style="${td}text-align:left;">Item avariado</th><th style="${td}text-align:left;">Observação</th></tr></thead><tbody>${linhas}</tbody></table>`
+            + '<p style="margin-top:24px;font-size:0.9em;color:#64748b;">Atenciosamente,<br>Sistema América Rental</p></div></div>';
+        await sendMail('avaria_equipamento', { subject: `⚠️ Avaria na ${ORIGEM_TXT} — OS ${dados.numero_os} — ${cliente}`, html });
+    }
+
     // ── POST concluir conferência de uma unidade ────────────────────────────────
     app.post('/api/app/retiradas/os/:id/unidades/:key/concluir', guard, async (req, res) => {
         try {
@@ -495,23 +539,23 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             if (ctx.row.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
             const estado = estadoDoRow(ctx.row);
             const fotos = new Set((await dbAll(`SELECT item FROM retiradas_checklist_midias WHERE checklist_id = ? AND tipo = 'foto'`, [ctx.row.id])).map(r => r.item));
-            const semMarca = [], semFoto = [], semObs = [];
+            const semMarca = [], semFoto = [];
             let avaria = false;
             MODELOS[ctx.unit.modelo].itens.forEach(it => {
                 const e = estado[it.id];
                 if (!e || !(e.ok || e.nao)) { semMarca.push(it.texto); return; }
-                if (e.nao) { avaria = true; if (!String(e.obs || '').trim()) semObs.push(it.texto); }
+                if (e.nao) avaria = true; // observação é opcional (positivo ou negativo)
                 if (!fotos.has(it.id)) semFoto.push(it.texto);
             });
             const lista = a => a.slice(0, 4).join(', ') + (a.length > 4 ? ` e mais ${a.length - 4}` : '');
             if (semMarca.length) return res.status(400).json({ error: `Faltam marcar 👍 ou 👎: ${lista(semMarca)}.` });
             if (semFoto.length) return res.status(400).json({ error: `Falta a foto de: ${lista(semFoto)}.` });
-            if (semObs.length) return res.status(400).json({ error: `Descreva a avaria (observação) em: ${lista(semObs)}.` });
 
             const lider = await liderDoReq(req);
             await dbRun(`UPDATE retiradas_checklist SET concluido_em = CURRENT_TIMESTAMP, atualizado_em = CURRENT_TIMESTAMP, tem_avaria = ?,
                 lider_id = ?, lider_nome = ?, lider_colab_id = ?, veiculo = COALESCE(?, veiculo), motorista = COALESCE(?, motorista) WHERE id = ?`,
                 [avaria ? 1 : 0, lider.id, lider.nome, lider.colabId, ctx.rota.veiculo || null, ctx.rota.motorista || null, ctx.row.id]);
+            if (avaria) { notificarAvaria(ctx, estado, lider).catch(e3 => console.error('[APP-RETIRADAS] notificar avaria:', e3.message)); }
             res.json({ ok: true, tem_avaria: avaria });
         } catch (e) {
             console.error('[APP-RETIRADAS] POST concluir:', e);

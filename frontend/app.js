@@ -16081,6 +16081,8 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-gauge'; titulo = 'Atualização de KM Vencida'; navTarget = 'frota';
                 } else if (notif.tipo === 'revisao_marco') {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-calendar-plus'; titulo = 'Agendar Revisão'; navTarget = 'frota';
+                } else if (notif.tipo === 'avaria_equipamento') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-warning-octagon'; titulo = 'Avaria de Equipamento'; navTarget = (dados && dados.origem === 'entrega') ? 'app-lideranca-entregas' : 'app-lideranca-retiradas';
                 } else if (notif.tipo === 'custos_frota') {
                     bg = '#eff6ff'; color = '#1971c2'; icon = 'ph-currency-dollar'; titulo = 'Custos de Frota'; navTarget = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
                 } else if (notif.tipo === 'proposta_pre_aprovada') {
@@ -16293,6 +16295,23 @@ async function checkUserNotificacoes() {
                         </div>
                         ${dados.origem ? `<div style="color:#475569;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><b>Origem:</b> ${dados.origem}</div>` : ''}
                     `;
+                } else if (notif.tipo === 'avaria_equipamento') {
+                    const _avEsc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const _avItens = Array.isArray(dados.itens) ? dados.itens : [];
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px;">
+                            <i class="ph ${icon}"></i> ${titulo} · ${dados.origem === 'entrega' ? 'Entrega' : 'Retirada'}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:0.95rem;margin-bottom:4px;">${_avEsc(dados.cliente || '')}</div>
+                        <div style="color:#475569;font-size:0.82rem;line-height:1.5;">
+                            <b>OS:</b> ${_avEsc(dados.numero_os || '-')} · <b>Data:</b> ${_avEsc(dados.data || '-')}<br>
+                            <b>Motorista:</b> ${_avEsc(dados.motorista || '-')} · <b>Veículo:</b> ${_avEsc(dados.veiculo || '-')}<br>
+                            <b>Equipamento:</b> ${_avEsc(dados.equipamento || '-')}
+                        </div>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-top:6px;max-height:110px;overflow-y:auto;font-size:0.8rem;color:#991b1b;">
+                            ${_avItens.map(i => `<div>• <b>${_avEsc(i.item)}</b>${i.obs ? ' — ' + _avEsc(i.obs) : ''}</div>`).join('') || _avEsc(notif.mensagem || '')}
+                        </div>
+                    `;
                 } else if (notif.tipo === 'crlv_vencidos') {
                     const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
                     const listaPlacasHtml = veics.length
@@ -16406,6 +16425,9 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
                 } else if (notif.tipo === 'revisao_marco') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('revisao'); }, 250); }, 200);`;
+                } else if (notif.tipo === 'avaria_equipamento') {
+                    const _avTgt = (dados && dados.origem === 'entrega') ? 'app-lideranca-entregas' : 'app-lideranca-retiradas';
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_avTgt}');`;
                 } else if (notif.tipo === 'custos_frota') {
                     const _cfTgt = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_cfTgt}');`;

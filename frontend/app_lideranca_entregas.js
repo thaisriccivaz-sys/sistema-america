@@ -1,294 +1,235 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// APP › Liderança › Entregas (mobile-first, uso operacional no celular)
-// Agenda semanal/mensal, filtros (Pendentes, OK, Com avaria, Todas + data),
-// motorista/veículo do Resumo de Rota, checklist por unidade (joinha 👍/👎,
-// observação, 1 foto obrigatória por item, vídeo opcional) e identificação
-// do líder (foto + nome) que realizou a conferência.
-// ═══════════════════════════════════════════════════════════════════════════════
+/**
+ * app_lideranca_entregas.js
+ * APP › Liderança › Entregas  (uso OPERACIONAL — mobile-first, ícones, toques grandes)
+ *
+ * - Agenda (semana / mês) com as entregas do pipeline; filtros: Todos · Pendentes · OK · Com avaria
+ * - Cada equipamento entregue (1 por unidade da OS) tem checklist por modelo: 👍 OK / 👎 avariado,
+ *   observação, FOTO obrigatória por item e vídeo opcional (arquivos no Cloudflare R2)
+ * - Mostra motorista + veículo da rota do dia (Resumo de Rota) e o líder que conferiu (foto + nome)
+ * - Pendência vale para todos os líderes liberados no Controle de Acesso (sem regra de turno)
+ *
+ * Endpoints: /api/app/entregas/*   |   Permissão: página 'app-lideranca-entregas'
+ */
 (function () {
     'use strict';
 
-    const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const ICONES_ITEM = [
+        [/porta/, 'ph-door'], [/fechadura/, 'ph-lock-key'], [/chave/, 'ph-key'], [/teto/, 'ph-house-line'], [/piso/, 'ph-grid-four'],
+        [/telas?/, 'ph-grid-nine'], [/assento|vaso/, 'ph-toilet'], [/placa|adesivo/, 'ph-sticker'], [/torneira|pia|lavatorio|cuba|tampinha|parte_de/, 'ph-drop'],
+        [/dispenser/, 'ph-hand-soap'], [/ralo|encanamento|tubo/, 'ph-circle-dashed'], [/chicote/, 'ph-plugs'], [/bomba/, 'ph-gauge'],
+        [/vidro|janela/, 'ph-app-window'], [/interruptor/, 'ph-toggle-right'], [/soquete/, 'ph-plug'], [/balcao/, 'ph-table'], [/pintura/, 'ph-paint-roller'],
+        [/reservatorio|caixa/, 'ph-package'], [/barra/, 'ph-wheelchair'], [/cabo|dobradica|laterais?/, 'ph-wrench']
+    ];
+    const iconeItem = id => { for (const [re, ic] of ICONES_ITEM) if (re.test(id)) return ic; return 'ph-check-square'; };
 
     const S = {
-        modo: 'semana',
-        semanaIni: null,
-        mesRef: null,
-        diaSel: null,
-        filtro: 'pendentes', // 'pendentes' | 'avaria' | 'ok' | 'todas'
-        busca: '',
-        itens: [],
-        inicioControle: '2026-11-10',
-        hoje: null,
-        osAberta: null,       // payload completo do GET /api/app/entregas/os/:id
-        unidadeAtiva: null,   // unidade_key selecionada na aba
-        salvando: false,
-        enviandoMidia: null   // item_key ou 'video' em upload
+        busca: '', dados: null, diaSel: null, modo: 'semana', semanaIni: null, mesRef: null, filtro: 'todos',
+        det: null, ui: 0, estado: {}, mid: {}, vid: null, local: {}, subindo: {}, saveTimer: null, saveEstado: 'ok', carregando: false
     };
 
-    const tok = () => localStorage.getItem('token') || '';
-    const hdr = (json = true) => {
-        const h = { 'Authorization': 'Bearer ' + tok() };
-        if (json) h['Content-Type'] = 'application/json';
-        return h;
-    };
-    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    // Regra global: sempre exibir o ícone do Grupo de Clientes ao lado do nome internamente
-    const fmtCliente = n => (typeof window.formatarNomeClienteComIcone === 'function' ? window.formatarNomeClienteComIcone(n) : String(n || ''));
+    // ── Utilidades ───────────────────────────────────────────────────────────────
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const pad = n => String(n).padStart(2, '0');
-    const toIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const fromIso = s => { const [y, m, d] = (s || '').split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1, 12, 0, 0); };
-    const hojeIso = () => S.hoje || toIso(new Date());
-    const fmtBR = s => s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : (s || '—');
-    const fmtDataHora = s => {
-        if (!s) return '';
-        const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
-        if (isNaN(d.getTime())) return s;
-        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const isoDe = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const hojeIso = () => isoDe(new Date());
+    const dataDe = iso => new Date(iso + 'T12:00:00');
+    const fmtCurta = iso => { const d = dataDe(iso); return DIAS[d.getDay()] + ', ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1); };
+    const fmtBr = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+    const fmtDataHora = s => { if (!s) return ''; const d = new Date(String(s).replace(' ', 'T') + (String(s).includes('Z') || String(s).includes('T') ? '' : 'Z')); return isNaN(d) ? String(s) : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); };
+    const getToken = () => window.currentToken || (typeof currentToken !== 'undefined' ? currentToken : '') || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const apiBase = () => (typeof API_URL !== 'undefined' ? API_URL : '/api');
+    const ehAdmin = () => {
+        try {
+            const u = window.currentUser || JSON.parse(localStorage.getItem('erp_user') || '{}');
+            return u.role === 'Diretoria' || u.role === 'Administrador' || u.departamento === 'Diretoria' || String(u.grupo_nome || '').toLowerCase() === 'diretoria';
+        } catch (e) { return false; }
     };
-    function inicioSemana(iso) {
-        const d = fromIso(iso);
-        d.setDate(d.getDate() - d.getDay());
-        return toIso(d);
+    const inicioSemana = iso => { const d = dataDe(iso); d.setDate(d.getDate() - d.getDay()); return isoDe(d); };
+    const somaDias = (iso, n) => { const d = dataDe(iso); d.setDate(d.getDate() + n); return isoDe(d); };
+
+    async function api(path, opts) {
+        opts = opts || {};
+        const headers = Object.assign({ Authorization: 'Bearer ' + getToken() }, opts.headers || {});
+        if (opts.body && !(opts.body instanceof FormData) && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+        const r = await fetch(apiBase() + path, Object.assign({}, opts, { headers }));
+        let b = null;
+        try { b = await r.json(); } catch (e) { /* sem JSON */ }
+        if (!r.ok) throw new Error((b && b.error) || ('Erro HTTP ' + r.status));
+        return b;
     }
-    function somaDias(iso, n) {
-        const d = fromIso(iso);
-        d.setDate(d.getDate() + n);
-        return toIso(d);
-    }
-    function intervaloCarregamento() {
-        if (S.modo === 'semana') return { de: S.semanaIni, ate: somaDias(S.semanaIni, 6) };
-        const [y, m] = S.mesRef.split('-').map(Number);
-        const ini = new Date(y, m - 1, 1, 12); ini.setDate(ini.getDate() - ini.getDay());
-        const fim = new Date(y, m, 0, 12); fim.setDate(fim.getDate() + (6 - fim.getDay()));
-        return { de: toIso(ini), ate: toIso(fim) };
-    }
-    function toast(msg, erro) {
-        let t = document.getElementById('alc-toast');
-        if (!t) { t = document.createElement('div'); t.id = 'alc-toast'; document.body.appendChild(t); }
-        t.className = 'alc-toast ' + (erro ? 'erro' : 'ok');
-        t.innerHTML = `<i class="ph ${erro ? 'ph-warning-circle' : 'ph-check-circle'}"></i><span>${esc(msg)}</span>`;
-        t.classList.add('visivel');
-        clearTimeout(t._tm);
-        t._tm = setTimeout(() => t.classList.remove('visivel'), 2600);
+    const erro = (titulo, msg) => Swal.fire({ icon: 'error', title: titulo, text: msg, confirmButtonColor: '#7c3aed', confirmButtonText: 'OK' });
+    const midiaUrl = id => apiBase() + '/app/entregas/midia/' + id + '?token=' + encodeURIComponent(getToken());
+    const fotoColab = id => apiBase() + '/colaboradores/foto/' + id;
+
+    // Nome do cliente sem emojis da planilha + ícone do Grupo de Clientes (regra interna do sistema)
+    const limparCliente = s => String(s || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    function nomeCliente(s) {
+        const n = limparCliente(s);
+        try { if (typeof window.formatarNomeClienteComIcone === 'function') return window.formatarNomeClienteComIcone(n); } catch (e) { /* usa o nome simples */ }
+        return n;
     }
 
-    // Transforma URL privada de mídia em URL autenticada com token na query para <img>/<video>
-    function urlMidia(u) {
-        if (!u) return '';
-        return u + (u.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok());
+    function avatarPessoa(nome, colabId, fotoPath, cls) {
+        const ini = esc((String(nome || '?').trim()[0] || '?').toUpperCase());
+        const src = fotoPath ? (String(fotoPath).startsWith('/api') ? fotoPath : apiBase() + fotoPath) : (colabId ? fotoColab(colabId) : '');
+        const fb = oculto => `<span class="alr-av-fb" style="${oculto ? 'display:none;' : ''}">${ini}</span>`;
+        if (!src) return `<span class="alr-av ${cls || ''}">${fb(false)}</span>`;
+        return `<span class="alr-av ${cls || ''}"><img src="${esc(src)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${fb(true)}</span>`;
     }
 
-    // ═══ Entrada principal ══════════════════════════════════════════════════════
+    // ── Tela principal ───────────────────────────────────────────────────────────
     window.renderAppLiderancaEntregas = async function () {
-        const box = document.getElementById('app-lideranca-entregas-container');
-        if (!box) return;
-        const hj = hojeIso();
-        if (!S.semanaIni) S.semanaIni = inicioSemana(hj);
-        if (!S.mesRef) S.mesRef = hj.slice(0, 7);
-        aplicarModoCelular();
+        const c = document.getElementById('app-lideranca-entregas-container');
+        if (!c) return;
+        if (!S.semanaIni) { S.semanaIni = inicioSemana(hojeIso()); S.mesRef = hojeIso().slice(0, 7); S.diaSel = hojeIso(); }
+        c.innerHTML = `<div class="alc-wrap" id="ale-wrap"><div class="alc-loading"><i class="ph ph-spinner ph-spin"></i> Carregando entregas...</div></div>`;
         await carregar();
     };
+    window._aleRecarregar = () => window.renderAppLiderancaEntregas();
 
+    function faixa() {
+        if (S.modo === 'semana') return { de: somaDias(S.semanaIni, -7), ate: somaDias(S.semanaIni, 13) };
+        const [y, m] = S.mesRef.split('-').map(Number);
+        return { de: somaDias(y + '-' + pad(m) + '-01', -7), ate: somaDias(y + '-' + pad(m) + '-' + pad(new Date(y, m, 0).getDate()), 7) };
+    }
     async function carregar() {
-        const box = document.getElementById('app-lideranca-entregas-container');
-        if (!box) return;
-        if (!S.itens.length) {
-            box.innerHTML = `<div class="alc-vazio"><i class="ph ph-spinner ph-spin"></i>Carregando entregas...</div>`;
-        }
+        if (S.carregando) return;
+        S.carregando = true;
         try {
-            const { de, ate } = intervaloCarregamento();
-            const r = await fetch(`/api/app/entregas?de=${de}&ate=${ate}`, { headers: hdr(false) });
-            if (!r.ok) {
-                const j = await r.json().catch(() => ({}));
-                box.innerHTML = `<div class="alc-vazio"><i class="ph ph-lock-key"></i>${esc(j.error || 'Sem acesso a esta tela.')}</div>`;
-                return;
-            }
-            const data = await r.json();
-            S.itens = data.itens || [];
-            S.inicioControle = data.inicio_controle || '2026-11-10';
-            S.hoje = data.hoje || toIso(new Date());
+            const f = faixa();
+            S.dados = await api('/app/entregas?de=' + f.de + '&ate=' + f.ate + (S.busca ? '&q=' + encodeURIComponent(S.busca) : ''));
             desenhar();
         } catch (e) {
-            box.innerHTML = `<div class="alc-vazio"><i class="ph ph-wifi-slash"></i>Erro de conexão: ${esc(e.message)}</div>`;
-        }
+            const w = document.getElementById('ale-wrap');
+            if (w) w.innerHTML = `<div class="alc-erro"><i class="ph ph-warning-circle"></i><div>${esc(e.message)}</div><button class="alc-btn alc-btn-primary" onclick="window._aleRecarregar()"><i class="ph ph-arrow-clockwise"></i> Tentar de novo</button></div>`;
+        } finally { S.carregando = false; }
     }
 
-    // ═══ Renderização da tela principal ═════════════════════════════════════════
+    const itensDoDia = iso => (S.dados.itens || []).filter(i => i.data_entrega === iso);
+
+    function contagens() {
+        const m = {};
+        (S.dados.itens || []).forEach(i => {
+            const o = m[i.data_entrega] = m[i.data_entrega] || { total: 0, pend: 0, avaria: 0 };
+            o.total++; if (i.pendente) o.pend++; if (i.tem_avaria) o.avaria++;
+        });
+        return m;
+    }
+
+    function listaFiltrada() {
+        const q = String(S.busca || '').trim().toLowerCase();
+        const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
+        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
+        const pendGlobais = (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i)));
+        if (S.filtro === 'ok') return todos.filter(i => i.situacao === 'ok');
+        if (S.filtro === 'avaria') return todos.filter(i => i.tem_avaria);
+        if (S.filtro === 'pendentes') return pendGlobais.slice().sort((a, b) => (a.data_entrega + a.cliente).localeCompare(b.data_entrega + b.cliente)); // pendência vale para todos os dias desde o início do controle
+        return todos;
+    }
+    function contadoresFiltro() {
+        const q = String(S.busca || '').trim().toLowerCase();
+        const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
+        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
+        return { todos: todos.length, pendentes: (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i))).length, ok: todos.filter(i => i.situacao === 'ok').length, avaria: todos.filter(i => i.tem_avaria).length };
+    }
+
     function desenhar() {
-        const box = document.getElementById('app-lideranca-entregas-container');
-        if (!box) return;
-        const pendentesTotal = S.itens.filter(i => i.pendente).length;
-        const avariasTotal = S.itens.filter(i => i.tem_avaria && i.data_iso >= S.inicioControle).length;
-        const okTotal = S.itens.filter(i => i.situacao === 'ok' && i.data_iso >= S.inicioControle).length;
-
-        box.innerHTML = `
-            <div class="alc-shell">
-                <header class="alc-top">
-                    <div class="alc-top-row">
-                        <button type="button" class="alc-icon-btn alc-menu-btn" onclick="window._aleMenu()" title="Menu">
-                            <i class="ph ph-list"></i>
-                        </button>
-                        <div class="alc-titulo">
-                            <h1><i class="ph ph-truck"></i> Entregas</h1>
-                            <span class="alc-sub">${ esc(subtituloCabecalho()) }</span>
-                        </div>
-                        <div class="alc-acoes-top">
-                            <button type="button" class="alc-chip-btn" onclick="window._aleHoje()">Hoje</button>
-                            <button type="button" class="alc-icon-btn" onclick="window._aleModo()" title="Alternar semana/mês">
-                                <i class="ph ${S.modo === 'semana' ? 'ph-calendar-dots' : 'ph-rows'}"></i>
-                            </button>
-                            <button type="button" class="alc-icon-btn" onclick="window.renderAppLiderancaEntregas()" title="Atualizar">
-                                <i class="ph ph-arrows-clockwise"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    ${renderCalendario()}
-
-                    <div class="alr-filtros-bar">
-                        <button type="button" class="alr-filtro-pill ${S.filtro === 'pendentes' ? 'ativo vermelho' : ''}" onclick="window._aleFiltro('pendentes')">
-                            <i class="ph ph-warning-circle"></i> Pendentes
-                            ${pendentesTotal > 0 ? `<span class="alr-pill-qtd">${pendentesTotal}</span>` : ''}
-                        </button>
-                        <button type="button" class="alr-filtro-pill ${S.filtro === 'avaria' ? 'ativo vermelho' : ''}" onclick="window._aleFiltro('avaria')">
-                            <i class="ph ph-warning-octagon"></i> Com avaria
-                            ${avariasTotal > 0 ? `<span class="alr-pill-qtd">${avariasTotal}</span>` : ''}
-                        </button>
-                        <button type="button" class="alr-filtro-pill ${S.filtro === 'ok' ? 'ativo verde' : ''}" onclick="window._aleFiltro('ok')">
-                            <i class="ph ph-thumbs-up"></i> Equipamentos OK
-                            ${okTotal > 0 ? `<span class="alr-pill-qtd ok">${okTotal}</span>` : ''}
-                        </button>
-                        <button type="button" class="alr-filtro-pill ${S.filtro === 'todas' ? 'ativo' : ''}" onclick="window._aleFiltro('todas')">
-                            <i class="ph ph-stack"></i> Todas
-                        </button>
-                    </div>
-
-                    <div class="alr-busca-row">
-                        <div class="alr-busca-input">
-                            <i class="ph ph-magnifying-glass"></i>
-                            <input type="search" placeholder="Buscar OS, cliente, motorista, placa..." value="${esc(S.busca)}" oninput="window._aleBusca(this.value)">
-                        </div>
-                        <label class="alr-data-jump" title="Ir para uma data específica">
-                            <i class="ph ph-calendar"></i>
-                            <input type="date" value="${esc(S.diaSel || '')}" onchange="window._aleIrData(this.value)">
-                        </label>
-                    </div>
-                </header>
-                <div class="alc-body">
-                    ${renderLista()}
-                </div>
-            </div>
-        `;
+        const w = document.getElementById('ale-wrap');
+        if (!w || !S.dados) return;
+        w.innerHTML = `
+        <header class="alc-head">
+            <button class="alc-icon-btn alc-only-mobile" onclick="window._aleMenu()" aria-label="Menu do sistema"><i class="ph ph-list"></i></button>
+            <div class="alc-head-title"><i class="ph ph-truck" style="color:#0284c7"></i><div><h2>Entregas</h2><span>Liderança · Checklist dos equipamentos</span></div></div>
+            <button class="alc-icon-btn" onclick="window._aleRecarregar()" title="Atualizar" aria-label="Atualizar"><i class="ph ph-arrow-clockwise"></i></button>
+        </header>
+        ${htmlAgenda()}
+        <div class="alr-busca"><i class="ph ph-magnifying-glass"></i><input id="ale-busca" type="search" inputmode="search" autocomplete="off" placeholder="Pesquisar nº da OS ou cliente" value="${esc(S.busca)}" oninput="window._aleBusca(this.value)" onfocus="window._aleBuscaFoco=true" onblur="window._aleBuscaFoco=false">${S.busca ? '<button type="button" class="alr-busca-x" onclick="window._aleBusca(\'\')" aria-label="Limpar pesquisa"><i class="ph ph-x-circle"></i></button>' : ''}</div>
+        <div id="ale-filtros">${htmlFiltros()}</div>
+        <div id="ale-lista">${htmlLista()}</div>`;
+        const bi = document.getElementById('ale-busca');
+        if (bi && window._aleBuscaFoco) { bi.focus(); try { bi.setSelectionRange(bi.value.length, bi.value.length); } catch (x) { /* ignora */ } }
     }
 
-    function subtituloCabecalho() {
-        if (S.diaSel) return `Dia ${fmtBR(S.diaSel)} · toque novamente para ver o período`;
-        if (S.modo === 'semana') return `Semana ${fmtBR(S.semanaIni).slice(0, 5)} a ${fmtBR(somaDias(S.semanaIni, 6)).slice(0, 5)}`;
-        const [y, m] = S.mesRef.split('-').map(Number);
-        return `${MESES[m - 1]} ${y}`;
+    function htmlFiltros() {
+        const c = contadoresFiltro();
+        const chip = (id, icone, rot, n, cor) => `<button class="alc-chip alr-chip ${S.filtro === id ? 'on' : ''}" style="${S.filtro === id ? '' : 'color:' + cor + ';'}" onclick="window._aleFiltro('${id}')"><i class="ph ${icone}"></i> ${rot} <b class="alr-n" style="background:${cor};">${n}</b></button>`;
+        return `<div class="alr-filtros">${chip('todos', 'ph-list-bullets', 'Todos', c.todos, '#475569')}${chip('pendentes', 'ph-warning-circle', 'Pendentes', c.pendentes, '#ea580c')}${chip('ok', 'ph-thumbs-up', 'OK', c.ok, '#16a34a')}${chip('avaria', 'ph-thumbs-down', 'Com avaria', c.avaria, '#dc2626')}</div>`;
     }
+    let _buscaTimer = null;
+    window._aleBusca = function (v) {
+        S.busca = String(v || '').trim();
+        window._aleBuscaFoco = true;
+        clearTimeout(_buscaTimer);
+        _buscaTimer = setTimeout(() => { S.carregando = false; carregar(); }, 350);
+    };
+    window._aleFiltro = function (f) { S.filtro = f; document.getElementById('ale-filtros').innerHTML = htmlFiltros(); document.getElementById('ale-lista').innerHTML = htmlLista(); };
 
-    function marcadorDoDia(iso) {
-        const doDia = S.itens.filter(i => i.data_iso === iso && i.total_unidades > 0);
-        if (!doDia.length) return '';
-        if (doDia.some(i => i.pendente || i.tem_avaria)) return '<span class="alc-dot vermelho"></span>';
-        if (doDia.every(i => i.situacao === 'ok')) return '<span class="alc-dot verde"></span>';
-        if (doDia.some(i => i.futura)) return '<span class="alc-dot azul"></span>';
-        return '<span class="alc-dot cinza"></span>';
-    }
-
-    function renderCalendario() {
-        const hj = hojeIso();
+    function htmlAgenda() {
+        const cont = contagens(), hoje = hojeIso();
+        let corpo = '', titulo = '';
         if (S.modo === 'semana') {
-            const dias = [];
-            for (let i = 0; i < 7; i++) {
-                const iso = somaDias(S.semanaIni, i);
-                const d = fromIso(iso);
-                const qtd = S.itens.filter(x => x.data_iso === iso).length;
-                const cls = ['alc-dia', iso === hj ? 'hoje' : '', S.diaSel === iso ? 'sel' : ''].filter(Boolean).join(' ');
-                dias.push(`
-                    <button type="button" class="${cls}" onclick="window._aleDia('${iso}')">
-                        <span class="alc-dia-sem">${DIAS_CURTOS[d.getDay()]}</span>
-                        <span class="alc-dia-num">${d.getDate()}</span>
-                        ${qtd ? `<span class="alr-dia-qtd">${qtd}</span>` : marcadorDoDia(iso)}
-                    </button>
-                `);
-            }
-            return `
-                <div class="alc-strip-wrap">
-                    <button type="button" class="alc-nav-seta" onclick="window._aleNav(-1)" aria-label="Semana anterior"><i class="ph ph-caret-left"></i></button>
-                    <div class="alc-strip">${dias.join('')}</div>
-                    <button type="button" class="alc-nav-seta" onclick="window._aleNav(1)" aria-label="Próxima semana"><i class="ph ph-caret-right"></i></button>
-                </div>
-            `;
+            const ini = dataDe(S.semanaIni), fim = dataDe(somaDias(S.semanaIni, 6));
+            titulo = `${pad(ini.getDate())}/${pad(ini.getMonth() + 1)} – ${pad(fim.getDate())}/${pad(fim.getMonth() + 1)}`;
+            let dias = ''; for (let k = 0; k < 7; k++) dias += celulaDia(somaDias(S.semanaIni, k), cont, hoje, false);
+            corpo = `<div class="alc-semana">${dias}</div>`;
+        } else {
+            const [y, m] = S.mesRef.split('-').map(Number);
+            titulo = MESES[m - 1] + ' ' + y;
+            const primeiro = new Date(y, m - 1, 1), ultimoDia = new Date(y, m, 0).getDate();
+            let cel = DIAS.map(d => `<div class="alc-mes-dow">${d[0]}</div>`).join('');
+            for (let i = 0; i < primeiro.getDay(); i++) cel += '<div></div>';
+            for (let dd = 1; dd <= ultimoDia; dd++) cel += celulaDia(y + '-' + pad(m) + '-' + pad(dd), cont, hoje, true);
+            corpo = `<div class="alc-mes">${cel}</div>`;
         }
-        const [y, m] = S.mesRef.split('-').map(Number);
-        const { de, ate } = intervaloCarregamento();
-        const cab = DIAS_CURTOS.map(d => `<div class="alc-mes-cab">${d}</div>`).join('');
-        const celulas = [];
-        let cur = de;
-        while (cur <= ate) {
-            const d = fromIso(cur);
-            const fora = (d.getMonth() + 1) !== m;
-            const cls = ['alc-dia', 'mes', fora ? 'fora' : '', cur === hj ? 'hoje' : '', S.diaSel === cur ? 'sel' : ''].filter(Boolean).join(' ');
-            celulas.push(`
-                <button type="button" class="${cls}" onclick="window._aleDia('${cur}')">
-                    <span class="alc-dia-num">${d.getDate()}</span>
-                    ${marcadorDoDia(cur)}
-                </button>
-            `);
-            cur = somaDias(cur, 1);
-        }
-        return `
-            <div class="alc-mes-nav">
-                <button type="button" class="alc-nav-seta" onclick="window._aleNav(-1)"><i class="ph ph-caret-left"></i></button>
-                <strong>${MESES[m - 1]} ${y}</strong>
-                <button type="button" class="alc-nav-seta" onclick="window._aleNav(1)"><i class="ph ph-caret-right"></i></button>
+        return `<section class="alc-agenda">
+            <div class="alc-agenda-top">
+                <button class="alc-icon-btn sm" onclick="window._aleNav(-1)" aria-label="Anterior"><i class="ph ph-caret-left"></i></button>
+                <div class="alc-agenda-titulo"><i class="ph ph-calendar-dots"></i> ${esc(titulo)}</div>
+                <button class="alc-icon-btn sm" onclick="window._aleNav(1)" aria-label="Próximo"><i class="ph ph-caret-right"></i></button>
+                <button class="alc-chip ${S.modo === 'mes' ? 'on' : ''}" onclick="window._aleModo()"><i class="ph ph-calendar-blank"></i> ${S.modo === 'mes' ? 'Semana' : 'Mês'}</button>
+                <button class="alc-chip" onclick="window._aleHoje()"><i class="ph ph-sun"></i> Hoje</button>
             </div>
-            <div class="alc-mes-grid">${cab}${celulas.join('')}</div>
-        `;
+            ${corpo}
+            <div class="alr-datapick"><i class="ph ph-calendar-check"></i><label>Ir para a data</label><input type="date" value="${S.diaSel || ''}" onchange="window._aleIrData(this.value)"></div>
+            ${S.diaSel ? `<button class="alc-filtro" onclick="window._aleDia('${S.diaSel}')"><i class="ph ph-funnel-x"></i> Mostrando ${esc(fmtCurta(S.diaSel))} — toque para ver todas</button>` : ''}
+        </section>`;
+    }
+    function celulaDia(iso, cont, hoje, mes) {
+        const c = cont[iso], d = dataDe(iso);
+        const cls = ['alc-dia', iso === hoje ? 'hoje' : '', iso === S.diaSel ? 'sel' : '', c ? 'tem' : '', c && c.pend ? 'pend' : ''].join(' ');
+        const badge = c ? `<span class="alc-dia-badge ${c.pend ? 'red' : ''}">${c.total}</span>` : '';
+        return `<button class="${cls}" onclick="window._aleDia('${iso}')" aria-label="${esc(fmtCurta(iso))}">${mes ? '' : `<span class="alc-dia-dow">${DIAS[d.getDay()]}</span>`}<span class="alc-dia-num">${d.getDate()}</span>${badge}</button>`;
     }
 
-    function renderLista() {
-        const { de, ate } = intervaloCarregamento();
-        const q = S.busca.trim().toLowerCase();
-        const passaBusca = i => {
-            if (!q) return true;
-            return [i.numero_os, i.cliente, i.endereco, i.motorista, i.veiculo, i.contrato]
-                .some(v => String(v || '').toLowerCase().includes(q));
-        };
-
-        let base = S.itens.filter(passaBusca);
-        if (S.diaSel) {
-            base = base.filter(i => i.data_iso === S.diaSel);
-        } else {
-            base = base.filter(i => (i.data_iso >= de && i.data_iso <= ate) || (S.filtro === 'pendentes' && i.pendente));
+    function htmlLista() {
+        const itens = listaFiltrada();
+        const extras = (S.diaSel && (S.filtro === 'todos')) ? (S.dados.itens || []).filter(i => i.pendente && i.data_entrega !== S.diaSel) : [];
+        if (!itens.length && !extras.length) {
+            const msg = S.filtro === 'ok' ? 'Nenhuma entrega OK.' : (S.filtro === 'avaria' ? 'Nenhum equipamento com avaria.' : (S.filtro === 'pendentes' ? 'Nenhuma entrega pendente. 🎉' : (S.diaSel ? 'Nenhuma entrega neste dia.' : 'Nenhuma entrega no período.')));
+            return `<div class="alc-vazio"><i class="ph ph-package"></i><div>${msg}</div></div>`;
         }
-
-        if (S.filtro === 'pendentes') {
-            base = base.filter(i => S.diaSel ? (i.situacao !== 'ok' && i.situacao !== 'sem_checklist') : (i.pendente || i.situacao === 'andamento'));
-        } else if (S.filtro === 'avaria') {
-            base = base.filter(i => i.tem_avaria);
-        } else if (S.filtro === 'ok') {
-            base = base.filter(i => i.situacao === 'ok');
+        const ini = fmtBr(S.dados.inicio_controle);
+        const grupos = [
+            { t: 'Pendentes — conferir', ic: 'ph-warning-circle', cor: '#dc2626', f: i => i.pendente },
+            { t: 'Com avaria', ic: 'ph-thumbs-down', cor: '#b91c1c', f: i => !i.pendente && i.tem_avaria },
+            { t: 'OK', ic: 'ph-thumbs-up', cor: '#16a34a', f: i => !i.pendente && !i.tem_avaria && i.situacao === 'ok' },
+            { t: 'Agendadas', ic: 'ph-calendar-check', cor: '#2563eb', f: i => !i.pendente && !i.tem_avaria && i.situacao !== 'ok' && i.futura && i.situacao !== 'sem_checklist' },
+            { t: 'Sem checklist (produto sem modelo)', ic: 'ph-prohibit', cor: '#94a3b8', f: i => !i.pendente && i.situacao === 'sem_checklist' },
+            { t: 'Sem conferência (antes de ' + ini + ')', ic: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && !i.tem_avaria && !i.futura && (i.situacao === 'pendente' || i.situacao === 'andamento') }
+        ];
+        let html = '';
+        if (extras.length) {
+            html += `<section class="alc-grupo"><h3 style="color:#dc2626;"><i class="ph ph-warning-circle"></i> Pendentes de outros dias <span class="alc-contador" style="background:#dc2626;">${extras.length}</span></h3>${extras.map(cardHtml).join('')}</section>`;
         }
-
-        base.sort((a, b) => a.data_iso === b.data_iso ? (b.os_id - a.os_id) : (a.data_iso < b.data_iso ? 1 : -1));
-
-        if (!base.length) {
-            const msg = S.filtro === 'pendentes'
-                ? 'Nenhuma entrega pendente de checklist neste filtro.'
-                : S.filtro === 'avaria'
-                    ? 'Nenhum equipamento entregue com avaria neste período.'
-                    : S.filtro === 'ok'
-                        ? 'Nenhuma entrega conferida como OK neste período.'
-                        : 'Nenhuma entrega encontrada para a data selecionada.';
-            return `<div class="alc-vazio"><i class="ph ph-check-Fat"></i>${esc(msg)}</div>`;
-        }
-
-        return `<section class="alc-grupo">${base.map(cardHtml).join('')}</section>`;
+        const ja = new Set(extras.map(i => i.os_id));
+        html += grupos.map(g => {
+            const l = itens.filter(i => !ja.has(i.os_id) && g.f(i));
+            if (!l.length) return '';
+            return `<section class="alc-grupo"><h3 style="color:${g.cor};"><i class="ph ${g.ic}"></i> ${esc(g.t)} <span class="alc-contador" style="background:${g.cor};">${l.length}</span></h3>${l.map(cardHtml).join('')}</section>`;
+        }).join('');
+        return html;
     }
 
     function badgeSituacao(i) {
@@ -301,66 +242,27 @@
         if (i.futura) return '<span class="alc-badge azul"><i class="ph ph-calendar-check"></i> Agendada</span>';
         return '<span class="alc-badge cinza"><i class="ph ph-clock-counter-clockwise"></i> Sem conferência</span>';
     }
+    const iconeStatusUnidade = u => u.status === 'avaria' ? '<i class="ph-fill ph-thumbs-down" style="color:#dc2626"></i>' : (u.status === 'ok' ? '<i class="ph-fill ph-thumbs-up" style="color:#16a34a"></i>' : (u.status === 'andamento' ? '<i class="ph ph-hourglass-medium" style="color:#ea580c"></i>' : '<i class="ph ph-circle-dashed" style="color:#94a3b8"></i>'));
 
     function cardHtml(i) {
-        const chipsUnidades = (i.unidades || []).map(u => {
-            let cls = 'alr-uni-chip';
-            let ic = 'ph-circle-dashed';
-            if (u.status === 'concluido' && u.tem_avaria) { cls += ' avaria'; ic = 'ph-thumbs-down'; }
-            else if (u.status === 'concluido') { cls += ' ok'; ic = 'ph-thumbs-up'; }
-            else if (u.respondidos > 0) { cls += ' andamento'; ic = 'ph-hourglass-medium'; }
-            return `<span class="${cls}"><i class="ph ${ic}"></i> ${esc(u.rotulo)}</span>`;
-        }).join('');
-
-        const semChk = (i.sem_checklist || []).map(s => `<span class="alr-uni-chip neutro">${esc(s.qtd + 'x ' + s.descricao)}</span>`).join('');
-
-        const rotaHtml = (i.motorista || i.veiculo) ? `
-            <div class="alr-rota-pill">
-                <i class="ph ph-steering-wheel"></i>
-                <span><strong>${esc(i.motorista || 'Motorista não definido')}</strong>${i.veiculo ? ' · ' + esc(i.veiculo) : ''}${i.ordem_rota ? ' · Parada ' + esc(i.ordem_rota) : ''}</span>
+        const rota = i.rota
+            ? `<div class="alr-rota">${avatarPessoa(i.rota.motorista, null, i.rota.motorista_foto, 'xs')}<span><i class="ph ph-truck"></i> ${esc(i.rota.veiculo || '—')} · <i class="ph ph-steering-wheel"></i> ${esc(i.rota.motorista || '—')}</span></div>`
+            : `<div class="alr-rota vazio"><i class="ph ph-truck"></i> Rota ainda não definida</div>`;
+        const unid = i.unidades.map(u => `<div class="alr-unid"><span class="alr-unid-st">${iconeStatusUnidade(u)}</span><span class="alr-unid-nome">${esc(u.rotulo)}</span>${u.concluido ? `<span class="alr-unid-lider">${avatarPessoa(u.lider_nome, u.lider_colab_id, null, 'xs')}<small>${esc(u.lider_nome || '')}</small></span>` : (u.itens_feitos ? `<small class="alr-unid-prog">${u.itens_feitos}/${u.itens_total}</small>` : '')}</div>`).join('');
+        return `<button class="alc-card alr-card ${i.pendente ? 'pend' : ''} ${i.tem_avaria ? 'avaria' : ''}" onclick="window._aleAbrir(${i.os_id})">
+            <div class="alc-card-corpo">
+                <div class="alr-card-topo"><div class="alc-card-nome">${esc(nomeCliente(i.cliente))}</div></div>
+                <div class="alc-card-linha"><span><i class="ph ph-hash"></i> OS ${esc(i.numero_os)}</span><span><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_entrega))}</span>${i.hora_inicio ? `<span><i class="ph ph-clock"></i> ${esc(i.hora_inicio)}</span>` : ''}</div>
+                <div class="alr-end"><i class="ph ph-map-pin"></i> ${esc(i.endereco || '')}</div>
+                <div class="alc-card-badges">${badgeSituacao(i)}</div>
+                ${rota}
+                ${i.unidades.length ? `<div class="alr-unids">${unid}</div>` : ''}
             </div>
-        ` : `
-            <div class="alr-rota-pill sem">
-                <i class="ph ph-truck"></i>
-                <span>Sem rota atribuída no Resumo de Rota</span>
-            </div>
-        `;
-
-        const conferenteHtml = i.conferente ? `
-            <div class="alr-lider-assinatura">
-                ${i.conferente.foto
-                    ? `<img src="${esc(i.conferente.foto)}" alt="" class="alr-lider-avatar" onerror="this.style.display='none'">`
-                    : `<span class="alr-lider-iniciais">${esc((i.conferente.nome || 'L').slice(0, 2).toUpperCase())}</span>`}
-                <span>Conferido por <strong>${esc(i.conferente.nome)}</strong>${i.conferente.em ? ' · ' + esc(fmtDataHora(i.conferente.em)) : ''}</span>
-            </div>
-        ` : '';
-
-        return `
-            <article class="alc-card ${i.tem_avaria ? 'alr-card-avaria' : ''}" onclick="window._aleAbrir(${i.os_id})">
-                <div class="alc-card-main">
-                    <div class="alc-card-top">
-                        <span class="alc-nome">OS #${esc(i.numero_os)} · ${esc(fmtCliente(i.cliente))}</span>
-                        <div class="alr-badges-wrap">${badgeSituacao(i)}</div>
-                    </div>
-                    <div class="alc-meta">
-                        <span><i class="ph ph-calendar-blank"></i> ${fmtBR(i.data_iso)}</span>
-                        ${i.horario_ini ? `<span><i class="ph ph-clock"></i> ${esc(i.horario_ini)}${i.horario_fim ? '–' + esc(i.horario_fim) : ''}</span>` : ''}
-                        <span><i class="ph ${i.turno === 'noturno' ? 'ph-moon-stars' : 'ph-sun'}"></i> ${i.turno === 'noturno' ? 'Noturno' : 'Diurno'}</span>
-                        <span><i class="ph ph-toilet"></i> ${i.unidades_concluidas}/${i.total_unidades} conferido(s)</span>
-                    </div>
-                    ${i.endereco ? `<div class="alr-endereco"><i class="ph ph-map-pin"></i> ${esc(i.endereco)}</div>` : ''}
-                    ${rotaHtml}
-                    <div class="alr-uni-row">${chipsUnidades}${semChk}</div>
-                    ${conferenteHtml}
-                </div>
-                <i class="ph ph-caret-right alc-card-seta"></i>
-            </article>
-        `;
+            <i class="ph ph-caret-right alc-card-seta"></i>
+        </button>`;
     }
 
-    // ── Controles de filtro, busca e agenda ─────────────────────────────────────
-    window._aleFiltro = function (f) { S.filtro = f; desenhar(); };
-    window._aleBusca = function (v) { S.busca = v || ''; desenhar(); };
+    // ── Navegação da agenda ─────────────────────────────────────────────────────
     window._aleNav = function (dir) {
         if (S.modo === 'semana') S.semanaIni = somaDias(S.semanaIni, 7 * dir);
         else { const [y, m] = S.mesRef.split('-').map(Number); const d = new Date(y, m - 1 + dir, 1); S.mesRef = d.getFullYear() + '-' + pad(d.getMonth() + 1); }
@@ -378,10 +280,10 @@
     // ── Modo celular (tela cheia dentro do sistema) ─────────────────────────────
     window._aleMenu = function () { document.body.classList.toggle('app-rail-open'); };
     function aplicarModoCelular() {
-        const vEnt = document.getElementById('view-app-lideranca-entregas');
-        const vRet = document.getElementById('view-app-lideranca-retiradas');
-        const vCand = document.getElementById('view-app-lideranca-candidatos');
-        const ativo = !!((vEnt && vEnt.classList.contains('active')) || (vRet && vRet.classList.contains('active')) || (vCand && vCand.classList.contains('active')));
+        const v = document.getElementById('view-app-lideranca-entregas');
+        const vCand = document.getElementById('view-app-lideranca-candidatos'); // mesma regra para Candidatos e Entregas
+        const vEnt = document.getElementById('view-app-lideranca-retiradas');
+        const ativo = !!((v && v.classList.contains('active')) || (vCand && vCand.classList.contains('active')) || (vEnt && vEnt.classList.contains('active')));
         document.body.classList.toggle('app-mobile-on', ativo && window.innerWidth <= 768);
         if (!ativo) document.body.classList.remove('app-rail-open');
     }
@@ -402,470 +304,282 @@
         document.body.classList.add('alc-no-scroll');
         return o;
     }
-    window._aleFechar = function () {
-        const o = document.getElementById('ale-overlay');
-        if (o) o.remove();
+    function fecharOverlay() {
+        const o = document.getElementById('ale-overlay'); if (o) o.remove();
         document.body.classList.remove('alc-no-scroll');
-        S.osAberta = null;
-        S.unidadeAtiva = null;
-        carregar();
-    };
+    }
+    window._aleFechar = async function () { await salvarAgora(); fecharOverlay(); S.det = null; carregar(); };
 
-    window._aleAbrir = async function (osId, unidadeKeyOpcional) {
-        const ov = overlay();
-        ov.innerHTML = `<div class="alc-vazio"><i class="ph ph-spinner ph-spin"></i>Carregando checklist da entrega...</div>`;
+    const unidadeAtual = () => S.det.unidades[S.ui];
+
+    function carregarEstadoDaUnidade() {
+        const u = unidadeAtual();
+        S.estado = {}; Object.keys(u.estado || {}).forEach(k => { S.estado[k] = Object.assign({}, u.estado[k]); });
+        S.mid = {}; S.vid = null;
+        (u.midias || []).forEach(m => { if (m.tipo === 'foto') S.mid[m.item] = m.id; else if (m.tipo === 'video') S.vid = m.id; });
+        S.local = {}; S.subindo = {}; S.saveEstado = 'ok';
+    }
+
+    window._aleAbrir = async function (osId, unitKey) {
+        const o = overlay();
+        o.innerHTML = `<div class="alc-loading" style="margin-top:30vh;"><i class="ph ph-spinner ph-spin"></i> Abrindo...</div>`;
         try {
-            const r = await fetch(`/api/app/entregas/os/${osId}`, { headers: hdr(false) });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Erro ao abrir OS.', true); window._aleFechar(); return; }
-            S.osAberta = j;
-            const unidades = j.unidades || [];
-            if (unidadeKeyOpcional && unidades.some(u => u.unidade_key === unidadeKeyOpcional)) {
-                S.unidadeAtiva = unidadeKeyOpcional;
-            } else if (!S.unidadeAtiva || !unidades.some(u => u.unidade_key === S.unidadeAtiva)) {
-                const primeiraAberta = unidades.find(u => u.status !== 'concluido');
-                S.unidadeAtiva = primeiraAberta ? primeiraAberta.unidade_key : (unidades[0] ? unidades[0].unidade_key : null);
-            }
+            const d = await api('/app/entregas/os/' + osId);
+            S.det = d;
+            let idx = unitKey ? d.unidades.findIndex(u => u.key === unitKey) : -1;
+            if (idx < 0) idx = Math.max(0, d.unidades.findIndex(u => !u.concluido));
+            S.ui = idx;
+            if (!d.unidades.length) { desenharDetalhe(); return; }
+            carregarEstadoDaUnidade();
             desenharDetalhe();
-        } catch (e) {
-            toast('Falha ao carregar OS: ' + e.message, true);
-            window._aleFechar();
-        }
+        } catch (e) { fecharOverlay(); erro('Não foi possível abrir', e.message); }
     };
 
-    window._aleTrocarUnidade = function (key) {
-        S.unidadeAtiva = key;
-        desenharDetalhe();
+    function faltaItens() {
+        const u = unidadeAtual();
+        return u.itens.filter(it => !itemCompleto(it)).length;
+    }
+    function itemCompleto(it) {
+        const e = S.estado[it.id] || {};
+        return !!(e.ok || e.nao) && !!S.mid[it.id]; // observação é opcional
+    }
+
+    function cabecalhoDetalhe() {
+        const d = S.det;
+        return `<header class="alc-det-head">
+            <button class="alc-icon-btn" onclick="window._aleFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
+            <div class="alc-det-id"><div class="alc-det-nome">${esc(nomeCliente(d.cliente))}</div>
+                <div class="alc-card-badges"><span class="alc-badge cinza"><i class="ph ph-hash"></i> OS ${esc(d.numero_os)}</span><span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_entrega))}</span>${badgeSituacao(d)}</div></div>
+            <span class="alc-salvo" id="ale-salvo"></span>
+        </header>`;
+    }
+    function boxRota() {
+        const d = S.det, r = d.rota;
+        const end = `<div class="alr-end" style="margin:0 0 8px;"><i class="ph ph-map-pin"></i> ${esc(d.endereco || '')}${d.complemento ? ' — ' + esc(d.complemento) : ''}</div>`;
+        if (!r) return `${end}<div class="alr-rotabox vazio"><i class="ph ph-truck"></i><div><b>Rota ainda não definida</b><small>Esta entrega não está no Resumo de Rota de ${esc(fmtBr(d.data_entrega))}.</small></div></div>`;
+        return `${end}<div class="alr-rotabox">${avatarPessoa(r.motorista, null, r.motorista_foto, 'md')}<div><small>Acompanhe a entrega de</small><b>${esc(r.motorista || '—')}</b><span><i class="ph ph-truck"></i> ${esc(r.veiculo || '—')}${r.ajudante ? ' · <i class="ph ph-hard-hat"></i> ' + esc(r.ajudante) : ''}</span></div></div>`;
+    }
+    function abasUnidades() {
+        const d = S.det;
+        if (d.unidades.length <= 1) return '';
+        return `<nav class="alr-abas">${d.unidades.map((u, i) => `<button class="alr-aba ${i === S.ui ? 'on' : ''} st-${u.status}" onclick="window._aleUnidade(${i})">${iconeStatusUnidade(u)} <span>${esc(u.rotulo)}</span></button>`).join('')}</nav>`;
+    }
+    window._aleUnidade = async function (i) {
+        if (i === S.ui) return;
+        await salvarAgora();
+        S.ui = i; carregarEstadoDaUnidade(); desenharDetalhe();
+        const c = document.getElementById('ale-det-corpo'); if (c) c.scrollTop = 0;
     };
 
     function desenharDetalhe() {
-        const ov = document.getElementById('ale-overlay');
-        if (!ov || !S.osAberta) return;
-        const { os, unidades, sem_checklist, pode_reabrir } = S.osAberta;
-        const u = unidades.find(x => x.unidade_key === S.unidadeAtiva) || unidades[0] || null;
-
-        const abasHtml = unidades.length > 1 ? `
-            <div class="alr-unidades-tabs">
-                ${unidades.map(x => {
-                    const ativa = u && x.unidade_key === u.unidade_key;
-                    const concl = x.status === 'concluido';
-                    const av = x.tem_avaria || x.itens.some(i => i.status === 'avaria');
-                    const cls = ['alr-uni-tab', ativa ? 'ativa' : '', concl ? (av ? 'avaria' : 'ok') : ''].filter(Boolean).join(' ');
-                    const ic = concl ? (av ? 'ph-thumbs-down' : 'ph-thumbs-up') : 'ph-toilet';
-                    return `<button type="button" class="${cls}" onclick="window._aleTrocarUnidade('${esc(x.unidade_key)}')">
-                        <i class="ph ${ic}"></i> ${esc(x.rotulo)}
-                    </button>`;
-                }).join('')}
-            </div>
-        ` : '';
-
-        const boxRota = `
-            <div class="alr-rota-destaque">
-                <div class="alr-rota-icone"><i class="ph ph-truck"></i></div>
-                <div class="alr-rota-info">
-                    <div class="alr-rota-titulo">Acompanhe a saída / entrega de</div>
-                    <div class="alr-rota-principal">
-                        ${os.motorista ? `<strong>${esc(os.motorista)}</strong>` : '<span style="color:#94a3b8;">Motorista não vinculado no Resumo de Rota</span>'}
-                        ${os.veiculo ? `<span class="alr-placa-tag"><i class="ph ph-car-profile"></i> ${esc(os.veiculo)}</span>` : ''}
-                    </div>
-                    ${(os.ajudante || os.ordem_rota || os.horario_rota) ? `
-                        <div class="alr-rota-sub">
-                            ${os.ajudante ? `<span>Ajudante: <strong>${esc(os.ajudante)}</strong></span>` : ''}
-                            ${os.ordem_rota ? `<span>Parada: <strong>${esc(os.ordem_rota)}</strong></span>` : ''}
-                            ${os.horario_rota ? `<span>Horário rota: <strong>${esc(os.horario_rota)}</strong></span>` : ''}
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-
-        if (!u) {
-            ov.innerHTML = `
-                <div class="alc-det-top">
-                    <button type="button" class="alc-icon-btn" onclick="window._aleFechar()"><i class="ph ph-arrow-left"></i></button>
-                    <div class="alc-det-tit">
-                        <h2>OS #${esc(os.numero_os)} · ${esc(fmtCliente(os.cliente))}</h2>
-                        <span>${fmtBR(os.data_iso)} · ${esc(os.tipo_servico)}</span>
-                    </div>
-                </div>
-                <div class="alc-det-body">
-                    ${boxRota}
-                    <div class="alc-secao">
-                        <h3><i class="ph ph-info"></i> Equipamentos desta OS</h3>
-                        <p style="font-size:.9rem;color:#475569;margin:0;">Esta OS possui apenas itens sem checklist cadastrado (${esc((sem_checklist || []).map(s => s.qtd + 'x ' + s.descricao).join(', ') || 'nenhum item')}).</p>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        const bloqueado = u.status === 'concluido';
-        const total = u.itens.length;
-        const respondidos = u.itens.filter(i => i.status === 'ok' || i.status === 'avaria').length;
-        const comFoto = u.itens.filter(i => !!i.foto).length;
-        const avarias = u.itens.filter(i => i.status === 'avaria').length;
-        const pct = total ? Math.round(( Math.min(respondidos, comFoto) / total) * 100) : 0;
-
-        const assinaturaUnidade = u.conferido_por_nome ? `
-            <div class="alr-conferido-banner ${u.tem_avaria ? 'avaria' : 'ok'}">
-                ${u.conferido_por_foto
-                    ? `<img src="${esc(u.conferido_por_foto)}" alt="" class="alr-lider-avatar grande" onerror="this.style.display='none'">`
-                    : `<span class="alr-lider-iniciais grande">${esc((u.conferido_por_nome || 'L').slice(0, 2).toUpperCase())}</span>`}
-                <div>
-                    <strong>Conferido por ${esc(u.conferido_por_nome)}</strong>
-                    <span>${esc(fmtDataHora(u.conferido_em))} · ${u.tem_avaria ? 'Concluído com avaria' : 'Equipamento OK'}</span>
-                </div>
-            </div>
-        ` : '';
-
-        const itensHtml = u.itens.map((it, idx) => {
-            const st = it.status;
-            const ehOk = st === 'ok';
-            const ehAv = st === 'avaria';
-            const temFoto = !!it.foto;
-            const env = S.enviandoMidia === it.key;
-            return `
-                <div class="alr-item-card ${ehAv ? 'avaria' : ehOk ? 'ok' : ''}" id="ale-item-${esc(it.key)}">
-                    <div class="alr-item-head">
-                        <div class="alr-item-nome">
-                            <span class="alr-item-num">${idx + 1}</span>
-                            <strong>${esc(it.label)}</strong>
-                            ${ehAv ? '<span class="alc-badge vermelho">AVARIA</span>' : ''}
-                        </div>
-                        <div class="alr-joinhas">
-                            <button type="button" class="alr-joinha-btn ok ${ehOk ? 'ativo' : ''}" ${bloqueado ? 'disabled' : ''}
-                                onclick="window._aleMarcar('${esc(it.key)}','ok')" title="Peça OK">
-                                <i class="ph-fill ph-thumbs-up"></i><span>OK</span>
-                            </button>
-                            <button type="button" class="alr-joinha-btn avaria ${ehAv ? 'ativo' : ''}" ${bloqueado ? 'disabled' : ''}
-                                onclick="window._aleMarcar('${esc(it.key)}','avaria')" title="Peça avariada">
-                                <i class="ph-fill ph-thumbs-down"></i><span>Avaria</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="alr-item-midia-row">
-                        ${temFoto ? `
-                            <div class="alr-foto-preview">
-                                <img src="${esc(urlMidia(it.foto.url))}" alt="${esc(it.label)}" onclick="window._aleVerFoto('${esc(urlMidia(it.foto.url))}','${esc(it.label)}')">
-                                ${!bloqueado ? `
-                                    <label class="alr-trocar-foto">
-                                        <i class="ph ph-camera-rotate"></i> Trocar foto
-                                        <input type="file" accept="image/*" capture="environment" hidden onchange="window._aleFoto('${esc(it.key)}', this)">
-                                    </label>
-                                ` : `<span class="alr-foto-ok-tag"><i class="ph ph-check-circle"></i> Foto registrada</span>`}
-                            </div>
-                        ` : `
-                            <label class="alr-btn-foto ${env ? 'enviando' : ''}">
-                                <i class="ph ${env ? 'ph-spinner ph-spin' : 'ph-camera'}"></i>
-                                <span>${env ? 'Enviando foto...' : 'Tirar foto obrigatória'}</span>
-                                ${!bloqueado && !env ? `<input type="file" accept="image/*" capture="environment" hidden onchange="window._aleFoto('${esc(it.key)}', this)">` : ''}
-                            </label>
-                        `}
-
-                        <input type="text" class="alr-obs-input ${ehAv && !String(it.obs || '').trim() ? 'obrigatoria' : ''}"
-                            placeholder="${ehAv ? 'Descreva a avaria (obrigatório)...' : 'Observação da peça (opcional)...'}"
-                            value="${esc(it.obs || '')}" ${bloqueado ? 'disabled' : ''}
-                            onchange="window._aleObs('${esc(it.key)}', this.value)">
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        const videosHtml = (u.videos || []).map(v => `
-            <div class="alr-video-item">
-                <video src="${esc(urlMidia(v.url))}" controls preload="metadata"></video>
-                ${!bloqueado ? `<button type="button" class="alr-video-del" onclick="window._aleDelMidia(${v.id})"><i class="ph ph-trash"></i> Remover vídeo</button>` : ''}
-            </div>
-        `).join('');
-
-        ov.innerHTML = `
-            <div class="alc-det-top">
-                <button type="button" class="alc-icon-btn" onclick="window._aleFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
-                <div class="alc-det-tit">
-                    <h2>OS #${esc(os.numero_os)} · ${esc(fmtCliente(os.cliente))}</h2>
-                    <span>${fmtBR(os.data_iso)} · ${esc(u.modelo_nome)} (${esc(u.rotulo)})</span>
-                </div>
-                <span class="alc-Save-ind" id="ale-save-ind"></span>
-            </div>
-
-            ${abasHtml}
-
-            <div class="alc-det-body">
-                ${boxRota}
-                ${assinaturaUnidade}
-
-                <div class="alc-secao">
-                    <h3>
-                        <span><i class="ph ph-list-checks"></i> Checklist · ${esc(u.rotulo)} (${esc(u.descricao_item)})</span>
-                        <span>${respondidos}/${total} · 📷 ${comFoto}/${total}${avarias ? ` · ⚠️ ${avarias}` : ''}</span>
-                    </h3>
-                    <div class="alc-prog"><div class="alc-prog-fill" style="width:${pct}%"></div></div>
-                    <p class="alr-regra-hint"><i class="ph ph-camera"></i> Cada item exige 👍 ou 👎 e <strong>1 foto obrigatória</strong>. Em caso de 👎, descreva a avaria.</p>
-                    <div class="alr-itens-lista">${itensHtml}</div>
-                </div>
-
-                <div class="alc-secao">
-                    <h3>
-                        <span><i class="ph ph-video-camera"></i> Vídeo do equipamento (opcional)</span>
-                        <span>${(u.videos || []).length} vídeo(s)</span>
-                    </h3>
-                    ${videosHtml}
-                    ${!bloqueado ? `
-                        <label class="alr-btn-video ${S.enviandoMidia === 'video' ? 'enviando' : ''}">
-                            <i class="ph ${S.enviandoMidia === 'video' ? 'ph-spinner ph-spin' : 'ph-video-camera'}"></i>
-                            <span>${S.enviandoMidia === 'video' ? 'Enviando vídeo para o R2...' : 'Gravar ou anexar vídeo (opcional · até 60 MB)'}</span>
-                            ${S.enviandoMidia !== 'video' ? `<input type="file" accept="video/*" capture="environment" hidden onchange="window._aleVideo(this)">` : ''}
-                        </label>
-                    ` : ''}
-                </div>
-            </div>
-
-            <div class="alc-det-foot">
-                ${!bloqueado ? `
-                    <button type="button" class="alc-cta" onclick="window._aleConcluir()">
-                        <i class="ph ph-check-circle"></i> Concluir conferência (${esc(u.rotulo)})
-                    </button>
-                ` : (pode_reabrir ? `
-                    <button type="button" class="alc-cta sec" onclick="window._aleReabrir()">
-                        <i class="ph ph-lock-key-open"></i> Reabrir checklist (Admin)
-                    </button>
-                ` : `
-                    <button type="button" class="alc-cta sec" disabled>
-                        <i class="ph ph-check-circle"></i> Conferência concluída
-                    </button>
-                `)}
-            </div>
-        `;
-    }
-
-    // ═══ Ações de item: 👍/👎, observação, foto comprimida e vídeo no R2 ═══════
-    function unidadeAtual() {
-        if (!S.osAberta) return null;
-        return (S.osAberta.unidades || []).find(x => x.unidade_key === S.unidadeAtiva) || null;
-    }
-
-    function indicarSalvando(txt) {
-        const el = document.getElementById('ale-save-ind');
-        if (el) el.textContent = txt || '';
-    }
-
-    window._aleMarcar = async function (itemKey, status) {
-        const u = unidadeAtual();
-        if (!u || u.status === 'concluido') return;
-        const it = u.itens.find(x => x.key === itemKey);
-        if (!it) return;
-        it.status = status;
-        u.tem_avaria = u.itens.some(x => x.status === 'avaria');
-        desenharDetalhe();
-        await salvarItemServidor(u, itemKey, it.status, it.obs);
-    };
-
-    window._aleObs = async function (itemKey, obs) {
-        const u = unidadeAtual();
-        if (!u || u.status === 'concluido') return;
-        const it = u.itens.find(x => x.key === itemKey);
-        if (!it) return;
-        it.obs = obs || '';
-        await salvarItemServidor(u, itemKey, it.status, it.obs);
-    };
-
-    async function salvarItemServidor(u, itemKey, status, obs) {
-        try {
-            indicarSalvando('Salvando...');
-            const r = await fetch(`/api/app/entregas/os/${S.osAberta.os.id}/unidades/${encodeURIComponent(u.unidade_key)}/checklist`, {
-                method: 'PUT',
-                headers: hdr(true),
-                body: JSON.stringify({ itens: { [itemKey]: { status, obs } } })
-            });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Erro ao salvar.', true); indicarSalvando(''); return; }
-            indicarSalvando('✓ Salvo');
-            setTimeout(() => indicarSalvando(''), 1400);
-        } catch (e) {
-            indicarSalvando('');
-            toast('Falha ao salvar: ' + e.message, true);
-        }
-    }
-
-    // Comprime imagem no cliente (máx 1600 px, JPEG 0.82) para upload rápido no 4G
-    function comprimirImagem(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onerror = () => reject(new Error('Falha ao ler imagem.'));
-            reader.onload = () => {
-                const img = new Image();
-                img.onerror = () => resolve({ base64: reader.result, mime: file.type || 'image/jpeg' });
-                img.onload = () => {
-                    const max = 1600;
-                    let w = img.width, h = img.height;
-                    if (w > max || h > max) {
-                        if (w > h) { h = Math.round(h * (max / w)); w = max; }
-                        else { w = Math.round(w * (max / h)); h = max; }
-                    }
-                    const cv = document.createElement('canvas');
-                    cv.width = w; cv.height = h;
-                    cv.getContext('2d').drawImage(img, 0, 0, w, h);
-                    resolve({ base64: cv.toDataURL('image/jpeg', 0.82), mime: 'image/jpeg' });
-                };
-                img.src = reader.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function lerArquivoBase64(file) {
-        return new Promise((resolve, reject) => {
-            const r = new FileReader();
-            r.onerror = () => reject(new Error('Falha ao ler arquivo.'));
-            r.onload = () => resolve(r.result);
-            r.readAsDataURL(file);
-        });
-    }
-
-    window._aleFoto = async function (itemKey, input) {
-        const file = input && input.files && input.files[0];
-        if (!file) return;
-        const u = unidadeAtual();
-        if (!u) return;
-        S.enviandoMidia = itemKey;
-        desenharDetalhe();
-        try {
-            const { base64, mime } = await comprimirImagem(file);
-            const r = await fetch(`/api/app/entregas/os/${S.osAberta.os.id}/unidades/${encodeURIComponent(u.unidade_key)}/midia`, {
-                method: 'POST',
-                headers: hdr(true),
-                body: JSON.stringify({ tipo: 'foto', item_key: itemKey, base64, mime, nome: file.name })
-            });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Erro ao enviar foto.', true); return; }
-            const it = u.itens.find(x => x.key === itemKey);
-            if (it) it.foto = j.midia;
-            toast('Foto salva!');
-        } catch (e) {
-            toast('Erro no upload da foto: ' + e.message, true);
-        } finally {
-            S.enviandoMidia = null;
-            desenharDetalhe();
-        }
-    };
-
-    window._aleVideo = async function (input) {
-        const file = input && input.files && input.files[0];
-        if (!file) return;
-        if (file.size > 60 * 1024 * 1024) {
-            toast('O vídeo excede o limite de 60 MB.', true);
-            return;
-        }
-        const u = unidadeAtual();
-        if (!u) return;
-        S.enviandoMidia = 'video';
-        desenharDetalhe();
-        try {
-            const base64 = await lerArquivoBase64(file);
-            const r = await fetch(`/api/app/entregas/os/${S.osAberta.os.id}/unidades/${encodeURIComponent(u.unidade_key)}/midia`, {
-                method: 'POST',
-                headers: hdr(true),
-                body: JSON.stringify({ tipo: 'video', base64, mime: file.type || 'video/mp4', nome: file.name })
-            });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Erro ao enviar vídeo.', true); return; }
-            if (!u.videos) u.videos = [];
-            u.videos.push(j.midia);
-            toast('Vídeo salvo no R2!');
-        } catch (e) {
-            toast('Erro no upload do vídeo: ' + e.message, true);
-        } finally {
-            S.enviandoMidia = null;
-            desenharDetalhe();
-        }
-    };
-
-    window._aleDelMidia = async function (id) {
-        const u = unidadeAtual();
-        if (!u) return;
-        try {
-            const r = await fetch(`/api/app/entregas/midia/${id}`, { method: 'DELETE', headers: hdr(false) });
-            if (!r.ok) { const j = await r.json().catch(() => ({})); toast(j.error || 'Erro ao remover.', true); return; }
-            u.videos = (u.videos || []).filter(v => v.id !== id);
-            toast('Vídeo removido.');
-            desenharDetalhe();
-        } catch (e) {
-            toast('Erro: ' + e.message, true);
-        }
-    };
-
-    window._aleVerFoto = function (url, titulo) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ title: titulo || 'Foto', imageUrl: url, imageAlt: titulo || '', showConfirmButton: true, confirmButtonText: 'Fechar' });
+        const o = overlay(), d = S.det;
+        let corpo, barra;
+        if (!d.unidades.length) {
+            corpo = `${boxRota()}<div class="alc-vazio"><i class="ph ph-prohibit"></i><div>Esta entrega não tem equipamento com checklist (ex.: carrinho, limpa fossa).</div></div>`;
+            barra = `<button class="alc-btn alc-btn-primary full" onclick="window._aleFechar()"><i class="ph ph-arrow-left"></i> Voltar à lista</button>`;
         } else {
-            window.open(url, '_blank');
+            const u = unidadeAtual();
+            corpo = `${boxRota()}${abasUnidades()}${u.concluido ? htmlConcluida(u) : htmlChecklist(u)}`;
+            barra = u.concluido ? barraConcluida(u) : barraChecklist();
         }
-    };
+        o.innerHTML = `<div class="alc-det">${cabecalhoDetalhe()}<div class="alc-det-corpo" id="ale-det-corpo">${corpo}</div><footer class="alc-det-barra" id="ale-det-barra">${barra}</footer></div>`;
+        mostrarSalvo();
+    }
+    function atualizar(manterScroll) {
+        const c = document.getElementById('ale-det-corpo'); const sc = c ? c.scrollTop : 0;
+        desenharDetalhe();
+        const c2 = document.getElementById('ale-det-corpo'); if (c2 && manterScroll) c2.scrollTop = sc;
+    }
 
-    // ═══ Concluir / Reabrir conferência da unidade ═════════════════════════════
+    // ── Checklist editável ──────────────────────────────────────────────────────
+    function htmlChecklist(u) {
+        const total = u.itens.length, falta = faltaItens(), feitos = total - falta, pct = Math.round(feitos * 100 / total);
+        const linhas = u.itens.map((it, idx) => {
+            const e = S.estado[it.id] || {};
+            const ok = !!e.ok, nao = !!e.nao && !ok;
+            const temFoto = !!S.mid[it.id], subindo = !!S.subindo[it.id];
+            const src = S.local[it.id] || (temFoto ? midiaUrl(S.mid[it.id]) : '');
+            const obsFalta = false; // observação nunca é obrigatória
+            const obsAberta = true; // campo de observação sempre visível (opcional)
+            return `<div class="alc-item alr-item ${ok ? 'ok' : (nao ? 'nao' : '')} ${itemCompleto(it) ? 'completo' : ''}">
+                <div class="alr-item-topo">
+                    <span class="alc-item-ico"><i class="ph ${iconeItem(it.id)}"></i></span>
+                    <span class="alc-item-txt"><small>${idx + 1}</small> ${esc(it.texto)}</span>
+                    <button class="alc-item-nota ${e.obs ? 'tem' : ''}" onclick="window._aleObs('${it.id}')" aria-label="Observação"><i class="ph ph-note-pencil"></i></button>
+                </div>
+                <div class="alr-item-acoes">
+                    <button class="alr-voto up ${ok ? 'on' : ''}" onclick="window._aleVoto('${it.id}','ok')" aria-label="OK"><i class="${ok ? 'ph-fill' : 'ph'} ph-thumbs-up"></i><span>OK</span></button>
+                    <button class="alr-voto down ${nao ? 'on' : ''}" onclick="window._aleVoto('${it.id}','nao')" aria-label="Avariado"><i class="${nao ? 'ph-fill' : 'ph'} ph-thumbs-down"></i><span>Avariado</span></button>
+                    <label class="alr-cam ${temFoto ? 'tem' : 'falta'}" aria-label="Foto do item">
+                        ${subindo ? '<i class="ph ph-spinner ph-spin"></i><span>Enviando</span>' : (src ? `<img src="${esc(src)}" alt=""><button type="button" class="alr-zoom" onclick="event.preventDefault();event.stopPropagation();window._aleVerFoto('${it.id}')" aria-label="Ampliar foto"><i class="ph ph-magnifying-glass-plus"></i></button>` : '<i class="ph ph-camera"></i><span>Foto</span>')}
+                        <input type="file" accept="image/*" capture="environment" onchange="window._aleFoto('${it.id}', this)">
+                    </label>
+                </div>
+                ${temFoto ? '' : '<div class="alr-aviso"><i class="ph ph-camera"></i> Foto obrigatória deste item</div>'}
+                ${obsAberta ? `<textarea class="alc-obs" rows="2" placeholder="${nao ? 'Observação sobre a avaria (opcional)' : 'Observação (opcional)'}" oninput="window._aleObsTxt('${it.id}', this.value)">${esc(e.obs || '')}</textarea>` : ''}
+                ${obsFalta ? '<div class="alr-aviso red"><i class="ph ph-warning-circle"></i> Descreva a avaria</div>' : ''}
+            </div>`;
+        }).join('');
+        const videoBox = `<div class="alr-video">
+            <div class="alr-video-tit"><i class="ph ph-video-camera"></i> Vídeo do equipamento <em>(opcional)</em></div>
+            ${S.vid ? `<video controls playsinline preload="metadata" src="${esc(midiaUrl(S.vid))}"></video><button class="alc-btn alc-btn-sec" onclick="window._aleExcluirVideo()"><i class="ph ph-trash"></i> Remover vídeo</button>`
+                : `<label class="alc-btn alc-btn-sec alr-video-btn">${S.subindo.video ? '<i class="ph ph-spinner ph-spin"></i> Enviando vídeo...' : '<i class="ph ph-record"></i> Gravar / anexar vídeo (até 60 MB)'}<input type="file" accept="video/*" capture="environment" onchange="window._aleVideo(this)"></label>`}
+        </div>`;
+        return `<div class="alc-prog"><div class="alc-prog-txt"><b>${feitos}/${total}</b> itens completos <span>${pct}%</span></div><div class="alc-barra grande"><i style="width:${pct}%;"></i></div></div>
+            <p class="alc-dica"><i class="ph ph-hand-tap"></i> Em cada item: <b>👍 OK</b> ou <b>👎 Avariado</b> + <b>foto</b> (obrigatória).</p>
+            <div class="alc-itens">${linhas}</div>${videoBox}`;
+    }
+    function barraChecklist() {
+        const falta = faltaItens();
+        return `<button class="alc-btn alc-btn-ok grow" ${falta ? 'disabled' : ''} onclick="window._aleConcluir()"><i class="ph ph-seal-check"></i> ${falta ? 'Faltam ' + falta + ' item' + (falta > 1 ? 's' : '') : 'Concluir conferência'}</button>`;
+    }
+
+    window._aleVoto = function (id, tipo) {
+        const e = S.estado[id] = S.estado[id] || {};
+        if (tipo === 'ok') { e.ok = !e.ok; if (e.ok) e.nao = false; } else { e.nao = !e.nao; if (e.nao) e.ok = false; }
+        e.em = new Date().toISOString();
+        if (navigator.vibrate) try { navigator.vibrate(15); } catch (x) { /* ignora */ }
+        agendarSalvar(); atualizar(true);
+    };
+    window._aleObs = function (id) { const e = S.estado[id] = S.estado[id] || {}; e.obsAberta = !e.obsAberta; atualizar(true); };
+    window._aleObsTxt = function (id, v) { const e = S.estado[id] = S.estado[id] || {}; e.obs = v; agendarSalvar(); };
+
+    // ── Salvamento automático do rascunho ───────────────────────────────────────
+    function estadoParaEnvio() {
+        const itens = {};
+        Object.keys(S.estado).forEach(k => { const e = S.estado[k]; itens[k] = { ok: !!e.ok, nao: !!e.nao && !e.ok, obs: e.obs || '', em: e.em }; });
+        return itens;
+    }
+    function agendarSalvar() { S.saveEstado = 'pendente'; mostrarSalvo(); clearTimeout(S.saveTimer); S.saveTimer = setTimeout(salvarAgora, 600); }
+    async function salvarAgora() {
+        clearTimeout(S.saveTimer); S.saveTimer = null;
+        if (!S.det || !S.det.unidades.length || S.saveEstado === 'ok') return;
+        const u = unidadeAtual(); if (!u || u.concluido) return;
+        S.saveEstado = 'salvando'; mostrarSalvo();
+        try {
+            await api(`/app/entregas/os/${S.det.os_id}/unidades/${u.key}/checklist`, { method: 'PUT', body: JSON.stringify({ itens: estadoParaEnvio() }) });
+            if (!S.saveTimer) S.saveEstado = 'ok';
+        } catch (e) { S.saveEstado = 'erro'; }
+        mostrarSalvo();
+    }
+    function mostrarSalvo() {
+        const el = document.getElementById('ale-salvo'); if (!el) return;
+        const m = {
+            ok: '<i class="ph ph-cloud-check" style="color:#16a34a"></i>', pendente: '<i class="ph ph-cloud-arrow-up" style="color:#0284c7"></i>',
+            salvando: '<i class="ph ph-spinner ph-spin" style="color:#7c3aed"></i>', erro: '<i class="ph ph-cloud-slash" style="color:#dc2626"></i>'
+        };
+        el.innerHTML = (m[S.saveEstado] || '') + `<small>${S.saveEstado === 'ok' ? 'Salvo' : (S.saveEstado === 'erro' ? 'Erro' : '...')}</small>`;
+    }
+
+    // ── Fotos / vídeo ───────────────────────────────────────────────────────────
+    function comprimir(file, maxLado, q) {
+        return new Promise((resolve, reject) => {
+            const img = new Image(), url = URL.createObjectURL(file);
+            img.onload = () => {
+                let w = img.naturalWidth, h = img.naturalHeight;
+                const k = Math.min(1, maxLado / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                c.toBlob(b => { URL.revokeObjectURL(url); b ? resolve(b) : reject(new Error('Falha ao processar a foto.')); }, 'image/jpeg', q);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não foi possível ler a foto.')); };
+            img.src = url;
+        });
+    }
+    async function enviarMidia(item, blob, nome) {
+        const u = unidadeAtual();
+        const fd = new FormData(); fd.append('item', item); fd.append('arquivo', blob, nome);
+        return (await api(`/app/entregas/os/${S.det.os_id}/unidades/${u.key}/midia`, { method: 'POST', body: fd })).midia;
+    }
+    window._aleFoto = async function (id, input) {
+        const file = input.files && input.files[0]; input.value = '';
+        if (!file) return;
+        const chave = S.det.os_id + '|' + unidadeAtual().key;
+        S.subindo[id] = true; atualizar(true);
+        try {
+            await salvarAgora();
+            const blob = await comprimir(file, 1600, 0.8);
+            const m = await enviarMidia(id, blob, id + '.jpg');
+            if (!S.det || S.det.os_id + '|' + unidadeAtual().key !== chave) return; // trocou de equipamento durante o envio
+            S.mid[id] = m.id; S.local[id] = URL.createObjectURL(blob);
+        } catch (e) { erro('Foto não enviada', e.message); }
+        delete S.subindo[id]; atualizar(true);
+    };
+    window._aleVideo = async function (input) {
+        const file = input.files && input.files[0]; input.value = '';
+        if (!file) return;
+        if (file.size > 60 * 1024 * 1024) { erro('Vídeo muito grande', 'O vídeo tem ' + Math.round(file.size / 1048576) + ' MB. O limite é 60 MB — grave um vídeo mais curto ou em qualidade menor.'); return; }
+        S.subindo.video = true; atualizar(true);
+        try {
+            await salvarAgora();
+            const m = await enviarMidia('video', file, file.name || 'video.mp4');
+            S.vid = m.id;
+        } catch (e) { erro('Vídeo não enviado', e.message); }
+        delete S.subindo.video; atualizar(true);
+    };
+    window._aleExcluirVideo = async function () {
+        const r = await Swal.fire({ icon: 'question', title: 'Remover o vídeo?', showCancelButton: true, confirmButtonText: 'Remover', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626' });
+        if (!r.isConfirmed) return;
+        try { await api('/app/entregas/midia/' + S.vid, { method: 'DELETE' }); S.vid = null; atualizar(true); } catch (e) { erro('Não foi possível remover', e.message); }
+    };
+    window._aleVerFoto = function (id) {
+        const src = S.local[id] || (S.mid[id] ? midiaUrl(S.mid[id]) : ''); if (!src) return;
+        lightbox(src);
+    };
+    window._aleVerFotoId = function (mid) { lightbox(midiaUrl(mid)); };
+    function lightbox(src) {
+        const l = document.createElement('div'); l.className = 'alr-lightbox';
+        l.innerHTML = `<button class="alc-icon-btn" aria-label="Fechar"><i class="ph ph-x"></i></button><img src="${esc(src)}" alt="">`;
+        l.onclick = () => l.remove(); document.body.appendChild(l);
+    }
+
+    // ── Concluir ────────────────────────────────────────────────────────────────
     window._aleConcluir = async function () {
         const u = unidadeAtual();
-        if (!u || !S.osAberta) return;
-
-        // Validação imediata no cliente com rolagem até o 1º item pendente
-        for (const it of u.itens) {
-            if (it.status !== 'ok' && it.status !== 'avaria') {
-                toast(`Marque 👍 ou 👎 em "${it.label}".`, true);
-                rolarParaItem(it.key);
-                return;
-            }
-            if (!it.foto) {
-                toast(`Tire a foto obrigatória de "${it.label}".`, true);
-                rolarParaItem(it.key);
-                return;
-            }
-            if (it.status === 'avaria' && !String(it.obs || '').trim()) {
-                toast(`Descreva a avaria de "${it.label}".`, true);
-                rolarParaItem(it.key);
-                return;
-            }
-        }
-
+        const r = await Swal.fire({ icon: 'question', title: 'Concluir a conferência?', html: `<b>${esc(u.rotulo)}</b><br>Depois de concluída não dá para editar.`, showCancelButton: true, confirmButtonText: 'Concluir', cancelButtonText: 'Voltar', confirmButtonColor: '#16a34a' });
+        if (!r.isConfirmed) return;
         try {
-            const r = await fetch(`/api/app/entregas/os/${S.osAberta.os.id}/unidades/${encodeURIComponent(u.unidade_key)}/concluir`, {
-                method: 'POST',
-                headers: hdr(true)
-            });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Não foi possível concluir.', true); return; }
-            toast(`${u.rotulo} concluído com sucesso!`);
-            // Recarrega a OS e avança automaticamente para a próxima unidade pendente (se houver)
-            const prox = (S.osAberta.unidades || []).find(x => x.unidade_key !== u.unidade_key && x.status !== 'concluido');
-            await window._aleAbrir(S.osAberta.os.id, prox ? prox.unidade_key : u.unidade_key);
-        } catch (e) {
-            toast('Erro ao concluir: ' + e.message, true);
-        }
+            S.saveEstado = 'pendente'; await salvarAgora();
+            const res = await api(`/app/entregas/os/${S.det.os_id}/unidades/${u.key}/concluir`, { method: 'POST' });
+            await Swal.fire({ icon: res.tem_avaria ? 'warning' : 'success', title: res.tem_avaria ? 'Conferência concluída — com AVARIA' : 'Conferência concluída!', timer: 1600, showConfirmButton: false });
+            const d = await api('/app/entregas/os/' + S.det.os_id);
+            S.det = d;
+            const prox = d.unidades.findIndex(x => !x.concluido);
+            S.ui = prox >= 0 ? prox : S.ui;
+            carregarEstadoDaUnidade(); desenharDetalhe();
+            const c = document.getElementById('ale-det-corpo'); if (c) c.scrollTop = 0;
+        } catch (e) { erro('Não foi possível concluir', e.message); }
     };
 
+    // ── Conferência concluída (somente leitura) ─────────────────────────────────
+    function htmlConcluida(u) {
+        const mids = {}; (u.midias || []).forEach(m => { if (m.tipo === 'foto') mids[m.item] = m.id; });
+        const vid = (u.midias || []).find(m => m.tipo === 'video');
+        const linhas = u.itens.map((it, idx) => {
+            const e = (u.estado || {})[it.id] || {};
+            return `<div class="alc-item alr-item ${e.nao ? 'nao' : 'ok'} completo ro">
+                <div class="alr-item-topo"><span class="alc-item-ico"><i class="ph ${iconeItem(it.id)}"></i></span>
+                    <span class="alc-item-txt"><small>${idx + 1}</small> ${esc(it.texto)}</span>
+                    <span class="alr-ro-voto ${e.nao ? 'down' : 'up'}"><i class="ph-fill ${e.nao ? 'ph-thumbs-down' : 'ph-thumbs-up'}"></i></span>
+                    ${mids[it.id] ? `<button class="alr-thumb" onclick="window._aleVerFotoId(${mids[it.id]})"><img src="${esc(midiaUrl(mids[it.id]))}" alt="" loading="lazy"></button>` : ''}</div>
+                ${e.obs ? `<div class="alr-obs-ro"><i class="ph ph-note-pencil"></i> ${esc(e.obs)}</div>` : ''}
+            </div>`;
+        }).join('');
+        return `<div class="alr-lider ${u.tem_avaria ? 'avaria' : ''}">${avatarPessoa(u.lider_nome, u.lider_colab_id, null, 'md')}
+            <div><small>Conferido por</small><b>${esc(u.lider_nome || '—')}</b><span><i class="ph ph-clock"></i> ${esc(fmtDataHora(u.concluido_em))}</span></div>
+            ${u.tem_avaria ? '<span class="alc-badge vermelho"><i class="ph ph-warning-octagon"></i> AVARIA</span>' : '<span class="alc-badge verde"><i class="ph ph-thumbs-up"></i> OK</span>'}</div>
+            <div class="alc-itens">${linhas}</div>
+            ${vid ? `<div class="alr-video"><div class="alr-video-tit"><i class="ph ph-video-camera"></i> Vídeo</div><video controls playsinline preload="metadata" src="${esc(midiaUrl(vid.id))}"></video></div>` : ''}`;
+    }
+    function barraConcluida(u) {
+        const pend = S.det.unidades.findIndex(x => !x.concluido);
+        return `${ehAdmin() ? `<button class="alc-btn alc-btn-sec" onclick="window._aleReabrir()"><i class="ph ph-lock-key-open"></i> Reabrir</button>` : ''}
+            ${pend >= 0 ? `<button class="alc-btn alc-btn-primary grow" onclick="window._aleUnidade(${pend})"><i class="ph ph-arrow-right"></i> Próximo equipamento</button>` : `<button class="alc-btn alc-btn-primary grow" onclick="window._aleFechar()"><i class="ph ph-arrow-left"></i> Voltar à lista</button>`}`;
+    }
     window._aleReabrir = async function () {
         const u = unidadeAtual();
-        if (!u || !S.osAberta) return;
-        try {
-            const r = await fetch(`/api/app/entregas/os/${S.osAberta.os.id}/unidades/${encodeURIComponent(u.unidade_key)}/reabrir`, {
-                method: 'POST',
-                headers: hdr(true)
-            });
-            const j = await r.json();
-            if (!r.ok) { toast(j.error || 'Erro ao reabrir.', true); return; }
-            toast('Checklist reaberto para edição.');
-            await window._aleAbrir(S.osAberta.os.id, u.unidade_key);
-        } catch (e) {
-            toast('Erro: ' + e.message, true);
-        }
+        const r = await Swal.fire({ icon: 'warning', title: 'Reabrir esta conferência?', text: 'O checklist volta a ser editável e a assinatura do líder é removida.', showCancelButton: true, confirmButtonText: 'Reabrir', cancelButtonText: 'Cancelar', confirmButtonColor: '#ea580c' });
+        if (!r.isConfirmed) return;
+        try { await api(`/app/entregas/os/${S.det.os_id}/unidades/${u.key}/reabrir`, { method: 'POST' }); window._aleAbrir(S.det.os_id, u.key); } catch (e) { erro('Não foi possível reabrir', e.message); }
     };
-
-    function rolarParaItem(key) {
-        const el = document.getElementById('ale-item-' + key);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('alr-item-shake');
-            setTimeout(() => el.classList.remove('alr-item-shake'), 1200);
-        }
-    }
 })();

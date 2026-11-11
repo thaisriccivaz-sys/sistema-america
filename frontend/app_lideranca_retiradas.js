@@ -25,7 +25,7 @@
     const iconeItem = id => { for (const [re, ic] of ICONES_ITEM) if (re.test(id)) return ic; return 'ph-check-square'; };
 
     const S = {
-        dados: null, diaSel: null, modo: 'semana', semanaIni: null, mesRef: null, filtro: 'todos',
+        busca: '', dados: null, diaSel: null, modo: 'semana', semanaIni: null, mesRef: null, filtro: 'todos',
         det: null, ui: 0, estado: {}, mid: {}, vid: null, local: {}, subindo: {}, saveTimer: null, saveEstado: 'ok', carregando: false
     };
 
@@ -99,7 +99,7 @@
         S.carregando = true;
         try {
             const f = faixa();
-            S.dados = await api('/app/retiradas?de=' + f.de + '&ate=' + f.ate);
+            S.dados = await api('/app/retiradas?de=' + f.de + '&ate=' + f.ate + (S.busca ? '&q=' + encodeURIComponent(S.busca) : ''));
             desenhar();
         } catch (e) {
             const w = document.getElementById('alr-wrap');
@@ -119,16 +119,20 @@
     }
 
     function listaFiltrada() {
-        const todos = S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []);
-        const pendGlobais = (S.dados.itens || []).filter(i => i.pendente);
+        const q = String(S.busca || '').trim().toLowerCase();
+        const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
+        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
+        const pendGlobais = (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i)));
         if (S.filtro === 'ok') return todos.filter(i => i.situacao === 'ok');
         if (S.filtro === 'avaria') return todos.filter(i => i.tem_avaria);
         if (S.filtro === 'pendentes') return pendGlobais.slice().sort((a, b) => (a.data_retirada + a.cliente).localeCompare(b.data_retirada + b.cliente)); // pendência vale para todos os dias desde o início do controle
         return todos;
     }
     function contadoresFiltro() {
-        const todos = S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []);
-        return { todos: todos.length, pendentes: (S.dados.itens || []).filter(i => i.pendente).length, ok: todos.filter(i => i.situacao === 'ok').length, avaria: todos.filter(i => i.tem_avaria).length };
+        const q = String(S.busca || '').trim().toLowerCase();
+        const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
+        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
+        return { todos: todos.length, pendentes: (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i))).length, ok: todos.filter(i => i.situacao === 'ok').length, avaria: todos.filter(i => i.tem_avaria).length };
     }
 
     function desenhar() {
@@ -141,8 +145,11 @@
             <button class="alc-icon-btn" onclick="window._alrRecarregar()" title="Atualizar" aria-label="Atualizar"><i class="ph ph-arrow-clockwise"></i></button>
         </header>
         ${htmlAgenda()}
+        <div class="alr-busca"><i class="ph ph-magnifying-glass"></i><input id="alr-busca" type="search" inputmode="search" autocomplete="off" placeholder="Pesquisar nº da OS ou cliente" value="${esc(S.busca)}" oninput="window._alrBusca(this.value)" onfocus="window._alrBuscaFoco=true" onblur="window._alrBuscaFoco=false">${S.busca ? '<button type="button" class="alr-busca-x" onclick="window._alrBusca(\'\')" aria-label="Limpar pesquisa"><i class="ph ph-x-circle"></i></button>' : ''}</div>
         <div id="alr-filtros">${htmlFiltros()}</div>
         <div id="alr-lista">${htmlLista()}</div>`;
+        const bi = document.getElementById('alr-busca');
+        if (bi && window._alrBuscaFoco) { bi.focus(); try { bi.setSelectionRange(bi.value.length, bi.value.length); } catch (x) { /* ignora */ } }
     }
 
     function htmlFiltros() {
@@ -150,6 +157,13 @@
         const chip = (id, icone, rot, n, cor) => `<button class="alc-chip alr-chip ${S.filtro === id ? 'on' : ''}" style="${S.filtro === id ? '' : 'color:' + cor + ';'}" onclick="window._alrFiltro('${id}')"><i class="ph ${icone}"></i> ${rot} <b class="alr-n" style="background:${cor};">${n}</b></button>`;
         return `<div class="alr-filtros">${chip('todos', 'ph-list-bullets', 'Todos', c.todos, '#475569')}${chip('pendentes', 'ph-warning-circle', 'Pendentes', c.pendentes, '#ea580c')}${chip('ok', 'ph-thumbs-up', 'OK', c.ok, '#16a34a')}${chip('avaria', 'ph-thumbs-down', 'Com avaria', c.avaria, '#dc2626')}</div>`;
     }
+    let _buscaTimer = null;
+    window._alrBusca = function (v) {
+        S.busca = String(v || '').trim();
+        window._alrBuscaFoco = true;
+        clearTimeout(_buscaTimer);
+        _buscaTimer = setTimeout(() => { S.carregando = false; carregar(); }, 350);
+    };
     window._alrFiltro = function (f) { S.filtro = f; document.getElementById('alr-filtros').innerHTML = htmlFiltros(); document.getElementById('alr-lista').innerHTML = htmlLista(); };
 
     function htmlAgenda() {
@@ -327,7 +341,7 @@
     }
     function itemCompleto(it) {
         const e = S.estado[it.id] || {};
-        return !!(e.ok || e.nao) && !!S.mid[it.id] && (!e.nao || String(e.obs || '').trim().length > 0);
+        return !!(e.ok || e.nao) && !!S.mid[it.id]; // observação é opcional
     }
 
     function cabecalhoDetalhe() {
@@ -385,8 +399,8 @@
             const ok = !!e.ok, nao = !!e.nao && !ok;
             const temFoto = !!S.mid[it.id], subindo = !!S.subindo[it.id];
             const src = S.local[it.id] || (temFoto ? midiaUrl(S.mid[it.id]) : '');
-            const obsFalta = nao && !String(e.obs || '').trim();
-            const obsAberta = nao || e.obsAberta || (e.obs && e.obs.length);
+            const obsFalta = false; // observação nunca é obrigatória
+            const obsAberta = true; // campo de observação sempre visível (opcional)
             return `<div class="alc-item alr-item ${ok ? 'ok' : (nao ? 'nao' : '')} ${itemCompleto(it) ? 'completo' : ''}">
                 <div class="alr-item-topo">
                     <span class="alc-item-ico"><i class="ph ${iconeItem(it.id)}"></i></span>
@@ -402,7 +416,7 @@
                     </label>
                 </div>
                 ${temFoto ? '' : '<div class="alr-aviso"><i class="ph ph-camera"></i> Foto obrigatória deste item</div>'}
-                ${obsAberta ? `<textarea class="alc-obs" rows="2" placeholder="${nao ? 'Descreva a avaria (obrigatório)' : 'Observação (opcional)'}" oninput="window._alrObsTxt('${it.id}', this.value)">${esc(e.obs || '')}</textarea>` : ''}
+                ${obsAberta ? `<textarea class="alc-obs" rows="2" placeholder="${nao ? 'Observação sobre a avaria (opcional)' : 'Observação (opcional)'}" oninput="window._alrObsTxt('${it.id}', this.value)">${esc(e.obs || '')}</textarea>` : ''}
                 ${obsFalta ? '<div class="alr-aviso red"><i class="ph ph-warning-circle"></i> Descreva a avaria</div>' : ''}
             </div>`;
         }).join('');
