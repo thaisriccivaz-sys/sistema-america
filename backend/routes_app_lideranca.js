@@ -274,8 +274,9 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         const itens = itensDoTipo(tipo);
         let obj = {};
         try { obj = JSON.parse((row && row.itens_json) || '{}'); } catch (e) { obj = {}; }
-        const feitos = itens.filter(i => obj[i.id] && obj[i.id].ok).length;
-        return { total: itens.length, feitos, concluido: !!(row && row.concluido_em), itens: obj };
+        const feitos = itens.filter(i => obj[i.id] && (obj[i.id].ok || obj[i.id].nao)).length; // avaliados: feito (✓) ou não feito (✕)
+        const naoFeitos = itens.filter(i => obj[i.id] && obj[i.id].nao && !obj[i.id].ok).length;
+        return { total: itens.length, feitos, nao_feitos: naoFeitos, concluido: !!(row && row.concluido_em), itens: obj };
     }
 
     // ═══ ROTAS ═══════════════════════════════════════════════════════════════════
@@ -320,7 +321,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 itens.push({
                     id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: data,
                     tem_foto: !!c.tem_foto, cnh_categoria: cnhDoTipo(c.tipo) || c.cnh_categoria || null,
-                    checklist: { feitos: ck.feitos, total: ck.total, concluido: ck.concluido },
+                    checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido },
                     respondido, situacao, pendente
                 });
             }
@@ -365,7 +366,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 cnh_categoria: cnhDoTipo(c.tipo) || (ckRow && ckRow.cnh_categoria) || c.cnh_categoria || null,
                 cnh_fixa: !!cnhDoTipo(c.tipo),
                 itens: itensDoTipo(c.tipo),
-                checklist: { feitos: ck.feitos, total: ck.total, concluido: ck.concluido, estado: ck.itens, lider_nome: ckRow ? ckRow.lider_nome : null, concluido_em: ckRow ? ckRow.concluido_em : null },
+                checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido, estado: ck.itens, lider_nome: ckRow ? ckRow.lider_nome : null, concluido_em: ckRow ? ckRow.concluido_em : null },
                 perguntas: perguntasDoTipo(c.tipo),
                 avaliacao: av ? { avaliador_nome: av.avaliador_nome, media: av.media_notas, respostas, created_at: av.created_at } : null
             });
@@ -387,12 +388,14 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
             itensDef.forEach(i => {
                 const v = entrada[i.id] || entrada[String(i.id)];
                 if (v && v.ok) limpo[i.id] = { ok: true, obs: String(v.obs || '').slice(0, 500), em: v.em || new Date().toISOString() };
+                else if (v && v.nao) limpo[i.id] = { ok: false, nao: true, obs: String(v.obs || '').slice(0, 500), em: v.em || new Date().toISOString() };
                 else if (v && v.obs) limpo[i.id] = { ok: false, obs: String(v.obs).slice(0, 500) };
             });
             let cnh = String(body.cnh_categoria || '').trim().toUpperCase();
             if (!['B', 'D'].includes(cnh)) cnh = null;
             cnh = cnhDoTipo(c.tipo) || cnh;
-            const todos = itensDef.every(i => limpo[i.id] && limpo[i.id].ok);
+            // Conclui quando TODOS os itens foram avaliados: feito (✓) ou não feito (✕)
+            const todos = itensDef.every(i => limpo[i.id] && (limpo[i.id].ok || limpo[i.id].nao));
             const exigeCnh = isTipoMotorista(c.tipo);
             const concluir = todos && (!exigeCnh || !!cnh);
 
@@ -410,7 +413,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                     [JSON.stringify(limpo), cnh, req.user.id || null, lider, existe.id]);
             }
             if (cnh && exigeCnh) await dbRun('UPDATE candidatos_teste SET cnh_categoria = ? WHERE id = ?', [cnh, c.id]);
-            const feitos = itensDef.filter(i => limpo[i.id] && limpo[i.id].ok).length;
+            const feitos = itensDef.filter(i => limpo[i.id] && (limpo[i.id].ok || limpo[i.id].nao)).length;
             res.json({ success: true, feitos, total: itensDef.length, concluido: concluir });
         } catch (e) {
             console.error('[APP-LIDERANCA] PUT checklist:', e);
@@ -483,9 +486,9 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
             if (!row) return res.json({ existe: false });
             const ck = resumoChecklist(c.tipo, row);
             res.json({
-                existe: true, concluido: ck.concluido, feitos: ck.feitos, total: ck.total, lider_nome: row.lider_nome,
+                existe: true, concluido: ck.concluido, feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, lider_nome: row.lider_nome,
                 concluido_em: row.concluido_em, cnh_categoria: row.cnh_categoria,
-                itens: itensDoTipo(c.tipo).map(i => ({ texto: i.texto, ok: !!(ck.itens[i.id] && ck.itens[i.id].ok), obs: (ck.itens[i.id] && ck.itens[i.id].obs) || '' }))
+                itens: itensDoTipo(c.tipo).map(i => ({ texto: i.texto, ok: !!(ck.itens[i.id] && ck.itens[i.id].ok), nao: !!(ck.itens[i.id] && ck.itens[i.id].nao && !ck.itens[i.id].ok), obs: (ck.itens[i.id] && ck.itens[i.id].obs) || '' }))
             });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });

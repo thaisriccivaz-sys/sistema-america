@@ -298,7 +298,8 @@
             return `<button class="alc-step ${estado}" ${bloqueado ? 'disabled' : ''} onclick="window._alcPasso(${p.n})"><span class="alc-step-bola"><i class="ph ${p.n < S.step ? 'ph-check' : p.i}"></i></span><span>${p.t}</span></button>`;
         }).join('<span class="alc-step-linha"></span>')}</nav>`;
     }
-    const feitosCount = () => S.det.itens.filter(i => S.estado[i.id] && S.estado[i.id].ok).length;
+    const feitosCount = () => S.det.itens.filter(i => S.estado[i.id] && (S.estado[i.id].ok || S.estado[i.id].nao)).length; // avaliados: feito (✓) ou não feito (✕)
+    const naoFeitosCount = () => S.det.itens.filter(i => S.estado[i.id] && S.estado[i.id].nao && !S.estado[i.id].ok).length;
     const todasRespondidas = () => S.det.perguntas.every((_, i) => S.resp[i] >= 1);
     const cnhOk = () => !S.det.eh_motorista || !!S.cnh;
 
@@ -331,6 +332,7 @@
         const linhas = d.itens.map((it, idx) => {
             const e = S.estado[it.id] || {};
             const ok = !!e.ok;
+            const nao = !!e.nao && !ok;
             let extra = '';
             if (it.cnh) {
                 extra = d.cnh_fixa
@@ -340,19 +342,20 @@
                         <button class="alc-cnh-op ${S.cnh === 'D' ? 'on' : ''}" onclick="event.stopPropagation();window._alcCnh('D')">D</button></div>`;
             }
             const obsAberta = e.obsAberta || (e.obs && e.obs.length);
-            return `<div class="alc-item ${ok ? 'ok' : ''}">
+            return `<div class="alc-item ${ok ? 'ok' : (nao ? 'nao' : '')}">
                 <div class="alc-item-linha" onclick="window._alcToggle(${it.id})" role="button" tabindex="0">
                     <span class="alc-item-ico"><i class="ph ${esc(it.icone || 'ph-check')}"></i></span>
                     <span class="alc-item-txt"><small>${idx + 1}</small> ${esc(it.texto)}</span>
                     <button class="alc-item-nota ${e.obs ? 'tem' : ''}" onclick="event.stopPropagation();window._alcObs(${it.id})" aria-label="Observação"><i class="ph ph-note-pencil"></i></button>
-                    <span class="alc-check ${ok ? 'on' : ''}"><i class="ph ${ok ? 'ph-check' : 'ph-circle'}"></i></span>
+                    <button class="alc-check-nao ${nao ? 'on' : ''}" onclick="event.stopPropagation();window._alcNao(${it.id})" aria-label="Não feito" title="Não feito"><i class="ph-bold ph-x"></i></button>
+                    <span class="alc-check ${ok ? 'on' : ''}" title="Feito"><i class="ph ${ok ? 'ph-check' : 'ph-circle'}"></i></span>
                 </div>
                 ${extra}
                 ${obsAberta ? `<textarea class="alc-obs" rows="2" placeholder="Observação (opcional)" oninput="window._alcObsTxt(${it.id}, this.value)">${esc(e.obs || '')}</textarea>` : ''}
             </div>`;
         }).join('');
-        return `<div class="alc-prog"><div class="alc-prog-txt"><b>${feitos}/${total}</b> itens ensinados <span>${pct}%</span></div><div class="alc-barra grande"><i style="width:${pct}%;"></i></div></div>
-            <p class="alc-dica"><i class="ph ph-hand-tap"></i> Toque em cada item que você <b>ensinou</b> ao candidato.</p>
+        return `<div class="alc-prog"><div class="alc-prog-txt"><b>${feitos}/${total}</b> itens avaliados <span>${pct}%</span>${naoFeitosCount() ? ` <em class="alc-prog-nao"><i class="ph-bold ph-x"></i> ${naoFeitosCount()} não feito${naoFeitosCount() > 1 ? 's' : ''}</em>` : ''}</div><div class="alc-barra grande"><i style="width:${pct}%;"></i></div></div>
+            <p class="alc-dica"><i class="ph ph-hand-tap"></i> Marque <b>✓</b> no que você <b>ensinou</b> ou <b>✕</b> no que <b>não foi feito</b>.</p>
             <div class="alc-itens">${linhas}</div>`;
     }
     function barraChecklist() {
@@ -372,12 +375,22 @@
     window._alcToggle = function (id) {
         const e = S.estado[id] = S.estado[id] || {};
         e.ok = !e.ok;
+        if (e.ok) e.nao = false; // ✓ e ✕ não podem ficar marcados juntos
+        e.em = new Date().toISOString();
+        if (navigator.vibrate) try { navigator.vibrate(15); } catch (x) { /* ignora */ }
+        agendarSalvar(); atualizarBarraEChecklist(true);
+    };
+    window._alcNao = function (id) {
+        const e = S.estado[id] = S.estado[id] || {};
+        e.nao = !e.nao;
+        if (e.nao) e.ok = false; // ✓ e ✕ não podem ficar marcados juntos
         e.em = new Date().toISOString();
         if (navigator.vibrate) try { navigator.vibrate(15); } catch (x) { /* ignora */ }
         agendarSalvar(); atualizarBarraEChecklist(true);
     };
     window._alcMarcarTodos = function () {
-        S.det.itens.forEach(it => { const e = S.estado[it.id] = S.estado[it.id] || {}; e.ok = true; e.em = e.em || new Date().toISOString(); });
+        // marca como feito somente o que ainda não foi avaliado (mantém os ✕ já marcados)
+        S.det.itens.forEach(it => { const e = S.estado[it.id] = S.estado[it.id] || {}; if (e.nao && !e.ok) return; e.ok = true; e.nao = false; e.em = e.em || new Date().toISOString(); });
         agendarSalvar(); atualizarBarraEChecklist(true);
     };
     window._alcObs = function (id) {
@@ -390,7 +403,7 @@
 
     function estadoParaEnvio() {
         const itens = {};
-        Object.keys(S.estado).forEach(k => { const e = S.estado[k]; itens[k] = { ok: !!e.ok, obs: e.obs || '', em: e.em }; });
+        Object.keys(S.estado).forEach(k => { const e = S.estado[k]; itens[k] = { ok: !!e.ok, nao: !!e.nao && !e.ok, obs: e.obs || '', em: e.em }; });
         return { itens, cnh_categoria: S.cnh };
     }
     function agendarSalvar() {
@@ -517,11 +530,11 @@
     function htmlResumo() {
         const d = S.det, av = d.avaliacao || {};
         const media = av.media != null ? Number(av.media).toFixed(1) : '—';
-        const itens = d.itens.map(it => { const e = (d.checklist.estado || {})[it.id] || {}; return `<li class="${e.ok ? 'ok' : ''}"><i class="ph ${e.ok ? 'ph-check-circle' : 'ph-circle'}"></i><span>${esc(it.texto)}${e.obs ? ' <em>— ' + esc(e.obs) + '</em>' : ''}</span></li>`; }).join('');
+        const itens = d.itens.map(it => { const e = (d.checklist.estado || {})[it.id] || {}; return `<li class="${e.ok ? 'ok' : (e.nao ? 'nao' : '')}"><i class="ph ${e.ok ? 'ph-check-circle' : (e.nao ? 'ph-x-circle' : 'ph-circle')}"></i><span>${esc(it.texto)}${e.obs ? ' <em>— ' + esc(e.obs) + '</em>' : ''}</span></li>`; }).join('');
         const qs = d.perguntas.map((q, i) => { const n = (av.respostas || {})[i]; const f = FACES.find(x => x.v === n); return `<li><span>${esc(q)}</span><b style="color:${f ? f.c : '#64748b'};">${f ? f.e : ''} ${n || '—'}</b></li>`; }).join('');
         return `<div class="alc-resumo">
             <div class="alc-resumo-topo"><i class="ph ph-check-circle"></i><div><b>Avaliação enviada</b><small>${esc(av.avaliador_nome || '')} · ${esc(fmtDataHora(av.created_at))}</small></div><span class="alc-media">Média ${esc(media)}</span></div>
-            <h4><i class="ph ph-list-checks"></i> Checklist (${d.checklist.feitos}/${d.checklist.total})</h4><ul class="alc-res-lista chk">${itens}</ul>
+            <h4><i class="ph ph-list-checks"></i> Checklist (${d.checklist.feitos}/${d.checklist.total}${d.checklist.nao_feitos ? ' · ' + d.checklist.nao_feitos + ' não feito' + (d.checklist.nao_feitos > 1 ? 's' : '') : ''})</h4><ul class="alc-res-lista chk">${itens}</ul>
             <h4><i class="ph ph-chat-centered-dots"></i> Perguntas do 1º dia</h4><ul class="alc-res-lista qs">${qs}</ul></div>`;
     }
 

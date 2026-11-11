@@ -129,6 +129,17 @@
 .alc-item-nota.tem { color: #7c3aed; border-color: #c4b5fd; background: #f5f3ff; }
 .alc-check { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #cbd5e1; color: #cbd5e1; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; transition: all .15s; }
 .alc-check.on { background: #16a34a; border-color: #16a34a; color: #fff; }
+.alc-check-nao { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #cbd5e1; background: #fff; color: #cbd5e1; display: inline-flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; transition: all .15s; cursor: pointer; padding: 0; }
+.alc-check-nao.on { background: #dc2626; border-color: #dc2626; color: #fff; }
+.alc-item.nao { border-color: #fca5a5; background: #fef2f2; }
+.alc-item.nao .alc-item-ico { background: #fee2e2; color: #dc2626; }
+.alc-prog-nao { font-style: normal; font-size: .8rem; font-weight: 700; color: #dc2626; background: #fee2e2; border-radius: 99px; padding: 2px 8px; margin-left: 6px; }
+.alc-res-lista li.nao i { color: #dc2626; }
+@media (max-width: 420px) {
+  .alc-item-linha { gap: 6px; padding: 8px 6px; }
+  .alc-item-ico { width: 34px; height: 34px; font-size: 1.15rem; }
+  .alc-item-nota, .alc-check, .alc-check-nao { width: 40px; height: 40px; }
+}
 .alc-obs { display: block; width: calc(100% - 20px); margin: 0 10px 10px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; font-size: 16px; font-family: inherit; resize: vertical; }
 .alc-cnh { margin: 0 10px 10px; padding: 10px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; font-weight: 600; font-size: .92rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .alc-cnh-op { width: 56px; height: 48px; border-radius: 12px; border: 2px solid #bfdbfe; background: #fff; color: #1d4ed8; font-size: 1.2rem; font-weight: 800; }

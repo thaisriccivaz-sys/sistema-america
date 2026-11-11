@@ -905,12 +905,12 @@ window._tcCarregarChecklistLider = async function(id) {
         if (!d.existe) return;
         const cor = d.concluido ? "#16a34a" : "#d97706";
         const itens = (d.itens || []).map(function(i) {
-            return "<li style=\"display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;\"><i class=\"ph " + (i.ok ? "ph-check-circle" : "ph-circle") + "\" style=\"color:" + (i.ok ? "#16a34a" : "#94a3b8") + ";font-size:1rem;flex-shrink:0;margin-top:1px;\"></i><span>" + i.texto + (i.obs ? " <em style=\"color:#64748b;\">— " + String(i.obs).replace(/</g, "&lt;") + "</em>" : "") + "</span></li>";
+            return "<li style=\"display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;\"><i class=\"ph " + (i.ok ? "ph-check-circle" : (i.nao ? "ph-x-circle" : "ph-circle")) + "\" style=\"color:" + (i.ok ? "#16a34a" : (i.nao ? "#dc2626" : "#94a3b8")) + ";font-size:1rem;flex-shrink:0;margin-top:1px;\"></i><span>" + i.texto + (i.obs ? " <em style=\"color:#64748b;\">— " + String(i.obs).replace(/</g, "&lt;") + "</em>" : "") + "</span></li>";
         }).join("");
         box.innerHTML = "<div style=\"padding:16px 20px 0;\"><div style=\"font-weight:700;font-size:0.88rem;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px;\"><i class=\"ph ph-list-checks\" style=\"color:" + cor + ";\"></i> Checklist do líder — 1º Dia</div>"
             + "<div style=\"background:#f8fafc;border-radius:8px;padding:12px;border-left:3px solid " + cor + ";\">"
             + "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;\"><span style=\"font-size:0.73rem;color:#64748b;\">Por: " + (d.lider_nome || "—") + (d.concluido_em ? " · " + fmtDTBR(d.concluido_em) : "") + (d.cnh_categoria ? " · CNH " + d.cnh_categoria : "") + "</span>"
-            + "<span style=\"background:" + cor + ";color:#fff;border-radius:99px;padding:2px 10px;font-size:0.75rem;font-weight:700;\">" + d.feitos + "/" + d.total + (d.concluido ? " concluído" : " em andamento") + "</span></div>"
+            + "<span style=\"background:" + cor + ";color:#fff;border-radius:99px;padding:2px 10px;font-size:0.75rem;font-weight:700;\">" + d.feitos + "/" + d.total + (d.concluido ? " concluído" : " em andamento") + (d.nao_feitos ? " · " + d.nao_feitos + " não feito(s)" : "") + "</span></div>"
             + "<ul style=\"list-style:none;padding:0;margin:0;font-size:0.78rem;color:#475569;\">" + itens + "</ul></div></div>";
     } catch (e) { /* checklist é opcional na tela do RH */ }
 };
