@@ -1347,6 +1347,16 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas (
         db.run("ALTER TABLE licencas ADD COLUMN data_emissao TEXT", (err4) => {
             const hj = new Date();
             const dia01Atual = `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-01`;
+            const dia20Atual = `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-20`;
+            // Garantir que Laudo de Monitoramento (Attend Ambiental) exista com vencimento todo dia 20
+            db.get("SELECT id FROM licencas WHERE empresa = 'attend-ambiental' AND nome = 'Laudo de Monitoramento'", [], (errLm, rowLm) => {
+                if (!errLm && !rowLm) {
+                    db.run(
+                        'INSERT INTO licencas (empresa, nome, validade, updated_at, created_at) VALUES (?, ?, ?, datetime("now"), datetime("now"))',
+                        ['attend-ambiental', 'Laudo de Monitoramento', dia20Atual]
+                    );
+                }
+            });
             // Garantir que Cartão de CNPJ da América Rental tenha vencimento fixo todo dia 01
             db.run(
                 `UPDATE licencas SET validade = ? WHERE empresa = 'america-rental' AND nome = 'Cartão de CNPJ' AND (validade IS NULL OR validade = '' OR substr(updated_at, 1, 10) < ?)`,
@@ -37592,12 +37602,16 @@ app.get('/api/public/cnd/:token', (req, res) => {
             if (errLic) return res.status(500).json({ error: 'Erro interno.' });
             const empresaFinal = empToken || (rowLic ? rowLic.empresa : '');
             const regra = licencaRegraTipo(empresaFinal, row.cnd_nome);
+            const validadeFixa = regra === 'dia_01'
+                ? licencaProximoDia01ISO()
+                : (regra === 'dia_20' ? licencaProximoDia20ISO(rowLic ? rowLic.validade : null) : null);
             res.json({
                 cnd_nome: row.cnd_nome,
                 empresa: empresaFinal || 'Nao definida',
                 validade_atual: rowLic ? rowLic.validade : null,
-                // Dia 01: o vencimento é fixo (próximo dia 01) e não precisa ser informado
-                validade_fixa: regra === 'dia_01' ? licencaProximoDia01ISO() : null,
+                // Dia 01 ou Dia 20: o vencimento é fixo e calculado automaticamente
+                validade_fixa: validadeFixa,
+                dia_fixo_label: regra === 'dia_01' ? '01' : (regra === 'dia_20' ? '20' : null),
                 // 90 dias: sugestão de vencimento a partir de hoje (pode ser ajustada)
                 sugestao_validade: regra === '90_dias' ? licencaHojeMaisDiasISO(90) : null
             });
@@ -37628,7 +37642,9 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
                 if (!empresaFinal) return res.status(400).json({ error: 'Licença base nao encontrada no sistema para ser atualizada.' });
 
                 const regra = licencaRegraTipo(empresaFinal, row.cnd_nome);
-                const dataIso = regra === 'dia_01' ? licencaProximoDia01ISO() : novaValidade;
+                const dataIso = regra === 'dia_01'
+                    ? licencaProximoDia01ISO()
+                    : (regra === 'dia_20' ? licencaProximoDia20ISO(novaValidade) : novaValidade);
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso)) return res.status(400).json({ error: 'Data de validade nao informada.' });
 
                 const empresaDir = path.join(LICENCAS_UPLOAD_PATH, empresaFinal.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
@@ -37667,6 +37683,7 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
                 const finalizar = (errSave) => {
                     if (errSave) return res.status(500).json({ error: errSave.message });
                     db.run('DELETE FROM cnd_upload_tokens WHERE token = ?', [token]); // apaga token
+                    enviarCopiaLicencaAnexada(empresaFinal, row.cnd_nome, dataIso, buf, fileName);
                     res.json({ success: true, message: 'Documento atualizado com sucesso.' });
                 };
 
@@ -38331,6 +38348,34 @@ db.run(`CREATE TABLE IF NOT EXISTS licencas_emails_notificacao (
     PRIMARY KEY (empresa, nome)
 )`, (errT) => { if (errT) console.error('[MIGRATION licencas_emails_notificacao]', errT.message); });
 
+const DEFAULT_EMAILS_COPIA_LAUDO_ATTEND = [
+    'thais.ricci@americarental.com.br',
+    'creal@libercon.eng.br',
+    'antonia.oliveira@ambipar.com',
+    'wfranca@libercon.eng.br',
+    'ingrid-joseane.pereira@mailer.com.br',
+    'carlos.santos-melo@mailer.com.br',
+    'julio.abreu@cfsengenharia.com.br',
+    'tais.besnosoff@itau-unibanco.com.br'
+];
+
+db.run(`CREATE TABLE IF NOT EXISTS licencas_emails_copia (
+    empresa TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    emails TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (empresa, nome)
+)`, (errTc) => {
+    if (errTc) {
+        console.error('[MIGRATION licencas_emails_copia]', errTc.message);
+    } else {
+        db.run(
+            "INSERT OR IGNORE INTO licencas_emails_copia (empresa, nome, emails, updated_at) VALUES ('attend-ambiental', 'Laudo de Monitoramento', ?, datetime('now'))",
+            [DEFAULT_EMAILS_COPIA_LAUDO_ATTEND.join('; ')]
+        );
+    }
+});
+
 db.run(`CREATE TABLE IF NOT EXISTS cnd_upload_tokens (
     token TEXT PRIMARY KEY,
     cnd_nome TEXT NOT NULL,
@@ -38356,7 +38401,119 @@ setTimeout(() => {
         }
     });
     db.run("DELETE FROM config_notificacoes WHERE tipo = 'licenca_vencida'", [], () => { });
+    db.get("SELECT email FROM licencas_emails_notificacao WHERE empresa = 'attend-ambiental' AND email IS NOT NULL AND TRIM(email) != '' LIMIT 1", [], (errAt, rowAt) => {
+        if (!errAt && rowAt && rowAt.email) {
+            db.run("INSERT OR IGNORE INTO licencas_emails_notificacao (empresa, nome, email) VALUES ('attend-ambiental', 'Laudo de Monitoramento', ?)", [rowAt.email]);
+        }
+    });
 }, 12000);
+
+app.get('/api/licencas/emails-copia', authenticateToken, (req, res) => {
+    db.all('SELECT empresa, nome, emails FROM licencas_emails_copia', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.put('/api/licencas/emails-copia', authenticateToken, (req, res) => {
+    const empresa = String((req.body && req.body.empresa) || '').trim();
+    const nome = licencaChaveNome(req.body && req.body.nome);
+    const rawEmails = req.body && req.body.emails;
+    if (!empresa || !nome) return res.status(400).json({ error: 'Empresa e documento são obrigatórios.' });
+
+    const bruto = Array.isArray(rawEmails) ? rawEmails.join('; ') : String(rawEmails || '').trim();
+    const partes = bruto.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
+    const invalidos = partes.filter(p => !LICENCA_EMAIL_REGEX.test(p));
+    if (invalidos.length) return res.status(400).json({ error: 'E-mail inválido: ' + invalidos.join(', ') });
+
+    const emailsNorm = licencaNormalizarEmails(bruto).join('; ');
+    db.run(
+        "INSERT OR REPLACE INTO licencas_emails_copia (empresa, nome, emails, updated_at) VALUES (?, ?, ?, datetime('now'))",
+        [empresa, nome, emailsNorm],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, emails: emailsNorm });
+        }
+    );
+});
+
+async function enviarCopiaLicencaAnexada(empresa, nome, validade, pdfBufferOrPath, fileName) {
+    try {
+        const emp = String(empresa || '').trim().toLowerCase();
+        const nomeChave = licencaChaveNome(nome);
+        const row = await new Promise((resolve) => {
+            db.get(
+                'SELECT emails FROM licencas_emails_copia WHERE LOWER(TRIM(empresa)) = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))',
+                [emp, nomeChave],
+                (err, r) => resolve(err ? null : r)
+            );
+        });
+        if (!row || !row.emails) return;
+        const destinatarios = licencaNormalizarEmails(row.emails);
+        if (!destinatarios.length) return;
+
+        let pdfBuffer = null;
+        if (Buffer.isBuffer(pdfBufferOrPath)) {
+            pdfBuffer = pdfBufferOrPath;
+        } else if (typeof pdfBufferOrPath === 'string' && fs.existsSync(pdfBufferOrPath)) {
+            pdfBuffer = fs.readFileSync(pdfBufferOrPath);
+        }
+        if (!pdfBuffer) {
+            console.warn('[Licencas Cópia] Arquivo PDF não encontrado para envio de cópia:', emp, nomeChave);
+            return;
+        }
+
+        const EMPRESA_LABELS = {
+            'america-rental': 'América Rental',
+            'attend-ambiental': 'Attend Ambiental',
+            'brk': 'BRK',
+            'outras-licencas': 'Outras Licenças'
+        };
+        const empresaNome = EMPRESA_LABELS[emp] || empresa;
+        const validadeFmt = validade && /^\d{4}-\d{2}-\d{2}$/.test(validade)
+            ? validade.split('-').reverse().join('/')
+            : '—';
+        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        const nomeAnexo = (String(nomeChave).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_') || 'Documento') + '.pdf';
+
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="cid:empresa-logo" style="max-height: 80px;">
+                </div>
+                <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-top: 0;">
+                    Documento Atualizado — ${nomeChave}
+                </h2>
+                <p>Olá,</p>
+                <p>Informamos que o documento <strong>${nomeChave}</strong> (<strong>${empresaNome}</strong>) foi anexado/atualizado no sistema e segue em cópia anexa a este e-mail.</p>
+                <div style="background: #f0fdfa; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0f766e;">
+                    <p style="margin: 5px 0;"><strong>Empresa:</strong> ${empresaNome}</p>
+                    <p style="margin: 5px 0;"><strong>Documento:</strong> ${nomeChave}</p>
+                    <p style="margin: 5px 0;"><strong>Próximo Vencimento:</strong> ${validadeFmt}</p>
+                </div>
+                <p style="margin-top: 24px; font-size: 0.9em; color: #64748b;">Atenciosamente,<br><strong>${empresaNome} — Sistema América Rental</strong></p>
+            </div>
+        `;
+
+        const attachments = [
+            { filename: nomeAnexo, content: pdfBuffer, contentType: 'application/pdf' }
+        ];
+        if (fs.existsSync(logoPath)) {
+            attachments.push({ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' });
+        }
+
+        await sendMailHelper({
+            from: `"${empresaNome} - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            to: destinatarios.join(', '),
+            subject: `[Documento Atualizado] ${nomeChave} - ${empresaNome}`,
+            html: htmlContent,
+            attachments
+        });
+        console.log(`[Licencas Cópia] Cópia de "${nomeChave}" (${empresaNome}) enviada para ${destinatarios.length} destinatário(s).`);
+    } catch (err) {
+        console.error('[Licencas Cópia] Erro ao enviar cópia automática:', err.message);
+    }
+}
 
 app.get('/api/licencas/emails', authenticateToken, (req, res) => {
     db.all('SELECT empresa, nome, email FROM licencas_emails_notificacao', [], (err, rows) => {
@@ -38424,23 +38581,27 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), async (req, 
         }
     }
 
+    const regraPost = licencaRegraTipo(empresa, nome);
+    const validadeFinalPost = validade || (regraPost === 'dia_01' ? licencaProximoDia01ISO() : (regraPost === 'dia_20' ? licencaProximoDia20ISO(null) : null));
     db.get('SELECT id, data_emissao FROM licencas WHERE empresa = ? AND nome = ?', [empresa, nome], (errExist, existing) => {
         if (!errExist && existing) {
             const emissaoFinal = data_emissao !== undefined && data_emissao !== '' ? data_emissao : existing.data_emissao;
             db.run(
                 'UPDATE licencas SET validade = ?, data_emissao = ?, file_path = ?, file_name = ?, r2_key = ?, last_alert_date = NULL, updated_at = datetime("now") WHERE id = ?',
-                [validade || null, emissaoFinal || null, relPath, fileName, r2Key, existing.id],
+                [validadeFinalPost, emissaoFinal || null, relPath, fileName, r2Key, existing.id],
                 function (errUpd) {
                     if (errUpd) return res.status(500).json({ error: errUpd.message });
+                    enviarCopiaLicencaAnexada(empresa, nome, validadeFinalPost, filePath, fileName);
                     res.json({ id: existing.id, message: 'Licenca salva.' });
                 }
             );
         } else {
             db.run(
                 'INSERT INTO licencas (empresa, nome, validade, data_emissao, file_path, file_name, r2_key, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
-                [empresa, nome, validade || null, data_emissao || null, relPath, fileName, r2Key],
+                [empresa, nome, validadeFinalPost, data_emissao || null, relPath, fileName, r2Key],
                 function (err) {
                     if (err) return res.status(500).json({ error: err.message });
+                    enviarCopiaLicencaAnexada(empresa, nome, validadeFinalPost, filePath, fileName);
                     res.json({ id: this.lastID, message: 'Licenca salva.' });
                 }
             );
@@ -38479,10 +38640,21 @@ app.put('/api/licencas/:id', authenticateToken, upload.single('file'), async (re
                 }
             }
         }
-        db.run('UPDATE licencas SET validade = ?, data_emissao = ?, file_path = ?, file_name = ?, r2_key = ?, last_alert_date = NULL, updated_at = datetime("now") WHERE id = ?',
+        const teveUploadArquivo = !!req.file;
+        const absUploadedPath = teveUploadArquivo ? path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'), fileName) : null;
+        // Só limpa last_alert_date se um novo PDF foi anexado ou se a validade foi prorrogada para o futuro
+        const hojeIsoPut = licencaHojeMaisDiasISO(0);
+        const limparAlerta = teveUploadArquivo || (validade && validade > hojeIsoPut);
+        const sqlPut = limparAlerta
+            ? 'UPDATE licencas SET validade = ?, data_emissao = ?, file_path = ?, file_name = ?, r2_key = ?, last_alert_date = NULL, updated_at = datetime("now") WHERE id = ?'
+            : 'UPDATE licencas SET validade = ?, data_emissao = ?, file_path = ?, file_name = ?, r2_key = ? WHERE id = ?';
+        db.run(sqlPut,
             [validade || null, data_emissao || null, filePath, fileName, r2Key, id],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
+                if (teveUploadArquivo && absUploadedPath) {
+                    enviarCopiaLicencaAnexada(row.empresa, row.nome, validade || row.validade, absUploadedPath, fileName);
+                }
                 res.json({ message: 'Licenca atualizada.' });
             }
         );
@@ -38732,6 +38904,7 @@ function licencaRegraTipo(empresa, nome) {
     const emp = String(empresa || '').toLowerCase().trim();
     const n = licencaNormNome(nome);
     if (emp === 'america-rental' && n.includes('cartao de cnpj')) return 'dia_01';
+    if (emp === 'attend-ambiental' && n.includes('laudo de monitoramento')) return 'dia_20';
     if (emp === 'outras-licencas') {
         if (n.includes('cadastro mobiliario') || n.includes('cadesp') || n.includes('simples nacional') || n.includes('crf') || n.includes('fgts')) return 'dia_01';
         if (n.includes('falencia') || n.includes('distribuicoes criminais') || n.includes('distribuicoes civeis') || n.includes('acao trabalhista')) return '90_dias';
@@ -38742,6 +38915,17 @@ function licencaProximoDia01ISO() {
     const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const p = new Date(agora.getFullYear(), agora.getMonth() + 1, 1, 12, 0, 0);
     return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-01`;
+}
+function licencaProximoDia20ISO(validadeAtual) {
+    const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const dia20MesAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-20`;
+    // Se hoje é antes do dia 20 e a licença estava atrasada do mês anterior (validade < dia 20 deste mês), o próximo dia 20 é o deste mês;
+    // caso contrário (anexando para o ciclo atual ou no/após o dia 20), o próximo vencimento é o dia 20 do mês seguinte.
+    if (agora.getDate() < 20 && validadeAtual && /^\d{4}-\d{2}-\d{2}$/.test(validadeAtual) && validadeAtual < dia20MesAtual) {
+        return dia20MesAtual;
+    }
+    const p = new Date(agora.getFullYear(), agora.getMonth() + 1, 20, 12, 0, 0);
+    return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-20`;
 }
 function licencaHojeMaisDiasISO(dias) {
     const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -38763,15 +38947,16 @@ async function gerarLinkUploadLicenca(lic) {
 }
 
 function verificarLicencasVencimentoCron() {
-    console.log('[CRON] Verificando vencimento de Licencas Empresariais...');
-    db.all(`SELECT * FROM licencas WHERE validade IS NOT NULL AND validade != ''`, [], (err, licencas) => {
+    console.log('[CRON] Verificando vencimento de Licencas Empresariais (diário às 08:00)...');
+    db.all(`SELECT * FROM licencas`, [], (err, licencas) => {
         if (err) { console.error('[CRON Licencas]', err.message); return; }
 
-        const hoje = new Date();
+        const hoje = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
         hoje.setHours(0, 0, 0, 0);
         const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
         const mesAtualPrefix = hojeStr.substring(0, 7); // YYYY-MM
         const dia01Atual = `${mesAtualPrefix}-01`;
+        const dia20Atual = `${mesAtualPrefix}-20`;
 
         db.all('SELECT empresa, nome, email FROM licencas_emails_notificacao', [], (errE, rowsE) => {
             const mapaEmails = {};
@@ -38784,47 +38969,51 @@ function verificarLicencasVencimentoCron() {
 
                 for (const lic of licencas) {
                     const nomeNorm = licencaNormNome(lic.nome);
-                    const empNorm = String(lic.empresa || '').toLowerCase().trim();
                     const tipoRegra = licencaRegraTipo(lic.empresa, lic.nome);
                     const isDia01Fixo = tipoRegra === 'dia_01';
+                    const isDia20Fixo = tipoRegra === 'dia_20';
+                    const temArquivo = !!(lic.file_path || lic.file_name || lic.r2_key);
+                    const updatedDate = (temArquivo && lic.updated_at) ? String(lic.updated_at).substring(0, 10) : '';
 
-                    // Se for licença de dia 01 e não foi atualizada neste mês, a validade passa a ser o dia 01 do mês atual
-                    const updatedDate = lic.updated_at ? String(lic.updated_at).substring(0, 10) : '';
-                    if (isDia01Fixo && (!lic.validade || (updatedDate < dia01Atual && lic.validade > hojeStr))) {
+                    // Se for licença de dia 01 e não foi anexada/atualizada neste mês, a validade passa a ser o dia 01 do mês atual
+                    if (isDia01Fixo && (!lic.validade || ((!updatedDate || updatedDate < dia01Atual) && lic.validade > hojeStr))) {
                         lic.validade = dia01Atual;
                         db.run('UPDATE licencas SET validade = ? WHERE id = ?', [dia01Atual, lic.id]);
                     }
 
+                    // Se for licença de dia 20 (Laudo de Monitoramento) e chegou/passou o dia 20 sem anexo no ciclo, a validade é o dia 20 do mês atual
+                    if (isDia20Fixo) {
+                        if (!lic.validade) {
+                            lic.validade = dia20Atual;
+                            db.run('UPDATE licencas SET validade = ? WHERE id = ?', [dia20Atual, lic.id]);
+                        } else if (hojeStr >= dia20Atual && (!updatedDate || updatedDate < dia20Atual) && lic.validade > hojeStr) {
+                            lic.validade = dia20Atual;
+                            db.run('UPDATE licencas SET validade = ? WHERE id = ?', [dia20Atual, lic.id]);
+                        }
+                    }
+
+                    if (!lic.validade) continue;
+
                     const dataValidade = new Date(lic.validade + 'T12:00:00');
                     const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
-
-                    const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
-                    const tipoDia = envioDia.some(n => licencaNormNome(n) === nomeNorm);
                     const isCnd = nomeNorm.startsWith('cnd ');
+                    const jaEnviouHoje = lic.last_alert_date && String(lic.last_alert_date).substring(0, 10) === hojeStr;
 
+                    // Regra: TODAS as licenças vencidas (diffDias <= 0) de América Rental, Attend Ambiental, BRK e Outras Licenças
+                    // enviam 1 e-mail separado todos os dias às 08h da manhã até que a licença seja anexada no sistema.
                     let deveEnviar = false;
-
-                    if (isDia01Fixo) {
-                        // Notificação todo dia 01 de cada mês (ou se venceu e ainda não enviou alerta neste mês)
-                        const jaEnviouNoMes = lic.last_alert_date && String(lic.last_alert_date).substring(0, 7) === mesAtualPrefix;
-                        if ((hoje.getDate() === 1 || diffDias <= 0) && !jaEnviouNoMes) deveEnviar = true;
-                    } else if (tipoDia) {
-                        if (diffDias <= 0 && (!lic.last_alert_date || String(lic.last_alert_date).substring(0, 10) !== hojeStr)) deveEnviar = true;
-                    } else {
-                        const limiteAvisoDias = empNorm === 'outras-licencas' ? 30 : 90;
-                        if (diffDias <= limiteAvisoDias) {
-                            if (!lic.last_alert_date) {
-                                deveEnviar = true;
-                            } else {
-                                const diffLastAlert = Math.ceil((hoje - new Date(lic.last_alert_date)) / 86400000);
-                                if (diffLastAlert >= 15 || (diffDias === 0 && String(lic.last_alert_date).substring(0, 10) !== hojeStr)) deveEnviar = true;
-                            }
-                        }
+                    if (diffDias <= 0 && !jaEnviouHoje) {
+                        deveEnviar = true;
                     }
 
                     if (deveEnviar) {
                         // Destinatário: e-mail registrado DENTRO da licença
                         let destino = licencaNormalizarEmails(mapaEmails[`${lic.empresa}|${licencaChaveNome(lic.nome)}`]).join(', ');
+                        // Se não tiver na licença específica mas outra licença da mesma empresa tiver e-mail padrão configurado
+                        if (!destino) {
+                            const outraDaEmpresa = (rowsE || []).find(r => r.empresa === lic.empresa && r.email);
+                            if (outraDaEmpresa) destino = licencaNormalizarEmails(outraDaEmpresa.email).join(', ');
+                        }
                         // CNDs antigas ainda sem e-mail na licença: mantém quem estava em "Atualização de CNDs"
                         if (!destino && isCnd) {
                             try { destino = (await resolverEmailsNotificados('atualizacao_cnds')).join(', '); } catch (e) { destino = ''; }

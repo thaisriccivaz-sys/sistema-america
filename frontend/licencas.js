@@ -26,7 +26,8 @@ const LICENCAS_CONFIG = {
         docs: [
             'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão CNPJ', 'CTF IBAMA',
             'Declaração de Contrato',
-            'LI - Licença de Instalação', 'LO - CETESB'
+            'LI - Licença de Instalação', 'LO - CETESB',
+            'Laudo de Monitoramento'
         ]
     },
     'brk': {
@@ -83,6 +84,21 @@ function getProximoDia01ISO() {
     return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+function getDia20MesAtualISO() {
+    const hj = new Date();
+    return `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-20`;
+}
+
+function getProximoDia20ISO(validadeAtual = '') {
+    const hj = new Date();
+    const dia20MesAtual = getDia20MesAtualISO();
+    if (hj.getDate() < 20 && validadeAtual && /^\d{4}-\d{2}-\d{2}$/.test(validadeAtual) && validadeAtual < dia20MesAtual) {
+        return dia20MesAtual;
+    }
+    const prox = new Date(hj.getFullYear(), hj.getMonth() + 1, 20, 12, 0, 0);
+    return `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, '0')}-20`;
+}
+
 function getHojeISO() {
     const hj = new Date();
     return `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-${String(hj.getDate()).padStart(2, '0')}`;
@@ -99,6 +115,15 @@ function getRegraLicenca(empresa, nome) {
             tipo: 'dia_01',
             permiteCredenciamentoVencido: true,
             badgeTexto: 'Vencimento fixo: todo dia 01 • Liberado no Credenciamento'
+        };
+    }
+
+    // 1B. Laudo de Monitoramento dentro da Attend Ambiental: vencimento fixo todo dia 20 + envio automático de cópia (@)
+    if (emp === 'attend-ambiental' && nNorm.includes('laudo de monitoramento')) {
+        return {
+            tipo: 'dia_20',
+            temEmailsCopia: true,
+            badgeTexto: 'Vencimento fixo: todo dia 20 • Envio automático de cópia (@)'
         };
     }
 
@@ -183,13 +208,26 @@ window.initLicencas = async function() {
     renderLicencasTabs();
     await Promise.all([
         loadLicencas(),
-        carregarEmailsLicencas()
+        carregarEmailsLicencas(),
+        carregarEmailsCopiaLicencas()
     ]);
     renderLicencasContent();
 };
 
 // ── E-mail de notificação de vencimento POR LICENÇA ──────────
 let licencasEmails = {}; // { 'empresa|nome': 'a@x.com; b@y.com' }
+let licencasEmailsCopia = {}; // { 'empresa|nome': 'a@x.com; b@y.com' }
+
+const DEFAULT_EMAILS_COPIA_LAUDO_ATTEND = [
+    'thais.ricci@americarental.com.br',
+    'creal@libercon.eng.br',
+    'antonia.oliveira@ambipar.com',
+    'wfranca@libercon.eng.br',
+    'ingrid-joseane.pereira@mailer.com.br',
+    'carlos.santos-melo@mailer.com.br',
+    'julio.abreu@cfsengenharia.com.br',
+    'tais.besnosoff@itau-unibanco.com.br'
+];
 
 async function carregarEmailsLicencas() {
     try {
@@ -203,6 +241,152 @@ async function carregarEmailsLicencas() {
         console.warn('[Licenças] Erro ao carregar e-mails de notificação:', e);
     }
 }
+
+async function carregarEmailsCopiaLicencas() {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/emails-copia', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const rows = await res.json();
+        licencasEmailsCopia = {};
+        (rows || []).forEach(r => { licencasEmailsCopia[r.empresa + '|' + r.nome] = r.emails; });
+    } catch (e) {
+        console.warn('[Licenças] Erro ao carregar e-mails de cópia:', e);
+    }
+}
+
+function getListaEmailsCopia(empresa, nome) {
+    const key = empresa + '|' + nome;
+    const raw = licencasEmailsCopia[key] !== undefined
+        ? licencasEmailsCopia[key]
+        : (empresa === 'attend-ambiental' && nome === 'Laudo de Monitoramento' ? DEFAULT_EMAILS_COPIA_LAUDO_ATTEND.join('; ') : '');
+    return String(raw || '').split(/[;,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
+// Botão (@) no card da licença → gerenciar (editar, incluir e excluir) e-mails que recebem cópia automática ao anexar
+window.editarEmailsCopiaLicenca = async function(empresa, nome) {
+    const key = empresa + '|' + nome;
+    const cfg = LICENCAS_CONFIG[empresa] || {};
+    const emailOk = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+    let lista = [...getListaEmailsCopia(empresa, nome)];
+
+    if (!window.Swal) {
+        const v = prompt(`E-mails que receberão cópia de "${nome}" ao anexar (separe por ;):`, lista.join('; '));
+        if (v === null) return;
+        lista = v.split(/[;,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    } else {
+        const renderListaHtml = () => {
+            if (!lista.length) {
+                return '<div style="padding:14px; text-align:center; color:#94a3b8; font-size:0.85rem; background:#f8fafc; border-radius:8px; border:1px dashed #cbd5e1;">Nenhum e-mail cadastrado. Adicione acima.</div>';
+            }
+            return lista.map((em, idx) => `
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                    <input type="email" class="lic-copia-item-input" data-idx="${idx}" value="${em}"
+                        style="flex:1; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#1e293b; outline:none;"
+                        oninput="window._licCopiaAtualizarIdx(${idx}, this.value)">
+                    <button type="button" onclick="window._licCopiaRemoverIdx(${idx})" title="Excluir este e-mail"
+                        style="padding:7px 10px; border-radius:8px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window._licCopiaAtualizarIdx = (idx, val) => {
+            lista[idx] = String(val || '').trim().toLowerCase();
+        };
+        window._licCopiaRemoverIdx = (idx) => {
+            lista.splice(idx, 1);
+            const box = document.getElementById('swal-lic-copia-list');
+            if (box) box.innerHTML = renderListaHtml();
+        };
+        window._licCopiaAdicionar = () => {
+            const inp = document.getElementById('swal-lic-copia-novo');
+            if (!inp) return;
+            const raw = (inp.value || '').trim().toLowerCase();
+            if (!raw) return;
+            const novos = raw.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
+            const inv = novos.filter(n => !emailOk(n));
+            if (inv.length) {
+                Swal.showValidationMessage('E-mail inválido: ' + inv.join(', '));
+                return;
+            }
+            Swal.resetValidationMessage();
+            novos.forEach(n => {
+                if (!lista.includes(n)) lista.push(n);
+            });
+            inp.value = '';
+            const box = document.getElementById('swal-lic-copia-list');
+            if (box) box.innerHTML = renderListaHtml();
+            inp.focus();
+        };
+
+        const r = await Swal.fire({
+            title: 'E-mails para Envio de Cópia (@)',
+            width: 560,
+            html: `
+                <p style="color:#475569; font-size:0.88rem; margin-bottom:10px; text-align:left; line-height:1.45;">
+                    Assim que <strong>${nome}</strong> (${cfg.label || empresa}) for anexado no sistema, uma cópia do documento em PDF será enviada automaticamente para os e-mails abaixo:
+                </p>
+                <div style="display:flex; gap:6px; margin-bottom:12px;">
+                    <input id="swal-lic-copia-novo" type="email" placeholder="Novo e-mail (ex: nome@empresa.com.br)"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault(); window._licCopiaAdicionar();}"
+                        style="flex:1; padding:8px 12px; border:1.5px solid #99f6e4; border-radius:8px; font-size:0.9rem; outline:none;">
+                    <button type="button" onclick="window._licCopiaAdicionar()"
+                        style="padding:8px 14px; border-radius:8px; border:none; background:#0f766e; color:#fff; font-weight:700; font-size:0.86rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                        <i class="ph-bold ph-plus"></i> Incluir
+                    </button>
+                </div>
+                <div id="swal-lic-copia-list" style="max-height:260px; overflow-y:auto; text-align:left; padding-right:2px;">
+                    ${renderListaHtml()}
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Salvar lista',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0f766e',
+            preConfirm: () => {
+                // Caso o usuário tenha digitado algo no campo "Novo e-mail" e clicado direto em Salvar
+                const inpNovo = document.getElementById('swal-lic-copia-novo');
+                if (inpNovo && inpNovo.value.trim()) {
+                    const extras = inpNovo.value.trim().toLowerCase().split(/[;,\s]+/).filter(Boolean);
+                    extras.forEach(e => { if (!lista.includes(e)) lista.push(e); });
+                }
+                const limpa = [...new Set(lista.map(s => String(s || '').trim().toLowerCase()).filter(Boolean))];
+                const invalidos = limpa.filter(p => !emailOk(p));
+                if (invalidos.length) {
+                    Swal.showValidationMessage('Corrija o(s) e-mail(s) inválido(s): ' + invalidos.join(', '));
+                    return false;
+                }
+                return limpa;
+            }
+        });
+
+        delete window._licCopiaAtualizarIdx;
+        delete window._licCopiaRemoverIdx;
+        delete window._licCopiaAdicionar;
+
+        if (!r.isConfirmed) return;
+        lista = r.value || [];
+    }
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/emails-copia', {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa, nome, emails: lista })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar destinatários');
+        licencasEmailsCopia[key] = data.emails || '';
+        if (typeof showToast !== 'undefined') showToast('Lista de destinatários (@) atualizada!', 'success');
+        renderLicencasContent();
+    } catch (e) {
+        if (typeof showToast !== 'undefined') showToast('Erro: ' + e.message, 'error');
+        else alert('Erro: ' + e.message);
+    }
+};
 
 // Botão (ícone de e-mail) em cada licença → popup para informar quem recebe o aviso de vencimento
 window.editarEmailLicenca = async function(empresa, nome) {
@@ -317,12 +501,26 @@ function getValidadeEfetiva(empresa, nome, licenca) {
     const regra = getRegraLicenca(empresa, nome);
     if (regra && regra.tipo === 'dia_01') {
         const inicioMes = getDia01MesAtualISO();
-        const updatedIso = licenca && licenca.updated_at ? String(licenca.updated_at).substring(0, 10) : '';
-        // Se tem validade futura (> hoje), respeita; se não foi atualizado no mês atual ou não tem validade, vence no dia 01 do mês atual
+        const temArq = !!(licenca && (licenca.file_name || licenca.file_path || licenca.r2_key));
+        const updatedIso = (temArq && licenca && licenca.updated_at) ? String(licenca.updated_at).substring(0, 10) : '';
+        // Se tem validade futura (> hoje) e foi anexado no mês atual, respeita; caso contrário vence no dia 01 do mês atual
         if (licenca && licenca.validade && licenca.validade > getHojeISO() && updatedIso >= inicioMes) {
             return licenca.validade;
         }
         return (licenca && licenca.validade && licenca.validade <= getHojeISO()) ? licenca.validade : inicioMes;
+    }
+    if (regra && regra.tipo === 'dia_20') {
+        const dia20Mes = getDia20MesAtualISO();
+        const hojeIso = getHojeISO();
+        const temArq = !!(licenca && (licenca.file_name || licenca.file_path || licenca.r2_key));
+        const updatedIso = (temArq && licenca && licenca.updated_at) ? String(licenca.updated_at).substring(0, 10) : '';
+        if (licenca && licenca.validade) {
+            if (hojeIso >= dia20Mes && (!updatedIso || updatedIso < dia20Mes) && licenca.validade > hojeIso) {
+                return dia20Mes;
+            }
+            return licenca.validade;
+        }
+        return dia20Mes;
     }
     if (regra && regra.tipo === '90_dias') {
         if (licenca && licenca.validade) return licenca.validade;
@@ -348,9 +546,12 @@ function renderLicencasContent() {
         if (!validade) return { label: 'Sem data', color: '#94a3b8', bg: '#f1f5f9', icon: 'ph-minus' };
         const d = new Date(validade + 'T12:00:00');
         const diff = Math.ceil((d - hoje) / 86400000);
-        // Licenças com vencimento fixo todo dia 01: consideradas vencidas já no próprio dia 01 (diff <= 0)
+        // Licenças com vencimento fixo todo dia 01 ou dia 20: consideradas vencidas já no próprio dia (diff <= 0)
         if (regra && regra.tipo === 'dia_01' && diff <= 0) {
             return { label: 'Vencida (Dia 01)', color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle', diff };
+        }
+        if (regra && regra.tipo === 'dia_20' && diff <= 0) {
+            return { label: 'Vencida (Dia 20)', color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle', diff };
         }
         if (diff < 0)  return { label: 'Vencida',          color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle',       diff };
         if (diff <= 30) return { label: `Vence em ${diff}d`, color: '#d97706', bg: '#fef3c7', icon: 'ph-warning-circle',  diff };
@@ -381,12 +582,14 @@ function renderLicencasContent() {
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
         const semVal = isDocumentoSemValidade(licencasActiveTab, nome);
         const emailAtual = licencasEmails[licencasActiveTab + '|' + nome] || '';
+        const temEmailsCopia = !!(regra && regra.temEmailsCopia);
+        const listaCopia = temEmailsCopia ? getListaEmailsCopia(licencasActiveTab, nome) : [];
 
         if (!temArquivo) semDocCount++;
         if (validadeEfetiva && !semVal) {
             const dObj = new Date(validadeEfetiva + 'T12:00:00');
             const diffDias = Math.ceil((dObj - hoje) / 86400000);
-            if ((regra && regra.tipo === 'dia_01' && diffDias <= 0) || diffDias < 0) vencidasCount++;
+            if ((regra && (regra.tipo === 'dia_01' || regra.tipo === 'dia_20') && diffDias <= 0) || diffDias < 0) vencidasCount++;
             else if (diffDias >= 0 && diffDias <= 30) proximasCount++;
         }
 
@@ -439,6 +642,13 @@ function renderLicencasContent() {
                     <span>${emailAtual ? `Notifica: <strong>${emailAtual}</strong>` : 'Sem e-mail de notificação definido'}</span>
                 </div>
 
+                ${temEmailsCopia ? `
+                <!-- E-mails que recebem cópia ao anexar (@) -->
+                <div class="licenca-validade-row" style="font-size:0.76rem; gap:6px; flex-wrap:wrap; color:${listaCopia.length ? '#0f766e' : '#94a3b8'};">
+                    <i class="ph-bold ph-at"></i>
+                    <span title="${listaCopia.join(', ')}">${listaCopia.length ? `Cópia automática ao anexar: <strong>${listaCopia.length} e-mail(s)</strong>` : 'Sem e-mails para cópia automática (@)'}</span>
+                </div>` : ''}
+
                 <!-- Ações -->
                 <div class="licenca-card-actions">
                     ${temArquivo ? `
@@ -467,6 +677,12 @@ function renderLicencasContent() {
                         style="background:${emailAtual ? '#dbeafe' : '#f1f5f9'}; color:${emailAtual ? '#1d4ed8' : '#64748b'}; border:1px solid ${emailAtual ? '#93c5fd' : '#cbd5e1'};">
                         <i class="ph-bold ph-envelope-simple"></i>
                     </button>
+                    ${temEmailsCopia ? `
+                    <button class="licenca-btn" onclick="editarEmailsCopiaLicenca('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}')"
+                        title="Gerenciar e-mails que recebem cópia após anexar (@): ${listaCopia.join('; ')}"
+                        style="background:${listaCopia.length ? '#ccfbf1' : '#f1f5f9'}; color:${listaCopia.length ? '#0f766e' : '#64748b'}; border:1px solid ${listaCopia.length ? '#5eead4' : '#cbd5e1'};">
+                        <i class="ph-bold ph-at"></i>
+                    </button>` : ''}
                 </div>
             </div>
         </div>`;
@@ -536,6 +752,12 @@ window.uploadLicenca = async function(input, empresa, nome, valSugerida = '', em
         const promptRes = await promptValidade(nome, proxDia01, empresa, '');
         if (promptRes === null) { input.value = ''; return; }
         venc = promptRes.validade || proxDia01;
+    } else if (regra && regra.tipo === 'dia_20') {
+        // Vencimento fixo todo dia 20: ao anexar/atualizar, calcula o próximo dia 20
+        const proxDia20 = getProximoDia20ISO(valSugerida);
+        const promptRes = await promptValidade(nome, proxDia20, empresa, '');
+        if (promptRes === null) { input.value = ''; return; }
+        venc = promptRes.validade || proxDia20;
     } else if (!semValidade) {
         let valAtual = valSugerida || '';
         if (file.type === 'application/pdf' && (!regra || regra.tipo !== '90_dias')) {
@@ -603,6 +825,11 @@ window.editLicencaModal = async function(empresa, nome, id, valAtual, emissaoAtu
         const promptRes = await promptValidade(nome, proxDia01, empresa, '');
         if (promptRes === null) return;
         venc = promptRes.validade || proxDia01;
+    } else if (regra && regra.tipo === 'dia_20') {
+        const proxDia20 = getProximoDia20ISO(valAtual);
+        const promptRes = await promptValidade(nome, proxDia20, empresa, '');
+        if (promptRes === null) return;
+        venc = promptRes.validade || proxDia20;
     } else if (!semValidade) {
         const promptRes = await promptValidade(nome, valAtual, empresa, dataEmissao);
         if (promptRes === null) return;
@@ -695,6 +922,7 @@ async function promptValidade(nome, valAtual, empresa = '', emissaoAtual = '') {
     const regra = getRegraLicenca(empresa, nome);
     const is90Dias = !!(regra && regra.tipo === '90_dias');
     const isDia01 = !!(regra && regra.tipo === 'dia_01');
+    const isDia20 = !!(regra && regra.tipo === 'dia_20');
 
     if (window.Swal) {
         let extraHtml = '';
@@ -702,6 +930,12 @@ async function promptValidade(nome, valAtual, empresa = '', emissaoAtual = '') {
             extraHtml = `
                 <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:0.82rem; color:#9a3412; text-align:left;">
                     <strong>Regra fixa:</strong> Este documento vence todo <strong>dia 01 de cada mês</strong>. Ao atualizar neste mês, o próximo vencimento é <strong>${valAtual.split('-').reverse().join('/')}</strong>.
+                </div>
+            `;
+        } else if (isDia20) {
+            extraHtml = `
+                <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:0.82rem; color:#0f766e; text-align:left;">
+                    <strong>Regra fixa:</strong> Este documento vence todo <strong>dia 20 de cada mês</strong> (próximo: <strong>${valAtual.split('-').reverse().join('/')}</strong>) e envia cópia automática por e-mail aos destinatários do ícone <strong>@</strong> assim que o PDF é anexado.
                 </div>
             `;
         } else if (is90Dias) {

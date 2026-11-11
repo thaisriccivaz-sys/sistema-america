@@ -126,14 +126,15 @@
                 document.getElementById('doc-empresa').textContent = empStr;
 
                 if (data.validade_fixa) {
-                    // Vencimento fixo (todo dia 01): não precisa informar a data
+                    // Vencimento fixo (todo dia 01 ou dia 20): não precisa informar a data
                     const inp = document.getElementById('input-validade');
                     inp.value = data.validade_fixa;
                     inp.required = false;
                     document.getElementById('grupo-validade').style.display = 'none';
                     const aviso = document.getElementById('aviso-validade-fixa');
+                    const diaFixo = data.dia_fixo_label || (data.validade_fixa ? data.validade_fixa.split('-')[2] : '01');
                     aviso.style.display = 'block';
-                    aviso.textContent = 'Este documento vence todo dia 01. Após o envio, o próximo vencimento será ' + data.validade_fixa.split('-').reverse().join('/') + '.';
+                    aviso.textContent = 'Este documento vence todo dia ' + diaFixo + '. Após o envio, o próximo vencimento será ' + data.validade_fixa.split('-').reverse().join('/') + '.';
                 } else if (data.sugestao_validade) {
                     document.getElementById('input-validade').value = data.sugestao_validade;
                 }
