@@ -8,7 +8,6 @@ const TIPOS_NOTIFICACAO = [
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
     { id: 'formulario_desempenho', nome: 'Avaliação de Desempenho Preenchida', icone: 'ph-chart-line-up' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
-    { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
     { id: 'nova_multa_prontuario', nome: 'Nova Multa no Prontuário', icone: 'ph-traffic-cone' },
     { id: 'multa_rec_indeferida', nome: 'Multa Rec. Indeferida (vai ao prontuário)', icone: 'ph-traffic-cone', descricao: 'Popup enviado quando uma multa tem o recurso indeferido (Rec. Indeferida). A multa é automaticamente inserida no prontuário do colaborador. Não envia e-mail.' },

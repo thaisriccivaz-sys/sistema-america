@@ -183,60 +183,85 @@ window.initLicencas = async function() {
     renderLicencasTabs();
     await Promise.all([
         loadLicencas(),
-        carregarEmailNotificacaoLicencas()
+        carregarEmailsLicencas()
     ]);
     renderLicencasContent();
 };
 
-// ── Carregar e salvar e-mail de notificação ──────────────────
-async function carregarEmailNotificacaoLicencas() {
-    const input = document.getElementById('licencas-email-notificacao');
-    if (!input) return;
+// ── E-mail de notificação de vencimento POR LICENÇA ──────────
+let licencasEmails = {}; // { 'empresa|nome': 'a@x.com; b@y.com' }
+
+async function carregarEmailsLicencas() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/licencas/config', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/licencas/emails', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.email_notificacao) {
-            input.value = data.email_notificacao;
-        }
+        const rows = await res.json();
+        licencasEmails = {};
+        (rows || []).forEach(r => { licencasEmails[r.empresa + '|' + r.nome] = r.email; });
     } catch (e) {
-        console.warn('[Licenças] Erro ao carregar config de e-mail:', e);
+        console.warn('[Licenças] Erro ao carregar e-mails de notificação:', e);
     }
 }
 
-window.salvarEmailNotificacaoLicencas = async function() {
-    const input = document.getElementById('licencas-email-notificacao');
-    const btn = document.getElementById('btn-salvar-email-licencas');
-    if (!input) return;
-    const email = input.value.trim();
-    if (!email || !email.includes('@')) {
-        if (typeof showToast !== 'undefined') showToast('Informe um e-mail válido para notificação.', 'warning');
-        else alert('Informe um e-mail válido para notificação.');
-        input.focus();
-        return;
+// Botão (ícone de e-mail) em cada licença → popup para informar quem recebe o aviso de vencimento
+window.editarEmailLicenca = async function(empresa, nome) {
+    const key = empresa + '|' + nome;
+    const atual = licencasEmails[key] || '';
+    const cfg = LICENCAS_CONFIG[empresa] || {};
+    const emailOk = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+    let novo = null;
+
+    if (window.Swal) {
+        const r = await Swal.fire({
+            title: 'E-mail de notificação',
+            html: `
+                <p style="color:#475569; font-size:0.9rem; margin-bottom:0.7rem; text-align:left;">
+                    Quem receberá o aviso de vencimento de <strong>${nome}</strong> (${cfg.label || empresa}).<br>
+                    <small style="color:#94a3b8;">Para mais de um e-mail, separe por ponto e vírgula (;). O e-mail enviado traz um botão para anexar o documento atualizado.</small>
+                </p>
+                <input id="swal-lic-email" type="text" class="swal2-input" placeholder="email@americarental.com.br"
+                    value="${atual}" style="margin:0; width:100%; font-size:1rem;">
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Salvar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e67700',
+            showDenyButton: !!atual,
+            denyButtonText: 'Remover e-mail',
+            didOpen: () => { const i = document.getElementById('swal-lic-email'); if (i) i.focus(); },
+            preConfirm: () => {
+                const v = (document.getElementById('swal-lic-email').value || '').trim();
+                if (!v) { Swal.showValidationMessage('Informe o e-mail.'); return false; }
+                const invalidos = v.split(/[;,\s]+/).filter(Boolean).filter(p => !emailOk(p));
+                if (invalidos.length) { Swal.showValidationMessage('E-mail inválido: ' + invalidos.join(', ')); return false; }
+                return v;
+            }
+        });
+        if (r.isConfirmed) novo = r.value;
+        else if (r.isDenied) novo = '';
+        else return;
+    } else {
+        const v = prompt(`E-mail que receberá o aviso de vencimento de "${nome}" (separe vários por ;):`, atual);
+        if (v === null) return;
+        novo = v.trim();
     }
-    const origHtml = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner"></i> Salvando...'; }
+
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/licencas/config', {
+        const res = await fetch('/api/licencas/email', {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email_notificacao: email })
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa, nome, email: novo })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao salvar e-mail');
-        if (typeof showToast !== 'undefined') showToast('E-mail de notificação salvo com sucesso!', 'success');
-        else alert('E-mail de notificação salvo com sucesso!');
+        if (data.email) licencasEmails[key] = data.email; else delete licencasEmails[key];
+        if (typeof showToast !== 'undefined') showToast(data.email ? 'E-mail de notificação salvo!' : 'E-mail de notificação removido.', 'success');
+        renderLicencasContent();
     } catch (e) {
         if (typeof showToast !== 'undefined') showToast('Erro: ' + e.message, 'error');
         else alert('Erro: ' + e.message);
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
     }
 };
 
@@ -355,6 +380,7 @@ function renderLicencasContent() {
         const emissaoFormatted = emissaoEfetiva ? formatDate(emissaoEfetiva) : null;
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
         const semVal = isDocumentoSemValidade(licencasActiveTab, nome);
+        const emailAtual = licencasEmails[licencasActiveTab + '|' + nome] || '';
 
         if (!temArquivo) semDocCount++;
         if (validadeEfetiva && !semVal) {
@@ -407,6 +433,12 @@ function renderLicencasContent() {
                     <span>Nenhum documento cadastrado</span>
                 </div>`}
 
+                <!-- E-mail de notificação -->
+                <div class="licenca-validade-row" style="font-size:0.76rem; gap:6px; flex-wrap:wrap; color:${emailAtual ? '#1d4ed8' : '#94a3b8'};">
+                    <i class="ph ph-envelope-simple"></i>
+                    <span>${emailAtual ? `Notifica: <strong>${emailAtual}</strong>` : 'Sem e-mail de notificação definido'}</span>
+                </div>
+
                 <!-- Ações -->
                 <div class="licenca-card-actions">
                     ${temArquivo ? `
@@ -430,6 +462,11 @@ function renderLicencasContent() {
                             <i class="ph ph-calendar"></i> Data
                         </button>` : ''}
                     `}
+                    <button class="licenca-btn" onclick="editarEmailLicenca('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}')"
+                        title="${emailAtual ? 'E-mail de notificação: ' + emailAtual : 'Definir e-mail de notificação de vencimento'}"
+                        style="background:${emailAtual ? '#dbeafe' : '#f1f5f9'}; color:${emailAtual ? '#1d4ed8' : '#64748b'}; border:1px solid ${emailAtual ? '#93c5fd' : '#cbd5e1'};">
+                        <i class="ph-bold ph-envelope-simple"></i>
+                    </button>
                 </div>
             </div>
         </div>`;

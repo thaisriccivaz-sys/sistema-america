@@ -23346,59 +23346,7 @@ cron.schedule('0 8 * * *', () => {
 
         // -- VERIFICAÇÃO DE CNDs ----------------------------------------------------
         // CNDs vencidas ou no dia de vencer (validade <= hoje) e notificar 'atualizacao_cnds'
-        try {
-            console.log('[CRON] Verificando CNDs vencidas para notificação por e-mail...');
-            const cndNomes = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista'];
-            const placeholders = cndNomes.map(()=>'?').join(',');
-            
-            // Buscar CNDs que estão vencidas (validade <= hoje)
-            const sqlCnd = `SELECT * FROM licencas WHERE nome IN (${placeholders}) AND validade <= date('now')`;
-            
-            db.all(sqlCnd, cndNomes, async (errCnd, cndsVencidas) => {
-                if (errCnd) {
-                    console.error('[CRON CND] Erro ao buscar CNDs vencidas:', errCnd);
-                    return;
-                }
-                
-                if (cndsVencidas.length > 0) {
-                    // Tem CND vencida. Precisa gerar links de upload e mandar e-mail.
-                    // 1. Quem deve receber?
-                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_cnds'", [], async (errN, rowsN) => {
-                        if (errN || !rowsN || rowsN.length === 0) return;
-                        
-                        const requireCrypto = require('crypto');
-                        const urlFrontend = obterUrlPublicaSistema(process.env.URL_FRONTEND);
-
-                        for (const cnd of cndsVencidas) {
-                            const token = requireCrypto.randomBytes(24).toString('hex');
-                            
-                            await new Promise(r => db.run('DELETE FROM cnd_upload_tokens WHERE cnd_nome = ?', [cnd.nome], r));
-                            await new Promise(r => db.run('INSERT INTO cnd_upload_tokens (token, cnd_nome) VALUES (?, ?)', [token, cnd.nome], r));
-
-                            const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
-                            
-                            const htmlMail = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-<div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
-<div style="padding:1.5rem 2rem;">
-<h2 style="color:#0e7490;margin-top:0;text-align:center;">Atualização de Documento</h2>
-
-<p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
-<p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
-<div style="text-align:center; margin: 30px 0;"><a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a></div>
-<p style="font-size:12px; color:#94a3b8; text-align:center;">*Este link expira assim que o envio for concluído com sucesso.</p>
-</div><hr style="border:none;border-top:1px solid #eee;margin:0;"><div style="padding: 1rem 2rem; background: #f8fafc;"><p style="color:#999;font-size:11px; text-align:center; margin:0;">Este é um e-mail automático, por favor nao responda.</p></div></div>`;
-
-                            sendEmailParaNotificados('atualizacao_cnds', {
-                                subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
-                                html: htmlMail
-                            });
-                        }
-                    });
-                }
-            });
-        } catch(cronCndErr) {
-            console.error('[CRON CND] Erro geral:', cronCndErr);
-        }
+        // CNDs vencidas: agora tratadas por verificarLicencasVencimentoCron (e-mail registrado dentro de cada licença)
 
     ativarColaboradoresPorAdmissao();
     verificarExperienciasVencendo();
@@ -37635,12 +37583,23 @@ app.get('/api/public/cnd/:token', (req, res) => {
         if (err) return res.status(500).json({ error: 'Erro no servidor' });
         if (!row) return res.status(404).json({ error: 'Link inválido, já utilizado ou expirado.' });
 
-        db.get('SELECT empresa, nome, validade FROM licencas WHERE nome = ?', [row.cnd_nome], (errLic, rowLic) => {
+        const empToken = row.empresa || '';
+        const sql = empToken
+            ? 'SELECT empresa, nome, validade FROM licencas WHERE nome = ? AND empresa = ?'
+            : 'SELECT empresa, nome, validade FROM licencas WHERE nome = ?';
+        const params = empToken ? [row.cnd_nome, empToken] : [row.cnd_nome];
+        db.get(sql, params, (errLic, rowLic) => {
             if (errLic) return res.status(500).json({ error: 'Erro interno.' });
+            const empresaFinal = empToken || (rowLic ? rowLic.empresa : '');
+            const regra = licencaRegraTipo(empresaFinal, row.cnd_nome);
             res.json({
                 cnd_nome: row.cnd_nome,
-                empresa: rowLic ? rowLic.empresa : 'Nao definida',
-                validade_atual: rowLic ? rowLic.validade : null
+                empresa: empresaFinal || 'Nao definida',
+                validade_atual: rowLic ? rowLic.validade : null,
+                // Dia 01: o vencimento é fixo (próximo dia 01) e não precisa ser informado
+                validade_fixa: regra === 'dia_01' ? licencaProximoDia01ISO() : null,
+                // 90 dias: sugestão de vencimento a partir de hoje (pode ser ajustada)
+                sugestao_validade: regra === '90_dias' ? licencaHojeMaisDiasISO(90) : null
             });
         });
     });
@@ -37648,59 +37607,81 @@ app.get('/api/public/cnd/:token', (req, res) => {
 
 app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
     const token = req.params.token;
-    const novaValidade = req.body.validade;
-    
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    if (!novaValidade) return res.status(400).json({ error: 'Data de validade nao informada.' });
+    const novaValidade = String(req.body.validade || '').trim();
 
-    db.get('SELECT cnd_nome FROM cnd_upload_tokens WHERE token = ?', [token], async (err, row) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+    db.get('SELECT cnd_nome, empresa FROM cnd_upload_tokens WHERE token = ?', [token], (err, row) => {
         if (err) return res.status(500).json({ error: 'Erro no servidor' });
         if (!row) return res.status(404).json({ error: 'Link inválido ou expirado.' });
 
-        try {
-            // Verifica se a licenca existe
-            db.get('SELECT id, empresa FROM licencas WHERE nome = ?', [row.cnd_nome], (errLic, licRow) => {
+        const empToken = row.empresa || '';
+        const sql = empToken
+            ? 'SELECT id, empresa FROM licencas WHERE nome = ? AND empresa = ?'
+            : 'SELECT id, empresa FROM licencas WHERE nome = ?';
+        const params = empToken ? [row.cnd_nome, empToken] : [row.cnd_nome];
+
+        db.get(sql, params, async (errLic, licRow) => {
+            try {
                 if (errLic) throw errLic;
-                
-                if (licRow) {
-                    const path = require('path');
-                    const fs = require('fs');
-                    const LICENCAS_UPLOAD_PATH = process.env.LICENCAS_UPLOAD_PATH || path.join(__dirname, '..', 'uploads', 'licencas');
-                    const empresaDir = path.join(LICENCAS_UPLOAD_PATH, (licRow.empresa || 'GERAL').toUpperCase().replace(/[^A-Z0-9]/g, '_'));
-                    if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
-                    
-                    const ext = path.extname(req.file.originalname) || '.pdf';
-                    const safeName = row.cnd_nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-                    const fileName = safeName + ext;
-                    const filePath = path.join(empresaDir, fileName);
-                    
-                    if (req.file.buffer) {
-                        fs.writeFileSync(filePath, req.file.buffer);
-                    } else if (req.file.path) {
-                        fs.copyFileSync(req.file.path, filePath);
-                        fs.unlinkSync(req.file.path);
-                    }
+                const empresaFinal = empToken || (licRow ? licRow.empresa : '');
+                if (!empresaFinal) return res.status(400).json({ error: 'Licença base nao encontrada no sistema para ser atualizada.' });
 
-                    const BASE_UPLOAD_PATH = process.env.BASE_UPLOAD_PATH || path.join(__dirname, '..', 'uploads');
-                    const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\\\/g, '/');
+                const regra = licencaRegraTipo(empresaFinal, row.cnd_nome);
+                const dataIso = regra === 'dia_01' ? licencaProximoDia01ISO() : novaValidade;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso)) return res.status(400).json({ error: 'Data de validade nao informada.' });
 
-                    const dataIso = novaValidade; // assumindo formato YYYY-MM-DD
-                    
-                    // Update
-                    const sql = "UPDATE licencas SET file_name = ?, file_path = ?, validade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-                    db.run(sql, [fileName, relPath, dataIso, licRow.id], function(errUpd) {
-                        if (errUpd) return res.status(500).json({ error: errUpd.message });
-                        db.run('DELETE FROM cnd_upload_tokens WHERE token = ?', [token]); // apaga token
-                        res.json({ success: true, message: 'Documento atualizado com sucesso.' });
-                    });
-                } else {
-                    return res.status(400).json({ error: 'Licença base nao encontrada no sistema para ser atualizada.' });
+                const empresaDir = path.join(LICENCAS_UPLOAD_PATH, empresaFinal.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
+
+                const ext = path.extname(req.file.originalname) || '.pdf';
+                const safeName = row.cnd_nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+                const fileName = safeName + ext;
+                const filePath = path.join(empresaDir, fileName);
+
+                let buf = null;
+                if (req.file.buffer) {
+                    buf = req.file.buffer;
+                } else if (req.file.path) {
+                    buf = fs.readFileSync(req.file.path);
+                    try { fs.unlinkSync(req.file.path); } catch (eU) { }
                 }
-            });
-        } catch (uploadErr) {
-            console.error('[Public CND] Erro:', uploadErr);
-            res.status(500).json({ error: 'Erro ao fazer upload do arquivo' });
-        }
+                fs.writeFileSync(filePath, buf);
+                const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\/g, '/');
+
+                // Cloudflare R2 (persistente)
+                const r2Pub = require('./utils/r2');
+                let r2Key = null;
+                if (r2Pub.isReady()) {
+                    try {
+                        r2Key = `Licencas/${empresaFinal.toUpperCase().replace(/[^A-Z0-9]/g, '_')}/${fileName}`;
+                        await r2Pub.uploadToR2(r2Key, buf, 'application/pdf');
+                    } catch (eR2) {
+                        console.warn('[Public CND] Erro upload R2:', eR2.message);
+                        r2Key = null;
+                    }
+                } else {
+                    console.warn('[R2] Storage não configurado — licença salva apenas localmente.');
+                }
+
+                const finalizar = (errSave) => {
+                    if (errSave) return res.status(500).json({ error: errSave.message });
+                    db.run('DELETE FROM cnd_upload_tokens WHERE token = ?', [token]); // apaga token
+                    res.json({ success: true, message: 'Documento atualizado com sucesso.' });
+                };
+
+                if (licRow) {
+                    db.run("UPDATE licencas SET file_name = ?, file_path = ?, r2_key = COALESCE(?, r2_key), validade = ?, last_alert_date = NULL, updated_at = datetime('now') WHERE id = ?",
+                        [fileName, relPath, r2Key, dataIso, licRow.id], function (errUpd) { finalizar(errUpd); });
+                } else {
+                    db.run("INSERT INTO licencas (empresa, nome, validade, file_path, file_name, r2_key, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                        [empresaFinal, row.cnd_nome, dataIso, relPath, fileName, r2Key], function (errIns) { finalizar(errIns); });
+                }
+            } catch (uploadErr) {
+                console.error('[Public CND] Erro:', uploadErr);
+                res.status(500).json({ error: 'Erro ao fazer upload do arquivo' });
+            }
+        });
     });
 });
 
@@ -38330,30 +38311,81 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
     }
 });
 
-app.get('/api/licencas/config', authenticateToken, (req, res) => {
-    db.get("SELECT valor FROM configuracoes_sistema WHERE chave = 'licencas_email_notificacao'", [], (err, row) => {
-        if (!err && row && row.valor) {
-            return res.json({ email_notificacao: row.valor });
-        }
-        db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
-                FROM departamentos d WHERE LOWER(TRIM(d.nome)) = 'administrativo' LIMIT 1`, [], (errD, rowD) => {
-            const fallback = (rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br';
-            res.json({ email_notificacao: fallback });
-        });
+// ── E-mail de notificação de vencimento POR LICENÇA (empresa + nome do documento) ──
+// Vários e-mails podem ser informados separados por ";" ou ",".
+const LICENCA_EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+function licencaChaveNome(nome) {
+    const n = String(nome || '').trim();
+    return n === 'PGR' ? 'PRG' : n; // PCMSO/PRG: o registro pode estar salvo como "PGR"
+}
+function licencaNormalizarEmails(txt) {
+    const lista = String(txt || '').split(/[;,\s]+/).map(s => s.trim().toLowerCase()).filter(s => LICENCA_EMAIL_REGEX.test(s));
+    return [...new Set(lista)];
+}
+
+db.run(`CREATE TABLE IF NOT EXISTS licencas_emails_notificacao (
+    empresa TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    email TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (empresa, nome)
+)`, (errT) => { if (errT) console.error('[MIGRATION licencas_emails_notificacao]', errT.message); });
+
+db.run(`CREATE TABLE IF NOT EXISTS cnd_upload_tokens (
+    token TEXT PRIMARY KEY,
+    cnd_nome TEXT NOT NULL,
+    empresa TEXT,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, () => {
+    db.run('ALTER TABLE cnd_upload_tokens ADD COLUMN empresa TEXT', (errA) => {
+        if (errA && !String(errA.message).includes('duplicate column')) console.error('[MIGRATION cnd_upload_tokens.empresa]', errA.message);
     });
 });
 
-app.put('/api/licencas/config', authenticateToken, (req, res) => {
-    const email = String((req.body && req.body.email_notificacao) || '').trim();
-    if (!email || !email.includes('@')) {
-        return res.status(400).json({ error: 'Informe um e-mail válido.' });
+// Migração única (após as demais tabelas existirem):
+//  - CNDs que já enviavam para o e-mail financeiro (override em "Atualização de CNDs") passam a ter esse e-mail registrado DENTRO da licença
+//  - remove o antigo quadro "Aviso de Licença Vencida" da Configuração de Notificações
+setTimeout(() => {
+    db.all("SELECT DISTINCT TRIM(email_override) AS em FROM config_notificacoes WHERE tipo = 'atualizacao_cnds' AND email_override IS NOT NULL AND TRIM(email_override) != ''", [], (errO, rowsO) => {
+        const emails = [...new Set((rowsO || []).flatMap(r => licencaNormalizarEmails(r.em)))];
+        if (!errO && emails.length) {
+            const joined = emails.join('; ');
+            ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista'].forEach(nomeCnd => {
+                db.run("INSERT OR IGNORE INTO licencas_emails_notificacao (empresa, nome, email) VALUES ('america-rental', ?, ?)", [nomeCnd, joined]);
+            });
+        }
+    });
+    db.run("DELETE FROM config_notificacoes WHERE tipo = 'licenca_vencida'", [], () => { });
+}, 12000);
+
+app.get('/api/licencas/emails', authenticateToken, (req, res) => {
+    db.all('SELECT empresa, nome, email FROM licencas_emails_notificacao', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.put('/api/licencas/email', authenticateToken, (req, res) => {
+    const empresa = String((req.body && req.body.empresa) || '').trim();
+    const nome = licencaChaveNome(req.body && req.body.nome);
+    const bruto = String((req.body && req.body.email) || '').trim();
+    if (!empresa || !nome) return res.status(400).json({ error: 'Empresa e documento são obrigatórios.' });
+
+    if (!bruto) {
+        return db.run('DELETE FROM licencas_emails_notificacao WHERE empresa = ? AND nome = ?', [empresa, nome], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, email: '' });
+        });
     }
-    db.run(
-        "INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('licencas_email_notificacao', ?)",
-        [email],
+    const partes = bruto.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
+    const invalidos = partes.filter(p => !LICENCA_EMAIL_REGEX.test(p));
+    if (invalidos.length) return res.status(400).json({ error: 'E-mail inválido: ' + invalidos.join(', ') });
+    const email = licencaNormalizarEmails(bruto).join('; ');
+    db.run("INSERT OR REPLACE INTO licencas_emails_notificacao (empresa, nome, email, updated_at) VALUES (?, ?, ?, datetime('now'))",
+        [empresa, nome, email],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true, email_notificacao: email });
+            res.json({ ok: true, email });
         }
     );
 });
@@ -38692,6 +38724,44 @@ app.get('/api/logistica/entregas', authenticateToken, (req, res) => {
     });
 });
 
+// ── Regras de vencimento especiais (espelham frontend/licencas.js › getRegraLicenca) ──
+function licencaNormNome(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+function licencaRegraTipo(empresa, nome) {
+    const emp = String(empresa || '').toLowerCase().trim();
+    const n = licencaNormNome(nome);
+    if (emp === 'america-rental' && n.includes('cartao de cnpj')) return 'dia_01';
+    if (emp === 'outras-licencas') {
+        if (n.includes('cadastro mobiliario') || n.includes('cadesp') || n.includes('simples nacional') || n.includes('crf') || n.includes('fgts')) return 'dia_01';
+        if (n.includes('falencia') || n.includes('distribuicoes criminais') || n.includes('distribuicoes civeis') || n.includes('acao trabalhista')) return '90_dias';
+    }
+    return null;
+}
+function licencaProximoDia01ISO() {
+    const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const p = new Date(agora.getFullYear(), agora.getMonth() + 1, 1, 12, 0, 0);
+    return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-01`;
+}
+function licencaHojeMaisDiasISO(dias) {
+    const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    agora.setDate(agora.getDate() + dias);
+    return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+}
+
+// Gera o link público (sem login) para anexar o documento atualizado — usado no e-mail de vencimento
+async function gerarLinkUploadLicenca(lic) {
+    try {
+        const token = require('crypto').randomBytes(24).toString('hex');
+        await new Promise(r => db.run("DELETE FROM cnd_upload_tokens WHERE cnd_nome = ? AND COALESCE(empresa, '') = ?", [lic.nome, lic.empresa || ''], () => r()));
+        await new Promise(r => db.run('INSERT INTO cnd_upload_tokens (token, cnd_nome, empresa) VALUES (?, ?, ?)', [token, lic.nome, lic.empresa || ''], () => r()));
+        return `${obterUrlPublicaSistema(process.env.URL_FRONTEND)}/renovar-cnd.html?token=${token}`;
+    } catch (e) {
+        console.error('[CRON Licencas] Erro ao gerar link de upload:', e.message);
+        return null;
+    }
+}
+
 function verificarLicencasVencimentoCron() {
     console.log('[CRON] Verificando vencimento de Licencas Empresariais...');
     db.all(`SELECT * FROM licencas WHERE validade IS NOT NULL AND validade != ''`, [], (err, licencas) => {
@@ -38703,29 +38773,20 @@ function verificarLicencasVencimentoCron() {
         const mesAtualPrefix = hojeStr.substring(0, 7); // YYYY-MM
         const dia01Atual = `${mesAtualPrefix}-01`;
 
-        db.get("SELECT valor FROM configuracoes_sistema WHERE chave = 'licencas_email_notificacao'", [], (errCfg, rowCfg) => {
+        db.all('SELECT empresa, nome, email FROM licencas_emails_notificacao', [], (errE, rowsE) => {
+            const mapaEmails = {};
+            (rowsE || []).forEach(r => { mapaEmails[`${r.empresa}|${r.nome}`] = r.email; });
+
             db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
                     FROM departamentos d WHERE LOWER(TRIM(d.nome)) = 'administrativo' LIMIT 1`, [], async (errD, rowD) => {
 
-                const emailConfigurado = (rowCfg && rowCfg.valor && rowCfg.valor.trim()) ? rowCfg.valor.trim() : null;
-                const emailDestino = emailConfigurado || ((rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br');
-                if (!emailDestino) {
-                    console.log('[CRON Licencas] Email de notificacao nao encontrado.');
-                    return;
-                }
+                const emailPadrao = (rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br'; // usado só quando a licença não tem e-mail próprio
 
                 for (const lic of licencas) {
-                    const nomeNorm = String(lic.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                    const nomeNorm = licencaNormNome(lic.nome);
                     const empNorm = String(lic.empresa || '').toLowerCase().trim();
-
-                    // Verificar se é uma licença com vencimento fixo todo dia 01
-                    const isDia01Fixo = (empNorm === 'america-rental' && nomeNorm.includes('cartao de cnpj')) ||
-                        (empNorm === 'outras-licencas' && (
-                            nomeNorm.includes('cadastro mobiliario') ||
-                            nomeNorm.includes('cadesp') ||
-                            nomeNorm.includes('simples nacional') ||
-                            nomeNorm.includes('crf') || nomeNorm.includes('fgts')
-                        ));
+                    const tipoRegra = licencaRegraTipo(lic.empresa, lic.nome);
+                    const isDia01Fixo = tipoRegra === 'dia_01';
 
                     // Se for licença de dia 01 e não foi atualizada neste mês, a validade passa a ser o dia 01 do mês atual
                     const updatedDate = lic.updated_at ? String(lic.updated_at).substring(0, 10) : '';
@@ -38738,54 +38799,41 @@ function verificarLicencasVencimentoCron() {
                     const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
 
                     const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
-                    const tipoDia = envioDia.some(n => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === nomeNorm);
+                    const tipoDia = envioDia.some(n => licencaNormNome(n) === nomeNorm);
+                    const isCnd = nomeNorm.startsWith('cnd ');
 
                     let deveEnviar = false;
 
                     if (isDia01Fixo) {
-                        // Gera notificação todo dia 01 de cada mês (ou se venceu no dia 01 e ainda não enviou alerta neste mês)
+                        // Notificação todo dia 01 de cada mês (ou se venceu e ainda não enviou alerta neste mês)
                         const jaEnviouNoMes = lic.last_alert_date && String(lic.last_alert_date).substring(0, 7) === mesAtualPrefix;
-                        if ((hoje.getDate() === 1 || diffDias <= 0) && !jaEnviouNoMes) {
-                            deveEnviar = true;
-                        }
+                        if ((hoje.getDate() === 1 || diffDias <= 0) && !jaEnviouNoMes) deveEnviar = true;
                     } else if (tipoDia) {
-                        if (diffDias <= 0 && (!lic.last_alert_date || String(lic.last_alert_date).substring(0, 10) !== hojeStr)) {
-                            deveEnviar = true;
-                        }
+                        if (diffDias <= 0 && (!lic.last_alert_date || String(lic.last_alert_date).substring(0, 10) !== hojeStr)) deveEnviar = true;
                     } else {
-                        // Todas as demais licenças com validade (América Rental, Attend Ambiental, BRK e Outras Licenças de 90 dias)
                         const limiteAvisoDias = empNorm === 'outras-licencas' ? 30 : 90;
                         if (diffDias <= limiteAvisoDias) {
                             if (!lic.last_alert_date) {
                                 deveEnviar = true;
                             } else {
-                                const lastAlert = new Date(lic.last_alert_date);
-                                const diffLastAlert = Math.ceil((hoje - lastAlert) / 86400000);
-                                if (diffLastAlert >= 15 || (diffDias === 0 && String(lic.last_alert_date).substring(0, 10) !== hojeStr)) {
-                                    deveEnviar = true;
-                                }
+                                const diffLastAlert = Math.ceil((hoje - new Date(lic.last_alert_date)) / 86400000);
+                                if (diffLastAlert >= 15 || (diffDias === 0 && String(lic.last_alert_date).substring(0, 10) !== hojeStr)) deveEnviar = true;
                             }
                         }
                     }
 
                     if (deveEnviar) {
-                        await dispararEmailLicenca(lic, diffDias, emailDestino);
-                        db.run('UPDATE licencas SET last_alert_date = ? WHERE id = ?', [new Date().toISOString(), lic.id]);
-                    }
+                        // Destinatário: e-mail registrado DENTRO da licença
+                        let destino = licencaNormalizarEmails(mapaEmails[`${lic.empresa}|${licencaChaveNome(lic.nome)}`]).join(', ');
+                        // CNDs antigas ainda sem e-mail na licença: mantém quem estava em "Atualização de CNDs"
+                        if (!destino && isCnd) {
+                            try { destino = (await resolverEmailsNotificados('atualizacao_cnds')).join(', '); } catch (e) { destino = ''; }
+                        }
+                        if (!destino) destino = emailPadrao;
 
-                    // Popup logic for expired licenses (every day while expired)
-                    if (diffDias <= 0 && lic.last_popup_date !== hojeStr) {
-                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'licenca_vencida'", [], (errC, rowsC) => {
-                            if (!errC && rowsC && rowsC.length > 0) {
-                                const msg = `A licença ${lic.nome} venceu no dia ${lic.validade.split('-').reverse().join('/')}.`;
-                                const dados = JSON.stringify({ nome_licenca: lic.nome, data_vencimento: lic.validade, id: lic.id });
-                                rowsC.forEach(c => {
-                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                                        [c.usuario_id, 'licenca_vencida', msg, dados]);
-                                });
-                                db.run('UPDATE licencas SET last_popup_date = ? WHERE id = ?', [hojeStr, lic.id]);
-                            }
-                        });
+                        const linkUpload = await gerarLinkUploadLicenca(lic);
+                        await dispararEmailLicenca(lic, diffDias, destino, linkUpload);
+                        db.run('UPDATE licencas SET last_alert_date = ? WHERE id = ?', [new Date().toISOString(), lic.id]);
                     }
                 }
             });
@@ -38793,15 +38841,14 @@ function verificarLicencasVencimentoCron() {
     });
 }
 
-async function dispararEmailLicenca(lic, diffDias, emailDestino) {
-    const transporter = nodemailer.createTransport(SMTP_CONFIG);
+async function dispararEmailLicenca(lic, diffDias, emailDestino, linkUpload) {
     const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
     let statusText = '';
     let colorTheme = '';
 
     if (diffDias < 0) {
-        statusText = 'VENCIDO H?? ' + Math.abs(diffDias) + ' DIAS';
+        statusText = 'VENCIDO HÁ ' + Math.abs(diffDias) + ' DIAS';
         colorTheme = '#c0392b';
     } else if (diffDias === 0) {
         statusText = 'VENCE HOJE';
@@ -38820,6 +38867,16 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
     };
     const empresaNome = EMPRESA_LABELS[lic.empresa] || lic.empresa;
 
+    const blocoUpload = linkUpload
+        ? `<div style="margin-top: 30px; padding: 20px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
+                <p style="color: #2980b9; font-weight: bold; margin: 0 0 14px 0;">Já emitiu o documento atualizado? Anexe-o diretamente por aqui, sem precisar entrar no sistema:</p>
+                <a href="${linkUpload}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">📎 Anexar documento atualizado</a>
+                <p style="font-size: 12px; color: #7f8c8d; margin: 14px 0 0 0;">*O link expira assim que o envio for concluído com sucesso.</p>
+            </div>`
+        : `<div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
+                <p style="color: #2980b9; font-weight: bold; margin: 0;">Por favor, acesse o módulo Administrativo &gt; Licenças e faça o upload do documento atualizado no sistema.</p>
+            </div>`;
+
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -38835,11 +38892,7 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
                 <p style="margin: 5px 0; color: ${colorTheme}; font-weight: bold; font-size: 1.1em;">Status: ${statusText}</p>
             </div>
 
-            <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
-                <p style="color: #2980b9; font-weight: bold; margin: 0;">
-                    Por favor, acesse o módulo Administrativo > Licenças e faça o upload do documento atualizado no sistema.
-                </p>
-            </div>
+            ${blocoUpload}
 
             <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
         </div>
@@ -38849,16 +38902,15 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailDestino,
-            subject: `[Aviso] Vencimento: ${lic.nome} - ${lic.empresa}`,
+            subject: `[Aviso] Vencimento: ${lic.nome} - ${empresaNome}`,
             html: htmlContent,
             attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }]
         });
-        console.log(`[CRON Licencas] Alerta enviado para ${emailDestino} sobre ${lic.nome}`);
+        console.log(`[CRON Licencas] Alerta enviado para ${emailDestino} sobre ${lic.nome} (${empresaNome})`);
     } catch (e) {
         console.error('[CRON Licencas] Erro ao enviar e-mail:', e.message);
     }
 }
-
 
 // =====================================================================
 // AUTO-MIGRATION PARA CREDENCIAMENTOS COMERCIAL
