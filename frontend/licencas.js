@@ -583,8 +583,7 @@ function renderLicencasContent() {
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
         const semVal = isDocumentoSemValidade(licencasActiveTab, nome);
         const emailAtual = licencasEmails[licencasActiveTab + '|' + nome] || '';
-        const temEmailsCopia = !!(regra && regra.temEmailsCopia);
-        const listaCopia = temEmailsCopia ? getListaEmailsCopia(licencasActiveTab, nome) : [];
+        const listaCopia = getListaEmailsCopia(licencasActiveTab, nome);
 
         if (!temArquivo) semDocCount++;
         if (validadeEfetiva && !semVal) {
@@ -643,11 +642,11 @@ function renderLicencasContent() {
                     <span>${emailAtual ? `Notifica: <strong>${emailAtual}</strong>` : 'Sem e-mail de notificação definido'}</span>
                 </div>
 
-                ${temEmailsCopia ? `
+                ${listaCopia.length ? `
                 <!-- E-mails que recebem cópia ao anexar (@) -->
-                <div class="licenca-validade-row" style="font-size:0.76rem; gap:6px; flex-wrap:wrap; color:${listaCopia.length ? '#0f766e' : '#94a3b8'};">
+                <div class="licenca-validade-row" style="font-size:0.76rem; gap:6px; flex-wrap:wrap; color:#0f766e;">
                     <i class="ph-bold ph-at"></i>
-                    <span title="${listaCopia.join(', ')}">${listaCopia.length ? `Cópia automática ao anexar: <strong>${listaCopia.length} e-mail(s)</strong>` : 'Sem e-mails para cópia automática (@)'}</span>
+                    <span title="${listaCopia.join(', ')}">Cópia automática ao anexar: <strong>${listaCopia.length} e-mail(s)</strong></span>
                 </div>` : ''}
 
                 <!-- Ações -->
@@ -678,12 +677,11 @@ function renderLicencasContent() {
                         style="background:${emailAtual ? '#dbeafe' : '#f1f5f9'}; color:${emailAtual ? '#1d4ed8' : '#64748b'}; border:1px solid ${emailAtual ? '#93c5fd' : '#cbd5e1'};">
                         <i class="ph-bold ph-envelope-simple"></i>
                     </button>
-                    ${temEmailsCopia ? `
                     <button class="licenca-btn" onclick="editarEmailsCopiaLicenca('${licencasActiveTab}', '${nome.replace(/'/g,"\\'")}')"
-                        title="Gerenciar e-mails que recebem cópia após anexar (@): ${listaCopia.join('; ')}"
+                        title="${listaCopia.length ? 'E-mails que recebem cópia ao anexar (@): ' + listaCopia.join('; ') : 'Cadastrar e-mails que recebem cópia automática ao anexar (@)'}"
                         style="background:${listaCopia.length ? '#ccfbf1' : '#f1f5f9'}; color:${listaCopia.length ? '#0f766e' : '#64748b'}; border:1px solid ${listaCopia.length ? '#5eead4' : '#cbd5e1'};">
                         <i class="ph-bold ph-at"></i>
-                    </button>` : ''}
+                    </button>
                 </div>
             </div>
         </div>`;
