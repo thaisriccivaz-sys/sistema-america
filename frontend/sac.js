@@ -2231,7 +2231,7 @@
           return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
       });
       if (deptObj) {
-          const gestorId = deptObj.responsavel_id ? String(deptObj.responsavel_id) : null;
+          const gestorId = deptObj.responsavel_usuario_id ? String(deptObj.responsavel_usuario_id) : null;
           const gestorNome = deptObj.responsavel_nome ? String(deptObj.responsavel_nome) : null;
           if ((gestorId && (gestorId === cUserId || gestorId === cUser)) || (gestorNome && gestorNome === cUser)) return true;
       }
@@ -3776,7 +3776,7 @@
          } catch(e){}
 
          const myDeptsNow = _globalDepartamentos.filter(d => {
-             const respId   = (d.responsavel_id || '').toString().trim();
+             const respId = (d.responsavel_usuario_id || '').toString().trim();
              const respNome = (d.responsavel_nome || '').toLowerCase();
              const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
              return (cUserIdNow && respId && respId === cUserIdNow) ||
@@ -5027,7 +5027,7 @@
     if (byTicket) return true;
     if (!sectorName) return false;
     const myDepts = (_globalDepartamentos||[]).filter(d => {
-      const respId = (d.responsavel_id || '').toString().trim();
+      const respId = (d.responsavel_usuario_id || '').toString().trim();
       const respNomeClean = clean(d.responsavel_nome);
       const respLoginClean = clean(d.responsavel_login || d.responsavel_username);
       const currNomeClean = clean(currNomeCompleto);
@@ -5079,7 +5079,7 @@
 
         // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
         const myDeptsPopup = _globalDepartamentos.filter(d => {
-          const respId   = (d.responsavel_id || '').toString().trim();
+          const respId = (d.responsavel_usuario_id || '').toString().trim();
           const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
           const respNomeClean = clean(d.responsavel_nome);
           const respLoginClean = clean(d.responsavel_login || d.responsavel_username);

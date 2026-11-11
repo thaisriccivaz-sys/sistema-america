@@ -12086,9 +12086,15 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
                    MAX(COALESCE(u2.username, u.username)) as responsavel_username, 
                    MAX(COALESCE(u2.id, u.id)) as responsavel_usuario_id
             FROM departamentos d
-            LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome))
+            LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome)) AND COALESCE(u.ativo, 1) = 1
             LEFT JOIN colaboradores c ON c.id = d.responsavel_id
-            LEFT JOIN usuarios u2 ON LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email_corporativo)) OR LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email))
+            LEFT JOIN usuarios u2 ON COALESCE(u2.ativo, 1) = 1 AND (
+                LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email_corporativo))
+                OR LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email))
+                OR LOWER(TRIM(u2.email)) = LOWER(TRIM(c.email_corporativo))
+                OR LOWER(TRIM(u2.email)) = LOWER(TRIM(c.email))
+                OR LOWER(TRIM(u2.nome)) = LOWER(TRIM(c.nome_completo))
+            )
             GROUP BY d.id
             ORDER BY d.nome ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });

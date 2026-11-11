@@ -1587,18 +1587,18 @@ async function resolveManagedDeptsAndUserExp() {
         const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
         if (erpUser && (erpUser.id || erpUser.nome || erpUser.username)) {
             cUserId = erpUser.id ? String(erpUser.id) : null;
-            cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+            cNome = (erpUser.nome || '').toLowerCase().trim();
             cUsername = (erpUser.username || '').toLowerCase().trim();
         }
     } catch (e) {}
 
     if (!cUserId && window.currentUser) {
         cUserId = window.currentUser.id ? String(window.currentUser.id) : null;
-        cNome = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
+        cNome = (window.currentUser.nome || '').toLowerCase().trim();
         cUsername = (window.currentUser.username || '').toLowerCase().trim();
     }
 
-    const cleanStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const cleanStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
     let myDepts = Array.isArray(window._myManagedDeptsGlob) && window._myManagedDeptsGlob.length > 0
         ? [...window._myManagedDeptsGlob]
         : [];
@@ -1609,14 +1609,14 @@ async function resolveManagedDeptsAndUserExp() {
             const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
             const depts = deptsRes.ok ? await deptsRes.json() : [];
             const meuNome = cleanStr(cNome);
+            const meuUser = cleanStr(cUsername);
             const managed = (depts || []).filter(d => {
-                const gestorId = d.responsavel_id ? String(d.responsavel_id) : null;
+                const gestorUserId = d.responsavel_usuario_id ? String(d.responsavel_usuario_id).trim() : null;
                 const gestorNome = cleanStr(d.responsavel_nome);
                 const gestorUsername = cleanStr(d.responsavel_username);
-                return (gestorId && cUserId && gestorId === cUserId) ||
-                       (gestorNome && meuNome && meuNome.length > 3 &&
-                        (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome))) ||
-                       (gestorUsername && cUsername && gestorUsername === cUsername);
+                return (gestorUserId && cUserId && gestorUserId === cUserId) ||
+                       (gestorUsername && meuUser && gestorUsername === meuUser) ||
+                       (gestorNome && meuNome && meuNome.length > 3 && gestorNome === meuNome);
             });
             myDepts = managed.map(d => d.nome);
             if (myDepts.length > 0) window._myManagedDeptsGlob = myDepts;
@@ -1858,11 +1858,9 @@ async function loadExperienciaGestor(silent = false) {
         _expGestorLista = data.filter(c => {
             const deptNorm = cleanStr(c.departamento);
             const respNomeNorm = cleanStr(c.responsavel_nome);
-            const respId = c.responsavel_id ? String(c.responsavel_id) : null;
-            const matchDept = deptNorm && myDeptsNorm.some(md => md === deptNorm || deptNorm.includes(md) || md.includes(deptNorm));
-            const matchRespNome = respNomeNorm && meuNomeNorm && meuNomeNorm.length > 3 && (respNomeNorm === meuNomeNorm || respNomeNorm.includes(meuNomeNorm) || meuNomeNorm.includes(respNomeNorm));
-            const matchRespId = respId && cUserId && respId === cUserId;
-            return matchDept || matchRespNome || matchRespId;
+            const matchDept = deptNorm && myDeptsNorm.some(md => md === deptNorm);
+            const matchRespNome = respNomeNorm && meuNomeNorm && meuNomeNorm.length > 3 && respNomeNorm === meuNomeNorm;
+            return matchDept || matchRespNome;
         });
     }
 

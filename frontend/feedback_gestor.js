@@ -103,59 +103,62 @@
         }
 
         try {
-            // Busca departamentos diretamente para garantir que temos os dados corretos,
-            // independente da ordem de carregamento assíncrono de _myManagedDeptsGlob
-            let myDepts = window._myManagedDeptsGlob;
-            if (!myDepts || myDepts.length === 0) {
+            // Busca departamentos diretamente para garantir que apenas o gestor real da área veja seus colaboradores
+            const cleanStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+            let myDepts = [];
+            try {
+                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+                const depts = deptsRes.ok ? await deptsRes.json() : [];
+
+                let cUserId = null, cNome = '', cUsername = '';
                 try {
-                    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-                    const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
-                    const depts = deptsRes.ok ? await deptsRes.json() : [];
-
-                    let cUserId = null, cNome = '', cUsername = '';
-                    try {
-                        const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
-                        if (erpUser.id) {
-                            cUserId = String(erpUser.id || '');
-                            cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
-                            cUsername = (erpUser.username || '').toLowerCase().trim();
-                        }
-                    } catch(e) {}
-                    
-                    if (!cUserId && window.currentUser) {
-                        cUserId = String(window.currentUser.id || '');
-                        cNome = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
-                        cUsername = (window.currentUser.username || '').toLowerCase().trim();
+                    const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+                    if (erpUser.id) {
+                        cUserId = String(erpUser.id || '');
+                        cNome = (erpUser.nome || '').toLowerCase().trim();
+                        cUsername = (erpUser.username || '').toLowerCase().trim();
                     }
+                } catch(e) {}
 
-                    const cleanStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-                    const managed = depts.filter(d => {
-                        const gestorId = d.responsavel_id ? String(d.responsavel_id) : null;
-                        const gestorNome = cleanStr(d.responsavel_nome);
-                        const meuNome = cleanStr(cNome);
-                        const gestorUsername = cleanStr(d.responsavel_username);
-                        return (gestorId && cUserId && gestorId === cUserId) ||
-                               (gestorNome && meuNome && meuNome.length > 3 &&
-                                (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome))) ||
-                               (gestorUsername && cUsername && gestorUsername === cUsername);
-                    });
-                    myDepts = managed.map(d => d.nome);
-                    // Salva para uso futuro
-                    window._myManagedDeptsGlob = myDepts;
-                } catch(e) { myDepts = []; }
+                if (!cUserId && window.currentUser) {
+                    cUserId = String(window.currentUser.id || '');
+                    cNome = (window.currentUser.nome || '').toLowerCase().trim();
+                    cUsername = (window.currentUser.username || '').toLowerCase().trim();
+                }
+
+                const meuNome = cleanStr(cNome);
+                const meuUser = cleanStr(cUsername);
+                const managed = depts.filter(d => {
+                    const gestorUserId = d.responsavel_usuario_id ? String(d.responsavel_usuario_id).trim() : null;
+                    const gestorNome = cleanStr(d.responsavel_nome);
+                    const gestorUsername = cleanStr(d.responsavel_username);
+                    // IMPORTANTE: comparar apenas responsavel_usuario_id (usuarios.id), NUNCA responsavel_id (colaboradores.id)
+                    return (gestorUserId && cUserId && gestorUserId === cUserId) ||
+                           (gestorUsername && meuUser && gestorUsername === meuUser) ||
+                           (gestorNome && meuNome && meuNome.length > 3 && gestorNome === meuNome);
+                });
+                myDepts = managed.map(d => d.nome);
+                window._myManagedDeptsGlob = myDepts;
+            } catch(e) { myDepts = window._myManagedDeptsGlob || []; }
+
+            if (!window.isTopAdmin && (!myDepts || myDepts.length === 0)) {
+                container.innerHTML = '<div style="padding:2rem;color:#64748b;text-align:center;"><i class="ph ph-lock-key" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;color:#94a3b8;"></i>Acesso restrito aos gestores de departamento.</div>';
+                return;
             }
 
             const [dash, colabs] = await Promise.all([
                 fetchJSON('/api/avaliacoes/desempenho/dashboard?_t=' + Date.now()),
                 fetchJSON('/api/avaliacoes/desempenho/colaboradores?_t=' + Date.now()),
             ]);
-            
+
+            const myDeptsNorm = myDepts.map(d => cleanStr(d));
             if (window.isTopAdmin) {
                 _colabs = colabs;
             } else {
                 _colabs = {
                     ...colabs,
-                    colaboradores: (colabs.colaboradores || []).filter(c => myDepts.includes(c.departamento))
+                    colaboradores: (colabs.colaboradores || []).filter(c => myDeptsNorm.includes(cleanStr(c.departamento)))
                 };
             }
             _dash = dash;
@@ -844,7 +847,7 @@
             } else {
                 _colabs = {
                     ...colabs,
-                    colaboradores: (colabs.colaboradores || []).filter(c => (window._myManagedDeptsGlob||[]).includes(c.departamento))
+                    colaboradores: (colabs.colaboradores || []).filter(c => { const cl = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); return (window._myManagedDeptsGlob||[]).map(cl).includes(cl(c.departamento)); })
                 };
             }
             const wrap = document.getElementById('sat-colab-table-wrap');

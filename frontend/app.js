@@ -904,8 +904,14 @@ window.carregarPermissoesOnline = async function () {
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
     window.isTopAdmin = isTopAdmin;
 
-    // Remove qualquer display-none forçado das categorias primeiro
-    document.querySelectorAll('.dept-item').forEach(el => el.style.display = '');
+    // Remove qualquer display-none forçado das categorias primeiro (exceto Gestão, que depende de ser gestor ou Diretoria)
+    document.querySelectorAll('.dept-item').forEach(el => {
+        if (el.id === 'dept-item-gestao') {
+            el.style.setProperty('display', isTopAdmin ? 'flex' : 'none', 'important');
+        } else {
+            el.style.display = '';
+        }
+    });
 
     if (isTopAdmin) {
         // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
@@ -1060,30 +1066,33 @@ window.carregarPermissoesOnline = async function () {
             .then(depts => {
                 let isManager = false;
                 // Lê dados do usuário logado — mesmo padrão do SAC
-                let cUserId = null, cNome = null, cUsername = null;
+                let cUserId = null, cNome = '', cUsername = '';
                 try {
                     const erpUser = JSON.parse(localStorage.getItem('erp_user'));
                     if (erpUser) {
-                        cUserId = String(erpUser.id);
-                        cNome   = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+                        cUserId = erpUser.id ? String(erpUser.id) : null;
+                        cNome   = (erpUser.nome || '').toLowerCase().trim();
                         cUsername = (erpUser.username || '').toLowerCase().trim();
                     }
                 } catch(e) {}
                 // Fallback para window.currentUser
                 if (!cUserId && window.currentUser) {
-                    cUserId = String(window.currentUser.id);
-                    cNome   = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
+                    cUserId = window.currentUser.id ? String(window.currentUser.id) : null;
+                    cNome   = (window.currentUser.nome || '').toLowerCase().trim();
                     cUsername = (window.currentUser.username || '').toLowerCase().trim();
                 }
 
+                const cleanStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+                const meuNome = cleanStr(cNome);
+                const meuUser = cleanStr(cUsername);
                 const myManagedDepts = depts.filter(d => {
-                    const gestorId   = d.responsavel_id ? String(d.responsavel_id) : null;
-                    const gestorNome = (d.responsavel_nome || '').toLowerCase().trim();
-                    const gestorUsername = (d.responsavel_username || '').toLowerCase().trim();
-                    // Compara ID do colaborador ou nome completo (igual ao SAC)
-                    return (gestorId && cUserId && gestorId === cUserId) ||
-                           (gestorNome && cNome && gestorNome.length > 3 && (gestorNome === cNome || gestorNome.includes(cNome) || cNome.includes(gestorNome))) ||
-                           (gestorUsername && cUsername && gestorUsername === cUsername);
+                    const gestorUserId = d.responsavel_usuario_id ? String(d.responsavel_usuario_id).trim() : null;
+                    const gestorNome = cleanStr(d.responsavel_nome);
+                    const gestorUsername = cleanStr(d.responsavel_username);
+                    // IMPORTANTE: comparar apenas responsavel_usuario_id (usuarios.id), NUNCA responsavel_id (colaboradores.id)
+                    return (gestorUserId && cUserId && gestorUserId === cUserId) ||
+                           (gestorUsername && meuUser && gestorUsername === meuUser) ||
+                           (gestorNome && meuNome && meuNome.length > 3 && gestorNome === meuNome);
                 });
 
                 if (myManagedDepts.length > 0) isManager = true;
