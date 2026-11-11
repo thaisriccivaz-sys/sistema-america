@@ -537,6 +537,7 @@ function renderLicencasContent() {
     const cfg = LICENCAS_CONFIG[licencasActiveTab];
     const docs = licencasData[licencasActiveTab] || [];
     const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const diasAlertaAmarelo = licencasActiveTab === 'outras-licencas' ? 5 : 30;
 
     const getStatus = (validade, nome, temArquivo, regra) => {
         if (isDocumentoSemValidade(licencasActiveTab, nome)) {
@@ -554,8 +555,8 @@ function renderLicencasContent() {
             return { label: 'Vencida (Dia 20)', color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle', diff };
         }
         if (diff < 0)  return { label: 'Vencida',          color: '#dc2626', bg: '#fee2e2', icon: 'ph-x-circle',       diff };
-        if (diff <= 30) return { label: `Vence em ${diff}d`, color: '#d97706', bg: '#fef3c7', icon: 'ph-warning-circle',  diff };
-        if (diff <= 90) return { label: `Vence em ${diff}d`, color: '#0891b2', bg: '#e0f7fa', icon: 'ph-clock',          diff };
+        if (diff <= diasAlertaAmarelo) return { label: `Vence em ${diff}d`, color: '#d97706', bg: '#fef3c7', icon: 'ph-warning-circle',  diff };
+        if (licencasActiveTab !== 'outras-licencas' && diff <= 90) return { label: `Vence em ${diff}d`, color: '#0891b2', bg: '#e0f7fa', icon: 'ph-clock',          diff };
         return { label: 'Regular',            color: '#16a34a', bg: '#dcfce7', icon: 'ph-check-circle',   diff };
     };
 
@@ -590,7 +591,7 @@ function renderLicencasContent() {
             const dObj = new Date(validadeEfetiva + 'T12:00:00');
             const diffDias = Math.ceil((dObj - hoje) / 86400000);
             if ((regra && (regra.tipo === 'dia_01' || regra.tipo === 'dia_20') && diffDias <= 0) || diffDias < 0) vencidasCount++;
-            else if (diffDias >= 0 && diffDias <= 30) proximasCount++;
+            else if (diffDias >= 0 && diffDias <= diasAlertaAmarelo) proximasCount++;
         }
 
         const mostrarCardAtivo = !!(licenca || validadeEfetiva);
@@ -699,7 +700,7 @@ function renderLicencasContent() {
         ${(vencidasCount || proximasCount || semDocCount) ? `
         <div class="licencas-alert-bar">
             ${vencidasCount ? `<div class="licencas-alert-chip" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;"><i class="ph ph-x-circle"></i> ${vencidasCount} vencida${vencidasCount > 1 ? 's' : ''}</div>` : ''}
-            ${proximasCount ? `<div class="licencas-alert-chip" style="background:#fef3c7; color:#d97706; border:1px solid #fcd34d;"><i class="ph ph-warning-circle"></i> ${proximasCount} vence${proximasCount > 1 ? 'm' : ''} em 30 dias</div>` : ''}
+            ${proximasCount ? `<div class="licencas-alert-chip" style="background:#fef3c7; color:#d97706; border:1px solid #fcd34d;"><i class="ph ph-warning-circle"></i> ${proximasCount} vence${proximasCount > 1 ? 'm' : ''} em ${diasAlertaAmarelo} dias</div>` : ''}
             ${semDocCount   ? `<div class="licencas-alert-chip" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1;"><i class="ph ph-file-dashed"></i> ${semDocCount} sem PDF anexado</div>` : ''}
         </div>` : `
         <div class="licencas-alert-bar">
