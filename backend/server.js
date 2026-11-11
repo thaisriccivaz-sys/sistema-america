@@ -24246,7 +24246,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'Número da OS e nome do cliente são obrigatórios.' });
     }
 
-    const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
+    const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{So}\uFE00-\uFE0F\u200D\s]+/gu, ' ').trim().toLowerCase();
 
     // Verifica se já existe uma OS com esse nºmero mas cliente DIFERENTE
     db.get(

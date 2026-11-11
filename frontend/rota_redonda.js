@@ -1541,15 +1541,12 @@ function carregarRegistroNaTela(os) {
 
     // Fallback: Inferir variáveis não parseadas através dos ícones presentes no nome do cliente
     if (os.cliente) {
-        const REVERSE_ACOES = {};
-        for (const [k, v] of Object.entries(ACOES_DICT)) REVERSE_ACOES[v] = k;
-        const emojisNoCliente = os.cliente.match(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]/gu) || [];
-        emojisNoCliente.forEach(e => {
-            const char = e.trim();
-            if (REVERSE_ACOES[char]) {
-                osState.acoes.add(REVERSE_ACOES[char]);
+        for (const [acao, icone] of Object.entries(ACOES_DICT)) {
+            const iconeSemVS = icone.replace(/\uFE0F/g, '');
+            if (os.cliente.includes(icone) || (iconeSemVS && os.cliente.includes(iconeSemVS))) {
+                osState.acoes.add(acao);
             }
-        });
+        }
     }
 
     atualizarDropdownProdutos();
@@ -3544,11 +3541,8 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
     // 4) Reconstrói o conjunto final
     osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais]);
     
-    // 5) Reconstrói Ações (Variáveis) limpando as manuais se wipeManuals for true
-    let acoesManuais = new Set();
-    if (!wipeManuals) {
-        acoesManuais = new Set([...osState.acoes].filter(a => !acoesProdutos.has(a)));
-    }
+    // 5) Reconstrói Ações (Variáveis) preservando variáveis selecionadas manualmente (ex: TROCA DE EQUIPAMENTO) em qualquer serviço
+    const acoesManuais = new Set([...osState.acoes].filter(a => !acoesProdutos.has(a) && !(a === 'LEVAR CARRINHO' && !isEntregaRetirada && wipeManuals)));
     osState.acoes = new Set([...acoesProdutos, ...acoesManuais]);
 
     console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico], '| wipeManuals:', wipeManuals);
