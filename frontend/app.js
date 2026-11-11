@@ -3486,7 +3486,7 @@ async function loadDashboard() {
                                     <a href="#" style="color:#1c7ed6;text-decoration:none;font-weight:600;font-size:0.85rem;" onclick="event.preventDefault(); editColaborador(${a.id || 0})">${nomeStr}</a>
                                 </div>
                             </td>
-                            <td style="color:#d9480f;font-weight:600;vertical-align:middle;">${vencfmt}</td>
+                            <td style="color:${a.vencido ? '#dc2626' : '#d9480f'};font-weight:600;vertical-align:middle;">${vencfmt}${a.vencido ? ` <span title="ASO vencido h\u00e1 ${Math.abs(a.dias_restantes)} dia(s)" style="display:inline-flex;align-items:center;gap:3px;background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;border-radius:10px;padding:1px 8px;font-size:0.68rem;font-weight:800;margin-left:6px;white-space:nowrap;"><i class="ph ph-warning-circle"></i>Vencido</span>` : ''}</td>
                             <td style="vertical-align:middle;">${agendadoDisplay}</td>
                         </tr>
                     `;

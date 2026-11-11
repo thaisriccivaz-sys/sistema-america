@@ -4447,52 +4447,66 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
         });
 
         const asoVencendo = await new Promise((resolve, reject) => {
-            const today = new Date();
-            const future = new Date();
-            future.setDate(today.getDate() + 30);
-
+            // Todos os colaboradores (Operacional e Administrativo), exceto desligados/aguardando inicio.
+            // Considera apenas o ASO MAIS RECENTE (maior vencimento) de cada colaborador:
+            // ASOs antigos ja substituidos por um novo nao geram alerta.
             const query = `
-                SELECT c.id, c.nome_completo as nome, d.vencimento, c.aso_email_enviado, c.aso_exame_data 
-                FROM documentos d 
-                JOIN colaboradores c ON c.id = d.colaborador_id 
+                SELECT c.id, c.nome_completo as nome, c.status as colab_status, d.vencimento, c.aso_email_enviado, c.aso_exame_data
+                FROM documentos d
+                JOIN colaboradores c ON c.id = d.colaborador_id
                 WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
                   AND d.vencimento IS NOT NULL
                   AND d.vencimento != ''
-                  AND UPPER(TRIM(c.status)) IN ('ATIVO', 'AFASTADO', 'FERIAS', 'FÉRIAS')
             `;
             db.all(query, [], (err, rows) => {
                 if (err) return reject(err);
 
-                const todayStr = today.toISOString().split('T')[0];
-                const futureStr = future.toISOString().split('T')[0];
+                const pad2 = n => String(n).padStart(2, '0');
+                const hojeD = new Date();
+                const todayStr = hojeD.getFullYear() + '-' + pad2(hojeD.getMonth() + 1) + '-' + pad2(hojeD.getDate());
+                const fut = new Date(hojeD.getTime() + 30 * 86400000);
+                const futureStr = fut.getFullYear() + '-' + pad2(fut.getMonth() + 1) + '-' + pad2(fut.getDate());
 
-                const filtered = rows.filter(r => {
-                    if (!r.vencimento) return false;
-                    let v = r.vencimento;
+                const toIso = (val) => {
+                    let v = String(val || '').trim().split('T')[0].split(' ')[0];
                     if (v.includes('/')) {
-                        const parts = v.split('/');
-                        if (parts.length === 3) v = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        const p = v.split('/');
+                        if (p.length === 3) v = p[2] + '-' + p[1] + '-' + p[0];
                     }
-                    return v >= todayStr && v <= futureStr;
+                    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+                };
+
+                // Mantem apenas o ASO de maior vencimento por colaborador
+                const melhor = new Map();
+                rows.forEach(r => {
+                    const st = String(r.colab_status || '').toLowerCase().trim();
+                    if (st.includes('deslig') || st.includes('aguardando')) return;
+                    const iso = toIso(r.vencimento);
+                    if (!iso) return;
+                    const atual = melhor.get(r.id);
+                    if (!atual || iso > atual._iso) melhor.set(r.id, Object.assign({}, r, { _iso: iso }));
                 });
 
-                const mapResult = filtered.map(r => {
-                    let hasSentEmailThisMonth = false;
-                    if (r.aso_email_enviado && r.vencimento) {
-                        const emailDateStr = r.aso_email_enviado;
-                        const vPts = r.vencimento.includes('/') ? r.vencimento.split('/') : r.vencimento.split('-');
-                        const emailDate = emailDateStr.includes('-') ? emailDateStr : null; // Basic checks
-                        // simplified check: if aso_email_enviado has a date or is just 'Sim' / filled, we show the exame_data. 
-                        // To be exactly within the month... The user says "quando o e-mail tiver sido enviado...".
-                    }
-                    return { ...r };
+                const dMs = (iso) => new Date(iso + 'T12:00:00').getTime();
+                const hojeMs = new Date(todayStr + 'T12:00:00').getTime();
+
+                const resultado = [];
+                melhor.forEach(r => {
+                    if (r._iso > futureStr) return; // ainda longe de vencer
+                    const vencido = r._iso < todayStr;
+                    const dias = Math.round((dMs(r._iso) - hojeMs) / 86400000);
+                    resultado.push({
+                        id: r.id,
+                        nome: r.nome,
+                        vencimento: r._iso,
+                        aso_email_enviado: r.aso_email_enviado,
+                        aso_exame_data: r.aso_exame_data,
+                        vencido,
+                        dias_restantes: dias
+                    });
                 });
-                mapResult.sort((a, b) => {
-                    let vA = a.vencimento.includes('/') ? a.vencimento.split('/').reverse().join('-') : a.vencimento;
-                    let vB = b.vencimento.includes('/') ? b.vencimento.split('/').reverse().join('-') : b.vencimento;
-                    return vA.localeCompare(vB);
-                });
-                resolve(mapResult);
+                resultado.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+                resolve(resultado);
             });
         });
 
