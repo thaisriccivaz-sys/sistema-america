@@ -50,7 +50,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
     )`);
 
     const MES_TRIM_SAT = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' };
-    const MES_TRIM_DES = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' };
+    const MES_TRIM_DES = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' };
 
     function normTipo(tipo) {
         return String(tipo || 'satisfacao').toLowerCase() === 'desempenho' ? 'desempenho' : 'satisfacao';
@@ -95,7 +95,8 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         const d = await dbGet(
             `SELECT d.id, d.nome, d.responsavel_id,
                     c.nome_completo AS gestor_nome,
-                    COALESCE(NULLIF(TRIM(c.email_corporativo), ''), NULLIF(TRIM(c.email), '')) AS colab_email
+                    NULLIF(TRIM(c.email_corporativo), '') AS colab_email_corp,
+                    NULLIF(TRIM(c.email), '') AS colab_email_pessoal
              FROM departamentos d
              LEFT JOIN colaboradores c ON c.id = d.responsavel_id
              WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))
@@ -103,18 +104,68 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             [departamento]
         );
         if (!d) return { departamento, gestor_nome: null, gestor_email: null, usuario_id: null };
+
         let usu = null;
         if (d.gestor_nome) {
+            const parts = d.gestor_nome.trim().split(/\s+/);
+            const firstTwo = parts.slice(0, 2).join('.');
+            const firstLast = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : firstTwo;
             usu = await dbGet(
                 `SELECT id, username, nome, email FROM usuarios
-                 WHERE ativo = 1 AND (LOWER(TRIM(nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(username)) = LOWER(TRIM(?)))
+                 WHERE ativo = 1 AND (
+                     LOWER(TRIM(nome)) = LOWER(TRIM(?))
+                     OR LOWER(TRIM(username)) = LOWER(TRIM(?))
+                     OR LOWER(TRIM(username)) = LOWER(TRIM(?))
+                     OR LOWER(TRIM(nome)) LIKE LOWER(TRIM(?))
+                 )
                  LIMIT 1`,
-                [d.gestor_nome, d.gestor_nome.split(/\s+/).slice(0, 2).join('.')]
+                [d.gestor_nome, firstTwo, firstLast, `${parts[0]}%${parts[parts.length - 1] || ''}%`]
             );
         }
-        const email = (d.colab_email && d.colab_email.includes('@'))
-            ? d.colab_email
-            : (usu && usu.email && usu.email.includes('@') ? usu.email : null);
+
+        // Buscar também na tabela de E-mails Corporativos e Computadores (onde ficam @americarental.com.br)
+        let emailFromCorpTable = null;
+        let emailFromComp = null;
+        if (d.responsavel_id || d.gestor_nome) {
+            const corpRow = await dbGet(
+                `SELECT ec.endereco
+                 FROM emails_corporativos ec
+                 LEFT JOIN emails_atribuicoes ea ON ea.email_id = ec.id
+                 WHERE COALESCE(ec.status, 'Ativo') != 'Inativo'
+                   AND ec.endereco LIKE '%@%'
+                   AND (
+                       COALESCE(ea.colaborador_id, ec.colaborador_id) = ?
+                       OR LOWER(TRIM(COALESCE(ea.responsavel_nome, ec.responsavel_nome, ''))) = LOWER(TRIM(?))
+                   )
+                 ORDER BY COALESCE(ec.caixa_compartilhada, 0) ASC
+                 LIMIT 1`,
+                [d.responsavel_id || -1, d.gestor_nome || '']
+            ).catch(() => null);
+            if (corpRow && corpRow.endereco) emailFromCorpTable = corpRow.endereco.trim();
+
+            const compRow = await dbGet(
+                `SELECT email_vinculado
+                 FROM computadores
+                 WHERE COALESCE(status, '') != 'Devolvido'
+                   AND email_vinculado LIKE '%@%'
+                   AND (colaborador_id = ? OR LOWER(TRIM(COALESCE(colaborador_livre, ''))) = LOWER(TRIM(?)))
+                 LIMIT 1`,
+                [d.responsavel_id || -1, d.gestor_nome || '']
+            ).catch(() => null);
+            if (compRow && compRow.email_vinculado) emailFromComp = compRow.email_vinculado.trim();
+        }
+
+        const candidates = [
+            d.colab_email_corp,
+            emailFromCorpTable,
+            emailFromComp,
+            usu && usu.email,
+            d.colab_email_pessoal
+        ].filter(e => e && String(e).includes('@')).map(e => String(e).trim());
+
+        const corpEmail = candidates.find(e => e.toLowerCase().endsWith('@americarental.com.br'));
+        const email = corpEmail || candidates[0] || null;
+
         return {
             departamento: d.nome || departamento,
             responsavel_id: d.responsavel_id || null,
@@ -145,11 +196,9 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         const statusManualMap = {};
         statusManualRows.forEach(r => { statusManualMap[r.colaborador_id] = r.status_manual; });
 
-        const mesInicioMap = tipo === 'satisfacao'
-            ? { 1: 2, 2: 5, 3: 8, 4: 11 }
-            : { 1: 1, 2: 4, 3: 7, 4: 10 };
-        const mesInicio = mesInicioMap[Number(trimestre)] || ((Number(trimestre) - 1) * 3 + 1);
-        const dataPesquisa = new Date(Number(ano), mesInicio - 1, 1);
+        const mesInicioMap = { 1: 2, 2: 5, 3: 8, 4: 11 };
+        const mesInicio = mesInicioMap[Number(trimestre)] || ((Number(trimestre) - 1) * 3 + 2);
+        const dataPesquisa = new Date(Number(ano), mesInicio - 1, tipo === 'desempenho' ? 15 : 1);
 
         const rows = await dbAll(
             `SELECT a.colaborador_id, a.respostas_json, c.cargo
@@ -342,6 +391,18 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         if (!periodosDb.some(p => Number(p.ano) === anoAte && Number(p.trimestre) === trimAte)) {
             periodosDb.unshift({ ano: anoAte, trimestre: trimAte });
         }
+        periodosDb.sort((a, b) => (b.ano - a.ano) || (b.trimestre - a.trimestre));
+        while (periodosDb.length < 4) {
+            const oldest = periodosDb[periodosDb.length - 1] || { ano: anoAte, trimestre: trimAte };
+            let prevTrim = Number(oldest.trimestre) - 1;
+            let prevAno = Number(oldest.ano);
+            if (prevTrim < 1) { prevTrim = 4; prevAno -= 1; }
+            if (!periodosDb.some(p => Number(p.ano) === prevAno && Number(p.trimestre) === prevTrim)) {
+                periodosDb.push({ ano: prevAno, trimestre: prevTrim });
+            } else {
+                break;
+            }
+        }
         const periodos = periodosDb
             .slice(0, 4)
             .sort((a, b) => (a.ano - b.ano) || (a.trimestre - b.trimestre))
@@ -361,6 +422,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             [tipo, departamento]
         );
 
+        const respondentesMap = {};
         const mapTopicos = {};
         const ordemTopicos = [];
         const addVal = (topico, key, v) => {
@@ -378,6 +440,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         rows.forEach(r => {
             const key = `${r.ano}-T${r.trimestre}`;
             if (!periodos.some(p => p.key === key)) return;
+            respondentesMap[key] = (respondentesMap[key] || 0) + 1;
             let resp = {};
             try { resp = JSON.parse(r.respostas_json || '{}'); } catch (e) { resp = {}; }
             if (resp.scores && typeof resp.scores === 'object' && !Array.isArray(resp.scores)) {
@@ -411,7 +474,9 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             return vals.length ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)) : null;
         });
 
-        return { periodos, topicos: linhasTopicos, medias_periodo: mediasPeriodo };
+        const respondentesPeriodo = periodos.map(p => respondentesMap[p.key] || 0);
+
+        return { periodos, topicos: linhasTopicos, medias_periodo: mediasPeriodo, respondentes_periodo: respondentesPeriodo };
     }
 
     function montarTabelaComparativaHtml(departamento, gestorNome, est) {
@@ -836,13 +901,13 @@ ${obsStr}`;
             const tituloTipo = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Pesquisa de Satisfação';
             const subNotif = tipo === 'desempenho' ? 'avaliacao_desempenho' : 'pesquisa_satisfacao';
             const departamento = String(req.body.departamento || '').trim();
-            const ano = parseInt(req.body.ano, 10);
-            const trimestre = parseInt(req.body.trimestre, 10);
-            const relatorio_texto = String(req.body.relatorio_texto || '').trim();
+            let ano = parseInt(req.body.ano, 10);
+            let trimestre = parseInt(req.body.trimestre, 10);
+            let relatorio_texto = String(req.body.relatorio_texto || '').trim();
             const emailInput = String(req.body.email_destino || '').trim();
 
-            if (!departamento || !ano || !trimestre || !relatorio_texto) {
-                return res.status(400).json({ error: 'Gere o relatório do departamento antes de enviar ao gestor.' });
+            if (!departamento || !ano || !trimestre) {
+                return res.status(400).json({ error: 'Departamento, ano e trimestre são obrigatórios.' });
             }
 
             const gestor = await buscarGestorDepartamento(departamento);
@@ -851,7 +916,39 @@ ${obsStr}`;
                 return res.status(400).json({ error: 'Informe um e-mail válido do gestor do departamento para enviar o relatório.' });
             }
 
-            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
+            let est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
+            if ((!est || est.responderam === 0) && est && est.historico && Array.isArray(est.historico.periodos)) {
+                const ultComResp = await dbGet(
+                    `SELECT a.ano, a.trimestre
+                     FROM avaliacoes a
+                     JOIN colaboradores c ON c.id = a.colaborador_id
+                     WHERE a.tipo = ?
+                       AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))
+                     ORDER BY a.ano DESC, a.trimestre DESC LIMIT 1`,
+                    [tipo, departamento]
+                );
+                if (ultComResp && (Number(ultComResp.ano) !== ano || Number(ultComResp.trimestre) !== trimestre)) {
+                    ano = Number(ultComResp.ano);
+                    trimestre = Number(ultComResp.trimestre);
+                    est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
+                }
+            }
+
+            if (!relatorio_texto) {
+                const salvo = await dbGet(
+                    `SELECT relatorio_texto FROM ${tabela}
+                     WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`,
+                    [departamento, ano, trimestre]
+                );
+                if (salvo && salvo.relatorio_texto) {
+                    relatorio_texto = String(salvo.relatorio_texto).trim();
+                } else if (est && (est.responderam > 0 || (est.historico && est.historico.topicos && est.historico.topicos.length > 0))) {
+                    relatorio_texto = await gerarTextoAnaliseIA(departamento, ano, trimestre, est);
+                } else {
+                    relatorio_texto = `Análise Consolidada de ${tituloTipo} — Departamento ${departamento} (${labelPeriodo(ano, trimestre, tipo)}).\n\nAinda não há avaliações respondidas neste período para geração de indicadores detalhados.`;
+                }
+            }
+
             const perStr = labelPeriodo(ano, trimestre, tipo);
 
             await dbRun(
@@ -917,36 +1014,74 @@ ${obsStr}`;
                 ).catch(() => {});
             }
 
-            res.json({ ok: true, enviado_para: emailDestino, gestor_nome: gestor ? gestor.gestor_nome : null });
+            res.json({ ok: true, enviado_para: toFormatado, gestor_nome: gestor ? gestor.gestor_nome : null, relatorio_texto, ano, trimestre });
         } catch (e) {
+            console.error('[RELATORIO-IA] Erro ao enviar e-mail ao gestor:', e);
             res.status(500).json({ error: e.message });
         }
     });
 
-    // GET /api/avaliacoes/diagnostico-departamentos — Usado na UniAmérica (Gestão de Cursos) para ver as análises de Satisfação + Desempenho por departamento
+    // GET /api/avaliacoes/diagnostico-departamentos — Usado na UniAmérica (Gestão de Cursos) para ver as últimas 4 avaliações de Satisfação + Desempenho por departamento
     app.get('/api/avaliacoes/diagnostico-departamentos', authenticateToken, async (req, res) => {
         try {
             const deptosColabs = await dbAll(`SELECT DISTINCT TRIM(COALESCE(departamento, 'Sem Departamento')) AS departamento FROM colaboradores WHERE status != 'Desligado'`);
             const deptosSet = new Set(deptosColabs.map(d => d.departamento || 'Sem Departamento').filter(Boolean));
             const departamentos = Array.from(deptosSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-            const [ultSat, ultDes, relsSat, relsDes] = await Promise.all([
+            const hoje = new Date();
+            const mes = hoje.getMonth() + 1;
+            let trimPadrao = 4;
+            let anoPadrao = hoje.getFullYear();
+            if (mes >= 2 && mes <= 4) trimPadrao = 1;
+            else if (mes >= 5 && mes <= 7) trimPadrao = 2;
+            else if (mes >= 8 && mes <= 10) trimPadrao = 3;
+            else if (mes === 1) { trimPadrao = 4; anoPadrao -= 1; }
+
+            const [ultSatDb, ultDesDb, relsSat, relsDes, ultPorDeptoRows] = await Promise.all([
                 dbGet(`SELECT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 1`),
                 dbGet(`SELECT ano, trimestre FROM avaliacoes WHERE tipo = 'desempenho' ORDER BY ano DESC, trimestre DESC LIMIT 1`),
                 dbAll(`SELECT * FROM satisfacao_relatorios_ia ORDER BY ano DESC, trimestre DESC, updated_at DESC`),
-                dbAll(`SELECT * FROM desempenho_relatorios_ia ORDER BY ano DESC, trimestre DESC, updated_at DESC`)
+                dbAll(`SELECT * FROM desempenho_relatorios_ia ORDER BY ano DESC, trimestre DESC, updated_at DESC`),
+                dbAll(`SELECT LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) AS dep_lower, a.tipo, MAX(a.ano * 10 + a.trimestre) AS max_yt
+                       FROM avaliacoes a
+                       JOIN colaboradores c ON c.id = a.colaborador_id
+                       GROUP BY dep_lower, a.tipo`)
             ]);
+
+            const ultSat = ultSatDb || { ano: anoPadrao, trimestre: trimPadrao };
+            const ultDes = ultDesDb || { ano: anoPadrao, trimestre: trimPadrao };
+
+            const mapUltDepto = {};
+            (ultPorDeptoRows || []).forEach(r => {
+                if (!r.max_yt) return;
+                const y = Math.floor(Number(r.max_yt) / 10);
+                const t = Number(r.max_yt) % 10;
+                mapUltDepto[`${r.dep_lower}::${r.tipo}`] = { ano: y, trimestre: t };
+            });
 
             const resultado = [];
             for (const dep of departamentos) {
-                const [estSat, estDes, gestor] = await Promise.all([
-                    ultSat ? coletarDadosAnonimosDepto(dep, ultSat.ano, ultSat.trimestre, 'satisfacao') : Promise.resolve(null),
-                    ultDes ? coletarDadosAnonimosDepto(dep, ultDes.ano, ultDes.trimestre, 'desempenho') : Promise.resolve(null),
+                const depLow = dep.trim().toLowerCase();
+                const refSatDepto = mapUltDepto[`${depLow}::satisfacao`] || ultSat;
+                const refDesDepto = mapUltDepto[`${depLow}::desempenho`] || ultDes;
+
+                const [estSat, histSat4, estDes, histDes4, gestor] = await Promise.all([
+                    coletarDadosAnonimosDepto(dep, refSatDepto.ano, refSatDepto.trimestre, 'satisfacao'),
+                    coletarHistoricoComparativoDepto(dep, ultSat.ano, ultSat.trimestre, 'satisfacao'),
+                    coletarDadosAnonimosDepto(dep, refDesDepto.ano, refDesDepto.trimestre, 'desempenho'),
+                    coletarHistoricoComparativoDepto(dep, ultDes.ano, ultDes.trimestre, 'desempenho'),
                     buscarGestorDepartamento(dep)
                 ]);
 
-                const relSat = relsSat.find(r => r.departamento.trim().toLowerCase() === dep.trim().toLowerCase()) || null;
-                const relDes = relsDes.find(r => r.departamento.trim().toLowerCase() === dep.trim().toLowerCase()) || null;
+                const relsSatDepto = relsSat.filter(r => r.departamento.trim().toLowerCase() === depLow);
+                const relsDesDepto = relsDes.filter(r => r.departamento.trim().toLowerCase() === depLow);
+                const relSat = relsSatDepto.find(r => Number(r.ano) === Number(refSatDepto.ano) && Number(r.trimestre) === Number(refSatDepto.trimestre)) || relsSatDepto[0] || null;
+                const relDes = relsDesDepto.find(r => Number(r.ano) === Number(refDesDepto.ano) && Number(r.trimestre) === Number(refDesDepto.trimestre)) || relsDesDepto[0] || null;
+
+                const mapRelSatPorKey = {};
+                relsSatDepto.forEach(r => { mapRelSatPorKey[`${r.ano}-T${r.trimestre}`] = r.relatorio_texto; });
+                const mapRelDesPorKey = {};
+                relsDesDepto.forEach(r => { mapRelDesPorKey[`${r.ano}-T${r.trimestre}`] = r.relatorio_texto; });
 
                 // Identificar tópicos prioritários para cursos (< 4.5 em satisfação ou desempenho)
                 const alertas = [];
@@ -966,25 +1101,31 @@ ${obsStr}`;
                     departamento: dep,
                     gestor_nome: gestor ? gestor.gestor_nome : null,
                     satisfacao: estSat ? {
-                        periodo_label: labelPeriodo(ultSat.ano, ultSat.trimestre, 'satisfacao'),
-                        ano: ultSat.ano,
-                        trimestre: ultSat.trimestre,
+                        periodo_label: labelPeriodo(refSatDepto.ano, refSatDepto.trimestre, 'satisfacao'),
+                        ano: refSatDepto.ano,
+                        trimestre: refSatDepto.trimestre,
                         responderam: estSat.responderam,
                         total_colaboradores: estSat.total_colaboradores,
                         media_geral: estSat.media_geral,
                         topicos: estSat.topicos,
+                        historico: histSat4 || estSat.historico,
+                        relatorios_por_periodo: mapRelSatPorKey,
                         relatorio_texto: relSat ? relSat.relatorio_texto : null,
+                        relatorio_periodo_label: relSat ? labelPeriodo(relSat.ano, relSat.trimestre, 'satisfacao') : null,
                         relatorio_updated_at: relSat ? relSat.updated_at : null
                     } : null,
                     desempenho: estDes ? {
-                        periodo_label: labelPeriodo(ultDes.ano, ultDes.trimestre, 'desempenho'),
-                        ano: ultDes.ano,
-                        trimestre: ultDes.trimestre,
+                        periodo_label: labelPeriodo(refDesDepto.ano, refDesDepto.trimestre, 'desempenho'),
+                        ano: refDesDepto.ano,
+                        trimestre: refDesDepto.trimestre,
                         responderam: estDes.responderam,
                         total_colaboradores: estDes.total_colaboradores,
                         media_geral: estDes.media_geral,
                         topicos: estDes.topicos,
+                        historico: histDes4 || estDes.historico,
+                        relatorios_por_periodo: mapRelDesPorKey,
                         relatorio_texto: relDes ? relDes.relatorio_texto : null,
+                        relatorio_periodo_label: relDes ? labelPeriodo(relDes.ano, relDes.trimestre, 'desempenho') : null,
                         relatorio_updated_at: relDes ? relDes.updated_at : null
                     } : null,
                     alertas_treinamento: alertas

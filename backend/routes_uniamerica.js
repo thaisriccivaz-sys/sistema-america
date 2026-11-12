@@ -484,9 +484,12 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             p.premio = premioPorColocacao[idx + 1] || null;
         });
 
+        const cargaHorariaCalculada = parseFloat(aulas.reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2));
+
         return {
             curso: {
                 ...curso,
+                carga_horaria: cargaHorariaCalculada,
                 capa_stream_url: curso.capa_r2_key ? r2StreamUrl(curso.capa_r2_key) : (curso.capa_url || null)
             },
             total_aulas: totalAulas,
@@ -497,6 +500,14 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             premios: Object.values(premioPorColocacao).sort((a, b) => a.colocacao - b.colocacao),
             ranking: participantes
         };
+    }
+
+    async function recalcularCargaHorariaCurso(cursoId) {
+        if (!cursoId) return 0;
+        const row = await dbGet(`SELECT COALESCE(SUM(COALESCE(carga_horaria, 0)), 0) AS soma FROM uniamerica_aulas WHERE curso_id = ?`, [cursoId]);
+        const soma = parseFloat(Number(row ? row.soma : 0).toFixed(2)) || 0;
+        await dbRun(`UPDATE uniamerica_cursos SET carga_horaria = ? WHERE id = ?`, [soma, cursoId]);
+        return soma;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -602,8 +613,10 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 const colabsVinc = await listarColaboradoresDoCurso(c);
                 const listaAulas = aulasPorCurso[c.id] || [];
                 const pendCurso = listaAulas.reduce((acc, x) => acc + (x.missoes_pendentes_avaliacao || 0), 0);
+                const cargaSomada = parseFloat(listaAulas.reduce((acc, x) => acc + (parseFloat(x.carga_horaria) || 0), 0).toFixed(2));
                 out.push({
                     ...c,
+                    carga_horaria: cargaSomada,
                     capa_stream_url: c.capa_r2_key ? r2StreamUrl(c.capa_r2_key) : (c.capa_url || null),
                     aulas: listaAulas,
                     total_aulas: listaAulas.length,
@@ -647,10 +660,13 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 anexos: anexosPorAula[a.id] || []
             }));
 
+            const cargaSomada = parseFloat(aulas.reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2));
+
             res.json({
                 ok: true,
                 curso: {
                     ...curso,
+                    carga_horaria: cargaSomada,
                     capa_stream_url: curso.capa_r2_key ? r2StreamUrl(curso.capa_r2_key) : (curso.capa_url || null)
                 },
                 aulas: aulasFormatadas,
@@ -728,6 +744,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                  WHERE id = ?`,
                 [nome, descricao, departamentos, colaboradores_avulsos, capaR2Key, carga_horaria, data_inicio, data_fim, status, avaliacao_geral_obs, cursoId]
             );
+            await recalcularCargaHorariaCurso(cursoId);
 
             res.json({ ok: true, id: cursoId });
         } catch (e) {
@@ -845,6 +862,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [cursoId, ordem, titulo, descricao, data_aula, carga_horaria, JSON.stringify(perguntas), JSON.stringify(missoes)]
             );
+            await recalcularCargaHorariaCurso(cursoId);
 
             res.json({ ok: true, id: ins.lastID });
         } catch (e) {
@@ -875,6 +893,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                  WHERE id = ?`,
                 [ordem, titulo, descricao, data_aula, carga_horaria, JSON.stringify(perguntas), JSON.stringify(missoes), aulaId]
             );
+            await recalcularCargaHorariaCurso(atual.curso_id);
 
             res.json({ ok: true, id: aulaId });
         } catch (e) {
@@ -905,6 +924,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             await dbRun(`DELETE FROM uniamerica_submissoes_missao WHERE aula_id = ?`, [aulaId]);
             await dbRun(`DELETE FROM uniamerica_missao_arquivos WHERE aula_id = ?`, [aulaId]);
             await dbRun(`DELETE FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
+            await recalcularCargaHorariaCurso(atual.curso_id);
 
             res.json({ ok: true });
         } catch (e) {

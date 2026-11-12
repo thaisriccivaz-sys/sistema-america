@@ -622,12 +622,14 @@
                                 <span class="ua-badge" style="background:#f0fdf4;color:#15803d;">
                                     <i class="ph ph-chalkboard-teacher"></i> ${c.total_aulas || 0} aula(s)
                                 </span>
-                                ${c.carga_horaria ? `<span class="ua-badge" style="background:#fef9c3;color:#854d0e;"><i class="ph ph-clock"></i> ${c.carga_horaria}h</span>` : ''}
-                            </div>
-                            <div style="font-size:0.78rem;color:#64748b;">
-                                Período: <strong>${fmtDataBr(c.data_inicio)}</strong> até <strong>${fmtDataBr(c.data_fim)}</strong>
+                                <span class="ua-badge" style="background:#fef9c3;color:#854d0e;">
+                                    <i class="ph ph-clock"></i> ${c.carga_horaria || 0}h
+                                </span>
                             </div>
                             <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="ua-btn ua-btn-success" style="padding:8px 12px;" title="Iniciar treinamento, apresentar materiais da próxima aula e marcar presença" onclick="window._uaPlayCurso(${c.id})">
+                                    <i class="ph-fill ph-play"></i> Iniciar
+                                </button>
                                 <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
                                     <i class="ph ph-list-checks"></i> Gerenciar Aulas (${c.total_aulas || 0})
                                 </button>
@@ -732,24 +734,10 @@
                     <button class="ua-btn ua-btn-ghost" style="padding:6px 10px;" onclick="document.getElementById('ua-modal-curso').remove()"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="ua-modal-bd">
-                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
+                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin-bottom:14px;">
                         <div>
                             <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Nome do Curso *</label>
                             <input type="text" id="ua-c-nome" class="ua-input" placeholder="Ex.: Formação de Liderança Operacional" value="${esc(curso ? curso.nome : '')}">
-                        </div>
-                        <div>
-                            <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Carga Horária Total (horas)</label>
-                            <input type="number" step="0.5" min="0" id="ua-c-carga" class="ua-input" placeholder="Ex.: 24" value="${esc(curso ? curso.carga_horaria || '' : '')}">
-                        </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
-                        <div>
-                            <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Data de Início</label>
-                            <input type="date" id="ua-c-inicio" class="ua-input" value="${esc(curso && curso.data_inicio ? curso.data_inicio : '')}">
-                        </div>
-                        <div>
-                            <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Data de Término</label>
-                            <input type="date" id="ua-c-fim" class="ua-input" value="${esc(curso && curso.data_fim ? curso.data_fim : '')}">
                         </div>
                         <div>
                             <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Status do Curso</label>
@@ -758,6 +746,10 @@
                                 <option value="concluido" ${curso && curso.status === 'concluido' ? 'selected' : ''}>Concluído</option>
                                 <option value="arquivado" ${curso && curso.status === 'arquivado' ? 'selected' : ''}>Arquivado</option>
                             </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Carga Horária Total (horas)</label>
+                            <input type="text" readonly id="ua-c-carga" class="ua-input" style="background:#f8fafc;color:#475569;font-weight:700;cursor:not-allowed;" title="Soma automática das cargas horárias das aulas cadastradas no curso" value="${curso ? (parseFloat((curso.aulas || []).reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2)) || curso.carga_horaria || 0) : 0}h (soma das aulas)">
                         </div>
                     </div>
                     <div style="margin-bottom:14px;">
@@ -853,9 +845,7 @@
 
         const fd = new FormData();
         fd.append('nome', nome);
-        fd.append('carga_horaria', document.getElementById('ua-c-carga').value || '0');
-        fd.append('data_inicio', document.getElementById('ua-c-inicio').value || '');
-        fd.append('data_fim', document.getElementById('ua-c-fim').value || '');
+        fd.append('carga_horaria', parseFloat(document.getElementById('ua-c-carga').value) || 0);
         fd.append('status', document.getElementById('ua-c-status').value || 'ativo');
         fd.append('descricao', document.getElementById('ua-c-desc').value || '');
         fd.append('departamentos', departamentos);
@@ -991,7 +981,6 @@
                                             </div>
                                             ${a.descricao ? `<p style="margin:6px 0 0;font-size:0.85rem;color:#64748b;">${esc(a.descricao)}</p>` : ''}
                                             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:0.81rem;color:#475569;">
-                                                <span><i class="ph ph-calendar-blank"></i> Data: <strong>${fmtDataBr(a.data_aula)}</strong></span>
                                                 <span><i class="ph ph-clock"></i> Carga: <strong>${a.carga_horaria || 0}h</strong></span>
                                                 <span><i class="ph ph-paperclip"></i> Materiais: <strong>${anexos.length}</strong></span>
                                                 <span><i class="ph ph-exam"></i> Pesquisa em aula: <strong>${pergs.length} questão(ões) (${somaPtsPergs} pts)</strong></span>
@@ -1155,15 +1144,15 @@
                 <div style="display:flex;gap:8px;padding:12px 22px 0;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
                     <button type="button" class="ua-tab ${_aulaEditor.aba === 'detalhes' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
                             onclick="window._uaMudarAbaEditorAula('detalhes')">
-                        <i class="ph ph-folder-open"></i> 1. Detalhes & Materiais (${_aulaEditor.anexos.length + _aulaEditor.arquivosNovos.length})
+                        <i class="ph ph-folder-open"></i> Detalhes & Materiais (${_aulaEditor.anexos.length + _aulaEditor.arquivosNovos.length})
                     </button>
                     <button type="button" class="ua-tab ${_aulaEditor.aba === 'pesquisa' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
                             onclick="window._uaMudarAbaEditorAula('pesquisa')">
-                        <i class="ph ph-exam"></i> 2. Pesquisa / Formulário em Aula (${_aulaEditor.perguntas.length} • ${somaPerguntas} pts)
+                        <i class="ph ph-exam"></i> Pesquisa / Formulário em Aula (${_aulaEditor.perguntas.length} • ${somaPerguntas} pts)
                     </button>
                     <button type="button" class="ua-tab ${_aulaEditor.aba === 'missoes' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
                             onclick="window._uaMudarAbaEditorAula('missoes')">
-                        <i class="ph ph-rocket-launch"></i> 3. Missões da Semana (${_aulaEditor.missoes.length} • ${somaMissoes} pts)
+                        <i class="ph ph-rocket-launch"></i> Missões da Semana (${_aulaEditor.missoes.length} • ${somaMissoes} pts)
                     </button>
                 </div>
 
@@ -1191,7 +1180,7 @@
 
     function renderAbaEditorDetalhes() {
         return `
-            <div style="display:grid;grid-template-columns:90px 1fr 160px 140px;gap:12px;margin-bottom:14px;">
+            <div style="display:grid;grid-template-columns:90px 1fr 160px;gap:12px;margin-bottom:14px;">
                 <div>
                     <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Ordem</label>
                     <input type="number" min="1" id="ua-ae-ordem" class="ua-input" value="${_aulaEditor.ordem}">
@@ -1199,10 +1188,6 @@
                 <div>
                     <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Título da Aula *</label>
                     <input type="text" id="ua-ae-titulo" class="ua-input" placeholder="Ex.: Comunicação Assertiva e Feedback" value="${esc(_aulaEditor.titulo)}">
-                </div>
-                <div>
-                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data da Aula</label>
-                    <input type="date" id="ua-ae-data" class="ua-input" value="${esc(_aulaEditor.data_aula || '')}">
                 </div>
                 <div>
                     <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Carga (horas)</label>
@@ -1768,6 +1753,310 @@
         }
     };
 
+    // ── MODAL PLAY: INICIAR TREINAMENTO (PRÓXIMA AULA + MATERIAIS + LISTA DE PRESENÇA) ─
+    let _playEstado = null;
+
+    window._uaPlayCurso = async function (cursoId, aulaIdOpcional = null) {
+        try {
+            const det = await api(`/uniamerica/cursos/${cursoId}`);
+            const curso = det.curso;
+            const aulas = Array.isArray(det.aulas) ? det.aulas : [];
+            if (aulas.length === 0) {
+                toastOk('Cadastre a primeira aula deste curso para iniciar o treinamento.');
+                window._uaAbrirAulasCurso(cursoId);
+                window._uaAbrirEditorAula(cursoId, null);
+                return;
+            }
+
+            let aulaAlvo = aulaIdOpcional
+                ? aulas.find(a => Number(a.id) === Number(aulaIdOpcional))
+                : (aulas.find(a => a.status_aula !== 'concluida') || aulas[aulas.length - 1]);
+            if (!aulaAlvo) aulaAlvo = aulas[0];
+
+            // Se a aula estiver agendada, tenta iniciar automaticamente
+            if (aulaAlvo.status_aula === 'agendada') {
+                try {
+                    await api(`/uniamerica/aulas/${aulaAlvo.id}/iniciar`, { method: 'POST', body: {} });
+                    aulaAlvo.status_aula = 'em_andamento';
+                } catch (errIni) {
+                    if (errIni.status === 409 && errIni.body && errIni.body.codigo === 'MISSOES_ANTERIORES_PENDENTES') {
+                        if (typeof Swal !== 'undefined') {
+                            const r = await Swal.fire({
+                                icon: 'warning',
+                                title: 'Avaliação de Missões Pendente',
+                                text: errIni.body.error || errIni.message,
+                                showCancelButton: true,
+                                confirmButtonColor: '#2563eb',
+                                confirmButtonText: 'Avaliar Missões da Aula Anterior',
+                                cancelButtonText: 'Abrir Aula Mesmo Assim'
+                            });
+                            if (r.isConfirmed && errIni.body.aula_anterior_id) {
+                                window._uaAbrirAvaliacaoAula(errIni.body.aula_anterior_id);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            const presData = await api(`/uniamerica/aulas/${aulaAlvo.id}/presenca`);
+            const anexos = Array.isArray(aulaAlvo.anexos) ? aulaAlvo.anexos : [];
+
+            _playEstado = {
+                curso,
+                aulas,
+                aula: aulaAlvo,
+                anexos,
+                anexoAtivoIdx: anexos.length > 0 ? 0 : -1,
+                listaPresenca: presData.lista || [],
+                buscaPresenca: ''
+            };
+
+            const old = document.getElementById('ua-modal-play-curso');
+            if (old) old.remove();
+            const backdrop = document.createElement('div');
+            backdrop.className = 'ua-modal-backdrop';
+            backdrop.id = 'ua-modal-play-curso';
+            document.body.appendChild(backdrop);
+            desenharModalPlayCurso();
+        } catch (e) {
+            msgErro('Erro ao abrir apresentação do treinamento', e.message);
+        }
+    };
+
+    function renderizarPreviewMaterialPlay(anexo) {
+        if (!anexo) {
+            return `<div style="padding:36px;text-align:center;color:#94a3b8;font-size:0.86rem;">Selecione um material acima para apresentá-lo na tela.</div>`;
+        }
+        const url = authMediaUrl(anexo.url);
+        const nome = String(anexo.nome_arquivo || '').toLowerCase();
+        const mime = String(anexo.mime_type || '').toLowerCase();
+
+        if (mime.includes('pdf') || nome.endsWith('.pdf')) {
+            return `<iframe src="${esc(url)}" style="width:100%;height:420px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;"></iframe>`;
+        }
+        if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(nome)) {
+            return `<div style="background:#0f172a;border-radius:10px;padding:12px;text-align:center;">
+                <img src="${esc(url)}" alt="${esc(anexo.nome_arquivo)}" style="max-width:100%;max-height:410px;object-fit:contain;border-radius:8px;">
+            </div>`;
+        }
+        if (mime.startsWith('video/') || /\.(mp4|webm|ogg|mov)$/i.test(nome)) {
+            return `<video src="${esc(url)}" controls style="width:100%;max-height:420px;border-radius:10px;background:#000;"></video>`;
+        }
+        if (mime.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(nome)) {
+            return `<div style="padding:24px;background:#f8fafc;border-radius:10px;text-align:center;">
+                <audio src="${esc(url)}" controls style="width:100%;"></audio>
+            </div>`;
+        }
+        return `<div style="padding:32px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;">
+            <i class="ph ph-file-arrow-down" style="font-size:2.4rem;color:#2563eb;"></i>
+            <div style="font-weight:700;color:#0f172a;margin:8px 0 4px;">${esc(anexo.nome_arquivo)}</div>
+            <div style="font-size:0.8rem;color:#64748b;margin-bottom:12px;">Clique abaixo para abrir ou baixar este material para apresentação.</div>
+            <a href="${esc(url)}" target="_blank" class="ua-btn ua-btn-primary" style="text-decoration:none;display:inline-flex;">
+                <i class="ph ph-arrow-square-out"></i> Abrir Material
+            </a>
+        </div>`;
+    }
+
+    function desenharModalPlayCurso() {
+        const backdrop = document.getElementById('ua-modal-play-curso');
+        if (!backdrop || !_playEstado) return;
+        const { curso, aulas, aula, anexos, anexoAtivoIdx, listaPresenca, buscaPresenca } = _playEstado;
+        const presentesQtd = listaPresenca.filter(x => x.presente).length;
+        const termo = norm(buscaPresenca);
+        const visiveis = listaPresenca.filter(x => !termo || norm(x.nome_completo + ' ' + (x.departamento || '')).includes(termo));
+        const anexoAtivo = (anexoAtivoIdx >= 0 && anexos[anexoAtivoIdx]) ? anexos[anexoAtivoIdx] : null;
+        const stBadge = aula.status_aula === 'concluida'
+            ? { bg: '#dcfce7', fg: '#15803d', txt: 'Concluída' }
+            : aula.status_aula === 'em_andamento'
+                ? { bg: '#dbeafe', fg: '#1d4ed8', txt: 'Em andamento' }
+                : { bg: '#f1f5f9', fg: '#475569', txt: 'Agendada' };
+
+        backdrop.innerHTML = `
+            <div class="ua-modal" style="max-width:1220px;">
+                <div class="ua-modal-hd" style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <h3 style="color:#fff;margin:0;"><i class="ph-fill ph-play-circle" style="color:#4ade80;"></i> ${esc(curso.nome)}</h3>
+                        <select class="ua-select" style="width:auto;min-width:260px;background:rgba(255,255,255,0.12);color:#fff;border-color:rgba(255,255,255,0.28);padding:6px 10px;"
+                                onchange="window._uaPlayCurso(${curso.id}, this.value)">
+                            ${aulas.map(a => `
+                                <option value="${a.id}" style="color:#0f172a;" ${Number(a.id) === Number(aula.id) ? 'selected' : ''}>
+                                    Aula ${a.ordem}: ${esc(a.titulo)} (${a.status_aula === 'concluida' ? 'Concluída' : a.status_aula === 'em_andamento' ? 'Em andamento' : 'Disponível'})
+                                </option>
+                            `).join('')}
+                        </select>
+                        <span class="ua-badge" style="background:${stBadge.bg};color:${stBadge.fg};">${stBadge.txt}</span>
+                        <span class="ua-badge" style="background:rgba(255,255,255,0.16);color:#fff;"><i class="ph ph-clock"></i> ${aula.carga_horaria || 0}h</span>
+                    </div>
+                    <button class="ua-btn" style="background:rgba(255,255,255,0.15);color:#fff;padding:6px 10px;" onclick="document.getElementById('ua-modal-play-curso').remove();window.renderUniAmericaGestao();">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+
+                <div class="ua-modal-bd" style="padding:18px 22px;">
+                    <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start;">
+                        <!-- Coluna Esquerda: Materiais da Aula -->
+                        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                                <div>
+                                    <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                                        <i class="ph ph-presentation-chart" style="color:#2563eb;font-size:1.15rem;"></i>
+                                        Materiais para Apresentação — Aula ${aula.ordem}: ${esc(aula.titulo)}
+                                    </h4>
+                                    ${aula.descricao ? `<div style="font-size:0.8rem;color:#64748b;margin-top:3px;">${esc(aula.descricao)}</div>` : ''}
+                                </div>
+                                ${anexoAtivo ? `
+                                    <a href="${esc(authMediaUrl(anexoAtivo.url))}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;text-decoration:none;">
+                                        <i class="ph ph-arrows-out"></i> Abrir em Tela Cheia
+                                    </a>
+                                ` : ''}
+                            </div>
+
+                            ${anexos.length === 0 ? `
+                                <div style="padding:36px 20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;color:#64748b;">
+                                    <i class="ph ph-folder-open" style="font-size:2.2rem;color:#94a3b8;"></i>
+                                    <div style="font-weight:700;color:#0f172a;margin:6px 0 4px;">Nenhum material anexado nesta aula</div>
+                                    <div style="font-size:0.8rem;margin-bottom:12px;">Você pode anexar slides, PDFs ou vídeos clicando em Editar Aula.</div>
+                                    <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window._uaAbrirEditorAula(${curso.id}, ${aula.id});">
+                                        <i class="ph ph-paperclip"></i> Anexar Materiais na Aula
+                                    </button>
+                                </div>
+                            ` : `
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                                    ${anexos.map((an, idx) => `
+                                        <button type="button" class="ua-btn ${idx === anexoAtivoIdx ? 'ua-btn-primary' : 'ua-btn-ghost'}"
+                                                style="padding:7px 12px;font-size:0.8rem;"
+                                                onclick="window._uaSelecionarAnexoPlay(${idx})">
+                                            <i class="ph ph-file-text"></i> ${esc(an.nome_arquivo)}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                ${renderizarPreviewMaterialPlay(anexoAtivo)}
+                            `}
+                        </div>
+
+                        <!-- Coluna Direita: Lista de Presença da Aula -->
+                        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                                <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                                    <i class="ph ph-user-check" style="color:#16a34a;font-size:1.15rem;"></i>
+                                    Lista de Presença da Aula ${aula.ordem}
+                                </h4>
+                                <span class="ua-badge" style="background:#dcfce7;color:#15803d;">
+                                    Presentes: ${presentesQtd} / ${listaPresenca.length}
+                                </span>
+                            </div>
+                            <div style="font-size:0.78rem;color:#64748b;margin-bottom:10px;">
+                                Marque quem está presente nesta aula para liberar o formulário em sala e as missões da semana.
+                            </div>
+                            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                                <input type="text" class="ua-input" style="flex:1;min-width:150px;padding:7px 10px;font-size:0.82rem;"
+                                       placeholder="Buscar colaborador..."
+                                       value="${esc(buscaPresenca)}"
+                                       oninput="window._uaFiltrarPresencaPlay(this.value)">
+                                <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(true)">Todos</button>
+                                <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(false)">Limpar</button>
+                            </div>
+                            <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
+                                <table class="ua-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th style="text-align:center;">Presença</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${visiveis.length === 0 ? `<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:18px;">Nenhum colaborador encontrado.</td></tr>` :
+                                            visiveis.map(p => `
+                                                <tr style="cursor:pointer;" onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})">
+                                                    <td>
+                                                        <div style="font-weight:600;color:#0f172a;font-size:0.84rem;">${esc(p.nome_completo)}</div>
+                                                        <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')} • ${esc(p.cargo || '')}</div>
+                                                    </td>
+                                                    <td style="text-align:center;" onclick="event.stopPropagation();">
+                                                        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
+                                                            <input type="checkbox" ${p.presente ? 'checked' : ''} onchange="window._uaTogglePresencaPlay(${p.colaborador_id}, this.checked)">
+                                                            ${p.presente ? 'Presente' : 'Ausente'}
+                                                        </label>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="button" class="ua-btn ua-btn-success" style="width:100%;justify-content:center;" id="ua-btn-salvar-presenca-play" onclick="window._uaSalvarPresencaPlay()">
+                                <i class="ph ph-floppy-disk"></i> Salvar Lista de Presença (${presentesQtd}/${listaPresenca.length})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ua-modal-ft">
+                    <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window.renderUniAmericaGestao();">
+                        Fechar Apresentação
+                    </button>
+                    ${aula.status_aula !== 'concluida' ? `
+                        <button type="button" class="ua-btn ua-btn-primary" onclick="window._uaConcluirAulaPlay(${aula.id})">
+                            <i class="ph ph-check-circle"></i> Concluir Aula ${aula.ordem}
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    window._uaSelecionarAnexoPlay = function (idx) {
+        if (!_playEstado) return;
+        _playEstado.anexoAtivoIdx = idx;
+        desenharModalPlayCurso();
+    };
+    window._uaFiltrarPresencaPlay = function (v) {
+        if (!_playEstado) return;
+        _playEstado.buscaPresenca = v;
+        desenharModalPlayCurso();
+    };
+    window._uaTogglePresencaPlay = function (colabId, checked) {
+        if (!_playEstado) return;
+        const it = _playEstado.listaPresenca.find(x => x.colaborador_id === colabId);
+        if (it) it.presente = checked;
+        desenharModalPlayCurso();
+    };
+    window._uaMarcarTodosPresencaPlay = function (val) {
+        if (!_playEstado) return;
+        _playEstado.listaPresenca.forEach(x => { x.presente = val; });
+        desenharModalPlayCurso();
+    };
+    window._uaSalvarPresencaPlay = async function () {
+        if (!_playEstado) return;
+        const btn = document.getElementById('ua-btn-salvar-presenca-play');
+        if (btn) btn.disabled = true;
+        try {
+            await api(`/uniamerica/aulas/${_playEstado.aula.id}/presenca`, {
+                method: 'PUT',
+                body: {
+                    presencas: _playEstado.listaPresenca.map(x => ({ colaborador_id: x.colaborador_id, presente: x.presente }))
+                }
+            });
+            toastOk('Lista de presença salva! Teste em aula e missões liberados para os presentes.');
+        } catch (e) {
+            msgErro('Erro ao salvar lista de presença', e.message);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+    window._uaConcluirAulaPlay = async function (aulaId) {
+        try {
+            await window._uaSalvarPresencaPlay();
+            await api(`/uniamerica/aulas/${aulaId}/concluir`, { method: 'POST', body: {} });
+            toastOk('Aula concluída com sucesso!');
+            const m = document.getElementById('ua-modal-play-curso');
+            if (m) m.remove();
+            await window.renderUniAmericaGestao();
+        } catch (e) {
+            msgErro('Erro ao concluir aula', e.message);
+        }
+    };
+
     // ── MODAL: AVALIAÇÃO PELO GESTOR (TESTES EM AULA & MISSÕES COM NOTA DE 1 A 10) ─
     let _avalEstado = null;
 
@@ -2016,8 +2305,6 @@
                     const sat = d.satisfacao;
                     const des = d.desempenho;
                     const alertas = d.alertas_treinamento || [];
-                    const corSat = sat && sat.media_geral != null ? infoCorNota(sat.media_geral) : infoCorNota(null);
-                    const corDes = des && des.media_geral != null ? infoCorNota(des.media_geral) : infoCorNota(null);
 
                     return `
                         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;box-shadow:0 3px 10px rgba(15,23,42,0.03);">
@@ -2048,66 +2335,9 @@
                                 </div>
                             ` : ''}
 
-                            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;">
-                                <!-- Coluna Satisfação -->
-                                <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fcfdff;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                        <div>
-                                            <strong style="font-size:0.9rem;color:#0f172a;"><i class="ph ph-smiley" style="color:#7c3aed;"></i> Avaliação de Satisfação</strong>
-                                            <div style="font-size:0.76rem;color:#64748b;">${sat ? `${esc(sat.periodo_label)} • ${sat.responderam}/${sat.total_colaboradores} resp.` : 'Sem ciclo'}</div>
-                                        </div>
-                                        <span class="ua-badge" style="background:${corSat.bg};color:${corSat.fg};font-size:0.86rem;">
-                                            Média: ${sat && sat.media_geral != null ? Number(sat.media_geral).toFixed(1) : '—'}
-                                        </span>
-                                    </div>
-                                    ${sat && sat.topicos && sat.topicos.length > 0 ? `
-                                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-                                            ${sat.topicos.map(t => {
-                                                const ct = infoCorNota(t.media);
-                                                return `<span class="ua-badge" style="background:${ct.bg};color:${ct.fg};font-weight:600;">${esc(t.topico)}: ${Number(t.media).toFixed(1)}</span>`;
-                                            }).join('')}
-                                        </div>
-                                    ` : `<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:10px;">Sem respostas de satisfação neste setor.</div>`}
-
-                                    ${sat && sat.relatorio_texto ? `
-                                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px;font-size:0.8rem;color:#334155;max-height:170px;overflow-y:auto;white-space:pre-wrap;">${esc(sat.relatorio_texto)}</div>
-                                    ` : (sat && sat.responderam > 0 ? `
-                                        <button class="ua-btn ua-btn-ghost" style="width:100%;justify-content:center;font-size:0.8rem;"
-                                                onclick="window._uaGerarRelatorioDiag('satisfacao', '${esc(d.departamento)}', ${sat.ano}, ${sat.trimestre}, ${dIdx})">
-                                            <i class="ph ph-sparkle"></i> Gerar Análise IA de Satisfação deste Setor
-                                        </button>
-                                    ` : '')}
-                                </div>
-
-                                <!-- Coluna Desempenho -->
-                                <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fcfdff;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                        <div>
-                                            <strong style="font-size:0.9rem;color:#0f172a;"><i class="ph ph-chart-line-up" style="color:#2563eb;"></i> Avaliação de Desempenho</strong>
-                                            <div style="font-size:0.76rem;color:#64748b;">${des ? `${esc(des.periodo_label)} • ${des.responderam}/${des.total_colaboradores} aval.` : 'Sem ciclo'}</div>
-                                        </div>
-                                        <span class="ua-badge" style="background:${corDes.bg};color:${corDes.fg};font-size:0.86rem;">
-                                            Média: ${des && des.media_geral != null ? Number(des.media_geral).toFixed(1) : '—'}
-                                        </span>
-                                    </div>
-                                    ${des && des.topicos && des.topicos.length > 0 ? `
-                                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-                                            ${des.topicos.map(t => {
-                                                const ct = infoCorNota(t.media);
-                                                return `<span class="ua-badge" style="background:${ct.bg};color:${ct.fg};font-weight:600;">${esc(t.topico)}: ${Number(t.media).toFixed(1)}</span>`;
-                                            }).join('')}
-                                        </div>
-                                    ` : `<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:10px;">Sem avaliações de desempenho neste setor.</div>`}
-
-                                    ${des && des.relatorio_texto ? `
-                                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px;font-size:0.8rem;color:#334155;max-height:170px;overflow-y:auto;white-space:pre-wrap;">${esc(des.relatorio_texto)}</div>
-                                    ` : (des && des.responderam > 0 ? `
-                                        <button class="ua-btn ua-btn-ghost" style="width:100%;justify-content:center;font-size:0.8rem;"
-                                                onclick="window._uaGerarRelatorioDiag('desempenho', '${esc(d.departamento)}', ${des.ano}, ${des.trimestre}, ${dIdx})">
-                                            <i class="ph ph-sparkle"></i> Gerar Análise IA de Desempenho deste Setor
-                                        </button>
-                                    ` : '')}
-                                </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(460px, 1fr));gap:16px;">
+                                ${renderBlocoDiagHistorico('satisfacao', 'Avaliação de Satisfação', 'ph-smiley', '#7c3aed', sat, d.departamento, dIdx)}
+                                ${renderBlocoDiagHistorico('desempenho', 'Avaliação de Desempenho', 'ph-chart-line-up', '#2563eb', des, d.departamento, dIdx)}
                             </div>
                         </div>
                     `;
@@ -2115,6 +2345,165 @@
             </div>
         `;
     }
+
+    function renderBlocoDiagHistorico(tipo, titulo, iconeClass, corIcone, bloco, depto, dIdx) {
+        if (!G.diagPeriodoSel) G.diagPeriodoSel = {};
+        const hist = (bloco && bloco.historico) ? bloco.historico : { periodos: [], topicos: [], medias_periodo: {}, respondentes_periodo: {} };
+        const periodos = hist.periodos || [];
+        const topicos = hist.topicos || [];
+        const relsMap = (bloco && bloco.relatorios_por_periodo) ? bloco.relatorios_por_periodo : {};
+
+        // Escolher período selecionado para a análise IA (padrão: último período com relatório ou com respostas, ou o mais recente)
+        const selKey = `${depto}__${tipo}`;
+        let pKeySel = G.diagPeriodoSel[selKey];
+        if (!pKeySel || !periodos.some(p => p.key === pKeySel)) {
+            const comRel = [...periodos].reverse().find(p => relsMap[p.key]);
+            const comResp = [...periodos].reverse().find(p => (hist.respondentes_periodo && hist.respondentes_periodo[p.key] > 0) || (hist.medias_periodo && hist.medias_periodo[p.key] != null));
+            const ult = periodos[periodos.length - 1];
+            pKeySel = (comRel && comRel.key) || (comResp && comResp.key) || (ult && ult.key) || (bloco ? `${bloco.ano}_${bloco.trimestre}` : '');
+            G.diagPeriodoSel[selKey] = pKeySel;
+        }
+
+        const pObjSel = periodos.find(p => p.key === pKeySel) || (periodos.length > 0 ? periodos[periodos.length - 1] : { ano: bloco ? bloco.ano : new Date().getFullYear(), trimestre: bloco ? bloco.trimestre : 1, label: bloco ? bloco.periodo_label : '', key: pKeySel });
+        const mediaSel = (hist.medias_periodo && pObjSel && hist.medias_periodo[pObjSel.key] != null)
+            ? hist.medias_periodo[pObjSel.key]
+            : (bloco ? bloco.media_geral : null);
+        const corMedia = mediaSel != null ? infoCorNota(mediaSel) : infoCorNota(null);
+        const respSel = (hist.respondentes_periodo && pObjSel && hist.respondentes_periodo[pObjSel.key] != null)
+            ? hist.respondentes_periodo[pObjSel.key]
+            : (bloco ? bloco.responderam : 0);
+        const totalColabs = bloco ? (bloco.total_colaboradores || 0) : 0;
+
+        // Relatório IA do período selecionado (ou fallback para o último relatório salvo no setor)
+        const textoRelSel = (pObjSel && relsMap[pObjSel.key]) || (bloco && bloco.relatorio_texto) || '';
+
+        return `
+            <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fcfdff;display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <div>
+                        <strong style="font-size:0.94rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                            <i class="ph ${iconeClass}" style="color:${corIcone};font-size:1.1rem;"></i> ${esc(titulo)}
+                        </strong>
+                        <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
+                            Últimas ${periodos.length || 4} avaliações • ${pObjSel ? esc(pObjSel.label) : ''} (${respSel}/${totalColabs} ${tipo === 'satisfacao' ? 'resp.' : 'aval.'})
+                        </div>
+                    </div>
+                    <span class="ua-badge" style="background:${corMedia.bg};color:${corMedia.fg};border:1px solid ${corMedia.border};font-size:0.84rem;">
+                        Média: ${mediaSel != null ? Number(mediaSel).toFixed(1) : '—'}
+                    </span>
+                </div>
+
+                <!-- Tabela das últimas 4 avaliações por tema -->
+                ${periodos.length > 0 && topicos.length > 0 ? `
+                    <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.76rem;">
+                            <thead>
+                                <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                                    <th style="text-align:left;padding:7px 9px;color:#475569;font-weight:700;">Tema</th>
+                                    ${periodos.map((p, idxP) => {
+                                        const rCount = hist.respondentes_periodo && hist.respondentes_periodo[p.key] != null ? hist.respondentes_periodo[p.key] : 0;
+                                        return `<th style="text-align:center;padding:7px 6px;color:#475569;font-weight:700;white-space:nowrap;">
+                                            <div>${esc(p.label)}</div>
+                                            <div style="font-size:0.68rem;font-weight:500;color:#94a3b8;">${rCount}/${totalColabs} ${tipo === 'satisfacao' ? 'resp.' : 'aval.'}</div>
+                                        </th>`;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topicos.map(t => {
+                                    // Calcular tendência entre os 2 últimos períodos com nota
+                                    const vals = periodos.map(p => (t.valores && t.valores[p.key] != null) ? Number(t.valores[p.key]) : null);
+                                    return `
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:6px 9px;font-weight:600;color:#1e293b;">${esc(t.topico)}</td>
+                                            ${periodos.map((p, idxP) => {
+                                                const v = vals[idxP];
+                                                if (v == null) {
+                                                    return `<td style="text-align:center;padding:6px;"><span style="color:#cbd5e1;font-weight:600;">—</span></td>`;
+                                                }
+                                                const ct = infoCorNota(v);
+                                                let setaHtml = '';
+                                                if (idxP === periodos.length - 1 && idxP > 0) {
+                                                    // comparar com período anterior que tenha nota
+                                                    let prevV = null;
+                                                    for (let k = idxP - 1; k >= 0; k--) {
+                                                        if (vals[k] != null) { prevV = vals[k]; break; }
+                                                    }
+                                                    if (prevV != null) {
+                                                        const diff = +(v - prevV).toFixed(1);
+                                                        if (diff > 0) setaHtml = ` <span style="color:#16a34a;font-weight:800;" title="+${diff} vs anterior">▲</span>`;
+                                                        else if (diff < 0) setaHtml = ` <span style="color:#dc2626;font-weight:800;" title="${diff} vs anterior">▼</span>`;
+                                                        else setaHtml = ` <span style="color:#94a3b8;font-weight:700;" title="Estável">•</span>`;
+                                                    }
+                                                }
+                                                return `<td style="text-align:center;padding:6px;white-space:nowrap;">
+                                                    <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;background:${ct.bg};color:${ct.fg};border:1px solid ${ct.border};">
+                                                        ${v.toFixed(1)}
+                                                    </span>${setaHtml}
+                                                </td>`;
+                                            }).join('')}
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                            <tfoot>
+                                <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;font-weight:800;">
+                                    <td style="padding:7px 9px;color:#0f172a;">Média Geral</td>
+                                    ${periodos.map((p, idxP) => {
+                                        const m = hist.medias_periodo ? hist.medias_periodo[p.key] : null;
+                                        if (m == null) return `<td style="text-align:center;padding:7px 6px;color:#94a3b8;">—</td>`;
+                                        const cm = infoCorNota(m);
+                                        return `<td style="text-align:center;padding:7px 6px;">
+                                            <span style="display:inline-block;padding:2px 9px;border-radius:999px;font-weight:800;background:${cm.bg};color:${cm.fg};border:1px solid ${cm.border};">
+                                                ${Number(m).toFixed(1)}
+                                            </span>
+                                        </td>`;
+                                    }).join('')}
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                ` : `<div style="font-size:0.8rem;color:#94a3b8;padding:8px 0;">Sem notas registradas para este setor nas últimas 4 avaliações.</div>`}
+
+                <!-- Bloco da Análise da IA com seletor entre as 4 avaliações -->
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:2px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-size:0.78rem;font-weight:700;color:#334155;display:flex;align-items:center;gap:5px;">
+                            <i class="ph ph-sparkle" style="color:${corIcone};"></i> Análise da IA:
+                        </span>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            ${periodos.length > 0 ? `
+                                <select class="ua-select" style="width:auto;padding:4px 8px;font-size:0.75rem;"
+                                        onchange="window._uaMudarPeriodoDiagIA('${esc(depto)}', '${tipo}', this.value)">
+                                    ${periodos.map(p => `<option value="${esc(p.key)}" ${p.key === pKeySel ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}
+                                </select>
+                            ` : ''}
+                            ${pObjSel ? `
+                                <button class="ua-btn ua-btn-ghost" style="padding:4px 9px;font-size:0.75rem;"
+                                        onclick="window._uaGerarRelatorioDiag('${tipo}', '${esc(depto)}', ${pObjSel.ano}, ${pObjSel.trimestre}, ${dIdx})">
+                                    <i class="ph ph-sparkle"></i> ${textoRelSel ? 'Regerar IA' : 'Gerar Análise IA'}
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    ${textoRelSel ? `
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px;font-size:0.8rem;color:#334155;max-height:190px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;">${esc(textoRelSel)}</div>
+                    ` : `
+                        <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:9px;padding:10px 12px;font-size:0.78rem;color:#64748b;text-align:center;">
+                            Nenhuma análise da IA gerada para ${pObjSel ? esc(pObjSel.label) : 'este período'}. Clique em <strong>Gerar Análise IA</strong> acima para consolidar os pontos fortes e pontos de melhoria deste departamento.
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+
+    window._uaMudarPeriodoDiagIA = function (depto, tipo, key) {
+        if (!G.diagPeriodoSel) G.diagPeriodoSel = {};
+        G.diagPeriodoSel[`${depto}__${tipo}`] = key;
+        desenharDiagnosticoDeptos();
+    };
 
     window._uaSetDiagDepto = function (v) {
         G.diagFiltroDepto = v;
@@ -2131,6 +2520,8 @@
                 method: 'POST',
                 body: { departamento: depto, ano, trimestre }
             });
+            if (!G.diagPeriodoSel) G.diagPeriodoSel = {};
+            G.diagPeriodoSel[`${depto}__${tipo}`] = `${ano}_${trimestre}`;
             G.diagnostico = null;
             await renderAbaAtivaGestao();
         } catch (e) {
@@ -2422,23 +2813,102 @@
         ctx.fillText(nomeLimpo, W / 2, usouModeloAnexo2 ? 706 : 715);
         ctx.restore();
 
-        // 2. Parágrafo formal de conclusão com curso, carga horária e período
-        const cargaTxt = dados.carga_horaria && Number(dados.carga_horaria) > 0
-            ? `${dados.carga_horaria} horas`
-            : 'carga horária integral';
-        const periodoTxt = dados.periodo_texto || 'período letivo regular';
-        const paragrafo = `concluiu com êxito o curso de ${dados.nome_curso}, realizado na UniAmérica — América Rental, com carga horária total de ${cargaTxt}, ${periodoTxt}, demonstrando dedicação, participação em todas as aulas e aproveitamento satisfatório.`;
+        // 2. Parágrafo de conclusão com Nome do Treinamento em negrito e carga horária total somada das aulas
+        const numHoras = Number(dados.carga_horaria || 0);
+        const cargaTxt = numHoras > 0
+            ? `${numHoras} ${numHoras === 1 ? 'hora' : 'horas'}`
+            : '0 horas';
+        const nomeTreinamento = String(dados.nome_curso || '').trim();
+
+        const segmentos = [
+            { text: 'Concluiu com êxito o treinamento ', bold: false },
+            { text: nomeTreinamento, bold: true },
+            { text: `, realizado na UniAmérica - América Rental, com carga horária total de ${cargaTxt}, demonstrando dedicação, participação em todas as aulas e aproveitamento satisfatório.`, bold: false }
+        ];
 
         ctx.save();
-        ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#1e293b';
-        ctx.font = '400 36px Inter, "Segoe UI", Arial, sans-serif';
-        const linhas = quebrarLinhasCanvas(ctx, paragrafo, 1220);
+        const fontSize = 36;
+        const fontFam = 'Inter, "Segoe UI", Arial, sans-serif';
+        const maxWidth = 1220;
+
+        // Quebrar em palavras preservando negrito por palavra
+        const tokens = [];
+        for (const seg of segmentos) {
+            const partes = String(seg.text || '').split(/(\s+)/);
+            for (const p of partes) {
+                if (!p) continue;
+                if (/^\s+$/.test(p)) {
+                    if (tokens.length > 0 && !tokens[tokens.length - 1].isSpace) {
+                        tokens.push({ text: ' ', bold: false, isSpace: true });
+                    }
+                } else {
+                    // Se o segmento seguinte começa com vírgula/ponto colado na palavra anterior em negrito, juntar como sufixo sem espaço
+                    if (tokens.length > 0 && !tokens[tokens.length - 1].isSpace && /^[,.;:!?]/.test(p)) {
+                        tokens.push({ text: p, bold: seg.bold, isSpace: false, noLeadingSpace: true });
+                    } else {
+                        tokens.push({ text: p, bold: seg.bold, isSpace: false });
+                    }
+                }
+            }
+        }
+
+        // Agrupar tokens em unidades indivisíveis (palavra + pontuação colada, se houver)
+        const words = [];
+        for (const t of tokens) {
+            if (t.isSpace) continue;
+            if (t.noLeadingSpace && words.length > 0) {
+                words[words.length - 1].parts.push({ text: t.text, bold: t.bold });
+            } else {
+                words.push({ parts: [{ text: t.text, bold: t.bold }] });
+            }
+        }
+
+        const measureWord = (w) => {
+            let total = 0;
+            for (const pt of w.parts) {
+                ctx.font = `${pt.bold ? '700' : '400'} ${fontSize}px ${fontFam}`;
+                total += ctx.measureText(pt.text).width;
+            }
+            return total;
+        };
+        ctx.font = `400 ${fontSize}px ${fontFam}`;
+        const spaceW = ctx.measureText(' ').width;
+
+        const linhasTokens = [];
+        let linhaAtual = [];
+        let largAtual = 0;
+        for (const w of words) {
+            const wWidth = measureWord(w);
+            const soma = linhaAtual.length === 0 ? wWidth : (largAtual + spaceW + wWidth);
+            if (soma > maxWidth && linhaAtual.length > 0) {
+                linhasTokens.push({ items: linhaAtual, width: largAtual });
+                linhaAtual = [{ word: w, width: wWidth }];
+                largAtual = wWidth;
+            } else {
+                linhaAtual.push({ word: w, width: wWidth });
+                largAtual = soma;
+            }
+        }
+        if (linhaAtual.length > 0) {
+            linhasTokens.push({ items: linhaAtual, width: largAtual });
+        }
+
         const startY = usouModeloAnexo2 ? 806 : 815;
         const lineHeight = 50;
-        linhas.slice(0, 4).forEach((ln, idx) => {
-            ctx.fillText(ln, W / 2, startY + idx * lineHeight);
+        ctx.textAlign = 'left';
+        linhasTokens.slice(0, 4).forEach((ln, idx) => {
+            let curX = (W / 2) - (ln.width / 2);
+            const curY = startY + idx * lineHeight;
+            ln.items.forEach((it, wIdx) => {
+                if (wIdx > 0) curX += spaceW;
+                for (const pt of it.word.parts) {
+                    ctx.font = `${pt.bold ? '700' : '400'} ${fontSize}px ${fontFam}`;
+                    ctx.fillText(pt.text, curX, curY);
+                    curX += ctx.measureText(pt.text).width;
+                }
+            });
         });
         ctx.restore();
 
@@ -2684,8 +3154,7 @@
         </div></div>`;
 
         try {
-            const qs = M.colabOverrideId ? `?colab_id=${encodeURIComponent(M.colabOverrideId)}` : '';
-            M.dados = await api('/uniamerica/minhas-missoes' + qs);
+            M.dados = await api('/uniamerica/minhas-missoes');
             desenharTelaMissoes();
         } catch (e) {
             root.innerHTML = `<div class="ua-wrap">
@@ -2708,22 +3177,6 @@
 
         root.innerHTML = `
             <div class="ua-wrap">
-                ${d.is_gestor ? `
-                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                        <div style="font-size:0.84rem;color:#1e3a8a;">
-                            <i class="ph ph-eye"></i> <strong>Modo Gestor UniAmérica:</strong> Você pode visualizar e testar a tela de Missões como qualquer colaborador:
-                        </div>
-                        <select class="ua-select" style="width:auto;min-width:280px;" onchange="window._uaMudarColabSimulado(this.value)">
-                            <option value="">Meu próprio vínculo de colaborador</option>
-                            ${(d.colaboradores_seletor || []).map(c => `
-                                <option value="${c.id}" ${String(M.colabOverrideId) === String(c.id) ? 'selected' : ''}>
-                                    ${esc(c.nome_completo)} (${esc(c.departamento || 'Sem setor')})
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                ` : ''}
-
                 <div class="ua-hero">
                     <div>
                         <h1><i class="ph ph-rocket-launch"></i> UniAmérica — Minhas Aulas & Missões</h1>

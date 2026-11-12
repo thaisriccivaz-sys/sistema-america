@@ -817,7 +817,7 @@
                         <div style="flex:1.4;min-width:240px;">
                             <label style="display:block;font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:.3rem;">E-mail do Gestor Destinatário</label>
                             <input type="email" id="sat-ia-email-gestor"
-                                value="${escHtml((relSalvo && relSalvo.enviado_para_email) || gestor.gestor_email || '')}"
+                                value="${escHtml(gestor.gestor_email || (relSalvo && relSalvo.enviado_para_email) || '')}"
                                 placeholder="email.gestor@americarental.com.br"
                                 style="width:100%;padding:.52rem .75rem;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#1e293b;font-size:.84rem;box-sizing:border-box;outline:none;">
                         </div>

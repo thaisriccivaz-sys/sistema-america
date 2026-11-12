@@ -781,8 +781,6 @@ const BREADCRUMB_MAP = {
     'app-lideranca-candidatos': { path: 'APP \u2192 Lideran\u00e7a \u2192 Candidatos', code: 'APP001' },
     'app-lideranca-retiradas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Retiradas', code: 'APP002' },
     'app-lideranca-entregas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Entregas', code: 'APP003' },
-    'academia-lideres-minha': { path: 'Treinamentos \u2192 Academia de L\u00edderes \u2192 Minha Academia', code: 'ACL01' },
-    'academia-lideres-admin': { path: 'Treinamentos \u2192 Academia de L\u00edderes \u2192 Gerenciar', code: 'ACL02' },
     'uniamerica-gestao': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Gest\u00e3o de Cursos', code: 'UNI01' },
     'uniamerica-missoes': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Miss\u00f5es', code: 'UNI02' },
     // Logística
@@ -990,18 +988,6 @@ window.carregarPermissoesOnline = async function () {
         };
         if (window.estoquePerms.equipamentos) mapPerms['estoque'] = true;
 
-        // Academia de Líderes: separação entre Gerenciar Academia (Líderes) Admin e Normal.
-        // O Admin pode vincular colaboradores e é considerado administrador de todas as telas da Academia.
-        const _hasAclAdmin = !!mapPerms['academia-lideres-admin'];
-        const _hasAclNormal = !!mapPerms['academia-lideres-normal'];
-        window.isAcademiaLideresAdminFull = _hasAclAdmin;
-        window.academiaLideresPerms = { isAdmin: _hasAclAdmin, isNormal: _hasAclNormal && !_hasAclAdmin };
-        if (_hasAclAdmin) {
-            mapPerms['academia-lideres-admin'] = true;
-            mapPerms['academia-lideres-minha'] = true;
-        } else if (_hasAclNormal) {
-            mapPerms['academia-lideres-admin'] = true;
-        }
         if (mapPerms['uniamerica-gestao']) {
             mapPerms['uniamerica-missoes'] = true;
         }
@@ -1244,8 +1230,6 @@ const TAB_META = {
     'app-lideranca-candidatos': { color: '#556b2f', icon: 'ph-user-list', title: 'Candidatos (APP)' },
     'app-lideranca-retiradas': { color: '#556b2f', icon: 'ph-arrow-u-down-left', title: 'Retiradas (APP)' },
     'app-lideranca-entregas': { color: '#556b2f', icon: 'ph-truck', title: 'Entregas (APP)' },
-    'academia-lideres-minha': { color: '#7c3aed', icon: 'ph-student', title: 'Minha Academia' },
-    'academia-lideres-admin': { color: '#7c3aed', icon: 'ph-chalkboard-teacher', title: 'Gerenciar Academia' },
     'uniamerica-gestao': { color: '#1e40af', icon: 'ph-graduation-cap', title: 'Gestão de Cursos' },
     'uniamerica-missoes': { color: '#1e40af', icon: 'ph-rocket-launch', title: 'Missões UniAmérica' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
@@ -1502,12 +1486,6 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'app-lideranca-entregas' && typeof window.renderAppLiderancaEntregas === 'function') {
         setTimeout(() => window.renderAppLiderancaEntregas(), 80);
-    }
-    if (tab.target === 'academia-lideres-minha' && typeof window.renderAcademiaLideresMinha === 'function') {
-        setTimeout(() => window.renderAcademiaLideresMinha(), 80);
-    }
-    if (tab.target === 'academia-lideres-admin' && typeof window.renderAcademiaLideresAdmin === 'function') {
-        setTimeout(() => window.renderAcademiaLideresAdmin(), 80);
     }
     if (tab.target === 'uniamerica-gestao' && typeof window.renderUniAmericaGestao === 'function') {
         setTimeout(() => window.renderUniAmericaGestao(), 80);
@@ -1780,10 +1758,6 @@ function navigateTo(target) {
         if (typeof window.renderAppLiderancaRetiradas === 'function') setTimeout(() => window.renderAppLiderancaRetiradas(), 80);
     } else if (target === 'app-lideranca-entregas') {
         if (typeof window.renderAppLiderancaEntregas === 'function') setTimeout(() => window.renderAppLiderancaEntregas(), 80);
-    } else if (target === 'academia-lideres-minha') {
-        if (typeof window.renderAcademiaLideresMinha === 'function') setTimeout(() => window.renderAcademiaLideresMinha(), 80);
-    } else if (target === 'academia-lideres-admin') {
-        if (typeof window.renderAcademiaLideresAdmin === 'function') setTimeout(() => window.renderAcademiaLideresAdmin(), 80);
     } else if (target === 'uniamerica-gestao') {
         if (typeof window.renderUniAmericaGestao === 'function') setTimeout(() => window.renderUniAmericaGestao(), 80);
     } else if (target === 'uniamerica-missoes') {

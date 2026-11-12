@@ -75,7 +75,7 @@
         return v !== null && v !== undefined && !isNaN(v) ? Number(v).toFixed(1) : '—';
     }
     function periodLabel(p) {
-        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' }[p.trimestre] || `T${p.trimestre}`;
+        const mesNome = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' }[p.trimestre] || `T${p.trimestre}`;
         return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function normDepto(d) {
@@ -609,7 +609,17 @@
                 ano = parseInt(y, 10);
                 trim = parseInt(t, 10);
             } else {
-                const ult = periodos[periodos.length - 1];
+                const colabsDepto = (_colabs?.colaboradores || []).filter(c => normDepto(c.departamento) === normDepto(departamento));
+                let periodoComResp = null;
+                for (let i = periodos.length - 1; i >= 0; i--) {
+                    const p = periodos[i];
+                    const k = `${p.ano}-T${p.trimestre}`;
+                    if (colabsDepto.some(c => c.pesquisas?.[k]?.respondido)) {
+                        periodoComResp = p;
+                        break;
+                    }
+                }
+                const ult = periodoComResp || periodos[periodos.length - 1];
                 ano = ult.ano;
                 trim = ult.trimestre;
             }
@@ -739,7 +749,7 @@
                         <div style="flex:1.4;min-width:240px;">
                             <label style="display:block;font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:.3rem;">E-mail do Gestor Destinatário</label>
                             <input type="email" id="des-ia-email-gestor"
-                                value="${escHtml((relSalvo && relSalvo.enviado_para_email) || gestor.gestor_email || '')}"
+                                value="${escHtml(gestor.gestor_email || (relSalvo && relSalvo.enviado_para_email) || '')}"
                                 placeholder="email.gestor@americarental.com.br"
                                 style="width:100%;padding:.52rem .75rem;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#1e293b;font-size:.84rem;box-sizing:border-box;outline:none;text-transform:none !important;">
                         </div>
@@ -825,10 +835,6 @@
         const relatorio_texto = txt ? txt.value.trim() : '';
         const email_destino = emailInp ? emailInp.value.trim() : '';
 
-        if (!relatorio_texto) {
-            alert('Por favor, clique em "Gerar Análise com IA" antes de enviar ao gestor.');
-            return;
-        }
         if (!email_destino || !email_destino.includes('@')) {
             alert('Informe um e-mail válido do gestor do departamento.');
             if (emailInp) emailInp.focus();
@@ -852,10 +858,30 @@
                     email_destino
                 })
             });
-            alert(`Relatório de Desempenho do departamento "${_desIaModalState.departamento}" enviado com sucesso para ${r.enviado_para}!`);
+            if (r.relatorio_texto && txt && !txt.value.trim()) {
+                txt.value = r.relatorio_texto;
+            }
+            if (r.ano && r.trimestre) {
+                _desIaModalState.ano = r.ano;
+                _desIaModalState.trimestre = r.trimestre;
+            }
+            if (typeof Swal !== 'undefined') {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Relatório de Desempenho enviado!',
+                    html: `O relatório consolidado do departamento <b>${escHtml(_desIaModalState.departamento)}</b> foi enviado para:<br><b>${escHtml(r.enviado_para)}</b>`,
+                    confirmButtonColor: '#7c3aed'
+                });
+            } else {
+                alert(`Relatório de Desempenho do departamento "${_desIaModalState.departamento}" enviado com sucesso para ${r.enviado_para}!`);
+            }
             await carregarDadosModalDesIA();
         } catch (err) {
-            alert('Erro ao enviar relatório ao gestor: ' + err.message);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Falha ao enviar e-mail', text: err.message, confirmButtonColor: '#7c3aed' });
+            } else {
+                alert('Erro ao enviar relatório ao gestor: ' + err.message);
+            }
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = orig;

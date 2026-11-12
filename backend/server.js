@@ -16788,15 +16788,13 @@ function obterPeriodoAtivoAvaliacao(tipoAval) {
     let expectedAno = hoje.getFullYear();
 
     if (String(tipoAval || '').toLowerCase() === 'desempenho') {
-        if ((mes === 1 && dia >= 15) || mes === 2 || mes === 3) expectedTrim = 1;
-        else if ((mes === 4 && dia >= 15) || mes === 5 || mes === 6) expectedTrim = 2;
-        else if ((mes === 7 && dia >= 15) || mes === 8 || mes === 9) expectedTrim = 3;
-        else if ((mes === 10 && dia >= 15) || mes === 11 || mes === 12) expectedTrim = 4;
+        // Mesmos meses da Pesquisa de Satisfação (Fevereiro, Maio, Agosto, Novembro), iniciando no dia 15
+        if ((mes === 2 && dia >= 15) || mes === 3 || mes === 4 || (mes === 5 && dia < 15)) expectedTrim = 1;
+        else if ((mes === 5 && dia >= 15) || mes === 6 || mes === 7 || (mes === 8 && dia < 15)) expectedTrim = 2;
+        else if ((mes === 8 && dia >= 15) || mes === 9 || mes === 10 || (mes === 11 && dia < 15)) expectedTrim = 3;
         else {
-            if (mes === 1) { expectedTrim = 4; expectedAno--; }
-            else if (mes === 4) { expectedTrim = 1; }
-            else if (mes === 7) { expectedTrim = 2; }
-            else if (mes === 10) { expectedTrim = 3; }
+            expectedTrim = 4;
+            if (mes === 1 || (mes === 2 && dia < 15)) expectedAno--;
         }
     } else {
         // Pesquisa de Satisfação: Fevereiro (1), Maio (2), Agosto (3), Novembro (4) — liberada no dia 01
@@ -17063,11 +17061,9 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                         periodosOrdenados.forEach(p => {
                                             const key = `${p.ano}-T${p.trimestre}`;
                                             const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
-                                            const _mesInicioMap = tipoAval === 'satisfacao'
-                                                ? { 1: 2, 2: 5, 3: 8, 4: 11 }
-                                                : { 1: 1, 2: 4, 3: 7, 4: 10 };
-                                            const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
-                                            const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
+                                            const _mesInicioMap = { 1: 2, 2: 5, 3: 8, 4: 11 };
+                                            const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 2);
+                                            const dataPesquisa = new Date(p.ano, mesInicio - 1, tipoAval === 'desempenho' ? 15 : 1);
                                             const naoAdmitido = Boolean(dataAdmissao && dataAdmissao > dataPesquisa);
                                             const stManual = tipoAval === 'satisfacao' ? (statusManualMap[c.id]?.[key] || null) : null;
 
@@ -23172,35 +23168,50 @@ function verificarSatisfacaoPendentes() {
 }
 
 
-function verificarDesempenhosPendentes() {
+function verificarDesempenhosPendentes(forcar = false) {
     const hoje = new Date();
     const mes = hoje.getMonth() + 1; // 1 to 12
     const dia = hoje.getDate();
     let expectedTrim;
     let expectedAno = hoje.getFullYear();
+    let dataInicioTrimestre;
     
-    // Determine current active quarter
-    if ((mes === 1 && dia >= 15) || mes === 2 || mes === 3) expectedTrim = 1;
-    else if ((mes === 4 && dia >= 15) || mes === 5 || mes === 6) expectedTrim = 2;
-    else if ((mes === 7 && dia >= 15) || mes === 8 || mes === 9) expectedTrim = 3;
-    else if ((mes === 10 && dia >= 15) || mes === 11 || mes === 12) expectedTrim = 4;
-    else {
-        // Gap before the 15th. We should point to the previous quarter
-        if (mes === 1) { expectedTrim = 4; expectedAno--; }
-        else if (mes === 4) { expectedTrim = 1; }
-        else if (mes === 7) { expectedTrim = 2; }
-        else if (mes === 10) { expectedTrim = 3; }
+    // Mesmos meses da Pesquisa de Satisfação: Fevereiro (1), Maio (2), Agosto (3), Novembro (4) — iniciando o envio no dia 15
+    if ((mes === 2 && dia >= 15) || mes === 3 || mes === 4 || (mes === 5 && dia < 15)) {
+        expectedTrim = 1;
+        dataInicioTrimestre = new Date(expectedAno, 1, 15); // 15 de Fevereiro
+    } else if ((mes === 5 && dia >= 15) || mes === 6 || mes === 7 || (mes === 8 && dia < 15)) {
+        expectedTrim = 2;
+        dataInicioTrimestre = new Date(expectedAno, 4, 15); // 15 de Maio
+    } else if ((mes === 8 && dia >= 15) || mes === 9 || mes === 10 || (mes === 11 && dia < 15)) {
+        expectedTrim = 3;
+        dataInicioTrimestre = new Date(expectedAno, 7, 15); // 15 de Agosto
+    } else {
+        expectedTrim = 4;
+        if (mes === 1 || (mes === 2 && dia < 15)) expectedAno--;
+        dataInicioTrimestre = new Date(expectedAno, 10, 15); // 15 de Novembro
+    }
+
+    if (!forcar) {
+        const hjDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+        const inicioTrim = new Date(dataInicioTrimestre.getFullYear(), dataInicioTrimestre.getMonth(), dataInicioTrimestre.getDate());
+        const diffTime = hjDia - inicioTrim;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays < 0 || diffDays % 7 !== 0) {
+            return;
+        }
     }
 
     db.all(`SELECT c.id, c.nome_completo, c.departamento,
                    d.responsavel_id,
                    COALESCE(
-                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
-                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
-                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                       (SELECT NULLIF(TRIM(email_corporativo), '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT ec.endereco FROM emails_corporativos ec LEFT JOIN emails_atribuicoes ea ON ea.email_id = ec.id WHERE COALESCE(ec.status, 'Ativo') != 'Inativo' AND COALESCE(ea.colaborador_id, ec.colaborador_id) = d.responsavel_id ORDER BY COALESCE(ec.caixa_compartilhada, 0) ASC LIMIT 1),
+                       (SELECT NULLIF(TRIM(email), '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1),
+                       (SELECT NULLIF(TRIM(email), '') FROM colaboradores WHERE id = d.responsavel_id)
                    ) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
-                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ?) as has_avaliation
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
@@ -23725,7 +23736,7 @@ setImmediate(() => ativarColaboradoresPorAdmissao());
 app.post('/api/desempenho/cron/forcar', authenticateToken, async (req, res) => {
     try {
         verificarSatisfacaoPendentes();
-    verificarDesempenhosPendentes();
+        verificarDesempenhosPendentes(true);
         return res.json({ ok: true, msg: 'Rotina de envio de desempenho iniciada em background.' });
     } catch (e) {
         return res.status(500).json({ error: e.message });

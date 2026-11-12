@@ -53,7 +53,7 @@
         return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
-        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' }[p.trimestre] || `T${p.trimestre}`;
+        const mesNome = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' }[p.trimestre] || `T${p.trimestre}`;
         return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function grupoLabel(g) {
