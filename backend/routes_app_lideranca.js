@@ -281,6 +281,23 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
 
     // ═══ ROTAS ═══════════════════════════════════════════════════════════════════
 
+    function extrairMotoristaVinculado(rotaMotoristaRaw, dataIso, fallbackMot) {
+        const raw = String(rotaMotoristaRaw || '').trim();
+        if (raw) {
+            if (raw.startsWith('{')) {
+                try {
+                    const obj = JSON.parse(raw);
+                    if (dataIso && obj[dataIso]) return String(obj[dataIso]).trim();
+                    const vals = Object.values(obj).filter(v => v && String(v).trim());
+                    if (vals.length) return String(vals[vals.length - 1]).trim();
+                } catch (e) { /* ignore */ }
+            } else {
+                return raw;
+            }
+        }
+        return fallbackMot ? String(fallbackMot).trim() : null;
+    }
+
     // Lista de candidatos com 1º dia agendado + situação para o líder logado
     app.get('/api/app/lideranca/candidatos', guard, async (req, res) => {
         try {
@@ -288,7 +305,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
 
             const cands = await dbAll(`SELECT id, nome, tipo, status,
                                               COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
-                                              cnh_categoria,
+                                              cnh_categoria, rota_motorista,
                                               (foto_base64 IS NOT NULL AND foto_base64 != '') AS tem_foto
                                        FROM candidatos_teste
                                        WHERE COALESCE(status, '') != 'ARQUIVADO'
@@ -296,6 +313,13 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                                        ORDER BY COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) DESC, nome`);
             const checks = await dbAll(`SELECT candidato_id, tipo, itens_json, concluido_em FROM candidatos_checklist_lider WHERE dia = '1'`);
             const avals = await dbAll(`SELECT candidato_id FROM candidatos_teste_avaliacoes WHERE dia = '1'`);
+            let rotasRows = [];
+            try {
+                rotasRows = await dbAll(`SELECT r.candidato_teste_id, c2.nome_completo AS motorista_nome
+                                         FROM rotas r LEFT JOIN colaboradores c2 ON c2.id = r.motorista_id
+                                         WHERE r.candidato_teste_id IS NOT NULL ORDER BY r.data_rota ASC`);
+            } catch (eR) { /* tabela rotas opcional */ }
+            const rotMap = {}; rotasRows.forEach(r => { if (r.motorista_nome) rotMap[r.candidato_teste_id] = r.motorista_nome; });
             const chkMap = {}; checks.forEach(c => { chkMap[c.candidato_id] = c; });
             const avSet = new Set(avals.map(a => a.candidato_id));
 
@@ -321,6 +345,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 itens.push({
                     id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: data,
                     tem_foto: !!c.tem_foto, cnh_categoria: cnhDoTipo(c.tipo) || c.cnh_categoria || null,
+                    motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, data, rotMap[c.id]),
                     checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido },
                     respondido, situacao, pendente
                 });
@@ -352,19 +377,25 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         try {
             const c = await dbGet(`SELECT id, nome, tipo, status,
                                           COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
-                                          cnh_categoria
+                                          cnh_categoria, rota_motorista
                                    FROM candidatos_teste WHERE id = ?`, [req.params.id]);
             if (!c) return res.status(404).json({ error: 'Candidato não encontrado.' });
+            let rotaRow = null;
+            try {
+                rotaRow = await dbGet(`SELECT c2.nome_completo AS motorista_nome FROM rotas r LEFT JOIN colaboradores c2 ON c2.id = r.motorista_id WHERE r.candidato_teste_id = ? ORDER BY r.data_rota DESC LIMIT 1`, [c.id]);
+            } catch (eR) { /* tabela rotas opcional */ }
             const ckRow = await dbGet(`SELECT * FROM candidatos_checklist_lider WHERE candidato_id = ? AND dia = '1'`, [c.id]);
             const ck = resumoChecklist(c.tipo, ckRow);
             const av = await dbGet(`SELECT id, avaliador_nome, respostas_json, media_notas, created_at FROM candidatos_teste_avaliacoes WHERE candidato_id = ? AND dia = '1' ORDER BY id DESC LIMIT 1`, [c.id]);
             let respostas = null;
             if (av) { try { respostas = JSON.parse(av.respostas_json || '{}'); } catch (e) { respostas = {}; } }
+            const dt1 = isoDate(c.data_teste_1);
             res.json({
-                id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: isoDate(c.data_teste_1),
+                id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: dt1,
                 eh_motorista: isTipoMotorista(c.tipo),
                 cnh_categoria: cnhDoTipo(c.tipo) || (ckRow && ckRow.cnh_categoria) || c.cnh_categoria || null,
                 cnh_fixa: !!cnhDoTipo(c.tipo),
+                motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, dt1, rotaRow && rotaRow.motorista_nome),
                 itens: itensDoTipo(c.tipo),
                 checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido, estado: ck.itens, lider_nome: ckRow ? ckRow.lider_nome : null, concluido_em: ckRow ? ckRow.concluido_em : null },
                 perguntas: perguntasDoTipo(c.tipo),

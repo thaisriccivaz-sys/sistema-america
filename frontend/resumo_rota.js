@@ -1813,24 +1813,17 @@ async function _rrRenderCandidatosTeste() {
     if (!candidatos.length) return;
 
     const candidatosVisiveis = candidatos.filter(function(c) {
-        const tipo = (c.tipo || '').toLowerCase();
-        const isMot = tipo.includes('motorista');
         const e1 = c.data_teste_1 === dataRota;
         const e2 = c.data_teste_2 === dataRota;
         const eExtra = c.data_teste_extra === dataRota;
-        if (isMot) return e1 || e2 || eExtra;
-        // Ajudante: só aparece no 2º dia ou extra, não no 1º
-        return e2 || eExtra;
+        return e1 || e2 || eExtra;
     });
 
     // Guardar todos os candidatos globalmente (incluindo rota_motorista) para uso no rodapé dos cards
     window._rrCandidatosTesteData = candidatos;
     // Atualizar in-place os cards de veículo (textarea colB + avatar candidato no header)
     _rrPatchVehicleCards();
-    if (!candidatosVisiveis.length) return;
-
-    // Só exibe o painel quando houver MAIS de 6 rotas — usa variável local _rrVeiculos
-    if (_rrVeiculos.length <= 6) {
+    if (!candidatosVisiveis.length) {
         const p = document.getElementById('rr-candidatos-teste-painel');
         if (p) p.style.cssText = 'display:none;';
         return;
@@ -1869,12 +1862,13 @@ async function _rrRenderCandidatosTeste() {
         const tipoCor = isMot ? '#2563eb' : '#d97706';
         const avaliadorMap = window._rrColabAvaliadorMap || {};
         const hasAvaliadorData = Object.keys(avaliadorMap).length > 0;
-        const opts = (_rrVeiculos || []).filter(function(v) {
-            // Se ainda não carregou o mapa, mostra todos. Caso contrário, só avaliadores.
+        let veiculosCandidato = (_rrVeiculos || []).filter(function(v) {
             if (!hasAvaliadorData) return true;
             const nomeKey = (v.motorista || '').toLowerCase().trim();
             return avaliadorMap[nomeKey] === true;
-        }).map(function(v, _i, arr) {
+        });
+        if (!veiculosCandidato.length) veiculosCandidato = _rrVeiculos || [];
+        const opts = veiculosCandidato.map(function(v, _i, arr) {
             const sel = assignedMot && assignedMot === v.motorista ? ' selected' : '';
             return '<option value="' + _rrVeiculos.indexOf(v) + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (_rrVeiculos.indexOf(v)+1))) + '</option>';
         }).join('');

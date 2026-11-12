@@ -197,12 +197,16 @@
             ? '<span class="alc-badge verde"><i class="ph ph-list-checks"></i> Checklist ok</span>'
             : (i.checklist.feitos ? `<span class="alc-badge laranja"><i class="ph ph-list-checks"></i> ${i.checklist.feitos}/${i.checklist.total}</span>` : ''));
         const cnh = i.cnh_categoria ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(i.cnh_categoria)}</span>` : '';
+        const mot = i.motorista_vinculado
+            ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;color:#4c1d95;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:4px 8px;margin-top:4px;width:fit-content;max-width:100%;"><i class="ph ph-steering-wheel" style="color:#7c3aed;font-size:0.95rem;flex-shrink:0;"></i> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
+            : `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.76rem;font-weight:500;color:#64748b;margin-top:3px;"><i class="ph ph-steering-wheel" style="color:#94a3b8;font-size:0.9rem;flex-shrink:0;"></i> <span>Sem motorista vinculado</span></div>`;
         return `<button class="alc-card ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
             ${avatar(i)}
             <div class="alc-card-corpo">
                 <div class="alc-card-nome">${esc(i.nome)}</div>
                 <div class="alc-card-linha"><span class="alc-tipo" style="color:${tipoCor(i.tipo)};"><i class="ph ${tipoIcone(i.tipo)}"></i> ${esc(tipoRotulo(i.tipo))}</span>
                     <span class="alc-data"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_teste_1))}</span></div>
+                ${mot}
                 <div class="alc-card-badges">${badgeSituacao(i)}${ck}${cnh}</div>
                 ${(!i.respondido && i.checklist.feitos) ? `<div class="alc-barra"><i style="width:${pct}%;"></i></div>` : ''}
             </div>
@@ -282,12 +286,15 @@
         const d = S.det;
         const c = { id: d.id, nome: d.nome, tipo: d.tipo, tem_foto: true };
         const cnh = d.eh_motorista && S.cnh ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(S.cnh)}</span>` : '';
+        const mot = d.motorista_vinculado
+            ? `<span class="alc-badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;"><i class="ph ph-steering-wheel"></i> Mot.: ${esc(d.motorista_vinculado)}</span>`
+            : `<span class="alc-badge cinza"><i class="ph ph-steering-wheel"></i> Sem motorista</span>`;
         return `<header class="alc-det-head">
             <button class="alc-icon-btn" onclick="window._alcFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
             ${avatar(c, 'sm')}
             <div class="alc-det-id"><div class="alc-det-nome">${esc(d.nome)}</div>
                 <div class="alc-card-badges"><span class="alc-badge" style="background:${tipoCor(d.tipo)}18;color:${tipoCor(d.tipo)};"><i class="ph ${tipoIcone(d.tipo)}"></i> ${esc(tipoRotulo(d.tipo))}</span>${cnh}
-                <span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_teste_1))}</span></div></div>
+                <span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_teste_1))}</span>${mot}</div></div>
             <span class="alc-salvo" id="alc-salvo"></span>
         </header>`;
     }

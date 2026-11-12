@@ -237,10 +237,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         const { data } = req.query; // YYYY-MM-DD
         if (!data) return res.status(400).json({ error: "Parâmetro 'data' obrigatório." });
         db.all(
-            `SELECT id, nome, tipo, status, foto_base64, data_teste_1, data_teste_2, data_teste_extra, rota_motorista, retornou_teste_extra
+            `SELECT id, nome, tipo, status, foto_base64,
+                    COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
+                    data_teste_2, data_teste_extra, rota_motorista, retornou_teste_extra
              FROM candidatos_teste
-             WHERE status = 'Dias de Teste'
-               AND (data_teste_1 = ? OR data_teste_2 = ? OR data_teste_extra = ?)`,
+             WHERE COALESCE(status, '') NOT IN ('Teste Finalizado', 'Aprovado', 'Reprovado', 'ARQUIVADO')
+               AND (COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) = ?
+                    OR data_teste_2 = ?
+                    OR data_teste_extra = ?)`,
             [data, data, data],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
