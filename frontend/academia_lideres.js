@@ -66,22 +66,185 @@
     function topoAdmin() {
         const item = (id, ic, rot, on, soon) => `<button class="acl-nav-btn ${on ? 'on' : ''} ${soon ? 'soon' : ''}" ${soon ? 'disabled title="Disponível nas próximas fases"' : `onclick="window._aclAba('${id}')"`}><i class="ph ${ic}"></i> ${rot}${soon ? '<small>em breve</small>' : ''}</button>`;
         return `<header class="acl-head"><div class="acl-head-t"><i class="ph ph-graduation-cap"></i><div><h2>Academia de Sucesso</h2><span>Desenvolvimento que transforma pessoas em grandes profissionais.</span></div></div></header>
-        <nav class="acl-nav">${item('dashboard', 'ph-house', 'Dashboard', A.aba === 'dashboard' && !A.t)}${item('trilhas', 'ph-graduation-cap', 'Trilhas', A.aba === 'trilhas' || !!A.t)}${item('', 'ph-trophy', 'Conquistas', false, 1)}${item('', 'ph-ranking', 'Ranking', false, 1)}${item('certificados', 'ph-certificate', 'Certificados', A.aba === 'certificados' && !A.t)}${item('', 'ph-chart-bar', 'Relatórios', false, 1)}${item('', 'ph-gear', 'Configurações', false, 1)}</nav>`;
+        <nav class="acl-nav">${item('dashboard', 'ph-house', 'Dashboard', A.aba === 'dashboard' && !A.t)}${item('colaboradores', 'ph-users', 'Colaboradores', A.aba === 'colaboradores' && !A.t)}${item('trilhas', 'ph-graduation-cap', 'Trilhas', A.aba === 'trilhas' || !!A.t)}${item('', 'ph-trophy', 'Conquistas', false, 1)}${item('', 'ph-ranking', 'Ranking', false, 1)}${item('certificados', 'ph-certificate', 'Certificados', A.aba === 'certificados' && !A.t)}${item('', 'ph-chart-bar', 'Relatórios', false, 1)}${item('', 'ph-gear', 'Configurações', false, 1)}</nav>`;
     }
     window._aclAba = async function (a) {
         A.aba = a; A.t = null; A.qe = null;
         if (a === 'certificados') { try { A.certs = await api('/acl/certificados'); } catch (e) { A.certs = []; erro('Erro', e.message); } }
+        if (a === 'colaboradores') { try { A.colabsMenu = await api('/acl/colaboradores'); } catch (e) { A.colabsMenu = []; erro('Erro', e.message); } }
         desenharAdmin();
     };
     function desenharAdmin() {
         const el = raiz('academia-lideres-admin-container'); if (!el) return;
         let corpo;
         if (A.t) corpo = htmlEditor();
+        else if (A.aba === 'colaboradores') corpo = htmlColaboradoresMenu();
         else if (A.aba === 'certificados') corpo = htmlCertificados();
         else if (A.aba === 'trilhas') corpo = htmlTrilhas();
         else corpo = htmlDashboard();
         el.innerHTML = `<div class="acl-wrap">${topoAdmin()}<div class="acl-corpo">${corpo}</div></div>`;
     }
+
+    function htmlColaboradoresMenu() {
+        const lista = A.colabsMenu || [];
+        const fCargo = A.fColabCargo || '';
+        const fSt = A.fColabSt || '';
+        const fQ = (A.fColabQ || '').toLowerCase();
+        const cargos = [...new Set(lista.map(c => c.cargo).filter(Boolean))].sort();
+        const filtrada = lista.filter(c => {
+            if (fCargo && c.cargo !== fCargo) return false;
+            if (fSt === 'matriculados' && !(c.trilhas && c.trilhas.length)) return false;
+            if (fSt === 'nao_matriculados' && (c.trilhas && c.trilhas.length)) return false;
+            if (fSt === 'concluidos' && !(c.trilhas && c.trilhas.some(t => t.status === 'concluido'))) return false;
+            if (fQ && !c.nome.toLowerCase().includes(fQ) && !(c.departamento || '').toLowerCase().includes(fQ) && !(c.usuario_login || '').toLowerCase().includes(fQ)) return false;
+            return true;
+        });
+        const linhas = filtrada.map(c => {
+            const trs = (c.trilhas || []).map(t => `<div style="margin-bottom:4px;"><span class="acl-badge" style="background:${t.status === 'concluido' ? '#16a34a' : '#7c3aed'};font-size:.7rem;">${esc(t.trilha_nome)} · ${t.progresso}%</span></div>`).join('') || '<span style="color:#94a3b8;font-size:.82rem;">Nenhuma trilha vinculada</span>';
+            const usuTxt = c.usuario_login
+                ? `<span class="acl-chip ok" style="font-size:.75rem;"><i class="ph ph-user-check"></i> ${esc(c.usuario_login)}</span>`
+                : `<span class="acl-chip enc" style="font-size:.75rem;"><i class="ph ph-user-Minus"></i> Sem login vinculado</span>`;
+            return `<tr>
+                <td data-l="Colaborador"><div class="acl-pessoa" style="cursor:default">${avatar(c.nome, c.foto)}<div><b>${esc(c.nome)}</b><small>${esc(c.cargo || 'Sem cargo')}${c.departamento ? ' · ' + esc(c.departamento) : ''}</small></div></div></td>
+                <td data-l="Login no Sistema">${usuTxt} <button class="acl-btn sec sm" style="padding:3px 8px;font-size:.73rem;margin-left:4px;" onclick="window._aclVincularUsuarioModal(${c.id}, '${esc(c.nome)}', ${c.usuario_id || 0})" title="Vincular ou alterar usuário de login"><i class="ph ph-link"></i></button></td>
+                <td data-l="Trilha(s) e Progresso">${trs}</td>
+                <td data-l="Missões / Pontos">${c.missoes || 0} missão(ões) · <b>+${c.pontos || 0} pts</b></td>
+                <td class="acl-acoes">
+                    <button class="acl-btn pri sm" onclick="window._aclMatricularMenu(${c.id})" title="Vincular colaborador a uma trilha"><i class="ph ph-plus-circle"></i> Vincular trilha</button>
+                    <button class="acl-btn sec sm" onclick="window._aclVerComoParticipante(${c.id})" title="Ver Minha Academia como este colaborador"><i class="ph ph-eye"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+        const tab = filtrada.length
+            ? `<div class="acl-tabela-wrap"><table class="acl-tabela"><thead><tr><th>Colaborador</th><th>Usuário de Login</th><th>Trilha(s) / Progresso</th><th>Missões / Pontos</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div>`
+            : '<div class="acl-vazio"><i class="ph ph-users"></i><div>Nenhum colaborador encontrado para este filtro.</div></div>';
+        return `<div class="acl-barra-acoes">
+            <h3 class="acl-titulo-sec"><i class="ph ph-users"></i> Colaboradores da Academia (${filtrada.length})</h3>
+            <button class="acl-btn pri" onclick="window._aclMatricularMenu()"><i class="ph ph-user-plus"></i> + VINCULAR COLABORADORES A UMA TRILHA</button>
+        </div>
+        <p class="acl-dica"><i class="ph ph-info"></i> Aqui você vincula colaboradores às trilhas da Academia e confere qual usuário de login está associado a cada colaborador (sem precisar criar novas senhas).</p>
+        <div class="acl-card" style="padding:12px 16px;">
+            <div class="acl-form-2" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                <label style="font-size:.82rem;font-weight:600;color:#475569;">Filtrar por Cargo
+                    <select onchange="window._aclFiltroColabMenu('cargo', this.value)" style="width:100%;margin-top:4px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;">
+                        <option value="">Todos os cargos</option>
+                        ${cargos.map(cg => `<option value="${esc(cg)}" ${fCargo === cg ? 'selected' : ''}>${esc(cg)}</option>`).join('')}
+                    </select>
+                </label>
+                <label style="font-size:.82rem;font-weight:600;color:#475569;">Situação na Academia
+                    <select onchange="window._aclFiltroColabMenu('st', this.value)" style="width:100%;margin-top:4px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;">
+                        <option value="" ${!fSt ? 'selected' : ''}>Todos</option>
+                        <option value="matriculados" ${fSt === 'matriculados' ? 'selected' : ''}>Já vinculados a uma trilha</option>
+                        <option value="nao_matriculados" ${fSt === 'nao_matriculados' ? 'selected' : ''}>Sem trilha vinculada</option>
+                        <option value="concluidos" ${fSt === 'concluidos' ? 'selected' : ''}>Concluíram trilha</option>
+                    </select>
+                </label>
+                <label style="font-size:.82rem;font-weight:600;color:#475569;">Buscar colaborador ou usuário
+                    <input type="text" value="${esc(A.fColabQ || '')}" oninput="window._aclFiltroColabMenu('q', this.value)" placeholder="Digite nome, depto ou login..." style="width:100%;margin-top:4px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;">
+                </label>
+            </div>
+        </div>
+        ${tab}`;
+    }
+    window._aclFiltroColabMenu = function (k, v) {
+        if (k === 'cargo') A.fColabCargo = v;
+        if (k === 'st') A.fColabSt = v;
+        if (k === 'q') A.fColabQ = v;
+        desenharAdmin();
+    };
+    window._aclMatricularMenu = async function (preColabId) {
+        const trilhas = A.lista || await api('/acl/trilhas');
+        if (!trilhas.length) return erro('Nenhuma trilha', 'Crie uma trilha primeiro antes de vincular colaboradores.');
+        const tidPadrao = trilhas[0].id;
+        let colabs = A.colabsMenu || await api('/acl/colaboradores');
+        window._aclColabs = colabs;
+        const cargos = [...new Set(colabs.map(c => c.cargo).filter(Boolean))].sort();
+        const cargoPre = preColabId ? '' : (cargos.find(c => c.toLowerCase().includes('lider') || c.toLowerCase().includes('líder')) || '');
+        const html = `<div class="acl-form">
+            <label>1. Escolha a Trilha
+                <select id="aclmt-trilha" onchange="window._aclFiltrarMatMenu(${preColabId || 0})">
+                    ${trilhas.map(t => `<option value="${t.id}">${esc(t.nome)} (${STATUS_TXT[t.status_efetivo] || t.status})</option>`).join('')}
+                </select>
+            </label>
+            <div class="acl-form-2">
+                <label>Filtrar por Cargo
+                    <select id="aclmt-cargo" onchange="window._aclFiltrarMatMenu(${preColabId || 0})">
+                        <option value="">Todos os cargos</option>
+                        ${cargos.map(c => `<option value="${esc(c)}" ${c === cargoPre ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+                    </select>
+                </label>
+                <label>Buscar por nome
+                    <input id="aclmt-q" oninput="window._aclFiltrarMatMenu(${preColabId || 0})" placeholder="Digite o nome...">
+                </label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0;">
+                <small style="color:#64748b;">Marque os colaboradores que deseja vincular à trilha:</small>
+                <button type="button" class="acl-btn sec sm" style="padding:3px 8px;font-size:.75rem;" onclick="document.querySelectorAll('.aclmt-chk:not(:disabled)').forEach(x => x.checked = true)">Marcar todos visíveis</button>
+            </div>
+            <div id="aclmt-lista" class="acl-mat-lista"></div>
+        </div>`;
+        const r = await Swal.fire({
+            title: 'Vincular colaboradores à Trilha', width: 660, html, showCancelButton: true,
+            confirmButtonText: 'Vincular selecionados', cancelButtonText: 'Cancelar', confirmButtonColor: '#7c3aed', customClass: { popup: 'acl-swal' },
+            didOpen: () => window._aclFiltrarMatMenu(preColabId || 0),
+            preConfirm: () => {
+                const tid = Number(document.getElementById('aclmt-trilha').value);
+                const ids = [...document.querySelectorAll('.aclmt-chk:checked')].map(x => Number(x.value));
+                if (!ids.length) { Swal.showValidationMessage('Selecione ao menos um colaborador.'); return false; }
+                return { tid, ids };
+            }
+        });
+        if (!r.isConfirmed) return;
+        try {
+            const res = await api('/acl/trilhas/' + r.value.tid + '/matriculas', { method: 'POST', body: jbody({ colaborador_ids: r.value.ids }) });
+            okMsg(`${res.novos} colaborador(es) vinculado(s) à trilha!`);
+            A.colabsMenu = await api('/acl/colaboradores');
+            await carregarAdmin();
+        } catch (e) { erro('Erro', e.message); }
+    };
+    window._aclFiltrarMatMenu = function (preColabId) {
+        const tid = Number((document.getElementById('aclmt-trilha') || {}).value || 0);
+        const cargo = (document.getElementById('aclmt-cargo') || {}).value || '';
+        const q = ((document.getElementById('aclmt-q') || {}).value || '').toLowerCase();
+        const marcados = new Set([...document.querySelectorAll('.aclmt-chk:checked')].map(x => x.value));
+        if (preColabId) marcados.add(String(preColabId));
+        const l = (window._aclColabs || []).filter(c => (!cargo || c.cargo === cargo) && (!q || c.nome.toLowerCase().includes(q)));
+        const el = document.getElementById('aclmt-lista'); if (!el) return;
+        el.innerHTML = l.map(c => {
+            const ja = (c.trilhas || []).some(t => Number(t.track_id) === tid);
+            return `<label class="acl-mat-item ${ja ? 'ja' : ''}"><input type="checkbox" class="aclmt-chk" value="${c.id}" ${ja ? 'disabled' : ''} ${!ja && marcados.has(String(c.id)) ? 'checked' : ''}>${avatar(c.nome, c.foto, 'sm')}<span><b>${esc(c.nome)}</b><small>${esc(c.cargo || 'Sem cargo')}${c.departamento ? ' · ' + esc(c.departamento) : ''}${ja ? ' · já vinculado nesta trilha' : ''}</small></span></label>`;
+        }).join('') || '<div class="acl-vazio-sm">Nenhum colaborador encontrado.</div>';
+    };
+    window._aclVincularUsuarioModal = async function (colabId, colabNome, atualUid) {
+        let usuarios = [];
+        try { usuarios = await api('/acl/usuarios-ativos'); } catch (e) { return erro('Erro', e.message); }
+        const html = `<div class="acl-form">
+            <p style="font-size:.88rem;color:#475569;margin:0 0 8px;">Selecione qual usuário de login do sistema corresponde a <b>${esc(colabNome)}</b> para que ele visualize sua jornada em <b>Minha Academia</b>:</p>
+            <label>Usuário de Login
+                <select id="aclv-uid">
+                    <option value="0">-- Vínculo automático por nome/e-mail --</option>
+                    ${usuarios.map(u => `<option value="${u.id}" ${Number(u.id) === Number(atualUid) ? 'selected' : ''}>${esc(u.username)}${u.nome && u.nome !== u.username ? ' (' + esc(u.nome) + ')' : ''}${u.departamento ? ' — ' + esc(u.departamento) : ''}</option>`).join('')}
+                </select>
+            </label>
+        </div>`;
+        const r = await Swal.fire({
+            title: 'Vincular Usuário ↔ Colaborador', width: 520, html, showCancelButton: true,
+            confirmButtonText: 'Salvar vínculo', cancelButtonText: 'Cancelar', confirmButtonColor: '#7c3aed', customClass: { popup: 'acl-swal' },
+            preConfirm: () => Number(document.getElementById('aclv-uid').value)
+        });
+        if (!r.isConfirmed) return;
+        try {
+            await api('/acl/vincular-usuario', { method: 'POST', body: jbody({ colaborador_id: colabId, usuario_id: r.value }) });
+            okMsg('Vínculo atualizado!');
+            A.colabsMenu = await api('/acl/colaboradores');
+            desenharAdmin();
+        } catch (e) { erro('Erro', e.message); }
+    };
+    window._aclVerComoParticipante = function (colabId) {
+        M.colabOverride = colabId;
+        if (typeof window.navigateTo === 'function') window.navigateTo('academia-lideres-minha');
+        setTimeout(() => window.renderAcademiaLideresMinha(), 80);
+    };
 
     function kpi(ic, rot, val, cor) { return `<div class="acl-kpi" style="--c:${cor};"><i class="ph ${ic}"></i><div><b>${val}</b><span>${rot}</span></div></div>`; }
     function htmlDashboard() {
@@ -585,13 +748,41 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  MINHA ACADEMIA (participante)
     // ═══════════════════════════════════════════════════════════════════════════
+    const qColab = (sep = '?') => M.colabOverride ? `${sep}colab_id=${M.colabOverride}` : '';
     window.renderAcademiaLideresMinha = async function () {
         const el = raiz('academia-lideres-minha-container'); if (!el) return;
         M.tid = null; carregando(el, 'Carregando sua Academia...');
-        try { M.dados = await api('/acl/minha'); desenharMinha(); }
+        try { M.dados = await api('/acl/minha' + qColab('?')); desenharMinha(); }
         catch (e) { el.innerHTML = `<div class="acl-wrap"><div class="acl-erro"><i class="ph ph-warning-circle"></i> ${esc(e.message)}</div></div>`; }
     };
     const FRASES = ['Cada aula concluída é um passo na sua evolução.', 'Liderar é aprender todos os dias.', 'Pequenos avanços constantes geram grandes resultados.'];
+    function barraAdminMinha(d) {
+        if (!d || !d.is_admin) return '';
+        const ops = (d.admin_colaboradores || []).map(c => `<option value="${c.id}" ${Number(M.colabOverride || (d.colaborador && d.colaborador.id)) === Number(c.id) ? 'selected' : ''}>${esc(c.nome)} (${esc(c.cargo || 'Sem cargo')})${c.qtd_trilhas ? ' · ' + c.qtd_trilhas + ' trilha(s)' : ' · sem trilha'}</option>`).join('');
+        return `<div class="acl-card" style="background:#f5f3ff;border:1px solid #c4b5fd;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;color:#5b21b6;font-weight:700;font-size:.86rem;">
+                <i class="ph ph-shield-star" style="font-size:1.15rem;"></i>
+                <span>Visão de Administrador — Visualizando Minha Academia como:</span>
+                <select onchange="window._aclTrocarColabMinha(this.value)" style="padding:6px 10px;border:1px solid #a78bfa;border-radius:8px;background:#fff;color:#1e293b;font-weight:600;font-size:.83rem;">
+                    <option value="0" ${!M.colabOverride ? 'selected' : ''}>Meu usuário (${esc((d.colaborador && d.colaborador.nome) || 'Admin')})</option>
+                    ${ops}
+                </select>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="acl-btn pri sm" onclick="window._aclIrParaVincularColabs()"><i class="ph ph-user-plus"></i> Vincular Colaboradores</button>
+                <button class="acl-btn sec sm" onclick="if(typeof navigateTo==='function') navigateTo('academia-lideres-admin')"><i class="ph ph-gear"></i> Gerenciar Academia</button>
+            </div>
+        </div>`;
+    }
+    window._aclTrocarColabMinha = function (val) {
+        M.colabOverride = Number(val) || null;
+        window.renderAcademiaLideresMinha();
+    };
+    window._aclIrParaVincularColabs = function () {
+        A.aba = 'colaboradores'; A.t = null;
+        if (typeof window.navigateTo === 'function') window.navigateTo('academia-lideres-admin');
+        setTimeout(() => { if (typeof window._aclAba === 'function') window._aclAba('colaboradores'); }, 100);
+    };
     function cabecalhoMinha(nome) {
         return `<header class="acl-head acl-head-min"><div class="acl-head-t"><i class="ph ph-graduation-cap"></i><div><h2>Olá, ${esc(String(nome || '').split(' ')[0] || 'colaborador')}!</h2><span>Bem-vindo à Academia de Sucesso.</span></div></div></header>`;
     }
@@ -603,8 +794,9 @@
     function desenharMinha() {
         const el = raiz('academia-lideres-minha-container'); if (!el) return;
         const d = M.dados;
-        if (!d.vinculado) { el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha('')}<div class="acl-vazio"><i class="ph ph-user-circle-minus"></i><div><b>Seu usuário ainda não está vinculado a um colaborador.</b><br>Peça ao RH para conferir seu e-mail/nome no cadastro de colaboradores.</div></div></div>`; return; }
-        if (!d.trilhas.length) { el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha(d.colaborador.nome)}<div class="acl-vazio"><i class="ph ph-graduation-cap"></i><div><b>Você ainda não foi matriculado em nenhuma trilha.</b><br>Quando o RH liberar a sua trilha, ela aparecerá aqui.</div></div></div>`; return; }
+        if (!d.vinculado) { el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha('')}${barraAdminMinha(d)}<div class="acl-vazio"><i class="ph ph-user-circle-minus"></i><div><b>Seu usuário ainda não está vinculado a um colaborador.</b><br>Peça ao RH para conferir seu e-mail/nome no cadastro de colaboradores.</div></div></div>`; return; }
+        if (!d.trilhas.length) { el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha(d.colaborador.nome)}${barraAdminMinha(d)}<div class="acl-vazio"><i class="ph ph-graduation-cap"></i><div><b>${M.colabOverride ? 'Este colaborador ainda não foi matriculado em nenhuma trilha.' : 'Você ainda não foi matriculado em nenhuma trilha.'}</b><br>${d.is_admin ? 'Clique em "Vincular Colaboradores" acima para matricular participantes nesta trilha.' : 'Quando o RH liberar a sua trilha, ela aparecerá aqui.'}</div></div></div>`; return; }
+        const avisoPreview = (d.modo_preview_admin || d.sem_matricula_propria) ? `<div class="acl-card" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:.86rem;"><i class="ph ph-info"></i> Você está visualizando as trilhas disponíveis como <b>Administrador</b>. Para matricular os líderes (ou seu próprio colaborador) em uma trilha, clique em <b>Vincular Colaboradores</b> acima.</div>` : '';
         const cards = d.trilhas.map(x => {
             const t = x.trilha, p = x.progresso;
             return `<article class="acl-minha-card"><div class="acl-tc-top"><h3>${esc(t.nome)}</h3><span class="acl-badge" style="background:${STATUS_COR[t.status_efetivo] || '#64748b'};">${STATUS_TXT[t.status_efetivo]}</span></div>${demoTag(t)}
@@ -618,11 +810,11 @@
                 <button class="acl-btn pri full" onclick="window._aclMinhaAbrir(${t.id})"><i class="ph ph-play"></i> ${p.obrigatorio > 0 && p.obrigatorio < 100 ? 'Continuar' : 'Acessar'} trilha</button>
                 <p class="acl-frase"><i class="ph ph-sparkle"></i> ${FRASES[t.id % FRASES.length]}</p></article>`;
         }).join('');
-        el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha(d.colaborador.nome)}<div class="acl-corpo">${cards}</div></div>`;
+        el.innerHTML = `<div class="acl-wrap">${cabecalhoMinha(d.colaborador.nome)}${barraAdminMinha(d)}${avisoPreview}<div class="acl-corpo">${cards}</div></div>`;
     }
     window._aclMinhaAbrir = async function (tid) {
         const el = raiz('academia-lideres-minha-container'); M.tid = tid; carregando(el, 'Abrindo trilha...');
-        try { M.jornada = await api('/acl/minha/trilhas/' + tid); desenharTrilhaMinha(); } catch (e) { erro('Erro', e.message); window.renderAcademiaLideresMinha(); }
+        try { M.jornada = await api('/acl/minha/trilhas/' + tid + qColab('?')); desenharTrilhaMinha(); } catch (e) { erro('Erro', e.message); window.renderAcademiaLideresMinha(); }
     };
     function desenharTrilhaMinha() {
         const el = raiz('academia-lideres-minha-container'); const j = M.jornada, t = j.trilha, p = j.progresso;
@@ -666,7 +858,7 @@
     window._aclQuiz = async function (id) {
         const ov = overlayAula(); ov.innerHTML = '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Abrindo avaliação...</div>';
         try {
-            const q = await api('/acl/minha/avaliacoes/' + id); M.quiz = q;
+            const q = await api('/acl/minha/avaliacoes/' + id + qColab('?')); M.quiz = q;
             if (q.situacao !== 'aberta') {
                 const msg = { aprovada: `Você foi aprovado nesta avaliação${q.melhor_nota != null ? ' com nota ' + q.melhor_nota + '%' : ''}.`, nao_aberta: 'Esta avaliação abre em ' + fmtBr(q.data_abertura) + '.', encerrada: 'Esta avaliação está encerrada (prazo vencido). Procure o administrador para liberar uma exceção.', esgotada: 'Você usou todas as tentativas desta avaliação.' }[q.situacao];
                 ov.innerHTML = `<div class="acl-aula">${topoOverlay('Avaliação', q.nome)}<div class="acl-aula-corpo"><div class="acl-prox ${q.situacao === 'aprovada' ? 'ok' : ''}"><i class="ph ${q.situacao === 'aprovada' ? 'ph-seal-check' : 'ph-lock-simple'}"></i><div><b>${esc(msg)}</b></div></div></div></div>`;
@@ -690,8 +882,8 @@
         }
         const btn = document.getElementById('acl-btn-enviar'); if (btn) btn.disabled = true;
         try {
-            const r = await api('/acl/minha/avaliacoes/' + q.id + '/enviar', { method: 'POST', body: jbody({ respostas }) });
-            M.jornada = await api('/acl/minha/trilhas/' + M.tid);
+            const r = await api('/acl/minha/avaliacoes/' + q.id + '/enviar' + qColab('?'), { method: 'POST', body: jbody({ respostas }) });
+            M.jornada = await api('/acl/minha/trilhas/' + M.tid + qColab('?'));
             const ov = overlayAula();
             ov.innerHTML = `<div class="acl-aula">${topoOverlay('Resultado', q.nome)}<div class="acl-aula-corpo">
                 <div class="acl-prox ${r.aprovado ? 'ok' : 'falha'}"><i class="ph ${r.aprovado ? 'ph-seal-check' : 'ph-warning-circle'}"></i><div><b>${esc(r.mensagem)}</b><span>${r.nota == null ? 'Suas respostas abertas foram registradas.' : 'Sua nota: ' + r.nota + '% (mínimo ' + q.nota_minima + '%)'}</span></div></div>
@@ -722,7 +914,7 @@
     window._aclMissao = async function (id) {
         const ov = overlayAula(); ov.innerHTML = '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Abrindo missão...</div>';
         try {
-            const m = await api('/acl/minha/missoes/' + id); M.missao = m;
+            const m = await api('/acl/minha/missoes/' + id + qColab('?')); M.missao = m;
             const ult = m.envios[0] || null;
             let estado = '';
             if (ult && ult.status === 'em_analise') estado = '<div class="acl-prox an"><i class="ph ph-hourglass"></i><div><b>Sua missão está em análise.</b><span>Os pontos serão creditados quando ela for aprovada.</span></div></div>';
@@ -765,8 +957,8 @@
         const fd = new FormData(); fd.append('anotacoes', anot); arqs.forEach(f => fd.append('arquivos', f));
         const btn = document.getElementById('aclm-enviar'); if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
         try {
-            const r = await api('/acl/minha/missoes/' + m.id + '/enviar', { method: 'POST', body: fd });
-            M.jornada = await api('/acl/minha/trilhas/' + M.tid);
+            const r = await api('/acl/minha/missoes/' + m.id + '/enviar' + qColab('?'), { method: 'POST', body: fd });
+            M.jornada = await api('/acl/minha/trilhas/' + M.tid + qColab('?'));
             overlayAula().innerHTML = `<div class="acl-aula">${topoOverlay('Missão enviada', m.nome)}<div class="acl-aula-corpo"><div class="acl-prox an"><i class="ph ph-paper-plane-tilt"></i><div><b>Missão enviada! Ela está em análise.</b><span>Pontuação potencial: ${r.pontos_potenciais} pontos${r.anexos ? ' (com comprovação)' : ''}. Os pontos só entram depois da aprovação.</span></div></div></div>
                 <footer class="acl-aula-foot"><button class="acl-btn pri grow" onclick="window._aclFecharAula()"><i class="ph ph-arrow-left"></i> Voltar à trilha</button></footer></div>`;
         } catch (e) { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR MISSÃO'; } if (errEl && e.status === 400) errEl.textContent = e.message; else erro('Não foi possível enviar', e.message); }
@@ -806,8 +998,8 @@
         let aula = null; M.jornada.modulos.forEach(m => m.aulas.forEach(a => { if (a.id === id) aula = a; }));
         const concluir = !aula.concluida;
         try {
-            const r = await api('/acl/minha/aulas/' + id + '/concluir', { method: 'POST', body: jbody({ concluida: concluir }) });
-            M.jornada = await api('/acl/minha/trilhas/' + M.tid);
+            const r = await api('/acl/minha/aulas/' + id + '/concluir' + qColab('?'), { method: 'POST', body: jbody({ concluida: concluir }) });
+            M.jornada = await api('/acl/minha/trilhas/' + M.tid + qColab('?'));
             window._aclAula(id);
             const msg = document.getElementById('acl-aula-msg');
             if (msg && concluir) msg.innerHTML = `<div class="acl-prox ok"><i class="ph ph-seal-check"></i><div><b>${r.concluido_trilha ? 'Parabéns! Você concluiu todos os conteúdos obrigatórios da trilha.' : 'Aula concluída!'}</b><span>Progresso da trilha: ${r.progresso}%</span></div></div>`;
