@@ -16736,10 +16736,12 @@ function obterPeriodoAtivoAvaliacao(tipoAval) {
             else if (mes === 10) { expectedTrim = 3; }
         }
     } else {
-        if (mes >= 1 && mes <= 3) expectedTrim = 1;
-        else if (mes >= 4 && mes <= 6) expectedTrim = 2;
-        else if (mes >= 7 && mes <= 9) expectedTrim = 3;
-        else expectedTrim = 4;
+        // Pesquisa de Satisfação: Fevereiro (1), Maio (2), Agosto (3), Novembro (4) — liberada no dia 01
+        if (mes >= 2 && mes <= 4) expectedTrim = 1;
+        else if (mes >= 5 && mes <= 7) expectedTrim = 2;
+        else if (mes >= 8 && mes <= 10) expectedTrim = 3;
+        else if (mes >= 11) expectedTrim = 4;
+        else { expectedTrim = 4; expectedAno--; } // Janeiro pertence ao ciclo de Novembro do ano anterior
     }
 
     return { ano: expectedAno, trimestre: expectedTrim };
@@ -16968,12 +16970,14 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     // Verificar se o colaborador estava admitido nessa ??poca
                                     const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
                                     // Refer??ncia da pesquisa: 1o dia do trimestre
-                                    const _mesInicioMap = { 1: 1, 2: 4, 3: 7, 4: 10 };
+                                    const _mesInicioMap = tipoAval === 'satisfacao'
+                                        ? { 1: 2, 2: 5, 3: 8, 4: 11 }
+                                        : { 1: 1, 2: 4, 3: 7, 4: 10 };
                                     const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
                                     const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
                                     const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
                                     pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, nao_admitido: naoAdmitido };
-                                    if (naoAdmitido) pesquisas[key].nao_admitido = true;
+                                    if (naoAdmitido && !pesquisas[key].respondido) pesquisas[key].nao_admitido = true;
                                 });
                                 const todasMedias = Object.values(pesquisas).filter(p2 => p2.respondido && p2.media !== null).map(p2 => p2.media);
                                 const mediaGeral = todasMedias.length > 0 ? parseFloat((todasMedias.reduce((a, b) => a + b, 0) / todasMedias.length).toFixed(2)) : null;
@@ -22925,19 +22929,24 @@ function verificarSatisfacaoPendentes() {
     let expectedAno = ano;
     let dataInicioTrimestre;
 
-    // Satisfacao liberada a partir do dia 01
-    if (mes >= 1 && mes <= 3) {
+    // Satisfacao liberada a partir do dia 01 de Fevereiro (1), Maio (2), Agosto (3) e Novembro (4)
+    if (mes >= 2 && mes <= 4) {
         expectedTrim = 1;
-        dataInicioTrimestre = new Date(ano, 0, 1);
-    } else if (mes >= 4 && mes <= 6) {
+        dataInicioTrimestre = new Date(ano, 1, 1); // 01 de Fevereiro
+    } else if (mes >= 5 && mes <= 7) {
         expectedTrim = 2;
-        dataInicioTrimestre = new Date(ano, 3, 1);
-    } else if (mes >= 7 && mes <= 9) {
+        dataInicioTrimestre = new Date(ano, 4, 1); // 01 de Maio
+    } else if (mes >= 8 && mes <= 10) {
         expectedTrim = 3;
-        dataInicioTrimestre = new Date(ano, 6, 1);
-    } else if (mes >= 10 && mes <= 12) {
+        dataInicioTrimestre = new Date(ano, 7, 1); // 01 de Agosto
+    } else if (mes >= 11 && mes <= 12) {
         expectedTrim = 4;
-        dataInicioTrimestre = new Date(ano, 9, 1);
+        dataInicioTrimestre = new Date(ano, 10, 1); // 01 de Novembro
+    } else {
+        // Janeiro: ciclo iniciado em 01 de Novembro do ano anterior
+        expectedTrim = 4;
+        expectedAno = ano - 1;
+        dataInicioTrimestre = new Date(ano - 1, 10, 1);
     }
 
     // Calcula os dias corridos desde o início do trimestre

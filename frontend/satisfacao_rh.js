@@ -53,7 +53,7 @@
         return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
-        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' }[p.trimestre] || `T${p.trimestre}`;
+        const mesNome = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' }[p.trimestre] || `T${p.trimestre}`;
         return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function grupoLabel(g) {
@@ -448,6 +448,8 @@
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
                     data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
+                    data-ano="${periodos.length > 0 ? periodos[periodos.length - 1].ano : ''}"
+                    data-trim="${periodos.length > 0 ? periodos[periodos.length - 1].trimestre : ''}"
                     onclick="window._satOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
@@ -854,9 +856,18 @@
         const form = e.target;
         const submitBtn = document.getElementById('sat-btn-submit');
         
-        // current quarter
-        const currentYear = refAno || new Date().getFullYear();
-        const currentQ = refTrim || Math.floor(new Date().getMonth() / 3) + 1;
+        // current quarter (Fevereiro=1, Maio=2, Agosto=3, Novembro=4)
+        const _now = new Date();
+        const _m = _now.getMonth() + 1;
+        let _defYear = _now.getFullYear();
+        let _defQ = 4;
+        if (_m >= 2 && _m <= 4) _defQ = 1;
+        else if (_m >= 5 && _m <= 7) _defQ = 2;
+        else if (_m >= 8 && _m <= 10) _defQ = 3;
+        else if (_m >= 11) _defQ = 4;
+        else { _defQ = 4; _defYear--; }
+        const currentYear = refAno || _defYear;
+        const currentQ = refTrim || _defQ;
         
         // build respostas_json — salva como OBJETO {0: val, 1: val} para compatibilidade
         // com o prontuário (avaliacoes.js), que também usa o mesmo formato

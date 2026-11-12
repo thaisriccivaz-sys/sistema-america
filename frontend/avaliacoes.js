@@ -139,8 +139,13 @@ window.renderAvaliacaoTab = async function(container) {
             trimestersOverall[av.trimestre] = tipo === 'experiencia' ? totalSum : (totalCount > 0 ? (totalSum / totalCount) : null);
         });
 
-        // Trimestre Mappings for UI
-        const trimestreToMonth = {
+        // Trimestre Mappings for UI (Satisfação: Fev/Mai/Ago/Nov | Desempenho: Jan/Abr/Jul/Out)
+        const trimestreToMonth = tipo === 'satisfacao' ? {
+            1: 'Fevereiro (1º Trim.)',
+            2: 'Maio (2º Trim.)',
+            3: 'Agosto (3º Trim.)',
+            4: 'Novembro (4º Trim.)'
+        } : {
             1: 'Janeiro (1º Trim.)',
             2: 'Abril (2º Trim.)',
             3: 'Julho (3º Trim.)',
@@ -159,10 +164,17 @@ window.renderAvaliacaoTab = async function(container) {
 
             if (!hasData && tipo !== 'experiencia') {
                 let releaseMonth; // 1-indexed
-                if (t === 1) releaseMonth = 1;
-                else if (t === 2) releaseMonth = 4;
-                else if (t === 3) releaseMonth = 7;
-                else if (t === 4) releaseMonth = 10;
+                if (tipo === 'satisfacao') {
+                    if (t === 1) releaseMonth = 2;
+                    else if (t === 2) releaseMonth = 5;
+                    else if (t === 3) releaseMonth = 8;
+                    else if (t === 4) releaseMonth = 11;
+                } else {
+                    if (t === 1) releaseMonth = 1;
+                    else if (t === 2) releaseMonth = 4;
+                    else if (t === 3) releaseMonth = 7;
+                    else if (t === 4) releaseMonth = 10;
+                }
                 
                 const releaseDay = (tipo === 'desempenho') ? 15 : 1;
                 const releaseDate = new Date(year, releaseMonth - 1, releaseDay);
@@ -581,7 +593,9 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         }
     }
     
-    const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Setembro (4º Trim.)'};
+    const trimestreToMonth = tipo === 'satisfacao'
+        ? {1: 'Fevereiro (1º Trim.)', 2: 'Maio (2º Trim.)', 3: 'Agosto (3º Trim.)', 4: 'Novembro (4º Trim.)'}
+        : {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Outubro (4º Trim.)'};
 
     let globalTotalQ_init = 0;
     let globalAnsQ_init = 0;
