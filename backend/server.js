@@ -16791,6 +16791,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
 
                     // Estrutura: { grupo: { topico: { 'ano-trimestre': [notas] } } }
                     const agregado = {};
+                    const agregadoDepto = {};
 
                     console.log(`[DASHBOARD] rows encontrados: ${(rows||[]).length}`);
 
@@ -16813,6 +16814,14 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         }
 
                         if (!agregado[grupo]) agregado[grupo] = {};
+                        const deptoNome = (row.departamento || 'Sem Departamento').trim() || 'Sem Departamento';
+                        if (!agregadoDepto[deptoNome]) agregadoDepto[deptoNome] = {};
+                        const _pushDepto = (topico, val) => {
+                            if (!topico || topico.startsWith('_') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+                            if (!agregadoDepto[deptoNome][topico]) agregadoDepto[deptoNome][topico] = {};
+                            if (!agregadoDepto[deptoNome][topico][periodo]) agregadoDepto[deptoNome][topico][periodo] = [];
+                            agregadoDepto[deptoNome][topico][periodo].push(val);
+                        };
 
                         // respostas_json: { 'T??pico': [nota1, nota2, ...] } ou { 'T??pico': { media: X } } ou formato legado { scores: {...} }
                         
@@ -16822,7 +16831,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                                 if (typeof avg === 'number' && !isNaN(avg)) {
                                     if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
                                     if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
-                                    agregado[grupo][topico][periodo].push(avg);
+                                    agregado[grupo][topico][periodo].push(avg); _pushDepto(topico, avg);
                                 }
                             });
                             return; // formato legado processado, pular o resto
@@ -16836,20 +16845,20 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                                 const nums = notas.map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
-                                    agregado[grupo][topico][periodo].push(media);
+                                    agregado[grupo][topico][periodo].push(media); _pushDepto(topico, media);
                                 }
                             } else if (typeof notas === 'object' && notas !== null && notas.media !== undefined) {
                                 const m = parseFloat(notas.media);
-                                if (!isNaN(m)) agregado[grupo][topico][periodo].push(m);
+                                if (!isNaN(m)) agregado[grupo][topico][periodo].push(m); _pushDepto(topico, m);
                             } else if (typeof notas === 'object' && notas !== null) {
                                 const nums = Object.values(notas).map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
-                                    agregado[grupo][topico][periodo].push(media);
+                                    agregado[grupo][topico][periodo].push(media); _pushDepto(topico, media);
                                 }
                             } else if (notas !== null && notas !== undefined) {
                                 const num = parseFloat(notas);
-                                if (!isNaN(num)) agregado[grupo][topico][periodo].push(num);
+                                if (!isNaN(num)) agregado[grupo][topico][periodo].push(num); _pushDepto(topico, num);
                             }
                         });
                     });
@@ -16868,6 +16877,19 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         });
                     });
 
+                    const resultadoDepto = [];
+                    Object.entries(agregadoDepto).forEach(([departamento, topicos]) => {
+                        Object.entries(topicos).forEach(([topico, periodoMap]) => {
+                            const entry = { departamento, topico };
+                            periodos.forEach(p => {
+                                const key = `${p.ano}-T${p.trimestre}`;
+                                const arr = periodoMap[key] || [];
+                                entry[key] = arr.length > 0 ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
+                            });
+                            resultadoDepto.push(entry);
+                        });
+                    });
+
                     // Buscar totais de respondentes vs esperados por grupo/período
                     db.all(
                         `SELECT c.departamento, c.cargo, a.ano, a.trimestre,
@@ -16880,7 +16902,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         [tipoAval, ...params],
                         (err3, contagens) => {
                             if (err3) return res.status(500).json({ error: err3.message });
-                            res.json({ periodos: periodos.reverse(), dashboard: resultado, contagens: contagens || [] });
+                            res.json({ periodos: periodos.reverse(), dashboard: resultado, por_departamento: resultadoDepto, contagens: contagens || [] });
                         }
                     );
                 }
@@ -16992,6 +17014,8 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
         }
     );
 });
+
+require('./routes_satisfacao_ia')(app, db, authenticateToken, sendMailHelper);
 
 // ????????? FIM DASHBOARD DE SATISFA????O ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
