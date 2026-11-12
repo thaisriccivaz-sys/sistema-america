@@ -273,13 +273,18 @@ window.abrirFormUsuario = async function(userId = null) {
     // Buscar Colaboradores apenas se for Novo
     if (!userId) {
         try {
-            const res = await fetch(`${API_URL}/colaboradores`, { headers: { Authorization: `Bearer ${currentToken}` } });
+            const res = await fetch(`${API_URL}/colaboradores?incluir_servico=1`, { headers: { Authorization: `Bearer ${currentToken}` } });
             const all = await res.json();
-            const ativos = all.filter(c => c.status !== 'Desligado');
+            const ativos = all.filter(c => {
+                const isServ = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
+                return c.status !== 'Desligado' || isServ;
+            });
             
             const colabOptions = ativos.map(c => {
                 const isVinculado = _permUsuarios.some(u => u.nome === c.nome_completo && u.ativo === 1);
-                return `<option value="${isVinculado ? '' : c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}" ${isVinculado ? 'disabled style="color:#94a3b8;"' : ''}>${c.nome_completo} — ${c.cargo || ''} / ${c.departamento || ''} ${isVinculado ? '(Já possui usuário)' : ''}</option>`;
+                const isServ = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
+                const cargoLabel = isServ ? 'Serviço' : (c.cargo || '');
+                return `<option value="${isVinculado ? '' : c.id}" data-nome="${c.nome_completo}" data-email="${c.email || ''}" data-depto="${c.departamento || ''}" ${isVinculado ? 'disabled style="color:#94a3b8;"' : ''}>${c.nome_completo} — ${cargoLabel} / ${c.departamento || ''} ${isVinculado ? '(Já possui usuário)' : ''}</option>`;
             }).join('');
             document.getElementById('fu-colab-select').innerHTML = `<option value="">-- Selecione um colaborador --</option>${colabOptions}`;
         } catch(e) { document.getElementById('fu-colab-select').innerHTML = ''; }

@@ -2210,4 +2210,43 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+// Regra global: Colaboradores com tipo_contrato = 'Serviço' são considerados como Desligados
+// em todas as listagens e módulos do sistema (cursos, treinamentos, palestras, recibos, rota redonda,
+// equipes, avaliações, benefícios, etc.), aparecendo APENAS no Cadastro de Colaboradores e no Controle de Usuários
+// (que passam /* INCLUIR_SERVICO */ na query).
+const _origDbAll = db.all.bind(db);
+db.all = function (sql, ...rest) {
+    if (typeof sql === 'string' && !sql.includes('/* INCLUIR_SERVICO */') && /\bcolaboradores\b/i.test(sql) && /^\s*SELECT\b/i.test(sql)) {
+        // Injeta filtro de exclusão de contrato 'Serviço' junto às cláusulas de status ativo/não-desligado
+        sql = sql
+            .replace(/\bc\.status\s*!=\s*'Desligado'/gi, "(c.status != 'Desligado' AND COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/\bcolab\.status\s*!=\s*'Desligado'/gi, "(colab.status != 'Desligado' AND COALESCE(LOWER(TRIM(colab.tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/(?<![.\w])status\s*!=\s*'Desligado'/gi, "(status != 'Desligado' AND COALESCE(LOWER(TRIM(tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/\bc\.status\s+NOT\s+LIKE\s+'Desligado%'/gi, "(c.status NOT LIKE 'Desligado%' AND COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/(?<![.\w])status\s+NOT\s+LIKE\s+'Desligado%'/gi, "(status NOT LIKE 'Desligado%' AND COALESCE(LOWER(TRIM(tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/LOWER\(TRIM\(c\.status\)\)\s*=\s*'ativo'/gi, "(LOWER(TRIM(c.status)) = 'ativo' AND COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/LOWER\(c\.status\)\s*=\s*'ativo'/gi, "(LOWER(c.status) = 'ativo' AND COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/LOWER\(status\)\s*=\s*'ativo'/gi, "(LOWER(status) = 'ativo' AND COALESCE(LOWER(TRIM(tipo_contrato)), '') NOT IN ('serviço', 'servico'))")
+            .replace(/\bc\.status\s+IN\s*\('Ativo'/gi, "COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico') AND c.status IN ('Ativo'")
+            .replace(/(?<![.\w])status\s+IN\s*\('Ativo'/gi, "COALESCE(LOWER(TRIM(tipo_contrato)), '') NOT IN ('serviço', 'servico') AND status IN ('Ativo'");
+
+        // Também filtra no callback caso a query não tenha filtro explícito de status mas retorne a coluna tipo_contrato
+        const cbIdx = rest.findIndex(arg => typeof arg === 'function');
+        if (cbIdx !== -1) {
+            const origCb = rest[cbIdx];
+            rest[cbIdx] = function (err, rows) {
+                if (!err && Array.isArray(rows)) {
+                    rows = rows.filter(r => {
+                        if (!r || typeof r !== 'object') return true;
+                        const tc = String(r.tipo_contrato || '').trim().toLowerCase();
+                        return tc !== 'serviço' && tc !== 'servico';
+                    });
+                }
+                return origCb.call(this, err, rows);
+            };
+        }
+    }
+    return _origDbAll(sql, ...rest);
+};
+
 module.exports = db;

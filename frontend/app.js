@@ -623,7 +623,7 @@ async function carregarFotoUsuarioTopbar() {
         if (!usuarioAtual || !usuarioAtual.nome) return;
 
         // Busca colaboradores para encontrar o que tem o mesmo nome
-        const resColabs = await fetch(`${API_URL}/colaboradores`, {
+        const resColabs = await fetch(`${API_URL}/colaboradores?incluir_servico=1`, {
             headers: { Authorization: `Bearer ${currentToken}` }
         });
         if (!resColabs.ok) return;
@@ -3754,7 +3754,7 @@ async function loadColaboradores() {
         if (!wrapper) return;
         wrapper.innerHTML = '<div style="text-align:center; padding: 3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:var(--primary-color);"></i><p class="mt-3">Carregando lista...</p></div>';
 
-        const response = await fetch(`${API_URL}/colaboradores`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const response = await fetch(`${API_URL}/colaboradores?incluir_servico=1`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         if (!response.ok) throw new Error('Falha na resposta do servidor');
         _todosColaboradores = await response.json();
 
@@ -3868,8 +3868,9 @@ function aplicarFiltrosColaboradores() {
 
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
 
-        // Ocultar Desligados por padrão — só aparecem se o filtro de status for explicitamente 'Desligado'
-        if (!f.tipoCadastro && getEffectiveStatus(c) === 'Desligado') return false;
+        // Ocultar Desligados por padrão — exceto contrato 'Serviço' que deve aparecer no cadastro de colaboradores
+        const isContratoServico = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
+        if (!f.tipoCadastro && getEffectiveStatus(c) === 'Desligado' && !isContratoServico) return false;
 
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
@@ -4564,8 +4565,9 @@ function renderTabelaColaboradores(lista) {
         const photoUrl = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
         const fallbackIcon = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMCAyMWE4IDggMCAwMC0xNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSI3IiByPSI0Ii8+PC9zdmc+`;
 
-        let cargoDisplay = c.cargo || '-';
-        if (cargoDisplay.toLowerCase().includes('motorista') && c.cnh_categoria) {
+        const isServicoColab = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
+        let cargoDisplay = isServicoColab ? '— (Serviço)' : (c.cargo || '-');
+        if (!isServicoColab && cargoDisplay.toLowerCase().includes('motorista') && c.cnh_categoria) {
             cargoDisplay += ` (${c.cnh_categoria})`;
         }
 
@@ -4721,6 +4723,32 @@ window.devAnonimizarTodosColaboradores = async function() {
 // ── fim [DEV] ──────────────────────────────────────────────────────────────
 
 
+window.toggleContratoServico = function (tipoContrato) {
+    const isServico = String(tipoContrato || '').trim().toLowerCase() === 'serviço' || String(tipoContrato || '').trim().toLowerCase() === 'servico';
+    const cargoInput = document.getElementById('colab-cargo');
+    const cargoList = document.getElementById('colab-cargo-list');
+    if (cargoInput) {
+        if (isServico) {
+            cargoInput.value = '';
+            cargoInput.disabled = true;
+            cargoInput.required = false;
+            cargoInput.placeholder = 'Sem cargo (Contrato de Serviço)';
+            cargoInput.style.background = '#f1f5f9';
+            cargoInput.style.color = '#94a3b8';
+            cargoInput.style.cursor = 'not-allowed';
+            if (cargoList) cargoList.style.display = 'none';
+            if (typeof toggleMotorista === 'function') toggleMotorista();
+        } else {
+            cargoInput.disabled = false;
+            cargoInput.required = true;
+            cargoInput.placeholder = 'Digite para buscar...';
+            cargoInput.style.background = '';
+            cargoInput.style.color = '';
+            cargoInput.style.cursor = '';
+        }
+    }
+};
+
 window.resetFormColaborador = function () {
     const form = document.getElementById('form-colaborador');
     if (form) form.reset();
@@ -4865,6 +4893,7 @@ window.resetFormColaborador = function () {
 
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
+    if (typeof window.toggleContratoServico === 'function') window.toggleContratoServico('CLT');
 };
 
 window.editColaborador = async function (id) {
@@ -4923,6 +4952,7 @@ window.editColaborador = async function (id) {
         document.getElementById('colab-admissao').value = admDate;
         updateProbationBadge(admDate);
         document.getElementById('colab-contrato').value = c.tipo_contrato || 'CLT';
+        if (typeof window.toggleContratoServico === 'function') window.toggleContratoServico(c.tipo_contrato || 'CLT');
         const rawSal = c.salario;
         if (rawSal !== undefined && rawSal !== null && rawSal !== '') {
             let str = String(rawSal).replace(/R\$\s*/g, '').trim();
@@ -5448,7 +5478,7 @@ if (formColab) {
             email: document.getElementById('colab-email').value,
             email_corporativo: document.getElementById('colab-email-corporativo') ? document.getElementById('colab-email-corporativo').value : '',
             endereco: document.getElementById('colab-endereco').value,
-            cargo: document.getElementById('colab-cargo').value,
+            cargo: (String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'serviço') ? '' : document.getElementById('colab-cargo').value,
             departamento: document.getElementById('colab-departamento').value,
             data_admissao: document.getElementById('colab-admissao').value,
             tipo_contrato: document.getElementById('colab-contrato').value,
