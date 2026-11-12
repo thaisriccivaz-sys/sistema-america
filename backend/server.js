@@ -4203,7 +4203,7 @@ try {
 
 // --- TREINAMENTOS > UNIAMERICA (cursos, aulas, testes em aula, missoes semanais, ranking, premios e certificados no R2) ---
 try {
-    require('./routes_uniamerica')(app, db, authenticateToken, r2);
+    require('./routes_uniamerica')(app, db, authenticateToken, r2, sendMailHelper);
 } catch (eUa) {
     console.error('[UNIAMERICA] ERRO ao carregar modulo:', eUa.message);
 }
