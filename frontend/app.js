@@ -783,6 +783,8 @@ const BREADCRUMB_MAP = {
     'app-lideranca-entregas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Entregas', code: 'APP003' },
     'academia-lideres-minha': { path: 'Treinamentos \u2192 Academia de L\u00edderes \u2192 Minha Academia', code: 'ACL01' },
     'academia-lideres-admin': { path: 'Treinamentos \u2192 Academia de L\u00edderes \u2192 Gerenciar', code: 'ACL02' },
+    'uniamerica-gestao': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Gest\u00e3o de Cursos', code: 'UNI01' },
+    'uniamerica-missoes': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Miss\u00f5es', code: 'UNI02' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
@@ -999,6 +1001,9 @@ window.carregarPermissoesOnline = async function () {
             mapPerms['academia-lideres-minha'] = true;
         } else if (_hasAclNormal) {
             mapPerms['academia-lideres-admin'] = true;
+        }
+        if (mapPerms['uniamerica-gestao']) {
+            mapPerms['uniamerica-missoes'] = true;
         }
 
         if (mapPerms['comercial-proposta']) {
@@ -1239,6 +1244,8 @@ const TAB_META = {
     'app-lideranca-entregas': { color: '#0284c7', icon: 'ph-truck', title: 'Entregas (APP)' },
     'academia-lideres-minha': { color: '#7c3aed', icon: 'ph-student', title: 'Minha Academia' },
     'academia-lideres-admin': { color: '#7c3aed', icon: 'ph-chalkboard-teacher', title: 'Gerenciar Academia' },
+    'uniamerica-gestao': { color: '#1e40af', icon: 'ph-graduation-cap', title: 'Gestão de Cursos' },
+    'uniamerica-missoes': { color: '#1e40af', icon: 'ph-rocket-launch', title: 'Missões UniAmérica' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
@@ -1499,6 +1506,12 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'academia-lideres-admin' && typeof window.renderAcademiaLideresAdmin === 'function') {
         setTimeout(() => window.renderAcademiaLideresAdmin(), 80);
+    }
+    if (tab.target === 'uniamerica-gestao' && typeof window.renderUniAmericaGestao === 'function') {
+        setTimeout(() => window.renderUniAmericaGestao(), 80);
+    }
+    if (tab.target === 'uniamerica-missoes' && typeof window.renderUniAmericaMissoes === 'function') {
+        setTimeout(() => window.renderUniAmericaMissoes(), 80);
     }
     if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
         setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
@@ -1769,6 +1782,10 @@ function navigateTo(target) {
         if (typeof window.renderAcademiaLideresMinha === 'function') setTimeout(() => window.renderAcademiaLideresMinha(), 80);
     } else if (target === 'academia-lideres-admin') {
         if (typeof window.renderAcademiaLideresAdmin === 'function') setTimeout(() => window.renderAcademiaLideresAdmin(), 80);
+    } else if (target === 'uniamerica-gestao') {
+        if (typeof window.renderUniAmericaGestao === 'function') setTimeout(() => window.renderUniAmericaGestao(), 80);
+    } else if (target === 'uniamerica-missoes') {
+        if (typeof window.renderUniAmericaMissoes === 'function') setTimeout(() => window.renderUniAmericaMissoes(), 80);
     } else if (target === 'logistica-agenda') {
         if (typeof window.renderAgendaLogistica === 'function') setTimeout(() => window.renderAgendaLogistica(), 80);
     } else if (target === 'logistica-epi') {

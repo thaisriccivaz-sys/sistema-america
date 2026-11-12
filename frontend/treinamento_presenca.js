@@ -10,6 +10,10 @@
     let _filtroStatus = 'Ativos';
     let _filtroBusca = '';
     let _filtroTreinamento = '';
+    let _filtroTreinamentosIds = new Set();
+    let _treinamentosListaCache = [];
+    let _buscaDropdownTrein = '';
+    let _ultimoTipoPresenca = '';
     let _filtroConclusao = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
@@ -91,22 +95,164 @@
     }
 
     async function _popularFiltroTreinamentos() {
-        const sel = document.getElementById('pres-filtro-treinamento');
-        if (!sel) return;
-        
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        if (_ultimoTipoPresenca !== tipoAtual) {
+            _ultimoTipoPresenca = tipoAtual;
+            _filtroTreinamentosIds.clear();
+            _buscaDropdownTrein = '';
+        }
+
+        // Substituir o <select id="pres-filtro-treinamento"> original por um seletor digitável multi-seleção
+        let wrap = document.getElementById('pres-filtro-trein-ms-wrap');
+        const selOrig = document.getElementById('pres-filtro-treinamento');
+        if (!wrap && selOrig && selOrig.parentElement) {
+            selOrig.style.display = 'none';
+            wrap = document.createElement('div');
+            wrap.id = 'pres-filtro-trein-ms-wrap';
+            wrap.style.cssText = 'position:relative;width:100%;min-width:220px;';
+            selOrig.parentElement.appendChild(wrap);
+
+            if (!window._presMsOutsideBound) {
+                window._presMsOutsideBound = true;
+                document.addEventListener('click', (ev) => {
+                    const w = document.getElementById('pres-filtro-trein-ms-wrap');
+                    const dd = document.getElementById('pres-filtro-trein-ms-dd');
+                    if (w && dd && !w.contains(ev.target)) {
+                        dd.style.display = 'none';
+                    }
+                });
+            }
+        }
+        if (!wrap) return;
+
         try {
             const r = await api('/treinamentos?tipo=' + tipoAtual);
             if (!r.ok) return;
             const res = await r.json();
-            const ativos = res.filter(t => (t.status || '').toLowerCase() !== 'arquivado');
-            
-            sel.innerHTML = '<option value="">Todos</option>' +
-                ativos.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+            _treinamentosListaCache = (res || []).filter(t => (t.status || '').toLowerCase() !== 'arquivado');
+            _renderDropdownTreinamentos();
         } catch (e) {
             console.error('[PRESENÇA]', e);
         }
     }
+
+    function _escPres(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function _renderDropdownTreinamentos(manterAberto = false) {
+        const wrap = document.getElementById('pres-filtro-trein-ms-wrap');
+        if (!wrap) return;
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        const placeholderTipo = tipoAtual === 'terapia' ? 'palestra' : 'treinamento';
+        const qtdSel = _filtroTreinamentosIds.size;
+
+        let textoBotao = tipoAtual === 'terapia' ? 'Todas as palestras' : 'Todos os treinamentos';
+        if (qtdSel === 1) {
+            const unicoId = Array.from(_filtroTreinamentosIds)[0];
+            const item = _treinamentosListaCache.find(t => String(t.id) === String(unicoId));
+            textoBotao = item ? item.nome : '1 selecionado';
+        } else if (qtdSel > 1) {
+            textoBotao = `${qtdSel} selecionados`;
+        }
+
+        const ddAbertoAntes = manterAberto || (document.getElementById('pres-filtro-trein-ms-dd')?.style.display === 'block');
+
+        wrap.innerHTML = `
+            <button type="button" id="pres-filtro-trein-ms-btn"
+                onclick="window._presToggleDropdownTrein()"
+                style="width:100%;height:38px;padding:0 12px;border-radius:8px;border:1px solid ${qtdSel > 0 ? '#0e7490' : '#cbd5e1'};background:${qtdSel > 0 ? '#ecfeff' : '#fff'};color:#1e293b;font-size:0.85rem;font-weight:${qtdSel > 0 ? '700' : '500'};display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left;">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_escPres(textoBotao)}</span>
+                <i class="ph ph-caret-down" style="color:#64748b;flex-shrink:0;"></i>
+            </button>
+            <div id="pres-filtro-trein-ms-dd" style="display:${ddAbertoAntes ? 'block' : 'none'};position:absolute;top:calc(100% + 4px);left:0;min-width:300px;width:100%;max-width:380px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,0.16);z-index:250;padding:10px;">
+                <div style="position:relative;margin-bottom:8px;">
+                    <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.95rem;"></i>
+                    <input type="text" id="pres-filtro-trein-ms-input"
+                        value="${_escPres(_buscaDropdownTrein)}"
+                        placeholder="Pesquisar nome do ${placeholderTipo}..."
+                        oninput="window._presBuscaDropdownTrein(this.value)"
+                        autocomplete="off"
+                        style="width:100%;padding:7px 10px 7px 32px;border-radius:7px;border:1.5px solid #cbd5e1;font-size:0.83rem;outline:none;box-sizing:border-box;text-transform:none !important;">
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:0 2px;font-size:0.74rem;">
+                    <button type="button" onclick="window._presMarcarVisiveisTrein()" style="background:none;border:none;color:#0e7490;font-weight:700;cursor:pointer;padding:2px 4px;">Marcar visíveis</button>
+                    <button type="button" onclick="window._presLimparFiltroTrein()" style="background:none;border:none;color:#ef4444;font-weight:700;cursor:pointer;padding:2px 4px;">Limpar seleção (${qtdSel})</button>
+                </div>
+                <div id="pres-filtro-trein-ms-list" style="max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;">
+                    ${_htmlOpcoesDropdownTrein()}
+                </div>
+            </div>
+        `;
+    }
+
+    function _htmlOpcoesDropdownTrein() {
+        const q = (_buscaDropdownTrein || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const filtrados = _treinamentosListaCache.filter(t => {
+            if (!q) return true;
+            const n = String(t.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            return n.includes(q);
+        });
+        if (!filtrados.length) {
+            return `<div style="padding:12px 8px;text-align:center;color:#94a3b8;font-size:0.8rem;">Nenhum resultado compatível com "${_escPres(_buscaDropdownTrein)}".</div>`;
+        }
+        return filtrados.map(t => {
+            const idStr = String(t.id);
+            const checked = _filtroTreinamentosIds.has(idStr) ? 'checked' : '';
+            return `
+                <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.82rem;color:#1e293b;background:${checked ? '#ecfeff' : 'transparent'};"
+                    onmouseover="if(!this.querySelector('input').checked)this.style.background='#f8fafc'"
+                    onmouseout="if(!this.querySelector('input').checked)this.style.background='transparent'">
+                    <input type="checkbox" value="${idStr}" ${checked} onchange="window._presToggleItemTrein('${idStr}', this.checked)" style="width:15px;height:15px;accent-color:#0e7490;cursor:pointer;flex-shrink:0;">
+                    <span style="line-height:1.3;font-weight:${checked ? '700' : '500'};">${_escPres(t.nome)}</span>
+                </label>
+            `;
+        }).join('');
+    }
+
+    window._presToggleDropdownTrein = function () {
+        const dd = document.getElementById('pres-filtro-trein-ms-dd');
+        if (!dd) return;
+        const abrir = dd.style.display !== 'block';
+        dd.style.display = abrir ? 'block' : 'none';
+        if (abrir) {
+            setTimeout(() => document.getElementById('pres-filtro-trein-ms-input')?.focus(), 40);
+        }
+    };
+
+    window._presBuscaDropdownTrein = function (val) {
+        _buscaDropdownTrein = val || '';
+        const listEl = document.getElementById('pres-filtro-trein-ms-list');
+        if (listEl) listEl.innerHTML = _htmlOpcoesDropdownTrein();
+    };
+
+    window._presToggleItemTrein = function (idStr, checked) {
+        if (checked) _filtroTreinamentosIds.add(String(idStr));
+        else _filtroTreinamentosIds.delete(String(idStr));
+        const inpVal = document.getElementById('pres-filtro-trein-ms-input')?.value || _buscaDropdownTrein;
+        _buscaDropdownTrein = inpVal;
+        _renderDropdownTreinamentos(true);
+        const inp = document.getElementById('pres-filtro-trein-ms-input');
+        if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+        renderizar();
+    };
+
+    window._presMarcarVisiveisTrein = function () {
+        const q = (_buscaDropdownTrein || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        _treinamentosListaCache.forEach(t => {
+            const n = String(t.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (!q || n.includes(q)) _filtroTreinamentosIds.add(String(t.id));
+        });
+        _renderDropdownTreinamentos(true);
+        renderizar();
+    };
+
+    window._presLimparFiltroTrein = function () {
+        _filtroTreinamentosIds.clear();
+        _buscaDropdownTrein = '';
+        _renderDropdownTreinamentos(true);
+        renderizar();
+    };
 
     function _popularFiltroDepto() {
         const sel = document.getElementById('pres-filtro-depto');
@@ -157,7 +303,9 @@
                 return tTipo === tipoAtual.toLowerCase();
             });
             
-            if (_filtroTreinamento) {
+            if (_filtroTreinamentosIds.size > 0) {
+                tr = tr.filter(t => _filtroTreinamentosIds.has(String(t.id)));
+            } else if (_filtroTreinamento) {
                 tr = tr.filter(t => String(t.id) === String(_filtroTreinamento));
             }
             

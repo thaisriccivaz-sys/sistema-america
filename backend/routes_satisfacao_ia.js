@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// ROTAS: RELATÓRIO IA POR DEPARTAMENTO, STATUS N/A & AFASTADO E ENVIO AO GESTOR
+// ROTAS: RELATÓRIO IA POR DEPARTAMENTO (SATISFAÇÃO & DESEMPENHO), STATUS E ENVIO AO GESTOR
 // Arquivo: backend/routes_satisfacao_ia.js
 // ═══════════════════════════════════════════════════════════════════════════════
 'use strict';
@@ -25,6 +25,19 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         UNIQUE(departamento, ano, trimestre)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS desempenho_relatorios_ia (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        departamento TEXT NOT NULL,
+        ano INTEGER NOT NULL,
+        trimestre INTEGER NOT NULL,
+        relatorio_texto TEXT NOT NULL,
+        resumo_json TEXT,
+        enviado_gestor_em DATETIME,
+        enviado_para_email TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(departamento, ano, trimestre)
+    )`);
+
     db.run(`CREATE TABLE IF NOT EXISTS satisfacao_status_periodo (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         colaborador_id INTEGER NOT NULL,
@@ -35,8 +48,19 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         UNIQUE(colaborador_id, ano, trimestre)
     )`);
 
-    const MES_TRIM = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' };
-    const labelPeriodo = (ano, trim) => `${MES_TRIM[trim] || ('T' + trim)} (${trim}º Trim. ${ano})`;
+    const MES_TRIM_SAT = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' };
+    const MES_TRIM_DES = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Outubro' };
+
+    function normTipo(tipo) {
+        return String(tipo || 'satisfacao').toLowerCase() === 'desempenho' ? 'desempenho' : 'satisfacao';
+    }
+    function tabelaRelatorioPorTipo(tipo) {
+        return normTipo(tipo) === 'desempenho' ? 'desempenho_relatorios_ia' : 'satisfacao_relatorios_ia';
+    }
+    function labelPeriodo(ano, trim, tipo = 'satisfacao') {
+        const map = normTipo(tipo) === 'desempenho' ? MES_TRIM_DES : MES_TRIM_SAT;
+        return `${map[trim] || ('T' + trim)} (${trim}º Trim. ${ano})`;
+    }
 
     // Escala oficial de cores e níveis:
     // >= 4.5: Verde (Ponto Forte / Bom)
@@ -100,7 +124,8 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
     }
 
     // Coleta estatísticas, evolução histórica entre períodos e observações 100% ANÔNIMAS do departamento
-    async function coletarDadosAnonimosDepto(departamento, ano, trimestre) {
+    async function coletarDadosAnonimosDepto(departamento, ano, trimestre, tipoRaw = 'satisfacao') {
+        const tipo = normTipo(tipoRaw);
         const colabsDepto = await dbAll(
             `SELECT id, nome_completo, cargo, departamento, data_admissao
              FROM colaboradores
@@ -108,16 +133,20 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                AND LOWER(TRIM(COALESCE(departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
             [departamento]
         );
-        const statusManualRows = await dbAll(
-            `SELECT colaborador_id, status_manual
-             FROM satisfacao_status_periodo
-             WHERE ano = ? AND trimestre = ?`,
-            [Number(ano), Number(trimestre)]
-        );
+        const statusManualRows = tipo === 'satisfacao'
+            ? await dbAll(
+                `SELECT colaborador_id, status_manual
+                 FROM satisfacao_status_periodo
+                 WHERE ano = ? AND trimestre = ?`,
+                [Number(ano), Number(trimestre)]
+            )
+            : [];
         const statusManualMap = {};
         statusManualRows.forEach(r => { statusManualMap[r.colaborador_id] = r.status_manual; });
 
-        const mesInicioMap = { 1: 2, 2: 5, 3: 8, 4: 11 };
+        const mesInicioMap = tipo === 'satisfacao'
+            ? { 1: 2, 2: 5, 3: 8, 4: 11 }
+            : { 1: 1, 2: 4, 3: 7, 4: 10 };
         const mesInicio = mesInicioMap[Number(trimestre)] || ((Number(trimestre) - 1) * 3 + 1);
         const dataPesquisa = new Date(Number(ano), mesInicio - 1, 1);
 
@@ -125,15 +154,14 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             `SELECT a.colaborador_id, a.respostas_json, c.cargo
              FROM avaliacoes a
              JOIN colaboradores c ON c.id = a.colaborador_id
-             WHERE a.tipo = 'satisfacao'
+             WHERE a.tipo = ?
                AND a.ano = ?
                AND a.trimestre = ?
                AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
-            [Number(ano), Number(trimestre), departamento]
+            [tipo, Number(ano), Number(trimestre), departamento]
         );
         const respondidosSet = new Set(rows.map(r => r.colaborador_id));
 
-        // Elegíveis excluem N/A e Afastado (que já são considerados concluídos)
         let elegiveisCount = 0;
         let concluidosEspeciaisCount = 0;
         colabsDepto.forEach(c => {
@@ -171,8 +199,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             return s;
         };
 
-        // Carregar templates do banco para mapear índice da pergunta -> texto da pergunta
-        const templatesRows = await dbAll(`SELECT grupo_key, categorias_json FROM avaliacao_templates WHERE LOWER(tipo) = 'satisfacao'`).catch(() => []);
+        const templatesRows = await dbAll(`SELECT grupo_key, categorias_json FROM avaliacao_templates WHERE LOWER(tipo) = ?`, [tipo]).catch(() => []);
         const templatesMap = {};
         templatesRows.forEach(t => {
             try {
@@ -286,10 +313,10 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             ? parseFloat((todasMediasTopicos.reduce((a, b) => a + b, 0) / todasMediasTopicos.length).toFixed(2))
             : null;
 
-        // Coletar histórico comparativo dos períodos até o período selecionado (para a tabela comparativa e tendência)
-        const historico = await coletarHistoricoComparativoDepto(departamento, Number(ano), Number(trimestre));
+        const historico = await coletarHistoricoComparativoDepto(departamento, Number(ano), Number(trimestre), tipo);
 
         return {
+            tipo,
             total_colaboradores: elegiveisCount,
             total_bruto_colaboradores: colabsDepto.length,
             concluidos_especiais: concluidosEspeciaisCount,
@@ -302,14 +329,14 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         };
     }
 
-    // Coleta os últimos períodos (até o período selecionado) do departamento para montar a tabela comparativa igual ao Dashboard (Anexo 2)
-    async function coletarHistoricoComparativoDepto(departamento, anoAte, trimAte) {
+    async function coletarHistoricoComparativoDepto(departamento, anoAte, trimAte, tipoRaw = 'satisfacao') {
+        const tipo = normTipo(tipoRaw);
         const periodosDb = await dbAll(
             `SELECT DISTINCT ano, trimestre FROM avaliacoes
-             WHERE tipo = 'satisfacao'
+             WHERE tipo = ?
                AND (ano < ? OR (ano = ? AND trimestre <= ?))
              ORDER BY ano DESC, trimestre DESC LIMIT 4`,
-            [anoAte, anoAte, trimAte]
+            [tipo, anoAte, anoAte, trimAte]
         );
         if (!periodosDb.some(p => Number(p.ano) === anoAte && Number(p.trimestre) === trimAte)) {
             periodosDb.unshift({ ano: anoAte, trimestre: trimAte });
@@ -321,19 +348,19 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 ano: Number(p.ano),
                 trimestre: Number(p.trimestre),
                 key: `${p.ano}-T${p.trimestre}`,
-                label: labelPeriodo(Number(p.ano), Number(p.trimestre))
+                label: labelPeriodo(Number(p.ano), Number(p.trimestre), tipo)
             }));
 
         const rows = await dbAll(
             `SELECT a.ano, a.trimestre, a.respostas_json
              FROM avaliacoes a
              JOIN colaboradores c ON c.id = a.colaborador_id
-             WHERE a.tipo = 'satisfacao'
+             WHERE a.tipo = ?
                AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
-            [departamento]
+            [tipo, departamento]
         );
 
-        const mapTopicos = {}; // { topico: { '2026-T3': [vals] } }
+        const mapTopicos = {};
         const ordemTopicos = [];
         const addVal = (topico, key, v) => {
             if (!topico || topico.startsWith('_') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
@@ -386,7 +413,6 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         return { periodos, topicos: linhasTopicos, medias_periodo: mediasPeriodo };
     }
 
-    // Gera HTML da tabela comparativa idêntica ao Dashboard (Anexo 2) para o modal e para o e-mail do gestor
     function montarTabelaComparativaHtml(departamento, gestorNome, est) {
         const hist = est.historico || { periodos: [], topicos: [], medias_periodo: [] };
         const periodos = hist.periodos || [];
@@ -470,14 +496,14 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         </div>`;
     }
 
-    // Motor analítico profundo (sem citar notas por escrito e sem reproduzir texto literal das observações)
-    function gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est) {
+    function gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est, tipoRaw = 'satisfacao') {
+        const tipo = normTipo(tipoRaw);
+        const nomeAval = tipo === 'desempenho' ? 'Desempenho' : 'Clima e Satisfação';
         const fortes = est.topicos.filter(t => t.media >= 4.5);
         const atencaoAmarelo = est.topicos.filter(t => t.media >= 4.0 && t.media < 4.5);
         const atencaoLaranja = est.topicos.filter(t => t.media >= 3.0 && t.media < 4.0);
         const criticosVermelho = est.topicos.filter(t => t.media < 3.0);
 
-        // Comparar evolução histórica sem expor números frios
         const hist = est.historico || { periodos: [], topicos: [], medias_periodo: [] };
         const evoluiu = [];
         const recuou = [];
@@ -496,76 +522,75 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             });
         }
 
-        // Mapear temas das observações e perguntas mais sensíveis de forma indireta e analítica
-        const temasSensíveis = new Set();
+        const temasSensiveis = new Set();
         est.observacoes.forEach(o => {
             const tx = String(o.texto || '').toLowerCase();
             const ctx = String(o.topico || o.contexto || '').toLowerCase();
             if (tx.includes('comunica') || tx.includes('aviso') || tx.includes('informa') || ctx.includes('comunica')) {
-                temasSensíveis.add('alinhamento de comunicação interna e clareza no repasse de orientações');
+                temasSensiveis.add('alinhamento de comunicação interna e clareza no repasse de orientações');
             }
             if (tx.includes('equipamento') || tx.includes('ferramenta') || tx.includes('caminh') || tx.includes('veic') || tx.includes('estrutura') || ctx.includes('condi')) {
-                temasSensíveis.add('condições de recursos operacionais, manutenção preventiva e ferramentas de rotina');
+                temasSensiveis.add('condições de recursos operacionais, manutenção preventiva e ferramentas de rotina');
             }
-            if (tx.includes('cresci') || tx.includes('carreira') || tx.includes('oportunidade') || tx.includes('promo') || tx.includes('valoriza') || ctx.includes('cresci')) {
-                temasSensíveis.add('expectativas de desenvolvimento profissional, reconhecimento e perspectiva de evolução interna');
+            if (tx.includes('cresci') || tx.includes('carreira') || tx.includes('oportunidade') || tx.includes('treinament') || tx.includes('capacita') || ctx.includes('cresci')) {
+                temasSensiveis.add('necessidade de capacitação técnica, treinamentos direcionados e desenvolvimento da equipe');
             }
-            if (tx.includes('rotina') || tx.includes('sobrecarga') || tx.includes('tempo') || tx.includes('prazo') || tx.includes('correria') || ctx.includes('organiza') || ctx.includes('processo')) {
-                temasSensíveis.add('distribuição das demandas diárias, previsibilidade da rotina e fluidez dos processos entre setores');
+            if (tx.includes('rotina') || tx.includes('sobrecarga') || tx.includes('tempo') || tx.includes('prazo') || tx.includes('entrega') || ctx.includes('organiza') || ctx.includes('processo') || ctx.includes('produtiv')) {
+                temasSensiveis.add('organização das demandas diárias, cumprimento de prazos e padronização de processos');
             }
-            if (tx.includes('lider') || tx.includes('gestor') || tx.includes('escuta') || tx.includes('apoio') || tx.includes('feedback')) {
-                temasSensíveis.add('proximidade da liderança no acompanhamento diário e momentos estruturados de escuta e feedback');
+            if (tx.includes('lider') || tx.includes('gestor') || tx.includes('escuta') || tx.includes('apoio') || tx.includes('feedback') || ctx.includes('lider')) {
+                temasSensiveis.add('acompanhamento próximo da liderança e rituais estruturados de orientação e feedback');
             }
-            if (tx.includes('equipe') || tx.includes('colega') || tx.includes('clima') || tx.includes('união') || tx.includes('colabora')) {
-                temasSensíveis.add('integração entre os membros da equipe e espírito de cooperação mútua no turno');
+            if (tx.includes('equipe') || tx.includes('colega') || tx.includes('clima') || tx.includes('colabora')) {
+                temasSensiveis.add('integração entre os membros da equipe e colaboração mútua na execução');
             }
         });
         est.perguntas.filter(p => p.media < 4.2 || p.qtd_baixas > 0).slice(0, 5).forEach(p => {
             const pNome = p.pergunta.split(' — ')[0] || p.pergunta;
-            temasSensíveis.add(`aperfeiçoamento prático nos critérios ligados a ${pNome.toLowerCase()}`);
+            temasSensiveis.add(`aperfeiçoamento prático e treinamento nos critérios ligados a ${pNome.toLowerCase()}`);
         });
 
         const linhas = [];
-        linhas.push(`Análise Executiva de Clima e Satisfação — Departamento ${departamento} (${labelPeriodo(ano, trimestre)})`);
+        linhas.push(`Análise Executiva de ${nomeAval} — Departamento ${departamento} (${labelPeriodo(ano, trimestre, tipo)})`);
         linhas.push('');
         linhas.push('1. Pontos Fortes do Departamento');
         if (fortes.length > 0) {
             const nomesFortes = fortes.map(f => f.topico).join(', ');
-            linhas.push(`A equipe demonstra uma percepção sólida e bastante favorável nos pilares de ${nomesFortes}. Esses resultados revelam que o setor possui bases bem estruturadas nesses aspectos, refletindo segurança na condução das atividades, boa receptividade ao ambiente de trabalho e alinhamento com as práticas atuais da área.`);
+            linhas.push(`A equipe apresenta consistência e resultados muito positivos nos pilares de ${nomesFortes}. Esses indicadores demonstram maturidade operacional, domínio das rotinas essenciais e boa aderência às expectativas da empresa nesses quesitos.`);
         } else {
-            linhas.push(`Embora o departamento apresente aspectos positivos na rotina, nenhum pilar atingiu a faixa máxima de consolidação neste ciclo, o que sinaliza um momento oportuno para estreitar a proximidade com a equipe e fortalecer os fatores de motivação diária.`);
+            linhas.push(`Embora o departamento mantenha entregas relevantes na rotina, nenhum pilar atingiu a faixa máxima de consolidação neste ciclo, apontando oportunidade clara para ações de desenvolvimento e acompanhamento mais próximo.`);
         }
         if (evoluiu.length > 0) {
-            linhas.push(`Na comparação com as avaliações anteriores, observou-se evolução positiva em ${evoluiu.join(', ')}, demonstrando que as ações recentes na área surtiram efeito perceptível para o time.`);
+            linhas.push(`Em comparação com os períodos anteriores, houve evolução positiva em ${evoluiu.join(', ')}, refletindo avanço consistente da equipe.`);
         }
 
         linhas.push('');
         linhas.push('2. Pontos de Melhoria e Níveis de Atenção');
         if (criticosVermelho.length === 0 && atencaoLaranja.length === 0 && atencaoAmarelo.length === 0) {
-            linhas.push(`Todos os indicadores do departamento mantiveram-se na faixa verde de satisfação, sem sinalizações em amarelo, laranja ou vermelho neste período. O foco da liderança deve ser a manutenção da consistência e a prevenção de desgastes operacionais.`);
+            linhas.push(`Todos os tópicos avaliados situaram-se na faixa verde, sem alertas em amarelo, laranja ou vermelho neste período. Recomenda-se manter a regularidade dos feedbacks e o estímulo contínuo ao aprimoramento.`);
         } else {
             if (criticosVermelho.length > 0) {
-                linhas.push(`• Nível Crítico (Vermelho): Os aspectos relacionados a ${criticosVermelho.map(x => x.topico).join(', ')} demandam atuação imediata e prioritária da gestão. A percepção da equipe indica insatisfação acentuada nesses pontos, exigindo revisão direta dos processos e escuta ativa para reversão rápida do cenário.`);
+                linhas.push(`• Nível Crítico (Vermelho): Os critérios de ${criticosVermelho.map(x => x.topico).join(', ')} exigem intervenção imediata e plano de capacitação prioritário, indicando lacunas importantes na execução ou na percepção da área.`);
             }
             if (atencaoLaranja.length > 0) {
-                linhas.push(`• Atenção Redobrada (Laranja): Os pilares de ${atencaoLaranja.map(x => x.topico).join(', ')} encontram-se na faixa laranja e requerem atenção redobrada. Esse sinal aponta que parte significativa do grupo percebe gargalos ou desgaste nesses temas, sendo fundamental implementar ajustes práticos no curto prazo para evitar que se tornem críticos.`);
+                linhas.push(`• Atenção Redobrada (Laranja): Os pilares de ${atencaoLaranja.map(x => x.topico).join(', ')} estão na faixa laranja e demandam atenção redobrada, sendo recomendável estruturar reciclagem prática e alinhamento direto com o time.`);
             }
             if (atencaoAmarelo.length > 0) {
-                linhas.push(`• Ponto de Atenção (Amarelo): Os temas de ${atencaoAmarelo.map(x => x.topico).join(', ')} situam-se na faixa amarela de atenção preventiva. Embora o cenário geral ainda seja favorável, existem oscilações pontuais na percepção de alguns colaboradores que merecem acompanhamento próximo do gestor.`);
+                linhas.push(`• Ponto de Atenção (Amarelo): Os temas de ${atencaoAmarelo.map(x => x.topico).join(', ')} encontram-se em faixa amarela de atenção preventiva, sinalizando oscilações pontuais que podem ser fortalecidas com orientação e treinamentos direcionados.`);
             }
         }
         if (recuou.length > 0) {
-            linhas.push(`• Tendência Histórica: Em relação ao ciclo anterior, houve retração na percepção sobre ${recuou.join(', ')}, reforçando a importância de investigar mudanças recentes na rotina que possam ter impactado esses indicadores.`);
+            linhas.push(`• Tendência Histórica: Observou-se retração frente ao ciclo anterior em ${recuou.join(', ')}, merecendo atenção especial da gestão.`);
         }
 
         linhas.push('');
         linhas.push('3. Informações Importantes e Recomendações para a Gestão');
-        if (temasSensíveis.size > 0) {
-            const listaTemas = Array.from(temasSensíveis);
-            linhas.push(`A partir da leitura interpretativa das respostas e das manifestações qualitativas da equipe, nota-se que as principais percepções do departamento concentram-se em: ${listaTemas.join('; ')}.`);
-            linhas.push(`Recomenda-se que a liderança promova conversas periódicas de alinhamento com o time, reforçando a transparência sobre critérios de crescimento, validando as condições de trabalho e acompanhando de perto os pontos sinalizados em amarelo e laranja para sustentar um clima organizacional saudável e produtivo.`);
+        if (temasSensiveis.size > 0) {
+            const listaTemas = Array.from(temasSensiveis);
+            linhas.push(`A leitura analítica das avaliações e observações registradas aponta foco de desenvolvimento em: ${listaTemas.join('; ')}.`);
+            linhas.push(`Recomenda-se utilizar esses direcionadores para definir trilhas/cursos de desenvolvimento na UniAmérica e rituais de acompanhamento com a liderança do setor.`);
         } else {
-            linhas.push(`A análise conjunta das respostas demonstra estabilidade na rotina do setor. Recomenda-se manter rituais periódicos de feedback e diálogo aberto com a equipe para antecipar necessidades operacionais e preservar o engajamento do grupo.`);
+            linhas.push(`O conjunto das avaliações indica estabilidade no departamento. Recomenda-se manter ciclos periódicos de feedback e treinamentos de atualização contínua.`);
         }
 
         return linhas.join('\n');
@@ -597,9 +622,11 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         }
     });
 
-    // GET /api/avaliacoes/satisfacao/relatorio-ia
-    app.get('/api/avaliacoes/satisfacao/relatorio-ia', authenticateToken, async (req, res) => {
+    // Rotas parametrizadas para :tipo ('satisfacao' | 'desempenho')
+    app.get('/api/avaliacoes/:tipo/relatorio-ia', authenticateToken, async (req, res) => {
         try {
+            const tipo = normTipo(req.params.tipo);
+            const tabela = tabelaRelatorioPorTipo(tipo);
             const departamento = String(req.query.departamento || '').trim();
             const ano = parseInt(req.query.ano, 10);
             const trimestre = parseInt(req.query.trimestre, 10);
@@ -608,16 +635,17 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             }
             const [gestor, salvo, estatisticas] = await Promise.all([
                 buscarGestorDepartamento(departamento),
-                dbGet(`SELECT * FROM satisfacao_relatorios_ia WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]),
-                coletarDadosAnonimosDepto(departamento, ano, trimestre)
+                dbGet(`SELECT * FROM ${tabela} WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]),
+                coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo)
             ]);
             const tabelaComparativaHtml = montarTabelaComparativaHtml(departamento, gestor ? gestor.gestor_nome : null, estatisticas);
             res.json({
                 ok: true,
+                tipo,
                 departamento,
                 ano,
                 trimestre,
-                periodo_label: labelPeriodo(ano, trimestre),
+                periodo_label: labelPeriodo(ano, trimestre, tipo),
                 gestor,
                 relatorio: salvo || null,
                 estatisticas,
@@ -628,9 +656,11 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         }
     });
 
-    // POST /api/avaliacoes/satisfacao/relatorio-ia — Gera análise anônima via Gemini IA
-    app.post('/api/avaliacoes/satisfacao/relatorio-ia', authenticateToken, async (req, res) => {
+    app.post('/api/avaliacoes/:tipo/relatorio-ia', authenticateToken, async (req, res) => {
         try {
+            const tipo = normTipo(req.params.tipo);
+            const tabela = tabelaRelatorioPorTipo(tipo);
+            const tituloTipo = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Pesquisa de Satisfação';
             const departamento = String(req.body.departamento || '').trim();
             const ano = parseInt(req.body.ano, 10);
             const trimestre = parseInt(req.body.trimestre, 10);
@@ -638,9 +668,9 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 return res.status(400).json({ error: 'departamento, ano e trimestre são obrigatórios.' });
             }
 
-            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre);
+            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
             if (est.responderam === 0) {
-                return res.status(400).json({ error: `Nenhuma pesquisa respondida encontrada para o departamento "${departamento}" em ${labelPeriodo(ano, trimestre)}.` });
+                return res.status(400).json({ error: `Nenhuma avaliação respondida encontrada para o departamento "${departamento}" em ${labelPeriodo(ano, trimestre, tipo)}.` });
             }
 
             let textoGerado = null;
@@ -686,14 +716,14 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                     const perguntasStr = est.perguntas.map(p => `- ${p.pergunta}: Classificação [${classificarFaixa(p.media)}] (${p.qtd_baixas} resposta(s) mais baixas de ${p.qtd_respostas})`).join('\n');
                     const obsStr = est.observacoes.length
                         ? est.observacoes.map((o, i) => `${i + 1}. Contexto [${o.contexto}]: ${o.texto}`).join('\n')
-                        : 'Nenhuma observação escrita adicional foi registrada pelos colaboradores.';
+                        : 'Nenhuma observação escrita adicional foi registrada.';
 
-                    const prompt = `Você é um Consultor Executivo Sênior de Recursos Humanos e Clima Organizacional.
-Analise as respostas dadas na Pesquisa de Satisfação do departamento "${departamento}" referente ao período "${labelPeriodo(ano, trimestre)}" e elabore uma análise consultiva, profunda e interpretativa para o Gestor do Departamento.
+                    const prompt = `Você é um Consultor Executivo Sênior de Recursos Humanos, Clima e Desenvolvimento Organizacional.
+Analise os resultados da ${tituloTipo} do departamento "${departamento}" referente ao período "${labelPeriodo(ano, trimestre, tipo)}" e elabore uma análise consultiva, profunda e interpretativa para o Gestor do Departamento e para o planejamento de treinamentos.
 
 DIRETRIZES OBRIGATÓRIAS E INEGOCIÁVEIS:
 1. NÃO ESCREVA AS NOTAS NUMÉRICAS NO TEXTO: O gestor já receberá a tabela visual com os números ao lado deste texto. Portanto, NÃO cite números de médias (como "média 4.5", "nota 3.4/5", etc.) no texto escrito. Foque 100% na leitura qualitativa, comportamental e gerencial.
-2. NÃO TRANSCREVA NEM MENCIONE O TEXTO LITERAL DAS OBSERVAÇÕES: Jamais copie frases entre aspas, não exponha quem escreveu e não seja direto a ponto de reproduzir o comentário do colaborador. Leia as observações escritas, compreenda o contexto por trás delas e transforme-as em uma análise profissional e indireta sobre o clima, os processos, a rotina ou a gestão da área.
+2. NÃO TRANSCREVA NEM MENCIONE O TEXTO LITERAL DAS OBSERVAÇÕES: Jamais copie frases entre aspas, não exponha nomes de colaboradores e não seja direto a ponto de reproduzir o comentário literal. Leia as observações escritas, compreenda o contexto por trás delas e transforme-as em uma análise profissional e indireta sobre a equipe, os processos, as competências ou a gestão da área.
 3. CLASSIFICAÇÃO DE ATENÇÃO OBRIGATÓRIA:
    - Tudo que estiver em VERDE (acima de 4,5) deve ser interpretado como Ponto Forte consolidado.
    - Tudo que estiver em AMARELO (abaixo de 4,5 até 4,0) é um PONTO DE ATENÇÃO.
@@ -703,13 +733,13 @@ DIRETRIZES OBRIGATÓRIAS E INEGOCIÁVEIS:
 
 ESTRUTURE O TEXTO EXATAMENTE NESTES 3 BLOCOS:
 1. Pontos Fortes do Departamento
-(Análise interpretativa e aprofundada dos pilares em faixa verde e dos aspectos que demonstram maturidade, engajamento, bom ambiente ou evolução positiva em relação às pesquisas anteriores)
+(Análise interpretativa e aprofundada dos pilares em faixa verde e dos aspectos que demonstram maturidade, engajamento, competência técnica ou evolução positiva em relação às avaliações anteriores)
 
 2. Pontos de Melhoria e Níveis de Atenção
-(Análise detalhada separando claramente o que requer Ponto de Atenção [faixa amarela], o que exige Atenção Redobrada [faixa laranja] e o que está Crítico [faixa vermelha], além de apontar se houve queda ou melhora frente aos ciclos anteriores e o que isso significa na prática do setor)
+(Análise detalhada separando claramente o que requer Ponto de Atenção [faixa amarela], o que exige Atenção Redobrada [faixa laranja] e o que está Crítico [faixa vermelha], além de apontar se houve queda ou melhora frente aos ciclos anteriores e o impacto prático no setor)
 
-3. Informações Importantes e Recomendações para a Gestão
-(Análise indireta, consultiva e inteligente das percepções extraídas das respostas e das informações escritas pelos colaboradores — sem mencionar o texto literal que foi colocado — acompanhada de orientações práticas de liderança para o gestor atuar no departamento)
+3. Informações Importantes, Desenvolvimento de Equipe e Recomendações para a Gestão
+(Análise indireta, consultiva e inteligente das percepções extraídas das respostas e das observações escritas — sem mencionar o texto literal que foi colocado — destacando quais temas de treinamento/desenvolvimento seriam mais valiosos para essa equipe e orientações práticas para o gestor)
 
 DADOS PARA SUA ANÁLISE INTERNA (NÃO REPRODUZA OS NÚMEROS NEM OS TEXTOS LITERAIS):
 CLASSIFICAÇÃO DOS TÓPICOS NO PERÍODO ATUAL:
@@ -721,7 +751,7 @@ ${histStr}
 DETALHAMENTO POR PERGUNTA:
 ${perguntasStr}
 
-INFORMAÇÕES ESCRITAS PELOS COLABORADORES (INTERPRETE O SENTIDO SEM CITAR LITERALMENTE):
+OBSERVAÇÕES REGISTRADAS (INTERPRETE O SENTIDO SEM CITAR LITERALMENTE):
 ${obsStr}`;
 
                     for (const modelName of candidatos) {
@@ -735,32 +765,33 @@ ${obsStr}`;
                                 break;
                             }
                         } catch (errModel) {
-                            console.warn(`[Satisfacao IA] Falha no modelo ${modelName}:`, errModel.message);
+                            console.warn(`[Avaliacao IA - ${tipo}] Falha no modelo ${modelName}:`, errModel.message);
                         }
                     }
                 } catch (errGemini) {
-                    console.warn('[Satisfacao IA] Erro Gemini, usando análise estruturada:', errGemini.message);
+                    console.warn(`[Avaliacao IA - ${tipo}] Erro Gemini, usando análise estruturada:`, errGemini.message);
                 }
             }
 
             if (!textoGerado) {
-                textoGerado = gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est);
+                textoGerado = gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est, tipo);
             }
 
             await dbRun(
-                `INSERT INTO satisfacao_relatorios_ia (departamento, ano, trimestre, relatorio_texto, resumo_json, updated_at)
+                `INSERT INTO ${tabela} (departamento, ano, trimestre, relatorio_texto, resumo_json, updated_at)
                  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                  ON CONFLICT(departamento, ano, trimestre)
                  DO UPDATE SET relatorio_texto = excluded.relatorio_texto, resumo_json = excluded.resumo_json, updated_at = CURRENT_TIMESTAMP`,
                 [departamento, ano, trimestre, textoGerado, JSON.stringify(est)]
             );
 
-            const salvo = await dbGet(`SELECT * FROM satisfacao_relatorios_ia WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]);
+            const salvo = await dbGet(`SELECT * FROM ${tabela} WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]);
             const gestor = await buscarGestorDepartamento(departamento);
             const tabelaComparativaHtml = montarTabelaComparativaHtml(departamento, gestor ? gestor.gestor_nome : null, est);
 
             res.json({
                 ok: true,
+                tipo,
                 relatorio: salvo,
                 relatorio_texto: textoGerado,
                 estatisticas: est,
@@ -772,9 +803,10 @@ ${obsStr}`;
         }
     });
 
-    // PUT /api/avaliacoes/satisfacao/relatorio-ia — Salvar edição manual do relatório antes de enviar
-    app.put('/api/avaliacoes/satisfacao/relatorio-ia', authenticateToken, async (req, res) => {
+    app.put('/api/avaliacoes/:tipo/relatorio-ia', authenticateToken, async (req, res) => {
         try {
+            const tipo = normTipo(req.params.tipo);
+            const tabela = tabelaRelatorioPorTipo(tipo);
             const departamento = String(req.body.departamento || '').trim();
             const ano = parseInt(req.body.ano, 10);
             const trimestre = parseInt(req.body.trimestre, 10);
@@ -782,9 +814,9 @@ ${obsStr}`;
             if (!departamento || !ano || !trimestre || !relatorio_texto) {
                 return res.status(400).json({ error: 'Preencha o texto do relatório.' });
             }
-            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre);
+            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
             await dbRun(
-                `INSERT INTO satisfacao_relatorios_ia (departamento, ano, trimestre, relatorio_texto, resumo_json, updated_at)
+                `INSERT INTO ${tabela} (departamento, ano, trimestre, relatorio_texto, resumo_json, updated_at)
                  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                  ON CONFLICT(departamento, ano, trimestre)
                  DO UPDATE SET relatorio_texto = excluded.relatorio_texto, resumo_json = excluded.resumo_json, updated_at = CURRENT_TIMESTAMP`,
@@ -796,9 +828,12 @@ ${obsStr}`;
         }
     });
 
-    // POST /api/avaliacoes/satisfacao/enviar-gestor — Envia avaliação por e-mail (com tabela comparativa do Anexo 2 + análise IA)
-    app.post('/api/avaliacoes/satisfacao/enviar-gestor', authenticateToken, async (req, res) => {
+    app.post('/api/avaliacoes/:tipo/enviar-gestor', authenticateToken, async (req, res) => {
         try {
+            const tipo = normTipo(req.params.tipo);
+            const tabela = tabelaRelatorioPorTipo(tipo);
+            const tituloTipo = tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Pesquisa de Satisfação';
+            const subNotif = tipo === 'desempenho' ? 'avaliacao_desempenho' : 'pesquisa_satisfacao';
             const departamento = String(req.body.departamento || '').trim();
             const ano = parseInt(req.body.ano, 10);
             const trimestre = parseInt(req.body.trimestre, 10);
@@ -815,12 +850,11 @@ ${obsStr}`;
                 return res.status(400).json({ error: 'Informe um e-mail válido do gestor do departamento para enviar o relatório.' });
             }
 
-            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre);
-            const perStr = labelPeriodo(ano, trimestre);
+            const est = await coletarDadosAnonimosDepto(departamento, ano, trimestre, tipo);
+            const perStr = labelPeriodo(ano, trimestre, tipo);
 
-            // Salvar versão enviada no banco
             await dbRun(
-                `INSERT INTO satisfacao_relatorios_ia (departamento, ano, trimestre, relatorio_texto, resumo_json, enviado_gestor_em, enviado_para_email, updated_at)
+                `INSERT INTO ${tabela} (departamento, ano, trimestre, relatorio_texto, resumo_json, enviado_gestor_em, enviado_para_email, updated_at)
                  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
                  ON CONFLICT(departamento, ano, trimestre)
                  DO UPDATE SET relatorio_texto = excluded.relatorio_texto, resumo_json = excluded.resumo_json,
@@ -841,12 +875,12 @@ ${obsStr}`;
                 </div>
                 <div style="padding:24px 28px;">
                     <div style="background:#7c3aed;color:#fff;padding:16px 20px;border-radius:10px;margin-bottom:20px;">
-                        <h2 style="margin:0;font-size:1.25rem;">Relatório de Satisfação do Departamento — ${departamento}</h2>
+                        <h2 style="margin:0;font-size:1.25rem;">Relatório de ${tituloTipo} — ${departamento}</h2>
                         <div style="font-size:0.9rem;opacity:0.9;margin-top:4px;">Período de Referência: ${perStr} · Histórico Comparativo e Análise Consolidada</div>
                     </div>
                     <p style="color:#334155;font-size:0.95rem;">Olá${gestor && gestor.gestor_nome ? `, <strong>${gestor.gestor_nome}</strong>` : ''},</p>
                     <p style="color:#475569;font-size:0.92rem;line-height:1.5;">
-                        Compartilhamos abaixo o quadro comparativo de evolução da <strong>Pesquisa de Satisfação</strong> do departamento <strong>${departamento}</strong> (com as médias por tópico e setas de tendência em relação às pesquisas anteriores), seguido da análise executiva de pontos fortes, pontos de melhoria e informações importantes.
+                        Compartilhamos abaixo o quadro comparativo de evolução da <strong>${tituloTipo}</strong> do departamento <strong>${departamento}</strong> (com as médias por tópico e setas de tendência em relação às avaliações anteriores), seguido da análise executiva de pontos fortes, pontos de melhoria e recomendações para a gestão.
                     </p>
                     ${tabelaComparativaHtml}
                     <h3 style="font-size:0.98rem;color:#1e293b;margin:22px 0 8px;">Análise Consolidada do Departamento</h3>
@@ -854,27 +888,101 @@ ${obsStr}`;
                         ${relatorioHtml}
                     </div>
                     <p style="font-size:0.78rem;color:#94a3b8;margin-top:20px;text-align:center;">
-                        Nota: Em respeito à confidencialidade da Pesquisa de Satisfação, este relatório consolida as percepções do departamento de forma 100% anônima, sem identificação individual de colaboradores.
+                        Nota: Este relatório consolida os indicadores do departamento de forma confidencial, sem identificação individual de colaboradores.
                     </p>
                 </div>
             </div>`;
 
             await sendMailHelper({
                 to: emailDestino,
-                subject: `Relatório de Satisfação — Depto. ${departamento} (${perStr})`,
+                subject: `Relatório de ${tituloTipo} — Depto. ${departamento} (${perStr})`,
                 html: htmlEmail,
                 attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
             });
 
             if (gestor && gestor.usuario_id) {
-                const msgNotif = `📊 O Relatório da Pesquisa de Satisfação do departamento <strong>${departamento}</strong> (${perStr}) foi enviado para seu e-mail (${emailDestino}). Média do setor: <strong>${est.media_geral != null ? est.media_geral.toFixed(1) : '—'}/5</strong>.`;
+                const msgNotif = `📊 O Relatório de ${tituloTipo} do departamento <strong>${departamento}</strong> (${perStr}) foi enviado para seu e-mail (${emailDestino}). Média do setor: <strong>${est.media_geral != null ? est.media_geral.toFixed(1) : '—'}/5</strong>.`;
                 await dbRun(
                     `INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                    [gestor.usuario_id, 'pesquisa_satisfacao', msgNotif, JSON.stringify({ departamento, ano, trimestre, media_geral: est.media_geral })]
+                    [gestor.usuario_id, subNotif, msgNotif, JSON.stringify({ departamento, ano, trimestre, media_geral: est.media_geral })]
                 ).catch(() => {});
             }
 
             res.json({ ok: true, enviado_para: emailDestino, gestor_nome: gestor ? gestor.gestor_nome : null });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // GET /api/avaliacoes/diagnostico-departamentos — Usado na UniAmérica (Gestão de Cursos) para ver as análises de Satisfação + Desempenho por departamento
+    app.get('/api/avaliacoes/diagnostico-departamentos', authenticateToken, async (req, res) => {
+        try {
+            const deptosColabs = await dbAll(`SELECT DISTINCT TRIM(COALESCE(departamento, 'Sem Departamento')) AS departamento FROM colaboradores WHERE status != 'Desligado'`);
+            const deptosSet = new Set(deptosColabs.map(d => d.departamento || 'Sem Departamento').filter(Boolean));
+            const departamentos = Array.from(deptosSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            const [ultSat, ultDes, relsSat, relsDes] = await Promise.all([
+                dbGet(`SELECT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 1`),
+                dbGet(`SELECT ano, trimestre FROM avaliacoes WHERE tipo = 'desempenho' ORDER BY ano DESC, trimestre DESC LIMIT 1`),
+                dbAll(`SELECT * FROM satisfacao_relatorios_ia ORDER BY ano DESC, trimestre DESC, updated_at DESC`),
+                dbAll(`SELECT * FROM desempenho_relatorios_ia ORDER BY ano DESC, trimestre DESC, updated_at DESC`)
+            ]);
+
+            const resultado = [];
+            for (const dep of departamentos) {
+                const [estSat, estDes, gestor] = await Promise.all([
+                    ultSat ? coletarDadosAnonimosDepto(dep, ultSat.ano, ultSat.trimestre, 'satisfacao') : Promise.resolve(null),
+                    ultDes ? coletarDadosAnonimosDepto(dep, ultDes.ano, ultDes.trimestre, 'desempenho') : Promise.resolve(null),
+                    buscarGestorDepartamento(dep)
+                ]);
+
+                const relSat = relsSat.find(r => r.departamento.trim().toLowerCase() === dep.trim().toLowerCase()) || null;
+                const relDes = relsDes.find(r => r.departamento.trim().toLowerCase() === dep.trim().toLowerCase()) || null;
+
+                // Identificar tópicos prioritários para cursos (< 4.5 em satisfação ou desempenho)
+                const alertas = [];
+                if (estSat && estSat.topicos) {
+                    estSat.topicos.filter(t => t.media < 4.5).forEach(t => {
+                        alertas.push({ origem: 'Satisfação', topico: t.topico, media: t.media, nivel: t.nivel });
+                    });
+                }
+                if (estDes && estDes.topicos) {
+                    estDes.topicos.filter(t => t.media < 4.5).forEach(t => {
+                        alertas.push({ origem: 'Desempenho', topico: t.topico, media: t.media, nivel: t.nivel });
+                    });
+                }
+                alertas.sort((a, b) => a.media - b.media);
+
+                resultado.push({
+                    departamento: dep,
+                    gestor_nome: gestor ? gestor.gestor_nome : null,
+                    satisfacao: estSat ? {
+                        periodo_label: labelPeriodo(ultSat.ano, ultSat.trimestre, 'satisfacao'),
+                        ano: ultSat.ano,
+                        trimestre: ultSat.trimestre,
+                        responderam: estSat.responderam,
+                        total_colaboradores: estSat.total_colaboradores,
+                        media_geral: estSat.media_geral,
+                        topicos: estSat.topicos,
+                        relatorio_texto: relSat ? relSat.relatorio_texto : null,
+                        relatorio_updated_at: relSat ? relSat.updated_at : null
+                    } : null,
+                    desempenho: estDes ? {
+                        periodo_label: labelPeriodo(ultDes.ano, ultDes.trimestre, 'desempenho'),
+                        ano: ultDes.ano,
+                        trimestre: ultDes.trimestre,
+                        responderam: estDes.responderam,
+                        total_colaboradores: estDes.total_colaboradores,
+                        media_geral: estDes.media_geral,
+                        topicos: estDes.topicos,
+                        relatorio_texto: relDes ? relDes.relatorio_texto : null,
+                        relatorio_updated_at: relDes ? relDes.updated_at : null
+                    } : null,
+                    alertas_treinamento: alertas
+                });
+            }
+
+            res.json({ ok: true, departamentos: resultado });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }

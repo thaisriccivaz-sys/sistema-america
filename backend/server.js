@@ -4173,6 +4173,13 @@ try {
     console.error('[ACADEMIA-LIDERES] ERRO ao carregar modulo:', eAcl.message);
 }
 
+// --- TREINAMENTOS > UNIAMERICA (cursos, aulas, testes em aula, missoes semanais, ranking, premios e certificados no R2) ---
+try {
+    require('./routes_uniamerica')(app, db, authenticateToken, r2);
+} catch (eUa) {
+    console.error('[UNIAMERICA] ERRO ao carregar modulo:', eUa.message);
+}
+
 // --- APP > LIDERANCA > ENTREGAS (checklist de equipamentos entregues, fotos no R2) ---
 try {
     require('./routes_app_entregas')(app, db, authenticateToken, r2);

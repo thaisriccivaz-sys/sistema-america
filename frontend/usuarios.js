@@ -93,6 +93,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Treinamentos', pagina_id: 'academia-lideres-normal', pagina_nome: 'Gerenciar Academia (Líderes) Normal', icone: 'ph-users-three' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
+    { modulo: 'Treinamentos', pagina_id: 'uniamerica-gestao', pagina_nome: 'UniAmérica — Gestor de Cursos', icone: 'ph-graduation-cap' },
+    { modulo: 'Treinamentos', pagina_id: 'uniamerica-missoes', pagina_nome: 'UniAmérica — Missões (Usuário Comum)', icone: 'ph-rocket-launch' },
     // Módulo Processos
     { modulo: 'Processos', pagina_id: 'sac', pagina_nome: 'SAC (Ver Todos)', icone: 'ph-headset' },
     { modulo: 'Processos', pagina_id: 'sac-atribuidos', pagina_nome: 'SAC (Atribuídos)', icone: 'ph-user-focus' },
@@ -672,7 +674,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
-        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia', 'academia-lideres-minha', 'academia-lideres-admin', 'academia-lideres-normal'] }]
+        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia', 'academia-lideres-minha', 'academia-lideres-admin', 'academia-lideres-normal'] }, { titulo: 'UniAmérica', telas: ['uniamerica-gestao', 'uniamerica-missoes'] }]
     },
     {
         modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',
