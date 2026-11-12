@@ -298,6 +298,29 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         return fallbackMot ? String(fallbackMot).trim() : null;
     }
 
+    async function montarMapaFotosColaboradores() {
+        const colabs = await dbAll(`SELECT id, nome_completo, ((foto_base64 IS NOT NULL AND foto_base64 != '') OR (foto_path IS NOT NULL AND foto_path != '')) AS tem_foto FROM colaboradores`);
+        const exato = {};
+        colabs.forEach(c => {
+            const n = normTxt(c.nome_completo);
+            if (n) exato[n] = c.tem_foto ? `/api/colaboradores/foto/${c.id}` : null;
+        });
+        return function resolverFoto(nomeMot) {
+            const alvo = normTxt(nomeMot);
+            if (!alvo) return null;
+            if (alvo in exato) return exato[alvo];
+            const partes = alvo.split(/\s+/).filter(Boolean);
+            if (partes.length >= 2) {
+                const achado = colabs.find(c => {
+                    const cn = normTxt(c.nome_completo);
+                    return cn.startsWith(partes[0] + ' ') && cn.endsWith(' ' + partes[partes.length - 1]);
+                });
+                if (achado) return achado.tem_foto ? `/api/colaboradores/foto/${achado.id}` : null;
+            }
+            return null;
+        };
+    }
+
     // Lista de candidatos com 1º dia agendado + situação para o líder logado
     app.get('/api/app/lideranca/candidatos', guard, async (req, res) => {
         try {
@@ -322,6 +345,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
             const rotMap = {}; rotasRows.forEach(r => { if (r.motorista_nome) rotMap[r.candidato_teste_id] = r.motorista_nome; });
             const chkMap = {}; checks.forEach(c => { chkMap[c.candidato_id] = c; });
             const avSet = new Set(avals.map(a => a.candidato_id));
+            const resolverFotoMot = await montarMapaFotosColaboradores();
 
             const meuId = req.user && req.user.id;
             const cachePlantao = {};
@@ -346,6 +370,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                     id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: data,
                     tem_foto: !!c.tem_foto, cnh_categoria: cnhDoTipo(c.tipo) || c.cnh_categoria || null,
                     motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, data, rotMap[c.id]),
+                    motorista_foto_url: resolverFotoMot(extrairMotoristaVinculado(c.rota_motorista, data, rotMap[c.id])),
                     checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido },
                     respondido, situacao, pendente
                 });
@@ -396,6 +421,7 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 cnh_categoria: cnhDoTipo(c.tipo) || (ckRow && ckRow.cnh_categoria) || c.cnh_categoria || null,
                 cnh_fixa: !!cnhDoTipo(c.tipo),
                 motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, dt1, rotaRow && rotaRow.motorista_nome),
+                motorista_foto_url: (await montarMapaFotosColaboradores())(extrairMotoristaVinculado(c.rota_motorista, dt1, rotaRow && rotaRow.motorista_nome)),
                 itens: itensDoTipo(c.tipo),
                 checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido, estado: ck.itens, lider_nome: ckRow ? ckRow.lider_nome : null, concluido_em: ckRow ? ckRow.concluido_em : null },
                 perguntas: perguntasDoTipo(c.tipo),

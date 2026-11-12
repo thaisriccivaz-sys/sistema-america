@@ -191,6 +191,14 @@
         return '<span class="alc-badge cinza"><i class="ph ph-calendar-check"></i> Agendado</span>';
     }
 
+    function avatarMotorista(nome, url, px) {
+        px = px || 22;
+        const ini = esc((nome || '?').trim()[0] || '?').toUpperCase();
+        const fbStyle = `width:${px}px;height:${px}px;border-radius:50%;background:#ede9fe;color:#6d28d9;border:1.5px solid #c4b5fd;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(px * 0.5)}px;font-weight:700;flex-shrink:0;`;
+        if (!url) return `<span style="${fbStyle}">${ini}</span>`;
+        return `<img src="${esc(url)}" alt="" loading="lazy" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:cover;border:1.5px solid #7c3aed;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span style="${fbStyle}display:none;">${ini}</span>`;
+    }
+
     function cardHtml(i) {
         const pct = i.checklist.total ? Math.round(i.checklist.feitos * 100 / i.checklist.total) : 0;
         const ck = i.respondido ? '' : (i.checklist.concluido
@@ -198,7 +206,7 @@
             : (i.checklist.feitos ? `<span class="alc-badge laranja"><i class="ph ph-list-checks"></i> ${i.checklist.feitos}/${i.checklist.total}</span>` : ''));
         const cnh = i.cnh_categoria ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(i.cnh_categoria)}</span>` : '';
         const mot = i.motorista_vinculado
-            ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;color:#4c1d95;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:4px 8px;margin-top:4px;width:fit-content;max-width:100%;"><i class="ph ph-steering-wheel" style="color:#7c3aed;font-size:0.95rem;flex-shrink:0;"></i> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
+            ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#4c1d95;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:999px;padding:3px 10px 3px 4px;margin-top:4px;width:fit-content;max-width:100%;">${avatarMotorista(i.motorista_vinculado, i.motorista_foto_url, 22)} <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
             : `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.76rem;font-weight:500;color:#64748b;margin-top:3px;"><i class="ph ph-steering-wheel" style="color:#94a3b8;font-size:0.9rem;flex-shrink:0;"></i> <span>Sem motorista vinculado</span></div>`;
         return `<button class="alc-card ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
             ${avatar(i)}
@@ -287,7 +295,7 @@
         const c = { id: d.id, nome: d.nome, tipo: d.tipo, tem_foto: true };
         const cnh = d.eh_motorista && S.cnh ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(S.cnh)}</span>` : '';
         const mot = d.motorista_vinculado
-            ? `<span class="alc-badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;"><i class="ph ph-steering-wheel"></i> Mot.: ${esc(d.motorista_vinculado)}</span>`
+            ? `<span class="alc-badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;padding-left:4px;gap:5px;">${avatarMotorista(d.motorista_vinculado, d.motorista_foto_url, 18)} Mot.: ${esc(d.motorista_vinculado)}</span>`
             : `<span class="alc-badge cinza"><i class="ph ph-steering-wheel"></i> Sem motorista</span>`;
         return `<header class="alc-det-head">
             <button class="alc-icon-btn" onclick="window._alcFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
