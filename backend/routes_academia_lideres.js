@@ -78,10 +78,40 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             matricula_id INTEGER NOT NULL, aula_id INTEGER NOT NULL, concluida_em DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (matricula_id, aula_id)
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_avaliacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id INTEGER NOT NULL, module_id INTEGER, nome TEXT NOT NULL, descricao TEXT,
+            nota_minima REAL DEFAULT 70, tentativas INTEGER DEFAULT 1, data_abertura TEXT, data_limite TEXT,
+            obrigatoria INTEGER DEFAULT 1, ativo INTEGER DEFAULT 1, ordem INTEGER DEFAULT 0, demonstracao INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (track_id) REFERENCES acl_trilhas(id) ON DELETE CASCADE
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_perguntas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quiz_id INTEGER NOT NULL, tipo TEXT NOT NULL, enunciado TEXT NOT NULL, ordem INTEGER DEFAULT 0
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_alternativas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pergunta_id INTEGER NOT NULL, texto TEXT NOT NULL, correta INTEGER DEFAULT 0, ordem INTEGER DEFAULT 0
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_tentativas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            matricula_id INTEGER NOT NULL, quiz_id INTEGER NOT NULL, numero INTEGER DEFAULT 1,
+            nota REAL, aprovado INTEGER DEFAULT 0, respostas_json TEXT, enviado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_certificados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            matricula_id INTEGER NOT NULL UNIQUE, track_id INTEGER NOT NULL, colaborador_id INTEGER NOT NULL,
+            numero TEXT NOT NULL UNIQUE, nome_colaborador TEXT, nome_trilha TEXT, carga_horaria REAL DEFAULT 0,
+            data_conclusao TEXT, emitido_em DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_av_track ON acl_avaliacoes (track_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_perg_quiz ON acl_perguntas (quiz_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_tent_mat ON acl_tentativas (matricula_id, quiz_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mod_track ON acl_modulos (track_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_aula_mod ON acl_aulas (module_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mat_track ON acl_matriculas (track_id)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { seedDemo().catch(e => console.error('[ACL] seed:', e.message)); });
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { seedDemo().then(() => seedDemoAvaliacao()).catch(e => console.error('[ACL] seed:', e.message)); });
     });
 
     // ── Permissões ─────────────────────────────────────────────────────────────
@@ -153,28 +183,34 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         return null;
     }
 
-    // ── Progresso obrigatório (missões nunca entram aqui) ──────────────────────
-    async function aulasObrigatorias(trackId) {
-        return dbAll(`SELECT a.id, a.module_id FROM acl_aulas a JOIN acl_modulos m ON m.id = a.module_id
-            WHERE m.track_id = ? AND m.ativo = 1 AND a.obrigatoria = 1`, [trackId]);
+    // ── Progresso obrigatório: aulas obrigatórias + avaliações obrigatórias (missões NUNCA entram) ──
+    async function itensObrigatorios(trackId) {
+        const aulas = await dbAll(`SELECT a.id FROM acl_aulas a JOIN acl_modulos m ON m.id = a.module_id WHERE m.track_id = ? AND m.ativo = 1 AND a.obrigatoria = 1`, [trackId]);
+        const quizzes = await dbAll(`SELECT q.id FROM acl_avaliacoes q WHERE q.track_id = ? AND q.ativo = 1 AND q.obrigatoria = 1
+            AND EXISTS (SELECT 1 FROM acl_perguntas p WHERE p.quiz_id = q.id)
+            AND (q.module_id IS NULL OR q.module_id IN (SELECT id FROM acl_modulos WHERE ativo = 1))`, [trackId]);
+        return { aulas: new Set(aulas.map(a => a.id)), quizzes: new Set(quizzes.map(q => q.id)) };
     }
     async function progressoDaTrilha(trackId) {
-        const obrig = await aulasObrigatorias(trackId);
-        const ids = new Set(obrig.map(a => a.id));
+        const it = await itensObrigatorios(trackId);
+        const total = it.aulas.size + it.quizzes.size;
         const mats = await dbAll('SELECT id, colaborador_id, status FROM acl_matriculas WHERE track_id = ?', [trackId]);
         const out = {};
-        if (!mats.length) return { total: ids.size, porMatricula: out };
+        if (!mats.length) return { total, porMatricula: out };
         const prog = await dbAll(`SELECT p.matricula_id, p.aula_id FROM acl_progresso p JOIN acl_matriculas m ON m.id = p.matricula_id WHERE m.track_id = ?`, [trackId]);
+        const apr = await dbAll(`SELECT DISTINCT t.matricula_id, t.quiz_id FROM acl_tentativas t JOIN acl_matriculas m ON m.id = t.matricula_id WHERE m.track_id = ? AND t.aprovado = 1`, [trackId]);
         const cont = {};
-        prog.forEach(p => { if (ids.has(p.aula_id)) cont[p.matricula_id] = (cont[p.matricula_id] || 0) + 1; });
-        mats.forEach(m => { out[m.id] = ids.size ? Math.min(100, Math.round(((cont[m.id] || 0) * 100) / ids.size)) : 0; });
-        return { total: ids.size, porMatricula: out };
+        prog.forEach(p => { if (it.aulas.has(p.aula_id)) cont[p.matricula_id] = (cont[p.matricula_id] || 0) + 1; });
+        apr.forEach(a => { if (it.quizzes.has(a.quiz_id)) cont[a.matricula_id] = (cont[a.matricula_id] || 0) + 1; });
+        mats.forEach(m => { out[m.id] = total ? Math.min(100, Math.round(((cont[m.id] || 0) * 100) / total)) : 0; });
+        return { total, porMatricula: out };
     }
     async function sincronizarConclusao(matriculaId, pct) {
         const m = await dbGet('SELECT id, status FROM acl_matriculas WHERE id = ?', [matriculaId]);
         if (!m || m.status === 'inativo') return;
         if (pct >= 100 && m.status !== 'concluido') await dbRun(`UPDATE acl_matriculas SET status = 'concluido', data_conclusao = ? WHERE id = ?`, [hojeSP(), matriculaId]);
         else if (pct < 100 && m.status === 'concluido') await dbRun(`UPDATE acl_matriculas SET status = 'ativo', data_conclusao = NULL WHERE id = ?`, [matriculaId]);
+        if (pct >= 100) { try { await emitirCertificado(matriculaId); } catch (e) { console.error('[ACL] certificado:', e.message); } }
     }
 
     // ── Montagem da trilha (módulos + aulas) ───────────────────────────────────
@@ -199,7 +235,8 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const pr = await progressoDaTrilha(t.id);
         const vals = Object.values(pr.porMatricula);
         const media = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-        return { qtd_modulos: mods, qtd_aulas: aulas, qtd_avaliacoes: 0, qtd_missoes: 0, qtd_participantes: part, progresso_medio: media };
+        const avs = await q('SELECT COUNT(*) n FROM acl_avaliacoes WHERE track_id = ?', [t.id]);
+        return { qtd_modulos: mods, qtd_aulas: aulas, qtd_avaliacoes: avs, qtd_missoes: 0, qtd_participantes: part, progresso_medio: media };
     }
 
     // ═══ ADMIN: trilhas ═══════════════════════════════════════════════════════
@@ -262,6 +299,11 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const n = await dbGet('SELECT COUNT(*) n FROM acl_matriculas WHERE track_id = ?', [id]);
             if (n.n > 0 && req.query.forcar !== '1') return res.status(409).json({ error: `Esta trilha tem ${n.n} participante(s). Arquive a trilha ou confirme a exclusão definitiva.`, participantes: n.n });
             await apagarMidiasDaTrilha(id);
+            await dbRun('DELETE FROM acl_tentativas WHERE matricula_id IN (SELECT id FROM acl_matriculas WHERE track_id = ?)', [id]);
+            await dbRun('DELETE FROM acl_alternativas WHERE pergunta_id IN (SELECT p.id FROM acl_perguntas p JOIN acl_avaliacoes q ON q.id = p.quiz_id WHERE q.track_id = ?)', [id]);
+            await dbRun('DELETE FROM acl_perguntas WHERE quiz_id IN (SELECT id FROM acl_avaliacoes WHERE track_id = ?)', [id]);
+            await dbRun('DELETE FROM acl_avaliacoes WHERE track_id = ?', [id]);
+            await dbRun('DELETE FROM acl_certificados WHERE track_id = ?', [id]);
             await dbRun('DELETE FROM acl_progresso WHERE matricula_id IN (SELECT id FROM acl_matriculas WHERE track_id = ?)', [id]);
             await dbRun('DELETE FROM acl_matriculas WHERE track_id = ?', [id]);
             await dbRun('DELETE FROM acl_aulas WHERE module_id IN (SELECT id FROM acl_modulos WHERE track_id = ?)', [id]);
@@ -275,7 +317,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const id = parseInt(req.params.id, 10);
             const t = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [id]);
             if (!t) return res.status(404).json({ error: 'Trilha não encontrada.' });
-            res.json(Object.assign(resumoTrilha(t, await contagensTrilha(t)), { modulos: await estruturaTrilha(id, false) }));
+            res.json(Object.assign(resumoTrilha(t, await contagensTrilha(t)), { modulos: await estruturaTrilha(id, false), avaliacoes: await listarAvaliacoes(id) }));
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
@@ -323,6 +365,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             }
             await dbRun('DELETE FROM acl_progresso WHERE aula_id IN (SELECT id FROM acl_aulas WHERE module_id = ?)', [id]);
             await dbRun('DELETE FROM acl_aulas WHERE module_id = ?', [id]);
+            await dbRun('UPDATE acl_avaliacoes SET module_id = NULL WHERE module_id = ?', [id]);
             await dbRun('DELETE FROM acl_modulos WHERE id = ?', [id]);
             res.json({ ok: true });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -508,6 +551,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         try {
             const id = parseInt(req.params.id, 10);
             await dbRun('DELETE FROM acl_progresso WHERE matricula_id = ?', [id]);
+            await dbRun('DELETE FROM acl_tentativas WHERE matricula_id = ?', [id]);
             await dbRun('DELETE FROM acl_matriculas WHERE id = ?', [id]);
             res.json({ ok: true });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -554,7 +598,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             res.json({
                 total_colaboradores: totalColab.n, participantes: totalPart, ativos, concluidos, em_desenvolvimento: emDesenv, nao_iniciaram: naoIniciaram,
                 trilhas_cadastradas: trilhas.length, trilhas_concluidas: concluidos,
-                media_conclusao: nPct ? Math.round(somaPct / nPct) : 0, certificados_emitidos: 0, por_trilha: porTrilha
+                media_conclusao: nPct ? Math.round(somaPct / nPct) : 0, certificados_emitidos: (await dbGet('SELECT COUNT(*) n FROM acl_certificados')).n, por_trilha: porTrilha
             });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
@@ -568,24 +612,44 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const feitas = new Set((await dbAll('SELECT aula_id FROM acl_progresso WHERE matricula_id = ?', [mat.id])).map(r => r.aula_id));
         const h = hojeSP();
         const colab = await dbGet('SELECT id, nome_completo, cargo, departamento FROM colaboradores WHERE id = ?', [colabId]);
-        let totalObr = 0, feitasObr = 0, proximoModulo = null, proximaAula = null;
+        const tent = {};
+        (await dbAll('SELECT quiz_id, COUNT(*) n, MAX(aprovado) ap, MAX(nota) melhor FROM acl_tentativas WHERE matricula_id = ? GROUP BY quiz_id', [mat.id])).forEach(x => { tent[x.quiz_id] = x; });
+        const modIds = new Set(mods.map(m => m.id));
+        const quizzes = (await dbAll(`SELECT q.*, (SELECT COUNT(*) FROM acl_perguntas p WHERE p.quiz_id = q.id) AS qtd_perguntas FROM acl_avaliacoes q WHERE q.track_id = ? AND q.ativo = 1 ORDER BY q.ordem, q.id`, [trackId]))
+            .filter(q => q.qtd_perguntas > 0 && (!q.module_id || modIds.has(q.module_id)));
+        const avs = quizzes.map(q => {
+            const t = tent[q.id] || { n: 0, ap: 0, melhor: null };
+            return { id: q.id, nome: q.nome, descricao: q.descricao, module_id: q.module_id, nota_minima: q.nota_minima, tentativas: q.tentativas, usadas: t.n, melhor_nota: t.melhor,
+                aprovada: !!t.ap, obrigatoria: !!q.obrigatoria, data_abertura: q.data_abertura, data_limite: q.data_limite, demonstracao: q.demonstracao, qtd_perguntas: q.qtd_perguntas,
+                situacao: situacaoAvaliacao(q, t.n, !!t.ap, mat.excecao_ate) };
+        });
+        let totalAulas = 0, feitasAulas = 0, proximoModulo = null, proximaAula = null;
         mods.forEach(m => {
             m.encerrado = !!(m.data_fim && h > m.data_fim);
             m.aulas.forEach(a => {
                 a.concluida = feitas.has(a.id);
                 a.encerrada = !!((a.prazo && h > a.prazo) || m.encerrado || (trilha.data_fim && h > trilha.data_fim));
-                if (a.obrigatoria) { totalObr++; if (a.concluida) feitasObr++; }
-                if (!a.concluida && a.obrigatoria && !proximaAula) { proximaAula = { id: a.id, titulo: a.titulo, modulo: m.titulo }; proximoModulo = m.titulo; }
+                if (a.obrigatoria) { totalAulas++; if (a.concluida) feitasAulas++; }
+                if (!a.concluida && a.obrigatoria && !proximaAula) { proximaAula = { tipo: 'aula', id: a.id, titulo: a.titulo, modulo: m.titulo }; proximoModulo = m.titulo; }
             });
-            const obr = m.aulas.filter(a => a.obrigatoria);
-            m.progresso = obr.length ? Math.round(obr.filter(a => a.concluida).length * 100 / obr.length) : 0;
+            m.avaliacoes = avs.filter(a => a.module_id === m.id);
+            const obrA = m.aulas.filter(a => a.obrigatoria), obrQ = m.avaliacoes.filter(a => a.obrigatoria);
+            const tot = obrA.length + obrQ.length;
+            m.progresso = tot ? Math.round((obrA.filter(a => a.concluida).length + obrQ.filter(a => a.aprovada).length) * 100 / tot) : 0;
         });
-        const pct = totalObr ? Math.round(feitasObr * 100 / totalObr) : 0;
+        const gerais = avs.filter(a => !a.module_id);
+        const obrQAll = avs.filter(a => a.obrigatoria);
+        if (!proximaAula) { const q = obrQAll.find(a => !a.aprovada); if (q) { const mm = mods.find(x => x.id === q.module_id); proximaAula = { tipo: 'avaliacao', id: q.id, titulo: q.nome, modulo: mm ? mm.titulo : 'Avaliação geral' }; proximoModulo = proximaAula.modulo; } }
+        const totalItens = totalAulas + obrQAll.length, feitosItens = feitasAulas + obrQAll.filter(a => a.aprovada).length;
+        const pct = totalItens ? Math.round(feitosItens * 100 / totalItens) : 0;
+        const cert = await dbGet('SELECT id, numero FROM acl_certificados WHERE matricula_id = ?', [mat.id]);
         return {
             colaborador: colab && { id: colab.id, nome: colab.nome_completo, cargo: colab.cargo, departamento: colab.departamento, foto: fotoUrl(colab.id) },
             matricula: { id: mat.id, status: mat.status, data_matricula: mat.data_matricula, data_conclusao: mat.data_conclusao, excecao_ate: mat.excecao_ate },
-            trilha: resumoTrilha(trilha), modulos: mods,
-            progresso: { obrigatorio: pct, aulas_obrigatorias: totalObr, aulas_concluidas: feitasObr, missoes_realizadas: 0, pontos_bonus: 0 },
+            trilha: resumoTrilha(trilha), modulos: mods, avaliacoes_gerais: gerais,
+            progresso: { obrigatorio: pct, itens_obrigatorios: totalItens, itens_concluidos: feitosItens, aulas_obrigatorias: totalAulas, aulas_concluidas: feitasAulas,
+                avaliacoes_obrigatorias: obrQAll.length, avaliacoes_aprovadas: obrQAll.filter(a => a.aprovada).length, missoes_realizadas: 0, pontos_bonus: 0 },
+            certificado: cert ? { id: cert.id, numero: cert.numero } : null,
             proximo_modulo: proximoModulo, proxima_aula: proximaAula
         };
     }
@@ -598,7 +662,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const trilhas = [];
             for (const m of mats) {
                 const j = await jornadaDoColab(m.track_id, colab.id);
-                if (j) trilhas.push({ trilha: j.trilha, matricula: j.matricula, progresso: j.progresso, proximo_modulo: j.proximo_modulo, proxima_aula: j.proxima_aula,
+                if (j) trilhas.push({ trilha: j.trilha, matricula: j.matricula, progresso: j.progresso, certificado: j.certificado, proximo_modulo: j.proximo_modulo, proxima_aula: j.proxima_aula,
                     qtd_modulos: j.modulos.length, qtd_aulas: j.modulos.reduce((n, x) => n + x.aulas.length, 0) });
             }
             res.json({ vinculado: true, colaborador: { id: colab.id, nome: colab.nome_completo, cargo: colab.cargo, departamento: colab.departamento, foto: fotoUrl(colab.id) }, trilhas });
@@ -637,6 +701,327 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             res.json({ ok: true, progresso: pct, concluido_trilha: pct >= 100 });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  FASE 2 — Avaliações, resultados, desempenho e certificados
+    //  Regras: nota mínima padrão 70%; só perguntas objetivas (múltipla escolha e V/F) entram na nota;
+    //  perguntas abertas ficam registradas para leitura do admin; avaliação obrigatória aprovada conta no progresso.
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function listarAvaliacoes(trackId) {
+        const rows = await dbAll(`SELECT q.*, (SELECT COUNT(*) FROM acl_perguntas p WHERE p.quiz_id = q.id) AS qtd_perguntas,
+            (SELECT COUNT(*) FROM acl_tentativas t WHERE t.quiz_id = q.id) AS qtd_tentativas,
+            (SELECT COUNT(DISTINCT t.matricula_id) FROM acl_tentativas t WHERE t.quiz_id = q.id AND t.aprovado = 1) AS qtd_aprovados
+            FROM acl_avaliacoes q WHERE q.track_id = ? ORDER BY q.ordem ASC, q.id ASC`, [trackId]);
+        return rows;
+    }
+    function lerAvaliacao(b, trilha) {
+        const a = {
+            nome: txt(b.nome, 200), descricao: txt(b.descricao),
+            module_id: parseInt(b.module_id, 10) || null,
+            nota_minima: Math.min(100, Math.max(0, parseFloat(b.nota_minima))), tentativas: Math.max(1, parseInt(b.tentativas, 10) || 1),
+            data_abertura: isoDate(b.data_abertura), data_limite: isoDate(b.data_limite),
+            obrigatoria: b.obrigatoria === false || b.obrigatoria === 0 || b.obrigatoria === '0' ? 0 : 1,
+            ativo: b.ativo === false || b.ativo === 0 || b.ativo === '0' ? 0 : 1
+        };
+        if (isNaN(a.nota_minima)) a.nota_minima = 70;
+        if (!a.nome) return { erro: 'Informe o nome da avaliação.' };
+        const e1 = validaIntervalo(a.data_abertura, a.data_limite, 'da avaliação'); if (e1) return { erro: e1 };
+        if (!dentro(trilha.data_inicio, trilha.data_fim, a.data_abertura, a.data_limite)) return { erro: 'O prazo da avaliação deve estar dentro do prazo da trilha.' };
+        return { a };
+    }
+    app.get('/api/acl/trilhas/:id/avaliacoes', guardAdmin, async (req, res) => {
+        try { res.json(await listarAvaliacoes(parseInt(req.params.id, 10))); } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.post('/api/acl/trilhas/:id/avaliacoes', guardAdmin, async (req, res) => {
+        try {
+            const tid = parseInt(req.params.id, 10);
+            const trilha = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [tid]);
+            if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada.' });
+            const r = lerAvaliacao(req.body || {}, trilha); if (r.erro) return res.status(400).json({ error: r.erro });
+            if (r.a.module_id) { const m = await dbGet('SELECT id FROM acl_modulos WHERE id = ? AND track_id = ?', [r.a.module_id, tid]); if (!m) return res.status(400).json({ error: 'O módulo precisa pertencer a esta trilha.' }); }
+            const ord = await dbGet('SELECT COALESCE(MAX(ordem), 0) + 1 AS o FROM acl_avaliacoes WHERE track_id = ?', [tid]);
+            const ins = await dbRun(`INSERT INTO acl_avaliacoes (track_id, module_id, nome, descricao, nota_minima, tentativas, data_abertura, data_limite, obrigatoria, ativo, ordem)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [tid, r.a.module_id, r.a.nome, r.a.descricao, r.a.nota_minima, r.a.tentativas, r.a.data_abertura, r.a.data_limite, r.a.obrigatoria, r.a.ativo, ord.o]);
+            res.json({ ok: true, id: ins.lastID });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.put('/api/acl/avaliacoes/:id', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const atual = await dbGet('SELECT * FROM acl_avaliacoes WHERE id = ?', [id]);
+            if (!atual) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+            const trilha = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [atual.track_id]);
+            const r = lerAvaliacao(Object.assign({}, atual, req.body || {}), trilha); if (r.erro) return res.status(400).json({ error: r.erro });
+            if (r.a.module_id) { const m = await dbGet('SELECT id FROM acl_modulos WHERE id = ? AND track_id = ?', [r.a.module_id, atual.track_id]); if (!m) return res.status(400).json({ error: 'O módulo precisa pertencer a esta trilha.' }); }
+            await dbRun(`UPDATE acl_avaliacoes SET module_id = ?, nome = ?, descricao = ?, nota_minima = ?, tentativas = ?, data_abertura = ?, data_limite = ?, obrigatoria = ?, ativo = ? WHERE id = ?`,
+                [r.a.module_id, r.a.nome, r.a.descricao, r.a.nota_minima, r.a.tentativas, r.a.data_abertura, r.a.data_limite, r.a.obrigatoria, r.a.ativo, id]);
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    async function apagarPerguntasDaAvaliacao(id) {
+        await dbRun('DELETE FROM acl_alternativas WHERE pergunta_id IN (SELECT id FROM acl_perguntas WHERE quiz_id = ?)', [id]);
+        await dbRun('DELETE FROM acl_perguntas WHERE quiz_id = ?', [id]);
+    }
+    app.delete('/api/acl/avaliacoes/:id', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            await dbRun('DELETE FROM acl_tentativas WHERE quiz_id = ?', [id]);
+            await apagarPerguntasDaAvaliacao(id);
+            await dbRun('DELETE FROM acl_avaliacoes WHERE id = ?', [id]);
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    async function avaliacaoCompleta(id, comGabarito) {
+        const q = await dbGet('SELECT * FROM acl_avaliacoes WHERE id = ?', [id]);
+        if (!q) return null;
+        const ps = await dbAll('SELECT * FROM acl_perguntas WHERE quiz_id = ? ORDER BY ordem ASC, id ASC', [id]);
+        for (const p of ps) {
+            const alts = await dbAll('SELECT id, texto, correta FROM acl_alternativas WHERE pergunta_id = ? ORDER BY ordem ASC, id ASC', [p.id]);
+            p.alternativas = alts.map(a => comGabarito ? a : { id: a.id, texto: a.texto });
+        }
+        q.perguntas = ps;
+        return q;
+    }
+    app.get('/api/acl/avaliacoes/:id', guardAdmin, async (req, res) => {
+        try { const q = await avaliacaoCompleta(parseInt(req.params.id, 10), true); if (!q) return res.status(404).json({ error: 'Avaliação não encontrada.' }); res.json(q); } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    // substitui todas as perguntas da avaliação (editor único)
+    app.put('/api/acl/avaliacoes/:id/perguntas', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const q = await dbGet('SELECT id FROM acl_avaliacoes WHERE id = ?', [id]);
+            if (!q) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+            const lista = Array.isArray(req.body && req.body.perguntas) ? req.body.perguntas : [];
+            const limpas = [];
+            for (let i = 0; i < lista.length; i++) {
+                const p = lista[i] || {};
+                const tipo = ['multipla', 'vf', 'aberta'].includes(p.tipo) ? p.tipo : 'multipla';
+                const enunciado = txt(p.enunciado, 1500);
+                if (!enunciado) return res.status(400).json({ error: `A pergunta ${i + 1} está sem enunciado.` });
+                let alts = [];
+                if (tipo === 'multipla') {
+                    alts = (Array.isArray(p.alternativas) ? p.alternativas : []).map(a => ({ texto: txt(a && a.texto, 500), correta: a && (a.correta === true || a.correta === 1 || a.correta === '1') ? 1 : 0 })).filter(a => a.texto);
+                    if (alts.length < 2) return res.status(400).json({ error: `A pergunta ${i + 1} precisa de pelo menos 2 alternativas.` });
+                    if (alts.filter(a => a.correta).length !== 1) return res.status(400).json({ error: `A pergunta ${i + 1} precisa ter exatamente 1 alternativa correta.` });
+                } else if (tipo === 'vf') {
+                    const v = p.resposta_vf === 'falso' ? 'falso' : (p.resposta_vf === 'verdadeiro' ? 'verdadeiro' : null);
+                    if (!v) return res.status(400).json({ error: `Informe se a pergunta ${i + 1} (V/F) é verdadeira ou falsa.` });
+                    alts = [{ texto: 'Verdadeiro', correta: v === 'verdadeiro' ? 1 : 0 }, { texto: 'Falso', correta: v === 'falso' ? 1 : 0 }];
+                }
+                limpas.push({ tipo, enunciado, alts });
+            }
+            const usadas = await dbGet('SELECT COUNT(*) n FROM acl_tentativas WHERE quiz_id = ?', [id]);
+            if (usadas.n > 0 && !(req.body && req.body.forcar)) return res.status(409).json({ error: `Esta avaliação já tem ${usadas.n} tentativa(s) respondida(s). Alterar as perguntas pode invalidar os resultados.`, tentativas: usadas.n });
+            await apagarPerguntasDaAvaliacao(id);
+            for (let i = 0; i < limpas.length; i++) {
+                const p = await dbRun('INSERT INTO acl_perguntas (quiz_id, tipo, enunciado, ordem) VALUES (?, ?, ?, ?)', [id, limpas[i].tipo, limpas[i].enunciado, i + 1]);
+                for (let k = 0; k < limpas[i].alts.length; k++) await dbRun('INSERT INTO acl_alternativas (pergunta_id, texto, correta, ordem) VALUES (?, ?, ?, ?)', [p.lastID, limpas[i].alts[k].texto, limpas[i].alts[k].correta, k + 1]);
+            }
+            res.json({ ok: true, total: limpas.length });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.get('/api/acl/avaliacoes/:id/resultados', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const ps = await dbAll('SELECT id, tipo, enunciado FROM acl_perguntas WHERE quiz_id = ? ORDER BY ordem ASC, id ASC', [id]);
+            const rows = await dbAll(`SELECT t.id, t.numero, t.nota, t.aprovado, t.enviado_em, t.respostas_json, c.id AS colaborador_id, c.nome_completo
+                FROM acl_tentativas t JOIN acl_matriculas m ON m.id = t.matricula_id JOIN colaboradores c ON c.id = m.colaborador_id WHERE t.quiz_id = ? ORDER BY t.enviado_em DESC`, [id]);
+            res.json({ perguntas: ps, tentativas: rows.map(r => ({ id: r.id, colaborador: r.nome_completo, colaborador_id: r.colaborador_id, numero: r.numero, nota: r.nota, aprovado: !!r.aprovado, enviado_em: r.enviado_em,
+                abertas: ps.filter(p => p.tipo === 'aberta').map(p => ({ pergunta: p.enunciado, resposta: (parseJson(r.respostas_json, {}) || {})[p.id] || '' })) })) });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.get('/api/acl/trilhas/:id/desempenho', guardAdmin, async (req, res) => {
+        try {
+            const tid = parseInt(req.params.id, 10);
+            const pr = await progressoDaTrilha(tid);
+            const mats = await dbAll('SELECT id, status FROM acl_matriculas WHERE track_id = ?', [tid]);
+            const vals = mats.map(m => pr.porMatricula[m.id] || 0);
+            const media = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+            const concl = mats.filter(m => m.status === 'concluido').length;
+            const iniciaram = await dbGet(`SELECT COUNT(DISTINCT x.mid) n FROM (SELECT p.matricula_id AS mid FROM acl_progresso p JOIN acl_matriculas m ON m.id = p.matricula_id WHERE m.track_id = ?
+                UNION SELECT t.matricula_id FROM acl_tentativas t JOIN acl_matriculas m ON m.id = t.matricula_id WHERE m.track_id = ?) x`, [tid, tid]);
+            const notas = await dbAll(`SELECT MAX(t.nota) AS melhor FROM acl_tentativas t JOIN acl_avaliacoes q ON q.id = t.quiz_id WHERE q.track_id = ? AND t.nota IS NOT NULL GROUP BY t.matricula_id, t.quiz_id`, [tid]);
+            const mediaNotas = notas.length ? Math.round(notas.reduce((a, b) => a + (b.melhor || 0), 0) / notas.length) : null;
+            const certs = await dbGet('SELECT COUNT(*) n FROM acl_certificados WHERE track_id = ?', [tid]);
+            res.json({ participantes: mats.length, media_progresso: media, taxa_conclusao: mats.length ? Math.round(concl * 100 / mats.length) : 0, media_avaliacoes: mediaNotas,
+                certificados: certs.n, participacao: mats.length ? Math.round(iniciaram.n * 100 / mats.length) : 0, itens_obrigatorios: pr.total });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ── Certificados ───────────────────────────────────────────────────────────
+    async function emitirCertificado(matriculaId) {
+        const ja = await dbGet('SELECT id FROM acl_certificados WHERE matricula_id = ?', [matriculaId]);
+        if (ja) return ja.id;
+        const m = await dbGet(`SELECT m.id, m.track_id, m.colaborador_id, m.data_conclusao, t.nome AS trilha, t.carga_horaria, t.gera_certificado, c.nome_completo
+            FROM acl_matriculas m JOIN acl_trilhas t ON t.id = m.track_id JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?`, [matriculaId]);
+        if (!m || !m.gera_certificado) return null;
+        const ano = (m.data_conclusao || hojeSP()).slice(0, 4);
+        for (let tentativa = 0; tentativa < 5; tentativa++) {
+            const numero = `ACS-${ano}-${String(m.id).padStart(5, '0')}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+            try {
+                const r = await dbRun(`INSERT INTO acl_certificados (matricula_id, track_id, colaborador_id, numero, nome_colaborador, nome_trilha, carga_horaria, data_conclusao, emitido_em)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`, [m.id, m.track_id, m.colaborador_id, numero, m.nome_completo, m.trilha, m.carga_horaria || 0, m.data_conclusao || hojeSP()]);
+                return r.lastID;
+            } catch (e) { if (!/UNIQUE/i.test(e.message)) throw e; }
+        }
+        return null;
+    }
+    const pdfTxt = s => String(s == null ? '' : s).replace(/[^\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D]/g, '').trim();
+    async function gerarCertificadoPdf(c) {
+        const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+        const pdf = await PDFDocument.create();
+        const W = 841.89, H = 595.28;
+        const page = pdf.addPage([W, H]);
+        const bold = await pdf.embedFont(StandardFonts.HelveticaBold), reg = await pdf.embedFont(StandardFonts.Helvetica), ital = await pdf.embedFont(StandardFonts.HelveticaOblique);
+        const roxo = rgb(0.486, 0.227, 0.929), azul = rgb(0.145, 0.388, 0.922), cinza = rgb(0.28, 0.33, 0.41), escuro = rgb(0.06, 0.09, 0.16);
+        page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(1, 1, 1) });
+        page.drawRectangle({ x: 18, y: 18, width: W - 36, height: H - 36, borderColor: roxo, borderWidth: 4 });
+        page.drawRectangle({ x: 30, y: 30, width: W - 60, height: H - 60, borderColor: azul, borderWidth: 1 });
+        page.drawRectangle({ x: 30, y: H - 120, width: W - 60, height: 90, color: roxo });
+        const centro = (t, y, font, size, cor, maxW) => {
+            t = pdfTxt(t); let s = size; const lim = maxW || (W - 120);
+            while (s > 9 && font.widthOfTextAtSize(t, s) > lim) s -= 1;
+            page.drawText(t, { x: (W - font.widthOfTextAtSize(t, s)) / 2, y, size: s, font, color: cor });
+        };
+        centro('ACADEMIA DE SUCESSO', H - 82, bold, 34, rgb(1, 1, 1));
+        centro('Desenvolvimento que transforma pessoas em grandes profissionais.', H - 106, ital, 12, rgb(0.93, 0.9, 1));
+        centro('CERTIFICADO', H - 165, bold, 20, roxo);
+        centro('Certificamos que', H - 205, reg, 15, cinza);
+        centro(String(c.nome_colaborador || '').toUpperCase(), H - 250, bold, 30, escuro);
+        page.drawLine({ start: { x: 180, y: H - 262 }, end: { x: W - 180, y: H - 262 }, thickness: 1, color: azul });
+        centro('concluiu a trilha:', H - 295, reg, 15, cinza);
+        centro(c.nome_trilha, H - 330, bold, 24, roxo);
+        const ch = Number(c.carga_horaria) || 0;
+        const dt = String(c.data_conclusao || '').split('-').reverse().join('/');
+        centro(`Carga horária: ${ch ? String(ch).replace('.', ',') + ' horas' : 'não informada'}`, H - 375, reg, 15, escuro);
+        centro(`Data de conclusão: ${dt}`, H - 400, reg, 15, escuro);
+        centro(`Certificado nº ${c.numero}`, 62, bold, 11, cinza);
+        centro('Documento emitido digitalmente pela plataforma Academia de Sucesso.', 46, ital, 9, cinza);
+        return Buffer.from(await pdf.save());
+    }
+    async function podeVerCertificado(user, cert) {
+        if (await temPagina(user, PAGE_ADMIN)) return true;
+        const colab = await colabDoUsuario(user);
+        return !!(colab && colab.id === cert.colaborador_id);
+    }
+    app.get('/api/acl/certificados', guardAdmin, async (req, res) => {
+        try {
+            const rows = await dbAll(`SELECT c.*, col.cargo FROM acl_certificados c LEFT JOIN colaboradores col ON col.id = c.colaborador_id ORDER BY c.id DESC`);
+            res.json(rows.map(r => ({ id: r.id, numero: r.numero, colaborador: r.nome_colaborador, cargo: r.cargo || '', trilha: r.nome_trilha, carga_horaria: r.carga_horaria, data_conclusao: r.data_conclusao, emitido_em: r.emitido_em })));
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.delete('/api/acl/certificados/:id', guardAdmin, async (req, res) => {
+        try { await dbRun('DELETE FROM acl_certificados WHERE id = ?', [parseInt(req.params.id, 10)]); res.json({ ok: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.get('/api/acl/certificados/:id/pdf', authenticateToken, async (req, res) => {
+        try {
+            const c = await dbGet('SELECT * FROM acl_certificados WHERE id = ?', [parseInt(req.params.id, 10)]);
+            if (!c) return res.status(404).json({ error: 'Certificado não encontrado.' });
+            if (!await podeVerCertificado(req.user, c)) return res.status(403).json({ error: 'Sem permissão para este certificado.' });
+            const buf = await gerarCertificadoPdf(c);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${c.numero}.pdf"`);
+            res.send(buf);
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.get('/api/acl/minha/certificados', guardMinha, async (req, res) => {
+        try {
+            const colab = await colabDoUsuario(req.user);
+            if (!colab) return res.json([]);
+            const rows = await dbAll('SELECT id, numero, nome_trilha, carga_horaria, data_conclusao FROM acl_certificados WHERE colaborador_id = ? ORDER BY id DESC', [colab.id]);
+            res.json(rows);
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ── Participante: fazer avaliação ──────────────────────────────────────────
+    function situacaoAvaliacao(q, usadas, aprovada, excecaoAte) {
+        const h = hojeSP();
+        if (aprovada) return 'aprovada';
+        if (q.data_abertura && h < q.data_abertura) return 'nao_aberta';
+        const lim = q.data_limite || null;
+        const efetivo = excecaoAte && excecaoAte > (lim || '') ? excecaoAte : lim;
+        if (efetivo && h > efetivo) return 'encerrada';
+        if (usadas >= q.tentativas) return 'esgotada';
+        return 'aberta';
+    }
+    async function ctxAvaliacaoMinha(req, res) {
+        const colab = await colabDoUsuario(req.user);
+        if (!colab) { res.status(404).json({ error: 'Seu usuário não está vinculado a um colaborador.' }); return null; }
+        const q = await dbGet(`SELECT q.*, t.status AS tstatus, t.data_fim AS tfim FROM acl_avaliacoes q JOIN acl_trilhas t ON t.id = q.track_id WHERE q.id = ?`, [parseInt(req.params.id, 10)]);
+        if (!q || !q.ativo || ['rascunho', 'arquivada'].includes(q.tstatus)) { res.status(404).json({ error: 'Avaliação não encontrada.' }); return null; }
+        const mat = await dbGet(`SELECT * FROM acl_matriculas WHERE track_id = ? AND colaborador_id = ? AND status != 'inativo'`, [q.track_id, colab.id]);
+        if (!mat) { res.status(403).json({ error: 'Você não está matriculado nesta trilha.' }); return null; }
+        const t = await dbGet('SELECT COUNT(*) n, MAX(aprovado) ap, MAX(nota) melhor FROM acl_tentativas WHERE matricula_id = ? AND quiz_id = ?', [mat.id, q.id]);
+        const situacao = situacaoAvaliacao(q, t.n, !!t.ap, mat.excecao_ate);
+        return { colab, q, mat, usadas: t.n, melhor: t.melhor, situacao };
+    }
+    app.get('/api/acl/minha/avaliacoes/:id', guardMinha, async (req, res) => {
+        try {
+            const c = await ctxAvaliacaoMinha(req, res); if (!c) return;
+            const base = { id: c.q.id, nome: c.q.nome, descricao: c.q.descricao, nota_minima: c.q.nota_minima, tentativas: c.q.tentativas, usadas: c.usadas, melhor_nota: c.melhor, data_abertura: c.q.data_abertura, data_limite: c.q.data_limite, obrigatoria: !!c.q.obrigatoria, situacao: c.situacao };
+            if (c.situacao !== 'aberta') return res.json(Object.assign(base, { perguntas: [] }));
+            const full = await avaliacaoCompleta(c.q.id, false);
+            res.json(Object.assign(base, { perguntas: full.perguntas.map(p => ({ id: p.id, tipo: p.tipo, enunciado: p.enunciado, alternativas: p.alternativas })) }));
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.post('/api/acl/minha/avaliacoes/:id/enviar', guardMinha, async (req, res) => {
+        try {
+            const c = await ctxAvaliacaoMinha(req, res); if (!c) return;
+            if (c.situacao !== 'aberta') {
+                const msg = { aprovada: 'Você já foi aprovado nesta avaliação.', nao_aberta: 'Esta avaliação ainda não foi aberta.', encerrada: 'Esta avaliação está encerrada (prazo vencido).', esgotada: 'Você usou todas as tentativas desta avaliação.' }[c.situacao];
+                return res.status(409).json({ error: msg || 'Avaliação indisponível.' });
+            }
+            const full = await avaliacaoCompleta(c.q.id, true);
+            if (!full.perguntas.length) return res.status(409).json({ error: 'Esta avaliação ainda não tem perguntas.' });
+            const resp = (req.body && req.body.respostas) || {};
+            let objetivas = 0, acertos = 0;
+            const salvas = {};
+            for (const p of full.perguntas) {
+                const r = resp[p.id];
+                if (p.tipo === 'aberta') {
+                    const t = txt(r, 3000);
+                    if (!t) return res.status(400).json({ error: 'Responda todas as perguntas antes de enviar.' });
+                    salvas[p.id] = t;
+                } else {
+                    const altId = parseInt(r, 10);
+                    const alt = p.alternativas.find(a => a.id === altId);
+                    if (!alt) return res.status(400).json({ error: 'Responda todas as perguntas antes de enviar.' });
+                    objetivas++; if (alt.correta) acertos++;
+                    salvas[p.id] = altId;
+                }
+            }
+            const nota = objetivas ? Math.round((acertos * 1000) / objetivas) / 10 : null;
+            const aprovado = objetivas ? nota >= c.q.nota_minima : true;
+            await dbRun('INSERT INTO acl_tentativas (matricula_id, quiz_id, numero, nota, aprovado, respostas_json, enviado_em) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+                [c.mat.id, c.q.id, c.usadas + 1, nota, aprovado ? 1 : 0, JSON.stringify(salvas)]);
+            const pr = await progressoDaTrilha(c.q.track_id);
+            const pct = pr.porMatricula[c.mat.id] || 0;
+            await sincronizarConclusao(c.mat.id, pct);
+            const restantes = Math.max(0, c.q.tentativas - (c.usadas + 1));
+            res.json({ ok: true, nota, aprovado, tentativas_restantes: aprovado ? 0 : restantes, progresso: pct, concluido_trilha: pct >= 100,
+                mensagem: aprovado ? 'Parabéns! Você concluiu esta etapa da Academia de Sucesso.' : 'Você não atingiu a nota mínima. Revise o conteúdo e tente novamente.' });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // Avaliação de demonstração (somente se a trilha demo existir sem avaliações)
+    async function seedDemoAvaliacao() {
+        const t = await dbGet('SELECT id FROM acl_trilhas WHERE demonstracao = 1 ORDER BY id LIMIT 1');
+        if (!t) return;
+        const ja = await dbGet('SELECT COUNT(*) n FROM acl_avaliacoes WHERE track_id = ?', [t.id]);
+        if (ja.n > 0) return;
+        const m = await dbGet('SELECT id FROM acl_modulos WHERE track_id = ? ORDER BY ordem LIMIT 1', [t.id]);
+        const q = await dbRun(`INSERT INTO acl_avaliacoes (track_id, module_id, nome, descricao, nota_minima, tentativas, obrigatoria, ativo, ordem, demonstracao)
+            VALUES (?, ?, 'Avaliação do Módulo 1 (conteúdo de demonstração)', 'Conteúdo de demonstração — substitua pelas perguntas reais.', 70, 3, 1, 1, 1, 1)`, [t.id, m ? m.id : null]);
+        const perg = [
+            ['multipla', 'Conteúdo de demonstração: qual é a principal característica de um líder?', [['Dar o exemplo', 1], ['Apenas dar ordens', 0], ['Evitar conversas difíceis', 0]]],
+            ['vf', 'Conteúdo de demonstração: o feedback deve ser claro e respeitoso.', [['Verdadeiro', 1], ['Falso', 0]]],
+            ['aberta', 'Conteúdo de demonstração: descreva uma situação em que você aplicaria o que aprendeu.', []]
+        ];
+        for (let i = 0; i < perg.length; i++) {
+            const p = await dbRun('INSERT INTO acl_perguntas (quiz_id, tipo, enunciado, ordem) VALUES (?, ?, ?, ?)', [q.lastID, perg[i][0], perg[i][1], i + 1]);
+            for (let k = 0; k < perg[i][2].length; k++) await dbRun('INSERT INTO acl_alternativas (pergunta_id, texto, correta, ordem) VALUES (?, ?, ?, ?)', [p.lastID, perg[i][2][k][0], perg[i][2][k][1], k + 1]);
+        }
+    }
 
     // ═══ Conteúdo de demonstração (identificado como tal) ═════════════════════
     async function seedDemo() {

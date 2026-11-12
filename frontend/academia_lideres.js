@@ -66,13 +66,18 @@
     function topoAdmin() {
         const item = (id, ic, rot, on, soon) => `<button class="acl-nav-btn ${on ? 'on' : ''} ${soon ? 'soon' : ''}" ${soon ? 'disabled title="Disponível nas próximas fases"' : `onclick="window._aclAba('${id}')"`}><i class="ph ${ic}"></i> ${rot}${soon ? '<small>em breve</small>' : ''}</button>`;
         return `<header class="acl-head"><div class="acl-head-t"><i class="ph ph-graduation-cap"></i><div><h2>Academia de Sucesso</h2><span>Desenvolvimento que transforma pessoas em grandes profissionais.</span></div></div></header>
-        <nav class="acl-nav">${item('dashboard', 'ph-house', 'Dashboard', A.aba === 'dashboard' && !A.t)}${item('trilhas', 'ph-graduation-cap', 'Trilhas', A.aba === 'trilhas' || !!A.t)}${item('', 'ph-trophy', 'Conquistas', false, 1)}${item('', 'ph-ranking', 'Ranking', false, 1)}${item('', 'ph-certificate', 'Certificados', false, 1)}${item('', 'ph-chart-bar', 'Relatórios', false, 1)}${item('', 'ph-gear', 'Configurações', false, 1)}</nav>`;
+        <nav class="acl-nav">${item('dashboard', 'ph-house', 'Dashboard', A.aba === 'dashboard' && !A.t)}${item('trilhas', 'ph-graduation-cap', 'Trilhas', A.aba === 'trilhas' || !!A.t)}${item('', 'ph-trophy', 'Conquistas', false, 1)}${item('', 'ph-ranking', 'Ranking', false, 1)}${item('certificados', 'ph-certificate', 'Certificados', A.aba === 'certificados' && !A.t)}${item('', 'ph-chart-bar', 'Relatórios', false, 1)}${item('', 'ph-gear', 'Configurações', false, 1)}</nav>`;
     }
-    window._aclAba = function (a) { A.aba = a; A.t = null; desenharAdmin(); };
+    window._aclAba = async function (a) {
+        A.aba = a; A.t = null; A.qe = null;
+        if (a === 'certificados') { try { A.certs = await api('/acl/certificados'); } catch (e) { A.certs = []; erro('Erro', e.message); } }
+        desenharAdmin();
+    };
     function desenharAdmin() {
         const el = raiz('academia-lideres-admin-container'); if (!el) return;
         let corpo;
         if (A.t) corpo = htmlEditor();
+        else if (A.aba === 'certificados') corpo = htmlCertificados();
         else if (A.aba === 'trilhas') corpo = htmlTrilhas();
         else corpo = htmlDashboard();
         el.innerHTML = `<div class="acl-wrap">${topoAdmin()}<div class="acl-corpo">${corpo}</div></div>`;
@@ -157,17 +162,17 @@
         const el = raiz('academia-lideres-admin-container');
         try {
             A.t = await api('/acl/trilhas/' + id); A.aba = 'trilhas'; A.tab = tab || A.tab || 'visao';
-            if (A.tab === 'participantes') A.part = await api('/acl/trilhas/' + id + '/participantes');
+            A.qe = null; await extrasTab(id);
             desenharAdmin();
         } catch (e) { erro('Não foi possível abrir a trilha', e.message); }
     };
     window._aclVoltar = function () { A.t = null; A.aba = 'trilhas'; carregarAdmin(); };
     window._aclTab = async function (tab) {
-        A.tab = tab;
-        if (tab === 'participantes') { try { A.part = await api('/acl/trilhas/' + A.t.id + '/participantes'); } catch (e) { erro('Erro', e.message); } }
+        A.tab = tab; A.qe = null;
+        try { await extrasTab(A.t.id); } catch (e) { erro('Erro', e.message); }
         desenharAdmin();
     };
-    async function recarregarTrilha() { const id = A.t.id; A.t = await api('/acl/trilhas/' + id); if (A.tab === 'participantes') A.part = await api('/acl/trilhas/' + id + '/participantes'); desenharAdmin(); }
+    async function recarregarTrilha() { const id = A.t.id; A.t = await api('/acl/trilhas/' + id); await extrasTab(id); desenharAdmin(); }
 
     function htmlEditor() {
         const t = A.t, st = t.status_efetivo;
@@ -178,8 +183,10 @@
         else if (A.tab === 'modulos') corpo = tabModulos();
         else if (A.tab === 'participantes') corpo = tabParticipantes();
         else if (A.tab === 'desempenho') corpo = tabDesempenho();
+        else if (A.tab === 'avaliacoes') corpo = tabAvaliacoes();
+        else if (A.tab === 'cronograma') corpo = tabCronograma();
         else if (A.tab === 'config') corpo = tabConfig();
-        else corpo = `<div class="acl-vazio"><i class="ph ph-hourglass-medium"></i><div><b>Disponível nas próximas fases</b><br>${A.tab === 'avaliacoes' || A.tab === 'cronograma' ? 'Fase 2 — Avaliações, cronograma e certificado.' : 'Fase 3 — Missões opcionais com pontos bônus.'}</div></div>`;
+        else corpo = `<div class="acl-vazio"><i class="ph ph-hourglass-medium"></i><div><b>Disponível nas próximas fases</b><br>Fase 3 — Missões opcionais com pontos bônus.</div></div>`;
         return `<button class="acl-voltar" onclick="window._aclVoltar()"><i class="ph ph-arrow-left"></i> Voltar às trilhas</button>
         <section class="acl-editor-topo">
             <div class="acl-tc-top"><h2>${esc(t.nome)}</h2><span class="acl-badge" style="background:${STATUS_COR[st] || '#64748b'};">${STATUS_TXT[st] || st}</span></div>${demoTag(t)}
@@ -343,14 +350,146 @@
         } catch (e) { erro('Erro', e.message); }
     };
 
-    // ── Aba Desempenho / Configurações ─────────────────────────────────────────
-    function tabDesempenho() {
-        const P = A.part;
-        const t = A.t;
-        const concl = P ? P.participantes.filter(p => p.status === 'concluido').length : null;
-        const taxa = P && P.participantes.length ? Math.round(concl * 100 / P.participantes.length) : 0;
-        return `<div class="acl-kpis">${kpi('ph-chart-line-up', 'Média de progresso', t.progresso_medio + '%', '#16a34a')}${kpi('ph-seal-check', 'Taxa de conclusão', taxa + '%', '#16a34a')}${kpi('ph-users', 'Participantes', t.qtd_participantes, '#7c3aed')}${kpi('ph-certificate', 'Certificados', 0, '#2563eb')}</div><p class="acl-dica">Média de evolução, média das avaliações, missões e pontos distribuídos serão exibidos quando as fases 2 a 4 forem entregues.</p>`;
+    // ── Aba Configurações ─
+    // ── Aba Avaliações ──────────────────────────────────────────────────────────
+    const SIT_AV = { aprovada: 'Aprovada', aberta: 'Aberta', nao_aberta: 'Ainda não aberta', encerrada: 'Encerrada', esgotada: 'Tentativas esgotadas' };
+    function tabAvaliacoes() {
+        if (A.qe) return htmlQuizEditor();
+        const t = A.t, avs = t.avaliacoes || [];
+        const h = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        const modNome = id => { const m = (t.modulos || []).find(x => x.id === id); return m ? m.titulo : 'Avaliação geral da trilha'; };
+        const cards = avs.map(q => {
+            const enc = q.data_limite && h > q.data_limite;
+            return `<div class="acl-card acl-av-card ${q.ativo ? '' : 'inativo'}">
+                <div class="acl-tc-top"><h3>${esc(q.nome)}</h3><span class="acl-badge" style="background:${enc ? '#dc2626' : (q.obrigatoria ? '#7c3aed' : '#64748b')};">${enc ? 'Encerrada' : (q.obrigatoria ? 'Obrigatória' : 'Opcional')}</span></div>${demoTag(q)}
+                <p class="acl-dica">${esc(q.descricao || '')}</p>
+                <div class="acl-meta"><span><i class="ph ph-books"></i> ${esc(modNome(q.module_id))}</span><span><i class="ph ph-question"></i> ${q.qtd_perguntas} pergunta(s)</span><span><i class="ph ph-target"></i> nota mínima ${q.nota_minima}%</span><span><i class="ph ph-repeat"></i> ${q.tentativas} tentativa(s)</span>
+                    <span><i class="ph ph-calendar-blank"></i> ${q.data_abertura ? fmtBr(q.data_abertura) : 'abertura livre'} → ${q.data_limite ? fmtBr(q.data_limite) : 'sem limite'}</span><span><i class="ph ph-users"></i> ${q.qtd_aprovados} aprovado(s) · ${q.qtd_tentativas} tentativa(s) feitas</span>${q.ativo ? '' : '<span>desativada</span>'}</div>
+                ${q.qtd_perguntas ? '' : '<div class="acl-aviso"><i class="ph ph-warning"></i> Sem perguntas: esta avaliação não aparece para os participantes nem conta no progresso.</div>'}
+                <div class="acl-cfg-btns"><button class="acl-btn pri sm" onclick="window._aclEditarPerguntas(${q.id})"><i class="ph ph-list-checks"></i> Perguntas</button><button class="acl-btn sec sm" onclick="window._aclResultados(${q.id})"><i class="ph ph-chart-bar"></i> Resultados</button><button class="acl-btn sec sm" onclick="window._aclFormAvaliacao(${q.id})"><i class="ph ph-pencil-simple"></i> Editar</button><button class="acl-btn del sm" onclick="window._aclDelAvaliacao(${q.id})"><i class="ph ph-trash"></i> Excluir</button></div></div>`;
+        }).join('') || '<div class="acl-vazio"><i class="ph ph-note-pencil"></i><div>Nenhuma avaliação ainda. Crie a primeira para a trilha ou para um módulo.</div></div>';
+        return `<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-note-pencil"></i> Avaliações</h3><button class="acl-btn pri" onclick="window._aclFormAvaliacao()"><i class="ph ph-plus-circle"></i> ADICIONAR AVALIAÇÃO</button></div><div class="acl-corpo">${cards}</div>`;
     }
+    window._aclFormAvaliacao = async function (id) {
+        const t = A.t, q = id ? (t.avaliacoes || []).find(x => x.id === id) : null;
+        const r = await Swal.fire({
+            title: q ? 'Editar avaliação' : 'Nova avaliação', width: 640, showCancelButton: true, confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar', confirmButtonColor: '#7c3aed', customClass: { popup: 'acl-swal' },
+            html: `<div class="acl-form"><label>Nome<input id="aclav-n" value="${esc(q ? q.nome : '')}" placeholder="Avaliação do Módulo 1"></label><label>Descrição<textarea id="aclav-d" rows="2">${esc(q ? q.descricao : '')}</textarea></label>
+            <label>Vincular a um módulo<select id="aclav-m"><option value="">Avaliação geral da trilha</option>${(t.modulos || []).map(m => `<option value="${m.id}" ${q && q.module_id === m.id ? 'selected' : ''}>${esc(m.titulo)}</option>`).join('')}</select></label>
+            <div class="acl-form-2"><label>Nota mínima (%)<input id="aclav-nm" type="number" min="0" max="100" value="${q ? q.nota_minima : 70}"></label><label>Tentativas permitidas<input id="aclav-t" type="number" min="1" value="${q ? q.tentativas : 3}"></label></div>
+            <div class="acl-form-2"><label>Data de abertura<input id="aclav-a" type="date" min="${esc(t.data_inicio)}" max="${esc(t.data_fim)}" value="${esc(q ? q.data_abertura : '')}"></label><label>Data limite<input id="aclav-l" type="date" min="${esc(t.data_inicio)}" max="${esc(t.data_fim)}" value="${esc(q ? q.data_limite : '')}"></label></div>
+            <small>Prazo precisa estar entre ${fmtBr(t.data_inicio)} e ${fmtBr(t.data_fim)}. Após a data limite a avaliação é encerrada.</small>
+            <label class="acl-chk"><input type="checkbox" id="aclav-o" ${!q || q.obrigatoria ? 'checked' : ''}> Obrigatória (aprovação conta no progresso e no certificado)</label>
+            <label class="acl-chk"><input type="checkbox" id="aclav-at" ${!q || q.ativo ? 'checked' : ''}> Ativa</label></div>`,
+            preConfirm: () => { const v = i => document.getElementById(i).value; const o = { nome: v('aclav-n').trim(), descricao: v('aclav-d'), module_id: v('aclav-m'), nota_minima: v('aclav-nm'), tentativas: v('aclav-t'), data_abertura: v('aclav-a'), data_limite: v('aclav-l'), obrigatoria: document.getElementById('aclav-o').checked, ativo: document.getElementById('aclav-at').checked };
+                if (!o.nome) { Swal.showValidationMessage('Informe o nome da avaliação.'); return false; } return o; }
+        });
+        if (!r.isConfirmed) return;
+        try {
+            if (q) await api('/acl/avaliacoes/' + q.id, { method: 'PUT', body: jbody(r.value) }); else { const n = await api('/acl/trilhas/' + t.id + '/avaliacoes', { method: 'POST', body: jbody(r.value) }); await recarregarTrilha(); return window._aclEditarPerguntas(n.id); }
+            await recarregarTrilha();
+        } catch (e) { erro('Não foi possível salvar a avaliação', e.message); }
+    };
+    window._aclDelAvaliacao = async function (id) {
+        if (!await confirma('Excluir avaliação?', 'Perguntas e resultados dos participantes serão apagados.', 'Excluir')) return;
+        try { await api('/acl/avaliacoes/' + id, { method: 'DELETE' }); await recarregarTrilha(); } catch (e) { erro('Erro', e.message); }
+    };
+    // editor de perguntas (inline)
+    window._aclEditarPerguntas = async function (id) {
+        try {
+            const q = await api('/acl/avaliacoes/' + id);
+            A.qe = { id: q.id, nome: q.nome, perguntas: q.perguntas.map(p => ({ tipo: p.tipo, enunciado: p.enunciado, alternativas: p.tipo === 'multipla' ? p.alternativas.map(a => ({ texto: a.texto, correta: !!a.correta })) : [],
+                resposta_vf: p.tipo === 'vf' ? ((p.alternativas.find(a => a.correta) || {}).texto === 'Falso' ? 'falso' : 'verdadeiro') : null })) };
+            A.tab = 'avaliacoes'; desenharAdmin();
+        } catch (e) { erro('Erro', e.message); }
+    };
+    function htmlQuizEditor() {
+        const q = A.qe;
+        const tipos = [['multipla', 'Múltipla escolha'], ['vf', 'Verdadeiro ou falso'], ['aberta', 'Pergunta aberta']];
+        const ps = q.perguntas.map((p, i) => {
+            let corpo = '';
+            if (p.tipo === 'multipla') corpo = `<div class="acl-alts">${p.alternativas.map((a, k) => `<div class="acl-alt"><input type="radio" name="aclq-${i}" ${a.correta ? 'checked' : ''} onchange="window._aclQCorreta(${i},${k})" title="Marcar como correta"><input type="text" value="${esc(a.texto)}" placeholder="Alternativa ${k + 1}" oninput="window._aclQAlt(${i},${k},this.value)"><button type="button" class="acl-q-x" onclick="window._aclQAltDel(${i},${k})" title="Remover"><i class="ph ph-x"></i></button></div>`).join('')}<button type="button" class="acl-btn sec sm" onclick="window._aclQAltAdd(${i})"><i class="ph ph-plus"></i> Alternativa</button><small>Marque o círculo da alternativa correta.</small></div>`;
+            else if (p.tipo === 'vf') corpo = `<div class="acl-alts"><label class="acl-chk"><input type="radio" name="aclq-${i}" ${p.resposta_vf === 'verdadeiro' ? 'checked' : ''} onchange="window._aclQVF(${i},'verdadeiro')"> A afirmação é <b>Verdadeira</b></label><label class="acl-chk"><input type="radio" name="aclq-${i}" ${p.resposta_vf === 'falso' ? 'checked' : ''} onchange="window._aclQVF(${i},'falso')"> A afirmação é <b>Falsa</b></label></div>`;
+            else corpo = '<small>Pergunta aberta: o participante escreve a resposta; ela fica registrada para você ler nos Resultados e não entra na nota.</small>';
+            return `<div class="acl-q"><div class="acl-q-top"><b>Pergunta ${i + 1}</b><select onchange="window._aclQTipo(${i},this.value)">${tipos.map(t => `<option value="${t[0]}" ${p.tipo === t[0] ? 'selected' : ''}>${t[1]}</option>`).join('')}</select><button type="button" class="acl-q-x" onclick="window._aclQDel(${i})" title="Excluir pergunta"><i class="ph ph-trash"></i></button></div>
+                <textarea rows="2" placeholder="Enunciado da pergunta" oninput="window._aclQSet(${i},this.value)">${esc(p.enunciado)}</textarea>${corpo}</div>`;
+        }).join('') || '<div class="acl-vazio-sm">Nenhuma pergunta. Adicione a primeira.</div>';
+        return `<button class="acl-voltar" onclick="window._aclQFechar()"><i class="ph ph-arrow-left"></i> Voltar às avaliações</button><div class="acl-card"><h3><i class="ph ph-list-checks"></i> Perguntas — ${esc(q.nome)}</h3><div class="acl-corpo">${ps}</div>
+            <div class="acl-cfg-btns" style="margin-top:12px"><button class="acl-btn sec" onclick="window._aclQAdd()"><i class="ph ph-plus-circle"></i> Adicionar pergunta</button><button class="acl-btn ok" onclick="window._aclQSalvar()"><i class="ph ph-floppy-disk"></i> Salvar perguntas</button></div></div>`;
+    }
+    window._aclQFechar = function () { A.qe = null; desenharAdmin(); };
+    window._aclQAdd = function () { A.qe.perguntas.push({ tipo: 'multipla', enunciado: '', alternativas: [{ texto: '', correta: true }, { texto: '', correta: false }], resposta_vf: null }); desenharAdmin(); };
+    window._aclQDel = function (i) { A.qe.perguntas.splice(i, 1); desenharAdmin(); };
+    window._aclQSet = function (i, v) { A.qe.perguntas[i].enunciado = v; };
+    window._aclQTipo = function (i, tipo) { const p = A.qe.perguntas[i]; p.tipo = tipo; if (tipo === 'multipla' && p.alternativas.length < 2) p.alternativas = [{ texto: '', correta: true }, { texto: '', correta: false }]; if (tipo === 'vf' && !p.resposta_vf) p.resposta_vf = 'verdadeiro'; desenharAdmin(); };
+    window._aclQAlt = function (i, k, v) { A.qe.perguntas[i].alternativas[k].texto = v; };
+    window._aclQCorreta = function (i, k) { A.qe.perguntas[i].alternativas.forEach((a, n) => { a.correta = n === k; }); };
+    window._aclQAltAdd = function (i) { A.qe.perguntas[i].alternativas.push({ texto: '', correta: false }); desenharAdmin(); };
+    window._aclQAltDel = function (i, k) { const alts = A.qe.perguntas[i].alternativas; if (alts.length <= 2) return erro('Mínimo de alternativas', 'Cada pergunta precisa de pelo menos 2 alternativas.'); const eraC = alts[k].correta; alts.splice(k, 1); if (eraC) alts[0].correta = true; desenharAdmin(); };
+    window._aclQVF = function (i, v) { A.qe.perguntas[i].resposta_vf = v; };
+    window._aclQSalvar = async function () {
+        const body = { perguntas: A.qe.perguntas.map(p => ({ tipo: p.tipo, enunciado: p.enunciado, alternativas: p.alternativas, resposta_vf: p.resposta_vf })) };
+        try { await api('/acl/avaliacoes/' + A.qe.id + '/perguntas', { method: 'PUT', body: jbody(body) }); }
+        catch (e) {
+            if (e.status === 409 && e.body && e.body.tentativas) { if (!await confirma('Alterar mesmo assim?', e.message, 'Salvar mesmo assim')) return; try { body.forcar = true; await api('/acl/avaliacoes/' + A.qe.id + '/perguntas', { method: 'PUT', body: jbody(body) }); } catch (e2) { return erro('Não foi possível salvar', e2.message); } }
+            else return erro('Não foi possível salvar', e.message);
+        }
+        okMsg('Perguntas salvas!'); A.qe = null; await recarregarTrilha();
+    };
+    window._aclResultados = async function (id) {
+        try {
+            const r = await api('/acl/avaliacoes/' + id + '/resultados');
+            const linhas = r.tentativas.map(t => `<div class="acl-res"><div><b>${esc(t.colaborador)}</b> <small>· tentativa ${t.numero} · ${esc(String(t.enviado_em || '').slice(0, 16).replace('T', ' '))}</small></div><div><span class="acl-badge" style="background:${t.aprovado ? '#16a34a' : '#dc2626'};">${t.nota == null ? 'Sem nota (só abertas)' : t.nota + '%'} · ${t.aprovado ? 'Aprovado' : 'Reprovado'}</span></div>${t.abertas.map(a => `<div class="acl-res-ab"><small>${esc(a.pergunta)}</small><p>${esc(a.resposta)}</p></div>`).join('')}</div>`).join('') || '<div class="acl-vazio-sm">Ninguém respondeu ainda.</div>';
+            Swal.fire({ title: 'Resultados', width: 680, confirmButtonColor: '#7c3aed', confirmButtonText: 'Fechar', customClass: { popup: 'acl-swal' }, html: `<div style="text-align:left;max-height:60vh;overflow:auto">${linhas}</div>` });
+        } catch (e) { erro('Erro', e.message); }
+    };
+
+    // ── Aba Cronograma (linha do tempo) ────────────────────────────────────────
+    function tabCronograma() {
+        const t = A.t, D = s => new Date(s + 'T12:00:00').getTime();
+        const ini = D(t.data_inicio), fim = D(t.data_fim), span = Math.max(1, fim - ini);
+        const pos = s => Math.max(0, Math.min(100, ((D(s) - ini) / span) * 100));
+        const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        const marcaHoje = (hoje >= t.data_inicio && hoje <= t.data_fim) ? `<i class="acl-tl-hoje" style="left:${pos(hoje)}%;" title="Hoje"></i>` : '';
+        const barraTL = (a, b, cor) => { const l = a ? pos(a) : 0, r = b ? pos(b) : 100; return `<div class="acl-tl-trilho">${marcaHoje}<i class="acl-tl-barra" style="left:${l}%;width:${Math.max(1.5, r - l)}%;background:${cor};"></i></div>`; };
+        const avsDe = id => (t.avaliacoes || []).filter(q => (q.module_id || null) === id && q.ativo);
+        const blocoAv = q => `<div class="acl-tl-item"><i class="ph ph-note-pencil" style="color:#2563eb"></i><span><b>${esc(q.nome)}</b> <small>${q.data_abertura ? fmtBr(q.data_abertura) : 'abertura livre'} → ${q.data_limite ? fmtBr(q.data_limite) : 'sem limite'} · ${q.obrigatoria ? 'obrigatória' : 'opcional'}</small></span></div>`;
+        const mods = (t.modulos || []).map((m, i) => {
+            const aulas = m.aulas || [], avs = avsDe(m.id);
+            return `<div class="acl-tl-mod ${m.ativo ? '' : 'inativo'}"><div class="acl-tl-topo"><span class="acl-m-n">${i + 1}</span><div><b>${esc(m.titulo)}</b><small>${m.data_inicio ? fmtBr(m.data_inicio) + ' → ' + fmtBr(m.data_fim) : 'Sem prazo próprio (vale o prazo da trilha)'}${m.ativo ? '' : ' · desativado'}</small></div></div>
+                ${barraTL(m.data_inicio, m.data_fim, m.data_inicio ? '#7c3aed' : '#ddd6fe')}
+                <div class="acl-tl-itens"><div class="acl-tl-item"><i class="ph ph-play-circle" style="color:#7c3aed"></i><span><b>${aulas.length} aula(s)</b> <small>${aulas.filter(a => a.obrigatoria).length} obrigatória(s)${aulas.some(a => a.prazo) ? ' · prazos: ' + aulas.filter(a => a.prazo).map(a => esc(a.titulo) + ' ' + fmtBr(a.prazo)).join('; ') : ''}</small></span></div>${avs.map(blocoAv).join('')}<div class="acl-tl-item"><i class="ph ph-target" style="color:#ea580c"></i><span><small>Missões opcionais — disponíveis na Fase 3</small></span></div></div></div>`;
+        }).join('') || '<div class="acl-vazio-sm">Crie módulos para montar o cronograma.</div>';
+        const gerais = avsDe(null);
+        return `<div class="acl-card"><h3><i class="ph ph-calendar-dots"></i> Jornada da trilha</h3><div class="acl-tl-escala"><span>${fmtBr(t.data_inicio)}</span><b>${esc(prazoTxt(t.prazo))}</b><span>${fmtBr(t.data_fim)}</span></div>${barraTL(t.data_inicio, t.data_fim, '#2563eb')}<small class="acl-dica">A linha vermelha marca o dia de hoje.</small></div>
+            <div class="acl-corpo">${mods}${gerais.length ? `<div class="acl-tl-mod"><div class="acl-tl-topo"><span class="acl-m-n"><i class="ph ph-flag"></i></span><div><b>Avaliações gerais da trilha</b></div></div><div class="acl-tl-itens">${gerais.map(blocoAv).join('')}</div></div>` : ''}</div>`;
+    }
+
+    // ── Aba Desempenho ──────────────────────────────────────────────────────────
+    function tabDesempenho() {
+        const d = A.desemp;
+        if (!d) return '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>';
+        return `<div class="acl-kpis">${kpi('ph-chart-line-up', 'Média de progresso', d.media_progresso + '%', '#16a34a')}${kpi('ph-seal-check', 'Taxa de conclusão', d.taxa_conclusao + '%', '#16a34a')}${kpi('ph-note-pencil', 'Média das avaliações', d.media_avaliacoes == null ? '—' : d.media_avaliacoes + '%', '#2563eb')}${kpi('ph-users', 'Participantes', d.participantes, '#7c3aed')}${kpi('ph-activity', 'Participação (já iniciaram)', d.participacao + '%', '#7c3aed')}${kpi('ph-certificate', 'Certificados', d.certificados, '#2563eb')}</div>
+            <p class="acl-dica">${d.itens_obrigatorios} item(ns) obrigatório(s) compõem o progresso (aulas e avaliações). Média de evolução, missões e pontos distribuídos chegam nas fases 3 e 4.</p>`;
+    }
+    async function extrasTab(id) {
+        if (A.tab === 'participantes') A.part = await api('/acl/trilhas/' + id + '/participantes');
+        if (A.tab === 'desempenho') A.desemp = await api('/acl/trilhas/' + id + '/desempenho');
+    }
+
+    // ── Certificados (menu principal do admin) ─────────────────────────────────
+    function htmlCertificados() {
+        const l = A.certs || [];
+        const linhas = l.map(c => `<tr><td data-l="Nº"><b>${esc(c.numero)}</b></td><td data-l="Colaborador">${esc(c.colaborador)}<small style="display:block;color:#64748b">${esc(c.cargo)}</small></td><td data-l="Trilha">${esc(c.trilha)}</td><td data-l="Carga">${c.carga_horaria ? c.carga_horaria + ' h' : '—'}</td><td data-l="Conclusão">${fmtBr(c.data_conclusao)}</td>
+            <td class="acl-acoes"><button onclick="window.open('${apiBase()}/acl/certificados/${c.id}/pdf?token=' + encodeURIComponent('${esc(getToken())}'), '_blank')" title="Visualizar / baixar PDF"><i class="ph ph-file-pdf"></i></button><button class="del" onclick="window._aclRevogarCert(${c.id})" title="Revogar"><i class="ph ph-trash"></i></button></td></tr>`).join('');
+        return `<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-certificate"></i> Certificados emitidos</h3></div><p class="acl-dica">O certificado é emitido automaticamente quando o participante conclui 100% do conteúdo obrigatório (aulas e avaliações). Missões não são requisito.</p>
+            ${l.length ? `<div class="acl-tabela-wrap"><table class="acl-tabela"><thead><tr><th>Nº</th><th>Colaborador</th><th>Trilha</th><th>Carga</th><th>Conclusão</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<div class="acl-vazio"><i class="ph ph-certificate"></i><div>Nenhum certificado emitido ainda.</div></div>'}`;
+    }
+    window._aclRevogarCert = async function (id) {
+        if (!await confirma('Revogar certificado?', 'O certificado deixará de existir. Se o participante ainda estiver com 100%, um novo número será emitido na próxima atualização de progresso.', 'Revogar')) return;
+        try { await api('/acl/certificados/' + id, { method: 'DELETE' }); A.certs = await api('/acl/certificados'); desenharAdmin(); } catch (e) { erro('Erro', e.message); }
+    };
+
     function tabConfig() {
         const t = A.t;
         return `<div class="acl-card"><h3><i class="ph ph-gear"></i> Configurações da trilha</h3><div class="acl-cfg-btns"><button class="acl-btn pri" onclick="window._aclFormTrilha(${t.id})"><i class="ph ph-pencil-simple"></i> Editar dados da trilha</button>
@@ -377,10 +516,10 @@
     function cabecalhoMinha(nome) {
         return `<header class="acl-head acl-head-min"><div class="acl-head-t"><i class="ph ph-graduation-cap"></i><div><h2>Olá, ${esc(String(nome || '').split(' ')[0] || 'colaborador')}!</h2><span>Bem-vindo à Academia de Sucesso.</span></div></div></header>`;
     }
-    function jornadaVisual(pct) {
+    function jornadaVisual(pct, temCert) {
         const etapas = ['Comecei', 'Aprendendo', 'Desenvolvendo', 'Evoluindo', 'Concluí', 'Certificado'];
-        const at = pct >= 100 ? 4 : pct >= 67 ? 3 : pct >= 34 ? 2 : pct > 0 ? 1 : 0;
-        return `<div class="acl-jornada">${etapas.map((e, i) => `<div class="acl-etapa ${i < at ? 'feita' : ''} ${i === at ? 'atual' : ''} ${i === 5 ? 'bloq' : ''}"><i class="ph ${i === 5 ? 'ph-certificate' : (i < at ? 'ph-check-circle' : (i === at ? 'ph-map-pin' : 'ph-circle'))}"></i><span>${e}</span></div>`).join('')}</div>`;
+        const at = temCert ? 5 : pct >= 100 ? 4 : pct >= 67 ? 3 : pct >= 34 ? 2 : pct > 0 ? 1 : 0;
+        return `<div class="acl-jornada">${etapas.map((e, i) => `<div class="acl-etapa ${i < at ? 'feita' : ''} ${i === at ? 'atual' : ''} ${i === 5 && !temCert ? 'bloq' : ''}"><i class="ph ${i === 5 ? 'ph-certificate' : (i < at ? 'ph-check-circle' : (i === at ? 'ph-map-pin' : 'ph-circle'))}"></i><span>${e}</span></div>`).join('')}</div>`;
     }
     function desenharMinha() {
         const el = raiz('academia-lideres-minha-container'); if (!el) return;
@@ -391,11 +530,11 @@
             const t = x.trilha, p = x.progresso;
             return `<article class="acl-minha-card"><div class="acl-tc-top"><h3>${esc(t.nome)}</h3><span class="acl-badge" style="background:${STATUS_COR[t.status_efetivo] || '#64748b'};">${STATUS_TXT[t.status_efetivo]}</span></div>${demoTag(t)}
                 <p>${esc(t.descricao || '')}</p>
-                <div class="acl-kpis mini">${kpi('ph-chart-line-up', 'Progresso', p.obrigatorio + '%', '#16a34a')}${kpi('ph-check-square', 'Aulas concluídas', p.aulas_concluidas + '/' + p.aulas_obrigatorias, '#7c3aed')}${kpi('ph-hourglass', 'Dias restantes', t.prazo.restantes == null ? '—' : t.prazo.restantes, '#2563eb')}</div>
+                <div class="acl-kpis mini">${kpi('ph-chart-line-up', 'Progresso', p.obrigatorio + '%', '#16a34a')}${kpi('ph-check-square', 'Itens concluídos', p.itens_concluidos + '/' + p.itens_obrigatorios, '#7c3aed')}${kpi('ph-hourglass', 'Dias restantes', t.prazo.restantes == null ? '—' : t.prazo.restantes, '#2563eb')}</div>
                 <div class="acl-prog-linha"><span>PROGRESSO DA TRILHA</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}
                 <div class="acl-prazo">${esc(prazoTxt(t.prazo))} · ${fmtBr(t.data_inicio)} → ${fmtBr(t.data_fim)}</div>
-                ${jornadaVisual(p.obrigatorio)}
-                ${x.proxima_aula ? `<div class="acl-prox"><i class="ph ph-play-circle"></i><div><small>Próximo conteúdo</small><b>${esc(x.proxima_aula.titulo)}</b><span>${esc(x.proxima_aula.modulo)}</span></div></div>` : (p.obrigatorio >= 100 ? '<div class="acl-prox ok"><i class="ph ph-seal-check"></i><div><b>Você concluiu todos os conteúdos obrigatórios!</b><span>O certificado estará disponível na próxima fase da Academia.</span></div></div>' : '')}
+                ${jornadaVisual(p.obrigatorio, !!x.certificado)}
+                ${x.certificado ? certHtml(x.certificado) : ''}${x.proxima_aula ? `<div class="acl-prox"><i class="ph ph-play-circle"></i><div><small>Próximo conteúdo</small><b>${esc(x.proxima_aula.titulo)}</b><span>${esc(x.proxima_aula.modulo)}</span></div></div>` : (p.obrigatorio >= 100 ? `<div class="acl-prox ok"><i class="ph ph-seal-check"></i><div><b>Você concluiu todos os conteúdos obrigatórios!</b><span>${t.gera_certificado ? 'Seu certificado está disponível nesta trilha.' : 'Esta trilha não emite certificado.'}</span></div></div>` : '')}
                 <button class="acl-btn pri full" onclick="window._aclMinhaAbrir(${t.id})"><i class="ph ph-play"></i> ${p.obrigatorio > 0 && p.obrigatorio < 100 ? 'Continuar' : 'Acessar'} trilha</button>
                 <p class="acl-frase"><i class="ph ph-sparkle"></i> ${FRASES[t.id % FRASES.length]}</p></article>`;
         }).join('');
@@ -407,16 +546,78 @@
     };
     function desenharTrilhaMinha() {
         const el = raiz('academia-lideres-minha-container'); const j = M.jornada, t = j.trilha, p = j.progresso;
+        const gerais = (j.avaliacoes_gerais || []).length ? `<div class="acl-m-mod"><div class="acl-m-aulas"><div class="acl-m-ger"><i class="ph ph-flag"></i> Avaliações da trilha</div>${j.avaliacoes_gerais.map(htmlAvaliacaoLinha).join('')}</div></div>` : '';
+        const certBox = j.certificado ? certHtml(j.certificado) : '';
         const mods = j.modulos.map((m, i) => {
             const aulas = m.aulas.map(a => `<button class="acl-m-aula ${a.concluida ? 'ok' : ''} ${a.encerrada && !a.concluida ? 'enc' : ''}" onclick="window._aclAula(${a.id})"><i class="ph ${a.concluida ? 'ph-check-circle' : (a.encerrada ? 'ph-lock-simple' : 'ph-play-circle')}"></i><span><b>${esc(a.titulo)}</b>${demoTag(a)}<small>${a.duracao_min ? a.duracao_min + ' min · ' : ''}${a.obrigatoria ? 'Obrigatória' : 'Opcional'}${a.encerrada && !a.concluida ? ' · encerrada' : ''}</small></span><i class="ph ph-caret-right"></i></button>`).join('');
-            return `<details class="acl-m-mod" ${(M.aberto === undefined ? i === 0 : M.aberto[m.id]) ? 'open' : ''} ontoggle="window._aclMToggle(${m.id}, this.open)"><summary><span class="acl-m-n">${i + 1}</span><span class="acl-m-t"><b>${esc(m.titulo)}</b>${demoTag(m)}<small>${m.data_inicio ? fmtBr(m.data_inicio) + ' → ' + fmtBr(m.data_fim) + (m.encerrado ? ' · encerrado' : '') : m.aulas.length + ' aula(s)'}</small></span><span class="acl-pct">${m.progresso}%</span></summary><div class="acl-m-aulas">${aulas || '<div class="acl-vazio-sm">Sem aulas.</div>'}</div></details>`;
+            return `<details class="acl-m-mod" ${(M.aberto === undefined ? i === 0 : M.aberto[m.id]) ? 'open' : ''} ontoggle="window._aclMToggle(${m.id}, this.open)"><summary><span class="acl-m-n">${i + 1}</span><span class="acl-m-t"><b>${esc(m.titulo)}</b>${demoTag(m)}<small>${m.data_inicio ? fmtBr(m.data_inicio) + ' → ' + fmtBr(m.data_fim) + (m.encerrado ? ' · encerrado' : '') : m.aulas.length + ' aula(s)'}</small></span><span class="acl-pct">${m.progresso}%</span></summary><div class="acl-m-aulas">${aulas || '<div class="acl-vazio-sm">Sem aulas.</div>'}${(m.avaliacoes || []).map(htmlAvaliacaoLinha).join('')}</div></details>`;
         }).join('');
         el.innerHTML = `<div class="acl-wrap"><button class="acl-voltar" onclick="window.renderAcademiaLideresMinha()"><i class="ph ph-arrow-left"></i> Minha Academia</button>
             <section class="acl-editor-topo"><div class="acl-tc-top"><h2>${esc(t.nome)}</h2><span class="acl-badge" style="background:${STATUS_COR[t.status_efetivo]};">${STATUS_TXT[t.status_efetivo]}</span></div>${demoTag(t)}<p>${esc(t.objetivo || t.descricao || '')}</p>
-            <div class="acl-prog-linha"><span>Progresso obrigatório</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}<div class="acl-prazo">${esc(prazoTxt(t.prazo))}</div>${jornadaVisual(p.obrigatorio)}</section>
-            <div class="acl-corpo">${mods || '<div class="acl-vazio"><i class="ph ph-books"></i><div>Esta trilha ainda não tem módulos.</div></div>'}</div></div>`;
+            <div class="acl-prog-linha"><span>Progresso obrigatório</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}<div class="acl-prazo">${esc(prazoTxt(t.prazo))}</div>${jornadaVisual(p.obrigatorio, !!j.certificado)}${certBox}</section>
+            <div class="acl-corpo">${mods || '<div class="acl-vazio"><i class="ph ph-books"></i><div>Esta trilha ainda não tem módulos.</div></div>'}${gerais}</div></div>`;
     }
     window._aclMToggle = function (id, open) { M.aberto = M.aberto || {}; M.aberto[id] = open; };
+
+    // ── Fase 2: certificado e avaliações do participante ───────────────────────
+    const certUrl = id => apiBase() + '/acl/certificados/' + id + '/pdf?token=' + encodeURIComponent(getToken());
+    const certHtml = c => `<div class="acl-prox ok"><i class="ph ph-certificate"></i><div><b>Certificado conquistado!</b><span>Nº ${esc(c.numero)}</span></div><a class="acl-btn ok sm" href="${esc(certUrl(c.id))}" target="_blank" rel="noopener"><i class="ph ph-download-simple"></i> Baixar</a></div>`;
+    function sitAvTxt(a) {
+        if (a.situacao === 'aprovada') return `Aprovada${a.melhor_nota != null ? ' · nota ' + a.melhor_nota + '%' : ''}`;
+        if (a.situacao === 'aberta') { const r = Math.max(0, a.tentativas - a.usadas); return `Disponível · ${r} tentativa(s) restante(s)${a.data_limite ? ' · até ' + fmtBr(a.data_limite) : ''}`; }
+        if (a.situacao === 'nao_aberta') return 'Abre em ' + fmtBr(a.data_abertura);
+        if (a.situacao === 'encerrada') return 'Encerrada (prazo vencido)';
+        return 'Tentativas esgotadas';
+    }
+    function htmlAvaliacaoLinha(a) {
+        const ic = a.situacao === 'aprovada' ? 'ph-check-circle' : (a.situacao === 'aberta' ? 'ph-note-pencil' : 'ph-lock-simple');
+        return `<button class="acl-m-aula acl-m-av ${a.aprovada ? 'ok' : ''} ${a.situacao !== 'aberta' && !a.aprovada ? 'enc' : ''}" onclick="window._aclQuiz(${a.id})"><i class="ph ${ic}"></i><span><b>Avaliação: ${esc(a.nome)}</b>${demoTag(a)}<small>${a.obrigatoria ? 'Obrigatória' : 'Opcional'} · nota mínima ${a.nota_minima}% · ${esc(sitAvTxt(a))}</small></span><i class="ph ph-caret-right"></i></button>`;
+    }
+    function overlayAula() {
+        let ov = document.getElementById('acl-aula-overlay');
+        if (!ov) { ov = document.createElement('div'); ov.id = 'acl-aula-overlay'; ov.className = 'acl-overlay'; document.body.appendChild(ov); }
+        document.body.classList.add('acl-no-scroll');
+        return ov;
+    }
+    function topoOverlay(sub, titulo) { return `<header class="acl-aula-top"><button class="acl-icon-btn" onclick="window._aclFecharAula()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button><div><small>${esc(sub)}</small><h2>${esc(titulo)}</h2></div></header>`; }
+    window._aclQuiz = async function (id) {
+        const ov = overlayAula(); ov.innerHTML = '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Abrindo avaliação...</div>';
+        try {
+            const q = await api('/acl/minha/avaliacoes/' + id); M.quiz = q;
+            if (q.situacao !== 'aberta') {
+                const msg = { aprovada: `Você foi aprovado nesta avaliação${q.melhor_nota != null ? ' com nota ' + q.melhor_nota + '%' : ''}.`, nao_aberta: 'Esta avaliação abre em ' + fmtBr(q.data_abertura) + '.', encerrada: 'Esta avaliação está encerrada (prazo vencido). Procure o administrador para liberar uma exceção.', esgotada: 'Você usou todas as tentativas desta avaliação.' }[q.situacao];
+                ov.innerHTML = `<div class="acl-aula">${topoOverlay('Avaliação', q.nome)}<div class="acl-aula-corpo"><div class="acl-prox ${q.situacao === 'aprovada' ? 'ok' : ''}"><i class="ph ${q.situacao === 'aprovada' ? 'ph-seal-check' : 'ph-lock-simple'}"></i><div><b>${esc(msg)}</b></div></div></div></div>`;
+                return;
+            }
+            const ps = q.perguntas.map((p, i) => {
+                let corpo;
+                if (p.tipo === 'aberta') corpo = `<textarea id="aclq-r-${p.id}" rows="4" placeholder="Escreva sua resposta" class="acl-q-area"></textarea>`;
+                else corpo = p.alternativas.map(a => `<label class="acl-q-op"><input type="radio" name="aclq-r-${p.id}" value="${a.id}"><span>${esc(a.texto)}</span></label>`).join('');
+                return `<div class="acl-card"><div class="acl-q-enun"><span class="acl-m-n">${i + 1}</span><p class="acl-texto">${esc(p.enunciado)}</p></div>${corpo}</div>`;
+            }).join('');
+            ov.innerHTML = `<div class="acl-aula">${topoOverlay('Avaliação · nota mínima ' + q.nota_minima + '%', q.nome)}<div class="acl-aula-corpo">${q.descricao ? `<p class="acl-texto">${esc(q.descricao)}</p>` : ''}<div class="acl-meta"><span><i class="ph ph-repeat"></i> ${q.tentativas - q.usadas} tentativa(s) restante(s)</span>${q.data_limite ? `<span><i class="ph ph-calendar-blank"></i> até ${fmtBr(q.data_limite)}</span>` : ''}</div>${ps}</div>
+                <footer class="acl-aula-foot"><button id="acl-btn-enviar" class="acl-btn ok grow" onclick="window._aclEnviarQuiz()"><i class="ph ph-paper-plane-tilt"></i> Enviar avaliação</button></footer></div>`;
+        } catch (e) { ov.remove(); document.body.classList.remove('acl-no-scroll'); erro('Não foi possível abrir', e.message); }
+    };
+    window._aclEnviarQuiz = async function () {
+        const q = M.quiz, respostas = {};
+        for (const p of q.perguntas) {
+            if (p.tipo === 'aberta') { const v = (document.getElementById('aclq-r-' + p.id) || {}).value || ''; if (!v.trim()) return erro('Responda todas as perguntas', 'Há pergunta sem resposta.'); respostas[p.id] = v; }
+            else { const sel = document.querySelector(`input[name="aclq-r-${p.id}"]:checked`); if (!sel) return erro('Responda todas as perguntas', 'Há pergunta sem resposta.'); respostas[p.id] = sel.value; }
+        }
+        const btn = document.getElementById('acl-btn-enviar'); if (btn) btn.disabled = true;
+        try {
+            const r = await api('/acl/minha/avaliacoes/' + q.id + '/enviar', { method: 'POST', body: jbody({ respostas }) });
+            M.jornada = await api('/acl/minha/trilhas/' + M.tid);
+            const ov = overlayAula();
+            ov.innerHTML = `<div class="acl-aula">${topoOverlay('Resultado', q.nome)}<div class="acl-aula-corpo">
+                <div class="acl-prox ${r.aprovado ? 'ok' : 'falha'}"><i class="ph ${r.aprovado ? 'ph-seal-check' : 'ph-warning-circle'}"></i><div><b>${esc(r.mensagem)}</b><span>${r.nota == null ? 'Suas respostas abertas foram registradas.' : 'Sua nota: ' + r.nota + '% (mínimo ' + q.nota_minima + '%)'}</span></div></div>
+                ${r.concluido_trilha ? '<div class="acl-prox ok"><i class="ph ph-graduation-cap"></i><div><b>Você concluiu todos os conteúdos obrigatórios da trilha!</b><span>Seu certificado já está disponível na página da trilha.</span></div></div>' : `<div class="acl-prog-linha"><span>Progresso da trilha</span><b>${r.progresso}%</b></div>${barra(r.progresso, '#16a34a')}`}
+                ${!r.aprovado && r.tentativas_restantes > 0 ? `<button class="acl-btn pri full" onclick="window._aclQuiz(${q.id})"><i class="ph ph-arrow-counter-clockwise"></i> Tentar novamente (${r.tentativas_restantes} restante(s))</button>` : ''}
+                ${!r.aprovado && r.tentativas_restantes === 0 ? '<p class="acl-dica">Você usou todas as tentativas. Procure o administrador se precisar de ajuda.</p>' : ''}</div>
+                <footer class="acl-aula-foot"><button class="acl-btn sec grow" onclick="window._aclFecharAula()"><i class="ph ph-arrow-left"></i> Voltar à trilha</button></footer></div>`;
+        } catch (e) { if (btn) btn.disabled = false; erro('Não foi possível enviar', e.message); }
+    };
 
     // ── Página da aula ──────────────────────────────────────────────────────────
     function ytEmbed(u) {

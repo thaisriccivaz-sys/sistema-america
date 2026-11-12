@@ -117,3 +117,24 @@
     .acl-tabela thead { display: none; } .acl-tabela, .acl-tabela tbody, .acl-tabela tr, .acl-tabela td { display: block; width: 100%; box-sizing: border-box; }
     .acl-tabela tr { border-top: 8px solid #f8fafc; padding: 6px 0; } .acl-tabela td { border: 0; padding: 5px 12px; } .acl-tabela td[data-l]:not(:first-child)::before { content: attr(data-l) ': '; font-weight: 700; color: #64748b; font-size: .78rem; }
 }
+
+/* Fase 2 — avaliações, cronograma, certificados */
+.acl-av-card.inativo { opacity: .6; } .acl-aviso { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; border-radius: 10px; padding: 8px 12px; font-size: .85rem; margin: 8px 0; display: flex; gap: 6px; align-items: center; }
+.acl-q { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+.acl-q-top { display: flex; align-items: center; gap: 8px; } .acl-q-top b { color: #4c1d95; white-space: nowrap; } .acl-q-top select { flex: 1; min-height: 44px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 8px; }
+.acl-q textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-family: inherit; }
+.acl-alts { display: flex; flex-direction: column; gap: 6px; } .acl-alt { display: flex; align-items: center; gap: 8px; } .acl-alt input[type=radio] { width: 22px; height: 22px; accent-color: #16a34a; flex-shrink: 0; }
+.acl-alt input[type=text] { flex: 1; min-height: 44px; padding: 0 12px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 10px; }
+.acl-q-x { width: 44px; height: 44px; border: 1px solid #fecaca; background: #fff; color: #dc2626; border-radius: 10px; cursor: pointer; font-size: 1.1rem; flex-shrink: 0; }
+.acl-res { padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; } .acl-res-ab { background: #f8fafc; border-radius: 8px; padding: 6px 10px; } .acl-res-ab p { margin: 2px 0 0; white-space: pre-wrap; font-size: .88rem; }
+.acl-tl-escala { display: flex; justify-content: space-between; gap: 8px; font-size: .82rem; color: #64748b; margin-bottom: 6px; } .acl-tl-escala b { color: #2563eb; text-align: center; }
+.acl-tl-trilho { position: relative; height: 16px; background: #e2e8f0; border-radius: 999px; margin: 6px 0; overflow: hidden; } .acl-tl-barra { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.acl-tl-hoje { position: absolute; top: -2px; bottom: -2px; width: 3px; background: #dc2626; z-index: 2; }
+.acl-tl-mod { background: #fff; border: 1px solid #e2e8f0; border-left: 5px solid #7c3aed; border-radius: 14px; padding: 12px; } .acl-tl-mod.inativo { opacity: .6; }
+.acl-tl-topo { display: flex; align-items: center; gap: 10px; } .acl-tl-topo small { display: block; color: #64748b; font-size: .78rem; }
+.acl-tl-itens { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; } .acl-tl-item { display: flex; align-items: flex-start; gap: 8px; font-size: .88rem; } .acl-tl-item > i { font-size: 1.2rem; margin-top: 1px; } .acl-tl-item small { color: #64748b; }
+.acl-prox.falha { background: #fef2f2; color: #b91c1c; } .acl-prox .acl-btn { margin-left: auto; flex-shrink: 0; }
+.acl-m-ger { padding: 10px 14px; font-weight: 700; color: #4c1d95; background: #faf5ff; display: flex; align-items: center; gap: 6px; } .acl-m-av > i:first-child { color: #2563eb; }
+.acl-q-enun { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; } .acl-q-enun p { flex: 1; font-weight: 600; }
+.acl-q-op { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 12px; margin-top: 8px; cursor: pointer; font-size: 1rem; } .acl-q-op input { width: 22px; height: 22px; accent-color: #7c3aed; flex-shrink: 0; } .acl-q-op:has(input:checked) { border-color: #7c3aed; background: #faf5ff; }
+.acl-q-area { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-family: inherit; }
