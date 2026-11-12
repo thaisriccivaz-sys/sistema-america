@@ -593,6 +593,11 @@
                 const statusCor = c.status === 'concluido' ? { bg: '#dcfce7', fg: '#15803d', txt: 'Concluído' }
                     : c.status === 'arquivado' ? { bg: '#f1f5f9', fg: '#64748b', txt: 'Arquivado' }
                     : { bg: '#dbeafe', fg: '#1d4ed8', txt: 'Ativo' };
+                const totalAulas = Number(c.total_aulas || (c.aulas ? c.aulas.length : 0));
+                const aulasFeitas = Number(c.aulas_feitas != null ? c.aulas_feitas : (c.aulas || []).filter(a => a.status_aula === 'concluida' || a.aula_feita).length);
+                const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
+                const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
+                const prontoIniciar = !!c.pronto_para_iniciar;
 
                 return `
                     <div class="ua-card-curso">
@@ -620,18 +625,37 @@
                                     <i class="ph ph-users"></i> ${c.total_participantes || 0} participante(s)
                                 </span>
                                 <span class="ua-badge" style="background:#f0fdf4;color:#15803d;">
-                                    <i class="ph ph-chalkboard-teacher"></i> ${c.total_aulas || 0} aula(s)
+                                    <i class="ph ph-chalkboard-teacher"></i> ${totalAulas} aula(s)
                                 </span>
                                 <span class="ua-badge" style="background:#fef9c3;color:#854d0e;">
                                     <i class="ph ph-clock"></i> ${c.carga_horaria || 0}h
                                 </span>
                             </div>
+
+                            <!-- Barra de progresso das aulas feitas e restantes -->
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;margin-top:2px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.77rem;margin-bottom:6px;gap:8px;flex-wrap:wrap;">
+                                    <span style="font-weight:700;color:#0f172a;">
+                                        Progresso: <strong style="color:${progressoPct >= 100 ? '#15803d' : '#2563eb'};">${progressoPct}%</strong>
+                                    </span>
+                                    <span style="color:#475569;font-weight:600;">
+                                        <strong style="color:#15803d;">${aulasFeitas} feita(s)</strong> • <strong style="color:#64748b;">${aulasRestantes} p/ fazer</strong>
+                                    </span>
+                                </div>
+                                <div style="width:100%;height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
+                                    <div style="width:${progressoPct}%;height:100%;background:${progressoPct >= 100 ? '#16a34a' : 'linear-gradient(90deg, #2563eb 0%, #16a34a 100%)'};border-radius:999px;transition:width 0.35s ease;"></div>
+                                </div>
+                            </div>
+
                             <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;">
-                                <button class="ua-btn ua-btn-success" style="padding:8px 12px;" title="Iniciar treinamento, apresentar materiais da próxima aula e marcar presença" onclick="window._uaPlayCurso(${c.id})">
-                                    <i class="ph-fill ph-play"></i> Iniciar
+                                <button class="ua-btn ${prontoIniciar ? 'ua-btn-success' : 'ua-btn-ghost'}"
+                                        style="padding:8px 12px;${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
+                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais da próxima aula e marcar presença' : 'Para iniciar o curso, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios'}"
+                                        onclick="window._uaPlayCurso(${c.id})">
+                                    <i class="${prontoIniciar ? 'ph-fill ph-play' : 'ph ph-lock-key'}"></i> Iniciar
                                 </button>
                                 <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
-                                    <i class="ph ph-list-checks"></i> Gerenciar Aulas (${c.total_aulas || 0})
+                                    <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
                                 </button>
                                 <button class="ua-btn ua-btn-ghost" title="Ver Ranking e Certificados" onclick="window._uaIrRankingCurso(${c.id})">
                                     <i class="ph ph-trophy"></i>
@@ -1058,12 +1082,90 @@
         `;
     }
 
+    async function exibirAlertaCursoIncompleto(curso, aulas) {
+        const totalAulas = Array.isArray(aulas) ? aulas.length : Number(curso.total_aulas || 0);
+        const semPesquisa = Array.isArray(curso.aulas_sem_pesquisa)
+            ? curso.aulas_sem_pesquisa
+            : (aulas || []).filter(a => !Array.isArray(a.perguntas) || a.perguntas.length === 0);
+        const semMissoes = Array.isArray(curso.aulas_sem_missoes)
+            ? curso.aulas_sem_missoes
+            : (aulas || []).filter(a => !Array.isArray(a.missoes) || a.missoes.length === 0);
+        const totalPremios = Number(curso.total_premios || 0);
+
+        const itensHtml = [];
+        if (totalAulas === 0) {
+            itensHtml.push(`<li><strong>Aulas:</strong> Cadastre pelo menos 1 aula neste curso.</li>`);
+        }
+        if (semPesquisa.length > 0) {
+            itensHtml.push(`<li><strong>Pesquisa em Aula:</strong> Preencha as perguntas em: ${semPesquisa.map(a => `<em>Aula ${a.ordem} (${esc(a.titulo)})</em>`).join(', ')}.</li>`);
+        }
+        if (semMissoes.length > 0) {
+            itensHtml.push(`<li><strong>Missões da Semana:</strong> Preencha as missões em: ${semMissoes.map(a => `<em>Aula ${a.ordem} (${esc(a.titulo)})</em>`).join(', ')}.</li>`);
+        }
+        if (totalPremios === 0) {
+            itensHtml.push(`<li><strong>Prêmios do Ranking:</strong> Cadastre os prêmios deste curso na aba <em>Prêmios</em>.</li>`);
+        }
+
+        const faltamAulas = totalAulas === 0 || semPesquisa.length > 0 || semMissoes.length > 0;
+        const btnConfirmTxt = totalAulas === 0
+            ? 'Cadastrar Primeira Aula'
+            : faltamAulas
+                ? 'Preencher Aula Pendente'
+                : 'Cadastrar Prêmios do Curso';
+
+        if (typeof Swal !== 'undefined') {
+            const r = await Swal.fire({
+                icon: 'warning',
+                title: 'Preenchimento Obrigatório para Iniciar',
+                html: `
+                    <div style="text-align:left;font-size:0.9rem;color:#334155;line-height:1.5;">
+                        <p style="margin:0 0 10px;">Apenas é possível iniciar o curso quando <strong>todas as aulas estiverem com Pesquisa e Missões preenchidas</strong> e os <strong>Prêmios</strong> cadastrados:</p>
+                        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:#b91c1c;">
+                            ${itensHtml.join('')}
+                        </ul>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                confirmButtonText: btnConfirmTxt,
+                cancelButtonText: 'Fechar'
+            });
+            if (r.isConfirmed) {
+                if (totalAulas === 0) {
+                    window._uaAbrirAulasCurso(curso.id);
+                    window._uaAbrirEditorAula(curso.id, null);
+                } else if (semPesquisa.length > 0) {
+                    window._uaAbrirAulasCurso(curso.id);
+                    window._uaAbrirEditorAula(curso.id, semPesquisa[0].id);
+                    if (_aulaEditor) { _aulaEditor.aba = 'pesquisa'; desenharModalEditorAula(); }
+                } else if (semMissoes.length > 0) {
+                    window._uaAbrirAulasCurso(curso.id);
+                    window._uaAbrirEditorAula(curso.id, semMissoes[0].id);
+                    if (_aulaEditor) { _aulaEditor.aba = 'missoes'; desenharModalEditorAula(); }
+                } else if (totalPremios === 0) {
+                    window._uaIrPremiosDoCurso(curso.id);
+                }
+            }
+        } else {
+            alert('Para iniciar o curso, todas as aulas precisam ter Pesquisa e Missões preenchidas e o curso precisa ter Prêmios cadastrados.');
+        }
+    }
+
     window._uaIniciarAula = async function (aulaId) {
         try {
             await api(`/uniamerica/aulas/${aulaId}/iniciar`, { method: 'POST', body: {} });
             toastOk('Aula iniciada! Registre a lista de presença para liberar o teste e as missões.');
             await window.renderUniAmericaGestao();
         } catch (e) {
+            if (e.status === 409 && e.body && e.body.codigo === 'CURSO_INCOMPLETO_PARA_INICIAR') {
+                const curso = G.cursos.find(c => Number(c.id) === Number(G.cursoAbertoId)) || G.cursos[0];
+                if (curso) {
+                    await exibirAlertaCursoIncompleto(curso, curso.aulas || []);
+                } else {
+                    msgErro('Curso incompleto para iniciar', (e.body.pendencias || [e.message]).join('\n'));
+                }
+                return;
+            }
             if (e.status === 409 && e.body && e.body.codigo === 'MISSOES_ANTERIORES_PENDENTES') {
                 if (typeof Swal !== 'undefined') {
                     const r = await Swal.fire({
@@ -1797,16 +1899,16 @@
             const det = await api(`/uniamerica/cursos/${cursoId}`);
             const curso = det.curso;
             const aulas = Array.isArray(det.aulas) ? det.aulas : [];
-            if (aulas.length === 0) {
-                toastOk('Cadastre a primeira aula deste curso para iniciar o treinamento.');
-                window._uaAbrirAulasCurso(cursoId);
-                window._uaAbrirEditorAula(cursoId, null);
+
+            // Regra obrigatória: Apenas deve ser possível iniciar o curso se todas as aulas estiverem com pesquisa e missões preenchidas e os prêmios cadastrados
+            if (!curso.pronto_para_iniciar) {
+                await exibirAlertaCursoIncompleto(curso, aulas);
                 return;
             }
 
             let aulaAlvo = aulaIdOpcional
                 ? aulas.find(a => Number(a.id) === Number(aulaIdOpcional))
-                : (aulas.find(a => a.status_aula !== 'concluida') || aulas[aulas.length - 1]);
+                : (aulas.find(a => !a.aula_feita && a.status_aula !== 'concluida') || aulas.find(a => a.status_aula !== 'concluida') || aulas[aulas.length - 1]);
             if (!aulaAlvo) aulaAlvo = aulas[0];
 
             // Se a aula estiver agendada, tenta iniciar automaticamente
@@ -1815,6 +1917,10 @@
                     await api(`/uniamerica/aulas/${aulaAlvo.id}/iniciar`, { method: 'POST', body: {} });
                     aulaAlvo.status_aula = 'em_andamento';
                 } catch (errIni) {
+                    if (errIni.status === 409 && errIni.body && errIni.body.codigo === 'CURSO_INCOMPLETO_PARA_INICIAR') {
+                        await exibirAlertaCursoIncompleto(curso, aulas);
+                        return;
+                    }
                     if (errIni.status === 409 && errIni.body && errIni.body.codigo === 'MISSOES_ANTERIORES_PENDENTES') {
                         if (typeof Swal !== 'undefined') {
                             const r = await Swal.fire({
@@ -2384,30 +2490,56 @@
 
     function renderBlocoDiagHistorico(tipo, titulo, iconeClass, corIcone, bloco, depto, dIdx) {
         if (!G.diagPeriodoSel) G.diagPeriodoSel = {};
-        const hist = (bloco && bloco.historico) ? bloco.historico : { periodos: [], topicos: [], medias_periodo: {}, respondentes_periodo: {} };
+        const hist = (bloco && bloco.historico) ? bloco.historico : { periodos: [], topicos: [], medias_periodo: [], respondentes_periodo: [] };
         const periodos = hist.periodos || [];
         const topicos = hist.topicos || [];
         const relsMap = (bloco && bloco.relatorios_por_periodo) ? bloco.relatorios_por_periodo : {};
+
+        // Helpers compatíveis tanto com array indexado (0..3) quanto com objeto indexado por p.key
+        const getValTopico = (t, p, idx) => {
+            if (!t || !t.valores) return null;
+            const raw = Array.isArray(t.valores) ? t.valores[idx] : t.valores[p.key];
+            return (raw !== null && raw !== undefined && !isNaN(raw)) ? Number(raw) : null;
+        };
+        const getMediaPeriodo = (p, idx) => {
+            if (!hist.medias_periodo) return null;
+            const raw = Array.isArray(hist.medias_periodo) ? hist.medias_periodo[idx] : hist.medias_periodo[p.key];
+            return (raw !== null && raw !== undefined && !isNaN(raw)) ? Number(raw) : null;
+        };
+        const getRespPeriodo = (p, idx) => {
+            if (!hist.respondentes_periodo) return 0;
+            const raw = Array.isArray(hist.respondentes_periodo) ? hist.respondentes_periodo[idx] : hist.respondentes_periodo[p.key];
+            return (raw !== null && raw !== undefined && !isNaN(raw)) ? Number(raw) : 0;
+        };
 
         // Escolher período selecionado para a análise IA (padrão: último período com relatório ou com respostas, ou o mais recente)
         const selKey = `${depto}__${tipo}`;
         let pKeySel = G.diagPeriodoSel[selKey];
         if (!pKeySel || !periodos.some(p => p.key === pKeySel)) {
-            const comRel = [...periodos].reverse().find(p => relsMap[p.key]);
-            const comResp = [...periodos].reverse().find(p => (hist.respondentes_periodo && hist.respondentes_periodo[p.key] > 0) || (hist.medias_periodo && hist.medias_periodo[p.key] != null));
+            let chosenKey = null;
+            for (let i = periodos.length - 1; i >= 0; i--) {
+                if (relsMap[periodos[i].key]) { chosenKey = periodos[i].key; break; }
+            }
+            if (!chosenKey) {
+                for (let i = periodos.length - 1; i >= 0; i--) {
+                    if (getRespPeriodo(periodos[i], i) > 0 || getMediaPeriodo(periodos[i], i) != null) {
+                        chosenKey = periodos[i].key;
+                        break;
+                    }
+                }
+            }
             const ult = periodos[periodos.length - 1];
-            pKeySel = (comRel && comRel.key) || (comResp && comResp.key) || (ult && ult.key) || (bloco ? `${bloco.ano}_${bloco.trimestre}` : '');
+            pKeySel = chosenKey || (ult && ult.key) || (bloco ? `${bloco.ano}-T${bloco.trimestre}` : '');
             G.diagPeriodoSel[selKey] = pKeySel;
         }
 
-        const pObjSel = periodos.find(p => p.key === pKeySel) || (periodos.length > 0 ? periodos[periodos.length - 1] : { ano: bloco ? bloco.ano : new Date().getFullYear(), trimestre: bloco ? bloco.trimestre : 1, label: bloco ? bloco.periodo_label : '', key: pKeySel });
-        const mediaSel = (hist.medias_periodo && pObjSel && hist.medias_periodo[pObjSel.key] != null)
-            ? hist.medias_periodo[pObjSel.key]
-            : (bloco ? bloco.media_geral : null);
+        const idxSel = Math.max(0, periodos.findIndex(p => p.key === pKeySel));
+        const pObjSel = periodos[idxSel] || (periodos.length > 0 ? periodos[periodos.length - 1] : { ano: bloco ? bloco.ano : new Date().getFullYear(), trimestre: bloco ? bloco.trimestre : 1, label: bloco ? bloco.periodo_label : '', key: pKeySel });
+        const mediaSelHist = pObjSel ? getMediaPeriodo(pObjSel, idxSel) : null;
+        const mediaSel = mediaSelHist != null ? mediaSelHist : (bloco ? bloco.media_geral : null);
         const corMedia = mediaSel != null ? infoCorNota(mediaSel) : infoCorNota(null);
-        const respSel = (hist.respondentes_periodo && pObjSel && hist.respondentes_periodo[pObjSel.key] != null)
-            ? hist.respondentes_periodo[pObjSel.key]
-            : (bloco ? bloco.responderam : 0);
+        const respSelHist = pObjSel ? getRespPeriodo(pObjSel, idxSel) : 0;
+        const respSel = respSelHist > 0 ? respSelHist : (bloco ? bloco.responderam : 0);
         const totalColabs = bloco ? (bloco.total_colaboradores || 0) : 0;
 
         // Relatório IA do período selecionado (ou fallback para o último relatório salvo no setor)
@@ -2437,7 +2569,7 @@
                                 <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
                                     <th style="text-align:left;padding:7px 9px;color:#475569;font-weight:700;">Tema</th>
                                     ${periodos.map((p, idxP) => {
-                                        const rCount = hist.respondentes_periodo && hist.respondentes_periodo[p.key] != null ? hist.respondentes_periodo[p.key] : 0;
+                                        const rCount = getRespPeriodo(p, idxP);
                                         return `<th style="text-align:center;padding:7px 6px;color:#475569;font-weight:700;white-space:nowrap;">
                                             <div>${esc(p.label)}</div>
                                             <div style="font-size:0.68rem;font-weight:500;color:#94a3b8;">${rCount}/${totalColabs} ${tipo === 'satisfacao' ? 'resp.' : 'aval.'}</div>
@@ -2447,8 +2579,7 @@
                             </thead>
                             <tbody>
                                 ${topicos.map(t => {
-                                    // Calcular tendência entre os 2 últimos períodos com nota
-                                    const vals = periodos.map(p => (t.valores && t.valores[p.key] != null) ? Number(t.valores[p.key]) : null);
+                                    const vals = periodos.map((p, idxP) => getValTopico(t, p, idxP));
                                     return `
                                         <tr style="border-bottom:1px solid #f1f5f9;">
                                             <td style="padding:6px 9px;font-weight:600;color:#1e293b;">${esc(t.topico)}</td>
@@ -2459,8 +2590,7 @@
                                                 }
                                                 const ct = infoCorNota(v);
                                                 let setaHtml = '';
-                                                if (idxP === periodos.length - 1 && idxP > 0) {
-                                                    // comparar com período anterior que tenha nota
+                                                if (idxP > 0) {
                                                     let prevV = null;
                                                     for (let k = idxP - 1; k >= 0; k--) {
                                                         if (vals[k] != null) { prevV = vals[k]; break; }
@@ -2486,7 +2616,7 @@
                                 <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;font-weight:800;">
                                     <td style="padding:7px 9px;color:#0f172a;">Média Geral</td>
                                     ${periodos.map((p, idxP) => {
-                                        const m = hist.medias_periodo ? hist.medias_periodo[p.key] : null;
+                                        const m = getMediaPeriodo(p, idxP);
                                         if (m == null) return `<td style="text-align:center;padding:7px 6px;color:#94a3b8;">—</td>`;
                                         const cm = infoCorNota(m);
                                         return `<td style="text-align:center;padding:7px 6px;">
@@ -2557,7 +2687,7 @@
                 body: { departamento: depto, ano, trimestre }
             });
             if (!G.diagPeriodoSel) G.diagPeriodoSel = {};
-            G.diagPeriodoSel[`${depto}__${tipo}`] = `${ano}_${trimestre}`;
+            G.diagPeriodoSel[`${depto}__${tipo}`] = `${ano}-T${trimestre}`;
             G.diagnostico = null;
             await renderAbaAtivaGestao();
         } catch (e) {

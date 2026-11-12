@@ -579,9 +579,15 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const aulas = await dbAll(`SELECT * FROM uniamerica_aulas ORDER BY ordem ASC, id ASC`);
             const anexos = await dbAll(`SELECT * FROM uniamerica_aula_anexos ORDER BY id ASC`);
             const subMissoesPend = await dbAll(`SELECT curso_id, aula_id, COUNT(*) AS qtd FROM uniamerica_submissoes_missao WHERE status = 'enviada' GROUP BY curso_id, aula_id`);
+            const premiosRows = await dbAll(`SELECT curso_id, COUNT(*) AS qtd FROM uniamerica_premios GROUP BY curso_id`);
+            const presencasRows = await dbAll(`SELECT aula_id, COUNT(*) AS qtd FROM uniamerica_presencas WHERE presente = 1 GROUP BY aula_id`);
 
             const pendMap = {};
             subMissoesPend.forEach(r => { pendMap[`${r.curso_id}_${r.aula_id}`] = r.qtd; });
+            const premiosMap = {};
+            premiosRows.forEach(r => { premiosMap[r.curso_id] = Number(r.qtd) || 0; });
+            const presencasMap = {};
+            presencasRows.forEach(r => { presencasMap[r.aula_id] = Number(r.qtd) || 0; });
 
             const anexosPorAula = {};
             anexos.forEach(an => {
@@ -599,11 +605,16 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                     ...m,
                     pdf_url: m.pdf_r2_key ? r2StreamUrl(m.pdf_r2_key) : null
                 }));
+                const perguntas = parseJson(a.perguntas_json, []);
+                const presentesConf = presencasMap[a.id] || 0;
+                const aulaFeita = a.status_aula === 'concluida' || presentesConf > 0;
                 aulasPorCurso[a.curso_id].push({
                     ...a,
-                    perguntas: parseJson(a.perguntas_json, []),
+                    perguntas,
                     missoes,
                     anexos: anexosPorAula[a.id] || [],
+                    presentes_confirmados: presentesConf,
+                    aula_feita: aulaFeita,
                     missoes_pendentes_avaliacao: pendMap[`${a.curso_id}_${a.id}`] || 0
                 });
             });
@@ -614,12 +625,28 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 const listaAulas = aulasPorCurso[c.id] || [];
                 const pendCurso = listaAulas.reduce((acc, x) => acc + (x.missoes_pendentes_avaliacao || 0), 0);
                 const cargaSomada = parseFloat(listaAulas.reduce((acc, x) => acc + (parseFloat(x.carga_horaria) || 0), 0).toFixed(2));
+                const totalAulas = listaAulas.length;
+                const aulasFeitas = listaAulas.filter(x => x.aula_feita).length;
+                const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
+                const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
+                const totalPremios = premiosMap[c.id] || 0;
+                const aulasSemPesquisa = listaAulas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+                const aulasSemMissoes = listaAulas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+                const prontoParaIniciar = totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
+
                 out.push({
                     ...c,
                     carga_horaria: cargaSomada,
                     capa_stream_url: c.capa_r2_key ? r2StreamUrl(c.capa_r2_key) : (c.capa_url || null),
                     aulas: listaAulas,
-                    total_aulas: listaAulas.length,
+                    total_aulas: totalAulas,
+                    aulas_feitas: aulasFeitas,
+                    aulas_restantes: aulasRestantes,
+                    progresso_pct: progressoPct,
+                    total_premios: totalPremios,
+                    aulas_sem_pesquisa: aulasSemPesquisa,
+                    aulas_sem_missoes: aulasSemMissoes,
+                    pronto_para_iniciar: prontoParaIniciar,
                     total_participantes: colabsVinc.length,
                     missoes_pendentes_avaliacao: pendCurso
                 });
@@ -637,12 +664,17 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const curso = await dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [cursoId]);
             if (!curso) return res.status(404).json({ error: 'Curso não encontrado.' });
 
-            const [aulas, anexos, colabsVinc, rankingData] = await Promise.all([
+            const [aulas, anexos, colabsVinc, rankingData, premiosCountRow, presencasRows] = await Promise.all([
                 dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [cursoId]),
                 dbAll(`SELECT * FROM uniamerica_aula_anexos WHERE curso_id = ? ORDER BY id ASC`, [cursoId]),
                 listarColaboradoresDoCurso(curso),
-                calcularQuadroRankingCurso(cursoId)
+                calcularQuadroRankingCurso(cursoId),
+                dbGet(`SELECT COUNT(*) AS qtd FROM uniamerica_premios WHERE curso_id = ?`, [cursoId]),
+                dbAll(`SELECT aula_id, COUNT(*) AS qtd FROM uniamerica_presencas WHERE curso_id = ? AND presente = 1 GROUP BY aula_id`, [cursoId])
             ]);
+
+            const presencasMap = {};
+            presencasRows.forEach(r => { presencasMap[r.aula_id] = Number(r.qtd) || 0; });
 
             const anexosPorAula = {};
             anexos.forEach(an => {
@@ -650,24 +682,47 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 anexosPorAula[an.aula_id].push({ ...an, url: r2StreamUrl(an.r2_key) });
             });
 
-            const aulasFormatadas = aulas.map(a => ({
-                ...a,
-                perguntas: parseJson(a.perguntas_json, []),
-                missoes: parseJson(a.missoes_json, []).map(m => ({
+            const aulasFormatadas = aulas.map(a => {
+                const perguntas = parseJson(a.perguntas_json, []);
+                const missoes = parseJson(a.missoes_json, []).map(m => ({
                     ...m,
                     pdf_url: m.pdf_r2_key ? r2StreamUrl(m.pdf_r2_key) : null
-                })),
-                anexos: anexosPorAula[a.id] || []
-            }));
+                }));
+                const presentesConf = presencasMap[a.id] || 0;
+                return {
+                    ...a,
+                    perguntas,
+                    missoes,
+                    presentes_confirmados: presentesConf,
+                    aula_feita: a.status_aula === 'concluida' || presentesConf > 0,
+                    anexos: anexosPorAula[a.id] || []
+                };
+            });
 
             const cargaSomada = parseFloat(aulas.reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2));
+            const totalAulas = aulasFormatadas.length;
+            const aulasFeitas = aulasFormatadas.filter(x => x.aula_feita).length;
+            const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
+            const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
+            const totalPremios = Number(premiosCountRow ? premiosCountRow.qtd : 0) || 0;
+            const aulasSemPesquisa = aulasFormatadas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+            const aulasSemMissoes = aulasFormatadas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+            const prontoParaIniciar = totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
 
             res.json({
                 ok: true,
                 curso: {
                     ...curso,
                     carga_horaria: cargaSomada,
-                    capa_stream_url: curso.capa_r2_key ? r2StreamUrl(curso.capa_r2_key) : (curso.capa_url || null)
+                    capa_stream_url: curso.capa_r2_key ? r2StreamUrl(curso.capa_r2_key) : (curso.capa_url || null),
+                    total_aulas: totalAulas,
+                    aulas_feitas: aulasFeitas,
+                    aulas_restantes: aulasRestantes,
+                    progresso_pct: progressoPct,
+                    total_premios: totalPremios,
+                    aulas_sem_pesquisa: aulasSemPesquisa,
+                    aulas_sem_missoes: aulasSemMissoes,
+                    pronto_para_iniciar: prontoParaIniciar
                 },
                 aulas: aulasFormatadas,
                 participantes: colabsVinc,
@@ -1006,6 +1061,25 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
 
             const todasAulas = await dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [aula.curso_id]);
+            const premiosRow = await dbGet(`SELECT COUNT(*) AS qtd FROM uniamerica_premios WHERE curso_id = ?`, [aula.curso_id]);
+            const totalPremios = Number(premiosRow ? premiosRow.qtd : 0) || 0;
+
+            // Regra obrigatória: Apenas pode iniciar o curso se TODAS as aulas estiverem com pesquisa e missões preenchidas e os prêmios cadastrados!
+            const semPesquisa = todasAulas.filter(x => parseJson(x.perguntas_json, []).length === 0);
+            const semMissoes = todasAulas.filter(x => parseJson(x.missoes_json, []).length === 0);
+            if (todasAulas.length === 0 || semPesquisa.length > 0 || semMissoes.length > 0 || totalPremios === 0) {
+                const pendencias = [];
+                if (todasAulas.length === 0) pendencias.push('Nenhuma aula cadastrada no curso.');
+                if (semPesquisa.length > 0) pendencias.push(`Pesquisa não preenchida em: ${semPesquisa.map(a => `Aula ${a.ordem} (${a.titulo})`).join(', ')}.`);
+                if (semMissoes.length > 0) pendencias.push(`Missões não preenchidas em: ${semMissoes.map(a => `Aula ${a.ordem} (${a.titulo})`).join(', ')}.`);
+                if (totalPremios === 0) pendencias.push('Prêmios do ranking ainda não foram cadastrados na aba Prêmios.');
+                return res.status(409).json({
+                    error: 'Apenas é possível iniciar o curso quando todas as aulas estiverem com Pesquisa e Missões preenchidas e os Prêmios cadastrados.',
+                    codigo: 'CURSO_INCOMPLETO_PARA_INICIAR',
+                    pendencias
+                });
+            }
+
             const idx = todasAulas.findIndex(x => x.id === aula.id);
 
             // Regra obrigatória: Antes de iniciar a próxima aula, é obrigatório avaliar todas as missões
