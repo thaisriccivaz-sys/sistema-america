@@ -138,3 +138,18 @@
 .acl-q-enun { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; } .acl-q-enun p { flex: 1; font-weight: 600; }
 .acl-q-op { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 12px; margin-top: 8px; cursor: pointer; font-size: 1rem; } .acl-q-op input { width: 22px; height: 22px; accent-color: #7c3aed; flex-shrink: 0; } .acl-q-op:has(input:checked) { border-color: #7c3aed; background: #faf5ff; }
 .acl-q-area { width: 100%; box-sizing: border-box; padding: 12px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-family: inherit; }
+
+/* Fase 3 — missões */
+.acl-tab-n { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: #ea580c; color: #fff; font-size: .7rem; font-weight: 800; line-height: 18px; text-align: center; }
+.acl-subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.acl-chip-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1.5px solid #e2e8f0; background: #fff; color: #475569; border-radius: 999px; font-weight: 600; font-size: .9rem; cursor: pointer; }
+.acl-chip-btn.on { background: #ede9fe; border-color: #7c3aed; color: #5b21b6; }
+.acl-extra { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0; padding: 8px 12px; background: #fff7ed; border-radius: 12px; font-size: .85rem; color: #9a3412; } .acl-extra span { display: inline-flex; align-items: center; gap: 4px; } .acl-extra b { color: #ea580c; }
+.acl-missao-card { border: 1.5px solid #fed7aa; background: #fffbf5; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; } .acl-missao-card h3 { margin: 0; font-size: 1rem; color: #9a3412; display: flex; align-items: center; gap: 6px; } .acl-missao-card p { margin: 0; color: #475569; font-size: .9rem; }
+.acl-pts { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; } .acl-pts b { color: #ea580c; font-size: 1.05rem; } .acl-pts span { color: #64748b; font-size: .85rem; } .acl-pts.big b { font-size: 1.2rem; }
+.acl-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 4px 12px; border-radius: 999px; font-size: .8rem; font-weight: 700; } .acl-chip.ok { background: #dcfce7; color: #15803d; } .acl-chip.an { background: #ffedd5; color: #c2410c; } .acl-chip.no { background: #fee2e2; color: #b91c1c; } .acl-chip.enc { background: #f1f5f9; color: #64748b; } .acl-chip.dis { background: #eff6ff; color: #1d4ed8; }
+.acl-aviso-opc { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 14px; color: #1e40af; } .acl-aviso-opc > i { font-size: 1.4rem; flex-shrink: 0; } .acl-aviso-opc p { margin: 0; font-size: .9rem; line-height: 1.5; }
+.acl-prox.an { background: #fff7ed; color: #c2410c; }
+.acl-erro-inline { color: #dc2626; font-size: .85rem; font-weight: 600; margin-top: 6px; min-height: 1em; }
+.acl-arq-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; } .acl-arq { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 10px; font-size: .88rem; } .acl-arq span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .acl-arq small { color: #64748b; }
+.acl-env { display: flex; flex-direction: column; gap: 8px; } .acl-env-anot { background: #f8fafc; border-radius: 10px; padding: 8px 12px; } .acl-env-anot small { color: #64748b; font-weight: 700; } .acl-env-anot p { margin: 4px 0 0; white-space: pre-wrap; font-size: .92rem; color: #334155; }

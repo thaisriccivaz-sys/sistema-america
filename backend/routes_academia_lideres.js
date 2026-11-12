@@ -105,13 +105,41 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             numero TEXT NOT NULL UNIQUE, nome_colaborador TEXT, nome_trilha TEXT, carga_horaria REAL DEFAULT 0,
             data_conclusao TEXT, emitido_em DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_missoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id INTEGER NOT NULL, module_id INTEGER, nome TEXT NOT NULL, descricao TEXT, objetivo TEXT, como_realizar TEXT,
+            pontos_base INTEGER DEFAULT 20, pontos_bonus INTEGER DEFAULT 10, data_inicio TEXT, data_fim TEXT,
+            status TEXT DEFAULT 'rascunho', permite_nova_tentativa INTEGER DEFAULT 1, demonstracao INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (track_id) REFERENCES acl_trilhas(id) ON DELETE CASCADE
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_missoes_envios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mission_id INTEGER NOT NULL, matricula_id INTEGER NOT NULL, colaborador_id INTEGER NOT NULL,
+            anotacoes TEXT NOT NULL, status TEXT DEFAULT 'em_analise', pontos_base INTEGER DEFAULT 0, pontos_bonus INTEGER DEFAULT 0,
+            tentativa INTEGER DEFAULT 1, enviado_em DATETIME DEFAULT CURRENT_TIMESTAMP, avaliado_em DATETIME, avaliado_por INTEGER,
+            motivo_recusa TEXT, pontos_concedidos INTEGER DEFAULT 0
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_missoes_anexos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            envio_id INTEGER NOT NULL, nome TEXT, mime TEXT, r2_key TEXT, tamanho INTEGER DEFAULT 0
+        )`);
+        db.run(`CREATE TABLE IF NOT EXISTS acl_pontos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            matricula_id INTEGER NOT NULL, colaborador_id INTEGER NOT NULL, track_id INTEGER NOT NULL, mission_id INTEGER,
+            envio_id INTEGER NOT NULL UNIQUE, pontos_base INTEGER DEFAULT 0, pontos_bonus INTEGER DEFAULT 0, total INTEGER DEFAULT 0,
+            motivo TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_miss_track ON acl_missoes (track_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_env_miss ON acl_missoes_envios (mission_id, matricula_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_pts_mat ON acl_pontos (matricula_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_av_track ON acl_avaliacoes (track_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_perg_quiz ON acl_perguntas (quiz_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_tent_mat ON acl_tentativas (matricula_id, quiz_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mod_track ON acl_modulos (track_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_aula_mod ON acl_aulas (module_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mat_track ON acl_matriculas (track_id)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { seedDemo().then(() => seedDemoAvaliacao()).catch(e => console.error('[ACL] seed:', e.message)); });
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { seedDemo().then(() => seedDemoAvaliacao()).then(() => seedDemoMissoes()).catch(e => console.error('[ACL] seed:', e.message)); });
     });
 
     // ── Permissões ─────────────────────────────────────────────────────────────
@@ -236,7 +264,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const vals = Object.values(pr.porMatricula);
         const media = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
         const avs = await q('SELECT COUNT(*) n FROM acl_avaliacoes WHERE track_id = ?', [t.id]);
-        return { qtd_modulos: mods, qtd_aulas: aulas, qtd_avaliacoes: avs, qtd_missoes: 0, qtd_participantes: part, progresso_medio: media };
+        return { qtd_modulos: mods, qtd_aulas: aulas, qtd_avaliacoes: avs, qtd_missoes: (await q('SELECT COUNT(*) n FROM acl_missoes WHERE track_id = ?', [t.id])), qtd_participantes: part, progresso_medio: media };
     }
 
     // ═══ ADMIN: trilhas ═══════════════════════════════════════════════════════
@@ -282,6 +310,8 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const mods = await dbAll('SELECT titulo, data_inicio, data_fim FROM acl_modulos WHERE track_id = ?', [id]);
             const fora = mods.filter(m => !dentro(t.data_inicio, t.data_fim, m.data_inicio, m.data_fim)).map(m => m.titulo);
             if (fora.length) return res.status(409).json({ error: `O novo prazo deixa módulos fora do período da trilha: ${fora.slice(0, 3).join(', ')}${fora.length > 3 ? '…' : ''}. Ajuste os prazos dos módulos antes.` });
+            const missFora = await dbAll('SELECT nome FROM acl_missoes WHERE track_id = ? AND ((data_fim IS NOT NULL AND data_fim != \'\' AND ((? IS NOT NULL AND data_fim > ?) OR (? IS NOT NULL AND data_fim < ?))) OR (data_inicio IS NOT NULL AND data_inicio != \'\' AND (? IS NOT NULL AND data_inicio < ?)))', [id, t.data_fim, t.data_fim, t.data_inicio, t.data_inicio, t.data_inicio, t.data_inicio]);
+            if (missFora.length) return res.status(409).json({ error: `O novo prazo deixa missões fora do período da trilha: ${missFora.slice(0, 3).map(x => x.nome).join(', ')}. Ajuste os prazos das missões antes.` });
             await dbRun(`UPDATE acl_trilhas SET nome = ?, descricao = ?, objetivo = ?, publico_json = ?, data_inicio = ?, data_fim = ?, carga_horaria = ?,
                 gera_certificado = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
                 [t.nome, t.descricao, t.objetivo, JSON.stringify(t.publico), t.data_inicio, t.data_fim, t.carga_horaria, t.gera_certificado, t.status, id]);
@@ -299,6 +329,8 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const n = await dbGet('SELECT COUNT(*) n FROM acl_matriculas WHERE track_id = ?', [id]);
             if (n.n > 0 && req.query.forcar !== '1') return res.status(409).json({ error: `Esta trilha tem ${n.n} participante(s). Arquive a trilha ou confirme a exclusão definitiva.`, participantes: n.n });
             await apagarMidiasDaTrilha(id);
+            await apagarEnvios('e.mission_id IN (SELECT id FROM acl_missoes WHERE track_id = ?)', [id]);
+            await dbRun('DELETE FROM acl_missoes WHERE track_id = ?', [id]);
             await dbRun('DELETE FROM acl_tentativas WHERE matricula_id IN (SELECT id FROM acl_matriculas WHERE track_id = ?)', [id]);
             await dbRun('DELETE FROM acl_alternativas WHERE pergunta_id IN (SELECT p.id FROM acl_perguntas p JOIN acl_avaliacoes q ON q.id = p.quiz_id WHERE q.track_id = ?)', [id]);
             await dbRun('DELETE FROM acl_perguntas WHERE quiz_id IN (SELECT id FROM acl_avaliacoes WHERE track_id = ?)', [id]);
@@ -317,7 +349,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const id = parseInt(req.params.id, 10);
             const t = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [id]);
             if (!t) return res.status(404).json({ error: 'Trilha não encontrada.' });
-            res.json(Object.assign(resumoTrilha(t, await contagensTrilha(t)), { modulos: await estruturaTrilha(id, false), avaliacoes: await listarAvaliacoes(id) }));
+            res.json(Object.assign(resumoTrilha(t, await contagensTrilha(t)), { modulos: await estruturaTrilha(id, false), avaliacoes: await listarAvaliacoes(id), missoes: await listarMissoes(id) }));
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
@@ -366,6 +398,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             await dbRun('DELETE FROM acl_progresso WHERE aula_id IN (SELECT id FROM acl_aulas WHERE module_id = ?)', [id]);
             await dbRun('DELETE FROM acl_aulas WHERE module_id = ?', [id]);
             await dbRun('UPDATE acl_avaliacoes SET module_id = NULL WHERE module_id = ?', [id]);
+            await dbRun('UPDATE acl_missoes SET module_id = NULL WHERE module_id = ?', [id]);
             await dbRun('DELETE FROM acl_modulos WHERE id = ?', [id]);
             res.json({ ok: true });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -524,13 +557,15 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         try {
             const tid = parseInt(req.params.id, 10);
             const pr = await progressoDaTrilha(tid);
+            const ptsMap = {};
+            (await dbAll('SELECT matricula_id, COUNT(*) n, SUM(total) p FROM acl_pontos WHERE track_id = ? GROUP BY matricula_id', [tid])).forEach(x => { ptsMap[x.matricula_id] = x; });
             const rows = await dbAll(`SELECT m.id AS matricula_id, m.status, m.data_matricula, m.data_conclusao, m.excecao_ate, c.id AS colaborador_id, c.nome_completo, c.cargo, c.departamento
                 FROM acl_matriculas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.track_id = ? ORDER BY c.nome_completo COLLATE NOCASE`, [tid]);
             res.json({ total_obrigatorias: pr.total, participantes: rows.map(r => ({
                 matricula_id: r.matricula_id, colaborador_id: r.colaborador_id, nome: r.nome_completo, cargo: r.cargo || '', departamento: r.departamento || '',
                 foto: fotoUrl(r.colaborador_id), status: r.status, progresso: pr.porMatricula[r.matricula_id] || 0,
                 data_matricula: r.data_matricula, data_conclusao: r.data_conclusao, excecao_ate: r.excecao_ate,
-                evolucao: null, missoes: 0, pontos: 0 // preenchidos nas próximas fases
+                evolucao: null, missoes: (ptsMap[r.matricula_id] || {}).n || 0, pontos: (ptsMap[r.matricula_id] || {}).p || 0 // evolução: fase 4
             })) });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
@@ -552,6 +587,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const id = parseInt(req.params.id, 10);
             await dbRun('DELETE FROM acl_progresso WHERE matricula_id = ?', [id]);
             await dbRun('DELETE FROM acl_tentativas WHERE matricula_id = ?', [id]);
+            await apagarEnvios('e.matricula_id = ?', [id]);
             await dbRun('DELETE FROM acl_matriculas WHERE id = ?', [id]);
             res.json({ ok: true });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -597,7 +633,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const totalColab = await dbGet(`SELECT COUNT(*) n FROM colaboradores WHERE status IN ('Ativo', 'Férias')`);
             res.json({
                 total_colaboradores: totalColab.n, participantes: totalPart, ativos, concluidos, em_desenvolvimento: emDesenv, nao_iniciaram: naoIniciaram,
-                trilhas_cadastradas: trilhas.length, trilhas_concluidas: concluidos,
+                trilhas_cadastradas: trilhas.length, missoes_pendentes: (await dbGet("SELECT COUNT(*) n FROM acl_missoes_envios WHERE status = 'em_analise'")).n, trilhas_concluidas: concluidos,
                 media_conclusao: nPct ? Math.round(somaPct / nPct) : 0, certificados_emitidos: (await dbGet('SELECT COUNT(*) n FROM acl_certificados')).n, por_trilha: porTrilha
             });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -643,12 +679,16 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const totalItens = totalAulas + obrQAll.length, feitosItens = feitasAulas + obrQAll.filter(a => a.aprovada).length;
         const pct = totalItens ? Math.round(feitosItens * 100 / totalItens) : 0;
         const cert = await dbGet('SELECT id, numero FROM acl_certificados WHERE matricula_id = ?', [mat.id]);
+        const ptsRow = await dbGet('SELECT COUNT(*) n, COALESCE(SUM(total), 0) p FROM acl_pontos WHERE matricula_id = ?', [mat.id]);
+        const missoesJ = await missoesDaJornada(trilha, mat);
+        const hist = await dbAll('SELECT motivo AS missao, pontos_base, pontos_bonus, total, created_at AS data FROM acl_pontos WHERE matricula_id = ? ORDER BY id DESC', [mat.id]);
         return {
             colaborador: colab && { id: colab.id, nome: colab.nome_completo, cargo: colab.cargo, departamento: colab.departamento, foto: fotoUrl(colab.id) },
             matricula: { id: mat.id, status: mat.status, data_matricula: mat.data_matricula, data_conclusao: mat.data_conclusao, excecao_ate: mat.excecao_ate },
             trilha: resumoTrilha(trilha), modulos: mods, avaliacoes_gerais: gerais,
             progresso: { obrigatorio: pct, itens_obrigatorios: totalItens, itens_concluidos: feitosItens, aulas_obrigatorias: totalAulas, aulas_concluidas: feitasAulas,
-                avaliacoes_obrigatorias: obrQAll.length, avaliacoes_aprovadas: obrQAll.filter(a => a.aprovada).length, missoes_realizadas: 0, pontos_bonus: 0 },
+                avaliacoes_obrigatorias: obrQAll.length, avaliacoes_aprovadas: obrQAll.filter(a => a.aprovada).length, missoes_realizadas: ptsRow.n, pontos_bonus: ptsRow.p },
+            missoes: missoesJ, pontos_historico: hist,
             certificado: cert ? { id: cert.id, numero: cert.numero } : null,
             proximo_modulo: proximoModulo, proxima_aula: proximaAula
         };
@@ -844,7 +884,9 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const mediaNotas = notas.length ? Math.round(notas.reduce((a, b) => a + (b.melhor || 0), 0) / notas.length) : null;
             const certs = await dbGet('SELECT COUNT(*) n FROM acl_certificados WHERE track_id = ?', [tid]);
             res.json({ participantes: mats.length, media_progresso: media, taxa_conclusao: mats.length ? Math.round(concl * 100 / mats.length) : 0, media_avaliacoes: mediaNotas,
-                certificados: certs.n, participacao: mats.length ? Math.round(iniciaram.n * 100 / mats.length) : 0, itens_obrigatorios: pr.total });
+                certificados: certs.n, missoes_aprovadas: (await dbGet("SELECT COUNT(*) n FROM acl_missoes_envios e JOIN acl_missoes m ON m.id = e.mission_id WHERE m.track_id = ? AND e.status = 'aprovada'", [tid])).n,
+                pontos_distribuidos: (await dbGet('SELECT COALESCE(SUM(total), 0) p FROM acl_pontos WHERE track_id = ?', [tid])).p,
+                missoes_pendentes: (await dbGet("SELECT COUNT(*) n FROM acl_missoes_envios e JOIN acl_missoes m ON m.id = e.mission_id WHERE m.track_id = ? AND e.status = 'em_analise'", [tid])).n, participacao: mats.length ? Math.round(iniciaram.n * 100 / mats.length) : 0, itens_obrigatorios: pr.total });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
@@ -1020,6 +1062,276 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         for (let i = 0; i < perg.length; i++) {
             const p = await dbRun('INSERT INTO acl_perguntas (quiz_id, tipo, enunciado, ordem) VALUES (?, ?, ?, ?)', [q.lastID, perg[i][0], perg[i][1], i + 1]);
             for (let k = 0; k < perg[i][2].length; k++) await dbRun('INSERT INTO acl_alternativas (pergunta_id, texto, correta, ordem) VALUES (?, ?, ?, ?)', [p.lastID, perg[i][2][k][0], perg[i][2][k][1], k + 1]);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  FASE 3 — Missões OPCIONAIS (pontos bônus). Missões NUNCA entram no progresso,
+    //  na nota, no certificado nem bloqueiam módulos/aulas/avaliações.
+    // ═══════════════════════════════════════════════════════════════════════════
+    const MAX_ANEXO_MB = 15;
+    const uploadMissao = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_ANEXO_MB * 1024 * 1024, files: 5 } });
+    const EXT_ANEXO = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', pdf: 'application/pdf', doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+
+    async function listarMissoes(trackId) {
+        return dbAll(`SELECT m.*, (SELECT COUNT(*) FROM acl_missoes_envios e WHERE e.mission_id = m.id) AS qtd_envios,
+            (SELECT COUNT(*) FROM acl_missoes_envios e WHERE e.mission_id = m.id AND e.status = 'em_analise') AS qtd_pendentes,
+            (SELECT COUNT(*) FROM acl_missoes_envios e WHERE e.mission_id = m.id AND e.status = 'aprovada') AS qtd_aprovadas
+            FROM acl_missoes m WHERE m.track_id = ? ORDER BY m.id ASC`, [trackId]);
+    }
+    function lerMissao(b, trilha) {
+        const pb = parseInt(b.pontos_base, 10), pn = parseInt(b.pontos_bonus, 10);
+        const m = {
+            nome: txt(b.nome, 200), module_id: parseInt(b.module_id, 10) || null, descricao: txt(b.descricao), objetivo: txt(b.objetivo), como_realizar: txt(b.como_realizar),
+            pontos_base: isNaN(pb) ? 20 : Math.max(0, pb), pontos_bonus: isNaN(pn) ? 10 : Math.max(0, pn),
+            data_inicio: isoDate(b.data_inicio), data_fim: isoDate(b.data_fim),
+            status: ['rascunho', 'publicada', 'encerrada'].includes(b.status) ? b.status : 'rascunho',
+            permite_nova_tentativa: b.permite_nova_tentativa === false || b.permite_nova_tentativa === 0 || b.permite_nova_tentativa === '0' ? 0 : 1
+        };
+        if (!m.nome) return { erro: 'Informe o nome da missão.' };
+        if (!m.descricao) return { erro: 'Descreva a atividade: explique exatamente o que o líder deve fazer.' };
+        if (m.data_inicio && m.data_fim && m.data_fim < m.data_inicio) return { erro: 'A data limite da missão não pode ser anterior à data de início.' };
+        if (m.data_fim && trilha.data_fim && m.data_fim > trilha.data_fim) return { erro: 'A data limite da missão não pode ultrapassar o prazo final da trilha.' };
+        if ((m.data_inicio && trilha.data_inicio && m.data_inicio < trilha.data_inicio) || (m.data_fim && trilha.data_inicio && m.data_fim < trilha.data_inicio)) return { erro: 'O prazo da missão não pode começar antes do início da trilha.' };
+        if (m.data_inicio && trilha.data_fim && m.data_inicio > trilha.data_fim) return { erro: 'A data de início da missão não pode ultrapassar o prazo final da trilha.' };
+        return { m };
+    }
+    async function apagarEnvios(cond, params) {
+        const envios = await dbAll(`SELECT e.id FROM acl_missoes_envios e WHERE ${cond}`, params);
+        for (const e of envios) {
+            const anex = await dbAll('SELECT r2_key FROM acl_missoes_anexos WHERE envio_id = ?', [e.id]);
+            if (r2 && r2.isReady()) for (const a of anex) if (a.r2_key) { try { await r2.deleteFromR2(a.r2_key); } catch (e2) { /* segue */ } }
+            await dbRun('DELETE FROM acl_missoes_anexos WHERE envio_id = ?', [e.id]);
+            await dbRun('DELETE FROM acl_pontos WHERE envio_id = ?', [e.id]);
+            await dbRun('DELETE FROM acl_missoes_envios WHERE id = ?', [e.id]);
+        }
+    }
+    app.get('/api/acl/trilhas/:id/missoes', guardAdmin, async (req, res) => {
+        try { res.json(await listarMissoes(parseInt(req.params.id, 10))); } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    async function moduloValido(moduleId, tid) { if (!moduleId) return true; return !!(await dbGet('SELECT id FROM acl_modulos WHERE id = ? AND track_id = ?', [moduleId, tid])); }
+    app.post('/api/acl/trilhas/:id/missoes', guardAdmin, async (req, res) => {
+        try {
+            const tid = parseInt(req.params.id, 10);
+            const trilha = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [tid]);
+            if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada.' });
+            const r = lerMissao(req.body || {}, trilha); if (r.erro) return res.status(400).json({ error: r.erro });
+            if (!await moduloValido(r.m.module_id, tid)) return res.status(400).json({ error: 'O módulo precisa pertencer a esta trilha.' });
+            const ins = await dbRun(`INSERT INTO acl_missoes (track_id, module_id, nome, descricao, objetivo, como_realizar, pontos_base, pontos_bonus, data_inicio, data_fim, status, permite_nova_tentativa)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [tid, r.m.module_id, r.m.nome, r.m.descricao, r.m.objetivo, r.m.como_realizar, r.m.pontos_base, r.m.pontos_bonus, r.m.data_inicio, r.m.data_fim, r.m.status, r.m.permite_nova_tentativa]);
+            res.json({ ok: true, id: ins.lastID });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.put('/api/acl/missoes/:id', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const atual = await dbGet('SELECT * FROM acl_missoes WHERE id = ?', [id]);
+            if (!atual) return res.status(404).json({ error: 'Missão não encontrada.' });
+            const trilha = await dbGet('SELECT * FROM acl_trilhas WHERE id = ?', [atual.track_id]);
+            const r = lerMissao(Object.assign({}, atual, req.body || {}), trilha); if (r.erro) return res.status(400).json({ error: r.erro });
+            if (!await moduloValido(r.m.module_id, atual.track_id)) return res.status(400).json({ error: 'O módulo precisa pertencer a esta trilha.' });
+            await dbRun(`UPDATE acl_missoes SET module_id = ?, nome = ?, descricao = ?, objetivo = ?, como_realizar = ?, pontos_base = ?, pontos_bonus = ?, data_inicio = ?, data_fim = ?, status = ?, permite_nova_tentativa = ? WHERE id = ?`,
+                [r.m.module_id, r.m.nome, r.m.descricao, r.m.objetivo, r.m.como_realizar, r.m.pontos_base, r.m.pontos_bonus, r.m.data_inicio, r.m.data_fim, r.m.status, r.m.permite_nova_tentativa, id]);
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.delete('/api/acl/missoes/:id', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const n = await dbGet('SELECT COUNT(*) n FROM acl_missoes_envios WHERE mission_id = ?', [id]);
+            if (n.n > 0 && req.query.forcar !== '1') return res.status(409).json({ error: `Esta missão tem ${n.n} envio(s) (e possíveis pontos). Encerre a missão ou confirme a exclusão definitiva.`, envios: n.n });
+            await apagarEnvios('e.mission_id = ?', [id]);
+            await dbRun('DELETE FROM acl_missoes WHERE id = ?', [id]);
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ── Admin: MISSÕES PARA AVALIAR ────────────────────────────────────────────
+    app.get('/api/acl/trilhas/:id/envios', guardAdmin, async (req, res) => {
+        try {
+            const tid = parseInt(req.params.id, 10);
+            const st = ['em_analise', 'aprovada', 'recusada'].includes(req.query.status) ? req.query.status : null;
+            const rows = await dbAll(`SELECT e.*, m.nome AS missao, m.module_id, m.permite_nova_tentativa, c.nome_completo, c.cargo, md.titulo AS modulo
+                FROM acl_missoes_envios e JOIN acl_missoes m ON m.id = e.mission_id JOIN colaboradores c ON c.id = e.colaborador_id
+                LEFT JOIN acl_modulos md ON md.id = m.module_id
+                WHERE m.track_id = ? ${st ? 'AND e.status = ?' : ''} ORDER BY CASE e.status WHEN 'em_analise' THEN 0 ELSE 1 END, e.enviado_em DESC`, st ? [tid, st] : [tid]);
+            const out = [];
+            for (const r of rows) {
+                const anex = await dbAll('SELECT id, nome, mime, tamanho FROM acl_missoes_anexos WHERE envio_id = ? ORDER BY id', [r.id]);
+                out.push({ id: r.id, colaborador: r.nome_completo, colaborador_id: r.colaborador_id, cargo: r.cargo || '', foto: fotoUrl(r.colaborador_id), missao: r.missao, mission_id: r.mission_id, modulo: r.modulo || 'Trilha',
+                    anotacoes: r.anotacoes, enviado_em: r.enviado_em, status: r.status, tentativa: r.tentativa, pontos_base: r.pontos_base, pontos_bonus: r.pontos_bonus,
+                    pontos_potenciais: r.pontos_base + (anex.length ? r.pontos_bonus : 0), pontos_concedidos: r.pontos_concedidos, motivo_recusa: r.motivo_recusa, avaliado_em: r.avaliado_em, anexos: anex });
+            }
+            res.json(out);
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.post('/api/acl/envios/:id/aprovar', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const e = await dbGet('SELECT * FROM acl_missoes_envios WHERE id = ?', [id]);
+            if (!e) return res.status(404).json({ error: 'Envio não encontrado.' });
+            const anex = await dbGet('SELECT COUNT(*) n FROM acl_missoes_anexos WHERE envio_id = ?', [id]);
+            const bonus = anex.n > 0 ? e.pontos_bonus : 0, total = e.pontos_base + bonus;
+            // transição atômica: só o primeiro clique aprova (evita pontos em duplicidade)
+            const up = await dbRun(`UPDATE acl_missoes_envios SET status = 'aprovada', avaliado_em = CURRENT_TIMESTAMP, avaliado_por = ?, pontos_concedidos = ?, motivo_recusa = NULL WHERE id = ? AND status = 'em_analise'`, [req.user.id || null, total, id]);
+            if (!up.changes) return res.status(409).json({ error: 'Este envio já foi avaliado.' });
+            const m = await dbGet('SELECT m.track_id, m.nome FROM acl_missoes m WHERE m.id = ?', [e.mission_id]);
+            await dbRun(`INSERT OR IGNORE INTO acl_pontos (matricula_id, colaborador_id, track_id, mission_id, envio_id, pontos_base, pontos_bonus, total, motivo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [e.matricula_id, e.colaborador_id, m.track_id, e.mission_id, id, e.pontos_base, bonus, total, m.nome]);
+            res.json({ ok: true, pontos: total, base: e.pontos_base, bonus });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+    app.post('/api/acl/envios/:id/recusar', guardAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const motivo = txt(req.body && req.body.motivo, 1500);
+            if (!motivo) return res.status(400).json({ error: 'Informe o motivo da recusa (ele será mostrado ao participante).' });
+            const up = await dbRun(`UPDATE acl_missoes_envios SET status = 'recusada', avaliado_em = CURRENT_TIMESTAMP, avaliado_por = ?, motivo_recusa = ?, pontos_concedidos = 0 WHERE id = ? AND status = 'em_analise'`, [req.user.id || null, motivo, id]);
+            if (!up.changes) return res.status(409).json({ error: 'Este envio já foi avaliado.' });
+            res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    // stream privado dos anexos (admin ou autor do envio)
+    app.get('/api/acl/envios/:id/anexos/:aid', authenticateToken, async (req, res) => {
+        try {
+            const e = await dbGet('SELECT colaborador_id FROM acl_missoes_envios WHERE id = ?', [parseInt(req.params.id, 10)]);
+            if (!e) return res.status(404).end();
+            let ok = await temPagina(req.user, PAGE_ADMIN);
+            if (!ok) { const colab = await colabDoUsuario(req.user); ok = !!(colab && colab.id === e.colaborador_id); }
+            if (!ok) return res.status(403).end();
+            const a = await dbGet('SELECT * FROM acl_missoes_anexos WHERE id = ? AND envio_id = ?', [parseInt(req.params.aid, 10), parseInt(req.params.id, 10)]);
+            if (!a || !a.r2_key) return res.status(404).end();
+            if (!r2 || !r2.isReady()) return res.status(503).end();
+            const f = await r2.downloadStreamFromR2(a.r2_key, null);
+            res.setHeader('Content-Type', a.mime || f.contentType || 'application/octet-stream');
+            res.setHeader('Content-Disposition', `inline; filename="${String(a.nome || 'anexo').replace(/"/g, '')}"`);
+            res.setHeader('Cache-Control', 'private, max-age=3600');
+            if (f.contentLength != null) res.setHeader('Content-Length', f.contentLength);
+            f.stream.on('error', () => { try { res.end(); } catch (e2) { /* ignora */ } });
+            f.stream.pipe(res);
+        } catch (e) { if (!res.headersSent) res.status(404).end(); }
+    });
+
+    // ── Participante: ver e realizar missão ────────────────────────────────────
+    function situacaoPrazoMissao(m, trilha, excecaoAte) {
+        const h = hojeSP();
+        if (m.status === 'encerrada') return 'encerrada';
+        const ini = m.data_inicio || trilha.data_inicio, fim = m.data_fim || trilha.data_fim;
+        if (ini && h < ini) return 'nao_iniciada';
+        const efetivo = excecaoAte && excecaoAte > (fim || '') ? excecaoAte : fim;
+        if (efetivo && h > efetivo) return 'encerrada';
+        return 'disponivel';
+    }
+    async function ctxMissaoMinha(req, res) {
+        const colab = await colabDoUsuario(req.user);
+        if (!colab) { res.status(404).json({ error: 'Seu usuário não está vinculado a um colaborador.' }); return null; }
+        const m = await dbGet(`SELECT m.*, t.data_inicio AS t_ini, t.data_fim AS t_fim, t.status AS tstatus, t.nome AS trilha_nome FROM acl_missoes m JOIN acl_trilhas t ON t.id = m.track_id WHERE m.id = ?`, [parseInt(req.params.id, 10)]);
+        if (!m || m.status === 'rascunho' || ['rascunho', 'arquivada'].includes(m.tstatus)) { res.status(404).json({ error: 'Missão não encontrada.' }); return null; }
+        const mat = await dbGet(`SELECT * FROM acl_matriculas WHERE track_id = ? AND colaborador_id = ? AND status != 'inativo'`, [m.track_id, colab.id]);
+        if (!mat) { res.status(403).json({ error: 'Você não está matriculado nesta trilha.' }); return null; }
+        const envios = await dbAll('SELECT * FROM acl_missoes_envios WHERE mission_id = ? AND matricula_id = ? ORDER BY id DESC', [m.id, mat.id]);
+        const trilha = { data_inicio: m.t_ini, data_fim: m.t_fim };
+        const prazo = situacaoPrazoMissao(m, trilha, mat.excecao_ate);
+        const ultimo = envios[0] || null;
+        const podeRealizar = prazo === 'disponivel' && (!ultimo || (ultimo.status === 'recusada' && !!m.permite_nova_tentativa));
+        return { colab, m, mat, envios, prazo, ultimo, podeRealizar };
+    }
+    async function enviosComAnexos(envios) {
+        const out = [];
+        for (const e of envios) {
+            const anex = await dbAll('SELECT id, nome, mime FROM acl_missoes_anexos WHERE envio_id = ? ORDER BY id', [e.id]);
+            out.push({ id: e.id, status: e.status, tentativa: e.tentativa, enviado_em: e.enviado_em, anotacoes: e.anotacoes, motivo_recusa: e.motivo_recusa, avaliado_em: e.avaliado_em,
+                pontos_concedidos: e.pontos_concedidos, pontos_base: e.pontos_base, pontos_bonus: e.pontos_bonus, anexos: anex });
+        }
+        return out;
+    }
+    app.get('/api/acl/minha/missoes/:id', guardMinha, async (req, res) => {
+        try {
+            const c = await ctxMissaoMinha(req, res); if (!c) return;
+            const m = c.m;
+            res.json({ id: m.id, track_id: m.track_id, trilha: m.trilha_nome, nome: m.nome, descricao: m.descricao, objetivo: m.objetivo, como_realizar: m.como_realizar, pontos_base: m.pontos_base, pontos_bonus: m.pontos_bonus,
+                data_inicio: m.data_inicio || m.t_ini, data_fim: m.data_fim || m.t_fim, demonstracao: m.demonstracao, permite_nova_tentativa: !!m.permite_nova_tentativa,
+                prazo_situacao: c.prazo, pode_realizar: c.podeRealizar, envios: await enviosComAnexos(c.envios) });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    app.post('/api/acl/minha/missoes/:id/enviar', ...guardMinha, (req, res) => {
+        uploadMissao.array('arquivos', 5)(req, res, async (errUp) => {
+            try {
+                if (errUp) return res.status(errUp.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: errUp.code === 'LIMIT_FILE_SIZE' ? `Cada anexo pode ter até ${MAX_ANEXO_MB} MB.` : 'Não foi possível ler os anexos (máximo 5 arquivos).' });
+                const c = await ctxMissaoMinha(req, res); if (!c) return;
+                const anotacoes = txt(req.body && req.body.anotacoes, 8000);
+                if (!anotacoes) return res.status(400).json({ error: 'As anotações são obrigatórias: conte como você realizou esta missão.' });
+                if (!c.podeRealizar) {
+                    const msg = c.ultimo && c.ultimo.status === 'em_analise' ? 'Sua missão já foi enviada e está em análise.' : c.ultimo && c.ultimo.status === 'aprovada' ? 'Esta missão já foi aprovada.'
+                        : c.ultimo && c.ultimo.status === 'recusada' ? 'Esta missão não permite nova tentativa.' : c.prazo === 'nao_iniciada' ? 'Esta missão ainda não começou.' : 'O prazo desta missão está encerrado.';
+                    return res.status(409).json({ error: msg });
+                }
+                const files = req.files || [];
+                for (const f of files) {
+                    const ext = (String(f.originalname || '').match(/\.([A-Za-z0-9]{1,5})$/) || [null, ''])[1].toLowerCase();
+                    if (!EXT_ANEXO[ext]) return res.status(400).json({ error: `Tipo de arquivo não permitido: ${f.originalname}. Use JPG, JPEG, PNG, PDF, DOC, DOCX, XLS ou XLSX.` });
+                    if (/^image\//.test(EXT_ANEXO[ext]) && !/^image\//.test(String(f.mimetype || ''))) return res.status(400).json({ error: `O arquivo ${f.originalname} não é uma imagem válida.` });
+                    f._ext = ext;
+                }
+                if (files.length && (!r2 || !r2.isReady())) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não está configurado. Tente novamente mais tarde.' });
+                const m = c.m;
+                const ins = await dbRun(`INSERT INTO acl_missoes_envios (mission_id, matricula_id, colaborador_id, anotacoes, status, pontos_base, pontos_bonus, tentativa, enviado_em)
+                    VALUES (?, ?, ?, ?, 'em_analise', ?, ?, ?, CURRENT_TIMESTAMP)`, [m.id, c.mat.id, c.colab.id, anotacoes, m.pontos_base, m.pontos_bonus, c.envios.length + 1]);
+                const hoje = hojeSP().split('-'); const subidas = [];
+                try {
+                    for (const f of files) {
+                        const nome = String(f.originalname || 'anexo').replace(/[^\w.\- ]+/g, '_').slice(0, 120);
+                        const key = `academia-lideres/missoes/${hoje[0]}/${hoje[1]}/envio${ins.lastID}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${f._ext}`;
+                        await r2.uploadToR2(key, f.buffer, EXT_ANEXO[f._ext]); subidas.push(key);
+                        await dbRun('INSERT INTO acl_missoes_anexos (envio_id, nome, mime, r2_key, tamanho) VALUES (?, ?, ?, ?, ?)', [ins.lastID, nome, EXT_ANEXO[f._ext], key, f.size]);
+                    }
+                } catch (eUp) {
+                    for (const k of subidas) { try { await r2.deleteFromR2(k); } catch (e3) { /* segue */ } }
+                    await dbRun('DELETE FROM acl_missoes_anexos WHERE envio_id = ?', [ins.lastID]); await dbRun('DELETE FROM acl_missoes_envios WHERE id = ?', [ins.lastID]);
+                    return res.status(500).json({ error: 'Falha ao enviar os anexos: ' + eUp.message });
+                }
+                res.json({ ok: true, envio_id: ins.lastID, status: 'em_analise', anexos: files.length, pontos_potenciais: m.pontos_base + (files.length ? m.pontos_bonus : 0) });
+            } catch (e) { if (!res.headersSent) res.status(500).json({ error: e.message }); }
+        });
+    });
+    app.get('/api/acl/minha/pontos', guardMinha, async (req, res) => {
+        try {
+            const colab = await colabDoUsuario(req.user);
+            if (!colab) return res.json({ total: 0, itens: [] });
+            const rows = await dbAll(`SELECT p.*, t.nome AS trilha FROM acl_pontos p JOIN acl_trilhas t ON t.id = p.track_id WHERE p.colaborador_id = ? ORDER BY p.id DESC`, [colab.id]);
+            res.json({ total: rows.reduce((a, r) => a + r.total, 0), itens: rows.map(r => ({ missao: r.motivo, trilha: r.trilha, pontos_base: r.pontos_base, pontos_bonus: r.pontos_bonus, total: r.total, data: r.created_at, status: 'Aprovado' })) });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    // resumo das missões de uma trilha para a jornada do participante
+    async function missoesDaJornada(trilha, mat) {
+        const ms = await dbAll(`SELECT m.* FROM acl_missoes m WHERE m.track_id = ? AND m.status != 'rascunho' ORDER BY m.id ASC`, [trilha.id]);
+        const out = [];
+        for (const m of ms) {
+            const ultimo = await dbGet('SELECT id, status, pontos_concedidos, motivo_recusa, enviado_em FROM acl_missoes_envios WHERE mission_id = ? AND matricula_id = ? ORDER BY id DESC LIMIT 1', [m.id, mat.id]);
+            const prazo = situacaoPrazoMissao(m, trilha, mat.excecao_ate);
+            out.push({ id: m.id, nome: m.nome, descricao: m.descricao, module_id: m.module_id, pontos_base: m.pontos_base, pontos_bonus: m.pontos_bonus, data_inicio: m.data_inicio || trilha.data_inicio, data_fim: m.data_fim || trilha.data_fim,
+                demonstracao: m.demonstracao, prazo_situacao: prazo, envio: ultimo || null,
+                pode_realizar: prazo === 'disponivel' && (!ultimo || (ultimo.status === 'recusada' && !!m.permite_nova_tentativa)) });
+        }
+        return out;
+    }
+    async function seedDemoMissoes() {
+        const t = await dbGet('SELECT id FROM acl_trilhas WHERE demonstracao = 1 ORDER BY id LIMIT 1');
+        if (!t) return;
+        const ja = await dbGet('SELECT COUNT(*) n FROM acl_missoes WHERE track_id = ?', [t.id]);
+        if (ja.n > 0) return;
+        const mods = await dbAll('SELECT id FROM acl_modulos WHERE track_id = ? ORDER BY ordem', [t.id]);
+        const itens = [
+            [mods[1], 'Pratique o Feedback (conteúdo de demonstração)', 'Conteúdo de demonstração: coloque em prática uma conversa de feedback com sua equipe.', 'Desenvolver a habilidade de dar feedback claro e respeitoso.', '1. Escolha um colaborador.\n2. Prepare os pontos principais.\n3. Converse em particular.\n4. Registre o resultado.'],
+            [mods[5], 'Conversa de Segurança (conteúdo de demonstração)', 'Conteúdo de demonstração: conduza uma conversa rápida sobre segurança com a equipe antes do turno.', 'Reforçar a cultura de segurança como responsabilidade de todos.', '1. Defina o tema.\n2. Reúna a equipe por 5 minutos.\n3. Registre os combinados.']
+        ];
+        for (const it of itens) {
+            await dbRun(`INSERT INTO acl_missoes (track_id, module_id, nome, descricao, objetivo, como_realizar, pontos_base, pontos_bonus, status, permite_nova_tentativa, demonstracao)
+                VALUES (?, ?, ?, ?, ?, ?, 20, 10, 'publicada', 1, 1)`, [t.id, it[0] ? it[0].id : null, it[1], it[2], it[3], it[4]]);
         }
     }
 

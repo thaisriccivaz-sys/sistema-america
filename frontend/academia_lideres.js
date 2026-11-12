@@ -13,7 +13,7 @@
     const STATUS_TXT = { rascunho: 'Rascunho', publicada: 'Publicada', em_andamento: 'Em andamento', encerrada: 'Encerrada', arquivada: 'Arquivada' };
     const STATUS_COR = { rascunho: '#64748b', publicada: '#2563eb', em_andamento: '#16a34a', encerrada: '#dc2626', arquivada: '#94a3b8' };
 
-    const A = { aba: 'dashboard', lista: null, dash: null, t: null, tab: 'visao', modAberto: {}, part: null };
+    const A = { msub: 'lista', envFiltro: 'em_analise', envios: [], aba: 'dashboard', lista: null, dash: null, t: null, tab: 'visao', modAberto: {}, part: null };
     const M = { dados: null, tid: null, jornada: null };
 
     // ── Utilidades ───────────────────────────────────────────────────────────────
@@ -99,6 +99,7 @@
             ${kpi('ph-certificate', 'Certificados emitidos', d.certificados_emitidos, '#2563eb')}
             ${kpi('ph-person-simple-run', 'Em desenvolvimento', d.em_desenvolvimento, '#ea580c')}
             ${kpi('ph-hourglass', 'Ainda não iniciaram', d.nao_iniciaram, '#64748b')}
+            ${kpi('ph-target', 'Missões para avaliar', d.missoes_pendentes || 0, '#ea580c')}
         </div>
         <div class="acl-card"><h3><i class="ph ph-chart-bar"></i> Conclusão média por trilha</h3>${barras}</div>
         <div class="acl-card"><h3><i class="ph ph-chart-donut"></i> Situação dos participantes</h3>
@@ -176,14 +177,16 @@
 
     function htmlEditor() {
         const t = A.t, st = t.status_efetivo;
+        const pendMiss = (t.missoes || []).reduce((n, x) => n + (x.qtd_pendentes || 0), 0);
         const abas = [['visao', 'ph-clipboard-text', 'Visão Geral'], ['modulos', 'ph-books', 'Módulos'], ['avaliacoes', 'ph-note-pencil', 'Avaliações'], ['missoes', 'ph-target', 'Missões'], ['cronograma', 'ph-calendar-dots', 'Cronograma'], ['participantes', 'ph-users', 'Participantes'], ['desempenho', 'ph-chart-bar', 'Desempenho'], ['config', 'ph-gear', 'Configurações']];
-        const abasHtml = abas.map(a => `<button class="acl-tab ${A.tab === a[0] ? 'on' : ''}" onclick="window._aclTab('${a[0]}')"><i class="ph ${a[1]}"></i> ${a[2]}</button>`).join('');
+        const abasHtml = abas.map(a => `<button class="acl-tab ${A.tab === a[0] ? 'on' : ''}" onclick="window._aclTab('${a[0]}')"><i class="ph ${a[1]}"></i> ${a[2]}${a[0] === 'missoes' && pendMiss ? `<span class="acl-tab-n">${pendMiss}</span>` : ''}</button>`).join('');
         let corpo = '';
         if (A.tab === 'visao') corpo = tabVisao();
         else if (A.tab === 'modulos') corpo = tabModulos();
         else if (A.tab === 'participantes') corpo = tabParticipantes();
         else if (A.tab === 'desempenho') corpo = tabDesempenho();
         else if (A.tab === 'avaliacoes') corpo = tabAvaliacoes();
+        else if (A.tab === 'missoes') corpo = tabMissoes();
         else if (A.tab === 'cronograma') corpo = tabCronograma();
         else if (A.tab === 'config') corpo = tabConfig();
         else corpo = `<div class="acl-vazio"><i class="ph ph-hourglass-medium"></i><div><b>Disponível nas próximas fases</b><br>Fase 3 — Missões opcionais com pontos bônus.</div></div>`;
@@ -350,6 +353,79 @@
         } catch (e) { erro('Erro', e.message); }
     };
 
+    // ── Aba Missões (admin) ─────────────────────────────────────────────────────
+    const ST_MISSAO = { rascunho: ['Rascunho', '#64748b'], publicada: ['Publicada', '#16a34a'], encerrada: ['Encerrada', '#dc2626'] };
+    function tabMissoes() {
+        const t = A.t, ms = t.missoes || [];
+        const pend = ms.reduce((n, x) => n + (x.qtd_pendentes || 0), 0);
+        const sub = `<div class="acl-subtabs"><button class="acl-chip-btn ${A.msub !== 'avaliar' ? 'on' : ''}" onclick="window._aclMsub('lista')"><i class="ph ph-target"></i> Missões da trilha</button><button class="acl-chip-btn ${A.msub === 'avaliar' ? 'on' : ''}" onclick="window._aclMsub('avaliar')"><i class="ph ph-clipboard-text"></i> Missões para avaliar${pend ? `<span class="acl-tab-n">${pend}</span>` : ''}</button></div>`;
+        const aviso = '<p class="acl-dica"><i class="ph ph-info"></i> Missões são <b>opcionais</b>: não alteram o progresso, a nota nem o certificado. Elas só geram pontos bônus depois de aprovadas.</p>';
+        if (A.msub === 'avaliar') return `${sub}${aviso}${htmlParaAvaliar()}`;
+        const modNome = id => { const m = (t.modulos || []).find(x => x.id === id); return m ? m.titulo : 'Trilha toda'; };
+        const cards = ms.map(m => { const st = ST_MISSAO[m.status] || ST_MISSAO.rascunho; return `<div class="acl-card"><div class="acl-tc-top"><h3><i class="ph ph-target"></i> ${esc(m.nome)}</h3><span class="acl-badge" style="background:${st[1]};">${st[0]}</span></div>${demoTag(m)}
+            <p class="acl-dica">${esc(m.descricao || '')}</p>
+            <div class="acl-meta"><span><i class="ph ph-books"></i> ${esc(modNome(m.module_id))}</span><span><i class="ph ph-star"></i> ${m.pontos_base} pts + ${m.pontos_bonus} pts de bônus por comprovação</span><span><i class="ph ph-calendar-blank"></i> ${m.data_inicio ? fmtBr(m.data_inicio) : fmtBr(t.data_inicio)} → ${m.data_fim ? fmtBr(m.data_fim) : fmtBr(t.data_fim)}</span><span><i class="ph ph-paper-plane-tilt"></i> ${m.qtd_envios} envio(s) · ${m.qtd_pendentes} em análise · ${m.qtd_aprovadas} aprovado(s)</span>${m.permite_nova_tentativa ? '' : '<span>sem nova tentativa</span>'}</div>
+            <div class="acl-cfg-btns"><button class="acl-btn sec sm" onclick="window._aclFormMissao(${m.id})"><i class="ph ph-pencil-simple"></i> Editar</button><button class="acl-btn del sm" onclick="window._aclDelMissao(${m.id})"><i class="ph ph-trash"></i> Excluir</button></div></div>`; }).join('')
+            || '<div class="acl-vazio"><i class="ph ph-target"></i><div>Nenhuma missão ainda. Crie missões opcionais para incentivar a prática.</div></div>';
+        return `${sub}${aviso}<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-target"></i> Missões da trilha</h3><button class="acl-btn pri" onclick="window._aclFormMissao()"><i class="ph ph-plus-circle"></i> ADICIONAR MISSÃO</button></div><div class="acl-corpo">${cards}</div>`;
+    }
+    window._aclMsub = async function (x) { A.msub = x; if (x === 'avaliar') { try { await extrasTab(A.t.id); } catch (e) { erro('Erro', e.message); } } desenharAdmin(); };
+    function htmlParaAvaliar() {
+        const fil = A.envFiltro || 'em_analise';
+        const chip = (id, rot) => `<button class="acl-chip-btn ${fil === id ? 'on' : ''}" onclick="window._aclEnvFiltro('${id}')">${rot}</button>`;
+        const stB = { em_analise: ['Em análise', '#ea580c'], aprovada: ['Aprovada', '#16a34a'], recusada: ['Recusada', '#dc2626'] };
+        const l = (A.envios || []).map(e => `<div class="acl-card acl-env">
+            <div class="acl-pessoa" style="cursor:default">${avatar(e.colaborador, e.foto)}<div><b>${esc(e.colaborador)}</b><small>${esc(e.cargo)}</small></div><span class="acl-badge" style="background:${stB[e.status][1]};margin-left:auto;">${stB[e.status][0]}</span></div>
+            <div class="acl-meta"><span><i class="ph ph-target"></i> ${esc(e.missao)}</span><span><i class="ph ph-books"></i> ${esc(e.modulo)}</span><span><i class="ph ph-clock"></i> enviada em ${esc(String(e.enviado_em || '').slice(0, 16).replace('T', ' '))}</span><span><i class="ph ph-repeat"></i> tentativa ${e.tentativa}</span></div>
+            <div class="acl-env-anot"><small>Anotações do líder</small><p>${esc(e.anotacoes)}</p></div>
+            <div class="acl-anexos">${e.anexos.length ? e.anexos.map(a => `<a class="acl-btn sec sm" href="${esc(apiBase() + '/acl/envios/' + e.id + '/anexos/' + a.id + '?token=' + encodeURIComponent(getToken()))}" target="_blank" rel="noopener"><i class="ph ph-paperclip"></i> ${esc(a.nome)}</a>`).join('') : '<small class="acl-dica">Sem anexo (somente pontuação base).</small>'}</div>
+            <div class="acl-pts"><b>Base: +${e.pontos_base}</b><span>Bônus: ${e.anexos.length ? '+' + e.pontos_bonus : '— (sem anexo)'}</span><span>${e.status === 'aprovada' ? 'Concedido: +' + e.pontos_concedidos : 'Total se aprovar: +' + e.pontos_potenciais}</span></div>
+            ${e.status === 'recusada' ? `<div class="acl-aviso"><i class="ph ph-x-circle"></i> Motivo da recusa: ${esc(e.motivo_recusa || '')}</div>` : ''}
+            ${e.status === 'em_analise' ? `<div class="acl-cfg-btns"><button class="acl-btn ok" onclick="window._aclAprovar(${e.id})"><i class="ph ph-check-circle"></i> APROVAR</button><button class="acl-btn del" onclick="window._aclRecusar(${e.id})"><i class="ph ph-x-circle"></i> RECUSAR</button></div>` : ''}</div>`).join('')
+            || '<div class="acl-vazio"><i class="ph ph-clipboard-text"></i><div>Nenhuma missão neste filtro.</div></div>';
+        return `<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-clipboard-text"></i> Missões para avaliar</h3></div><div class="acl-subtabs">${chip('em_analise', 'Em análise')}${chip('aprovada', 'Aprovadas')}${chip('recusada', 'Recusadas')}${chip('todas', 'Todas')}</div><div class="acl-corpo">${l}</div>`;
+    }
+    window._aclEnvFiltro = async function (f) { A.envFiltro = f; try { await extrasTab(A.t.id); } catch (e) { erro('Erro', e.message); } desenharAdmin(); };
+    window._aclAprovar = async function (id) {
+        const e = (A.envios || []).find(x => x.id === id); if (!e) return;
+        const r = await Swal.fire({ icon: 'question', title: 'Aprovar missão?', html: `<b>${esc(e.colaborador)}</b> receberá <b>+${e.pontos_potenciais} pontos</b> (${e.pontos_base} base${e.anexos.length ? ' + ' + e.pontos_bonus + ' de comprovação' : ''}).`, showCancelButton: true, confirmButtonColor: '#16a34a', confirmButtonText: 'Aprovar', cancelButtonText: 'Cancelar' });
+        if (!r.isConfirmed) return;
+        try { const res = await api('/acl/envios/' + id + '/aprovar', { method: 'POST' }); okMsg(`Aprovada! +${res.pontos} pontos`); await recarregarTrilha(); } catch (er) { erro('Não foi possível aprovar', er.message); await recarregarTrilha(); }
+    };
+    window._aclRecusar = async function (id) {
+        const r = await Swal.fire({ title: 'Recusar missão', input: 'textarea', inputLabel: 'Motivo da recusa (será mostrado ao participante)', inputPlaceholder: 'Explique o que faltou ou o que precisa ser ajustado', showCancelButton: true, confirmButtonColor: '#dc2626', confirmButtonText: 'Recusar', cancelButtonText: 'Cancelar', inputValidator: v => (!v || !v.trim()) ? 'Informe o motivo da recusa.' : null });
+        if (!r.isConfirmed) return;
+        try { await api('/acl/envios/' + id + '/recusar', { method: 'POST', body: jbody({ motivo: r.value }) }); okMsg('Missão recusada'); await recarregarTrilha(); } catch (er) { erro('Não foi possível recusar', er.message); await recarregarTrilha(); }
+    };
+    window._aclFormMissao = async function (id) {
+        const t = A.t, m = id ? (t.missoes || []).find(x => x.id === id) : null;
+        const r = await Swal.fire({
+            title: m ? 'Editar missão' : 'Nova missão (opcional)', width: 720, showCancelButton: true, confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar', confirmButtonColor: '#7c3aed', customClass: { popup: 'acl-swal' },
+            html: `<div class="acl-form"><label>Nome da missão<input id="aclms-n" value="${esc(m ? m.nome : '')}" placeholder="Pratique o Feedback"></label>
+            <label>Módulo relacionado<select id="aclms-m"><option value="">Trilha toda</option>${(t.modulos || []).map(x => `<option value="${x.id}" ${m && m.module_id === x.id ? 'selected' : ''}>${esc(x.titulo)}</option>`).join('')}</select></label>
+            <label>Descrição da atividade<textarea id="aclms-d" rows="3" placeholder="Explique exatamente o que o líder deve fazer">${esc(m ? m.descricao : '')}</textarea></label>
+            <label>Objetivo<textarea id="aclms-o" rows="2" placeholder="O que será desenvolvido">${esc(m ? m.objetivo : '')}</textarea></label>
+            <label>Como realizar<textarea id="aclms-c" rows="3" placeholder="Orientações passo a passo">${esc(m ? m.como_realizar : '')}</textarea></label>
+            <div class="acl-form-2"><label>Pontuação base<input id="aclms-pb" type="number" min="0" value="${m ? m.pontos_base : 20}"></label><label>Bônus por comprovação<input id="aclms-pn" type="number" min="0" value="${m ? m.pontos_bonus : 10}"></label></div>
+            <div class="acl-form-2"><label>Data de início<input id="aclms-i" type="date" min="${esc(t.data_inicio)}" max="${esc(t.data_fim)}" value="${esc(m ? m.data_inicio : '')}"></label><label>Data limite<input id="aclms-f" type="date" min="${esc(t.data_inicio)}" max="${esc(t.data_fim)}" value="${esc(m ? m.data_fim : '')}"></label></div>
+            <small>A data limite não pode ultrapassar o prazo final da trilha (${fmtBr(t.data_fim)}). Em branco = vale o prazo da trilha.</small>
+            <label>Status<select id="aclms-s">${[['rascunho', 'Rascunho'], ['publicada', 'Publicada'], ['encerrada', 'Encerrada']].map(s => `<option value="${s[0]}" ${(m ? m.status : 'rascunho') === s[0] ? 'selected' : ''}>${s[1]}</option>`).join('')}</select></label>
+            <label class="acl-chk"><input type="checkbox" id="aclms-nt" ${!m || m.permite_nova_tentativa ? 'checked' : ''}> Permitir nova tentativa quando a missão for recusada</label></div>`,
+            preConfirm: () => { const v = i => document.getElementById(i).value; const o = { nome: v('aclms-n').trim(), module_id: v('aclms-m'), descricao: v('aclms-d'), objetivo: v('aclms-o'), como_realizar: v('aclms-c'), pontos_base: v('aclms-pb'), pontos_bonus: v('aclms-pn'), data_inicio: v('aclms-i'), data_fim: v('aclms-f'), status: v('aclms-s'), permite_nova_tentativa: document.getElementById('aclms-nt').checked };
+                if (!o.nome) { Swal.showValidationMessage('Informe o nome da missão.'); return false; } if (!o.descricao.trim()) { Swal.showValidationMessage('Descreva a atividade.'); return false; }
+                if (o.data_fim && o.data_fim > t.data_fim) { Swal.showValidationMessage('A data limite da missão não pode ultrapassar o prazo final da trilha.'); return false; }
+                if (o.data_inicio && o.data_fim && o.data_fim < o.data_inicio) { Swal.showValidationMessage('A data limite não pode ser anterior à data de início.'); return false; } return o; }
+        });
+        if (!r.isConfirmed) return;
+        try { if (m) await api('/acl/missoes/' + m.id, { method: 'PUT', body: jbody(r.value) }); else await api('/acl/trilhas/' + t.id + '/missoes', { method: 'POST', body: jbody(r.value) }); await recarregarTrilha(); }
+        catch (e) { erro('Não foi possível salvar a missão', e.message); }
+    };
+    window._aclDelMissao = async function (id) {
+        const m = (A.t.missoes || []).find(x => x.id === id);
+        if (!await confirma('Excluir missão?', m && m.qtd_envios ? `Há ${m.qtd_envios} envio(s) e possíveis pontos já concedidos. Tudo será apagado definitivamente.` : 'A missão será apagada.', 'Excluir')) return;
+        try { await api('/acl/missoes/' + id + '?forcar=1', { method: 'DELETE' }); await recarregarTrilha(); } catch (e) { erro('Erro', e.message); }
+    };
+
     // ── Aba Configurações ─
     // ── Aba Avaliações ──────────────────────────────────────────────────────────
     const SIT_AV = { aprovada: 'Aprovada', aberta: 'Aberta', nao_aberta: 'Ainda não aberta', encerrada: 'Encerrada', esgotada: 'Tentativas esgotadas' };
@@ -453,28 +529,31 @@
         const marcaHoje = (hoje >= t.data_inicio && hoje <= t.data_fim) ? `<i class="acl-tl-hoje" style="left:${pos(hoje)}%;" title="Hoje"></i>` : '';
         const barraTL = (a, b, cor) => { const l = a ? pos(a) : 0, r = b ? pos(b) : 100; return `<div class="acl-tl-trilho">${marcaHoje}<i class="acl-tl-barra" style="left:${l}%;width:${Math.max(1.5, r - l)}%;background:${cor};"></i></div>`; };
         const avsDe = id => (t.avaliacoes || []).filter(q => (q.module_id || null) === id && q.ativo);
+        const missDe = id => (t.missoes || []).filter(x => (x.module_id || null) === id);
+        const blocoMiss = x => `<div class="acl-tl-item"><i class="ph ph-target" style="color:#ea580c"></i><span><b>${esc(x.nome)}</b> <small>missão opcional · ${x.data_inicio ? fmtBr(x.data_inicio) : fmtBr(t.data_inicio)} → ${x.data_fim ? fmtBr(x.data_fim) : fmtBr(t.data_fim)}${x.status === 'rascunho' ? ' · rascunho' : ''}</small></span></div>`;
         const blocoAv = q => `<div class="acl-tl-item"><i class="ph ph-note-pencil" style="color:#2563eb"></i><span><b>${esc(q.nome)}</b> <small>${q.data_abertura ? fmtBr(q.data_abertura) : 'abertura livre'} → ${q.data_limite ? fmtBr(q.data_limite) : 'sem limite'} · ${q.obrigatoria ? 'obrigatória' : 'opcional'}</small></span></div>`;
         const mods = (t.modulos || []).map((m, i) => {
             const aulas = m.aulas || [], avs = avsDe(m.id);
             return `<div class="acl-tl-mod ${m.ativo ? '' : 'inativo'}"><div class="acl-tl-topo"><span class="acl-m-n">${i + 1}</span><div><b>${esc(m.titulo)}</b><small>${m.data_inicio ? fmtBr(m.data_inicio) + ' → ' + fmtBr(m.data_fim) : 'Sem prazo próprio (vale o prazo da trilha)'}${m.ativo ? '' : ' · desativado'}</small></div></div>
                 ${barraTL(m.data_inicio, m.data_fim, m.data_inicio ? '#7c3aed' : '#ddd6fe')}
-                <div class="acl-tl-itens"><div class="acl-tl-item"><i class="ph ph-play-circle" style="color:#7c3aed"></i><span><b>${aulas.length} aula(s)</b> <small>${aulas.filter(a => a.obrigatoria).length} obrigatória(s)${aulas.some(a => a.prazo) ? ' · prazos: ' + aulas.filter(a => a.prazo).map(a => esc(a.titulo) + ' ' + fmtBr(a.prazo)).join('; ') : ''}</small></span></div>${avs.map(blocoAv).join('')}<div class="acl-tl-item"><i class="ph ph-target" style="color:#ea580c"></i><span><small>Missões opcionais — disponíveis na Fase 3</small></span></div></div></div>`;
+                <div class="acl-tl-itens"><div class="acl-tl-item"><i class="ph ph-play-circle" style="color:#7c3aed"></i><span><b>${aulas.length} aula(s)</b> <small>${aulas.filter(a => a.obrigatoria).length} obrigatória(s)${aulas.some(a => a.prazo) ? ' · prazos: ' + aulas.filter(a => a.prazo).map(a => esc(a.titulo) + ' ' + fmtBr(a.prazo)).join('; ') : ''}</small></span></div>${avs.map(blocoAv).join('')}${missDe(m.id).map(blocoMiss).join('')}</div></div>`;
         }).join('') || '<div class="acl-vazio-sm">Crie módulos para montar o cronograma.</div>';
-        const gerais = avsDe(null);
+        const gerais = avsDe(null), gMiss = missDe(null);
         return `<div class="acl-card"><h3><i class="ph ph-calendar-dots"></i> Jornada da trilha</h3><div class="acl-tl-escala"><span>${fmtBr(t.data_inicio)}</span><b>${esc(prazoTxt(t.prazo))}</b><span>${fmtBr(t.data_fim)}</span></div>${barraTL(t.data_inicio, t.data_fim, '#2563eb')}<small class="acl-dica">A linha vermelha marca o dia de hoje.</small></div>
-            <div class="acl-corpo">${mods}${gerais.length ? `<div class="acl-tl-mod"><div class="acl-tl-topo"><span class="acl-m-n"><i class="ph ph-flag"></i></span><div><b>Avaliações gerais da trilha</b></div></div><div class="acl-tl-itens">${gerais.map(blocoAv).join('')}</div></div>` : ''}</div>`;
+            <div class="acl-corpo">${mods}${(gerais.length || gMiss.length) ? `<div class="acl-tl-mod"><div class="acl-tl-topo"><span class="acl-m-n"><i class="ph ph-flag"></i></span><div><b>Itens gerais da trilha</b></div></div><div class="acl-tl-itens">${gerais.map(blocoAv).join('')}${gMiss.map(blocoMiss).join('')}</div></div>` : ''}</div>`;
     }
 
     // ── Aba Desempenho ──────────────────────────────────────────────────────────
     function tabDesempenho() {
         const d = A.desemp;
         if (!d) return '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Carregando...</div>';
-        return `<div class="acl-kpis">${kpi('ph-chart-line-up', 'Média de progresso', d.media_progresso + '%', '#16a34a')}${kpi('ph-seal-check', 'Taxa de conclusão', d.taxa_conclusao + '%', '#16a34a')}${kpi('ph-note-pencil', 'Média das avaliações', d.media_avaliacoes == null ? '—' : d.media_avaliacoes + '%', '#2563eb')}${kpi('ph-users', 'Participantes', d.participantes, '#7c3aed')}${kpi('ph-activity', 'Participação (já iniciaram)', d.participacao + '%', '#7c3aed')}${kpi('ph-certificate', 'Certificados', d.certificados, '#2563eb')}</div>
-            <p class="acl-dica">${d.itens_obrigatorios} item(ns) obrigatório(s) compõem o progresso (aulas e avaliações). Média de evolução, missões e pontos distribuídos chegam nas fases 3 e 4.</p>`;
+        return `<div class="acl-kpis">${kpi('ph-chart-line-up', 'Média de progresso', d.media_progresso + '%', '#16a34a')}${kpi('ph-seal-check', 'Taxa de conclusão', d.taxa_conclusao + '%', '#16a34a')}${kpi('ph-note-pencil', 'Média das avaliações', d.media_avaliacoes == null ? '—' : d.media_avaliacoes + '%', '#2563eb')}${kpi('ph-users', 'Participantes', d.participantes, '#7c3aed')}${kpi('ph-activity', 'Participação (já iniciaram)', d.participacao + '%', '#7c3aed')}${kpi('ph-certificate', 'Certificados', d.certificados, '#2563eb')}${kpi('ph-target', 'Missões aprovadas', d.missoes_aprovadas, '#ea580c')}${kpi('ph-star', 'Pontos distribuídos', d.pontos_distribuidos, '#ea580c')}${kpi('ph-hourglass', 'Missões em análise', d.missoes_pendentes, '#64748b')}</div>
+            <p class="acl-dica">${d.itens_obrigatorios} item(ns) obrigatório(s) compõem o progresso (aulas e avaliações). A média de evolução chega na fase 4 (Ranking de Evolução). Missões não entram no progresso.</p>`;
     }
     async function extrasTab(id) {
         if (A.tab === 'participantes') A.part = await api('/acl/trilhas/' + id + '/participantes');
         if (A.tab === 'desempenho') A.desemp = await api('/acl/trilhas/' + id + '/desempenho');
+        if (A.tab === 'missoes' && A.msub === 'avaliar') A.envios = await api('/acl/trilhas/' + id + '/envios' + ((A.envFiltro || 'em_analise') === 'todas' ? '' : '?status=' + (A.envFiltro || 'em_analise')));
     }
 
     // ── Certificados (menu principal do admin) ─────────────────────────────────
@@ -533,6 +612,7 @@
                 <div class="acl-kpis mini">${kpi('ph-chart-line-up', 'Progresso', p.obrigatorio + '%', '#16a34a')}${kpi('ph-check-square', 'Itens concluídos', p.itens_concluidos + '/' + p.itens_obrigatorios, '#7c3aed')}${kpi('ph-hourglass', 'Dias restantes', t.prazo.restantes == null ? '—' : t.prazo.restantes, '#2563eb')}</div>
                 <div class="acl-prog-linha"><span>PROGRESSO DA TRILHA</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}
                 <div class="acl-prazo">${esc(prazoTxt(t.prazo))} · ${fmtBr(t.data_inicio)} → ${fmtBr(t.data_fim)}</div>
+                <div class="acl-extra"><span><i class="ph ph-target"></i> Missões opcionais: <b>${p.missoes_realizadas} realizada(s)</b></span><span><i class="ph ph-star"></i> Pontos bônus: <b>+${p.pontos_bonus}</b></span></div>
                 ${jornadaVisual(p.obrigatorio, !!x.certificado)}
                 ${x.certificado ? certHtml(x.certificado) : ''}${x.proxima_aula ? `<div class="acl-prox"><i class="ph ph-play-circle"></i><div><small>Próximo conteúdo</small><b>${esc(x.proxima_aula.titulo)}</b><span>${esc(x.proxima_aula.modulo)}</span></div></div>` : (p.obrigatorio >= 100 ? `<div class="acl-prox ok"><i class="ph ph-seal-check"></i><div><b>Você concluiu todos os conteúdos obrigatórios!</b><span>${t.gera_certificado ? 'Seu certificado está disponível nesta trilha.' : 'Esta trilha não emite certificado.'}</span></div></div>` : '')}
                 <button class="acl-btn pri full" onclick="window._aclMinhaAbrir(${t.id})"><i class="ph ph-play"></i> ${p.obrigatorio > 0 && p.obrigatorio < 100 ? 'Continuar' : 'Acessar'} trilha</button>
@@ -548,14 +628,17 @@
         const el = raiz('academia-lideres-minha-container'); const j = M.jornada, t = j.trilha, p = j.progresso;
         const gerais = (j.avaliacoes_gerais || []).length ? `<div class="acl-m-mod"><div class="acl-m-aulas"><div class="acl-m-ger"><i class="ph ph-flag"></i> Avaliações da trilha</div>${j.avaliacoes_gerais.map(htmlAvaliacaoLinha).join('')}</div></div>` : '';
         const certBox = j.certificado ? certHtml(j.certificado) : '';
+        const extraLinha = `<div class="acl-extra"><span><i class="ph ph-target"></i> Missões opcionais: <b>${p.missoes_realizadas} realizada(s)</b></span><span><i class="ph ph-star"></i> Pontos bônus: <b>+${p.pontos_bonus}</b></span></div>`;
+        const missoesBox = (j.missoes || []).length ? `<div class="acl-card acl-missoes"><h3><i class="ph ph-target"></i> Missões opcionais</h3><p class="acl-dica">As missões ajudam você a colocar em prática o que aprendeu e geram pontos bônus. Não realizar uma missão não reduz seu progresso nem impede o certificado.</p><div class="acl-corpo">${j.missoes.map(htmlCardMissao).join('')}</div></div>` : '';
+        const pontosBox = (j.pontos_historico || []).length ? `<div class="acl-card"><h3><i class="ph ph-star"></i> Meus pontos <small style="color:#ea580c">+${p.pontos_bonus}</small></h3>${j.pontos_historico.map(h => `<div class="acl-res"><div><b>${esc(h.missao)}</b> <small>· ${fmtBr(String(h.data || '').slice(0, 10))}</small></div><div><span class="acl-badge" style="background:#16a34a;">Aprovado · +${h.total} pontos</span> <small>${h.pontos_base} da missão${h.pontos_bonus ? ' + ' + h.pontos_bonus + ' da comprovação' : ''}</small></div></div>`).join('')}</div>` : '';
         const mods = j.modulos.map((m, i) => {
             const aulas = m.aulas.map(a => `<button class="acl-m-aula ${a.concluida ? 'ok' : ''} ${a.encerrada && !a.concluida ? 'enc' : ''}" onclick="window._aclAula(${a.id})"><i class="ph ${a.concluida ? 'ph-check-circle' : (a.encerrada ? 'ph-lock-simple' : 'ph-play-circle')}"></i><span><b>${esc(a.titulo)}</b>${demoTag(a)}<small>${a.duracao_min ? a.duracao_min + ' min · ' : ''}${a.obrigatoria ? 'Obrigatória' : 'Opcional'}${a.encerrada && !a.concluida ? ' · encerrada' : ''}</small></span><i class="ph ph-caret-right"></i></button>`).join('');
             return `<details class="acl-m-mod" ${(M.aberto === undefined ? i === 0 : M.aberto[m.id]) ? 'open' : ''} ontoggle="window._aclMToggle(${m.id}, this.open)"><summary><span class="acl-m-n">${i + 1}</span><span class="acl-m-t"><b>${esc(m.titulo)}</b>${demoTag(m)}<small>${m.data_inicio ? fmtBr(m.data_inicio) + ' → ' + fmtBr(m.data_fim) + (m.encerrado ? ' · encerrado' : '') : m.aulas.length + ' aula(s)'}</small></span><span class="acl-pct">${m.progresso}%</span></summary><div class="acl-m-aulas">${aulas || '<div class="acl-vazio-sm">Sem aulas.</div>'}${(m.avaliacoes || []).map(htmlAvaliacaoLinha).join('')}</div></details>`;
         }).join('');
         el.innerHTML = `<div class="acl-wrap"><button class="acl-voltar" onclick="window.renderAcademiaLideresMinha()"><i class="ph ph-arrow-left"></i> Minha Academia</button>
             <section class="acl-editor-topo"><div class="acl-tc-top"><h2>${esc(t.nome)}</h2><span class="acl-badge" style="background:${STATUS_COR[t.status_efetivo]};">${STATUS_TXT[t.status_efetivo]}</span></div>${demoTag(t)}<p>${esc(t.objetivo || t.descricao || '')}</p>
-            <div class="acl-prog-linha"><span>Progresso obrigatório</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}<div class="acl-prazo">${esc(prazoTxt(t.prazo))}</div>${jornadaVisual(p.obrigatorio, !!j.certificado)}${certBox}</section>
-            <div class="acl-corpo">${mods || '<div class="acl-vazio"><i class="ph ph-books"></i><div>Esta trilha ainda não tem módulos.</div></div>'}${gerais}</div></div>`;
+            <div class="acl-prog-linha"><span>Progresso obrigatório</span><b>${p.obrigatorio}%</b></div>${barra(p.obrigatorio, '#16a34a')}<div class="acl-prazo">${esc(prazoTxt(t.prazo))}</div>${extraLinha}${jornadaVisual(p.obrigatorio, !!j.certificado)}${certBox}</section>
+            <div class="acl-corpo">${mods || '<div class="acl-vazio"><i class="ph ph-books"></i><div>Esta trilha ainda não tem módulos.</div></div>'}${gerais}${missoesBox}${pontosBox}</div></div>`;
     }
     window._aclMToggle = function (id, open) { M.aberto = M.aberto || {}; M.aberto[id] = open; };
 
@@ -617,6 +700,76 @@
                 ${!r.aprovado && r.tentativas_restantes === 0 ? '<p class="acl-dica">Você usou todas as tentativas. Procure o administrador se precisar de ajuda.</p>' : ''}</div>
                 <footer class="acl-aula-foot"><button class="acl-btn sec grow" onclick="window._aclFecharAula()"><i class="ph ph-arrow-left"></i> Voltar à trilha</button></footer></div>`;
         } catch (e) { if (btn) btn.disabled = false; erro('Não foi possível enviar', e.message); }
+    };
+
+    // ── Fase 3: missões opcionais (participante) ───────────────────────────────
+    const TXT_OPCIONAL = 'Esta missão é opcional. Você não precisa realizá-la para concluir sua trilha ou receber seu certificado. Ao realizá-la, você poderá conquistar pontos bônus e melhorar sua posição no Ranking de Evolução.';
+    function chipMissao(m) {
+        const e = m.envio;
+        if (e && e.status === 'aprovada') return `<span class="acl-chip ok"><i class="ph ph-seal-check"></i> Aprovada · +${e.pontos_concedidos} pontos</span>`;
+        if (e && e.status === 'em_analise') return '<span class="acl-chip an"><i class="ph ph-hourglass"></i> Em análise</span>';
+        if (e && e.status === 'recusada') return `<span class="acl-chip no"><i class="ph ph-x-circle"></i> Recusada${m.pode_realizar ? ' · nova tentativa liberada' : ''}</span>`;
+        if (m.prazo_situacao === 'encerrada') return '<span class="acl-chip enc"><i class="ph ph-lock-simple"></i> Encerrada</span>';
+        if (m.prazo_situacao === 'nao_iniciada') return `<span class="acl-chip enc"><i class="ph ph-calendar-blank"></i> Começa em ${fmtBr(m.data_inicio)}</span>`;
+        return `<span class="acl-chip dis"><i class="ph ph-target"></i> Disponível até ${fmtBr(m.data_fim)}</span>`;
+    }
+    function htmlCardMissao(m) {
+        return `<article class="acl-missao-card"><div class="acl-tc-top"><h3><i class="ph ph-target"></i> ${esc(m.nome)}</h3><span class="acl-badge" style="background:#ea580c;">MISSÃO OPCIONAL</span></div>${demoTag(m)}
+            <p>${esc(m.descricao)}</p>
+            <div class="acl-pts"><b>+${m.pontos_base} pontos</b><span>+${m.pontos_bonus} pontos com comprovação</span></div>${chipMissao(m)}
+            <button class="acl-btn pri full" onclick="window._aclMissao(${m.id})"><i class="ph ph-eye"></i> VER MISSÃO</button></article>`;
+    }
+    window._aclMissao = async function (id) {
+        const ov = overlayAula(); ov.innerHTML = '<div class="acl-loading"><i class="ph ph-spinner ph-spin"></i> Abrindo missão...</div>';
+        try {
+            const m = await api('/acl/minha/missoes/' + id); M.missao = m;
+            const ult = m.envios[0] || null;
+            let estado = '';
+            if (ult && ult.status === 'em_analise') estado = '<div class="acl-prox an"><i class="ph ph-hourglass"></i><div><b>Sua missão está em análise.</b><span>Os pontos serão creditados quando ela for aprovada.</span></div></div>';
+            else if (ult && ult.status === 'aprovada') estado = `<div class="acl-prox ok"><i class="ph ph-seal-check"></i><div><b>Missão aprovada! +${ult.pontos_concedidos} pontos</b><span>${ult.pontos_base} pela realização${ult.pontos_concedidos > ult.pontos_base ? ' + ' + (ult.pontos_concedidos - ult.pontos_base) + ' pela comprovação' : ''}.</span></div></div>`;
+            else if (ult && ult.status === 'recusada') estado = `<div class="acl-prox falha"><i class="ph ph-x-circle"></i><div><b>Missão recusada.</b><span>Justificativa: ${esc(ult.motivo_recusa || 'não informada')}</span></div></div>`;
+            if (!ult && m.prazo_situacao === 'encerrada') estado = '<div class="acl-prox falha"><i class="ph ph-lock-simple"></i><div><b>O prazo desta missão está encerrado.</b></div></div>';
+            if (!ult && m.prazo_situacao === 'nao_iniciada') estado = `<div class="acl-prox"><i class="ph ph-calendar-blank"></i><div><b>Esta missão começa em ${fmtBr(m.data_inicio)}.</b></div></div>`;
+            const hist = m.envios.length > 1 ? `<div class="acl-card"><h3><i class="ph ph-clock-counter-clockwise"></i> Histórico de envios</h3>${m.envios.map(e => `<div class="acl-res"><div><b>Tentativa ${e.tentativa}</b> <small>· ${esc(String(e.enviado_em || '').slice(0, 16).replace('T', ' '))}</small></div><div><span class="acl-badge" style="background:${e.status === 'aprovada' ? '#16a34a' : (e.status === 'recusada' ? '#dc2626' : '#ea580c')};">${{ aprovada: 'Aprovada', recusada: 'Recusada', em_analise: 'Em análise' }[e.status]}</span></div>${e.motivo_recusa ? `<small>Justificativa: ${esc(e.motivo_recusa)}</small>` : ''}</div>`).join('')}</div>` : '';
+            ov.innerHTML = `<div class="acl-aula">${topoOverlay('Missão opcional · ' + m.trilha, m.nome)}<div class="acl-aula-corpo">${demoTag(m)}
+                <div class="acl-meta"><span><i class="ph ph-calendar-blank"></i> ${fmtBr(m.data_inicio)} → ${fmtBr(m.data_fim)}</span></div>
+                <div class="acl-card"><h3><i class="ph ph-clipboard-text"></i> Descrição da atividade</h3><p class="acl-texto">${esc(m.descricao)}</p></div>
+                ${m.objetivo ? `<div class="acl-card"><h3><i class="ph ph-target"></i> Objetivo</h3><p class="acl-texto">${esc(m.objetivo)}</p></div>` : ''}
+                ${m.como_realizar ? `<div class="acl-card"><h3><i class="ph ph-list-numbers"></i> Como realizar</h3><p class="acl-texto">${esc(m.como_realizar)}</p></div>` : ''}
+                <div class="acl-card"><h3><i class="ph ph-star"></i> Pontuação</h3><div class="acl-pts big"><b>${m.pontos_base} pontos pela realização</b><span>+${m.pontos_bonus} pontos pela comprovação</span></div></div>
+                <div class="acl-aviso-opc"><i class="ph ph-info"></i><p>${esc(TXT_OPCIONAL)}</p></div>
+                ${estado}${hist}</div>
+                <footer class="acl-aula-foot">${m.pode_realizar ? `<button class="acl-btn pri grow" onclick="window._aclMissaoForm()"><i class="ph ph-rocket-launch"></i> ${ult && ult.status === 'recusada' ? 'REALIZAR NOVAMENTE' : 'REALIZAR MISSÃO'}</button>` : '<button class="acl-btn sec grow" onclick="window._aclFecharAula()"><i class="ph ph-arrow-left"></i> Voltar à trilha</button>'}</footer></div>`;
+        } catch (e) { ov.remove(); document.body.classList.remove('acl-no-scroll'); erro('Não foi possível abrir a missão', e.message); }
+    };
+    window._aclMissaoForm = function () {
+        const m = M.missao, ov = overlayAula();
+        ov.innerHTML = `<div class="acl-aula">${topoOverlay('Realizar missão', m.nome)}<div class="acl-aula-corpo">
+            <div class="acl-card"><h3><i class="ph ph-note-pencil"></i> Anotações <small style="color:#dc2626">(obrigatório)</small></h3><label for="aclm-anot" style="font-weight:700;display:block;margin-bottom:6px;">Conte como você realizou esta missão</label>
+                <textarea id="aclm-anot" rows="8" class="acl-q-area" placeholder="Descreva o que você fez, como realizou a atividade, qual foi o resultado, quais dificuldades encontrou e o que aprendeu."></textarea><div id="aclm-erro" class="acl-erro-inline"></div></div>
+            <div class="acl-card"><h3><i class="ph ph-paperclip"></i> Comprove sua missão <small style="color:#64748b">(opcional · +${m.pontos_bonus} pontos)</small></h3>
+                <p class="acl-dica">Você pode anexar fotos, prints, documentos, planilhas ou outros arquivos que comprovem a realização da atividade.</p>
+                <label class="acl-btn sec full acl-upl"><i class="ph ph-upload-simple"></i> Escolher arquivos (JPG, JPEG, PNG, PDF, DOC, DOCX, XLS, XLSX)<input type="file" id="aclm-arq" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx" hidden onchange="window._aclMissaoArqs()"></label><div id="aclm-lista" class="acl-arq-lista"></div></div></div>
+            <footer class="acl-aula-foot"><button class="acl-btn sec" onclick="window._aclMissao(${m.id})"><i class="ph ph-arrow-left"></i></button><button id="aclm-enviar" class="acl-btn ok grow" onclick="window._aclMissaoEnviar()"><i class="ph ph-paper-plane-tilt"></i> ENVIAR MISSÃO</button></footer></div>`;
+    };
+    window._aclMissaoArqs = function () {
+        const inp = document.getElementById('aclm-arq'), l = document.getElementById('aclm-lista'); if (!inp || !l) return;
+        l.innerHTML = [...inp.files].map(f => `<div class="acl-arq"><i class="ph ph-file"></i><span>${esc(f.name)}</span><small>${(f.size / 1048576).toFixed(1)} MB</small></div>`).join('');
+    };
+    window._aclMissaoEnviar = async function () {
+        const m = M.missao, anot = (document.getElementById('aclm-anot') || {}).value || '', errEl = document.getElementById('aclm-erro');
+        if (!anot.trim()) { if (errEl) errEl.textContent = 'As anotações são obrigatórias: conte como você realizou esta missão.'; const t = document.getElementById('aclm-anot'); if (t) t.focus(); return; }
+        const arqs = [...((document.getElementById('aclm-arq') || {}).files || [])];
+        if (arqs.length > 5) return erro('Anexos demais', 'Envie no máximo 5 arquivos.');
+        if (arqs.some(f => f.size > 15 * 1048576)) return erro('Arquivo grande demais', 'Cada anexo pode ter até 15 MB.');
+        const fd = new FormData(); fd.append('anotacoes', anot); arqs.forEach(f => fd.append('arquivos', f));
+        const btn = document.getElementById('aclm-enviar'); if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...'; }
+        try {
+            const r = await api('/acl/minha/missoes/' + m.id + '/enviar', { method: 'POST', body: fd });
+            M.jornada = await api('/acl/minha/trilhas/' + M.tid);
+            overlayAula().innerHTML = `<div class="acl-aula">${topoOverlay('Missão enviada', m.nome)}<div class="acl-aula-corpo"><div class="acl-prox an"><i class="ph ph-paper-plane-tilt"></i><div><b>Missão enviada! Ela está em análise.</b><span>Pontuação potencial: ${r.pontos_potenciais} pontos${r.anexos ? ' (com comprovação)' : ''}. Os pontos só entram depois da aprovação.</span></div></div></div>
+                <footer class="acl-aula-foot"><button class="acl-btn pri grow" onclick="window._aclFecharAula()"><i class="ph ph-arrow-left"></i> Voltar à trilha</button></footer></div>`;
+        } catch (e) { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> ENVIAR MISSÃO'; } if (errEl && e.status === 400) errEl.textContent = e.message; else erro('Não foi possível enviar', e.message); }
     };
 
     // ── Página da aula ──────────────────────────────────────────────────────────
