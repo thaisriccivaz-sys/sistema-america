@@ -65,20 +65,10 @@ async function uploadToR2(destinationKey, fileData, contentType) {
     }
 }
 async function deleteFromR2(destinationKey) {
-    if (!s3Client) return; // Se não configurado, apenas ignora
+    // Regra obrigatória do sistema: nada nunca deve ser apagado do Cloudflare R2 depois de ser armazenado lá.
     if (!destinationKey) return;
-
-    const command = new DeleteObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: destinationKey,
-    });
-
-    try {
-        await s3Client.send(command);
-        console.log(`[R2 Storage] Exclusão concluída: ${destinationKey}`);
-    } catch (e) {
-        console.error(`[R2 Storage] Erro na exclusão de ${destinationKey}:`, e);
-    }
+    console.log(`[R2 Storage] Exclusão no R2 bloqueada por regra permanente — arquivo preservado: ${destinationKey}`);
+    return true;
 }
 
 async function downloadStreamFromR2(destinationKey, range) {

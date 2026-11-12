@@ -92,7 +92,7 @@
         } else if (opts.body && !(opts.body instanceof FormData) && !headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         }
-        const res = await fetch(buildApiUrl(path), Object.assign({}, opts, { headers }));
+        const res = await fetch(buildApiUrl(path), Object.assign({ cache: 'no-store' }, opts, { headers }));
         let body = null;
         try { body = await res.json(); } catch (e) { /* ignore */ }
         if (!res.ok) {
@@ -185,7 +185,7 @@
             }
             .ua-wrap { padding: 24px 28px 48px; max-width: 1440px; margin: 0 auto; }
             .ua-hero {
-                background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #4f46e5 100%);
+                background: #0e7490;
                 color: #fff;
                 border-radius: 18px;
                 padding: 24px 28px;
@@ -194,7 +194,7 @@
                 justify-content: space-between;
                 gap: 20px;
                 flex-wrap: wrap;
-                box-shadow: 0 12px 30px rgba(30, 58, 138, 0.18);
+                box-shadow: 0 8px 22px rgba(14, 116, 144, 0.18);
                 margin-bottom: 20px;
             }
             .ua-hero h1 { margin: 0; font-size: 1.55rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; }
@@ -220,7 +220,7 @@
                 cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all .15s;
             }
             .ua-tab:hover { background: #f1f5f9; color: #1e293b; }
-            .ua-tab.active { background: #1e40af; color: #fff; box-shadow: 0 4px 12px rgba(30,64,175,0.22); }
+            .ua-tab.active { background: #0e7490; color: #fff; box-shadow: 0 4px 12px rgba(14,116,144,0.22); }
             .ua-toolbar {
                 background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px;
                 display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px;
@@ -236,8 +236,8 @@
                 cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all .15s;
                 text-transform: none !important;
             }
-            .ua-btn-primary { background: #2563eb; color: #fff; }
-            .ua-btn-primary:hover { background: #1d4ed8; }
+            .ua-btn-primary { background: #0e7490; color: #fff; }
+            .ua-btn-primary:hover { background: #155e75; }
             .ua-btn-success { background: #16a34a; color: #fff; }
             .ua-btn-success:hover { background: #15803d; }
             .ua-btn-warning { background: #f59e0b; color: #fff; }
@@ -253,7 +253,7 @@
             }
             .ua-card-curso:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,0.08); }
             .ua-card-capa {
-                height: 148px; background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+                height: 148px; background: #0e7490;
                 position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;
             }
             .ua-card-capa img { width: 100%; height: 100%; object-fit: cover; }
@@ -393,11 +393,6 @@
             G.cursoAbertoId = null;
         }
 
-        const totalCursos = G.cursos.length;
-        const totalAulas = G.cursos.reduce((s, c) => s + (c.total_aulas || 0), 0);
-        const totalPart = G.cursos.reduce((s, c) => s + (c.total_participantes || 0), 0);
-        const totalPendMissoes = G.cursos.reduce((s, c) => s + (c.missoes_pendentes_avaliacao || 0), 0);
-
         root.innerHTML = `
             <div class="ua-wrap">
                 <div class="ua-hero">
@@ -410,29 +405,10 @@
                             <i class="ph ph-chart-polar"></i> Ver Análises por Departamento
                         </button>
                         ${G.isAdmin ? `
-                            <button class="ua-btn" style="background:#fff;color:#1e3a8a;font-weight:700;" onclick="window._uaAbrirModalCurso()">
+                            <button class="ua-btn" style="background:#fff;color:#0e7490;font-weight:700;" onclick="window._uaAbrirModalCurso()">
                                 <i class="ph ph-plus-circle"></i> Novo Curso
                             </button>
                         ` : ''}
-                    </div>
-                </div>
-
-                <div class="ua-kpis">
-                    <div class="ua-kpi">
-                        <div class="ua-kpi-ic" style="background:#dbeafe;color:#1d4ed8;"><i class="ph ph-books"></i></div>
-                        <div><div class="ua-kpi-val">${totalCursos}</div><div class="ua-kpi-lbl">Cursos cadastrados</div></div>
-                    </div>
-                    <div class="ua-kpi">
-                        <div class="ua-kpi-ic" style="background:#ede9fe;color:#6d28d9;"><i class="ph ph-chalkboard-teacher"></i></div>
-                        <div><div class="ua-kpi-val">${totalAulas}</div><div class="ua-kpi-lbl">Aulas estruturadas</div></div>
-                    </div>
-                    <div class="ua-kpi">
-                        <div class="ua-kpi-ic" style="background:#dcfce7;color:#15803d;"><i class="ph ph-users-three"></i></div>
-                        <div><div class="ua-kpi-val">${totalPart}</div><div class="ua-kpi-lbl">Vínculos em cursos</div></div>
-                    </div>
-                    <div class="ua-kpi">
-                        <div class="ua-kpi-ic" style="background:${totalPendMissoes > 0 ? '#ffedd5' : '#f1f5f9'};color:${totalPendMissoes > 0 ? '#c2410c' : '#64748b'};"><i class="ph ph-flag-checkered"></i></div>
-                        <div><div class="ua-kpi-val">${totalPendMissoes}</div><div class="ua-kpi-lbl">Missões aguardando nota</div></div>
                     </div>
                 </div>
 
@@ -442,9 +418,6 @@
                     </button>
                     <button class="ua-tab ${G.aba === 'diagnostico' ? 'active' : ''}" onclick="window._uaMudarAbaGestao('diagnostico')">
                         <i class="ph ph-heartbeat"></i> Diagnóstico por Departamento (Satisfação & Desempenho)
-                    </button>
-                    <button class="ua-tab ${G.aba === 'ranking' ? 'active' : ''}" onclick="window._uaMudarAbaGestao('ranking')">
-                        <i class="ph ph-trophy"></i> Ranking & Certificados
                     </button>
                 </div>
 
@@ -658,7 +631,7 @@
                             <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="ua-btn ${prontoIniciar ? 'ua-btn-success' : 'ua-btn-ghost'}"
                                         style="padding:8px 12px;${!G.isAdmin ? 'flex:1;justify-content:center;' : ''}${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
-                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais, lista de presença e avaliar testes/missões' : 'Para iniciar o curso, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios'}"
+                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais, lista de presença e avaliar testes/missões' : 'Para iniciar o curso, vincule pelo menos 1 colaborador, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios no curso'}"
                                         onclick="window._uaPlayCurso(${c.id})">
                                     <i class="${prontoIniciar ? 'ph-fill ph-play' : 'ph ph-lock-key'}"></i> Iniciar
                                 </button>
@@ -666,10 +639,10 @@
                                     <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
                                         <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
                                     </button>
-                                    <button class="ua-btn ua-btn-ghost" title="Prêmios do Curso (${c.total_premios || 0})" onclick="window._uaAbrirModalPremiosCurso(${c.id})">
-                                        <i class="ph ph-trophy"></i>
+                                    <button class="ua-btn ua-btn-ghost" title="Duplicar Curso (copia arquivos, perguntas, missões e prêmios sem colaboradores vinculados)" onclick="window._uaDuplicarCurso(${c.id})">
+                                        <i class="ph ph-copy"></i>
                                     </button>
-                                    <button class="ua-btn ua-btn-ghost" title="Editar Curso e Participantes" onclick="window._uaAbrirModalCurso(${c.id})">
+                                    <button class="ua-btn ua-btn-ghost" title="Editar Curso, Participantes e Prêmios" onclick="window._uaAbrirModalCurso(${c.id})">
                                         <i class="ph ph-pencil-simple"></i>
                                     </button>
                                     <button class="ua-btn ua-btn-danger" title="Excluir Curso" onclick="window._uaExcluirCurso(${c.id})">
@@ -743,8 +716,133 @@
         desenharGestao();
     };
 
-    // ── Modal Novo / Editar Curso (Vinculação por Departamento + Colaborador ao Curso Inteiro!) ──
-    window._uaAbrirModalCurso = function (cursoId, deptoPreSelecionado) {
+    // ── Modal Novo / Editar Curso (Vinculação + Prêmios integrados dentro do Curso!) ──
+    let _cursoModalPremios = {
+        itens: [],       // [{ id, colocacao, titulo, recompensa, descricao, imagem_url, file, previewUrl }]
+        removidosIds: [] // IDs de prêmios existentes que foram removidos no modal
+    };
+
+    function renderListaPremiosModalCurso() {
+        const box = document.getElementById('ua-c-premios-list');
+        if (!box) return;
+        const itens = (_cursoModalPremios && Array.isArray(_cursoModalPremios.itens))
+            ? _cursoModalPremios.itens.slice().sort((a, b) => Number(a.colocacao) - Number(b.colocacao))
+            : [];
+
+        if (itens.length === 0) {
+            box.innerHTML = `<div style="padding:14px;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#64748b;font-size:0.81rem;background:#fff;">
+                Nenhum prêmio adicionado ainda. Preencha os campos ao lado e clique em <strong>Adicionar / Atualizar Prêmio</strong>.
+            </div>`;
+            return;
+        }
+
+        box.innerHTML = itens.map(pr => {
+            const med = Number(pr.colocacao) === 1 ? '🥇 1º Lugar'
+                : Number(pr.colocacao) === 2 ? '🥈 2º Lugar'
+                : Number(pr.colocacao) === 3 ? '🥉 3º Lugar'
+                : `${pr.colocacao}º Lugar`;
+            const imgUrl = pr.previewUrl || (pr.imagem_url ? authMediaUrl(pr.imagem_url) : '');
+            return `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                        ${imgUrl
+                            ? `<img src="${esc(imgUrl)}" alt="Prêmio" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #cbd5e1;flex-shrink:0;">`
+                            : `<div style="width:42px;height:42px;border-radius:8px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;"><i class="ph ph-trophy"></i></div>`}
+                        <div style="min-width:0;">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <span class="ua-badge" style="background:#0e7490;color:#fff;font-size:0.7rem;padding:2px 8px;">${med}</span>
+                                <strong style="font-size:0.84rem;color:#0f172a;">${esc(pr.titulo)}</strong>
+                                ${pr.recompensa ? `<span style="font-size:0.78rem;font-weight:700;color:#15803d;">• ${esc(pr.recompensa)}</span>` : ''}
+                            </div>
+                            ${pr.descricao ? `<div style="font-size:0.75rem;color:#64748b;margin-top:2px;">${esc(pr.descricao)}</div>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                        ${imgUrl ? `
+                            <a href="${esc(imgUrl)}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:4px 8px;font-size:0.75rem;text-decoration:none;" title="Visualizar imagem do prêmio">
+                                <i class="ph ph-eye"></i>
+                            </a>
+                        ` : ''}
+                        <button type="button" class="ua-btn ua-btn-ghost" style="padding:4px 8px;font-size:0.75rem;" title="Editar este prêmio" onclick="window._uaCarregarPremioNoFormCurso(${Number(pr.colocacao)})">
+                            <i class="ph ph-pencil-simple"></i>
+                        </button>
+                        <button type="button" class="ua-btn ua-btn-danger" style="padding:4px 8px;font-size:0.75rem;" title="Remover prêmio" onclick="window._uaRemoverPremioModalCurso(${Number(pr.colocacao)})">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window._uaCarregarPremioNoFormCurso = function (colocacao) {
+        const pr = (_cursoModalPremios.itens || []).find(x => Number(x.colocacao) === Number(colocacao));
+        if (!pr) return;
+        const sel = document.getElementById('ua-c-pr-colocacao');
+        const tit = document.getElementById('ua-c-pr-titulo');
+        const rec = document.getElementById('ua-c-pr-recompensa');
+        const desc = document.getElementById('ua-c-pr-desc');
+        if (sel) sel.value = String(pr.colocacao);
+        if (tit) tit.value = pr.titulo || '';
+        if (rec) rec.value = pr.recompensa || '';
+        if (desc) desc.value = pr.descricao || '';
+    };
+
+    window._uaAdicionarPremioModalCurso = function () {
+        const colocacao = parseInt((document.getElementById('ua-c-pr-colocacao') || {}).value || '1', 10) || 1;
+        const titulo = String((document.getElementById('ua-c-pr-titulo') || {}).value || '').trim();
+        const recompensa = String((document.getElementById('ua-c-pr-recompensa') || {}).value || '').trim();
+        const descricao = String((document.getElementById('ua-c-pr-desc') || {}).value || '').trim();
+        const imgInput = document.getElementById('ua-c-pr-img');
+        const file = (imgInput && imgInput.files && imgInput.files[0]) ? imgInput.files[0] : null;
+
+        if (!titulo) {
+            return msgErro('Título do prêmio obrigatório', 'Informe o título do prêmio para adicioná-lo ao curso.');
+        }
+
+        const idxExist = _cursoModalPremios.itens.findIndex(x => Number(x.colocacao) === colocacao);
+        const anterior = idxExist >= 0 ? _cursoModalPremios.itens[idxExist] : null;
+        const itemNovo = {
+            id: anterior ? anterior.id : null,
+            colocacao,
+            titulo,
+            recompensa,
+            descricao,
+            imagem_url: anterior ? anterior.imagem_url : null,
+            file: file || (anterior ? anterior.file : null),
+            previewUrl: file ? URL.createObjectURL(file) : (anterior ? anterior.previewUrl : null),
+            dirty: true
+        };
+
+        if (idxExist >= 0) {
+            _cursoModalPremios.itens[idxExist] = itemNovo;
+        } else {
+            _cursoModalPremios.itens.push(itemNovo);
+        }
+
+        // Limpar campos para próximo prêmio e avançar colocação sugerida
+        if (document.getElementById('ua-c-pr-titulo')) document.getElementById('ua-c-pr-titulo').value = '';
+        if (document.getElementById('ua-c-pr-recompensa')) document.getElementById('ua-c-pr-recompensa').value = '';
+        if (document.getElementById('ua-c-pr-desc')) document.getElementById('ua-c-pr-desc').value = '';
+        if (imgInput) imgInput.value = '';
+        const sel = document.getElementById('ua-c-pr-colocacao');
+        if (sel && colocacao < 5) sel.value = String(colocacao + 1);
+
+        renderListaPremiosModalCurso();
+    };
+
+    window._uaRemoverPremioModalCurso = function (colocacao) {
+        const idx = _cursoModalPremios.itens.findIndex(x => Number(x.colocacao) === Number(colocacao));
+        if (idx === -1) return;
+        const removido = _cursoModalPremios.itens[idx];
+        if (removido && removido.id) {
+            _cursoModalPremios.removidosIds.push(removido.id);
+        }
+        _cursoModalPremios.itens.splice(idx, 1);
+        renderListaPremiosModalCurso();
+    };
+
+    window._uaAbrirModalCurso = async function (cursoId, deptoPreSelecionado) {
         const curso = cursoId ? G.cursos.find(c => Number(c.id) === Number(cursoId)) : null;
         const deptRaw = curso ? String(curso.departamentos || '') : (deptoPreSelecionado || '');
         const isTodosDept = deptRaw.trim().toLowerCase() === 'todos';
@@ -758,13 +856,39 @@
                 .split(',').map(x => parseInt(x.trim(), 10)).filter(n => !isNaN(n) && n > 0)
         );
 
+        let premiosIniciais = (curso && Array.isArray(curso.premios)) ? curso.premios : [];
+        if (curso && (!Array.isArray(curso.premios) || curso.premios.length === 0)) {
+            try {
+                const rPr = await api(`/uniamerica/cursos/${curso.id}/premios`);
+                if (rPr && Array.isArray(rPr.premios)) premiosIniciais = rPr.premios;
+            } catch (e) { /* ignore */ }
+        }
+
+        _cursoModalPremios = {
+            itens: premiosIniciais.map(p => ({
+                id: p.id,
+                colocacao: Number(p.colocacao) || 1,
+                titulo: p.titulo || '',
+                recompensa: p.recompensa || '',
+                descricao: p.descricao || '',
+                imagem_url: p.imagem_url || (p.imagem_r2_key ? ('/api/uniamerica/arquivo?key=' + encodeURIComponent(p.imagem_r2_key)) : null),
+                file: null,
+                previewUrl: null,
+                dirty: false
+            })),
+            removidosIds: []
+        };
+
+        const old = document.getElementById('ua-modal-curso');
+        if (old) old.remove();
+
         const backdrop = document.createElement('div');
         backdrop.className = 'ua-modal-backdrop';
         backdrop.id = 'ua-modal-curso';
         backdrop.innerHTML = `
-            <div class="ua-modal" style="max-width:860px;">
+            <div class="ua-modal" style="max-width:940px;">
                 <div class="ua-modal-hd">
-                    <h3><i class="ph ph-graduation-cap" style="color:#2563eb;"></i> ${curso ? 'Editar Curso da UniAmérica' : 'Novo Curso da UniAmérica'}</h3>
+                    <h3><i class="ph ph-graduation-cap" style="color:#0e7490;"></i> ${curso ? 'Editar Curso da UniAmérica' : 'Novo Curso da UniAmérica'}</h3>
                     <button class="ua-btn ua-btn-ghost" style="padding:6px 10px;" onclick="document.getElementById('ua-modal-curso').remove()"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="ua-modal-bd">
@@ -794,8 +918,8 @@
                         <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Imagem de Capa do Curso</label>
                         <input type="file" id="ua-c-capa" accept="image/*" class="ua-input" onchange="window._uaPreviewCapaCurso(this)">
                         <div id="ua-c-capa-preview" style="margin-top:8px;">
-                            ${curso && (curso.capa_url || curso.capa_r2_key) ? (() => {
-                                const urlCapa = authMediaUrl(curso.capa_url || ('/api/uniamerica/arquivo?key=' + encodeURIComponent(curso.capa_r2_key)));
+                            ${curso && (curso.capa_url || curso.capa_r2_key || curso.capa_stream_url) ? (() => {
+                                const urlCapa = authMediaUrl(curso.capa_stream_url || curso.capa_url || ('/api/uniamerica/arquivo?key=' + encodeURIComponent(curso.capa_r2_key)));
                                 const nomeArq = curso.capa_r2_key
                                     ? String(curso.capa_r2_key).split('/').pop().replace(/^\d+_/, '')
                                     : 'Imagem de capa anexada';
@@ -817,15 +941,15 @@
                         </div>
                     </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:4px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
                         <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                <strong style="font-size:0.85rem;">1. Vincular Departamentos</strong>
+                                <strong style="font-size:0.85rem;">Vincular Departamentos</strong>
                                 <label style="font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:5px;">
                                     <input type="checkbox" id="ua-c-dept-todos" ${isTodosDept ? 'checked' : ''} onchange="window._uaToggleTodosDeptModal(this.checked)"> Todos os setores
                                 </label>
                             </div>
-                            <div id="ua-c-dept-list" style="max-height:190px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;opacity:${isTodosDept ? '0.45' : '1'};pointer-events:${isTodosDept ? 'none' : 'auto'};">
+                            <div id="ua-c-dept-list" style="max-height:175px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;opacity:${isTodosDept ? '0.45' : '1'};pointer-events:${isTodosDept ? 'none' : 'auto'};">
                                 ${G.departamentos.map(d => `
                                     <label style="display:flex;align-items:center;gap:8px;font-size:0.83rem;padding:4px 6px;border-radius:6px;cursor:pointer;">
                                         <input type="checkbox" class="ua-c-dept-chk" value="${esc(d)}" ${deptSet.has(d) ? 'checked' : ''}>
@@ -837,11 +961,11 @@
 
                         <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;">
                             <div style="margin-bottom:8px;">
-                                <strong style="font-size:0.85rem;display:block;margin-bottom:6px;">2. Vincular Colaboradores Específicos</strong>
+                                <strong style="font-size:0.85rem;display:block;margin-bottom:6px;">Vincular Colaboradores Específicos</strong>
                                 <input type="text" class="ua-input" style="padding:6px 10px;font-size:0.82rem;" placeholder="Pesquisar colaborador por nome ou setor..."
                                        oninput="window._uaFiltrarColabModal(this.value)">
                             </div>
-                            <div id="ua-c-colab-list" style="max-height:155px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+                            <div id="ua-c-colab-list" style="max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
                                 ${G.colabs.map(col => `
                                     <label class="ua-c-colab-row" data-search="${esc(norm(col.nome_completo + ' ' + (col.departamento || '') + ' ' + (col.cargo || '')))}"
                                            style="display:flex;align-items:center;gap:8px;font-size:0.82rem;padding:4px 6px;border-radius:6px;cursor:pointer;">
@@ -850,6 +974,54 @@
                                     </label>
                                 `).join('')}
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção de Prêmios do Curso integrada dentro do Novo / Editar Curso -->
+                    <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#f8fafc;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                            <strong style="font-size:0.9rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                                <i class="ph ph-trophy" style="color:#d97706;font-size:1.1rem;"></i> Prêmios do Curso (Ranking Final)
+                            </strong>
+                            <span style="font-size:0.76rem;color:#64748b;">Cadastre os prêmios por colocação deste treinamento</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:14px;align-items:start;">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                                <div style="display:grid;grid-template-columns:125px 1fr;gap:8px;margin-bottom:8px;">
+                                    <div>
+                                        <label style="font-size:0.76rem;font-weight:600;display:block;margin-bottom:3px;">Colocação *</label>
+                                        <select id="ua-c-pr-colocacao" class="ua-select" style="padding:6px 8px;font-size:0.81rem;">
+                                            <option value="1">🥇 1º Lugar</option>
+                                            <option value="2">🥈 2º Lugar</option>
+                                            <option value="3">🥉 3º Lugar</option>
+                                            <option value="4">4º Lugar</option>
+                                            <option value="5">5º Lugar</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size:0.76rem;font-weight:600;display:block;margin-bottom:3px;">Título do Prêmio *</label>
+                                        <input type="text" id="ua-c-pr-titulo" class="ua-input" style="padding:6px 10px;font-size:0.81rem;" placeholder="Ex.: Troféu + Vale-experiência">
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                                    <div>
+                                        <label style="font-size:0.76rem;font-weight:600;display:block;margin-bottom:3px;">Valor / Recompensa</label>
+                                        <input type="text" id="ua-c-pr-recompensa" class="ua-input" style="padding:6px 10px;font-size:0.81rem;" placeholder="Ex.: R$ 500,00 / Folga">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:0.76rem;font-weight:600;display:block;margin-bottom:3px;">Imagem do Prêmio</label>
+                                        <input type="file" id="ua-c-pr-img" accept="image/*" class="ua-input" style="padding:4px 8px;font-size:0.76rem;">
+                                    </div>
+                                </div>
+                                <div style="margin-bottom:8px;">
+                                    <label style="font-size:0.76rem;font-weight:600;display:block;margin-bottom:3px;">Descrição (opcional)</label>
+                                    <input type="text" id="ua-c-pr-desc" class="ua-input" style="padding:6px 10px;font-size:0.81rem;" placeholder="Detalhes da entrega do prêmio...">
+                                </div>
+                                <button type="button" class="ua-btn ua-btn-primary" style="width:100%;justify-content:center;padding:7px 12px;font-size:0.81rem;" onclick="window._uaAdicionarPremioModalCurso()">
+                                    <i class="ph ph-plus-circle"></i> Adicionar / Atualizar Prêmio
+                                </button>
+                            </div>
+                            <div id="ua-c-premios-list" style="display:flex;flex-direction:column;gap:8px;max-height:225px;overflow-y:auto;"></div>
                         </div>
                     </div>
                 </div>
@@ -862,6 +1034,7 @@
             </div>
         `;
         document.body.appendChild(backdrop);
+        renderListaPremiosModalCurso();
     };
 
     window._uaToggleTodosDeptModal = function (checked) {
@@ -912,6 +1085,23 @@
         const colabsMarcados = Array.from(document.querySelectorAll('.ua-c-colab-chk:checked')).map(el => el.value);
         const colaboradores_avulsos = colabsMarcados.join(',');
 
+        // Regra obrigatória: Para salvar um curso deve ser necessário vincular a pelo menos 1 colaborador
+        const temColabVinculado = todosDept
+            ? G.colabs.length > 0
+            : (colabsMarcados.length > 0 || G.colabs.some(c => deptsMarcados.includes(String(c.departamento || '').trim())));
+        if (!temColabVinculado) {
+            return msgErro(
+                'Vínculo de colaborador obrigatório',
+                'Para salvar o curso, é necessário vincular pelo menos 1 colaborador (selecionando um departamento com colaboradores ativos ou marcando colaboradores específicos).'
+            );
+        }
+
+        // Se o usuário digitou um prêmio nos inputs mas ainda não clicou em "Adicionar / Atualizar Prêmio", inclui automaticamente
+        const tituloPrDigitado = String((document.getElementById('ua-c-pr-titulo') || {}).value || '').trim();
+        if (tituloPrDigitado) {
+            window._uaAdicionarPremioModalCurso();
+        }
+
         const fd = new FormData();
         fd.append('nome', nome);
         fd.append('carga_horaria', parseFloat(document.getElementById('ua-c-carga').value) || 0);
@@ -931,14 +1121,34 @@
         if (btn) btn.disabled = true;
 
         try {
+            let idFinal = cursoId;
             if (cursoId) {
                 await api('/uniamerica/cursos/' + cursoId, { method: 'PUT', body: fd });
-                toastOk('Curso atualizado com sucesso!');
             } else {
                 const novo = await api('/uniamerica/cursos', { method: 'POST', body: fd });
-                toastOk('Curso criado! Agora adicione as aulas do curso.');
-                if (novo && novo.id) G.cursoAbertoId = novo.id;
+                idFinal = novo && novo.id ? novo.id : null;
+                if (idFinal) G.cursoAbertoId = idFinal;
             }
+
+            // Sincronizar prêmios removidos e adicionados/atualizados no modal do curso
+            if (idFinal && _cursoModalPremios) {
+                for (const remId of (_cursoModalPremios.removidosIds || [])) {
+                    await api(`/uniamerica/premios/${remId}`, { method: 'DELETE' }).catch(() => {});
+                }
+                for (const pr of (_cursoModalPremios.itens || [])) {
+                    if (pr.dirty || !pr.id) {
+                        const fdPr = new FormData();
+                        fdPr.append('colocacao', pr.colocacao);
+                        fdPr.append('titulo', pr.titulo);
+                        fdPr.append('recompensa', pr.recompensa || '');
+                        fdPr.append('descricao', pr.descricao || '');
+                        if (pr.file) fdPr.append('imagem', pr.file);
+                        await api(`/uniamerica/cursos/${idFinal}/premios`, { method: 'POST', body: fdPr });
+                    }
+                }
+            }
+
+            toastOk(cursoId ? 'Curso atualizado com sucesso!' : 'Curso criado! Agora adicione as aulas do curso.');
             const m = document.getElementById('ua-modal-curso');
             if (m) m.remove();
             await window.renderUniAmericaGestao();
@@ -948,11 +1158,41 @@
         }
     };
 
+    window._uaDuplicarCurso = async function (cursoId) {
+        const curso = G.cursos.find(c => Number(c.id) === Number(cursoId));
+        if (!await confirmar(
+            'Duplicar curso?',
+            `Deseja duplicar o curso "${curso ? curso.nome : ''}"? Serão copiados os arquivos anexados, perguntas do formulário, missões e prêmios, sem colaboradores vinculados (você deverá vincular os colaboradores em seguida).`,
+            'Sim, duplicar'
+        )) return;
+
+        try {
+            const res = await api(`/uniamerica/cursos/${cursoId}/duplicar`, { method: 'POST', body: {} });
+            toastOk('Curso duplicado! Vincule os colaboradores para salvar.');
+            await window.renderUniAmericaGestao();
+            if (res && res.id) {
+                window._uaAbrirModalCurso(res.id);
+            }
+        } catch (e) {
+            msgErro('Erro ao duplicar curso', e.message);
+        }
+    };
+
     window._uaExcluirCurso = async function (cursoId) {
         const curso = G.cursos.find(c => Number(c.id) === Number(cursoId));
-        if (!await confirmar('Excluir curso?', `Deseja excluir permanentemente o curso "${curso ? curso.nome : ''}", todas as aulas, notas e arquivos do R2?`, 'Sim, excluir')) return;
+        if (!await confirmar('Excluir curso?', `Deseja excluir o curso "${curso ? curso.nome : ''}" da tela?`, 'Sim, excluir')) return;
         try {
             await api('/uniamerica/cursos/' + cursoId, { method: 'DELETE' });
+            // Atualização imediata da tela sem precisar dar F5
+            G.cursos = G.cursos.filter(c => Number(c.id) !== Number(cursoId));
+            G.filtroCursoIds.delete(Number(cursoId));
+            if (G.filtroCursoBusca && !G.cursos.some(c => norm(c.nome).includes(norm(G.filtroCursoBusca)))) {
+                G.filtroCursoBusca = '';
+            }
+            if (Number(G.cursoAbertoId) === Number(cursoId)) {
+                G.cursoAbertoId = null;
+            }
+            desenharGestao();
             toastOk('Curso excluído.');
             await window.renderUniAmericaGestao();
         } catch (e) {
@@ -993,10 +1233,7 @@
                         </p>
                     </div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <button class="ua-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.3);" onclick="window._uaAbrirModalPremiosCurso(${curso.id})">
-                            <i class="ph ph-trophy"></i> Prêmios do Curso (${curso.total_premios || 0})
-                        </button>
-                        <button class="ua-btn" style="background:#fff;color:#1e3a8a;font-weight:700;" onclick="window._uaAbrirEditorAula(${curso.id}, null)">
+                        <button class="ua-btn" style="background:#fff;color:#0e7490;font-weight:700;" onclick="window._uaAbrirEditorAula(${curso.id}, null)">
                             <i class="ph ph-plus-circle"></i> Nova Aula
                         </button>
                     </div>
@@ -1030,7 +1267,7 @@
                                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
                                         <div>
                                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                                <span class="ua-badge" style="background:#1e3a8a;color:#fff;">Aula ${a.ordem}</span>
+                                                <span class="ua-badge" style="background:#0e7490;color:#fff;">Aula ${a.ordem}</span>
                                                 <h3 style="margin:0;font-size:1.08rem;font-weight:700;color:#0f172a;">${esc(a.titulo)}</h3>
                                                 <span class="ua-badge" style="background:${stBadge.bg};color:${stBadge.fg};">${stBadge.txt}</span>
                                                 ${a.missoes_pendentes_avaliacao > 0 ? `
@@ -1067,6 +1304,7 @@
     }
 
     async function exibirAlertaCursoIncompleto(curso, aulas) {
+        const totalPart = Number(curso.total_participantes || 0);
         const totalAulas = Array.isArray(aulas) ? aulas.length : Number(curso.total_aulas || 0);
         const semPesquisa = Array.isArray(curso.aulas_sem_pesquisa)
             ? curso.aulas_sem_pesquisa
@@ -1077,6 +1315,9 @@
         const totalPremios = Number(curso.total_premios || 0);
 
         const itensHtml = [];
+        if (totalPart === 0) {
+            itensHtml.push(`<li><strong>Colaboradores:</strong> Vincule pelo menos 1 colaborador ao curso em <em>Editar Curso</em>.</li>`);
+        }
         if (totalAulas === 0) {
             itensHtml.push(`<li><strong>Aulas:</strong> Cadastre pelo menos 1 aula neste curso.</li>`);
         }
@@ -1087,15 +1328,15 @@
             itensHtml.push(`<li><strong>Missões da Semana:</strong> Preencha as missões em: ${semMissoes.map(a => `<em>Aula ${a.ordem} (${esc(a.titulo)})</em>`).join(', ')}.</li>`);
         }
         if (totalPremios === 0) {
-            itensHtml.push(`<li><strong>Prêmios do Ranking:</strong> Cadastre os prêmios dentro deste curso (botão <em>Prêmios</em>).</li>`);
+            itensHtml.push(`<li><strong>Prêmios do Curso:</strong> Cadastre os prêmios em <em>Editar Curso</em>.</li>`);
         }
 
         const faltamAulas = totalAulas === 0 || semPesquisa.length > 0 || semMissoes.length > 0;
-        const btnConfirmTxt = totalAulas === 0
-            ? 'Cadastrar Primeira Aula'
-            : faltamAulas
-                ? 'Preencher Aula Pendente'
-                : 'Cadastrar Prêmios do Curso';
+        const btnConfirmTxt = (totalPart === 0 || (!faltamAulas && totalPremios === 0))
+            ? 'Editar Curso (Colaboradores / Prêmios)'
+            : totalAulas === 0
+                ? 'Cadastrar Primeira Aula'
+                : 'Preencher Aula Pendente';
 
         if (typeof Swal !== 'undefined') {
             const r = await Swal.fire({
@@ -1115,7 +1356,9 @@
                 cancelButtonText: 'Fechar'
             });
             if (r.isConfirmed) {
-                if (totalAulas === 0) {
+                if (totalPart === 0) {
+                    window._uaAbrirModalCurso(curso.id);
+                } else if (totalAulas === 0) {
                     window._uaAbrirAulasCurso(curso.id);
                     window._uaAbrirEditorAula(curso.id, null);
                 } else if (semPesquisa.length > 0) {
@@ -1127,7 +1370,7 @@
                     window._uaAbrirEditorAula(curso.id, semMissoes[0].id);
                     if (_aulaEditor) { _aulaEditor.aba = 'missoes'; desenharModalEditorAula(); }
                 } else if (totalPremios === 0) {
-                    window._uaIrPremiosDoCurso(curso.id);
+                    window._uaAbrirModalCurso(curso.id);
                 }
             }
         } else {
@@ -1186,9 +1429,18 @@
     };
 
     window._uaExcluirAula = async function (aulaId) {
-        if (!await confirmar('Excluir aula?', 'Todos os materiais, presenças, respostas e missões desta aula serão removidos.', 'Excluir')) return;
+        if (!await confirmar('Excluir aula?', 'Deseja excluir esta aula da tela?', 'Excluir')) return;
         try {
             await api(`/uniamerica/aulas/${aulaId}`, { method: 'DELETE' });
+            // Atualização imediata da tela sem precisar dar F5
+            G.cursos.forEach(c => {
+                if (Array.isArray(c.aulas)) {
+                    c.aulas = c.aulas.filter(a => Number(a.id) !== Number(aulaId));
+                    c.total_aulas = c.aulas.length;
+                    c.carga_horaria = parseFloat(c.aulas.reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2));
+                }
+            });
+            desenharGestao();
             toastOk('Aula excluída.');
             await window.renderUniAmericaGestao();
         } catch (e) {
@@ -2179,7 +2431,7 @@
 
         backdrop.innerHTML = `
             <div class="ua-modal" style="max-width:1240px;">
-                <div class="ua-modal-hd" style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;">
+                <div class="ua-modal-hd" style="background:#0e7490;color:#fff;">
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                         <h3 style="color:#fff;margin:0;"><i class="ph-fill ph-play-circle" style="color:#4ade80;"></i> ${esc(curso.nome)}</h3>
                         <select class="ua-select" style="width:auto;min-width:260px;background:rgba(255,255,255,0.12);color:#fff;border-color:rgba(255,255,255,0.28);padding:6px 10px;"
@@ -3516,6 +3768,9 @@
     };
 
     window._uaAbrirModalPremiosCurso = async function (cursoId) {
+        return window._uaAbrirModalCurso(cursoId);
+    };
+    window._uaAbrirModalPremiosCursoLegacy = async function (cursoId) {
         G.premioCursoId = Number(cursoId);
         try {
             const r = await api(`/uniamerica/cursos/${G.premioCursoId}/premios`);
@@ -3746,7 +4001,7 @@
 
         return `
             <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.04);">
-                <div style="padding:20px 24px;background:linear-gradient(90deg,#1e3a8a 0%,#2563eb 100%);color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+                <div style="padding:20px 24px;background:#0e7490;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
                     <div>
                         <h2 style="margin:0;font-size:1.25rem;font-weight:800;color:#fff;">${esc(c.nome)}</h2>
                         ${c.descricao ? `<div style="font-size:0.85rem;color:rgba(255,255,255,0.86);margin-top:4px;">${esc(c.descricao)}</div>` : ''}

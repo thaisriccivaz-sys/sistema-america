@@ -587,13 +587,21 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const aulas = await dbAll(`SELECT * FROM uniamerica_aulas ORDER BY ordem ASC, id ASC`);
             const anexos = await dbAll(`SELECT * FROM uniamerica_aula_anexos ORDER BY id ASC`);
             const subMissoesPend = await dbAll(`SELECT curso_id, aula_id, COUNT(*) AS qtd FROM uniamerica_submissoes_missao WHERE status = 'enviada' GROUP BY curso_id, aula_id`);
-            const premiosRows = await dbAll(`SELECT curso_id, COUNT(*) AS qtd FROM uniamerica_premios GROUP BY curso_id`);
+            const premiosRows = await dbAll(`SELECT * FROM uniamerica_premios ORDER BY colocacao ASC, id ASC`);
             const presencasRows = await dbAll(`SELECT aula_id, COUNT(*) AS qtd FROM uniamerica_presencas WHERE presente = 1 GROUP BY aula_id`);
 
             const pendMap = {};
             subMissoesPend.forEach(r => { pendMap[`${r.curso_id}_${r.aula_id}`] = r.qtd; });
             const premiosMap = {};
-            premiosRows.forEach(r => { premiosMap[r.curso_id] = Number(r.qtd) || 0; });
+            const premiosPorCurso = {};
+            premiosRows.forEach(r => {
+                premiosMap[r.curso_id] = (premiosMap[r.curso_id] || 0) + 1;
+                if (!premiosPorCurso[r.curso_id]) premiosPorCurso[r.curso_id] = [];
+                premiosPorCurso[r.curso_id].push({
+                    ...r,
+                    imagem_url: r.imagem_r2_key ? r2StreamUrl(r.imagem_r2_key) : null
+                });
+            });
             const presencasMap = {};
             presencasRows.forEach(r => { presencasMap[r.aula_id] = Number(r.qtd) || 0; });
 
@@ -640,13 +648,14 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 const totalPremios = premiosMap[c.id] || 0;
                 const aulasSemPesquisa = listaAulas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
                 const aulasSemMissoes = listaAulas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
-                const prontoParaIniciar = totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
+                const prontoParaIniciar = colabsVinc.length > 0 && totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
 
                 out.push({
                     ...c,
                     carga_horaria: cargaSomada,
                     capa_stream_url: c.capa_r2_key ? r2StreamUrl(c.capa_r2_key) : (c.capa_url || null),
                     aulas: listaAulas,
+                    premios: premiosPorCurso[c.id] || [],
                     total_aulas: totalAulas,
                     aulas_feitas: aulasFeitas,
                     aulas_restantes: aulasRestantes,
@@ -716,7 +725,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const totalPremios = Number(premiosCountRow ? premiosCountRow.qtd : 0) || 0;
             const aulasSemPesquisa = aulasFormatadas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
             const aulasSemMissoes = aulasFormatadas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
-            const prontoParaIniciar = totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
+            const prontoParaIniciar = colabsVinc.length > 0 && totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
 
             res.json({
                 ok: true,
@@ -755,6 +764,12 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const data_fim = String(req.body.data_fim || '').trim() || null;
             const status = String(req.body.status || 'ativo').trim();
 
+            // Regra obrigatória: Para salvar um curso deve ser necessário vincular a pelo menos 1 colaborador
+            const colabsVinc = await listarColaboradoresDoCurso({ departamentos, colaboradores_avulsos });
+            if (colabsVinc.length === 0) {
+                return res.status(400).json({ error: 'Para salvar o curso, é obrigatório vincular pelo menos 1 colaborador (por departamento ou colaborador específico).' });
+            }
+
             let capaR2Key = null;
             if (req.file && req.file.buffer) {
                 capaR2Key = await salvarNoR2('CapasCursos', req.file.originalname, req.file.buffer, req.file.mimetype);
@@ -791,13 +806,18 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const status = req.body.status !== undefined ? String(req.body.status).trim() : atual.status;
             const avaliacao_geral_obs = req.body.avaliacao_geral_obs !== undefined ? String(req.body.avaliacao_geral_obs).trim() : atual.avaliacao_geral_obs;
 
+            // Regra obrigatória: Para salvar um curso deve ser necessário vincular a pelo menos 1 colaborador
+            const colabsVinc = await listarColaboradoresDoCurso({ departamentos, colaboradores_avulsos });
+            if (colabsVinc.length === 0) {
+                return res.status(400).json({ error: 'Para salvar o curso, é obrigatório vincular pelo menos 1 colaborador (por departamento ou colaborador específico).' });
+            }
+
             let capaR2Key = atual.capa_r2_key;
-            if (req.body.remover_capa === '1' && capaR2Key && r2 && r2.isReady()) {
-                await r2.deleteFromR2(capaR2Key);
+            if (req.body.remover_capa === '1') {
+                // Regra obrigatória: nunca excluir arquivos do R2
                 capaR2Key = null;
             }
             if (req.file && req.file.buffer) {
-                if (capaR2Key && r2 && r2.isReady()) await r2.deleteFromR2(capaR2Key);
                 capaR2Key = await salvarNoR2('CapasCursos', req.file.originalname, req.file.buffer, req.file.mimetype);
             }
 
@@ -816,35 +836,69 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
         }
     });
 
+    // Duplicar Curso (sem colaboradores vinculados, copiando capa, aulas, anexos, perguntas, missões e prêmios)
+    app.post('/api/uniamerica/cursos/:id/duplicar', guardGestor, async (req, res) => {
+        try {
+            const origId = parseInt(req.params.id, 10);
+            const orig = await dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [origId]);
+            if (!orig) return res.status(404).json({ error: 'Curso original não encontrado.' });
+
+            const novoNome = String(req.body && req.body.nome ? req.body.nome : `${orig.nome} (Cópia)`).trim();
+
+            const insCurso = await dbRun(
+                `INSERT INTO uniamerica_cursos
+                 (nome, descricao, departamentos, colaboradores_avulsos, capa_r2_key, capa_url, carga_horaria, status, created_by)
+                 VALUES (?, ?, 'Nenhum', '', ?, ?, ?, 'ativo', ?)`,
+                [novoNome, orig.descricao || '', orig.capa_r2_key || null, orig.capa_url || null, orig.carga_horaria || 0, req.user.id || null]
+            );
+            const novoCursoId = insCurso.lastID;
+
+            // Copiar todas as aulas, perguntas, missões e seus anexos (mantendo as mesmas chaves R2)
+            const aulasOrig = await dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [origId]);
+            for (const a of aulasOrig) {
+                const insAula = await dbRun(
+                    `INSERT INTO uniamerica_aulas
+                     (curso_id, ordem, titulo, descricao, carga_horaria, status_aula, perguntas_json, missoes_json)
+                     VALUES (?, ?, ?, ?, ?, 'agendada', ?, ?)`,
+                    [novoCursoId, a.ordem, a.titulo, a.descricao || '', a.carga_horaria || 0, a.perguntas_json || '[]', a.missoes_json || '[]']
+                );
+                const novaAulaId = insAula.lastID;
+
+                const anexosAula = await dbAll(`SELECT * FROM uniamerica_aula_anexos WHERE aula_id = ? ORDER BY id ASC`, [a.id]);
+                for (const an of anexosAula) {
+                    await dbRun(
+                        `INSERT INTO uniamerica_aula_anexos (curso_id, aula_id, nome_arquivo, tipo_mime, tamanho_bytes, r2_key)
+                         VALUES (?, ?, ?, ?, ?, ?)`,
+                        [novoCursoId, novaAulaId, an.nome_arquivo, an.tipo_mime, an.tamanho_bytes || 0, an.r2_key]
+                    );
+                }
+            }
+
+            // Copiar os prêmios do curso (mantendo as mesmas chaves R2 de imagem)
+            const premiosOrig = await dbAll(`SELECT * FROM uniamerica_premios WHERE curso_id = ? ORDER BY colocacao ASC`, [origId]);
+            for (const pr of premiosOrig) {
+                await dbRun(
+                    `INSERT INTO uniamerica_premios (curso_id, colocacao, titulo, descricao, recompensa, imagem_r2_key)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                    [novoCursoId, pr.colocacao, pr.titulo, pr.descricao || '', pr.recompensa || '', pr.imagem_r2_key || null]
+                );
+            }
+
+            await recalcularCargaHorariaCurso(novoCursoId);
+            res.json({ ok: true, id: novoCursoId, nome: novoNome });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
     app.delete('/api/uniamerica/cursos/:id', guardGestor, async (req, res) => {
         try {
             const cursoId = parseInt(req.params.id, 10);
             const curso = await dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [cursoId]);
             if (!curso) return res.status(404).json({ error: 'Curso não encontrado.' });
 
-            // Limpar todos os objetos do R2 antes de excluir do banco
-            if (r2 && r2.isReady()) {
-                if (curso.capa_r2_key) await r2.deleteFromR2(curso.capa_r2_key);
-                const aulas = await dbAll(`SELECT missoes_json FROM uniamerica_aulas WHERE curso_id = ?`, [cursoId]);
-                for (const a of aulas) {
-                    const missoes = parseJson(a.missoes_json, []);
-                    for (const m of missoes) {
-                        if (m.pdf_r2_key) await r2.deleteFromR2(m.pdf_r2_key);
-                    }
-                }
-                const anexos = await dbAll(`SELECT r2_key FROM uniamerica_aula_anexos WHERE curso_id = ?`, [cursoId]);
-                for (const an of anexos) if (an.r2_key) await r2.deleteFromR2(an.r2_key);
-
-                const arqMissoes = await dbAll(`SELECT r2_key FROM uniamerica_missao_arquivos WHERE curso_id = ?`, [cursoId]);
-                for (const arq of arqMissoes) if (arq.r2_key) await r2.deleteFromR2(arq.r2_key);
-
-                const premios = await dbAll(`SELECT imagem_r2_key FROM uniamerica_premios WHERE curso_id = ?`, [cursoId]);
-                for (const pr of premios) if (pr.imagem_r2_key) await r2.deleteFromR2(pr.imagem_r2_key);
-
-                const certs = await dbAll(`SELECT r2_key FROM uniamerica_certificados WHERE curso_id = ?`, [cursoId]);
-                for (const ct of certs) if (ct.r2_key) await r2.deleteFromR2(ct.r2_key);
-            }
-
+            // Regra obrigatória: NUNCA apagar os arquivos do Cloudflare R2 ao excluir o curso;
+            // apenas excluir os registros do banco de dados para remover o curso da tela.
             await dbRun(`DELETE FROM uniamerica_aula_anexos WHERE curso_id = ?`, [cursoId]);
             await dbRun(`DELETE FROM uniamerica_presencas WHERE curso_id = ?`, [cursoId]);
             await dbRun(`DELETE FROM uniamerica_submissoes_teste WHERE curso_id = ?`, [cursoId]);
@@ -971,16 +1025,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const atual = await dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
             if (!atual) return res.status(404).json({ error: 'Aula não encontrada.' });
 
-            if (r2 && r2.isReady()) {
-                const missoes = parseJson(atual.missoes_json, []);
-                for (const m of missoes) if (m.pdf_r2_key) await r2.deleteFromR2(m.pdf_r2_key);
-
-                const anexos = await dbAll(`SELECT r2_key FROM uniamerica_aula_anexos WHERE aula_id = ?`, [aulaId]);
-                for (const an of anexos) if (an.r2_key) await r2.deleteFromR2(an.r2_key);
-
-                const arqMissoes = await dbAll(`SELECT r2_key FROM uniamerica_missao_arquivos WHERE aula_id = ?`, [aulaId]);
-                for (const arq of arqMissoes) if (arq.r2_key) await r2.deleteFromR2(arq.r2_key);
-            }
+            // Regra obrigatória: nunca excluir arquivos do R2 ao excluir a aula
 
             await dbRun(`DELETE FROM uniamerica_aula_anexos WHERE aula_id = ?`, [aulaId]);
             await dbRun(`DELETE FROM uniamerica_presencas WHERE aula_id = ?`, [aulaId]);
@@ -1050,9 +1095,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const row = await dbGet(`SELECT * FROM uniamerica_aula_anexos WHERE id = ?`, [anexoId]);
             if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
 
-            if (row.r2_key && r2 && r2.isReady()) {
-                await r2.deleteFromR2(row.r2_key);
-            }
+            // Regra obrigatória: nunca excluir arquivos do R2
             await dbRun(`DELETE FROM uniamerica_aula_anexos WHERE id = ?`, [anexoId]);
             res.json({ ok: true });
         } catch (e) {
@@ -1446,7 +1489,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             let imgR2Key = existente ? existente.imagem_r2_key : null;
 
             if (req.file && req.file.buffer) {
-                if (imgR2Key && r2 && r2.isReady()) await r2.deleteFromR2(imgR2Key);
+                // Regra obrigatória: nunca excluir arquivos do R2
                 imgR2Key = await salvarNoR2('Premios', req.file.originalname, req.file.buffer, req.file.mimetype);
             }
 
@@ -1473,9 +1516,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const row = await dbGet(`SELECT * FROM uniamerica_premios WHERE id = ?`, [premioId]);
             if (!row) return res.status(404).json({ error: 'Prêmio não encontrado.' });
 
-            if (row.imagem_r2_key && r2 && r2.isReady()) {
-                await r2.deleteFromR2(row.imagem_r2_key);
-            }
+            // Regra obrigatória: nunca excluir arquivos do R2
             await dbRun(`DELETE FROM uniamerica_premios WHERE id = ?`, [premioId]);
             res.json({ ok: true });
         } catch (e) {
@@ -1515,7 +1556,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             if (imagemBase64 && r2 && r2.isReady()) {
                 const raw = imagemBase64.replace(/^data:image\/\w+;base64,/, '');
                 const buf = Buffer.from(raw, 'base64');
-                if (r2Key) await r2.deleteFromR2(r2Key);
+                // Regra obrigatória: nunca excluir arquivos do R2
                 r2Key = await salvarNoR2('Certificados', `Certificado_${part.nome_completo}_${quadro.curso.nome}.png`, buf, 'image/png');
             }
 
