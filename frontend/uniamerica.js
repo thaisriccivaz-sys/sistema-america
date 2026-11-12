@@ -50,6 +50,20 @@
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .trim().toLowerCase();
 
+    function fixFileName(str) {
+        if (!str) return '';
+        let s = String(str);
+        if (/[ÃÂÌÎ]/.test(s) && typeof TextDecoder !== 'undefined') {
+            try {
+                const bytes = new Uint8Array(s.length);
+                for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xff;
+                const dec = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+                if (dec) s = dec;
+            } catch (_) {}
+        }
+        return s.normalize ? s.normalize('NFC').trim() : s.trim();
+    }
+
     function getToken() {
         return window.currentToken
             || (typeof currentToken !== 'undefined' ? currentToken : '')
@@ -1254,8 +1268,9 @@
                             const pergs = Array.isArray(a.perguntas) ? a.perguntas : [];
                             const missoes = Array.isArray(a.missoes) ? a.missoes : [];
                             const anexos = Array.isArray(a.anexos) ? a.anexos : [];
-                            const somaPtsPergs = pergs.reduce((s, q) => s + (Number(q.nota_pontos) || 1), 0);
-                            const somaPtsMissoes = missoes.reduce((s, m) => s + (Number(m.nota_maxima) || 10), 0);
+                            const ehUltima = Number(a.ultima_aula) === 1;
+                            const somaPtsPergs = pergs.length;
+                            const somaPtsMissoes = missoes.length;
                             const stBadge = a.status_aula === 'concluida'
                                 ? { bg: '#dcfce7', fg: '#15803d', txt: 'Concluída' }
                                 : a.status_aula === 'em_andamento'
@@ -1270,9 +1285,10 @@
                                                 <span class="ua-badge" style="background:#0e7490;color:#fff;">Aula ${a.ordem}</span>
                                                 <h3 style="margin:0;font-size:1.08rem;font-weight:700;color:#0f172a;">${esc(a.titulo)}</h3>
                                                 <span class="ua-badge" style="background:${stBadge.bg};color:${stBadge.fg};">${stBadge.txt}</span>
+                                                ${ehUltima ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;"><i class="ph ph-flag-checkered"></i> Última Aula</span>` : ''}
                                                 ${a.missoes_pendentes_avaliacao > 0 ? `
                                                     <span class="ua-badge" style="background:#ffedd5;color:#c2410c;">
-                                                        <i class="ph ph-clock-countdown"></i> ${a.missoes_pendentes_avaliacao} missão(ões) pendente(s) de nota
+                                                        <i class="ph ph-clock-countdown"></i> ${a.missoes_pendentes_avaliacao} missão(ões) pendente(s) de avaliação
                                                     </span>
                                                 ` : ''}
                                             </div>
@@ -1280,8 +1296,10 @@
                                             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:0.81rem;color:#475569;">
                                                 <span><i class="ph ph-clock"></i> Carga: <strong>${a.carga_horaria || 0}h</strong></span>
                                                 <span><i class="ph ph-paperclip"></i> Materiais: <strong>${anexos.length}</strong></span>
-                                                <span><i class="ph ph-exam"></i> Pesquisa em aula: <strong>${pergs.length} questão(ões) (${somaPtsPergs} pts)</strong></span>
-                                                <span><i class="ph ph-rocket-launch"></i> Missões (1 sem.): <strong>${missoes.length} atividade(s) (${somaPtsMissoes} pts)</strong></span>
+                                                ${ehUltima
+                                                    ? `<span style="color:#0e7490;font-weight:600;"><i class="ph ph-check-circle"></i> Última aula (sem formulário e sem missões)</span>`
+                                                    : `<span><i class="ph ph-exam"></i> Formulário em aula: <strong>${pergs.length} questão(ões) (${somaPtsPergs} pt${somaPtsPergs === 1 ? '' : 's'})</strong></span>
+                                                       <span><i class="ph ph-rocket-launch"></i> Missões (1 sem.): <strong>${missoes.length} atividade(s) (${somaPtsMissoes} pt${somaPtsMissoes === 1 ? '' : 's'})</strong></span>`}
                                             </div>
                                         </div>
 
@@ -1308,10 +1326,10 @@
         const totalAulas = Array.isArray(aulas) ? aulas.length : Number(curso.total_aulas || 0);
         const semPesquisa = Array.isArray(curso.aulas_sem_pesquisa)
             ? curso.aulas_sem_pesquisa
-            : (aulas || []).filter(a => !Array.isArray(a.perguntas) || a.perguntas.length === 0);
+            : (aulas || []).filter(a => Number(a.ultima_aula) !== 1 && (!Array.isArray(a.perguntas) || a.perguntas.length === 0));
         const semMissoes = Array.isArray(curso.aulas_sem_missoes)
             ? curso.aulas_sem_missoes
-            : (aulas || []).filter(a => !Array.isArray(a.missoes) || a.missoes.length === 0);
+            : (aulas || []).filter(a => Number(a.ultima_aula) !== 1 && (!Array.isArray(a.missoes) || a.missoes.length === 0));
         const totalPremios = Number(curso.total_premios || 0);
 
         const itensHtml = [];
@@ -1448,7 +1466,7 @@
         }
     };
 
-    // ── MODAL DE CRIAÇÃO / EDIÇÃO DE AULA (3 ABAS: DETALHES, PESQUISA, MISSÕES) ──
+    // ── MODAL DE CRIAÇÃO / EDIÇÃO DE AULA (DETALHES + CHECKBOX ÚLTIMA AULA, PESQUISA 1 PT, MISSÕES 1 PT) ──
     window._uaAbrirEditorAula = function (cursoId, aulaId) {
         const curso = G.cursos.find(c => Number(c.id) === Number(cursoId));
         if (!curso) return;
@@ -1463,13 +1481,14 @@
             data_aula: aulaOrig && aulaOrig.data_aula ? aulaOrig.data_aula : '',
             carga_horaria: aulaOrig ? (aulaOrig.carga_horaria || 0) : 2,
             descricao: aulaOrig ? (aulaOrig.descricao || '') : '',
+            ultima_aula: !!(aulaOrig && Number(aulaOrig.ultima_aula) === 1),
             anexos: aulaOrig && Array.isArray(aulaOrig.anexos) ? JSON.parse(JSON.stringify(aulaOrig.anexos)) : [],
             arquivosNovos: [], // Files a enviar caso a aula ainda esteja sendo criada
             perguntas: aulaOrig && Array.isArray(aulaOrig.perguntas)
-                ? JSON.parse(JSON.stringify(aulaOrig.perguntas))
+                ? JSON.parse(JSON.stringify(aulaOrig.perguntas)).map(q => ({ ...q, nota_pontos: 1 }))
                 : [],
             missoes: aulaOrig && Array.isArray(aulaOrig.missoes)
-                ? JSON.parse(JSON.stringify(aulaOrig.missoes))
+                ? JSON.parse(JSON.stringify(aulaOrig.missoes)).map(m => ({ ...m, nota_maxima: 1 }))
                 : []
         };
 
@@ -1496,44 +1515,61 @@
         if (ch) _aulaEditor.carga_horaria = parseFloat(ch.value) || 0;
         const ds = document.getElementById('ua-ae-desc');
         if (ds) _aulaEditor.descricao = ds.value;
+        const ua = document.getElementById('ua-ae-ultima-aula');
+        if (ua) _aulaEditor.ultima_aula = !!ua.checked;
     }
+
+    window._uaToggleUltimaAulaEditor = function (checked) {
+        sincronizarInputsEditorAula();
+        _aulaEditor.ultima_aula = !!checked;
+        if (_aulaEditor.ultima_aula && (_aulaEditor.aba === 'pesquisa' || _aulaEditor.aba === 'missoes')) {
+            _aulaEditor.aba = 'detalhes';
+        }
+        desenharModalEditorAula();
+    };
 
     function desenharModalEditorAula() {
         const backdrop = document.getElementById('ua-modal-aula');
         if (!backdrop || !_aulaEditor) return;
 
-        const somaPerguntas = _aulaEditor.perguntas.reduce((s, q) => s + (parseFloat(q.nota_pontos) || 1), 0);
-        const somaMissoes = _aulaEditor.missoes.reduce((s, m) => s + (parseFloat(m.nota_maxima) || 10), 0);
+        const somaPerguntas = _aulaEditor.perguntas.length;
+        const somaMissoes = _aulaEditor.missoes.length;
 
         backdrop.innerHTML = `
             <div class="ua-modal" style="max-width:980px;">
                 <div class="ua-modal-hd">
                     <h3>
-                        <i class="ph ph-chalkboard-teacher" style="color:#2563eb;"></i>
+                        <i class="ph ph-chalkboard-teacher" style="color:#0e7490;"></i>
                         ${_aulaEditor.aulaId ? `Editar Aula ${_aulaEditor.ordem}` : 'Nova Aula do Curso'}
                     </h3>
                     <button class="ua-btn ua-btn-ghost" style="padding:6px 10px;" onclick="document.getElementById('ua-modal-aula').remove()"><i class="ph ph-x"></i></button>
                 </div>
 
-                <div style="display:flex;gap:8px;padding:12px 22px 0;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+                <div style="display:flex;gap:8px;padding:12px 22px 0;border-bottom:1px solid #e2e8f0;background:#f8fafc;align-items:center;flex-wrap:wrap;">
                     <button type="button" class="ua-tab ${_aulaEditor.aba === 'detalhes' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
                             onclick="window._uaMudarAbaEditorAula('detalhes')">
                         <i class="ph ph-folder-open"></i> Detalhes & Materiais (${_aulaEditor.anexos.length + _aulaEditor.arquivosNovos.length})
                     </button>
-                    <button type="button" class="ua-tab ${_aulaEditor.aba === 'pesquisa' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
-                            onclick="window._uaMudarAbaEditorAula('pesquisa')">
-                        <i class="ph ph-exam"></i> Pesquisa / Formulário em Aula (${_aulaEditor.perguntas.length} • ${somaPerguntas} pts)
-                    </button>
-                    <button type="button" class="ua-tab ${_aulaEditor.aba === 'missoes' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
-                            onclick="window._uaMudarAbaEditorAula('missoes')">
-                        <i class="ph ph-rocket-launch"></i> Missões da Semana (${_aulaEditor.missoes.length} • ${somaMissoes} pts)
-                    </button>
+                    ${_aulaEditor.ultima_aula ? `
+                        <span class="ua-badge" style="background:#fef3c7;color:#92400e;margin-bottom:8px;">
+                            <i class="ph ph-flag-checkered"></i> Última Aula: não requer preenchimento de Formulário nem Missões
+                        </span>
+                    ` : `
+                        <button type="button" class="ua-tab ${_aulaEditor.aba === 'pesquisa' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
+                                onclick="window._uaMudarAbaEditorAula('pesquisa')">
+                            <i class="ph ph-exam"></i> Pesquisa / Formulário em Aula (${_aulaEditor.perguntas.length} • ${somaPerguntas} pt${somaPerguntas === 1 ? '' : 's'})
+                        </button>
+                        <button type="button" class="ua-tab ${_aulaEditor.aba === 'missoes' ? 'active' : ''}" style="border-bottom-left-radius:0;border-bottom-right-radius:0;"
+                                onclick="window._uaMudarAbaEditorAula('missoes')">
+                            <i class="ph ph-rocket-launch"></i> Missões da Semana (${_aulaEditor.missoes.length} • ${somaMissoes} pt${somaMissoes === 1 ? '' : 's'})
+                        </button>
+                    `}
                 </div>
 
                 <div class="ua-modal-bd">
                     ${_aulaEditor.aba === 'detalhes' ? renderAbaEditorDetalhes() : ''}
-                    ${_aulaEditor.aba === 'pesquisa' ? renderAbaEditorPesquisa() : ''}
-                    ${_aulaEditor.aba === 'missoes' ? renderAbaEditorMissoes() : ''}
+                    ${!_aulaEditor.ultima_aula && _aulaEditor.aba === 'pesquisa' ? renderAbaEditorPesquisa() : ''}
+                    ${!_aulaEditor.ultima_aula && _aulaEditor.aba === 'missoes' ? renderAbaEditorMissoes() : ''}
                 </div>
 
                 <div class="ua-modal-ft">
@@ -1569,6 +1605,11 @@
                 </div>
             </div>
 
+            <label style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:${_aulaEditor.ultima_aula ? '#f0fdf4' : '#f8fafc'};border:1px solid ${_aulaEditor.ultima_aula ? '#86efac' : '#e2e8f0'};border-radius:10px;cursor:pointer;margin-bottom:14px;font-size:0.86rem;color:#0f172a;font-weight:600;">
+                <input type="checkbox" id="ua-ae-ultima-aula" ${_aulaEditor.ultima_aula ? 'checked' : ''} onchange="window._uaToggleUltimaAulaEditor(this.checked)" style="width:18px;height:18px;accent-color:#0e7490;cursor:pointer;">
+                <span>Esta é a última aula do curso <small style="font-weight:400;color:#475569;">(quando marcada, pode ser salva sem preencher as abas de Formulário em Aula e de Missões)</small></span>
+            </label>
+
             <div style="margin-bottom:16px;">
                 <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Conteúdo / Resumo da Aula</label>
                 <textarea id="ua-ae-desc" rows="3" class="ua-textarea" placeholder="Descreva a pauta e tópicos trabalhados nesta aula...">${esc(_aulaEditor.descricao)}</textarea>
@@ -1590,7 +1631,7 @@
                     ${_aulaEditor.anexos.map(an => `
                         <div style="background:#fff;border:1px solid #dbeafe;border-radius:10px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;">
                             <a href="${esc(authMediaUrl(an.url))}" target="_blank" style="color:#1d4ed8;font-weight:600;font-size:0.85rem;text-decoration:none;">
-                                <i class="ph ph-file"></i> ${esc(an.nome_arquivo)}
+                                <i class="ph ph-file"></i> ${esc(fixFileName(an.nome_arquivo))}
                             </a>
                             <button type="button" class="ua-btn ua-btn-danger" style="padding:4px 9px;font-size:0.76rem;" onclick="window._uaRemoverAnexoExistenteAula(${an.id})">
                                 <i class="ph ph-trash"></i> Remover
@@ -1599,7 +1640,7 @@
                     `).join('')}
                     ${_aulaEditor.arquivosNovos.map((f, idx) => `
                         <div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:0.85rem;color:#166534;"><i class="ph ph-check-circle"></i> Pronto para enviar ao salvar: <strong>${esc(f.name)}</strong></span>
+                            <span style="font-size:0.85rem;color:#166534;"><i class="ph ph-check-circle"></i> Pronto para enviar ao salvar: <strong>${esc(fixFileName(f.name))}</strong></span>
                             <button type="button" class="ua-btn ua-btn-danger" style="padding:4px 9px;font-size:0.76rem;" onclick="window._uaRemoverAnexoNovoIdx(${idx})">Remover</button>
                         </div>
                     `).join('')}
@@ -1617,6 +1658,7 @@
             for (const f of files) {
                 try {
                     const fd = new FormData();
+                    fd.append('nome_original', f.name.normalize ? f.name.normalize('NFC') : f.name);
                     fd.append('arquivo', f);
                     const up = await api(`/uniamerica/aulas/${_aulaEditor.aulaId}/anexos`, { method: 'POST', body: fd });
                     _aulaEditor.anexos.push(up);
@@ -1647,18 +1689,18 @@
         desenharModalEditorAula();
     };
 
-    // ── ABA 2 DO EDITOR DE AULA: PESQUISA / FORMULÁRIO EM AULA (MÚLTIPLA ESCOLHA, NOTA 1..10 SOMADA) ──
+    // ── ABA 2 DO EDITOR DE AULA: PESQUISA / FORMULÁRIO EM AULA (1 PT QUANDO ACERTAR E 0 QUANDO ERRAR) ──
     function renderAbaEditorPesquisa() {
-        const somaTotal = _aulaEditor.perguntas.reduce((s, q) => s + (parseFloat(q.nota_pontos) || 1), 0);
+        const somaTotal = _aulaEditor.perguntas.length;
         return `
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <div style="font-size:0.83rem;color:#166534;">
                     <i class="ph ph-check-square-offset"></i>
                     <strong>Respondidas em sala de aula</strong> (não são enviadas por e-mail).
-                    Defina o valor de <strong>1 a 10 pontos</strong> para cada pergunta; a nota é a <strong>soma dos pontos</strong> das respostas corretas!
+                    Cada pergunta vale <strong>1 ponto quando acertar</strong> e <strong>0 ponto quando errar</strong>.
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <span class="ua-badge" style="background:#15803d;color:#fff;font-size:0.82rem;">Soma Máxima: ${somaTotal} pts</span>
+                    <span class="ua-badge" style="background:#15803d;color:#fff;font-size:0.82rem;">Soma Máxima: ${somaTotal} pt${somaTotal === 1 ? '' : 's'}</span>
                     <button type="button" class="ua-btn ua-btn-primary" onclick="window._uaAddPerguntaAula()">
                         <i class="ph ph-plus"></i> Adicionar Pergunta
                     </button>
@@ -1673,19 +1715,14 @@
                 <div style="display:flex;flex-direction:column;gap:14px;">
                     ${_aulaEditor.perguntas.map((q, qIdx) => `
                         <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
-                            <div style="display:grid;grid-template-columns:1fr 150px auto;gap:10px;align-items:end;margin-bottom:10px;">
+                            <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:end;margin-bottom:10px;">
                                 <div>
                                     <label style="font-size:0.79rem;font-weight:700;color:#334155;display:block;margin-bottom:4px;">Pergunta ${qIdx + 1}</label>
                                     <input type="text" class="ua-input" placeholder="Digite o enunciado da pergunta..."
                                            value="${esc(q.pergunta)}"
                                            oninput="window._uaAtualizarPerguntaCampo(${qIdx}, 'pergunta', this.value)">
                                 </div>
-                                <div>
-                                    <label style="font-size:0.79rem;font-weight:700;color:#1d4ed8;display:block;margin-bottom:4px;">Nota (1 a 10 pts)</label>
-                                    <input type="number" min="1" max="10" step="1" class="ua-input"
-                                           value="${q.nota_pontos || 2}"
-                                           onchange="window._uaAtualizarPerguntaNota(${qIdx}, this.value)">
-                                </div>
+                                <span class="ua-badge" style="background:#eef2ff;color:#4338ca;height:36px;padding:0 12px;">Vale 1 pt se acertar</span>
                                 <button type="button" class="ua-btn ua-btn-danger" onclick="window._uaRemoverPerguntaAula(${qIdx})">
                                     <i class="ph ph-trash"></i>
                                 </button>
@@ -1730,14 +1767,14 @@
             pergunta: '',
             opcoes: ['', '', '', ''],
             correta_idx: 0,
-            nota_pontos: 2
+            nota_pontos: 1
         });
         desenharModalEditorAula();
     };
     window._uaRemoverPerguntaAula = function (idx) { _aulaEditor.perguntas.splice(idx, 1); desenharModalEditorAula(); };
     window._uaAtualizarPerguntaCampo = function (idx, k, v) { _aulaEditor.perguntas[idx][k] = v; };
-    window._uaAtualizarPerguntaNota = function (idx, v) {
-        _aulaEditor.perguntas[idx].nota_pontos = Math.max(1, Math.min(10, parseFloat(v) || 1));
+    window._uaAtualizarPerguntaNota = function (idx) {
+        _aulaEditor.perguntas[idx].nota_pontos = 1;
         desenharModalEditorAula();
     };
     window._uaMarcarCorretaPergunta = function (qIdx, opIdx) {
@@ -1754,7 +1791,7 @@
         desenharModalEditorAula();
     };
 
-    // ── ABA 3 DO EDITOR DE AULA: MISSÕES DA SEMANA (NOTA 1..10, PDF DE INSTRUÇÃO R2 E CAMPOS DINÂMICOS) ──
+    // ── ABA 3 DO EDITOR DE AULA: MISSÕES DA SEMANA (1 PT QUANDO CUMPRIDA E 0 QUANDO NÃO CUMPRIDA, PDF R2 E CAMPOS DINÂMICOS) ──
     const TIPOS_CAMPO_MISSAO = [
         { val: 'texto', lbl: 'Texto / Pergunta aberta' },
         { val: 'multipla_escolha', lbl: 'Questão de Múltipla Escolha' },
@@ -1765,16 +1802,16 @@
     ];
 
     function renderAbaEditorMissoes() {
-        const somaMissoes = _aulaEditor.missoes.reduce((s, m) => s + (parseFloat(m.nota_maxima) || 10), 0);
+        const somaMissoes = _aulaEditor.missoes.length;
         return `
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <div style="font-size:0.83rem;color:#1e3a8a;">
                     <i class="ph ph-rocket-launch"></i>
                     <strong>Validade de 1 semana (7 dias)</strong> a partir da presença na aula.
-                    Anexe o <strong>PDF de Instrução</strong> e monte os campos dinâmicos que o colaborador deverá cumprir. Cada missão vale de <strong>1 a 10 pontos</strong>.
+                    Cada missão vale <strong>1 ponto quando cumprida</strong> e <strong>0 ponto quando não cumprida</strong>.
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <span class="ua-badge" style="background:#1d4ed8;color:#fff;font-size:0.82rem;">Soma Máxima: ${somaMissoes} pts</span>
+                    <span class="ua-badge" style="background:#1d4ed8;color:#fff;font-size:0.82rem;">Soma Máxima: ${somaMissoes} pt${somaMissoes === 1 ? '' : 's'}</span>
                     <button type="button" class="ua-btn ua-btn-primary" onclick="window._uaAddMissaoAula()">
                         <i class="ph ph-plus"></i> Nova Missão na Aula
                     </button>
@@ -1789,19 +1826,14 @@
                 <div style="display:flex;flex-direction:column;gap:16px;">
                     ${_aulaEditor.missoes.map((m, mIdx) => `
                         <div style="border:1px solid #cbd5e1;border-radius:16px;padding:16px;background:#fff;">
-                            <div style="display:grid;grid-template-columns:1fr 165px auto;gap:10px;align-items:end;margin-bottom:10px;">
+                            <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:end;margin-bottom:10px;">
                                 <div>
                                     <label style="font-size:0.8rem;font-weight:700;color:#0f172a;display:block;margin-bottom:4px;">Título da Missão ${mIdx + 1} *</label>
                                     <input type="text" class="ua-input" placeholder="Ex.: Aplicar reunião relâmpago de 5 minutos com a equipe"
                                            value="${esc(m.titulo)}"
                                            oninput="window._uaEditarMissaoProp(${mIdx}, 'titulo', this.value)">
                                 </div>
-                                <div>
-                                    <label style="font-size:0.8rem;font-weight:700;color:#1d4ed8;display:block;margin-bottom:4px;">Nota Máxima (1 a 10)</label>
-                                    <input type="number" min="1" max="10" step="1" class="ua-input"
-                                           value="${m.nota_maxima || 10}"
-                                           onchange="window._uaEditarMissaoNota(${mIdx}, this.value)">
-                                </div>
+                                <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;height:36px;padding:0 12px;">Vale 1 pt (Cumprida = 1 | Não cumprida = 0)</span>
                                 <button type="button" class="ua-btn ua-btn-danger" onclick="window._uaRemoverMissaoAula(${mIdx})">
                                     <i class="ph ph-trash"></i>
                                 </button>
@@ -1818,8 +1850,8 @@
                                     <i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>
                                     <strong>PDF de Instrução da Missão:</strong>
                                     ${m.pdf_r2_key
-                                        ? `<a href="${esc(authMediaUrl(m.pdf_url || ('/api/uniamerica/arquivo?key=' + encodeURIComponent(m.pdf_r2_key))))}" target="_blank" style="color:#2563eb;font-weight:600;margin-left:6px;">${esc(m.pdf_nome || 'Abrir PDF atual')}</a>`
-                                        : (m._pendingPdfFile ? `<span style="color:#15803d;margin-left:6px;">Selecionado: ${esc(m._pendingPdfFile.name)} (será salvo no R2)</span>` : `<span style="color:#94a3b8;margin-left:6px;">Nenhum PDF anexado</span>`)}
+                                        ? `<a href="${esc(authMediaUrl(m.pdf_url || ('/api/uniamerica/arquivo?key=' + encodeURIComponent(m.pdf_r2_key))))}" target="_blank" style="color:#2563eb;font-weight:600;margin-left:6px;">${esc(fixFileName(m.pdf_nome || 'Abrir PDF atual'))}</a>`
+                                        : (m._pendingPdfFile ? `<span style="color:#15803d;margin-left:6px;">Selecionado: ${esc(fixFileName(m._pendingPdfFile.name))}</span>` : `<span style="color:#94a3b8;margin-left:6px;">Nenhum PDF anexado</span>`)}
                                 </div>
                                 <label class="ua-btn ua-btn-ghost" style="cursor:pointer;padding:6px 12px;font-size:0.8rem;">
                                     <i class="ph ph-upload-simple"></i> Anexar PDF da Missão
@@ -1879,7 +1911,7 @@
             id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
             titulo: '',
             descricao: '',
-            nota_maxima: 10,
+            nota_maxima: 1,
             prazo_dias: 7,
             pdf_r2_key: null,
             pdf_nome: null,
@@ -1891,8 +1923,8 @@
     };
     window._uaRemoverMissaoAula = function (mIdx) { _aulaEditor.missoes.splice(mIdx, 1); desenharModalEditorAula(); };
     window._uaEditarMissaoProp = function (mIdx, prop, val) { _aulaEditor.missoes[mIdx][prop] = val; };
-    window._uaEditarMissaoNota = function (mIdx, val) {
-        _aulaEditor.missoes[mIdx].nota_maxima = Math.max(1, Math.min(10, parseFloat(val) || 10));
+    window._uaEditarMissaoNota = function (mIdx) {
+        _aulaEditor.missoes[mIdx].nota_maxima = 1;
         desenharModalEditorAula();
     };
     window._uaAddCampoDinamicoMissao = function (mIdx) {
@@ -1927,12 +1959,13 @@
         if (_aulaEditor.aulaId) {
             try {
                 const fd = new FormData();
+                fd.append('nome_original', file.name.normalize ? file.name.normalize('NFC') : file.name);
                 fd.append('pdf', file);
                 const up = await api(`/uniamerica/aulas/${_aulaEditor.aulaId}/missao-pdf`, { method: 'POST', body: fd });
                 _aulaEditor.missoes[mIdx].pdf_r2_key = up.pdf_r2_key;
                 _aulaEditor.missoes[mIdx].pdf_nome = up.pdf_nome;
                 _aulaEditor.missoes[mIdx].pdf_url = up.pdf_url;
-                toastOk('PDF de instrução anexado no R2!');
+                toastOk('PDF de instrução anexado!');
             } catch (e) {
                 msgErro('Erro ao anexar PDF', e.message);
             }
@@ -1956,6 +1989,7 @@
 
         try {
             let aulaId = _aulaEditor.aulaId;
+            const ehUltima = !!_aulaEditor.ultima_aula;
             // Se ainda não existia a aula, cria primeiro para ter o ID para uploads R2 pendentes
             if (!aulaId) {
                 const criada = await api(`/uniamerica/cursos/${_aulaEditor.cursoId}/aulas`, {
@@ -1966,33 +2000,38 @@
                         descricao: _aulaEditor.descricao,
                         data_aula: _aulaEditor.data_aula,
                         carga_horaria: _aulaEditor.carga_horaria,
-                        perguntas: _aulaEditor.perguntas,
+                        ultima_aula: ehUltima ? 1 : 0,
+                        perguntas: ehUltima ? [] : _aulaEditor.perguntas,
                         missoes: []
                     }
                 });
                 aulaId = criada.id;
             }
 
-            // Enviar PDFs de missão pendentes ao R2
-            for (const m of _aulaEditor.missoes) {
-                if (m._pendingPdfFile) {
-                    const fdPdf = new FormData();
-                    fdPdf.append('pdf', m._pendingPdfFile);
-                    const upPdf = await api(`/uniamerica/aulas/${aulaId}/missao-pdf`, { method: 'POST', body: fdPdf });
-                    m.pdf_r2_key = upPdf.pdf_r2_key;
-                    m.pdf_nome = upPdf.pdf_nome;
-                    delete m._pendingPdfFile;
+            // Enviar PDFs de missão pendentes ao R2 (apenas se não for última aula)
+            if (!ehUltima) {
+                for (const m of _aulaEditor.missoes) {
+                    if (m._pendingPdfFile) {
+                        const fdPdf = new FormData();
+                        fdPdf.append('nome_original', m._pendingPdfFile.name.normalize ? m._pendingPdfFile.name.normalize('NFC') : m._pendingPdfFile.name);
+                        fdPdf.append('pdf', m._pendingPdfFile);
+                        const upPdf = await api(`/uniamerica/aulas/${aulaId}/missao-pdf`, { method: 'POST', body: fdPdf });
+                        m.pdf_r2_key = upPdf.pdf_r2_key;
+                        m.pdf_nome = upPdf.pdf_nome;
+                        delete m._pendingPdfFile;
+                    }
                 }
             }
 
             // Enviar materiais novos ao R2
             for (const f of _aulaEditor.arquivosNovos) {
                 const fdAn = new FormData();
+                fdAn.append('nome_original', f.name.normalize ? f.name.normalize('NFC') : f.name);
                 fdAn.append('arquivo', f);
                 await api(`/uniamerica/aulas/${aulaId}/anexos`, { method: 'POST', body: fdAn });
             }
 
-            // Salvar versão final consolidada da aula (detalhes + perguntas + missões com r2_key)
+            // Salvar versão final consolidada da aula
             await api(`/uniamerica/aulas/${aulaId}`, {
                 method: 'PUT',
                 body: {
@@ -2001,8 +2040,9 @@
                     descricao: _aulaEditor.descricao,
                     data_aula: _aulaEditor.data_aula,
                     carga_horaria: _aulaEditor.carga_horaria,
-                    perguntas: _aulaEditor.perguntas,
-                    missoes: _aulaEditor.missoes
+                    ultima_aula: ehUltima ? 1 : 0,
+                    perguntas: ehUltima ? [] : _aulaEditor.perguntas,
+                    missoes: ehUltima ? [] : _aulaEditor.missoes
                 }
             });
 
@@ -2127,10 +2167,39 @@
         }
     };
 
-    // ── MODAL PLAY: INICIAR TREINAMENTO (MATERIAIS + PRESENÇA + AVALIAR TESTES & MISSÕES + RANKING & CERTIFICADOS) ─
+    // ── MODAL PLAY: INICIAR TREINAMENTO (MATERIAIS + PRESENÇA + AVALIAR FORMULÁRIO DE AULA + AVALIAR MISSÕES + RANKING & CERTIFICADOS) ─
     let _playEstado = null;
 
-    window._uaPlayCurso = async function (cursoId, aulaIdOpcional = null, abaInicialOpcional = null) {
+    function resolverAulasAvaliacaoPlay(aulas, aulaAtual, aulaFormularioIdOverride) {
+        const idx = aulas.findIndex(a => Number(a.id) === Number(aulaAtual.id));
+        const aulaAnterior = idx > 0 ? aulas[idx - 1] : null;
+
+        // Regra:
+        // - Primeira aula (idx === 0): mostra formulário da própria primeira aula; NÃO tem botão Avaliar Missões.
+        // - Última aula (ultima_aula === 1 ou sem perguntas) ou aulas seguintes: mostra formulário da aula anterior (ou da aula selecionada se houver perguntas na atual)
+        //   e o botão Avaliar Missões avalia as missões da aula anterior (oculto se a aula anterior não teve missão).
+        let aulaFormulario = null;
+        if (aulaFormularioIdOverride) {
+            aulaFormulario = aulas.find(a => Number(a.id) === Number(aulaFormularioIdOverride)) || null;
+        }
+        if (!aulaFormulario) {
+            if (idx === 0) {
+                aulaFormulario = aulaAtual;
+            } else if (Number(aulaAtual.ultima_aula) === 1 || !Array.isArray(aulaAtual.perguntas) || aulaAtual.perguntas.length === 0) {
+                aulaFormulario = aulaAnterior || aulaAtual;
+            } else {
+                aulaFormulario = aulaAnterior || aulaAtual;
+            }
+        }
+
+        const aulaMissoes = (aulaAnterior && Array.isArray(aulaAnterior.missoes) && aulaAnterior.missoes.length > 0)
+            ? aulaAnterior
+            : null;
+
+        return { idx, aulaAnterior, aulaFormulario, aulaMissoes };
+    }
+
+    window._uaPlayCurso = async function (cursoId, aulaIdOpcional = null, abaInicialOpcional = null, aulaFormOverrideId = null) {
         try {
             const det = await api(`/uniamerica/cursos/${cursoId}`);
             const curso = det.curso;
@@ -2143,7 +2212,7 @@
                 else G.rankingQuadros.push(quadro);
             }
 
-            // Regra obrigatória: Apenas deve ser possível iniciar o curso se todas as aulas estiverem com pesquisa e missões preenchidas e os prêmios cadastrados
+            // Regra obrigatória: Apenas deve ser possível iniciar o curso se todas as aulas (exceto última aula) estiverem com pesquisa e missões preenchidas e os prêmios cadastrados
             if (!curso.pronto_para_iniciar) {
                 if (!G.isAdmin) {
                     msgErro('Curso ainda não liberado', 'Este curso ainda está sendo configurado pelo administrador da UniAmérica (Pesquisa, Missões ou Prêmios pendentes).');
@@ -2170,33 +2239,29 @@
                         await exibirAlertaCursoIncompleto(curso, aulas);
                         return;
                     }
-                    if (errIni.status === 409 && errIni.body && errIni.body.codigo === 'MISSOES_ANTERIORES_PENDENTES') {
-                        if (typeof Swal !== 'undefined') {
-                            const r = await Swal.fire({
-                                icon: 'warning',
-                                title: 'Avaliação de Missões Pendente',
-                                text: errIni.body.error || errIni.message,
-                                showCancelButton: true,
-                                confirmButtonColor: '#2563eb',
-                                confirmButtonText: 'Avaliar Missões da Aula Anterior Agora',
-                                cancelButtonText: 'Abrir Aula Atual Mesmo Assim'
-                            });
-                            if (r.isConfirmed && errIni.body.aula_anterior_id) {
-                                const ant = aulas.find(a => Number(a.id) === Number(errIni.body.aula_anterior_id));
-                                if (ant) {
-                                    aulaAlvo = ant;
-                                    abaPlay = 'avaliar';
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
-            const [presData, avalData] = await Promise.all([
+            const { idx, aulaAnterior, aulaFormulario, aulaMissoes } = resolverAulasAvaliacaoPlay(aulas, aulaAlvo, aulaFormOverrideId);
+
+            // Se a aba era 'avaliar_missoes' mas esta aula não tem missão anterior para avaliar, volta para 'aula'
+            if (abaPlay === 'avaliar_missoes' && !aulaMissoes) {
+                abaPlay = 'aula';
+            }
+            if (abaPlay === 'avaliar') {
+                abaPlay = 'avaliar_formulario';
+            }
+
+            const [presData, avalFormData, avalMissoesData] = await Promise.all([
                 api(`/uniamerica/aulas/${aulaAlvo.id}/presenca`),
-                api(`/uniamerica/aulas/${aulaAlvo.id}/avaliacoes`).catch(() => ({ aula: aulaAlvo, participantes: [] }))
+                aulaFormulario
+                    ? api(`/uniamerica/aulas/${aulaFormulario.id}/avaliacoes`).catch(() => ({ aula: aulaFormulario, participantes: [] }))
+                    : Promise.resolve({ aula: aulaAlvo, participantes: [] }),
+                aulaMissoes
+                    ? api(`/uniamerica/aulas/${aulaMissoes.id}/avaliacoes`).catch(() => ({ aula: aulaMissoes, participantes: [] }))
+                    : Promise.resolve(null)
             ]);
+
             const anexos = Array.isArray(aulaAlvo.anexos) ? aulaAlvo.anexos : [];
             const todasConcluidas = (quadro && quadro.todas_aulas_concluidas) || (aulas.length > 0 && aulas.every(a => a.status_aula === 'concluida')) || curso.status === 'concluido';
 
@@ -2208,11 +2273,16 @@
                 curso,
                 aulas,
                 aula: aulaAlvo,
+                idxAula: idx,
+                aulaAnterior,
+                aulaFormulario,
+                aulaMissoes,
                 anexos,
                 anexoAtivoIdx: anexos.length > 0 ? 0 : -1,
                 listaPresenca: presData.lista || [],
                 buscaPresenca: '',
-                avalData: avalData || { aula: aulaAlvo, participantes: [] },
+                avalFormData: avalFormData || { aula: aulaFormulario || aulaAlvo, participantes: [] },
+                avalMissoesData: avalMissoesData || null,
                 quadro,
                 todasConcluidas,
                 abaPlay
@@ -2237,20 +2307,26 @@
         desenharModalPlayCurso();
     };
 
+    window._uaTrocarAulaFormularioPlay = async function (aulaFormId) {
+        if (!_playEstado) return;
+        await window._uaPlayCurso(_playEstado.curso.id, _playEstado.aula.id, 'avaliar_formulario', aulaFormId);
+    };
+
     function renderizarPreviewMaterialPlay(anexo) {
         if (!anexo) {
             return `<div style="padding:36px;text-align:center;color:#94a3b8;font-size:0.86rem;">Selecione um material acima para apresentá-lo na tela.</div>`;
         }
         const url = authMediaUrl(anexo.url);
-        const nome = String(anexo.nome_arquivo || '').toLowerCase();
-        const mime = String(anexo.mime_type || '').toLowerCase();
+        const nomeExib = fixFileName(anexo.nome_arquivo || '');
+        const nome = nomeExib.toLowerCase();
+        const mime = String(anexo.mime_type || anexo.tipo_mime || '').toLowerCase();
 
         if (mime.includes('pdf') || nome.endsWith('.pdf')) {
             return `<iframe src="${esc(url)}" style="width:100%;height:420px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;"></iframe>`;
         }
         if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(nome)) {
             return `<div style="background:#0f172a;border-radius:10px;padding:12px;text-align:center;">
-                <img src="${esc(url)}" alt="${esc(anexo.nome_arquivo)}" style="max-width:100%;max-height:410px;object-fit:contain;border-radius:8px;">
+                <img src="${esc(url)}" alt="${esc(nomeExib)}" style="max-width:100%;max-height:410px;object-fit:contain;border-radius:8px;">
             </div>`;
         }
         if (mime.startsWith('video/') || /\.(mp4|webm|ogg|mov)$/i.test(nome)) {
@@ -2263,7 +2339,7 @@
         }
         return `<div style="padding:32px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;">
             <i class="ph ph-file-arrow-down" style="font-size:2.4rem;color:#2563eb;"></i>
-            <div style="font-weight:700;color:#0f172a;margin:8px 0 4px;">${esc(anexo.nome_arquivo)}</div>
+            <div style="font-weight:700;color:#0f172a;margin:8px 0 4px;">${esc(nomeExib)}</div>
             <div style="font-size:0.8rem;color:#64748b;margin-bottom:12px;">Clique abaixo para abrir ou baixar este material para apresentação.</div>
             <a href="${esc(url)}" target="_blank" class="ua-btn ua-btn-primary" style="text-decoration:none;display:inline-flex;">
                 <i class="ph ph-arrow-square-out"></i> Abrir Material
@@ -2271,132 +2347,234 @@
         </div>`;
     }
 
-    function renderConteudoAvaliacaoPlay() {
-        const { aula, avalData } = _playEstado;
-        const aulaInfo = (avalData && avalData.aula) ? avalData.aula : aula;
-        const participantes = (avalData && avalData.participantes) ? avalData.participantes : [];
+    // ── ABA PLAY 2: AVALIAR FORMULÁRIO DE AULA (SOMENTE PRESENTES, PONTUAÇÃO AUTOMÁTICA 1/0 SEM EDIÇÃO E SEM FEEDBACK) ──
+    function renderConteudoAvaliarFormularioPlay() {
+        const { aula, aulaAnterior, aulaFormulario, avalFormData, listaPresenca } = _playEstado;
+        const aulaInfo = (avalFormData && avalFormData.aula) ? avalFormData.aula : (aulaFormulario || aula);
+        const perguntas = Array.isArray(aulaInfo.perguntas) ? aulaInfo.perguntas : [];
+        const totalPerguntas = perguntas.length;
+        const todosPart = (avalFormData && Array.isArray(avalFormData.participantes)) ? avalFormData.participantes : [];
+
+        // Se a aula do formulário é a aula atual aberta, sincroniza com a lista de presença em tela;
+        // e filtra APENAS os colaboradores PRESENTES na aula (não mostrar ausentes!)
+        const presAtualSet = new Set((listaPresenca || []).filter(x => x.presente).map(x => Number(x.colaborador_id)));
+        const presentes = todosPart.filter(p => {
+            if (Number(aulaInfo.id) === Number(aula.id)) {
+                return presAtualSet.has(Number(p.colaborador_id)) || !!p.presente;
+            }
+            return !!p.presente;
+        });
+
+        const podeAlternarAtualEAnterior = aulaAnterior
+            && Number(aula.ultima_aula) !== 1
+            && Array.isArray(aula.perguntas) && aula.perguntas.length > 0
+            && Array.isArray(aulaAnterior.perguntas) && aulaAnterior.perguntas.length > 0;
+
+        return `
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#166534;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div>
+                    <i class="ph ph-exam"></i>
+                    <strong>Formulário de Aula — Aula ${aulaInfo.ordem}: ${esc(aulaInfo.titulo)}</strong>
+                    • Pontuação automática (<strong>1 ponto</strong> por resposta certa e <strong>0</strong> por resposta errada). Exibindo apenas colaboradores <strong>presentes</strong>.
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    ${podeAlternarAtualEAnterior ? `
+                        <select class="ua-select" style="width:auto;padding:5px 10px;font-size:0.78rem;background:#fff;" onchange="window._uaTrocarAulaFormularioPlay(this.value)">
+                            <option value="${aulaAnterior.id}" ${Number(aulaInfo.id) === Number(aulaAnterior.id) ? 'selected' : ''}>Aula Anterior (Aula ${aulaAnterior.ordem}: ${esc(aulaAnterior.titulo)})</option>
+                            <option value="${aula.id}" ${Number(aulaInfo.id) === Number(aula.id) ? 'selected' : ''}>Aula Atual (Aula ${aula.ordem}: ${esc(aula.titulo)})</option>
+                        </select>
+                    ` : ''}
+                    <button type="button" class="ua-btn ua-btn-ghost" style="padding:5px 10px;font-size:0.78rem;background:#fff;" onclick="window._uaRecarregarAvaliacoesPlay()">
+                        <i class="ph ph-arrows-clockwise"></i> Atualizar Respostas
+                    </button>
+                </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                ${presentes.length === 0 ? `
+                    <div style="padding:32px;text-align:center;color:#64748b;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">
+                        <i class="ph ph-users" style="font-size:2rem;color:#94a3b8;"></i>
+                        <div style="font-weight:700;color:#0f172a;margin-top:6px;">Nenhum colaborador marcado como Presente na Aula ${aulaInfo.ordem}</div>
+                        <div style="font-size:0.82rem;margin-top:4px;">Apenas colaboradores presentes na lista de presença aparecem nesta tela.</div>
+                    </div>
+                ` : presentes.map(p => {
+                    const st = p.teste;
+                    const respostas = (st && st.respostas) ? st.respostas : {};
+                    let ptsAuto = 0;
+                    if (st) {
+                        if (perguntas.length > 0 && Object.keys(respostas).length > 0) {
+                            perguntas.forEach(q => {
+                                const rIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
+                                if (rIdx === Number(q.correta_idx)) ptsAuto += 1;
+                            });
+                        } else {
+                            ptsAuto = Number(st.pontos_calculados || 0);
+                        }
+                    }
+
+                    return `
+                        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                <div>
+                                    <strong style="font-size:0.96rem;color:#0f172a;">${esc(p.nome_completo)}</strong>
+                                    <span style="font-size:0.8rem;color:#64748b;margin-left:8px;">${esc(p.departamento || '')}${p.cargo ? ' • ' + esc(p.cargo) : ''}</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <span class="ua-badge" style="background:#dcfce7;color:#15803d;">Presente na aula</span>
+                                    ${st
+                                        ? `<span class="ua-badge" style="background:#0e7490;color:#fff;font-size:0.84rem;padding:5px 12px;">
+                                               <i class="ph ph-check-circle"></i> Respondido • Nota automática: ${ptsAuto} / ${totalPerguntas} pt${ptsAuto === 1 ? '' : 's'}
+                                           </span>`
+                                        : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;font-size:0.82rem;padding:5px 12px;">
+                                               <i class="ph ph-clock"></i> Ainda não respondido • 0 pt
+                                           </span>`}
+                                </div>
+                            </div>
+
+                            ${st && perguntas.length > 0 ? `
+                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;display:flex;flex-direction:column;gap:6px;">
+                                    ${perguntas.map((q, qIdx) => {
+                                        const rIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
+                                        const acertou = rIdx === Number(q.correta_idx);
+                                        const txtResp = (q.opcoes && q.opcoes[rIdx] !== undefined) ? q.opcoes[rIdx] : '—';
+                                        return `
+                                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:0.81rem;padding:6px 10px;border-radius:8px;background:${acertou ? '#f0fdf4' : '#fef2f2'};">
+                                                <div style="color:#1e293b;">
+                                                    <strong>${qIdx + 1}. ${esc(q.pergunta)}</strong>
+                                                    <span style="color:#475569;margin-left:6px;">Resposta: <em>${esc(txtResp)}</em></span>
+                                                </div>
+                                                <span class="ua-badge" style="background:${acertou ? '#16a34a' : '#dc2626'};color:#fff;flex-shrink:0;">
+                                                    ${acertou ? '+1 pt (Acertou)' : '0 pt (Errou)'}
+                                                </span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    // ── ABA PLAY 3: AVALIAR MISSÕES DA AULA ANTERIOR (SOMENTE PRESENTES, PONTUAÇÃO 1 OU 0 + FEEDBACK) ──
+    function renderConteudoAvaliarMissoesPlay() {
+        const { aulaMissoes, avalMissoesData } = _playEstado;
+        if (!aulaMissoes || !avalMissoesData) {
+            return `<div style="padding:32px;text-align:center;color:#64748b;">Esta aula não possui missões da aula anterior para avaliar.</div>`;
+        }
+        const aulaInfo = avalMissoesData.aula || aulaMissoes;
+        const todosPart = Array.isArray(avalMissoesData.participantes) ? avalMissoesData.participantes : [];
+        const presentes = todosPart.filter(p => !!p.presente);
         const defsMissoesMap = {};
         (aulaInfo.missoes || []).forEach(m => { defsMissoesMap[m.id] = m; });
 
         return `
-            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                 <div>
-                    <i class="ph ph-info"></i> Avalie os testes em sala e as missões entregues na <strong>Aula ${aulaInfo.ordem}: ${esc(aulaInfo.titulo)}</strong> atribuindo <strong>nota de 1 a 10</strong>.
+                    <i class="ph ph-rocket-launch"></i>
+                    <strong>Avaliar Missões da Aula Anterior — Aula ${aulaInfo.ordem}: ${esc(aulaInfo.titulo)}</strong>
+                    • Cada missão vale <strong>1 ponto quando cumprida</strong> e <strong>0 quando não cumprida</strong>. Exibindo apenas colaboradores <strong>presentes</strong>.
                 </div>
                 <button type="button" class="ua-btn ua-btn-ghost" style="padding:5px 10px;font-size:0.78rem;background:#fff;" onclick="window._uaRecarregarAvaliacoesPlay()">
-                    <i class="ph ph-arrows-clockwise"></i> Atualizar Respostas
+                    <i class="ph ph-arrows-clockwise"></i> Atualizar Entregas
                 </button>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:14px;">
-                ${participantes.length === 0 ? `<div style="padding:28px;text-align:center;color:#94a3b8;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">Nenhum participante vinculado a este curso.</div>` :
-                    participantes.map(p => {
-                        const st = p.teste;
-                        const ptsTesteAtual = st ? (st.pontos_gestor != null ? st.pontos_gestor : st.pontos_calculados) : 0;
-                        return `
-                            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;">
-                                    <div>
-                                        <strong style="font-size:0.96rem;color:#0f172a;">${esc(p.nome_completo)}</strong>
-                                        <span style="font-size:0.8rem;color:#64748b;margin-left:8px;">${esc(p.departamento || '')} • ${esc(p.cargo || '')}</span>
-                                    </div>
-                                    <span class="ua-badge" style="background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};">
-                                        ${p.presente ? 'Presente na aula' : 'Ausente na aula'}
-                                    </span>
-                                </div>
+                ${presentes.length === 0 ? `
+                    <div style="padding:32px;text-align:center;color:#64748b;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">
+                        <i class="ph ph-users" style="font-size:2rem;color:#94a3b8;"></i>
+                        <div style="font-weight:700;color:#0f172a;margin-top:6px;">Nenhum colaborador marcado como Presente na Aula ${aulaInfo.ordem}</div>
+                        <div style="font-size:0.82rem;margin-top:4px;">Apenas colaboradores presentes na Aula ${aulaInfo.ordem} aparecem para avaliação de missões.</div>
+                    </div>
+                ` : presentes.map(p => `
+                    <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;">
+                            <div>
+                                <strong style="font-size:0.96rem;color:#0f172a;">${esc(p.nome_completo)}</strong>
+                                <span style="font-size:0.8rem;color:#64748b;margin-left:8px;">${esc(p.departamento || '')}${p.cargo ? ' • ' + esc(p.cargo) : ''}</span>
+                            </div>
+                            <span class="ua-badge" style="background:#dcfce7;color:#15803d;">Presente na Aula ${aulaInfo.ordem}</span>
+                        </div>
 
-                                <!-- Bloco 1: Teste em Aula -->
-                                <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-                                        <div style="font-size:0.84rem;">
-                                            <strong><i class="ph ph-exam"></i> Formulário / Teste em Aula:</strong>
-                                            ${st
-                                                ? `<span style="color:#15803d;font-weight:700;margin-left:6px;">Respondido • Soma automática: ${st.pontos_calculados} pt(s)</span>`
-                                                : `<span style="color:#94a3b8;margin-left:6px;">Ainda não respondido</span>`}
+                        ${(p.missoes || []).length === 0 ? `<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma missão configurada na Aula ${aulaInfo.ordem}.</div>` :
+                            p.missoes.map(em => {
+                                const sub = em.submissao;
+                                const defM = defsMissoesMap[em.missao_id] || { campos: [] };
+                                const respostas = (sub && sub.respostas) ? sub.respostas : {};
+                                const jaAvaliada = sub && sub.status === 'avaliada';
+                                const notaAtual = (jaAvaliada && sub.nota_gestor !== null && sub.nota_gestor !== undefined)
+                                    ? (Number(sub.nota_gestor) > 0 ? 1 : 0)
+                                    : null;
+
+                                return `
+                                    <div style="border:1px solid ${sub && !jaAvaliada ? '#fdba74' : '#e2e8f0'};background:${sub && !jaAvaliada ? '#fff7ed' : '#fff'};border-radius:10px;padding:12px;margin-top:8px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                            <div style="font-size:0.86rem;font-weight:700;color:#1e293b;">
+                                                <i class="ph ph-rocket-launch" style="color:#0e7490;"></i> ${esc(em.titulo)}
+                                                <span style="font-weight:500;color:#64748b;font-size:0.78rem;">(Vale 1 ponto)</span>
+                                            </div>
+                                            ${jaAvaliada
+                                                ? `<span class="ua-badge" style="background:${notaAtual === 1 ? '#dcfce7' : '#fee2e2'};color:${notaAtual === 1 ? '#15803d' : '#b91c1c'};">
+                                                       <i class="ph ${notaAtual === 1 ? 'ph-check-circle' : 'ph-x-circle'}"></i>
+                                                       ${notaAtual === 1 ? 'Cumprida: 1 pt' : 'Não cumprida: 0 pt'}
+                                                   </span>`
+                                                : (sub
+                                                    ? `<span class="ua-badge" style="background:#ffedd5;color:#c2410c;"><i class="ph ph-clock"></i> Entregue — aguardando avaliação</span>`
+                                                    : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;">Não enviada pelo colaborador</span>`)}
                                         </div>
-                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                                            <label style="font-size:0.78rem;color:#475569;">Pontos validados:</label>
-                                            <input type="number" min="0" step="0.5" id="ua-av-teste-pts-${p.colaborador_id}" class="ua-input" style="width:82px;padding:5px 8px;" value="${ptsTesteAtual}">
-                                            <input type="text" id="ua-av-teste-fb-${p.colaborador_id}" class="ua-input" style="width:190px;padding:5px 8px;" placeholder="Feedback opcional..." value="${esc(st ? st.feedback_gestor || '' : '')}">
-                                            <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaSalvarAvalTeste(${aulaInfo.id}, ${p.colaborador_id})">
-                                                Salvar Teste
+
+                                        ${sub ? `
+                                            <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.82rem;display:flex;flex-direction:column;gap:6px;">
+                                                ${(defM.campos || []).map(cp => {
+                                                    const val = respostas[cp.id];
+                                                    const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
+                                                    return `
+                                                        <div>
+                                                            <strong style="color:#334155;">${esc(cp.label)}:</strong>
+                                                            ${cp.tipo === 'estrelas'
+                                                                ? `<span style="color:#f59e0b;margin-left:6px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</span>`
+                                                                : (val ? `<div style="margin-top:2px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : '')}
+                                                            ${arqsCampo.map(arq => {
+                                                                const u = authMediaUrl(arq.url);
+                                                                if (String(arq.tipo_mime || '').startsWith('audio/')) {
+                                                                    return `<div style="margin-top:4px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
+                                                                }
+                                                                if (String(arq.tipo_mime || '').startsWith('image/')) {
+                                                                    return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
+                                                                }
+                                                                return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(fixFileName(arq.nome_arquivo))}</a></div>`;
+                                                            }).join('')}
+                                                        </div>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        ` : ''}
+
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <label style="font-size:0.8rem;font-weight:700;color:#0f172a;">Pontuação:</label>
+                                            <select id="ua-av-m-nota-${p.colaborador_id}-${em.missao_id}" class="ua-select" style="width:215px;padding:6px 10px;font-weight:700;">
+                                                <option value="" ${notaAtual === null ? 'selected' : ''} disabled>Selecione (1 ou 0)...</option>
+                                                <option value="1" ${notaAtual === 1 ? 'selected' : ''}>✅ Cumprida (1 ponto)</option>
+                                                <option value="0" ${notaAtual === 0 ? 'selected' : ''}>❌ Não cumprida (0 ponto)</option>
+                                            </select>
+                                            <input type="text"
+                                                   id="ua-av-m-fb-${p.colaborador_id}-${em.missao_id}"
+                                                   class="ua-input" style="flex:1;min-width:200px;padding:6px 10px;"
+                                                   placeholder="Feedback da avaliação da missão..."
+                                                   value="${esc(sub ? sub.feedback_gestor || '' : '')}">
+                                            <button type="button" class="ua-btn ua-btn-primary" style="padding:7px 14px;font-size:0.81rem;"
+                                                    onclick="window._uaSalvarAvalMissao(${aulaInfo.id}, ${p.colaborador_id}, '${esc(em.missao_id)}')">
+                                                <i class="ph ph-check"></i> Salvar Avaliação
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- Bloco 2: Missões da Semana -->
-                                ${(p.missoes || []).length === 0 ? `<div style="font-size:0.8rem;color:#94a3b8;">Esta aula não possui missões configuradas.</div>` :
-                                    p.missoes.map(em => {
-                                        const sub = em.submissao;
-                                        const defM = defsMissoesMap[em.missao_id] || { campos: [] };
-                                        const respostas = (sub && sub.respostas) ? sub.respostas : {};
-                                        const jaAvaliada = sub && sub.status === 'avaliada';
-
-                                        return `
-                                            <div style="border:1px solid ${sub && !jaAvaliada ? '#fdba74' : '#e2e8f0'};background:${sub && !jaAvaliada ? '#fff7ed' : '#fff'};border-radius:10px;padding:12px;margin-top:8px;">
-                                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                                                    <div style="font-size:0.86rem;font-weight:700;color:#1e293b;">
-                                                        <i class="ph ph-rocket-launch" style="color:#2563eb;"></i> ${esc(em.titulo)}
-                                                        <span style="font-weight:500;color:#64748b;font-size:0.78rem;">(Vale até ${em.nota_maxima} pts)</span>
-                                                    </div>
-                                                    ${jaAvaliada
-                                                        ? `<span class="ua-badge" style="background:#dcfce7;color:#15803d;"><i class="ph ph-check-circle"></i> Avaliada: Nota ${sub.nota_gestor}/10</span>`
-                                                        : (sub
-                                                            ? `<span class="ua-badge" style="background:#ffedd5;color:#c2410c;"><i class="ph ph-clock"></i> Realizada — aguardando nota (1 a 10)</span>`
-                                                            : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;">Não enviada pelo colaborador</span>`)}
-                                                </div>
-
-                                                ${sub ? `
-                                                    <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.82rem;display:flex;flex-direction:column;gap:6px;">
-                                                        ${(defM.campos || []).map(cp => {
-                                                            const val = respostas[cp.id];
-                                                            const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
-                                                            return `
-                                                                <div>
-                                                                    <strong style="color:#334155;">${esc(cp.label)}:</strong>
-                                                                    ${cp.tipo === 'estrelas'
-                                                                        ? `<span style="color:#f59e0b;margin-left:6px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</span>`
-                                                                        : (val ? `<div style="margin-top:2px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : '')}
-                                                                    ${arqsCampo.map(arq => {
-                                                                        const u = authMediaUrl(arq.url);
-                                                                        if (String(arq.tipo_mime || '').startsWith('audio/')) {
-                                                                            return `<div style="margin-top:4px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
-                                                                        }
-                                                                        if (String(arq.tipo_mime || '').startsWith('image/')) {
-                                                                            return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
-                                                                        }
-                                                                        return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(arq.nome_arquivo)}</a></div>`;
-                                                                    }).join('')}
-                                                                </div>
-                                                            `;
-                                                        }).join('')}
-                                                    </div>
-                                                ` : ''}
-
-                                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                                    <label style="font-size:0.8rem;font-weight:700;color:#1e3a8a;">Nota (1 a 10):</label>
-                                                    <input type="number" min="1" max="10" step="0.5"
-                                                           id="ua-av-m-nota-${p.colaborador_id}-${em.missao_id}"
-                                                           class="ua-input" style="width:90px;padding:6px 8px;"
-                                                           placeholder="1 a 10"
-                                                           value="${sub && sub.nota_gestor != null ? sub.nota_gestor : ''}">
-                                                    <input type="text"
-                                                           id="ua-av-m-fb-${p.colaborador_id}-${em.missao_id}"
-                                                           class="ua-input" style="flex:1;min-width:200px;padding:6px 10px;"
-                                                           placeholder="Comentário / feedback da avaliação da missão..."
-                                                           value="${esc(sub ? sub.feedback_gestor || '' : '')}">
-                                                    <button type="button" class="ua-btn ua-btn-primary" style="padding:7px 14px;font-size:0.81rem;"
-                                                            onclick="window._uaSalvarAvalMissao(${aulaInfo.id}, ${p.colaborador_id}, '${esc(em.missao_id)}')">
-                                                        <i class="ph ph-check"></i> Salvar Nota (1–10)
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                            </div>
-                        `;
-                    }).join('')}
+                                `;
+                            }).join('')}
+                    </div>
+                `).join('')}
             </div>
         `;
     }
@@ -2412,7 +2590,7 @@
     function desenharModalPlayCurso() {
         const backdrop = document.getElementById('ua-modal-play-curso');
         if (!backdrop || !_playEstado) return;
-        const { curso, aulas, aula, anexos, anexoAtivoIdx, listaPresenca, buscaPresenca, avalData, todasConcluidas, abaPlay } = _playEstado;
+        const { curso, aulas, aula, aulaFormulario, aulaMissoes, anexos, anexoAtivoIdx, listaPresenca, buscaPresenca, avalMissoesData, todasConcluidas, abaPlay } = _playEstado;
         const presentesQtd = listaPresenca.filter(x => x.presente).length;
         const termo = norm(buscaPresenca);
         const visiveis = listaPresenca.filter(x => !termo || norm(x.nome_completo + ' ' + (x.departamento || '')).includes(termo));
@@ -2423,9 +2601,11 @@
                 ? { bg: '#dbeafe', fg: '#1d4ed8', txt: 'Em andamento' }
                 : { bg: '#f1f5f9', fg: '#475569', txt: 'Agendada' };
 
-        const missoesPendAula = (avalData && Array.isArray(avalData.participantes))
-            ? avalData.participantes.reduce((acc, p) => acc + (p.missoes || []).filter(m => m.submissao && m.submissao.status !== 'avaliada').length, 0)
-            : (aula.missoes_pendentes_avaliacao || 0);
+        const missoesPendAnterior = (avalMissoesData && Array.isArray(avalMissoesData.participantes))
+            ? avalMissoesData.participantes
+                .filter(p => p.presente)
+                .reduce((acc, p) => acc + (p.missoes || []).filter(m => m.submissao && m.submissao.status !== 'avaliada').length, 0)
+            : 0;
 
         const ehUltimaAulaNaoConcluida = aulas.filter(a => a.status_aula !== 'concluida').length === 1 && aula.status_aula !== 'concluida';
 
@@ -2438,7 +2618,7 @@
                                 onchange="window._uaPlayCurso(${curso.id}, this.value)">
                             ${aulas.map(a => `
                                 <option value="${a.id}" style="color:#0f172a;" ${Number(a.id) === Number(aula.id) ? 'selected' : ''}>
-                                    Aula ${a.ordem}: ${esc(a.titulo)} (${a.status_aula === 'concluida' ? 'Concluída' : a.status_aula === 'em_andamento' ? 'Em andamento' : 'Disponível'})
+                                    Aula ${a.ordem}: ${esc(a.titulo)}${Number(a.ultima_aula) === 1 ? ' [Última Aula]' : ''} (${a.status_aula === 'concluida' ? 'Concluída' : a.status_aula === 'em_andamento' ? 'Em andamento' : 'Disponível'})
                                 </option>
                             `).join('')}
                         </select>
@@ -2451,15 +2631,20 @@
                 </div>
 
                 <div class="ua-modal-bd" style="padding:18px 22px;">
-                    <!-- Abas internas dentro do Play: Apresentação & Presença | Avaliar Testes & Avaliações | Ranking & Certificados (após concluído) -->
+                    <!-- Botões separados: Apresentação & Presença | Avaliar Formulário de Aula | Avaliar Missões (apenas quando houver missão anterior) | Ranking & Certificados -->
                     <div class="ua-tabs" style="margin-bottom:16px;">
                         <button type="button" class="ua-tab ${abaPlay === 'aula' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('aula')">
                             <i class="ph ph-presentation-chart"></i> Apresentação & Lista de Presença
                         </button>
-                        <button type="button" class="ua-tab ${abaPlay === 'avaliar' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('avaliar')">
-                            <i class="ph ph-star"></i> Avaliar Testes & Avaliações
-                            ${missoesPendAula > 0 ? `<span class="ua-badge" style="background:#ea580c;color:#fff;margin-left:4px;">${missoesPendAula}</span>` : ''}
+                        <button type="button" class="ua-tab ${abaPlay === 'avaliar_formulario' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('avaliar_formulario')">
+                            <i class="ph ph-exam"></i> Avaliar Formulário de Aula${aulaFormulario ? ` (Aula ${aulaFormulario.ordem})` : ''}
                         </button>
+                        ${aulaMissoes ? `
+                            <button type="button" class="ua-tab ${abaPlay === 'avaliar_missoes' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('avaliar_missoes')">
+                                <i class="ph ph-rocket-launch"></i> Avaliar Missões (Aula ${aulaMissoes.ordem})
+                                ${missoesPendAnterior > 0 ? `<span class="ua-badge" style="background:#ea580c;color:#fff;margin-left:4px;">${missoesPendAnterior}</span>` : ''}
+                            </button>
+                        ` : ''}
                         ${todasConcluidas ? `
                             <button type="button" class="ua-tab ${abaPlay === 'ranking' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('ranking')" style="${abaPlay !== 'ranking' ? 'border-color:#86efac;background:#f0fdf4;color:#15803d;' : ''}">
                                 <i class="ph ph-trophy"></i> Ranking & Certificados
@@ -2467,14 +2652,20 @@
                         ` : ''}
                     </div>
 
-                    ${abaPlay === 'avaliar' ? renderConteudoAvaliacaoPlay() : abaPlay === 'ranking' ? renderConteudoRankingPlay() : `
+                    ${abaPlay === 'avaliar_formulario'
+                        ? renderConteudoAvaliarFormularioPlay()
+                        : abaPlay === 'avaliar_missoes'
+                            ? renderConteudoAvaliarMissoesPlay()
+                            : abaPlay === 'ranking'
+                                ? renderConteudoRankingPlay()
+                                : `
                         <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start;">
                             <!-- Coluna Esquerda: Materiais da Aula -->
                             <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
                                     <div>
                                         <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
-                                            <i class="ph ph-presentation-chart" style="color:#2563eb;font-size:1.15rem;"></i>
+                                            <i class="ph ph-presentation-chart" style="color:#0e7490;font-size:1.15rem;"></i>
                                             Materiais para Apresentação — Aula ${aula.ordem}: ${esc(aula.titulo)}
                                         </h4>
                                         ${aula.descricao ? `<div style="font-size:0.8rem;color:#64748b;margin-top:3px;">${esc(aula.descricao)}</div>` : ''}
@@ -2503,7 +2694,7 @@
                                             <button type="button" class="ua-btn ${idx === anexoAtivoIdx ? 'ua-btn-primary' : 'ua-btn-ghost'}"
                                                     style="padding:7px 12px;font-size:0.8rem;"
                                                     onclick="window._uaSelecionarAnexoPlay(${idx})">
-                                                <i class="ph ph-file-text"></i> ${esc(an.nome_arquivo)}
+                                                <i class="ph ph-file-text"></i> ${esc(fixFileName(an.nome_arquivo))}
                                             </button>
                                         `).join('')}
                                     </div>
@@ -2547,7 +2738,7 @@
                                                     <tr style="cursor:pointer;" onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})">
                                                         <td>
                                                             <div style="font-weight:600;color:#0f172a;font-size:0.84rem;">${esc(p.nome_completo)}</div>
-                                                            <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')} • ${esc(p.cargo || '')}</div>
+                                                            <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')}${p.cargo ? ' • ' + esc(p.cargo) : ''}</div>
                                                         </td>
                                                         <td style="text-align:center;" onclick="event.stopPropagation();">
                                                             <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
@@ -2590,14 +2781,17 @@
     window._uaRecarregarAvaliacoesPlay = async function () {
         if (!_playEstado) return;
         try {
-            const [avalData, det] = await Promise.all([
-                api(`/uniamerica/aulas/${_playEstado.aula.id}/avaliacoes`),
-                api(`/uniamerica/cursos/${_playEstado.curso.id}`)
+            const { aulaFormulario, aulaMissoes, curso } = _playEstado;
+            const [avalFormData, avalMissoesData, det] = await Promise.all([
+                aulaFormulario ? api(`/uniamerica/aulas/${aulaFormulario.id}/avaliacoes`) : Promise.resolve(null),
+                aulaMissoes ? api(`/uniamerica/aulas/${aulaMissoes.id}/avaliacoes`) : Promise.resolve(null),
+                api(`/uniamerica/cursos/${curso.id}`)
             ]);
-            _playEstado.avalData = avalData;
+            if (avalFormData) _playEstado.avalFormData = avalFormData;
+            if (avalMissoesData) _playEstado.avalMissoesData = avalMissoesData;
             if (det && det.quadro) {
                 _playEstado.quadro = det.quadro;
-                const idxQ = G.rankingQuadros.findIndex(q => Number(q.curso.id) === Number(_playEstado.curso.id));
+                const idxQ = G.rankingQuadros.findIndex(q => Number(q.curso.id) === Number(curso.id));
                 if (idxQ >= 0) G.rankingQuadros[idxQ] = det.quadro;
                 else G.rankingQuadros.push(det.quadro);
             }
@@ -2639,6 +2833,7 @@
                     presencas: _playEstado.listaPresenca.map(x => ({ colaborador_id: x.colaborador_id, presente: x.presente }))
                 }
             });
+            await window._uaRecarregarAvaliacoesPlay();
             if (!silencioso) {
                 toastOk('Lista de presença salva! Teste em aula e missões liberados para os presentes.');
             }
@@ -2675,189 +2870,20 @@
         }
     };
 
-    // ── MODAL: AVALIAÇÃO PELO GESTOR (TESTES EM AULA & MISSÕES COM NOTA DE 1 A 10) ─
-    let _avalEstado = null;
-
     window._uaAbrirAvaliacaoAula = async function (aulaId) {
-        try {
-            const data = await api(`/uniamerica/aulas/${aulaId}/avaliacoes`);
-            _avalEstado = data;
-            const old = document.getElementById('ua-modal-avaliacoes');
-            if (old) old.remove();
-            const backdrop = document.createElement('div');
-            backdrop.className = 'ua-modal-backdrop';
-            backdrop.id = 'ua-modal-avaliacoes';
-            document.body.appendChild(backdrop);
-            desenharModalAvaliacoesAula();
-        } catch (e) {
-            msgErro('Erro ao carregar avaliações da aula', e.message);
-        }
-    };
-
-    function desenharModalAvaliacoesAula() {
-        const backdrop = document.getElementById('ua-modal-avaliacoes');
-        if (!backdrop || !_avalEstado) return;
-        const aula = _avalEstado.aula;
-        const participantes = _avalEstado.participantes || [];
-        const defsMissoesMap = {};
-        (aula.missoes || []).forEach(m => { defsMissoesMap[m.id] = m; });
-
-        backdrop.innerHTML = `
-            <div class="ua-modal" style="max-width:1040px;">
-                <div class="ua-modal-hd">
-                    <h3><i class="ph ph-star" style="color:#f59e0b;"></i> Avaliar Respostas & Missões — Aula ${aula.ordem}: ${esc(aula.titulo)}</h3>
-                    <button class="ua-btn ua-btn-ghost" style="padding:6px 10px;" onclick="document.getElementById('ua-modal-avaliacoes').remove(); window.renderUniAmericaGestao();"><i class="ph ph-x"></i></button>
-                </div>
-                <div class="ua-modal-bd">
-                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#92400e;">
-                        <i class="ph ph-info"></i> Avalie cada missão entregue atribuindo uma <strong>nota de 1 a 10</strong>. Os pontos das perguntas certas e das missões avaliadas são somados diretamente ao Ranking do curso.
-                    </div>
-
-                    <div style="display:flex;flex-direction:column;gap:14px;">
-                        ${participantes.map(p => {
-                            const st = p.teste;
-                            const ptsTesteAtual = st ? (st.pontos_gestor != null ? st.pontos_gestor : st.pontos_calculados) : 0;
-                            return `
-                                <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;">
-                                        <div>
-                                            <strong style="font-size:0.96rem;color:#0f172a;">${esc(p.nome_completo)}</strong>
-                                            <span style="font-size:0.8rem;color:#64748b;margin-left:8px;">${esc(p.departamento || '')} • ${esc(p.cargo || '')}</span>
-                                        </div>
-                                        <span class="ua-badge" style="background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};">
-                                            ${p.presente ? 'Presente na aula' : 'Ausente na aula'}
-                                        </span>
-                                    </div>
-
-                                    <!-- Bloco 1: Teste em Aula -->
-                                    <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-                                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-                                            <div style="font-size:0.84rem;">
-                                                <strong><i class="ph ph-exam"></i> Formulário / Teste em Aula:</strong>
-                                                ${st
-                                                    ? `<span style="color:#15803d;font-weight:700;margin-left:6px;">Respondido • Soma automática: ${st.pontos_calculados} pt(s)</span>`
-                                                    : `<span style="color:#94a3b8;margin-left:6px;">Ainda não respondido</span>`}
-                                            </div>
-                                            <div style="display:flex;align-items:center;gap:6px;">
-                                                <label style="font-size:0.78rem;color:#475569;">Pontos validados:</label>
-                                                <input type="number" min="0" step="0.5" id="ua-av-teste-pts-${p.colaborador_id}" class="ua-input" style="width:82px;padding:5px 8px;" value="${ptsTesteAtual}">
-                                                <input type="text" id="ua-av-teste-fb-${p.colaborador_id}" class="ua-input" style="width:190px;padding:5px 8px;" placeholder="Feedback opcional..." value="${esc(st ? st.feedback_gestor || '' : '')}">
-                                                <button class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaSalvarAvalTeste(${aula.id}, ${p.colaborador_id})">
-                                                    Salvar Teste
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Bloco 2: Missões da Semana -->
-                                    ${p.missoes.length === 0 ? `<div style="font-size:0.8rem;color:#94a3b8;">Esta aula não possui missões configuradas.</div>` :
-                                        p.missoes.map(em => {
-                                            const sub = em.submissao;
-                                            const defM = defsMissoesMap[em.missao_id] || { campos: [] };
-                                            const respostas = (sub && sub.respostas) ? sub.respostas : {};
-                                            const jaAvaliada = sub && sub.status === 'avaliada';
-
-                                            return `
-                                                <div style="border:1px solid ${sub && !jaAvaliada ? '#fdba74' : '#e2e8f0'};background:${sub && !jaAvaliada ? '#fff7ed' : '#fff'};border-radius:10px;padding:12px;margin-top:8px;">
-                                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                                                        <div style="font-size:0.86rem;font-weight:700;color:#1e293b;">
-                                                            <i class="ph ph-rocket-launch" style="color:#2563eb;"></i> ${esc(em.titulo)}
-                                                            <span style="font-weight:500;color:#64748b;font-size:0.78rem;">(Vale até ${em.nota_maxima} pts)</span>
-                                                        </div>
-                                                        ${jaAvaliada
-                                                            ? `<span class="ua-badge" style="background:#dcfce7;color:#15803d;"><i class="ph ph-check-circle"></i> Avaliada: Nota ${sub.nota_gestor}/10</span>`
-                                                            : (sub
-                                                                ? `<span class="ua-badge" style="background:#ffedd5;color:#c2410c;"><i class="ph ph-clock"></i> Realizada — aguardando nota (1 a 10)</span>`
-                                                                : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;">Não enviada pelo colaborador</span>`)}
-                                                    </div>
-
-                                                    ${sub ? `
-                                                        <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.82rem;display:flex;flex-direction:column;gap:6px;">
-                                                            ${(defM.campos || []).map(cp => {
-                                                                const val = respostas[cp.id];
-                                                                const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
-                                                                return `
-                                                                    <div>
-                                                                        <strong style="color:#334155;">${esc(cp.label)}:</strong>
-                                                                        ${cp.tipo === 'estrelas'
-                                                                            ? `<span style="color:#f59e0b;margin-left:6px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</span>`
-                                                                            : (val ? `<div style="margin-top:2px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : '')}
-                                                                        ${arqsCampo.map(arq => {
-                                                                            const u = authMediaUrl(arq.url);
-                                                                            if (String(arq.tipo_mime || '').startsWith('audio/')) {
-                                                                                return `<div style="margin-top:4px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
-                                                                            }
-                                                                            if (String(arq.tipo_mime || '').startsWith('image/')) {
-                                                                                return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
-                                                                            }
-                                                                            return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(arq.nome_arquivo)}</a></div>`;
-                                                                        }).join('')}
-                                                                    </div>
-                                                                `;
-                                                            }).join('')}
-                                                        </div>
-                                                    ` : ''}
-
-                                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                                        <label style="font-size:0.8rem;font-weight:700;color:#1e3a8a;">Nota (1 a 10):</label>
-                                                        <input type="number" min="1" max="10" step="0.5"
-                                                               id="ua-av-m-nota-${p.colaborador_id}-${em.missao_id}"
-                                                               class="ua-input" style="width:90px;padding:6px 8px;"
-                                                               placeholder="1 a 10"
-                                                               value="${sub && sub.nota_gestor != null ? sub.nota_gestor : ''}">
-                                                        <input type="text"
-                                                               id="ua-av-m-fb-${p.colaborador_id}-${em.missao_id}"
-                                                               class="ua-input" style="flex:1;min-width:200px;padding:6px 10px;"
-                                                               placeholder="Comentário / feedback da avaliação da missão..."
-                                                               value="${esc(sub ? sub.feedback_gestor || '' : '')}">
-                                                        <button class="ua-btn ua-btn-primary" style="padding:7px 14px;font-size:0.81rem;"
-                                                                onclick="window._uaSalvarAvalMissao(${aula.id}, ${p.colaborador_id}, '${esc(em.missao_id)}')">
-                                                            <i class="ph ph-check"></i> Salvar Nota (1–10)
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-                <div class="ua-modal-ft">
-                    <button class="ua-btn ua-btn-primary" onclick="document.getElementById('ua-modal-avaliacoes').remove(); window.renderUniAmericaGestao();">
-                        Concluir e Fechar
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    window._uaSalvarAvalTeste = async function (aulaId, colabId) {
-        const pts = parseFloat(document.getElementById(`ua-av-teste-pts-${colabId}`).value);
-        const fb = document.getElementById(`ua-av-teste-fb-${colabId}`).value || '';
-        if (isNaN(pts) || pts < 0) return msgErro('Pontuação inválida', 'Informe um valor maior ou igual a zero.');
-        try {
-            await api('/uniamerica/submissoes-teste/avaliar', {
-                method: 'PUT',
-                body: { aula_id: aulaId, colaborador_id: colabId, pontos_gestor: pts, feedback_gestor: fb }
-            });
-            toastOk('Pontuação do teste salva!');
-            if (document.getElementById('ua-modal-play-curso') && _playEstado) {
-                await window._uaRecarregarAvaliacoesPlay();
-            } else {
-                await window._uaAbrirAvaliacaoAula(aulaId);
-            }
-        } catch (e) {
-            msgErro('Erro ao salvar pontuação', e.message);
+        const curso = G.cursos.find(c => (c.aulas || []).some(a => Number(a.id) === Number(aulaId)));
+        if (curso) {
+            await window._uaPlayCurso(curso.id, aulaId, 'avaliar_formulario');
         }
     };
 
     window._uaSalvarAvalMissao = async function (aulaId, colabId, missaoId) {
         const notaEl = document.getElementById(`ua-av-m-nota-${colabId}-${missaoId}`);
         const fbEl = document.getElementById(`ua-av-m-fb-${colabId}-${missaoId}`);
-        const nota = parseFloat(notaEl ? notaEl.value : '');
-        if (isNaN(nota) || nota < 1 || nota > 10) {
-            return msgErro('Nota de 1 a 10 obrigatória', 'Informe uma nota entre 1 e 10 para avaliar a missão.');
+        const rawVal = notaEl ? notaEl.value : '';
+        const nota = rawVal === '' ? NaN : parseInt(rawVal, 10);
+        if (isNaN(nota) || (nota !== 0 && nota !== 1)) {
+            return msgErro('Pontuação obrigatória', 'Selecione se a missão foi Cumprida (1 ponto) ou Não cumprida (0 ponto).');
         }
         try {
             await api('/uniamerica/submissoes-missao/avaliar', {
@@ -2870,11 +2896,9 @@
                     feedback_gestor: fbEl ? fbEl.value : ''
                 }
             });
-            toastOk(`Nota ${nota}/10 registrada na missão!`);
+            toastOk(nota === 1 ? 'Missão avaliada como Cumprida (+1 ponto)!' : 'Missão avaliada como Não cumprida (0 ponto).');
             if (document.getElementById('ua-modal-play-curso') && _playEstado) {
                 await window._uaRecarregarAvaliacoesPlay();
-            } else {
-                await window._uaAbrirAvaliacaoAula(aulaId);
             }
         } catch (e) {
             msgErro('Erro ao avaliar missão', e.message);
@@ -4079,7 +4103,7 @@
                         <div style="display:flex;flex-wrap:wrap;gap:8px;">
                             ${anexos.map(an => `
                                 <a href="${esc(authMediaUrl(an.url))}" target="_blank" class="ua-btn ua-btn-ghost" style="text-decoration:none;font-size:0.8rem;padding:6px 12px;">
-                                    <i class="ph ph-file-arrow-down"></i> ${esc(an.nome_arquivo)}
+                                    <i class="ph ph-file-arrow-down"></i> ${esc(fixFileName(an.nome_arquivo))}
                                 </a>
                             `).join('')}
                         </div>
@@ -4103,7 +4127,7 @@
                                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
                                         <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;">
                                             <strong style="font-size:0.86rem;color:#1e293b;">${qIdx + 1}. ${esc(q.pergunta)}</strong>
-                                            <span class="ua-badge" style="background:#eef2ff;color:#4338ca;flex-shrink:0;">Vale ${q.nota_pontos} pt(s)</span>
+                                            <span class="ua-badge" style="background:#eef2ff;color:#4338ca;flex-shrink:0;">Vale 1 pt</span>
                                         </div>
                                         <div style="display:flex;flex-direction:column;gap:6px;">
                                             ${(q.opcoes || []).map((op, opIdx) => {
@@ -4159,17 +4183,17 @@
                         ${m.descricao ? `<div style="font-size:0.84rem;color:#475569;margin-top:3px;">${esc(m.descricao)}</div>` : ''}
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;">Vale até ${m.nota_maxima} pts</span>
+                        <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;">Vale 1 pt</span>
                         ${jaAvaliada
-                            ? `<span class="ua-badge" style="background:#16a34a;color:#fff;font-size:0.84rem;">Nota atribuída: ${sub.nota_gestor} / 10 pts</span>`
-                            : (sub ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;">Enviada — será avaliada antes da próxima aula</span>` : '')}
+                            ? `<span class="ua-badge" style="background:${Number(sub.nota_gestor) > 0 ? '#16a34a' : '#dc2626'};color:#fff;font-size:0.84rem;">${Number(sub.nota_gestor) > 0 ? 'Cumprida: +1 pt' : 'Não cumprida: 0 pt'}</span>`
+                            : (sub ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;">Enviada — será avaliada na próxima aula</span>` : '')}
                     </div>
                 </div>
 
                 ${m.pdf_url ? `
                     <div style="margin-bottom:14px;">
                         <a href="${esc(authMediaUrl(m.pdf_url))}" target="_blank" class="ua-btn" style="background:#fee2e2;color:#b91c1c;text-decoration:none;border:1px solid #fecaca;">
-                            <i class="ph ph-file-pdf" style="font-size:1.15rem;"></i> Abrir PDF de Instrução da Missão (${esc(m.pdf_nome || 'Instruções.pdf')})
+                            <i class="ph ph-file-pdf" style="font-size:1.15rem;"></i> Abrir PDF de Instrução da Missão (${esc(fixFileName(m.pdf_nome || 'Instruções.pdf'))})
                         </a>
                     </div>
                 ` : ''}
@@ -4252,7 +4276,7 @@
                         if (cp.tipo === 'imagem' || String(ar.tipo_mime || '').startsWith('image/')) {
                             return `<a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:110px;border-radius:8px;border:1px solid #cbd5e1;"></a>`;
                         }
-                        return `<a href="${esc(u)}" target="_blank" style="font-size:0.83rem;color:#2563eb;font-weight:600;"><i class="ph ph-check-circle" style="color:#16a34a;"></i> ${esc(ar.nome_arquivo)}</a>`;
+                        return `<a href="${esc(u)}" target="_blank" style="font-size:0.83rem;color:#2563eb;font-weight:600;"><i class="ph ph-check-circle" style="color:#16a34a;"></i> ${esc(fixFileName(ar.nome_arquivo))}</a>`;
                     }).join('')}
                 </div>
             `;
@@ -4276,6 +4300,7 @@
     window._uaUploadArquivoCampoMissao = async function (aulaId, missaoId, campoId, input) {
         if (!input.files || !input.files[0]) return;
         const fd = new FormData();
+        fd.append('nome_original', input.files[0].name.normalize ? input.files[0].name.normalize('NFC') : input.files[0].name);
         fd.append('arquivo', input.files[0]);
         fd.append('campo_id', campoId);
         if (M.colabOverrideId) fd.append('colab_id', M.colabOverrideId);

@@ -163,13 +163,34 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             UNIQUE(curso_id, colaborador_id)
         )`);
 
+        db.run(`ALTER TABLE uniamerica_aulas ADD COLUMN ultima_aula INTEGER DEFAULT 0`, () => {});
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_aulas_curso ON uniamerica_aulas(curso_id, ordem)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_pres_curso ON uniamerica_presencas(curso_id, aula_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_sub_teste ON uniamerica_submissoes_teste(curso_id, aula_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_sub_missao ON uniamerica_submissoes_missao(curso_id, aula_id, status)`);
     });
 
-    // ── Helpers R2 ─────────────────────────────────────────────────────────────
+    // ── Helpers R2 & Normalização UTF-8 de Nomes de Arquivo ───────────────────
+    function corrigirMojibakeNome(str) {
+        if (!str) return '';
+        let s = String(str);
+        // Se houver sequência típica de UTF-8 lido como Latin-1 (ex: Ã, Â, Ì, Î)
+        if (/[ÃÂÌÎ]/.test(s)) {
+            try {
+                const decoded = Buffer.from(s, 'latin1').toString('utf8');
+                if (!decoded.includes('\uFFFD')) s = decoded;
+            } catch (_) {}
+        }
+        return s.normalize('NFC').trim();
+    }
+
+    function extrairNomeOriginalUpload(req, file) {
+        if (req && req.body && req.body.nome_original) {
+            return corrigirMojibakeNome(req.body.nome_original);
+        }
+        return corrigirMojibakeNome(file ? file.originalname : 'arquivo');
+    }
+
     function sanitizeFileName(name) {
         return String(name || 'arquivo')
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -398,14 +419,15 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             };
         });
 
-        // Calcular pontuação máxima possível do curso (soma das perguntas + soma das missões)
+        // Calcular pontuação máxima possível do curso (1 ponto por pergunta + 1 ponto por missão)
         let maxPontosTestes = 0;
         let maxPontosMissoes = 0;
         aulas.forEach(a => {
+            if (Number(a.ultima_aula) === 1) return;
             const pergs = parseJson(a.perguntas_json, []);
-            pergs.forEach(q => { maxPontosTestes += Math.max(1, Math.min(10, Number(q.nota_pontos || 1))); });
+            maxPontosTestes += pergs.length;
             const missoes = parseJson(a.missoes_json, []);
-            missoes.forEach(m => { maxPontosMissoes += Math.max(1, Math.min(10, Number(m.nota_maxima || 10))); });
+            maxPontosMissoes += missoes.length;
         });
 
         const participantes = colabs.map(c => {
@@ -421,10 +443,20 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 const presente = !!(pr && Number(pr.presente) === 1);
                 if (presente) aulasPresentes++;
 
+                const pergsAula = parseJson(a.perguntas_json, []);
                 const st = testeMap[`${a.id}_${c.id}`];
-                const ptsTeste = st
-                    ? (st.pontos_gestor !== null && st.pontos_gestor !== undefined ? Number(st.pontos_gestor) : Number(st.pontos_calculados || 0))
-                    : 0;
+                let ptsTeste = 0;
+                if (st) {
+                    const respObj = parseJson(st.respostas_json, {});
+                    if (pergsAula.length > 0 && respObj && Object.keys(respObj).length > 0) {
+                        pergsAula.forEach(q => {
+                            const rIdx = respObj[q.id] !== undefined && respObj[q.id] !== null ? parseInt(respObj[q.id], 10) : -1;
+                            if (rIdx === Number(q.correta_idx)) ptsTeste += 1;
+                        });
+                    } else {
+                        ptsTeste = Number(st.pontos_calculados || 0);
+                    }
+                }
                 somaTestes += ptsTeste;
 
                 const missoesAula = parseJson(a.missoes_json, []);
@@ -435,7 +467,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                         missoesEntregues++;
                         if (sm.status === 'avaliada' && sm.nota_gestor !== null && sm.nota_gestor !== undefined) {
                             missoesAvaliadas++;
-                            ptsMissoesAula += Number(sm.nota_gestor || 0);
+                            ptsMissoesAula += (Number(sm.nota_gestor) > 0 ? 1 : 0);
                         }
                     }
                 });
@@ -610,6 +642,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 if (!anexosPorAula[an.aula_id]) anexosPorAula[an.aula_id] = [];
                 anexosPorAula[an.aula_id].push({
                     ...an,
+                    nome_arquivo: corrigirMojibakeNome(an.nome_arquivo),
                     url: r2StreamUrl(an.r2_key)
                 });
             });
@@ -646,8 +679,8 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
                 const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
                 const totalPremios = premiosMap[c.id] || 0;
-                const aulasSemPesquisa = listaAulas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
-                const aulasSemMissoes = listaAulas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+                const aulasSemPesquisa = listaAulas.filter(x => Number(x.ultima_aula) !== 1 && (!Array.isArray(x.perguntas) || x.perguntas.length === 0)).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+                const aulasSemMissoes = listaAulas.filter(x => Number(x.ultima_aula) !== 1 && (!Array.isArray(x.missoes) || x.missoes.length === 0)).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
                 const prontoParaIniciar = colabsVinc.length > 0 && totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
 
                 out.push({
@@ -697,7 +730,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const anexosPorAula = {};
             anexos.forEach(an => {
                 if (!anexosPorAula[an.aula_id]) anexosPorAula[an.aula_id] = [];
-                anexosPorAula[an.aula_id].push({ ...an, url: r2StreamUrl(an.r2_key) });
+                anexosPorAula[an.aula_id].push({ ...an, nome_arquivo: corrigirMojibakeNome(an.nome_arquivo), url: r2StreamUrl(an.r2_key) });
             });
 
             const aulasFormatadas = aulas.map(a => {
@@ -723,8 +756,8 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
             const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
             const totalPremios = Number(premiosCountRow ? premiosCountRow.qtd : 0) || 0;
-            const aulasSemPesquisa = aulasFormatadas.filter(x => !Array.isArray(x.perguntas) || x.perguntas.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
-            const aulasSemMissoes = aulasFormatadas.filter(x => !Array.isArray(x.missoes) || x.missoes.length === 0).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+            const aulasSemPesquisa = aulasFormatadas.filter(x => Number(x.ultima_aula) !== 1 && (!Array.isArray(x.perguntas) || x.perguntas.length === 0)).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
+            const aulasSemMissoes = aulasFormatadas.filter(x => Number(x.ultima_aula) !== 1 && (!Array.isArray(x.missoes) || x.missoes.length === 0)).map(x => ({ id: x.id, ordem: x.ordem, titulo: x.titulo }));
             const prontoParaIniciar = colabsVinc.length > 0 && totalAulas > 0 && aulasSemPesquisa.length === 0 && aulasSemMissoes.length === 0 && totalPremios > 0;
 
             res.json({
@@ -858,9 +891,9 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             for (const a of aulasOrig) {
                 const insAula = await dbRun(
                     `INSERT INTO uniamerica_aulas
-                     (curso_id, ordem, titulo, descricao, carga_horaria, status_aula, perguntas_json, missoes_json)
-                     VALUES (?, ?, ?, ?, ?, 'agendada', ?, ?)`,
-                    [novoCursoId, a.ordem, a.titulo, a.descricao || '', a.carga_horaria || 0, a.perguntas_json || '[]', a.missoes_json || '[]']
+                     (curso_id, ordem, titulo, descricao, carga_horaria, status_aula, ultima_aula, perguntas_json, missoes_json)
+                     VALUES (?, ?, ?, ?, ?, 'agendada', ?, ?, ?)`,
+                    [novoCursoId, a.ordem, a.titulo, a.descricao || '', a.carga_horaria || 0, Number(a.ultima_aula) === 1 ? 1 : 0, a.perguntas_json || '[]', a.missoes_json || '[]']
                 );
                 const novaAulaId = insAula.lastID;
 
@@ -922,14 +955,13 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
         const arr = Array.isArray(raw) ? raw : parseJson(raw, []);
         return arr.map((q, idx) => {
             const opcoes = Array.isArray(q.opcoes) ? q.opcoes.map(o => String(o || '').trim()).filter(Boolean) : [];
-            const notaPts = Math.max(1, Math.min(10, parseFloat(q.nota_pontos) || 1));
             const corretaIdx = Math.max(0, Math.min(Math.max(0, opcoes.length - 1), parseInt(q.correta_idx, 10) || 0));
             return {
                 id: q.id || `q_${Date.now()}_${idx}`,
                 pergunta: String(q.pergunta || '').trim(),
                 opcoes,
                 correta_idx: corretaIdx,
-                nota_pontos: notaPts
+                nota_pontos: 1
             };
         }).filter(q => q.pergunta && q.opcoes.length >= 2);
     }
@@ -937,7 +969,6 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
     function normalizarMissoesAula(raw) {
         const arr = Array.isArray(raw) ? raw : parseJson(raw, []);
         return arr.map((m, idx) => {
-            const notaMax = Math.max(1, Math.min(10, parseFloat(m.nota_maxima) || 10));
             const campos = Array.isArray(m.campos) ? m.campos.map((c, cIdx) => ({
                 id: c.id || `campo_${Date.now()}_${idx}_${cIdx}`,
                 tipo: ['texto', 'multipla_escolha', 'documento', 'audio', 'imagem', 'estrelas'].includes(c.tipo) ? c.tipo : 'texto',
@@ -951,10 +982,10 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 id: m.id || `m_${Date.now()}_${idx}`,
                 titulo: String(m.titulo || '').trim(),
                 descricao: String(m.descricao || '').trim(),
-                nota_maxima: notaMax,
+                nota_maxima: 1,
                 prazo_dias: 7, // Regra obrigatória: missões válidas por 1 semana (7 dias)
                 pdf_r2_key: m.pdf_r2_key || null,
-                pdf_nome: m.pdf_nome || null,
+                pdf_nome: m.pdf_nome ? corrigirMojibakeNome(m.pdf_nome) : null,
                 campos
             };
         }).filter(m => m.titulo);
@@ -971,14 +1002,15 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const descricao = String(req.body.descricao || '').trim();
             const data_aula = String(req.body.data_aula || '').trim() || null;
             const carga_horaria = parseFloat(req.body.carga_horaria || '0') || 0;
-            const perguntas = normalizarPerguntasAula(req.body.perguntas || []);
-            const missoes = normalizarMissoesAula(req.body.missoes || []);
+            const ultima_aula = (req.body.ultima_aula === 1 || req.body.ultima_aula === '1' || req.body.ultima_aula === true) ? 1 : 0;
+            const perguntas = ultima_aula ? [] : normalizarPerguntasAula(req.body.perguntas || []);
+            const missoes = ultima_aula ? [] : normalizarMissoesAula(req.body.missoes || []);
 
             const ins = await dbRun(
                 `INSERT INTO uniamerica_aulas
-                 (curso_id, ordem, titulo, descricao, data_aula, carga_horaria, perguntas_json, missoes_json)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [cursoId, ordem, titulo, descricao, data_aula, carga_horaria, JSON.stringify(perguntas), JSON.stringify(missoes)]
+                 (curso_id, ordem, titulo, descricao, data_aula, carga_horaria, ultima_aula, perguntas_json, missoes_json)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [cursoId, ordem, titulo, descricao, data_aula, carga_horaria, ultima_aula, JSON.stringify(perguntas), JSON.stringify(missoes)]
             );
             await recalcularCargaHorariaCurso(cursoId);
 
@@ -1001,15 +1033,18 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const descricao = req.body.descricao !== undefined ? String(req.body.descricao).trim() : atual.descricao;
             const data_aula = req.body.data_aula !== undefined ? (String(req.body.data_aula).trim() || null) : atual.data_aula;
             const carga_horaria = req.body.carga_horaria !== undefined ? (parseFloat(req.body.carga_horaria) || 0) : atual.carga_horaria;
-            const perguntas = req.body.perguntas !== undefined ? normalizarPerguntasAula(req.body.perguntas) : parseJson(atual.perguntas_json, []);
-            const missoes = req.body.missoes !== undefined ? normalizarMissoesAula(req.body.missoes) : parseJson(atual.missoes_json, []);
+            const ultima_aula = req.body.ultima_aula !== undefined
+                ? ((req.body.ultima_aula === 1 || req.body.ultima_aula === '1' || req.body.ultima_aula === true) ? 1 : 0)
+                : (Number(atual.ultima_aula) === 1 ? 1 : 0);
+            const perguntas = ultima_aula ? [] : (req.body.perguntas !== undefined ? normalizarPerguntasAula(req.body.perguntas) : parseJson(atual.perguntas_json, []));
+            const missoes = ultima_aula ? [] : (req.body.missoes !== undefined ? normalizarMissoesAula(req.body.missoes) : parseJson(atual.missoes_json, []));
 
             await dbRun(
                 `UPDATE uniamerica_aulas
                  SET ordem = ?, titulo = ?, descricao = ?, data_aula = ?, carga_horaria = ?,
-                     perguntas_json = ?, missoes_json = ?, updated_at = CURRENT_TIMESTAMP
+                     ultima_aula = ?, perguntas_json = ?, missoes_json = ?, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`,
-                [ordem, titulo, descricao, data_aula, carga_horaria, JSON.stringify(perguntas), JSON.stringify(missoes), aulaId]
+                [ordem, titulo, descricao, data_aula, carga_horaria, ultima_aula, JSON.stringify(perguntas), JSON.stringify(missoes), aulaId]
             );
             await recalcularCargaHorariaCurso(atual.curso_id);
 
@@ -1049,11 +1084,12 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
             if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Envie o arquivo PDF da missão.' });
 
-            const r2Key = await salvarNoR2('MissoesPDF', req.file.originalname, req.file.buffer, 'application/pdf');
+            const nomeOriginal = extrairNomeOriginalUpload(req, req.file);
+            const r2Key = await salvarNoR2('MissoesPDF', nomeOriginal, req.file.buffer, 'application/pdf');
             res.json({
                 ok: true,
                 pdf_r2_key: r2Key,
-                pdf_nome: req.file.originalname,
+                pdf_nome: nomeOriginal,
                 pdf_url: r2StreamUrl(r2Key)
             });
         } catch (e) {
@@ -1069,17 +1105,18 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
             if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
-            const r2Key = await salvarNoR2('MateriaisAula', req.file.originalname, req.file.buffer, req.file.mimetype);
+            const nomeOriginal = extrairNomeOriginalUpload(req, req.file);
+            const r2Key = await salvarNoR2('MateriaisAula', nomeOriginal, req.file.buffer, req.file.mimetype);
             const ins = await dbRun(
                 `INSERT INTO uniamerica_aula_anexos (curso_id, aula_id, nome_arquivo, tipo_mime, tamanho_bytes, r2_key)
                  VALUES (?, ?, ?, ?, ?, ?)`,
-                [aula.curso_id, aulaId, req.file.originalname, req.file.mimetype || 'application/octet-stream', req.file.size || 0, r2Key]
+                [aula.curso_id, aulaId, nomeOriginal, req.file.mimetype || 'application/octet-stream', req.file.size || 0, r2Key]
             );
 
             res.json({
                 ok: true,
                 id: ins.lastID,
-                nome_arquivo: req.file.originalname,
+                nome_arquivo: nomeOriginal,
                 tipo_mime: req.file.mimetype,
                 r2_key: r2Key,
                 url: r2StreamUrl(r2Key)
@@ -1116,47 +1153,20 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const premiosRow = await dbGet(`SELECT COUNT(*) AS qtd FROM uniamerica_premios WHERE curso_id = ?`, [aula.curso_id]);
             const totalPremios = Number(premiosRow ? premiosRow.qtd : 0) || 0;
 
-            // Regra obrigatória: Apenas pode iniciar o curso se TODAS as aulas estiverem com pesquisa e missões preenchidas e os prêmios cadastrados!
-            const semPesquisa = todasAulas.filter(x => parseJson(x.perguntas_json, []).length === 0);
-            const semMissoes = todasAulas.filter(x => parseJson(x.missoes_json, []).length === 0);
+            // Regra obrigatória: Apenas pode iniciar o curso se TODAS as aulas (exceto a última aula marcada com ultima_aula = 1) estiverem com pesquisa e missões preenchidas e os prêmios cadastrados!
+            const semPesquisa = todasAulas.filter(x => Number(x.ultima_aula) !== 1 && parseJson(x.perguntas_json, []).length === 0);
+            const semMissoes = todasAulas.filter(x => Number(x.ultima_aula) !== 1 && parseJson(x.missoes_json, []).length === 0);
             if (todasAulas.length === 0 || semPesquisa.length > 0 || semMissoes.length > 0 || totalPremios === 0) {
                 const pendencias = [];
                 if (todasAulas.length === 0) pendencias.push('Nenhuma aula cadastrada no curso.');
                 if (semPesquisa.length > 0) pendencias.push(`Pesquisa não preenchida em: ${semPesquisa.map(a => `Aula ${a.ordem} (${a.titulo})`).join(', ')}.`);
                 if (semMissoes.length > 0) pendencias.push(`Missões não preenchidas em: ${semMissoes.map(a => `Aula ${a.ordem} (${a.titulo})`).join(', ')}.`);
-                if (totalPremios === 0) pendencias.push('Prêmios do ranking ainda não foram cadastrados na aba Prêmios.');
+                if (totalPremios === 0) pendencias.push('Prêmios do ranking ainda não foram cadastrados no curso.');
                 return res.status(409).json({
                     error: 'Apenas é possível iniciar o curso quando todas as aulas estiverem com Pesquisa e Missões preenchidas e os Prêmios cadastrados.',
                     codigo: 'CURSO_INCOMPLETO_PARA_INICIAR',
                     pendencias
                 });
-            }
-
-            const idx = todasAulas.findIndex(x => x.id === aula.id);
-
-            // Regra obrigatória: Antes de iniciar a próxima aula, é obrigatório avaliar todas as missões
-            // realizadas pelos colaboradores nas aulas anteriores (dando nota de 1 a 10 para cada missão)!
-            if (idx > 0) {
-                const aulasAnterioresIds = todasAulas.slice(0, idx).map(x => x.id);
-                const placeholders = aulasAnterioresIds.map(() => '?').join(',');
-                const pendentes = await dbAll(
-                    `SELECT sm.*, c.nome_completo, a.titulo AS aula_titulo, a.ordem AS aula_ordem
-                     FROM uniamerica_submissoes_missao sm
-                     JOIN colaboradores c ON c.id = sm.colaborador_id
-                     JOIN uniamerica_aulas a ON a.id = sm.aula_id
-                     WHERE sm.aula_id IN (${placeholders})
-                       AND sm.status != 'avaliada'`,
-                    aulasAnterioresIds
-                );
-
-                if (pendentes.length > 0) {
-                    return res.status(409).json({
-                        error: `Antes de iniciar a aula "${aula.titulo}", é obrigatório avaliar e atribuir nota (de 1 a 10) para todas as ${pendentes.length} missão(ões) realizada(s) pelos colaboradores na aula anterior!`,
-                        codigo: 'MISSOES_ANTERIORES_PENDENTES',
-                        aula_anterior_id: pendentes[0].aula_id,
-                        pendentes
-                    });
-                }
             }
 
             await dbRun(
@@ -1313,8 +1323,21 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
 
             const presMap = {};
             presRows.forEach(p => { presMap[p.colaborador_id] = p; });
+            const perguntas = parseJson(aula.perguntas_json, []);
             const testeMap = {};
-            testesRows.forEach(t => { testeMap[t.colaborador_id] = { ...t, respostas: parseJson(t.respostas_json, {}) }; });
+            testesRows.forEach(t => {
+                const respostas = parseJson(t.respostas_json, {});
+                let acertos = 0;
+                if (perguntas.length > 0 && respostas && Object.keys(respostas).length > 0) {
+                    perguntas.forEach(q => {
+                        const rIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
+                        if (rIdx === Number(q.correta_idx)) acertos += 1;
+                    });
+                } else {
+                    acertos = Number(t.pontos_calculados || 0);
+                }
+                testeMap[t.colaborador_id] = { ...t, respostas, acertos, TotalPerguntas: perguntas.length, pontos_calculados: acertos };
+            });
             const missaoMap = {};
             missoesRows.forEach(m => { missaoMap[`${m.colaborador_id}_${m.missao_id}`] = { ...m, respostas: parseJson(m.respostas_json, {}) }; });
 
@@ -1322,10 +1345,8 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             arquivosRows.forEach(ar => {
                 const k = `${ar.colaborador_id}_${ar.missao_id}`;
                 if (!arqMap[k]) arqMap[k] = [];
-                arqMap[k].push({ ...ar, url: r2StreamUrl(ar.r2_key) });
+                arqMap[k].push({ ...ar, nome_arquivo: corrigirMojibakeNome(ar.nome_arquivo), url: r2StreamUrl(ar.r2_key) });
             });
-
-            const perguntas = parseJson(aula.perguntas_json, []);
             const missoes = parseJson(aula.missoes_json, []).map(m => ({
                 ...m,
                 pdf_url: m.pdf_r2_key ? r2StreamUrl(m.pdf_r2_key) : null
@@ -1375,8 +1396,8 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const notaGestor = parseFloat(req.body.nota_gestor);
             const feedbackGestor = String(req.body.feedback_gestor || '').trim();
 
-            if (!aulaId || !colaboradorId || !missaoId || isNaN(notaGestor) || notaGestor < 1 || notaGestor > 10) {
-                return res.status(400).json({ error: 'Informe uma nota válida de 1 a 10 para avaliar a missão do colaborador.' });
+            if (!aulaId || !colaboradorId || !missaoId || isNaN(notaGestor) || (notaGestor !== 0 && notaGestor !== 1)) {
+                return res.status(400).json({ error: 'Selecione se a missão foi Cumprida (1 ponto) ou Não cumprida (0 ponto).' });
             }
 
             const aula = await dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
@@ -1778,14 +1799,14 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const respostas = req.body.respostas || {};
             const perguntas = parseJson(aula.perguntas_json, []);
 
-            // Soma dos pontos (1 a 10 por pergunta acertada — NÃO é média!)
+            // Cada pergunta respondida em aula vale 1 ponto quando acertar e 0 quando errar
             let somaPontos = 0;
             let acertos = 0;
             perguntas.forEach(q => {
                 const respIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
                 if (respIdx === Number(q.correta_idx)) {
                     acertos++;
-                    somaPontos += Math.max(1, Math.min(10, Number(q.nota_pontos || 1)));
+                    somaPontos += 1;
                 }
             });
 
@@ -1825,19 +1846,20 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 return res.status(403).json({ error: 'Missão bloqueada: é necessário ter presença confirmada nesta aula.' });
             }
 
-            const r2Key = await salvarNoR2(`EntregasMissoes/Curso_${aula.curso_id}/Aula_${aulaId}`, req.file.originalname, req.file.buffer, req.file.mimetype);
+            const nomeOriginal = extrairNomeOriginalUpload(req, req.file);
+            const r2Key = await salvarNoR2(`EntregasMissoes/Curso_${aula.curso_id}/Aula_${aulaId}`, nomeOriginal, req.file.buffer, req.file.mimetype);
             const ins = await dbRun(
                 `INSERT INTO uniamerica_missao_arquivos
                  (curso_id, aula_id, missao_id, colaborador_id, campo_id, nome_arquivo, tipo_mime, tamanho_bytes, r2_key)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [aula.curso_id, aulaId, missaoId, colab.id, campoId, req.file.originalname, req.file.mimetype || 'application/octet-stream', req.file.size || 0, r2Key]
+                [aula.curso_id, aulaId, missaoId, colab.id, campoId, nomeOriginal, req.file.mimetype || 'application/octet-stream', req.file.size || 0, r2Key]
             );
 
             res.json({
                 ok: true,
                 arquivo_id: ins.lastID,
                 campo_id: campoId,
-                nome_arquivo: req.file.originalname,
+                nome_arquivo: nomeOriginal,
                 tipo_mime: req.file.mimetype,
                 r2_key: r2Key,
                 url: r2StreamUrl(r2Key)
