@@ -3513,10 +3513,18 @@ async function loadDashboard() {
         const tbAso = document.getElementById('dash-table-aso');
         if (tbAso) {
             tbAso.innerHTML = '';
-            if (!chartsData.asoVencendo || chartsData.asoVencendo.length === 0) {
+            const listaAsoFiltrada = (chartsData.asoVencendo || []).filter(a => {
+                const nm = String(a.nome || '').toLowerCase().trim();
+                const tc = String(a.tipo_contrato || '').toLowerCase().trim();
+                const st = String(a.colab_status || a.status || '').toLowerCase().trim();
+                if (nm.includes('thais ricci')) return false;
+                if (tc.includes('servi') || st.includes('servi')) return false;
+                return true;
+            });
+            if (listaAsoFiltrada.length === 0) {
                 tbAso.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;font-style:italic;">Nenhum ASO a vencer em 30 dias.</td></tr>';
             } else {
-                chartsData.asoVencendo.forEach(a => {
+                listaAsoFiltrada.forEach(a => {
                     let agendadoDisplay = '<span style="color:#999;font-size:0.8rem;">Não registrado</span>';
                     if (a.aso_exame_data) {
                         agendadoDisplay = `<span style="color:#166534;font-weight:600;"><i class="ph ph-calendar-check"></i> ${a.aso_exame_data}</span>`;
@@ -3608,7 +3616,7 @@ async function loadDashboard() {
     const tbAniver = document.getElementById('dash-table-aniversariantes');
     if (tbAniver) {
         try {
-            const cols = await apiGet('/colaboradores');
+            const cols = await apiGet('/colaboradores?incluir_servico=1');
             tbAniver.innerHTML = '';
             window._aniversariantesCols = cols;
             window.mesAtualAniversariantes = new Date().getMonth() + 1;
@@ -4724,7 +4732,7 @@ window.devAnonimizarTodosColaboradores = async function() {
 // ── fim [DEV] ──────────────────────────────────────────────────────────────
 
 
-window.toggleContratoServico = function (tipoContrato) {
+window.toggleContratoServico = function (tipoContrato, fromSelectChange) {
     const isServico = String(tipoContrato || '').trim().toLowerCase() === 'serviço' || String(tipoContrato || '').trim().toLowerCase() === 'servico';
     const cargoInput = document.getElementById('colab-cargo');
     const cargoList = document.getElementById('colab-cargo-list');
@@ -4766,8 +4774,8 @@ window.toggleContratoServico = function (tipoContrato) {
     const statusInput = document.getElementById('colab-status');
     const curStatus = statusInput ? statusInput.value : '';
     if (isServico) {
-        if (curStatus !== 'Desligado') {
-            updateStatusChip('Serviço');
+        if (fromSelectChange || curStatus !== 'Desligado') {
+            updateStatusChip('Serviço', true);
         }
     } else if (curStatus === 'Serviço') {
         const hasId = !!(document.getElementById('colab-id') && document.getElementById('colab-id').value);
@@ -9857,10 +9865,10 @@ function getEffectiveStatus(c) {
 }
 
 window.updateStatusChip = updateStatusChip;
-function updateStatusChip(val) {
+function updateStatusChip(val, forceServico) {
     const contratoEl = document.getElementById('colab-contrato');
     const isServico = contratoEl && (String(contratoEl.value || '').trim().toLowerCase() === 'serviço' || String(contratoEl.value || '').trim().toLowerCase() === 'servico');
-    if (isServico && val !== 'Desligado') {
+    if (isServico && (forceServico || val !== 'Desligado')) {
         val = 'Serviço';
     }
     const chipServico = document.getElementById('status-chip-servico');

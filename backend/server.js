@@ -1426,6 +1426,19 @@ db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE 
     else console.log('[MIGRATION] Docs Ordem de Servico removidos dos prontuarios.');
 });
 
+// MIGRATION: Garantir que colaboradores com tipo_contrato = Serviço que estavam como Desligado passem para status = Serviço (12/11/2026)
+db.run(`CREATE TABLE IF NOT EXISTS _migrations_applied (key TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
+    db.get(`SELECT key FROM _migrations_applied WHERE key = 'fix_servico_status_20261112'`, [], (errM, rowM) => {
+        if (!errM && !rowM) {
+            db.run(`/* INCLUIR_SERVICO */ UPDATE colaboradores SET status = 'Serviço', cargo = '' WHERE LOWER(TRIM(COALESCE(tipo_contrato, ''))) IN ('serviço', 'servico') AND status = 'Desligado'`, (errU) => {
+                if (!errU) {
+                    db.run(`INSERT OR IGNORE INTO _migrations_applied (key) VALUES ('fix_servico_status_20261112')`);
+                }
+            });
+        }
+    });
+});
+
 // MIGRATION: Remover " - Total" dos grupos de permissão
 db.run("UPDATE OR IGNORE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
     if (err) console.error("Erro ao atualizar grupos:", err);
@@ -4510,12 +4523,15 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
             // Considera apenas o ASO MAIS RECENTE (maior vencimento) de cada colaborador:
             // ASOs antigos ja substituidos por um novo nao geram alerta.
             const query = `
-                SELECT c.id, c.nome_completo as nome, c.status as colab_status, d.vencimento, c.aso_email_enviado, c.aso_exame_data
+                SELECT c.id, c.nome_completo as nome, c.status as colab_status, c.tipo_contrato, d.vencimento, c.aso_email_enviado, c.aso_exame_data
                 FROM documentos d
                 JOIN colaboradores c ON c.id = d.colaborador_id
                 WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
                   AND d.vencimento IS NOT NULL
                   AND d.vencimento != ''
+                  AND COALESCE(LOWER(TRIM(c.tipo_contrato)), '') NOT IN ('serviço', 'servico')
+                  AND COALESCE(LOWER(TRIM(c.status)), '') NOT IN ('serviço', 'servico', 'desligado', 'aguardando início', 'aguardando inicio')
+                  AND LOWER(TRIM(c.nome_completo)) NOT LIKE '%thais ricci%'
             `;
             db.all(query, [], (err, rows) => {
                 if (err) return reject(err);
@@ -4539,7 +4555,9 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                 const melhor = new Map();
                 rows.forEach(r => {
                     const st = String(r.colab_status || '').toLowerCase().trim();
-                    if (st.includes('deslig') || st.includes('aguardando')) return;
+                    const tc = String(r.tipo_contrato || '').toLowerCase().trim();
+                    const nm = String(r.nome || '').toLowerCase().trim();
+                    if (st.includes('deslig') || st.includes('aguardando') || st.includes('servi') || tc.includes('servi') || nm.includes('thais ricci')) return;
                     const iso = toIso(r.vencimento);
                     if (!iso) return;
                     const atual = melhor.get(r.id);
