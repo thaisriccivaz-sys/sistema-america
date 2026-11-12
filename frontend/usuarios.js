@@ -275,10 +275,7 @@ window.abrirFormUsuario = async function(userId = null) {
         try {
             const res = await fetch(`${API_URL}/colaboradores?incluir_servico=1`, { headers: { Authorization: `Bearer ${currentToken}` } });
             const all = await res.json();
-            const ativos = all.filter(c => {
-                const isServ = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
-                return c.status !== 'Desligado' || isServ;
-            });
+            const ativos = all.filter(c => String(c.status || '').trim() !== 'Desligado');
             
             const colabOptions = ativos.map(c => {
                 const isVinculado = _permUsuarios.some(u => u.nome === c.nome_completo && u.ativo === 1);

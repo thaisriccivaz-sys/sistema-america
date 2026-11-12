@@ -1261,6 +1261,9 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
             const aulaId = parseInt(req.params.aulaId, 10);
             const aula = await dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
             if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
+            if (aula.status_aula === 'concluida') {
+                return res.status(409).json({ error: 'A presença não pode ser editada após a conclusão da aula.' });
+            }
 
             // Aceita tanto atualização individual { colaborador_id, presente } quanto em lote { presencas: [{colaborador_id, presente}] }
             const itens = Array.isArray(req.body.presencas)

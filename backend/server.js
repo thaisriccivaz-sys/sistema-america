@@ -5352,6 +5352,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const data = req.body;
     if (String(data.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(data.tipo_contrato || '').trim().toLowerCase() === 'servico') {
         data.cargo = '';
+        data.status = (String(data.status || '').trim() === 'Desligado') ? 'Desligado' : 'Serviço';
     }
     const nomeOriginal = data.nome_completo || data.nome;
 
@@ -6014,6 +6015,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
     if (String(data.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(data.tipo_contrato || '').trim().toLowerCase() === 'servico') {
         data.cargo = '';
+        data.status = (String(data.status || '').trim() === 'Desligado') ? 'Desligado' : 'Serviço';
     }
 
     if (('email' in data && !data.email) || ('telefone' in data && !data.telefone)) {
@@ -16998,6 +17000,8 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                  FROM colaboradores c
                  LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                  WHERE c.status != 'Desligado'
+                   AND COALESCE(TRIM(c.status), '') NOT IN ('Serviço', 'SERVIÇO', 'serviço', 'Servico', 'SERVICO', 'servico')
+                   AND COALESCE(TRIM(c.tipo_contrato), '') NOT IN ('Serviço', 'SERVIÇO', 'serviço', 'Servico', 'SERVICO', 'servico')
                  ORDER BY c.nome_completo ASC`,
                 [],
                 (err2, colabs) => {
@@ -19348,7 +19352,7 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
             ORDER BY u.nome`, [], (err, usuarios) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
             if (errC) return res.json(usuarios);
             
             const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";

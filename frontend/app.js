@@ -3868,9 +3868,8 @@ function aplicarFiltrosColaboradores() {
 
         if (f.tipoCadastro && getEffectiveStatus(c) !== f.tipoCadastro) return false;
 
-        // Ocultar Desligados por padrão — exceto contrato 'Serviço' que deve aparecer no cadastro de colaboradores
-        const isContratoServico = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico';
-        if (!f.tipoCadastro && getEffectiveStatus(c) === 'Desligado' && !isContratoServico) return false;
+        // Ocultar apenas Desligados por padrão (no botão Todos aparecem todos os demais, inclusive Serviço)
+        if (!f.tipoCadastro && getEffectiveStatus(c) === 'Desligado') return false;
 
         const salColab = parseCurrency(c.salario);
         if (f.salMin !== null && salColab < f.salMin) return false;
@@ -4299,6 +4298,7 @@ function renderColaboradores(lista) {
             <button class="btn-tipo-cadastro" data-status="Ativo" onclick="selecionarTipoCadastro(this, 'Ativo')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#e8f5e9; color:#196b36; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-check-circle"></i> Ativo</button>
             <button class="btn-tipo-cadastro" data-status="Afastado" onclick="selecionarTipoCadastro(this, 'Afastado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#faeed9; color:#eaa15f; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-first-aid"></i> Afastado</button>
             <button class="btn-tipo-cadastro" data-status="Férias" onclick="selecionarTipoCadastro(this, 'Férias')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#ffedd5; color:#c2410c; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-airplane-tilt"></i> Férias</button>
+            <button class="btn-tipo-cadastro" data-status="Serviço" onclick="selecionarTipoCadastro(this, 'Serviço')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#ede9fe; color:#6d28d9; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-briefcase"></i> Serviço</button>
             <button class="btn-tipo-cadastro" data-status="Desligado" onclick="selecionarTipoCadastro(this, 'Desligado')" style="padding:0.25rem 0.65rem; border:none; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; background:#fceeee; color:#ba7881; display:flex; gap:3px; align-items:center; transition:0.2s; opacity:0.5; white-space:nowrap;"><i class="ph ph-x-circle"></i> Desligado</button>
 
             <div style="width:1px; height:20px; background:#e2e8f0; flex-shrink:0; margin:0 2px;"></div>
@@ -4540,6 +4540,7 @@ function renderTabelaColaboradores(lista) {
         else if (effectiveStatus === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
         else if (effectiveStatus === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
         else if (effectiveStatus === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
+        else if (effectiveStatus === 'Serviço') statusHtml = `<div style="background:#ede9fe;color:#6d28d9;border:2px solid #7c3aed;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-briefcase"></i> Serviço</div>`;
         else if (effectiveStatus === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         else if (effectiveStatus === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
         else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
@@ -4747,6 +4748,31 @@ window.toggleContratoServico = function (tipoContrato) {
             cargoInput.style.cursor = '';
         }
     }
+    const chipServico = document.getElementById('status-chip-servico');
+    if (chipServico) {
+        chipServico.style.display = isServico ? 'inline-flex' : 'none';
+    }
+    document.querySelectorAll('#status-chips-container .status-chip').forEach(chip => {
+        const val = chip.getAttribute('data-value');
+        if (val === 'Serviço') {
+            chip.style.display = isServico ? 'inline-flex' : 'none';
+            chip.style.pointerEvents = 'none';
+            chip.style.cursor = 'default';
+        } else if (val !== 'Desligado') {
+            chip.style.pointerEvents = isServico ? 'none' : '';
+            chip.style.cursor = isServico ? 'default' : '';
+        }
+    });
+    const statusInput = document.getElementById('colab-status');
+    const curStatus = statusInput ? statusInput.value : '';
+    if (isServico) {
+        if (curStatus !== 'Desligado') {
+            updateStatusChip('Serviço');
+        }
+    } else if (curStatus === 'Serviço') {
+        const hasId = !!(document.getElementById('colab-id') && document.getElementById('colab-id').value);
+        updateStatusChip(hasId ? 'Ativo' : 'Aguardando início');
+    }
 };
 
 window.resetFormColaborador = function () {
@@ -4821,6 +4847,7 @@ window.resetFormColaborador = function () {
     const titleEl = document.getElementById('form-colab-title');
     if (titleEl) titleEl.textContent = 'Cadastrar Colaborador';
 
+    if (typeof window.toggleContratoServico === 'function') window.toggleContratoServico('CLT');
     // Reset status badges (no longer used, but good to clean if they were there)
     const statusContainer = document.getElementById('status-chips-container');
     if (statusContainer) {
@@ -5644,9 +5671,14 @@ if (formColab) {
         };
 
         let c_status = statusInput ? statusInput.value : 'Aguardando início';
-        if (!id) {
+        const isContratoServicoSubmit = String(data.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(data.tipo_contrato || '').trim().toLowerCase() === 'servico';
+        if (isContratoServicoSubmit) {
+            c_status = (c_status === 'Desligado') ? 'Desligado' : 'Serviço';
+        } else if (!id) {
             // Todos novos registros iniciam como Aguardando início
             c_status = 'Aguardando início';
+        } else if (c_status === 'Serviço') {
+            c_status = 'Ativo';
         }
         data.status = c_status;
 
@@ -5801,6 +5833,7 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
         else if (s === 'Ativo') statusHtml = `<div style="background:#e8f5e9;color:#196b36;border:2px solid #196b36;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-check-circle"></i> Ativo</div>`;
         else if (s === 'Férias') statusHtml = `<div style="background:#ffedd5;color:#c2410c;border:2px solid #c2410c;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-airplane-tilt"></i> Férias</div>`;
         else if (s === 'Afastado') statusHtml = `<div style="background:#faeed9;color:#eaa15f;border:2px solid #eaa15f;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-first-aid"></i> Afastado</div>`;
+        else if (s === 'Serviço') statusHtml = `<div style="background:#ede9fe;color:#6d28d9;border:2px solid #7c3aed;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-briefcase"></i> Serviço</div>`;
         else if (s === 'Desligado') statusHtml = `<div style="background:#fceeee;color:#ba7881;border:2px solid #ba7881;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-x-circle"></i> Desligado</div>`;
         else if (s === 'Incompleto') statusHtml = `<div style="background:#f8f9fa;color:#6c757d;border:2px solid transparent;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-pencil-simple"></i> Incompleto</div>`;
         else statusHtml = `<div style="background:#f1f3f5;color:#495057;border:2px solid #adb5bd;border-radius:20px;font-weight:600;padding:2px 10px;display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;"><i class="ph ph-clock"></i> Aguardando</div>`;
@@ -9787,6 +9820,13 @@ window.downloadAssinado = async function (docId) {
 function getEffectiveStatus(c) {
     if (!c) return 'Ativo';
     let status = c.status || 'Ativo';
+    const isServico = String(c.tipo_contrato || '').trim().toLowerCase() === 'serviço'
+        || String(c.tipo_contrato || '').trim().toLowerCase() === 'servico'
+        || String(status).trim().toLowerCase() === 'serviço'
+        || String(status).trim().toLowerCase() === 'servico';
+    if (isServico) {
+        return String(status).trim() === 'Desligado' ? 'Desligado' : 'Serviço';
+    }
 
     // Se está "Ativo" ou "Férias", verificamos as datas para saber se deve mostrar Férias
     if (status === 'Ativo' || status === 'Férias') {
@@ -9818,9 +9858,17 @@ function getEffectiveStatus(c) {
 
 window.updateStatusChip = updateStatusChip;
 function updateStatusChip(val) {
+    const contratoEl = document.getElementById('colab-contrato');
+    const isServico = contratoEl && (String(contratoEl.value || '').trim().toLowerCase() === 'serviço' || String(contratoEl.value || '').trim().toLowerCase() === 'servico');
+    if (isServico && val !== 'Desligado') {
+        val = 'Serviço';
+    }
+    const chipServico = document.getElementById('status-chip-servico');
+    if (chipServico) {
+        chipServico.style.display = isServico ? 'inline-flex' : 'none';
+    }
     document.querySelectorAll('.status-chip').forEach(c => {
         c.classList.remove('active');
-        // c.style.display = 'none'; // Mantido visível para permitir a seleção
     });
     const target = document.querySelector(`.status-chip[data-value="${val}"]`);
     if (target) {

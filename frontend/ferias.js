@@ -330,6 +330,11 @@
             }
             _allColabs = Array.isArray(data) ? data : (data && (data.colaboradores || data.data || []));
             if (!Array.isArray(_allColabs)) _allColabs = [];
+            _allColabs = _allColabs.filter(c => {
+                const tc = String(c.tipo_contrato || '').trim().toLowerCase();
+                const st = String(c.status || '').trim().toLowerCase();
+                return tc !== 'serviço' && tc !== 'servico' && st !== 'serviço' && st !== 'servico';
+            });
             preencherFiltros();
             feriasFiltrar();
         } catch (e) {

@@ -593,6 +593,7 @@
                 const aulasRestantes = Math.max(0, totalAulas - aulasFeitas);
                 const progressoPct = totalAulas > 0 ? Math.round((aulasFeitas / totalAulas) * 100) : 0;
                 const prontoIniciar = !!c.pronto_para_iniciar;
+                const cursoConcluido = c.status === 'concluido' || (totalAulas > 0 && aulasFeitas >= totalAulas);
 
                 return `
                     <div class="ua-card-curso">
@@ -613,9 +614,6 @@
                             <div style="font-size:1.06rem;font-weight:700;color:#0f172a;">${esc(c.nome)}</div>
                             ${c.descricao ? `<div style="font-size:0.84rem;color:#64748b;line-height:1.45;">${esc(c.descricao.slice(0, 140))}${c.descricao.length > 140 ? '...' : ''}</div>` : ''}
                             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;">
-                                <span class="ua-badge" style="background:#f1f5f9;color:#334155;">
-                                    <i class="ph ph-buildings"></i> ${esc(c.departamentos || 'Vínculo individual')}
-                                </span>
                                 <span class="ua-badge" style="background:#eef2ff;color:#4338ca;">
                                     <i class="ph ph-users"></i> ${c.total_participantes || 0} participante(s)
                                 </span>
@@ -653,6 +651,11 @@
                                     <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
                                         <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
                                     </button>
+                                    ${cursoConcluido ? `
+                                        <button class="ua-btn ua-btn-ghost" title="Ver Ranking e Certificados do Curso" onclick="window._uaAbrirModalRankingCurso(${c.id})" style="color:#d97706;border-color:#fde68a;background:#fffbeb;">
+                                            <i class="ph ph-trophy"></i>
+                                        </button>
+                                    ` : ''}
                                     <button class="ua-btn ua-btn-ghost" title="Duplicar Curso (copia arquivos, perguntas, missões e prêmios sem colaboradores vinculados)" onclick="window._uaDuplicarCurso(${c.id})">
                                         <i class="ph ph-copy"></i>
                                     </button>
@@ -2264,10 +2267,7 @@
 
             const anexos = Array.isArray(aulaAlvo.anexos) ? aulaAlvo.anexos : [];
             const todasConcluidas = (quadro && quadro.todas_aulas_concluidas) || (aulas.length > 0 && aulas.every(a => a.status_aula === 'concluida')) || curso.status === 'concluido';
-
-            if (!abaInicialOpcional && todasConcluidas && (!_playEstado || Number(_playEstado.curso.id) !== Number(cursoId))) {
-                abaPlay = 'ranking';
-            }
+            if (abaPlay === 'ranking') abaPlay = 'aula';
 
             _playEstado = {
                 curso,
@@ -2645,11 +2645,6 @@
                                 ${missoesPendAnterior > 0 ? `<span class="ua-badge" style="background:#ea580c;color:#fff;margin-left:4px;">${missoesPendAnterior}</span>` : ''}
                             </button>
                         ` : ''}
-                        ${todasConcluidas ? `
-                            <button type="button" class="ua-tab ${abaPlay === 'ranking' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('ranking')" style="${abaPlay !== 'ranking' ? 'border-color:#86efac;background:#f0fdf4;color:#15803d;' : ''}">
-                                <i class="ph ph-trophy"></i> Ranking & Certificados
-                            </button>
-                        ` : ''}
                     </div>
 
                     ${abaPlay === 'avaliar_formulario'
@@ -2721,8 +2716,10 @@
                                            placeholder="Buscar colaborador..."
                                            value="${esc(buscaPresenca)}"
                                            oninput="window._uaFiltrarPresencaPlay(this.value)">
-                                    <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(true)">Todos</button>
-                                    <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(false)">Limpar</button>
+                                    ${aula.status_aula !== 'concluida' ? `
+                                        <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(true)">Todos</button>
+                                        <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(false)">Limpar</button>
+                                    ` : ''}
                                 </div>
                                 <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
                                     <table class="ua-table">
@@ -2735,14 +2732,14 @@
                                         <tbody>
                                             ${visiveis.length === 0 ? `<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:18px;">Nenhum colaborador encontrado.</td></tr>` :
                                                 visiveis.map(p => `
-                                                    <tr style="cursor:pointer;" onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})">
+                                                    <tr style="cursor:${aula.status_aula === 'concluida' ? 'default' : 'pointer'};" ${aula.status_aula === 'concluida' ? '' : `onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})"`}>
                                                         <td>
                                                             <div style="font-weight:600;color:#0f172a;font-size:0.84rem;">${esc(p.nome_completo)}</div>
                                                             <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')}${p.cargo ? ' • ' + esc(p.cargo) : ''}</div>
                                                         </td>
                                                         <td style="text-align:center;" onclick="event.stopPropagation();">
-                                                            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
-                                                                <input type="checkbox" ${p.presente ? 'checked' : ''} onchange="window._uaTogglePresencaPlay(${p.colaborador_id}, this.checked)">
+                                                            <label style="display:inline-flex;align-items:center;gap:5px;cursor:${aula.status_aula === 'concluida' ? 'default' : 'pointer'};padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
+                                                                <input type="checkbox" ${p.presente ? 'checked' : ''} ${aula.status_aula === 'concluida' ? 'disabled' : `onchange="window._uaTogglePresencaPlay(${p.colaborador_id}, this.checked)"`}>
                                                                 ${p.presente ? 'Presente' : 'Ausente'}
                                                             </label>
                                                         </td>
@@ -2751,9 +2748,15 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <button type="button" class="ua-btn ua-btn-success" style="width:100%;justify-content:center;" id="ua-btn-salvar-presenca-play" onclick="window._uaSalvarPresencaPlay()">
-                                    <i class="ph ph-floppy-disk"></i> Salvar Lista de Presença (${presentesQtd}/${listaPresenca.length})
-                                </button>
+                                ${aula.status_aula === 'concluida' ? `
+                                    <div style="padding:10px 12px;border-radius:10px;background:#f1f5f9;color:#475569;text-align:center;font-size:0.8rem;font-weight:600;">
+                                        <i class="ph ph-lock-key"></i> Aula concluída — a presença não pode mais ser editada
+                                    </div>
+                                ` : `
+                                    <button type="button" class="ua-btn ua-btn-success" style="width:100%;justify-content:center;" id="ua-btn-salvar-presenca-play" onclick="window._uaSalvarPresencaPlay()">
+                                        <i class="ph ph-floppy-disk"></i> Salvar Lista de Presença (${presentesQtd}/${listaPresenca.length})
+                                    </button>
+                                `}
                             </div>
                         </div>
                     `}
@@ -2763,11 +2766,7 @@
                     <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window.renderUniAmericaGestao();">
                         Fechar Apresentação
                     </button>
-                    ${todasConcluidas && abaPlay !== 'ranking' ? `
-                        <button type="button" class="ua-btn ua-btn-success" onclick="window._uaMudarAbaPlay('ranking')">
-                            <i class="ph ph-trophy"></i> Ver Ranking & Certificados
-                        </button>
-                    ` : ''}
+
                     ${aula.status_aula !== 'concluida' ? `
                         <button type="button" class="ua-btn ua-btn-primary" onclick="window._uaConcluirAulaPlay(${aula.id})">
                             <i class="ph ph-check-circle"></i> ${ehUltimaAulaNaoConcluida ? `Concluir Aula ${aula.ordem} e Finalizar Curso` : `Concluir Aula ${aula.ordem}`}
@@ -2812,18 +2811,18 @@
         desenharModalPlayCurso();
     };
     window._uaTogglePresencaPlay = function (colabId, checked) {
-        if (!_playEstado) return;
+        if (!_playEstado || (_playEstado.aula && _playEstado.aula.status_aula === 'concluida')) return;
         const it = _playEstado.listaPresenca.find(x => x.colaborador_id === colabId);
         if (it) it.presente = checked;
         desenharModalPlayCurso();
     };
     window._uaMarcarTodosPresencaPlay = function (val) {
-        if (!_playEstado) return;
+        if (!_playEstado || (_playEstado.aula && _playEstado.aula.status_aula === 'concluida')) return;
         _playEstado.listaPresenca.forEach(x => { x.presente = val; });
         desenharModalPlayCurso();
     };
     window._uaSalvarPresencaPlay = async function (silencioso = false) {
-        if (!_playEstado) return false;
+        if (!_playEstado || (_playEstado.aula && _playEstado.aula.status_aula === 'concluida')) return false;
         const btn = document.getElementById('ua-btn-salvar-presenca-play');
         if (btn) btn.disabled = true;
         try {
@@ -2859,12 +2858,13 @@
             if (!salvou) return;
             const resConc = await api(`/uniamerica/aulas/${aulaId}/concluir`, { method: 'POST', body: {} });
             if (resConc && resConc.curso_concluido) {
-                toastOk('Curso concluído com sucesso! Ranking e Certificados liberados.');
-                await window._uaPlayCurso(_playEstado.curso.id, aulaId, 'ranking');
+                toastOk('Curso concluído com sucesso!');
             } else {
                 toastOk('Aula concluída com sucesso!');
-                await window._uaPlayCurso(_playEstado.curso.id, null, 'aula');
             }
+            // Permanece na tela da aula que foi aplicada (não muda automaticamente para o ranking nem pula de aula)
+            await window._uaPlayCurso(_playEstado.curso.id, aulaId, 'aula');
+            await window.renderUniAmericaGestao();
         } catch (e) {
             msgErro('Erro ao concluir aula', e.message);
         }
@@ -2874,6 +2874,41 @@
         const curso = G.cursos.find(c => (c.aulas || []).some(a => Number(a.id) === Number(aulaId)));
         if (curso) {
             await window._uaPlayCurso(curso.id, aulaId, 'avaliar_formulario');
+        }
+    };
+
+    window._uaAbrirModalRankingCurso = async function (cursoId) {
+        if (!G.isAdmin) return;
+        try {
+            const det = await api(`/uniamerica/cursos/${cursoId}`);
+            const quadro = det.quadro;
+            if (!quadro) {
+                return msgErro('Ranking indisponível', 'Não foi possível carregar o ranking deste curso.');
+            }
+            const old = document.getElementById('ua-modal-ranking-curso');
+            if (old) old.remove();
+            const backdrop = document.createElement('div');
+            backdrop.className = 'ua-modal-backdrop';
+            backdrop.id = 'ua-modal-ranking-curso';
+            backdrop.innerHTML = `
+                <div class="ua-modal" style="max-width:1180px;">
+                    <div class="ua-modal-hd" style="background:#0e7490;color:#fff;">
+                        <h3 style="color:#fff;margin:0;"><i class="ph-fill ph-trophy" style="color:#fbbf24;"></i> Ranking & Certificados — ${esc(det.curso ? det.curso.nome : '')}</h3>
+                        <button class="ua-btn" style="background:rgba(255,255,255,0.15);color:#fff;padding:6px 10px;" onclick="document.getElementById('ua-modal-ranking-curso').remove()">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                    <div class="ua-modal-bd" style="padding:20px;">
+                        ${renderQuadrosRankingInterno([quadro])}
+                    </div>
+                    <div class="ua-modal-ft">
+                        <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-ranking-curso').remove()">Fechar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(backdrop);
+        } catch (e) {
+            msgErro('Erro ao abrir ranking do curso', e.message);
         }
     };
 
@@ -3272,7 +3307,7 @@
                                 ${c.avaliacao_geral_obs ? ` • <em>Avaliação Geral: ${esc(c.avaliacao_geral_obs)}</em>` : ''}
                             </div>
                         </div>
-                        ${G.isAdmin && !document.getElementById('ua-modal-play-curso') ? `
+                        ${G.isAdmin && !document.getElementById('ua-modal-play-curso') && !document.getElementById('ua-modal-ranking-curso') ? `
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirModalPremiosCurso(${c.id})">
                                 <i class="ph ph-gift"></i> Configurar Prêmios (${(q.premios || []).length})
