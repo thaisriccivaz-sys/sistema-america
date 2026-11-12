@@ -260,7 +260,7 @@
                     return;
                 }
                 formDados = data;
-                if (data.respondido) {
+                if (data.respondido || data.prazo_expirado) {
                     renderJaRespondido(data);
                     return;
                 }
@@ -277,6 +277,24 @@
                 return;
             }
             const primeiroNome = String(formDados.colaborador_nome || '').trim().split(' ')[0] || 'Colaborador';
+            const premios = Array.isArray(formDados.premios) ? formDados.premios : [];
+            const premiosBanner = premios.length > 0 ? `
+                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin-bottom:18px;">
+                    <div style="font-size:0.84rem;font-weight:800;color:#92400e;margin-bottom:8px;">🏆 Prêmios deste Curso:</div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        ${premios.map(pr => `
+                            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:6px 10px;">
+                                ${pr.imagem_url ? `<img src="${esc(pr.imagem_url)}" alt="${esc(pr.titulo)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #fde68a;">` : ''}
+                                <div>
+                                    <div style="font-size:0.72rem;font-weight:800;color:#b45309;">${esc(pr.colocacao)}º Lugar</div>
+                                    <div style="font-size:0.82rem;font-weight:700;color:#0f172a;">${esc(pr.titulo)}</div>
+                                    ${pr.recompensa ? `<div style="font-size:0.75rem;font-weight:700;color:#15803d;">${esc(pr.recompensa)}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
 
             let html = `
                 <div class="header">
@@ -294,6 +312,7 @@
                             ${formDados.total_missoes > 0 ? `<br><span style="color:#1e3a8a;">Você também possui <strong>${formDados.total_missoes} missão(ões) da semana</strong> disponíveis na tela <strong>Missões</strong> do sistema!</span>` : ''}
                         </div>
                     </div>
+                    ${premiosBanner}
                     <form id="form-aula-ua" onsubmit="enviarRespostas(event)">
             `;
 
@@ -331,14 +350,24 @@
             const pergs = Array.isArray(formDados.perguntas) ? formDados.perguntas : [];
             const respostas = {};
 
+            let naoRespondidas = 0;
             for (let i = 0; i < pergs.length; i++) {
                 const q = pergs[i];
                 const checked = document.querySelector(`input[name="q_${q.id}"]:checked`);
-                if (!checked) {
-                    alert(`Por favor, selecione uma resposta para a pergunta ${i + 1}.`);
+                if (checked) {
+                    respostas[q.id] = parseInt(checked.value, 10);
+                } else {
+                    naoRespondidas++;
+                }
+            }
+            if (Object.keys(respostas).length === 0) {
+                alert('Selecione pelo menos uma alternativa antes de enviar.');
+                return;
+            }
+            if (naoRespondidas > 0) {
+                if (!confirm(`Você deixou ${naoRespondidas} pergunta(s) sem preencher. As perguntas não preenchidas receberão nota 0 e as preenchidas certas receberão 1 ponto. Deseja enviar assim mesmo?`)) {
                     return;
                 }
-                respostas[q.id] = parseInt(checked.value, 10);
             }
 
             const btn = document.getElementById('btn-submit');
@@ -370,7 +399,8 @@
         }
 
         function renderJaRespondido(data) {
-            const pts = Number(data.pontos_calculados != null ? data.pontos_calculados : (data.acertos || 0));
+            const expirouSemResponder = !data.respondido && !!data.prazo_expirado;
+            const pts = expirouSemResponder ? 0 : Number(data.pontos_calculados != null ? data.pontos_calculados : (data.acertos || 0));
             const total = Number(data.total_perguntas || (data.perguntas ? data.perguntas.length : 0));
             const pergs = Array.isArray(data.perguntas) ? data.perguntas : [];
 
@@ -406,11 +436,11 @@
                     </div>
                     <h1>Aula ${esc(data.aula_ordem || '')}: ${esc(data.aula_titulo || '')}</h1>
                 </div>
-                <div class="message success">
-                    <i class="ph ph-check-circle"></i>
-                    <h2 style="margin:0 0 6px;font-size:1.3rem;color:#0f172a;">Formulário Respondido com Sucesso!</h2>
-                    <p style="margin:0;color:#64748b;font-size:0.92rem;">Sua nota já foi registrada automaticamente no curso.</p>
-                    <div class="score-box">
+                <div class="message ${expirouSemResponder ? 'error' : 'success'}">
+                    <i class="ph ${expirouSemResponder ? 'ph-clock-countdown' : 'ph-check-circle'}"></i>
+                    <h2 style="margin:0 0 6px;font-size:1.3rem;color:#0f172a;">${expirouSemResponder ? 'Prazo Expirado (Próxima Aula Concluída)' : 'Formulário Respondido com Sucesso!'}</h2>
+                    <p style="margin:0;color:#64748b;font-size:0.92rem;">${expirouSemResponder ? 'A próxima aula já foi concluída e não é mais possível preencher este formulário. Pontuação zerada por não conclusão no prazo.' : 'Sua nota já foi registrada automaticamente no curso.'}</p>
+                    <div class="score-box" style="${expirouSemResponder ? 'background:#fef2f2;border-color:#fecaca;color:#dc2626;' : ''}">
                         Nota obtida: ${pts} / ${total} ponto${pts === 1 ? '' : 's'}
                     </div>
                     ${gabaritoHtml}

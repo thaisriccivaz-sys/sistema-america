@@ -402,7 +402,42 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
         });
     }
 
-    // ── Helper: Envio do Formulário da Aula por E-mail (no e-mail particular do colaborador) ──
+    // ── Helper: Verifica se o prazo da aula expirou (expira quando a PRÓXIMA aula do curso é concluída) ──
+    function verificarPrazoExpiradoPorProximaAula(aula, todasAulasOrdenadas, cursoOpcional = null) {
+        if (!aula) return { prazoExpirado: false, proximaAula: null };
+        const lista = Array.isArray(todasAulasOrdenadas) ? todasAulasOrdenadas : [];
+        const idx = lista.findIndex(x => Number(x.id) === Number(aula.id));
+        const proximaAula = (idx >= 0 && idx + 1 < lista.length) ? lista[idx + 1] : null;
+
+        // Se existir próxima aula (ou qualquer aula posterior) e ela já estiver concluída, o prazo expirou!
+        if (idx >= 0 && idx + 1 < lista.length) {
+            const algumaPosteriorConcluida = lista.slice(idx + 1).some(x => x.status_aula === 'concluida');
+            return {
+                prazoExpirado: algumaPosteriorConcluida || (cursoOpcional && cursoOpcional.status === 'concluido'),
+                proximaAula
+            };
+        }
+
+        // Se for a última aula do curso, expira quando a própria última aula ou o curso for concluído
+        const expUltima = aula.status_aula === 'concluida' || (cursoOpcional && cursoOpcional.status === 'concluido');
+        return { prazoExpirado: !!expUltima, proximaAula: null };
+    }
+
+    async function baixarBufferDoR2(r2Key) {
+        if (!r2Key || !r2 || !r2.isReady()) return null;
+        try {
+            const { stream, contentType } = await r2.downloadStreamFromR2(r2Key);
+            const chunks = [];
+            for await (const chunk of stream) {
+                chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            }
+            return { buffer: Buffer.concat(chunks), contentType: contentType || 'image/jpeg' };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // ── Helper: Envio do Formulário da Aula por E-mail (no e-mail particular do colaborador + Prêmios com fotos) ──
     async function enviarEmailFormularioAulaParaColaborador(curso, aula, colabId, opcoes = {}) {
         try {
             if (!aula || !curso || !colabId) return { enviado: false, motivo: 'dados_invalidos' };
@@ -464,12 +499,68 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             const missoes = parseJson(aula.missoes_json, []);
             const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
+            // Buscar prêmios do curso (com fotos no R2) para incluir no corpo do e-mail
+            const premiosCurso = await dbAll(
+                `SELECT * FROM uniamerica_premios WHERE curso_id = ? ORDER BY colocacao ASC`,
+                [curso.id]
+            );
+            const attachments = fs.existsSync(logoPath)
+                ? [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                : [];
+
+            let premiosHtml = '';
+            if (premiosCurso.length > 0) {
+                const cardsPremios = [];
+                for (const pr of premiosCurso) {
+                    const med = Number(pr.colocacao) === 1 ? '🥇 1º Lugar'
+                        : Number(pr.colocacao) === 2 ? '🥈 2º Lugar'
+                        : Number(pr.colocacao) === 3 ? '🥉 3º Lugar'
+                        : `${pr.colocacao}º Lugar`;
+                    let imgTag = '';
+                    if (pr.imagem_r2_key) {
+                        const cidPremio = `premio-curso-${pr.id}`;
+                        const r2Buf = await baixarBufferDoR2(pr.imagem_r2_key);
+                        if (r2Buf && r2Buf.buffer) {
+                            const ext = path.extname(pr.imagem_r2_key) || '.jpg';
+                            attachments.push({
+                                filename: `premio_${pr.colocacao}${ext}`,
+                                content: r2Buf.buffer,
+                                contentType: r2Buf.contentType,
+                                cid: cidPremio
+                            });
+                            imgTag = `<img src="cid:${cidPremio}" alt="${pr.titulo}" style="width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid #fde68a;display:block;margin-right:12px;flex-shrink:0;">`;
+                        } else {
+                            const pubImgUrl = `${baseUrl}/api/public/uniamerica-premio-imagem/${pr.id}`;
+                            imgTag = `<img src="${pubImgUrl}" alt="${pr.titulo}" style="width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid #fde68a;display:block;margin-right:12px;flex-shrink:0;">`;
+                        }
+                    }
+                    cardsPremios.push(`
+                        <div style="display:flex;align-items:center;background:#ffffff;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-top:8px;">
+                            ${imgTag}
+                            <div>
+                                <div style="font-size:12px;font-weight:bold;color:#b45309;margin-bottom:2px;">${med}</div>
+                                <div style="font-size:14px;font-weight:bold;color:#0f172a;">${pr.titulo || ''}</div>
+                                ${pr.recompensa ? `<div style="font-size:13px;font-weight:bold;color:#15803d;margin-top:2px;">${pr.recompensa}</div>` : ''}
+                                ${pr.descricao ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${pr.descricao}</div>` : ''}
+                            </div>
+                        </div>
+                    `);
+                }
+                premiosHtml = `
+                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 16px;margin:20px 0;">
+                        <div style="font-size:14px;font-weight:bold;color:#92400e;margin-bottom:6px;">🏆 Prêmios deste Curso (Ranking Final):</div>
+                        <div style="font-size:12px;color:#78350f;margin-bottom:8px;">Responda os formulários e cumpra as missões até a próxima aula para somar pontos e concorrer aos prêmios:</div>
+                        ${cardsPremios.join('')}
+                    </div>
+                `;
+            }
+
             if (typeof sendMailHelper === 'function') {
                 await sendMailHelper({
                     to: emailDestino,
                     subject: `Formulário da Aula ${aula.ordem}: ${aula.titulo} - ${curso.nome}`,
-                    html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;"><div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Formulário da Aula ${aula.ordem} — ${curso.nome}</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Sua participação na <strong>Aula ${aula.ordem}: ${aula.titulo}</strong> do treinamento <strong>${curso.nome}</strong> (UniAmérica) foi confirmada!</p><p>Clique no botão abaixo para responder ao formulário desta aula (cada resposta certa soma <strong>1 ponto</strong> na sua nota do curso):</p><div style="text-align:center;margin:28px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Formulário da Aula</a></div>${missoes.length > 0 ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin:18px 0;font-size:13px;color:#1e3a8a;"><strong>Missões da Semana:</strong> Esta aula também possui <strong>${missoes.length} missão(ões)</strong> disponíveis para você preencher na tela <strong>Missões</strong> (menu Treinamentos / APP › Missões) no sistema. O formulário acima também pode ser respondido diretamente pela tela Missões!</div>` : `<p style="font-size:13px;color:#475569;">Você também pode responder a este formulário diretamente pela tela <strong>Missões</strong> no sistema.</p>`}<p style="color:#666;font-size:12px;">Se o botão não funcionar, copie e cole este link no navegador:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático enviado pela UniAmérica - América Rental.</p></div></div></body></html>`,
-                    attachments: fs.existsSync(logoPath) ? [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] : []
+                    html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;"><div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Formulário da Aula ${aula.ordem} — ${curso.nome}</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Sua participação na <strong>Aula ${aula.ordem}: ${aula.titulo}</strong> do treinamento <strong>${curso.nome}</strong> (UniAmérica) foi confirmada!</p><p>Clique no botão abaixo para responder ao formulário desta aula (cada resposta certa soma <strong>1 ponto</strong> na sua nota do curso). <strong>Atenção:</strong> o preenchimento deve ser realizado antes da conclusão da próxima aula:</p><div style="text-align:center;margin:26px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Formulário da Aula</a></div>${premiosHtml}${missoes.length > 0 ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin:18px 0;font-size:13px;color:#1e3a8a;"><strong>Missões da Aula:</strong> Esta aula também possui <strong>${missoes.length} missão(ões)</strong> disponíveis para você preencher na tela <strong>Missões</strong> (menu Treinamentos / APP › Missões) até a próxima aula ser concluída!</div>` : `<p style="font-size:13px;color:#475569;">Você também pode responder a este formulário diretamente pela tela <strong>Missões</strong> no sistema.</p>`}<p style="color:#666;font-size:12px;">Se o botão não funcionar, copie e cole este link no navegador:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático enviado pela UniAmérica - América Rental.</p></div></div></body></html>`,
+                    attachments
                 });
             }
 
@@ -1643,8 +1734,24 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  ROTAS PÚBLICAS DO FORMULÁRIO DA AULA ENVIADO POR E-MAIL (TOKEN ÚNICO)
+    //  ROTAS PÚBLICAS DO FORMULÁRIO DA AULA ENVIADO POR E-MAIL (TOKEN ÚNICO + IMAGEM DO PRÊMIO)
     // ═══════════════════════════════════════════════════════════════════════════
+    app.get('/api/public/uniamerica-premio-imagem/:premioId', async (req, res) => {
+        try {
+            const premioId = parseInt(req.params.premioId, 10);
+            const pr = await dbGet(`SELECT * FROM uniamerica_premios WHERE id = ?`, [premioId]);
+            if (!pr || !pr.imagem_r2_key || !r2 || !r2.isReady()) {
+                return res.status(404).send('Imagem não encontrada');
+            }
+            const { stream, contentType } = await r2.downloadStreamFromR2(pr.imagem_r2_key);
+            res.setHeader('Content-Type', contentType || 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            stream.pipe(res);
+        } catch (e) {
+            res.status(404).send('Imagem não disponível');
+        }
+    });
+
     app.get('/api/public/uniamerica-formulario/:token', async (req, res) => {
         try {
             const token = String(req.params.token || '').trim();
@@ -1655,17 +1762,20 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(404).json({ error: 'Formulário não encontrado ou presença não confirmada nesta aula.' });
             }
 
-            const [aula, curso, colab, subTeste] = await Promise.all([
+            const [aula, curso, colab, subTeste, todasAulas, premiosRows] = await Promise.all([
                 dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [pres.aula_id]),
                 dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [pres.curso_id]),
                 dbGet(`SELECT id, nome_completo FROM colaboradores WHERE id = ?`, [pres.colaborador_id]),
-                dbGet(`SELECT * FROM uniamerica_submissoes_teste WHERE aula_id = ? AND colaborador_id = ?`, [pres.aula_id, pres.colaborador_id])
+                dbGet(`SELECT * FROM uniamerica_submissoes_teste WHERE aula_id = ? AND colaborador_id = ?`, [pres.aula_id, pres.colaborador_id]),
+                dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [pres.curso_id]),
+                dbAll(`SELECT * FROM uniamerica_premios WHERE curso_id = ? ORDER BY colocacao ASC`, [pres.curso_id])
             ]);
 
             if (!aula || !curso || !colab) {
                 return res.status(404).json({ error: 'Dados da aula ou do curso não encontrados.' });
             }
 
+            const { prazoExpirado } = verificarPrazoExpiradoPorProximaAula(aula, todasAulas, curso);
             const perguntasRaw = parseJson(aula.perguntas_json, []);
             const missoesRaw = parseJson(aula.missoes_json, []);
             const respostasSalvas = subTeste ? parseJson(subTeste.respostas_json, {}) : {};
@@ -1674,7 +1784,9 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             if (subTeste) {
                 if (perguntasRaw.length > 0 && Object.keys(respostasSalvas).length > 0) {
                     perguntasRaw.forEach(q => {
-                        const rIdx = respostasSalvas[q.id] !== undefined && respostasSalvas[q.id] !== null ? parseInt(respostasSalvas[q.id], 10) : -1;
+                        const rIdx = respostasSalvas[q.id] !== undefined && respostasSalvas[q.id] !== null && respostasSalvas[q.id] !== ''
+                            ? parseInt(respostasSalvas[q.id], 10)
+                            : -1;
                         if (rIdx === Number(q.correta_idx)) acertos += 1;
                     });
                 } else {
@@ -1683,6 +1795,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             }
 
             const nomeLimpo = String(colab.nome_completo || '').replace(/^[💎🥇🥈🥉\s]+/u, '').trim();
+            const mostrarGabarito = !!subTeste || prazoExpirado;
 
             res.json({
                 ok: true,
@@ -1696,15 +1809,24 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 colaborador_nome: nomeLimpo,
                 respondido: !!subTeste,
                 respondido_em: subTeste ? subTeste.enviado_em : null,
+                prazo_expirado: prazoExpirado,
                 acertos,
                 pontos_calculados: acertos,
                 total_perguntas: perguntasRaw.length,
                 total_missoes: missoesRaw.length,
+                premios: premiosRows.map(pr => ({
+                    id: pr.id,
+                    colocacao: pr.colocacao,
+                    titulo: pr.titulo,
+                    recompensa: pr.recompensa,
+                    descricao: pr.descricao,
+                    imagem_url: pr.imagem_r2_key ? `/api/public/uniamerica-premio-imagem/${pr.id}` : null
+                })),
                 perguntas: perguntasRaw.map(q => ({
                     id: q.id,
                     pergunta: q.pergunta,
                     opcoes: q.opcoes || [],
-                    ...(subTeste ? { correta_idx: q.correta_idx, resposta_dada: respostasSalvas[q.id] } : {})
+                    ...(mostrarGabarito ? { correta_idx: q.correta_idx, resposta_dada: respostasSalvas[q.id] } : {})
                 }))
             });
         } catch (e) {
@@ -1722,8 +1844,10 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(404).json({ error: 'Formulário não encontrado ou presença não confirmada nesta aula.' });
             }
 
-            const [aula, jaRespondeu] = await Promise.all([
+            const [aula, curso, todasAulas, jaRespondeu] = await Promise.all([
                 dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [pres.aula_id]),
+                dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [pres.curso_id]),
+                dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [pres.curso_id]),
                 dbGet(`SELECT * FROM uniamerica_submissoes_teste WHERE aula_id = ? AND colaborador_id = ?`, [pres.aula_id, pres.colaborador_id])
             ]);
 
@@ -1732,13 +1856,20 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(400).json({ error: 'Você já enviou suas respostas para o formulário desta aula.' });
             }
 
+            const { prazoExpirado } = verificarPrazoExpiradoPorProximaAula(aula, todasAulas, curso);
+            if (prazoExpirado) {
+                return res.status(403).json({ error: 'Prazo expirado: a próxima aula já foi concluída e não é mais possível preencher o formulário desta aula.' });
+            }
+
             const respostas = req.body.respostas || {};
             const perguntas = parseJson(aula.perguntas_json, []);
 
+            // Se responder apenas parcialmente, as perguntas não preenchidas valem 0 e as preenchidas certas valem 1
             let somaPontos = 0;
             let acertos = 0;
             perguntas.forEach(q => {
-                const respIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
+                const raw = respostas[q.id];
+                const respIdx = (raw !== undefined && raw !== null && raw !== '') ? parseInt(raw, 10) : -1;
                 if (respIdx === Number(q.correta_idx)) {
                     acertos++;
                     somaPontos += 1;
@@ -2049,31 +2180,25 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                     anexosPorAula[an.aula_id].push({ ...an, url: r2StreamUrl(an.r2_key) });
                 });
 
-                const agoraMs = Date.now();
+                // Regra obrigatória: Na tela de missões deve aparecer APENAS os cursos em que o colaborador foi selecionado E teve presença confirmada!
+                const temPresencaConfirmadaNoCurso = presRows.some(p => Number(p.presente) === 1);
+                if (!temPresencaConfirmadaNoCurso) continue;
+
                 const aulasDetalhe = aulas.map(a => {
                     const pr = presMap[a.id];
                     const presente = !!(pr && Number(pr.presente) === 1);
 
-                    // Regra de validade de 1 semana (7 dias) a partir da presença na aula
-                    let expiraEmIso = null;
-                    let prazoExpirado = false;
-                    let diasRestantes = 7;
-                    if (presente && pr.liberado_missao_em) {
-                        const baseMs = new Date(pr.liberado_missao_em.replace(' ', 'T') + (pr.liberado_missao_em.includes('Z') ? '' : 'Z')).getTime() || Date.now();
-                        const fimMs = baseMs + (7 * 24 * 60 * 60 * 1000);
-                        expiraEmIso = new Date(fimMs).toISOString();
-                        prazoExpirado = agoraMs > fimMs;
-                        diasRestantes = Math.max(0, Math.ceil((fimMs - agoraMs) / (24 * 60 * 60 * 1000)));
-                    }
+                    // Regra obrigatória: O colaborador tem até a PRÓXIMA aula ser concluída para preencher as perguntas e missões da aula anterior!
+                    const { prazoExpirado, proximaAula } = verificarPrazoExpiradoPorProximaAula(a, aulas, curso);
 
                     const subTeste = testeMap[a.id] || null;
-                    // Ocultar gabarito para quem ainda não respondeu o teste
+                    const mostrarGabarito = !!subTeste || prazoExpirado;
                     const perguntasPublicas = parseJson(a.perguntas_json, []).map(q => ({
                         id: q.id,
                         pergunta: q.pergunta,
                         opcoes: q.opcoes,
                         nota_pontos: q.nota_pontos,
-                        ...(subTeste ? { correta_idx: q.correta_idx } : {})
+                        ...(mostrarGabarito ? { correta_idx: q.correta_idx } : {})
                     }));
 
                     const missoesPublicas = parseJson(a.missoes_json, []).map(m => {
@@ -2111,15 +2236,17 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                         liberada_para_responder: presente,
                         token_formulario: pr ? pr.token_formulario : null,
                         email_formulario_enviado_em: pr ? pr.email_formulario_enviado_em : null,
-                        expira_em: expiraEmIso,
+                        proxima_aula_ordem: proximaAula ? proximaAula.ordem : null,
+                        proxima_aula_titulo: proximaAula ? proximaAula.titulo : null,
                         prazo_expirado: prazoExpirado,
-                        dias_restantes: diasRestantes,
                         anexos: presente ? (anexosPorAula[a.id] || []) : [],
                         perguntas: perguntasPublicas,
                         submissao_teste: subTeste,
                         missoes: missoesPublicas
                     };
-                });
+                }).filter(a => a.presente);
+
+                if (aulasDetalhe.length === 0) continue;
 
                 meusCursos.push({
                     id: curso.id,
@@ -2182,14 +2309,24 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(400).json({ error: 'Você já enviou suas respostas para o formulário desta aula.' });
             }
 
+            const [cursoRow, todasAulas] = await Promise.all([
+                dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [aula.curso_id]),
+                dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [aula.curso_id])
+            ]);
+            const { prazoExpirado } = verificarPrazoExpiradoPorProximaAula(aula, todasAulas, cursoRow);
+            if (prazoExpirado) {
+                return res.status(403).json({ error: 'Prazo expirado: a próxima aula já foi concluída e não é mais possível preencher o formulário desta aula.' });
+            }
+
             const respostas = req.body.respostas || {};
             const perguntas = parseJson(aula.perguntas_json, []);
 
-            // Cada pergunta respondida em aula vale 1 ponto quando acertar e 0 quando errar
+            // Cada pergunta vale 1 ponto quando acertar e 0 quando errar ou não preenchida
             let somaPontos = 0;
             let acertos = 0;
             perguntas.forEach(q => {
-                const respIdx = respostas[q.id] !== undefined && respostas[q.id] !== null ? parseInt(respostas[q.id], 10) : -1;
+                const raw = respostas[q.id];
+                const respIdx = (raw !== undefined && raw !== null && raw !== '') ? parseInt(raw, 10) : -1;
                 if (respIdx === Number(q.correta_idx)) {
                     acertos++;
                     somaPontos += 1;
@@ -2232,6 +2369,15 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(403).json({ error: 'Missão bloqueada: é necessário ter presença confirmada nesta aula.' });
             }
 
+            const [cursoUp, todasAulasUp] = await Promise.all([
+                dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [aula.curso_id]),
+                dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [aula.curso_id])
+            ]);
+            const { prazoExpirado: expUp } = verificarPrazoExpiradoPorProximaAula(aula, todasAulasUp, cursoUp);
+            if (expUp) {
+                return res.status(403).json({ error: 'Prazo expirado: a próxima aula já foi concluída e não é mais possível enviar arquivos nesta missão.' });
+            }
+
             const nomeOriginal = extrairNomeOriginalUpload(req, req.file);
             const r2Key = await salvarNoR2(`EntregasMissoes/Curso_${aula.curso_id}/Aula_${aulaId}`, nomeOriginal, req.file.buffer, req.file.mimetype);
             const ins = await dbRun(
@@ -2272,12 +2418,14 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 return res.status(403).json({ error: 'As missões desta aula só ficam disponíveis após a confirmação da sua presença na lista de presença.' });
             }
 
-            // Verificar validade de 1 semana (7 dias)
-            if (pres.liberado_missao_em) {
-                const baseMs = new Date(pres.liberado_missao_em.replace(' ', 'T') + (pres.liberado_missao_em.includes('Z') ? '' : 'Z')).getTime();
-                if (!isNaN(baseMs) && Date.now() > baseMs + (7 * 24 * 60 * 60 * 1000)) {
-                    return res.status(403).json({ error: 'O prazo de 1 semana (7 dias) para envio desta missão foi encerrado.' });
-                }
+            // Regra obrigatória: o colaborador tem até a próxima aula ser concluída para enviar as missões da aula anterior
+            const [cursoResp, todasAulasResp] = await Promise.all([
+                dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [aula.curso_id]),
+                dbAll(`SELECT * FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [aula.curso_id])
+            ]);
+            const { prazoExpirado: expMissao } = verificarPrazoExpiradoPorProximaAula(aula, todasAulasResp, cursoResp);
+            if (expMissao) {
+                return res.status(403).json({ error: 'Prazo expirado: a próxima aula já foi concluída e não é mais possível enviar ou editar esta missão.' });
             }
 
             const existente = await dbGet(

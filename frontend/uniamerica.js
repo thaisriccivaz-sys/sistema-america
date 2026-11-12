@@ -415,9 +415,6 @@
                         <p>Desenvolvimento corporativo por departamento, testes em aula, missões semanais, ranking, prêmios e certificados.</p>
                     </div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <button class="ua-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.3);" onclick="window._uaMudarAbaGestao('diagnostico')">
-                            <i class="ph ph-chart-polar"></i> Ver Análises por Departamento
-                        </button>
                         ${G.isAdmin ? `
                             <button class="ua-btn" style="background:#fff;color:#0e7490;font-weight:700;" onclick="window._uaAbrirModalCurso()">
                                 <i class="ph ph-plus-circle"></i> Novo Curso
@@ -661,12 +658,14 @@
                             ` : ''}
 
                             <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;">
-                                <button class="ua-btn ${prontoIniciar ? 'ua-btn-success' : 'ua-btn-ghost'}"
-                                        style="padding:8px 12px;${!G.isAdmin ? 'flex:1;justify-content:center;' : ''}${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
-                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais, lista de presença e avaliar testes/missões' : 'Para iniciar o curso, vincule pelo menos 1 colaborador, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios no curso'}"
-                                        onclick="window._uaPlayCurso(${c.id})">
-                                    <i class="${prontoIniciar ? 'ph-fill ph-play' : 'ph ph-lock-key'}"></i> Iniciar
-                                </button>
+                                ${!cursoConcluido ? `
+                                    <button class="ua-btn ${prontoIniciar ? 'ua-btn-success' : 'ua-btn-ghost'}"
+                                            style="padding:8px 12px;${!G.isAdmin ? 'flex:1;justify-content:center;' : ''}${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
+                                            title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais, lista de presença e avaliar testes/missões' : 'Para iniciar o curso, vincule pelo menos 1 colaborador, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios no curso'}"
+                                            onclick="window._uaPlayCurso(${c.id})">
+                                        <i class="${prontoIniciar ? 'ph-fill ph-play' : 'ph ph-lock-key'}"></i> Iniciar
+                                    </button>
+                                ` : ''}
                                 ${G.isAdmin ? `
                                     <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
                                         <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
@@ -4152,9 +4151,31 @@
                 </div>
 
                 ${(c.premios || []).length > 0 ? `
-                    <div style="padding:10px 24px;background:#fffbeb;border-bottom:1px solid #fde68a;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:0.82rem;color:#92400e;">
-                        <strong><i class="ph ph-gift"></i> Prêmios deste Curso:</strong>
-                        ${c.premios.map(pr => `<span class="ua-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">${pr.colocacao}º Lugar: ${esc(pr.titulo)}${pr.recompensa ? ' (' + esc(pr.recompensa) + ')' : ''}</span>`).join('')}
+                    <div style="padding:14px 24px;background:#fffbeb;border-bottom:1px solid #fde68a;">
+                        <div style="font-size:0.84rem;font-weight:800;color:#92400e;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+                            <i class="ph-fill ph-gift" style="font-size:1.1rem;color:#d97706;"></i> Prêmios deste Curso:
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                            ${c.premios.map(pr => {
+                                const imgUrl = pr.imagem_url ? authMediaUrl(pr.imagem_url) : '';
+                                const med = Number(pr.colocacao) === 1 ? '🥇 1º Lugar'
+                                    : Number(pr.colocacao) === 2 ? '🥈 2º Lugar'
+                                    : Number(pr.colocacao) === 3 ? '🥉 3º Lugar'
+                                    : `${pr.colocacao}º Lugar`;
+                                return `
+                                    <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #fde68a;border-radius:12px;padding:8px 12px;box-shadow:0 2px 6px rgba(217,119,6,0.06);">
+                                        ${imgUrl
+                                            ? `<img src="${esc(imgUrl)}" alt="${esc(pr.titulo)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #fde68a;flex-shrink:0;">`
+                                            : `<div style="width:52px;height:52px;border-radius:8px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;"><i class="ph ph-trophy"></i></div>`}
+                                        <div>
+                                            <div style="font-size:0.74rem;font-weight:800;color:#b45309;">${med}</div>
+                                            <div style="font-size:0.86rem;font-weight:700;color:#0f172a;">${esc(pr.titulo)}</div>
+                                            ${pr.recompensa ? `<div style="font-size:0.78rem;font-weight:700;color:#15803d;">${esc(pr.recompensa)}</div>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
                 ` : ''}
 
@@ -4170,30 +4191,21 @@
         const pergs = aula.perguntas || [];
         const missoes = aula.missoes || [];
         const anexos = aula.anexos || [];
-        const bloqueadaPorPresenca = !aula.presente;
+        const prazoExpirado = !!aula.prazo_expirado;
 
         return `
-            <div style="border:1px solid ${aula.presente ? '#bfdbfe' : '#cbd5e1'};background:${aula.presente ? '#fff' : '#f8fafc'};border-radius:16px;padding:18px 20px;">
+            <div style="border:1px solid ${prazoExpirado ? '#fecaca' : '#bfdbfe'};background:#fff;border-radius:16px;padding:18px 20px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <span class="ua-badge" style="background:${aula.presente ? '#1d4ed8' : '#64748b'};color:#fff;">Aula ${aula.ordem}</span>
+                        <span class="ua-badge" style="background:#1d4ed8;color:#fff;">Aula ${aula.ordem}</span>
                         <h3 style="margin:0;font-size:1.05rem;color:#0f172a;">${esc(aula.titulo)}</h3>
-                        ${aula.presente
-                            ? `<span class="ua-badge" style="background:#dcfce7;color:#15803d;"><i class="ph ph-check-circle"></i> Presença confirmada</span>`
-                            : `<span class="ua-badge" style="background:#fee2e2;color:#b91c1c;"><i class="ph ph-lock-simple"></i> Aguardando confirmação de presença na aula</span>`}
+                        <span class="ua-badge" style="background:#dcfce7;color:#15803d;"><i class="ph ph-check-circle"></i> Presença confirmada</span>
                     </div>
-                    ${aula.presente ? `
-                        <span class="ua-badge" style="background:${aula.prazo_expirado ? '#fee2e2' : '#eff6ff'};color:${aula.prazo_expirado ? '#b91c1c' : '#1d4ed8'};">
-                            <i class="ph ph-calendar-check"></i> ${aula.prazo_expirado ? 'Prazo de 1 semana encerrado' : `Missões válidas por mais ${aula.dias_restantes} dia(s)`}
-                        </span>
-                    ` : ''}
+                    <span class="ua-badge" style="background:${prazoExpirado ? '#fee2e2' : '#eff6ff'};color:${prazoExpirado ? '#b91c1c' : '#1d4ed8'};font-weight:700;">
+                        <i class="ph ${prazoExpirado ? 'ph-warning-circle' : 'ph-calendar-check'}"></i>
+                        ${prazoExpirado ? 'Prazo expirado (próxima aula já concluída)' : 'Disponível até a conclusão da próxima aula'}
+                    </span>
                 </div>
-
-                ${bloqueadaPorPresenca ? `
-                    <div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;">
-                        <i class="ph ph-lock-key"></i> O preenchimento das <strong>Perguntas do Formulário</strong> e das <strong>Missões do Curso</strong> abaixo é liberado assim que sua presença for confirmada na Lista de Presença desta aula (você também receberá o formulário no seu e-mail particular).
-                    </div>
-                ` : ''}
 
                 ${anexos.length > 0 ? `
                     <div style="margin-bottom:14px;">
@@ -4210,29 +4222,39 @@
 
                 <!-- Seção 1: Perguntas do Formulário Enviado por E-mail -->
                 ${pergs.length > 0 ? `
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+                    <div style="background:${(!st && prazoExpirado) ? '#fef2f2' : '#f8fafc'};border:1px solid ${(!st && prazoExpirado) ? '#fecaca' : '#e2e8f0'};border-radius:12px;padding:14px 16px;margin-bottom:14px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                             <strong style="font-size:0.92rem;color:#0f172a;"><i class="ph ph-envelope-simple-open" style="color:#2563eb;"></i> Perguntas do Formulário da Aula (Enviado por E-mail)</strong>
                             ${st
                                 ? `<span class="ua-badge" style="background:#16a34a;color:#fff;font-size:0.84rem;font-weight:800;">Respondido • Nota: ${st.pontos_calculados} / ${pergs.length} pt(s)</span>`
-                                : `<span class="ua-badge" style="background:#fef9c3;color:#a16207;">Responda aqui ou pelo link recebido no seu e-mail particular</span>`}
+                                : (prazoExpirado
+                                    ? `<span class="ua-badge" style="background:#dc2626;color:#fff;font-size:0.84rem;font-weight:800;"><i class="ph ph-x-circle"></i> Prazo expirado • Pontuação: 0 / ${pergs.length} pt (Não concluído)</span>`
+                                    : `<span class="ua-badge" style="background:#fef9c3;color:#a16207;">Responda aqui ou pelo link recebido no seu e-mail particular</span>`)}
                         </div>
 
                         <div style="display:flex;flex-direction:column;gap:12px;">
                             ${pergs.map((q, qIdx) => {
-                                const respDada = st && st.respostas ? st.respostas[q.id] : null;
-                                const desab = !!st || bloqueadaPorPresenca;
+                                const temResp = st && st.respostas && st.respostas[q.id] !== undefined && st.respostas[q.id] !== null && st.respostas[q.id] !== '';
+                                const respDada = temResp ? Number(st.respostas[q.id]) : null;
+                                const desab = !!st || prazoExpirado;
+                                const acertou = temResp && q.correta_idx !== undefined && respDada === Number(q.correta_idx);
                                 return `
                                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
-                                        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;">
+                                        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
                                             <strong style="font-size:0.86rem;color:#1e293b;">${qIdx + 1}. ${esc(q.pergunta)}</strong>
-                                            <span class="ua-badge" style="background:#eef2ff;color:#4338ca;flex-shrink:0;">Vale 1 pt</span>
+                                            ${st
+                                                ? (temResp
+                                                    ? `<span class="ua-badge" style="background:${acertou ? '#16a34a' : '#dc2626'};color:#fff;flex-shrink:0;">${acertou ? '+1 pt (Acertou)' : '0 pt (Errou)'}</span>`
+                                                    : `<span class="ua-badge" style="background:#dc2626;color:#fff;flex-shrink:0;">0 pt (Não preenchida)</span>`)
+                                                : (prazoExpirado
+                                                    ? `<span class="ua-badge" style="background:#dc2626;color:#fff;flex-shrink:0;">0 pt (Prazo expirado)</span>`
+                                                    : `<span class="ua-badge" style="background:#eef2ff;color:#4338ca;flex-shrink:0;">Vale 1 pt</span>`)}
                                         </div>
                                         <div style="display:flex;flex-direction:column;gap:6px;">
                                             ${(q.opcoes || []).map((op, opIdx) => {
-                                                const marcada = st && Number(respDada) === opIdx;
-                                                const ehCorreta = st && q.correta_idx !== undefined && Number(q.correta_idx) === opIdx;
-                                                const bg = st ? (ehCorreta ? '#dcfce7' : (marcada ? '#fee2e2' : '#fff')) : '#fff';
+                                                const marcada = temResp && respDada === opIdx;
+                                                const ehCorreta = (st || prazoExpirado) && q.correta_idx !== undefined && Number(q.correta_idx) === opIdx;
+                                                const bg = (st || prazoExpirado) ? (ehCorreta ? '#dcfce7' : (marcada ? '#fee2e2' : '#fff')) : '#fff';
                                                 return `
                                                     <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;background:${bg};cursor:${desab ? 'default' : 'pointer'};font-size:0.84rem;">
                                                         <input type="radio" name="ua_resp_q_${aula.id}_${esc(q.id)}" value="${opIdx}"
@@ -4247,7 +4269,7 @@
                             }).join('')}
                         </div>
 
-                        ${!st && !bloqueadaPorPresenca ? `
+                        ${!st && !prazoExpirado ? `
                             <div style="margin-top:12px;display:flex;justify-content:flex-end;">
                                 <button class="ua-btn ua-btn-primary" onclick="window._uaEnviarRespostasTesteAula(${aula.id})">
                                     <i class="ph ph-paper-plane-tilt"></i> Enviar Respostas do Formulário
@@ -4285,7 +4307,11 @@
                         <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;">Vale 1 pt</span>
                         ${jaAvaliada
                             ? `<span class="ua-badge" style="background:${Number(sub.nota_gestor) > 0 ? '#16a34a' : '#dc2626'};color:#fff;font-size:0.84rem;">${Number(sub.nota_gestor) > 0 ? 'Cumprida: +1 pt' : 'Não cumprida: 0 pt'}</span>`
-                            : (sub ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;">Enviada — será avaliada na próxima aula</span>` : '')}
+                            : (sub
+                                ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;">Enviada — será avaliada na próxima aula</span>`
+                                : (aula.prazo_expirado
+                                    ? `<span class="ua-badge" style="background:#dc2626;color:#fff;font-size:0.84rem;font-weight:800;"><i class="ph ph-x-circle"></i> Prazo expirado • Pontuação: 0 pt (Não concluída)</span>`
+                                    : ''))}
                     </div>
                 </div>
 
@@ -4469,12 +4495,25 @@
         if (!aulaAlvo) return;
 
         const respostas = {};
+        let naoRespondidas = 0;
         for (const q of (aulaAlvo.perguntas || [])) {
             const sel = document.querySelector(`input[name="ua_resp_q_${aulaId}_${q.id}"]:checked`);
-            if (!sel) {
-                return msgErro('Responda todas as questões', `Selecione uma alternativa para a pergunta "${q.pergunta}".`);
+            if (sel) {
+                respostas[q.id] = parseInt(sel.value, 10);
+            } else {
+                naoRespondidas++;
             }
-            respostas[q.id] = parseInt(sel.value, 10);
+        }
+        if (Object.keys(respostas).length === 0) {
+            return msgErro('Nenhuma resposta selecionada', 'Selecione pelo menos uma alternativa antes de enviar.');
+        }
+        if (naoRespondidas > 0) {
+            const okParcial = await confirmar(
+                'Envio parcial do formulário?',
+                `Você deixou ${naoRespondidas} pergunta(s) sem resposta. As perguntas não preenchidas receberão nota 0 e as preenchidas certas receberão 1 ponto. Deseja enviar assim mesmo?`,
+                'Sim, enviar'
+            );
+            if (!okParcial) return;
         }
 
         try {
