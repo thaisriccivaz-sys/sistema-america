@@ -757,15 +757,33 @@
                         <textarea id="ua-c-desc" rows="2" class="ua-textarea" placeholder="Descreva os objetivos e competências desenvolvidas neste treinamento...">${esc(curso ? curso.descricao || '' : '')}</textarea>
                     </div>
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Imagem de Capa do Curso (salva no Cloudflare R2)</label>
-                        <input type="file" id="ua-c-capa" accept="image/*" class="ua-input">
+                        <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Imagem de Capa do Curso</label>
+                        <input type="file" id="ua-c-capa" accept="image/*" class="ua-input" onchange="window._uaPreviewCapaCurso(this)">
+                        <div id="ua-c-capa-preview" style="margin-top:8px;">
+                            ${curso && (curso.capa_url || curso.capa_r2_key) ? (() => {
+                                const urlCapa = authMediaUrl(curso.capa_url || ('/api/uniamerica/arquivo?key=' + encodeURIComponent(curso.capa_r2_key)));
+                                const nomeArq = curso.capa_r2_key
+                                    ? String(curso.capa_r2_key).split('/').pop().replace(/^\d+_/, '')
+                                    : 'Imagem de capa anexada';
+                                return `
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                                        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                                            <img src="${esc(urlCapa)}" alt="Capa" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #cbd5e1;flex-shrink:0;" onerror="this.style.display='none'">
+                                            <div style="min-width:0;">
+                                                <div style="font-size:0.82rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(nomeArq)}</div>
+                                                <div style="font-size:0.74rem;color:#15803d;"><i class="ph ph-check-circle"></i> Arquivo anexado</div>
+                                            </div>
+                                        </div>
+                                        <a href="${esc(urlCapa)}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:5px 10px;font-size:0.78rem;text-decoration:none;flex-shrink:0;">
+                                            <i class="ph ph-eye"></i> Visualizar
+                                        </a>
+                                    </div>
+                                `;
+                            })() : ''}
+                        </div>
                     </div>
 
-                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:0.83rem;color:#1e3a8a;">
-                        <i class="ph ph-info"></i> <strong>Regra de vínculo:</strong> O vínculo por Departamento e Colaborador vale para <strong>todo o curso</strong> (todas as aulas, testes em sala e missões semanais deste treinamento).
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:4px;">
                         <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                                 <strong style="font-size:0.85rem;">1. Vincular Departamentos</strong>
@@ -800,11 +818,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div>
-                        <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px;">Avaliação Geral & Apresentação Final (após a última aula)</label>
-                        <textarea id="ua-c-aval-geral" rows="2" class="ua-textarea" placeholder="Registre observações da avaliação geral, banca/apresentação final e entrega de certificados...">${esc(curso ? curso.avaliacao_geral_obs || '' : '')}</textarea>
-                    </div>
                 </div>
                 <div class="ua-modal-ft">
                     <button class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-curso').remove()">Cancelar</button>
@@ -832,6 +845,28 @@
         });
     };
 
+    window._uaPreviewCapaCurso = function (input) {
+        const box = document.getElementById('ua-c-capa-preview');
+        if (!box) return;
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        const objUrl = URL.createObjectURL(file);
+        box.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <img src="${esc(objUrl)}" alt="Capa" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #86efac;flex-shrink:0;">
+                    <div style="min-width:0;">
+                        <div style="font-size:0.82rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(file.name)}</div>
+                        <div style="font-size:0.74rem;color:#15803d;"><i class="ph ph-check-circle"></i> Novo arquivo selecionado</div>
+                    </div>
+                </div>
+                <a href="${esc(objUrl)}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:5px 10px;font-size:0.78rem;text-decoration:none;flex-shrink:0;">
+                    <i class="ph ph-eye"></i> Visualizar
+                </a>
+            </div>
+        `;
+    };
+
     window._uaSalvarCurso = async function (cursoId) {
         const nome = (document.getElementById('ua-c-nome').value || '').trim();
         if (!nome) return msgErro('Campo obrigatório', 'Informe o nome do curso.');
@@ -850,7 +885,8 @@
         fd.append('descricao', document.getElementById('ua-c-desc').value || '');
         fd.append('departamentos', departamentos);
         fd.append('colaboradores_avulsos', colaboradores_avulsos);
-        fd.append('avaliacao_geral_obs', document.getElementById('ua-c-aval-geral').value || '');
+        const elAvalGeral = document.getElementById('ua-c-aval-geral');
+        fd.append('avaliacao_geral_obs', elAvalGeral ? (elAvalGeral.value || '') : '');
 
         const capaInput = document.getElementById('ua-c-capa');
         if (capaInput && capaInput.files && capaInput.files[0]) {
@@ -1204,7 +1240,7 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
                     <div>
                         <strong style="font-size:0.9rem;color:#1e3a8a;"><i class="ph ph-cloud-arrow-up"></i> Materiais da Aula (Vídeos, PDFs, Slides, Imagens)</strong>
-                        <div style="font-size:0.78rem;color:#475569;">Armazenados com segurança no Cloudflare R2 e liberados aos colaboradores presentes.</div>
+                        <div style="font-size:0.78rem;color:#475569;">Materiais disponíveis para apresentação em aula e consulta dos colaboradores presentes.</div>
                     </div>
                     <label class="ua-btn ua-btn-primary" style="cursor:pointer;">
                         <i class="ph ph-upload-simple"></i> Adicionar Arquivo
@@ -3063,7 +3099,7 @@
                         <textarea id="ua-pr-desc" rows="2" class="ua-textarea" placeholder="Detalhes da entrega na apresentação final..."></textarea>
                     </div>
                     <div style="margin-bottom:14px;">
-                        <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Foto / Imagem do Prêmio (R2)</label>
+                        <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Foto / Imagem do Prêmio</label>
                         <input type="file" id="ua-pr-img" accept="image/*" class="ua-input">
                     </div>
                     <button class="ua-btn ua-btn-primary" style="width:100%;justify-content:center;" onclick="window._uaSalvarPremio()">
