@@ -922,6 +922,8 @@ window.carregarPermissoesOnline = async function () {
         window.estoquePerms = { itens: true, equipamentos: true };
         window.isAcademiaLideresAdminFull = true;
         window.academiaLideresPerms = { isAdmin: true, isNormal: false };
+        window.isUniAmericaAdmin = true;
+        window.uniAmericaPerms = { isAdmin: true, isUsuario: false };
         document.querySelectorAll('.nav-item').forEach(el => {
             if (el.getAttribute('data-target') === 'comercial-contatos') {
                 el.style.cssText = 'display: none !important;';
@@ -988,7 +990,12 @@ window.carregarPermissoesOnline = async function () {
         };
         if (window.estoquePerms.equipamentos) mapPerms['estoque'] = true;
 
-        if (mapPerms['uniamerica-gestao']) {
+        const _hasUaAdmin = !!(mapPerms['uniamerica-gestao-admin'] || mapPerms['uniamerica-gestao']);
+        const _hasUaUsuario = !!mapPerms['uniamerica-gestao-usuario'];
+        window.isUniAmericaAdmin = _hasUaAdmin;
+        window.uniAmericaPerms = { isAdmin: _hasUaAdmin, isUsuario: _hasUaUsuario && !_hasUaAdmin };
+        if (_hasUaAdmin || _hasUaUsuario) {
+            mapPerms['uniamerica-gestao'] = true;
             mapPerms['uniamerica-missoes'] = true;
         }
 

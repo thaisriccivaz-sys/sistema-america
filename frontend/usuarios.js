@@ -90,7 +90,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presença Trein.', icone: 'ph-check-square' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
-    { modulo: 'Treinamentos', pagina_id: 'uniamerica-gestao', pagina_nome: 'UniAmérica — Gestor de Cursos', icone: 'ph-graduation-cap' },
+    { modulo: 'Treinamentos', pagina_id: 'uniamerica-gestao-admin', pagina_nome: 'UniAmérica — Gestor de Cursos (admin)', icone: 'ph-graduation-cap' },
+    { modulo: 'Treinamentos', pagina_id: 'uniamerica-gestao-usuario', pagina_nome: 'UniAmérica — Gestor de Cursos (usuário)', icone: 'ph-play-circle' },
     { modulo: 'Treinamentos', pagina_id: 'uniamerica-missoes', pagina_nome: 'UniAmérica — Missões (Usuário Comum)', icone: 'ph-rocket-launch' },
     // Módulo Processos
     { modulo: 'Processos', pagina_id: 'sac', pagina_nome: 'SAC (Ver Todos)', icone: 'ph-headset' },
@@ -671,7 +672,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
-        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }, { titulo: 'UniAmérica', telas: ['uniamerica-gestao', 'uniamerica-missoes'] }]
+        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }, { titulo: 'UniAmérica', telas: ['uniamerica-gestao-admin', 'uniamerica-gestao-usuario', 'uniamerica-missoes'] }]
     },
     {
         modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',

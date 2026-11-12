@@ -10,7 +10,8 @@
 
     // ── Estado Global do Módulo ─────────────────────────────────────────────────
     const G = {
-        aba: 'cursos',              // 'cursos' | 'diagnostico' | 'ranking' | 'premios'
+        aba: 'cursos',              // 'cursos' | 'diagnostico' | 'ranking'
+        isAdmin: true,
         cursos: [],
         colabs: [],
         departamentos: [],
@@ -356,6 +357,14 @@
                 carregarBaseColaboradores()
             ]);
             G.cursos = (resCursos && resCursos.cursos) ? resCursos.cursos : [];
+            if (resCursos && typeof resCursos.is_admin === 'boolean') {
+                G.isAdmin = resCursos.is_admin;
+            } else if (typeof window.isUniAmericaAdmin === 'boolean') {
+                G.isAdmin = window.isUniAmericaAdmin;
+            } else {
+                G.isAdmin = true;
+            }
+            if (G.aba === 'premios') G.aba = 'cursos';
             if (!G.premioCursoId && G.cursos.length > 0) {
                 G.premioCursoId = G.cursos[0].id;
             }
@@ -400,9 +409,11 @@
                         <button class="ua-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.3);" onclick="window._uaMudarAbaGestao('diagnostico')">
                             <i class="ph ph-chart-polar"></i> Ver Análises por Departamento
                         </button>
-                        <button class="ua-btn" style="background:#fff;color:#1e3a8a;font-weight:700;" onclick="window._uaAbrirModalCurso()">
-                            <i class="ph ph-plus-circle"></i> Novo Curso
-                        </button>
+                        ${G.isAdmin ? `
+                            <button class="ua-btn" style="background:#fff;color:#1e3a8a;font-weight:700;" onclick="window._uaAbrirModalCurso()">
+                                <i class="ph ph-plus-circle"></i> Novo Curso
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
 
@@ -434,9 +445,6 @@
                     </button>
                     <button class="ua-tab ${G.aba === 'ranking' ? 'active' : ''}" onclick="window._uaMudarAbaGestao('ranking')">
                         <i class="ph ph-trophy"></i> Ranking & Certificados
-                    </button>
-                    <button class="ua-tab ${G.aba === 'premios' ? 'active' : ''}" onclick="window._uaMudarAbaGestao('premios')">
-                        <i class="ph ph-medal"></i> Prêmios
                     </button>
                 </div>
 
@@ -649,23 +657,25 @@
 
                             <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="ua-btn ${prontoIniciar ? 'ua-btn-success' : 'ua-btn-ghost'}"
-                                        style="padding:8px 12px;${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
-                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais da próxima aula e marcar presença' : 'Para iniciar o curso, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios'}"
+                                        style="padding:8px 12px;${!G.isAdmin ? 'flex:1;justify-content:center;' : ''}${!prontoIniciar ? 'background:#f1f5f9;color:#64748b;border-color:#cbd5e1;' : ''}"
+                                        title="${prontoIniciar ? 'Iniciar treinamento, apresentar materiais, lista de presença e avaliar testes/missões' : 'Para iniciar o curso, preencha Pesquisa e Missões em todas as aulas e cadastre os Prêmios'}"
                                         onclick="window._uaPlayCurso(${c.id})">
                                     <i class="${prontoIniciar ? 'ph-fill ph-play' : 'ph ph-lock-key'}"></i> Iniciar
                                 </button>
-                                <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
-                                    <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
-                                </button>
-                                <button class="ua-btn ua-btn-ghost" title="Ver Ranking e Certificados" onclick="window._uaIrRankingCurso(${c.id})">
-                                    <i class="ph ph-trophy"></i>
-                                </button>
-                                <button class="ua-btn ua-btn-ghost" title="Editar Curso e Participantes" onclick="window._uaAbrirModalCurso(${c.id})">
-                                    <i class="ph ph-pencil-simple"></i>
-                                </button>
-                                <button class="ua-btn ua-btn-danger" title="Excluir Curso" onclick="window._uaExcluirCurso(${c.id})">
-                                    <i class="ph ph-trash"></i>
-                                </button>
+                                ${G.isAdmin ? `
+                                    <button class="ua-btn ua-btn-primary" style="flex:1;justify-content:center;" onclick="window._uaAbrirAulasCurso(${c.id})">
+                                        <i class="ph ph-list-checks"></i> Gerenciar Aulas (${totalAulas})
+                                    </button>
+                                    <button class="ua-btn ua-btn-ghost" title="Prêmios do Curso (${c.total_premios || 0})" onclick="window._uaAbrirModalPremiosCurso(${c.id})">
+                                        <i class="ph ph-trophy"></i>
+                                    </button>
+                                    <button class="ua-btn ua-btn-ghost" title="Editar Curso e Participantes" onclick="window._uaAbrirModalCurso(${c.id})">
+                                        <i class="ph ph-pencil-simple"></i>
+                                    </button>
+                                    <button class="ua-btn ua-btn-danger" title="Excluir Curso" onclick="window._uaExcluirCurso(${c.id})">
+                                        <i class="ph ph-trash"></i>
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -983,22 +993,12 @@
                         </p>
                     </div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <button class="ua-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.3);" onclick="window._uaIrRankingCurso(${curso.id})">
-                            <i class="ph ph-trophy"></i> Ranking & Certificados
+                        <button class="ua-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.3);" onclick="window._uaAbrirModalPremiosCurso(${curso.id})">
+                            <i class="ph ph-trophy"></i> Prêmios do Curso (${curso.total_premios || 0})
                         </button>
                         <button class="ua-btn" style="background:#fff;color:#1e3a8a;font-weight:700;" onclick="window._uaAbrirEditorAula(${curso.id}, null)">
                             <i class="ph ph-plus-circle"></i> Nova Aula
                         </button>
-                    </div>
-                </div>
-
-                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:0.84rem;color:#92400e;display:flex;gap:10px;align-items:center;">
-                    <i class="ph ph-info" style="font-size:1.2rem;flex-shrink:0;"></i>
-                    <div>
-                        <strong>Fluxo das Aulas:</strong>
-                        1) Registre a <strong>Lista de Presença</strong> para liberar o teste em sala e as missões (válidas por 1 semana).
-                        2) Antes de <strong>Iniciar a próxima aula</strong>, avalie todas as missões realizadas na aula anterior atribuindo nota de <strong>1 a 10</strong>.
-                        3) Apenas colaboradores com presença em <strong>todas as aulas</strong> recebem o Certificado.
                     </div>
                 </div>
 
@@ -1049,22 +1049,6 @@
                                         </div>
 
                                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                            ${a.status_aula === 'agendada' ? `
-                                                <button class="ua-btn ua-btn-primary" onclick="window._uaIniciarAula(${a.id})">
-                                                    <i class="ph ph-play-circle"></i> Iniciar Aula
-                                                </button>
-                                            ` : ''}
-                                            ${a.status_aula === 'em_andamento' ? `
-                                                <button class="ua-btn ua-btn-success" onclick="window._uaConcluirAula(${a.id})">
-                                                    <i class="ph ph-check-circle"></i> Concluir Aula
-                                                </button>
-                                            ` : ''}
-                                            <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirPresencaAula(${a.id})">
-                                                <i class="ph ph-user-check"></i> Lista de Presença
-                                            </button>
-                                            <button class="ua-btn ${a.missoes_pendentes_avaliacao > 0 ? 'ua-btn-warning' : 'ua-btn-ghost'}" onclick="window._uaAbrirAvaliacaoAula(${a.id})">
-                                                <i class="ph ph-star"></i> Avaliar Testes & Missões
-                                            </button>
                                             <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirEditorAula(${curso.id}, ${a.id})" title="Editar Detalhes, Pesquisa e Missões">
                                                 <i class="ph ph-pencil-simple"></i> Editar Aula
                                             </button>
@@ -1103,7 +1087,7 @@
             itensHtml.push(`<li><strong>Missões da Semana:</strong> Preencha as missões em: ${semMissoes.map(a => `<em>Aula ${a.ordem} (${esc(a.titulo)})</em>`).join(', ')}.</li>`);
         }
         if (totalPremios === 0) {
-            itensHtml.push(`<li><strong>Prêmios do Ranking:</strong> Cadastre os prêmios deste curso na aba <em>Prêmios</em>.</li>`);
+            itensHtml.push(`<li><strong>Prêmios do Ranking:</strong> Cadastre os prêmios dentro deste curso (botão <em>Prêmios</em>).</li>`);
         }
 
         const faltamAulas = totalAulas === 0 || semPesquisa.length > 0 || semMissoes.length > 0;
@@ -1891,17 +1875,28 @@
         }
     };
 
-    // ── MODAL PLAY: INICIAR TREINAMENTO (PRÓXIMA AULA + MATERIAIS + LISTA DE PRESENÇA) ─
+    // ── MODAL PLAY: INICIAR TREINAMENTO (MATERIAIS + PRESENÇA + AVALIAR TESTES & MISSÕES + RANKING & CERTIFICADOS) ─
     let _playEstado = null;
 
-    window._uaPlayCurso = async function (cursoId, aulaIdOpcional = null) {
+    window._uaPlayCurso = async function (cursoId, aulaIdOpcional = null, abaInicialOpcional = null) {
         try {
             const det = await api(`/uniamerica/cursos/${cursoId}`);
             const curso = det.curso;
             const aulas = Array.isArray(det.aulas) ? det.aulas : [];
+            const quadro = det.quadro || null;
+
+            if (quadro) {
+                const idxQ = G.rankingQuadros.findIndex(q => Number(q.curso.id) === Number(cursoId));
+                if (idxQ >= 0) G.rankingQuadros[idxQ] = quadro;
+                else G.rankingQuadros.push(quadro);
+            }
 
             // Regra obrigatória: Apenas deve ser possível iniciar o curso se todas as aulas estiverem com pesquisa e missões preenchidas e os prêmios cadastrados
             if (!curso.pronto_para_iniciar) {
+                if (!G.isAdmin) {
+                    msgErro('Curso ainda não liberado', 'Este curso ainda está sendo configurado pelo administrador da UniAmérica (Pesquisa, Missões ou Prêmios pendentes).');
+                    return;
+                }
                 await exibirAlertaCursoIncompleto(curso, aulas);
                 return;
             }
@@ -1911,8 +1906,10 @@
                 : (aulas.find(a => !a.aula_feita && a.status_aula !== 'concluida') || aulas.find(a => a.status_aula !== 'concluida') || aulas[aulas.length - 1]);
             if (!aulaAlvo) aulaAlvo = aulas[0];
 
+            let abaPlay = abaInicialOpcional || (_playEstado && Number(_playEstado.curso.id) === Number(cursoId) ? _playEstado.abaPlay : 'aula') || 'aula';
+
             // Se a aula estiver agendada, tenta iniciar automaticamente
-            if (aulaAlvo.status_aula === 'agendada') {
+            if (aulaAlvo && aulaAlvo.status_aula === 'agendada') {
                 try {
                     await api(`/uniamerica/aulas/${aulaAlvo.id}/iniciar`, { method: 'POST', body: {} });
                     aulaAlvo.status_aula = 'em_andamento';
@@ -1929,20 +1926,31 @@
                                 text: errIni.body.error || errIni.message,
                                 showCancelButton: true,
                                 confirmButtonColor: '#2563eb',
-                                confirmButtonText: 'Avaliar Missões da Aula Anterior',
-                                cancelButtonText: 'Abrir Aula Mesmo Assim'
+                                confirmButtonText: 'Avaliar Missões da Aula Anterior Agora',
+                                cancelButtonText: 'Abrir Aula Atual Mesmo Assim'
                             });
                             if (r.isConfirmed && errIni.body.aula_anterior_id) {
-                                window._uaAbrirAvaliacaoAula(errIni.body.aula_anterior_id);
-                                return;
+                                const ant = aulas.find(a => Number(a.id) === Number(errIni.body.aula_anterior_id));
+                                if (ant) {
+                                    aulaAlvo = ant;
+                                    abaPlay = 'avaliar';
+                                }
                             }
                         }
                     }
                 }
             }
 
-            const presData = await api(`/uniamerica/aulas/${aulaAlvo.id}/presenca`);
+            const [presData, avalData] = await Promise.all([
+                api(`/uniamerica/aulas/${aulaAlvo.id}/presenca`),
+                api(`/uniamerica/aulas/${aulaAlvo.id}/avaliacoes`).catch(() => ({ aula: aulaAlvo, participantes: [] }))
+            ]);
             const anexos = Array.isArray(aulaAlvo.anexos) ? aulaAlvo.anexos : [];
+            const todasConcluidas = (quadro && quadro.todas_aulas_concluidas) || (aulas.length > 0 && aulas.every(a => a.status_aula === 'concluida')) || curso.status === 'concluido';
+
+            if (!abaInicialOpcional && todasConcluidas && (!_playEstado || Number(_playEstado.curso.id) !== Number(cursoId))) {
+                abaPlay = 'ranking';
+            }
 
             _playEstado = {
                 curso,
@@ -1951,19 +1959,30 @@
                 anexos,
                 anexoAtivoIdx: anexos.length > 0 ? 0 : -1,
                 listaPresenca: presData.lista || [],
-                buscaPresenca: ''
+                buscaPresenca: '',
+                avalData: avalData || { aula: aulaAlvo, participantes: [] },
+                quadro,
+                todasConcluidas,
+                abaPlay
             };
 
             const old = document.getElementById('ua-modal-play-curso');
-            if (old) old.remove();
-            const backdrop = document.createElement('div');
-            backdrop.className = 'ua-modal-backdrop';
-            backdrop.id = 'ua-modal-play-curso';
-            document.body.appendChild(backdrop);
+            if (!old) {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'ua-modal-backdrop';
+                backdrop.id = 'ua-modal-play-curso';
+                document.body.appendChild(backdrop);
+            }
             desenharModalPlayCurso();
         } catch (e) {
             msgErro('Erro ao abrir apresentação do treinamento', e.message);
         }
+    };
+
+    window._uaMudarAbaPlay = function (aba) {
+        if (!_playEstado) return;
+        _playEstado.abaPlay = aba;
+        desenharModalPlayCurso();
     };
 
     function renderizarPreviewMaterialPlay(anexo) {
@@ -2000,10 +2019,148 @@
         </div>`;
     }
 
+    function renderConteudoAvaliacaoPlay() {
+        const { aula, avalData } = _playEstado;
+        const aulaInfo = (avalData && avalData.aula) ? avalData.aula : aula;
+        const participantes = (avalData && avalData.participantes) ? avalData.participantes : [];
+        const defsMissoesMap = {};
+        (aulaInfo.missoes || []).forEach(m => { defsMissoesMap[m.id] = m; });
+
+        return `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.83rem;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div>
+                    <i class="ph ph-info"></i> Avalie os testes em sala e as missões entregues na <strong>Aula ${aulaInfo.ordem}: ${esc(aulaInfo.titulo)}</strong> atribuindo <strong>nota de 1 a 10</strong>.
+                </div>
+                <button type="button" class="ua-btn ua-btn-ghost" style="padding:5px 10px;font-size:0.78rem;background:#fff;" onclick="window._uaRecarregarAvaliacoesPlay()">
+                    <i class="ph ph-arrows-clockwise"></i> Atualizar Respostas
+                </button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                ${participantes.length === 0 ? `<div style="padding:28px;text-align:center;color:#94a3b8;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;">Nenhum participante vinculado a este curso.</div>` :
+                    participantes.map(p => {
+                        const st = p.teste;
+                        const ptsTesteAtual = st ? (st.pontos_gestor != null ? st.pontos_gestor : st.pontos_calculados) : 0;
+                        return `
+                            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;">
+                                    <div>
+                                        <strong style="font-size:0.96rem;color:#0f172a;">${esc(p.nome_completo)}</strong>
+                                        <span style="font-size:0.8rem;color:#64748b;margin-left:8px;">${esc(p.departamento || '')} • ${esc(p.cargo || '')}</span>
+                                    </div>
+                                    <span class="ua-badge" style="background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};">
+                                        ${p.presente ? 'Presente na aula' : 'Ausente na aula'}
+                                    </span>
+                                </div>
+
+                                <!-- Bloco 1: Teste em Aula -->
+                                <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                                        <div style="font-size:0.84rem;">
+                                            <strong><i class="ph ph-exam"></i> Formulário / Teste em Aula:</strong>
+                                            ${st
+                                                ? `<span style="color:#15803d;font-weight:700;margin-left:6px;">Respondido • Soma automática: ${st.pontos_calculados} pt(s)</span>`
+                                                : `<span style="color:#94a3b8;margin-left:6px;">Ainda não respondido</span>`}
+                                        </div>
+                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                            <label style="font-size:0.78rem;color:#475569;">Pontos validados:</label>
+                                            <input type="number" min="0" step="0.5" id="ua-av-teste-pts-${p.colaborador_id}" class="ua-input" style="width:82px;padding:5px 8px;" value="${ptsTesteAtual}">
+                                            <input type="text" id="ua-av-teste-fb-${p.colaborador_id}" class="ua-input" style="width:190px;padding:5px 8px;" placeholder="Feedback opcional..." value="${esc(st ? st.feedback_gestor || '' : '')}">
+                                            <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaSalvarAvalTeste(${aulaInfo.id}, ${p.colaborador_id})">
+                                                Salvar Teste
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bloco 2: Missões da Semana -->
+                                ${(p.missoes || []).length === 0 ? `<div style="font-size:0.8rem;color:#94a3b8;">Esta aula não possui missões configuradas.</div>` :
+                                    p.missoes.map(em => {
+                                        const sub = em.submissao;
+                                        const defM = defsMissoesMap[em.missao_id] || { campos: [] };
+                                        const respostas = (sub && sub.respostas) ? sub.respostas : {};
+                                        const jaAvaliada = sub && sub.status === 'avaliada';
+
+                                        return `
+                                            <div style="border:1px solid ${sub && !jaAvaliada ? '#fdba74' : '#e2e8f0'};background:${sub && !jaAvaliada ? '#fff7ed' : '#fff'};border-radius:10px;padding:12px;margin-top:8px;">
+                                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                                    <div style="font-size:0.86rem;font-weight:700;color:#1e293b;">
+                                                        <i class="ph ph-rocket-launch" style="color:#2563eb;"></i> ${esc(em.titulo)}
+                                                        <span style="font-weight:500;color:#64748b;font-size:0.78rem;">(Vale até ${em.nota_maxima} pts)</span>
+                                                    </div>
+                                                    ${jaAvaliada
+                                                        ? `<span class="ua-badge" style="background:#dcfce7;color:#15803d;"><i class="ph ph-check-circle"></i> Avaliada: Nota ${sub.nota_gestor}/10</span>`
+                                                        : (sub
+                                                            ? `<span class="ua-badge" style="background:#ffedd5;color:#c2410c;"><i class="ph ph-clock"></i> Realizada — aguardando nota (1 a 10)</span>`
+                                                            : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;">Não enviada pelo colaborador</span>`)}
+                                                </div>
+
+                                                ${sub ? `
+                                                    <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.82rem;display:flex;flex-direction:column;gap:6px;">
+                                                        ${(defM.campos || []).map(cp => {
+                                                            const val = respostas[cp.id];
+                                                            const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
+                                                            return `
+                                                                <div>
+                                                                    <strong style="color:#334155;">${esc(cp.label)}:</strong>
+                                                                    ${cp.tipo === 'estrelas'
+                                                                        ? `<span style="color:#f59e0b;margin-left:6px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</span>`
+                                                                        : (val ? `<div style="margin-top:2px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : '')}
+                                                                    ${arqsCampo.map(arq => {
+                                                                        const u = authMediaUrl(arq.url);
+                                                                        if (String(arq.tipo_mime || '').startsWith('audio/')) {
+                                                                            return `<div style="margin-top:4px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
+                                                                        }
+                                                                        if (String(arq.tipo_mime || '').startsWith('image/')) {
+                                                                            return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
+                                                                        }
+                                                                        return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(arq.nome_arquivo)}</a></div>`;
+                                                                    }).join('')}
+                                                                </div>
+                                                            `;
+                                                        }).join('')}
+                                                    </div>
+                                                ` : ''}
+
+                                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                                    <label style="font-size:0.8rem;font-weight:700;color:#1e3a8a;">Nota (1 a 10):</label>
+                                                    <input type="number" min="1" max="10" step="0.5"
+                                                           id="ua-av-m-nota-${p.colaborador_id}-${em.missao_id}"
+                                                           class="ua-input" style="width:90px;padding:6px 8px;"
+                                                           placeholder="1 a 10"
+                                                           value="${sub && sub.nota_gestor != null ? sub.nota_gestor : ''}">
+                                                    <input type="text"
+                                                           id="ua-av-m-fb-${p.colaborador_id}-${em.missao_id}"
+                                                           class="ua-input" style="flex:1;min-width:200px;padding:6px 10px;"
+                                                           placeholder="Comentário / feedback da avaliação da missão..."
+                                                           value="${esc(sub ? sub.feedback_gestor || '' : '')}">
+                                                    <button type="button" class="ua-btn ua-btn-primary" style="padding:7px 14px;font-size:0.81rem;"
+                                                            onclick="window._uaSalvarAvalMissao(${aulaInfo.id}, ${p.colaborador_id}, '${esc(em.missao_id)}')">
+                                                        <i class="ph ph-check"></i> Salvar Nota (1–10)
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                            </div>
+                        `;
+                    }).join('')}
+            </div>
+        `;
+    }
+
+    function renderConteudoRankingPlay() {
+        const { quadro } = _playEstado;
+        if (!quadro) {
+            return `<div style="padding:32px;text-align:center;color:#64748b;">Carregando Ranking e Certificados...</div>`;
+        }
+        return renderQuadrosRankingInterno([quadro]);
+    }
+
     function desenharModalPlayCurso() {
         const backdrop = document.getElementById('ua-modal-play-curso');
         if (!backdrop || !_playEstado) return;
-        const { curso, aulas, aula, anexos, anexoAtivoIdx, listaPresenca, buscaPresenca } = _playEstado;
+        const { curso, aulas, aula, anexos, anexoAtivoIdx, listaPresenca, buscaPresenca, avalData, todasConcluidas, abaPlay } = _playEstado;
         const presentesQtd = listaPresenca.filter(x => x.presente).length;
         const termo = norm(buscaPresenca);
         const visiveis = listaPresenca.filter(x => !termo || norm(x.nome_completo + ' ' + (x.departamento || '')).includes(termo));
@@ -2014,8 +2171,14 @@
                 ? { bg: '#dbeafe', fg: '#1d4ed8', txt: 'Em andamento' }
                 : { bg: '#f1f5f9', fg: '#475569', txt: 'Agendada' };
 
+        const missoesPendAula = (avalData && Array.isArray(avalData.participantes))
+            ? avalData.participantes.reduce((acc, p) => acc + (p.missoes || []).filter(m => m.submissao && m.submissao.status !== 'avaliada').length, 0)
+            : (aula.missoes_pendentes_avaliacao || 0);
+
+        const ehUltimaAulaNaoConcluida = aulas.filter(a => a.status_aula !== 'concluida').length === 1 && aula.status_aula !== 'concluida';
+
         backdrop.innerHTML = `
-            <div class="ua-modal" style="max-width:1220px;">
+            <div class="ua-modal" style="max-width:1240px;">
                 <div class="ua-modal-hd" style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;">
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                         <h3 style="color:#fff;margin:0;"><i class="ph-fill ph-play-circle" style="color:#4ade80;"></i> ${esc(curso.nome)}</h3>
@@ -2036,116 +2199,161 @@
                 </div>
 
                 <div class="ua-modal-bd" style="padding:18px 22px;">
-                    <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start;">
-                        <!-- Coluna Esquerda: Materiais da Aula -->
-                        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                                <div>
-                                    <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
-                                        <i class="ph ph-presentation-chart" style="color:#2563eb;font-size:1.15rem;"></i>
-                                        Materiais para Apresentação — Aula ${aula.ordem}: ${esc(aula.titulo)}
-                                    </h4>
-                                    ${aula.descricao ? `<div style="font-size:0.8rem;color:#64748b;margin-top:3px;">${esc(aula.descricao)}</div>` : ''}
-                                </div>
-                                ${anexoAtivo ? `
-                                    <a href="${esc(authMediaUrl(anexoAtivo.url))}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;text-decoration:none;">
-                                        <i class="ph ph-arrows-out"></i> Abrir em Tela Cheia
-                                    </a>
-                                ` : ''}
-                            </div>
-
-                            ${anexos.length === 0 ? `
-                                <div style="padding:36px 20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;color:#64748b;">
-                                    <i class="ph ph-folder-open" style="font-size:2.2rem;color:#94a3b8;"></i>
-                                    <div style="font-weight:700;color:#0f172a;margin:6px 0 4px;">Nenhum material anexado nesta aula</div>
-                                    <div style="font-size:0.8rem;margin-bottom:12px;">Você pode anexar slides, PDFs ou vídeos clicando em Editar Aula.</div>
-                                    <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window._uaAbrirEditorAula(${curso.id}, ${aula.id});">
-                                        <i class="ph ph-paperclip"></i> Anexar Materiais na Aula
-                                    </button>
-                                </div>
-                            ` : `
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-                                    ${anexos.map((an, idx) => `
-                                        <button type="button" class="ua-btn ${idx === anexoAtivoIdx ? 'ua-btn-primary' : 'ua-btn-ghost'}"
-                                                style="padding:7px 12px;font-size:0.8rem;"
-                                                onclick="window._uaSelecionarAnexoPlay(${idx})">
-                                            <i class="ph ph-file-text"></i> ${esc(an.nome_arquivo)}
-                                        </button>
-                                    `).join('')}
-                                </div>
-                                ${renderizarPreviewMaterialPlay(anexoAtivo)}
-                            `}
-                        </div>
-
-                        <!-- Coluna Direita: Lista de Presença da Aula -->
-                        <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                                <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
-                                    <i class="ph ph-user-check" style="color:#16a34a;font-size:1.15rem;"></i>
-                                    Lista de Presença da Aula ${aula.ordem}
-                                </h4>
-                                <span class="ua-badge" style="background:#dcfce7;color:#15803d;">
-                                    Presentes: ${presentesQtd} / ${listaPresenca.length}
-                                </span>
-                            </div>
-                            <div style="font-size:0.78rem;color:#64748b;margin-bottom:10px;">
-                                Marque quem está presente nesta aula para liberar o formulário em sala e as missões da semana.
-                            </div>
-                            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-                                <input type="text" class="ua-input" style="flex:1;min-width:150px;padding:7px 10px;font-size:0.82rem;"
-                                       placeholder="Buscar colaborador..."
-                                       value="${esc(buscaPresenca)}"
-                                       oninput="window._uaFiltrarPresencaPlay(this.value)">
-                                <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(true)">Todos</button>
-                                <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(false)">Limpar</button>
-                            </div>
-                            <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
-                                <table class="ua-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Colaborador</th>
-                                            <th style="text-align:center;">Presença</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${visiveis.length === 0 ? `<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:18px;">Nenhum colaborador encontrado.</td></tr>` :
-                                            visiveis.map(p => `
-                                                <tr style="cursor:pointer;" onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})">
-                                                    <td>
-                                                        <div style="font-weight:600;color:#0f172a;font-size:0.84rem;">${esc(p.nome_completo)}</div>
-                                                        <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')} • ${esc(p.cargo || '')}</div>
-                                                    </td>
-                                                    <td style="text-align:center;" onclick="event.stopPropagation();">
-                                                        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
-                                                            <input type="checkbox" ${p.presente ? 'checked' : ''} onchange="window._uaTogglePresencaPlay(${p.colaborador_id}, this.checked)">
-                                                            ${p.presente ? 'Presente' : 'Ausente'}
-                                                        </label>
-                                                    </td>
-                                                </tr>
-                                            `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <button type="button" class="ua-btn ua-btn-success" style="width:100%;justify-content:center;" id="ua-btn-salvar-presenca-play" onclick="window._uaSalvarPresencaPlay()">
-                                <i class="ph ph-floppy-disk"></i> Salvar Lista de Presença (${presentesQtd}/${listaPresenca.length})
+                    <!-- Abas internas dentro do Play: Apresentação & Presença | Avaliar Testes & Avaliações | Ranking & Certificados (após concluído) -->
+                    <div class="ua-tabs" style="margin-bottom:16px;">
+                        <button type="button" class="ua-tab ${abaPlay === 'aula' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('aula')">
+                            <i class="ph ph-presentation-chart"></i> Apresentação & Lista de Presença
+                        </button>
+                        <button type="button" class="ua-tab ${abaPlay === 'avaliar' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('avaliar')">
+                            <i class="ph ph-star"></i> Avaliar Testes & Avaliações
+                            ${missoesPendAula > 0 ? `<span class="ua-badge" style="background:#ea580c;color:#fff;margin-left:4px;">${missoesPendAula}</span>` : ''}
+                        </button>
+                        ${todasConcluidas ? `
+                            <button type="button" class="ua-tab ${abaPlay === 'ranking' ? 'active' : ''}" onclick="window._uaMudarAbaPlay('ranking')" style="${abaPlay !== 'ranking' ? 'border-color:#86efac;background:#f0fdf4;color:#15803d;' : ''}">
+                                <i class="ph ph-trophy"></i> Ranking & Certificados
                             </button>
-                        </div>
+                        ` : ''}
                     </div>
+
+                    ${abaPlay === 'avaliar' ? renderConteudoAvaliacaoPlay() : abaPlay === 'ranking' ? renderConteudoRankingPlay() : `
+                        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start;">
+                            <!-- Coluna Esquerda: Materiais da Aula -->
+                            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                                    <div>
+                                        <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                                            <i class="ph ph-presentation-chart" style="color:#2563eb;font-size:1.15rem;"></i>
+                                            Materiais para Apresentação — Aula ${aula.ordem}: ${esc(aula.titulo)}
+                                        </h4>
+                                        ${aula.descricao ? `<div style="font-size:0.8rem;color:#64748b;margin-top:3px;">${esc(aula.descricao)}</div>` : ''}
+                                    </div>
+                                    ${anexoAtivo ? `
+                                        <a href="${esc(authMediaUrl(anexoAtivo.url))}" target="_blank" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;text-decoration:none;">
+                                            <i class="ph ph-arrows-out"></i> Abrir em Tela Cheia
+                                        </a>
+                                    ` : ''}
+                                </div>
+
+                                ${anexos.length === 0 ? `
+                                    <div style="padding:36px 20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;color:#64748b;">
+                                        <i class="ph ph-folder-open" style="font-size:2.2rem;color:#94a3b8;"></i>
+                                        <div style="font-weight:700;color:#0f172a;margin:6px 0 4px;">Nenhum material anexado nesta aula</div>
+                                        ${G.isAdmin ? `
+                                            <div style="font-size:0.8rem;margin-bottom:12px;">Você pode anexar slides, PDFs ou vídeos clicando em Editar Aula.</div>
+                                            <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window._uaAbrirEditorAula(${curso.id}, ${aula.id});">
+                                                <i class="ph ph-paperclip"></i> Anexar Materiais na Aula
+                                            </button>
+                                        ` : `<div style="font-size:0.8rem;">Esta aula não possui slides ou anexos cadastrados.</div>`}
+                                    </div>
+                                ` : `
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                                        ${anexos.map((an, idx) => `
+                                            <button type="button" class="ua-btn ${idx === anexoAtivoIdx ? 'ua-btn-primary' : 'ua-btn-ghost'}"
+                                                    style="padding:7px 12px;font-size:0.8rem;"
+                                                    onclick="window._uaSelecionarAnexoPlay(${idx})">
+                                                <i class="ph ph-file-text"></i> ${esc(an.nome_arquivo)}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                    ${renderizarPreviewMaterialPlay(anexoAtivo)}
+                                `}
+                            </div>
+
+                            <!-- Coluna Direita: Lista de Presença da Aula -->
+                            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                                    <h4 style="margin:0;font-size:0.98rem;color:#0f172a;display:flex;align-items:center;gap:6px;">
+                                        <i class="ph ph-user-check" style="color:#16a34a;font-size:1.15rem;"></i>
+                                        Lista de Presença da Aula ${aula.ordem}
+                                    </h4>
+                                    <span class="ua-badge" style="background:${presentesQtd > 0 ? '#dcfce7' : '#fee2e2'};color:${presentesQtd > 0 ? '#15803d' : '#b91c1c'};">
+                                        Presentes: ${presentesQtd} / ${listaPresenca.length}
+                                    </span>
+                                </div>
+                                <div style="font-size:0.78rem;color:#64748b;margin-bottom:10px;">
+                                    Marque quem está presente nesta aula para liberar o formulário em sala e as missões da semana. É obrigatório ter pelo menos 1 presente para concluir.
+                                </div>
+                                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                                    <input type="text" class="ua-input" style="flex:1;min-width:150px;padding:7px 10px;font-size:0.82rem;"
+                                           placeholder="Buscar colaborador..."
+                                           value="${esc(buscaPresenca)}"
+                                           oninput="window._uaFiltrarPresencaPlay(this.value)">
+                                    <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(true)">Todos</button>
+                                    <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;font-size:0.78rem;" onclick="window._uaMarcarTodosPresencaPlay(false)">Limpar</button>
+                                </div>
+                                <div style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;">
+                                    <table class="ua-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Colaborador</th>
+                                                <th style="text-align:center;">Presença</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${visiveis.length === 0 ? `<tr><td colspan="2" style="text-align:center;color:#94a3b8;padding:18px;">Nenhum colaborador encontrado.</td></tr>` :
+                                                visiveis.map(p => `
+                                                    <tr style="cursor:pointer;" onclick="window._uaTogglePresencaPlay(${p.colaborador_id}, ${!p.presente})">
+                                                        <td>
+                                                            <div style="font-weight:600;color:#0f172a;font-size:0.84rem;">${esc(p.nome_completo)}</div>
+                                                            <div style="font-size:0.73rem;color:#64748b;">${esc(p.departamento || '—')} • ${esc(p.cargo || '')}</div>
+                                                        </td>
+                                                        <td style="text-align:center;" onclick="event.stopPropagation();">
+                                                            <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:999px;background:${p.presente ? '#dcfce7' : '#fee2e2'};color:${p.presente ? '#15803d' : '#b91c1c'};font-weight:700;font-size:0.76rem;">
+                                                                <input type="checkbox" ${p.presente ? 'checked' : ''} onchange="window._uaTogglePresencaPlay(${p.colaborador_id}, this.checked)">
+                                                                ${p.presente ? 'Presente' : 'Ausente'}
+                                                            </label>
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button type="button" class="ua-btn ua-btn-success" style="width:100%;justify-content:center;" id="ua-btn-salvar-presenca-play" onclick="window._uaSalvarPresencaPlay()">
+                                    <i class="ph ph-floppy-disk"></i> Salvar Lista de Presença (${presentesQtd}/${listaPresenca.length})
+                                </button>
+                            </div>
+                        </div>
+                    `}
                 </div>
 
                 <div class="ua-modal-ft">
                     <button type="button" class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-play-curso').remove();window.renderUniAmericaGestao();">
                         Fechar Apresentação
                     </button>
+                    ${todasConcluidas && abaPlay !== 'ranking' ? `
+                        <button type="button" class="ua-btn ua-btn-success" onclick="window._uaMudarAbaPlay('ranking')">
+                            <i class="ph ph-trophy"></i> Ver Ranking & Certificados
+                        </button>
+                    ` : ''}
                     ${aula.status_aula !== 'concluida' ? `
                         <button type="button" class="ua-btn ua-btn-primary" onclick="window._uaConcluirAulaPlay(${aula.id})">
-                            <i class="ph ph-check-circle"></i> Concluir Aula ${aula.ordem}
+                            <i class="ph ph-check-circle"></i> ${ehUltimaAulaNaoConcluida ? `Concluir Aula ${aula.ordem} e Finalizar Curso` : `Concluir Aula ${aula.ordem}`}
                         </button>
                     ` : ''}
                 </div>
             </div>
         `;
     }
+
+    window._uaRecarregarAvaliacoesPlay = async function () {
+        if (!_playEstado) return;
+        try {
+            const [avalData, det] = await Promise.all([
+                api(`/uniamerica/aulas/${_playEstado.aula.id}/avaliacoes`),
+                api(`/uniamerica/cursos/${_playEstado.curso.id}`)
+            ]);
+            _playEstado.avalData = avalData;
+            if (det && det.quadro) {
+                _playEstado.quadro = det.quadro;
+                const idxQ = G.rankingQuadros.findIndex(q => Number(q.curso.id) === Number(_playEstado.curso.id));
+                if (idxQ >= 0) G.rankingQuadros[idxQ] = det.quadro;
+                else G.rankingQuadros.push(det.quadro);
+            }
+            desenharModalPlayCurso();
+        } catch (e) {
+            msgErro('Erro ao atualizar avaliações', e.message);
+        }
+    };
 
     window._uaSelecionarAnexoPlay = function (idx) {
         if (!_playEstado) return;
@@ -2168,8 +2376,8 @@
         _playEstado.listaPresenca.forEach(x => { x.presente = val; });
         desenharModalPlayCurso();
     };
-    window._uaSalvarPresencaPlay = async function () {
-        if (!_playEstado) return;
+    window._uaSalvarPresencaPlay = async function (silencioso = false) {
+        if (!_playEstado) return false;
         const btn = document.getElementById('ua-btn-salvar-presenca-play');
         if (btn) btn.disabled = true;
         try {
@@ -2179,21 +2387,37 @@
                     presencas: _playEstado.listaPresenca.map(x => ({ colaborador_id: x.colaborador_id, presente: x.presente }))
                 }
             });
-            toastOk('Lista de presença salva! Teste em aula e missões liberados para os presentes.');
+            if (!silencioso) {
+                toastOk('Lista de presença salva! Teste em aula e missões liberados para os presentes.');
+            }
+            return true;
         } catch (e) {
             msgErro('Erro ao salvar lista de presença', e.message);
+            return false;
         } finally {
             if (btn) btn.disabled = false;
         }
     };
     window._uaConcluirAulaPlay = async function (aulaId) {
+        if (!_playEstado) return;
+        const presentesQtd = (_playEstado.listaPresenca || []).filter(x => x.presente).length;
+        if (presentesQtd === 0) {
+            return msgErro(
+                'Lista de Presença obrigatória',
+                'Apenas é possível concluir a aula/curso se houver pelo menos um colaborador selecionado na Lista de Presença.'
+            );
+        }
         try {
-            await window._uaSalvarPresencaPlay();
-            await api(`/uniamerica/aulas/${aulaId}/concluir`, { method: 'POST', body: {} });
-            toastOk('Aula concluída com sucesso!');
-            const m = document.getElementById('ua-modal-play-curso');
-            if (m) m.remove();
-            await window.renderUniAmericaGestao();
+            const salvou = await window._uaSalvarPresencaPlay(true);
+            if (!salvou) return;
+            const resConc = await api(`/uniamerica/aulas/${aulaId}/concluir`, { method: 'POST', body: {} });
+            if (resConc && resConc.curso_concluido) {
+                toastOk('Curso concluído com sucesso! Ranking e Certificados liberados.');
+                await window._uaPlayCurso(_playEstado.curso.id, aulaId, 'ranking');
+            } else {
+                toastOk('Aula concluída com sucesso!');
+                await window._uaPlayCurso(_playEstado.curso.id, null, 'aula');
+            }
         } catch (e) {
             msgErro('Erro ao concluir aula', e.message);
         }
@@ -2366,7 +2590,11 @@
                 body: { aula_id: aulaId, colaborador_id: colabId, pontos_gestor: pts, feedback_gestor: fb }
             });
             toastOk('Pontuação do teste salva!');
-            await window._uaAbrirAvaliacaoAula(aulaId);
+            if (document.getElementById('ua-modal-play-curso') && _playEstado) {
+                await window._uaRecarregarAvaliacoesPlay();
+            } else {
+                await window._uaAbrirAvaliacaoAula(aulaId);
+            }
         } catch (e) {
             msgErro('Erro ao salvar pontuação', e.message);
         }
@@ -2391,7 +2619,11 @@
                 }
             });
             toastOk(`Nota ${nota}/10 registrada na missão!`);
-            await window._uaAbrirAvaliacaoAula(aulaId);
+            if (document.getElementById('ua-modal-play-curso') && _playEstado) {
+                await window._uaRecarregarAvaliacoesPlay();
+            } else {
+                await window._uaAbrirAvaliacaoAula(aulaId);
+            }
         } catch (e) {
             msgErro('Erro ao avaliar missão', e.message);
         }
@@ -2460,9 +2692,11 @@
                                         ${alertas.length > 0 ? `<strong style="color:#c2410c;">${alertas.length} indicador(es) abaixo de 4,5 sugerem treinamento</strong>` : `<span style="color:#15803d;">Indicadores consolidados acima de 4,5</span>`}
                                     </div>
                                 </div>
-                                <button class="ua-btn ua-btn-primary" onclick="window._uaAbrirModalCurso(null, '${esc(d.departamento)}')">
-                                    <i class="ph ph-plus-circle"></i> Criar Curso para ${esc(d.departamento)}
-                                </button>
+                                ${G.isAdmin ? `
+                                    <button class="ua-btn ua-btn-primary" onclick="window._uaAbrirModalCurso(null, '${esc(d.departamento)}')">
+                                        <i class="ph ph-plus-circle"></i> Criar Curso para ${esc(d.departamento)}
+                                    </button>
+                                ` : ''}
                             </div>
 
                             ${alertas.length > 0 ? `
@@ -2762,14 +2996,16 @@
                                 ${c.avaliacao_geral_obs ? ` • <em>Avaliação Geral: ${esc(c.avaliacao_geral_obs)}</em>` : ''}
                             </div>
                         </div>
+                        ${G.isAdmin && !document.getElementById('ua-modal-play-curso') ? `
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button class="ua-btn ua-btn-ghost" onclick="window._uaIrPremiosDoCurso(${c.id})">
+                            <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirModalPremiosCurso(${c.id})">
                                 <i class="ph ph-gift"></i> Configurar Prêmios (${(q.premios || []).length})
                             </button>
                             <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirModalCurso(${c.id})">
-                                <i class="ph ph-note-pencil"></i> Avaliação Geral / Editar
+                                <i class="ph ph-note-pencil"></i> Editar Curso
                             </button>
                         </div>
+                        ` : ''}
                     </div>
 
                     <div style="overflow-x:auto;">
@@ -2865,9 +3101,7 @@
     };
 
     window._uaIrPremiosDoCurso = function (cursoId) {
-        G.premioCursoId = Number(cursoId);
-        G.aba = 'premios';
-        desenharGestao();
+        window._uaAbrirModalPremiosCurso(cursoId);
     };
 
     // ── GERADOR DE CERTIFICADO EM IMAGEM (MODELO FIEL AO ANEXO 2 + UPLOAD R2) ────
@@ -3082,7 +3316,8 @@
     }
 
     window._uaEmitirCertificado = async function (cursoId, colaboradorId) {
-        const quadro = G.rankingQuadros.find(q => Number(q.curso.id) === Number(cursoId));
+        const quadro = G.rankingQuadros.find(q => Number(q.curso.id) === Number(cursoId))
+            || (_playEstado && _playEstado.quadro && Number(_playEstado.quadro.curso.id) === Number(cursoId) ? _playEstado.quadro : null);
         if (!quadro) return;
         const part = quadro.ranking.find(p => Number(p.colaborador_id) === Number(colaboradorId));
         if (!part) return;
@@ -3120,7 +3355,12 @@
             const idsParam = G.filtroCursoIds.size > 0 ? `?curso_ids=${Array.from(G.filtroCursoIds).join(',')}` : '';
             const r = await api('/uniamerica/ranking' + idsParam);
             G.rankingQuadros = (r && r.quadros) ? r.quadros : [];
-            desenharAbaRanking();
+            if (_playEstado && Number(_playEstado.curso.id) === Number(cursoId)) {
+                const qNovo = G.rankingQuadros.find(q => Number(q.curso.id) === Number(cursoId));
+                if (qNovo) _playEstado.quadro = qNovo;
+                if (document.getElementById('ua-modal-play-curso')) desenharModalPlayCurso();
+            }
+            if (G.aba === 'ranking') desenharAbaRanking();
         } catch (e) {
             msgErro('Erro ao emitir certificado', e.message);
         }
@@ -3275,6 +3515,107 @@
         await renderAbaAtivaGestao();
     };
 
+    window._uaAbrirModalPremiosCurso = async function (cursoId) {
+        G.premioCursoId = Number(cursoId);
+        try {
+            const r = await api(`/uniamerica/cursos/${G.premioCursoId}/premios`);
+            G.premiosLista = (r && r.premios) ? r.premios : [];
+            const curso = G.cursos.find(c => Number(c.id) === Number(G.premioCursoId)) || { id: G.premioCursoId, nome: 'Curso' };
+
+            let backdrop = document.getElementById('ua-modal-premios-curso');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'ua-modal-backdrop';
+                backdrop.id = 'ua-modal-premios-curso';
+                document.body.appendChild(backdrop);
+            }
+
+            backdrop.innerHTML = `
+                <div class="ua-modal" style="max-width:980px;">
+                    <div class="ua-modal-hd">
+                        <h3><i class="ph ph-trophy" style="color:#f59e0b;"></i> Prêmios do Curso — ${esc(curso.nome)}</h3>
+                        <button type="button" class="ua-btn ua-btn-ghost" style="padding:6px 10px;" onclick="document.getElementById('ua-modal-premios-curso').remove();window.renderUniAmericaGestao();">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                    <div class="ua-modal-bd">
+                        <div style="display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;">
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px;">
+                                <h4 style="margin:0 0 12px;font-size:0.96rem;color:#0f172a;"><i class="ph ph-plus-circle" style="color:#2563eb;"></i> Cadastrar / Atualizar Prêmio</h4>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Colocação no Ranking *</label>
+                                    <select id="ua-pr-colocacao" class="ua-select">
+                                        <option value="1">🥇 1º Lugar</option>
+                                        <option value="2">🥈 2º Lugar</option>
+                                        <option value="3">🥉 3º Lugar</option>
+                                        <option value="4">4º Lugar</option>
+                                        <option value="5">5º Lugar</option>
+                                    </select>
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Título do Prêmio *</label>
+                                    <input type="text" id="ua-pr-titulo" class="ua-input" placeholder="Ex.: Vale-experiência + Troféu Destaque">
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Valor / Recompensa</label>
+                                    <input type="text" id="ua-pr-recompensa" class="ua-input" placeholder="Ex.: R$ 500,00 / Folga premiada / Kit">
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Descrição</label>
+                                    <textarea id="ua-pr-desc" rows="2" class="ua-textarea" placeholder="Detalhes da premiação..."></textarea>
+                                </div>
+                                <div style="margin-bottom:14px;">
+                                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Foto / Imagem do Prêmio</label>
+                                    <input type="file" id="ua-pr-img" accept="image/*" class="ua-input">
+                                </div>
+                                <button type="button" class="ua-btn ua-btn-primary" style="width:100%;justify-content:center;" onclick="window._uaSalvarPremio()">
+                                    <i class="ph ph-floppy-disk"></i> Salvar Prêmio da Colocação
+                                </button>
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:14px;">
+                                ${G.premiosLista.length === 0 ? `
+                                    <div style="grid-column:1/-1;background:#fff;border:1px dashed #cbd5e1;border-radius:16px;padding:36px;text-align:center;color:#64748b;">
+                                        Nenhum prêmio cadastrado ainda para este curso.
+                                    </div>
+                                ` : G.premiosLista.map(pr => {
+                                    const med = pr.colocacao === 1 ? '🥇 1º Lugar' : pr.colocacao === 2 ? '🥈 2º Lugar' : pr.colocacao === 3 ? '🥉 3º Lugar' : `${pr.colocacao}º Lugar`;
+                                    return `
+                                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;">
+                                            <div style="height:125px;background:linear-gradient(135deg,#fef3c7,#fde68a);display:flex;align-items:center;justify-content:center;position:relative;">
+                                                ${pr.imagem_url
+                                                    ? `<img src="${esc(authMediaUrl(pr.imagem_url))}" style="width:100%;height:100%;object-fit:cover;">`
+                                                    : `<i class="ph ph-trophy" style="font-size:2.8rem;color:#d97706;"></i>`}
+                                                <span class="ua-badge" style="position:absolute;top:10px;left:10px;background:#1e3a8a;color:#fff;">${med}</span>
+                                            </div>
+                                            <div style="padding:14px;flex:1;display:flex;flex-direction:column;gap:6px;">
+                                                <strong style="font-size:0.96rem;color:#0f172a;">${esc(pr.titulo)}</strong>
+                                                ${pr.recompensa ? `<span style="font-size:0.84rem;font-weight:700;color:#15803d;">${esc(pr.recompensa)}</span>` : ''}
+                                                ${pr.descricao ? `<p style="margin:0;font-size:0.8rem;color:#64748b;">${esc(pr.descricao)}</p>` : ''}
+                                                <div style="margin-top:auto;padding-top:10px;display:flex;justify-content:flex-end;">
+                                                    <button type="button" class="ua-btn ua-btn-danger" style="padding:5px 10px;font-size:0.78rem;" onclick="window._uaExcluirPremio(${pr.id})">
+                                                        <i class="ph ph-trash"></i> Remover
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ua-modal-ft">
+                        <button type="button" class="ua-btn ua-btn-primary" onclick="document.getElementById('ua-modal-premios-curso').remove();window.renderUniAmericaGestao();">
+                            Concluir
+                        </button>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            msgErro('Erro ao carregar prêmios do curso', e.message);
+        }
+    };
+
     window._uaSalvarPremio = async function () {
         const titulo = (document.getElementById('ua-pr-titulo').value || '').trim();
         if (!titulo) return msgErro('Título obrigatório', 'Informe o título do prêmio.');
@@ -3289,7 +3630,11 @@
         try {
             await api(`/uniamerica/cursos/${G.premioCursoId}/premios`, { method: 'POST', body: fd });
             toastOk('Prêmio salvo para a colocação!');
-            await renderAbaAtivaGestao();
+            if (document.getElementById('ua-modal-premios-curso')) {
+                await window._uaAbrirModalPremiosCurso(G.premioCursoId);
+            } else {
+                await renderAbaAtivaGestao();
+            }
         } catch (e) {
             msgErro('Erro ao salvar prêmio', e.message);
         }
@@ -3300,7 +3645,11 @@
         try {
             await api(`/uniamerica/premios/${premioId}`, { method: 'DELETE' });
             toastOk('Prêmio removido.');
-            await renderAbaAtivaGestao();
+            if (document.getElementById('ua-modal-premios-curso')) {
+                await window._uaAbrirModalPremiosCurso(G.premioCursoId);
+            } else {
+                await renderAbaAtivaGestao();
+            }
         } catch (e) {
             msgErro('Erro ao remover prêmio', e.message);
         }

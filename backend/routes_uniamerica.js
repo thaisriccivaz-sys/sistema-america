@@ -12,6 +12,8 @@ const crypto = require('crypto');
 const path = require('path');
 
 module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
+    const PAGE_GESTOR_ADMIN = 'uniamerica-gestao-admin';
+    const PAGE_GESTOR_USUARIO = 'uniamerica-gestao-usuario';
     const PAGE_GESTOR = 'uniamerica-gestao';
     const PAGE_MISSOES = 'uniamerica-missoes';
     const MAX_MB = 150;
@@ -240,8 +242,12 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
         return v === 1 || v === '1' || v === true || v === 'true';
     }
 
+    async function isAdminUniAmerica(u) {
+        return (await temPagina(u, PAGE_GESTOR_ADMIN)) || (await temPagina(u, PAGE_GESTOR));
+    }
+
     async function isGestorUniAmerica(u) {
-        return await temPagina(u, PAGE_GESTOR);
+        return (await isAdminUniAmerica(u)) || (await temPagina(u, PAGE_GESTOR_USUARIO));
     }
 
     const guardGestor = [authenticateToken, async (req, res, next) => {
@@ -550,11 +556,13 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
     // ═══════════════════════════════════════════════════════════════════════════
     app.get('/api/uniamerica/meu-perfil', authenticateToken, async (req, res) => {
         try {
-            const gestor = await isGestorUniAmerica(req.user);
+            const admin = await isAdminUniAmerica(req.user);
+            const gestor = admin || (await temPagina(req.user, PAGE_GESTOR_USUARIO));
             const participante = gestor || (await temPagina(req.user, PAGE_MISSOES));
             const colab = await resolverColaboradorDoUsuario(req.user, req);
             res.json({
                 ok: true,
+                is_admin: admin,
                 is_gestor: gestor,
                 can_missoes: participante,
                 colaborador: colab ? {
@@ -652,7 +660,8 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
                 });
             }
 
-            res.json({ ok: true, cursos: out });
+            const isAdmin = await isAdminUniAmerica(req.user);
+            res.json({ ok: true, is_admin: isAdmin, cursos: out });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
@@ -1123,13 +1132,36 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2) {
     app.post('/api/uniamerica/aulas/:aulaId/concluir', guardGestor, async (req, res) => {
         try {
             const aulaId = parseInt(req.params.aulaId, 10);
+            const aula = await dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
+            if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
+
+            // Regra obrigatória: Apenas deve ser possível concluir a aula/curso se tiver pelo menos um colaborador selecionado na lista de presença!
+            const presRow = await dbGet(`SELECT COUNT(*) AS qtd FROM uniamerica_presencas WHERE aula_id = ? AND presente = 1`, [aulaId]);
+            const presentesQtd = Number(presRow ? presRow.qtd : 0) || 0;
+            if (presentesQtd === 0) {
+                return res.status(400).json({
+                    error: 'Apenas é possível concluir a aula e o curso se houver pelo menos um colaborador selecionado como Presente na Lista de Presença.'
+                });
+            }
+
             await dbRun(
                 `UPDATE uniamerica_aulas
                  SET status_aula = 'concluida', concluida_em = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`,
                 [aulaId]
             );
-            res.json({ ok: true, status_aula: 'concluida' });
+
+            // Verificar se todas as aulas do curso já foram concluídas; se sim, marcar o curso como concluído
+            const todasAulas = await dbAll(`SELECT id, status_aula FROM uniamerica_aulas WHERE curso_id = ?`, [aula.curso_id]);
+            const todasConcluidas = todasAulas.length > 0 && todasAulas.every(a => a.status_aula === 'concluida');
+            if (todasConcluidas) {
+                await dbRun(
+                    `UPDATE uniamerica_cursos SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [aula.curso_id]
+                );
+            }
+
+            res.json({ ok: true, status_aula: 'concluida', curso_concluido: todasConcluidas });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
