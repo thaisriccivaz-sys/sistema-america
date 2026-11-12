@@ -53,6 +53,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  ADMIN
     // ═══════════════════════════════════════════════════════════════════════════
+    const isAdminFull = () => (A.dash && A.dash.is_admin_full !== undefined) ? !!A.dash.is_admin_full : (window.isAcademiaLideresAdminFull !== false);
     window.renderAcademiaLideresAdmin = async function () {
         const el = raiz('academia-lideres-admin-container'); if (!el) return;
         A.t = null; A.aba = A.aba || 'dashboard';
@@ -106,12 +107,12 @@
                 : `<span class="acl-chip enc" style="font-size:.75rem;"><i class="ph ph-user-Minus"></i> Sem login vinculado</span>`;
             return `<tr>
                 <td data-l="Colaborador"><div class="acl-pessoa" style="cursor:default">${avatar(c.nome, c.foto)}<div><b>${esc(c.nome)}</b><small>${esc(c.cargo || 'Sem cargo')}${c.departamento ? ' · ' + esc(c.departamento) : ''}</small></div></div></td>
-                <td data-l="Login no Sistema">${usuTxt} <button class="acl-btn sec sm" style="padding:3px 8px;font-size:.73rem;margin-left:4px;" onclick="window._aclVincularUsuarioModal(${c.id}, '${esc(c.nome)}', ${c.usuario_id || 0})" title="Vincular ou alterar usuário de login"><i class="ph ph-link"></i></button></td>
+                <td data-l="Login no Sistema">${usuTxt} ${isAdminFull() ? `<button class="acl-btn sec sm" style="padding:3px 8px;font-size:.73rem;margin-left:4px;" onclick="window._aclVincularUsuarioModal(${c.id}, '${esc(c.nome)}', ${c.usuario_id || 0})" title="Vincular ou alterar usuário de login"><i class="ph ph-link"></i></button>` : ''}</td>
                 <td data-l="Trilha(s) e Progresso">${trs}</td>
                 <td data-l="Missões / Pontos">${c.missoes || 0} missão(ões) · <b>+${c.pontos || 0} pts</b></td>
                 <td class="acl-acoes">
-                    <button class="acl-btn pri sm" onclick="window._aclMatricularMenu(${c.id})" title="Vincular colaborador a uma trilha"><i class="ph ph-plus-circle"></i> Vincular trilha</button>
-                    <button class="acl-btn sec sm" onclick="window._aclVerComoParticipante(${c.id})" title="Ver Minha Academia como este colaborador"><i class="ph ph-eye"></i></button>
+                    ${isAdminFull() ? `<button class="acl-btn pri sm" onclick="window._aclMatricularMenu(${c.id})" title="Vincular colaborador a uma trilha"><i class="ph ph-plus-circle"></i> Vincular trilha</button>` : ''}
+                    ${isAdminFull() ? `<button class="acl-btn sec sm" onclick="window._aclVerComoParticipante(${c.id})" title="Ver Minha Academia como este colaborador"><i class="ph ph-eye"></i></button>` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -120,7 +121,7 @@
             : '<div class="acl-vazio"><i class="ph ph-users"></i><div>Nenhum colaborador encontrado para este filtro.</div></div>';
         return `<div class="acl-barra-acoes">
             <h3 class="acl-titulo-sec"><i class="ph ph-users"></i> Colaboradores da Academia (${filtrada.length})</h3>
-            <button class="acl-btn pri" onclick="window._aclMatricularMenu()"><i class="ph ph-user-plus"></i> + VINCULAR COLABORADORES A UMA TRILHA</button>
+            ${isAdminFull() ? `<button class="acl-btn pri" onclick="window._aclMatricularMenu()"><i class="ph ph-user-plus"></i> + VINCULAR COLABORADORES A UMA TRILHA</button>` : `<span class="acl-chip enc" style="font-size:.78rem;"><i class="ph ph-lock-key"></i> Vínculo exclusivo para Gerenciar Academia (Admin)</span>`}
         </div>
         <p class="acl-dica"><i class="ph ph-info"></i> Aqui você vincula colaboradores às trilhas da Academia e confere qual usuário de login está associado a cada colaborador (sem precisar criar novas senhas).</p>
         <div class="acl-card" style="padding:12px 16px;">
@@ -474,9 +475,9 @@
             <td data-l="Progresso"><div class="acl-prog-cel">${barra(p.progresso, '#16a34a')}<b>${p.progresso}%</b></div></td>
             <td data-l="Evolução">${p.evolucao == null ? '—' : p.evolucao + '%'}</td><td data-l="Missões">${p.missoes}</td><td data-l="Pontos">${p.pontos ? '+' + p.pontos : '—'}</td>
             <td data-l="Status"><span class="acl-badge" style="background:${p.status === 'concluido' ? '#16a34a' : '#7c3aed'};">${stTxt[p.status] || p.status}</span>${p.excecao_ate ? `<small class="acl-exc">prazo extra até ${fmtBr(p.excecao_ate)}</small>` : ''}</td>
-            <td class="acl-acoes"><button onclick="window._aclExcecao(${p.matricula_id},'${esc(p.excecao_ate || '')}')" title="Liberar prazo extra"><i class="ph ph-calendar-plus"></i></button><button class="del" onclick="window._aclRemoverPart(${p.matricula_id})" title="Remover"><i class="ph ph-user-minus"></i></button></td></tr>`).join('');
+            <td class="acl-acoes"><button onclick="window._aclExcecao(${p.matricula_id},'${esc(p.excecao_ate || '')}')" title="Liberar prazo extra"><i class="ph ph-calendar-plus"></i></button>${isAdminFull() ? `<button class="del" onclick="window._aclRemoverPart(${p.matricula_id})" title="Remover"><i class="ph ph-user-minus"></i></button>` : ''}</td></tr>`).join('');
         const tabela = P.participantes.length ? `<div class="acl-tabela-wrap"><table class="acl-tabela"><thead><tr><th>Colaborador</th><th>Progresso</th><th>Evolução</th><th>Missões</th><th>Pontos</th><th>Status</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<div class="acl-vazio"><i class="ph ph-users"></i><div>Nenhum participante matriculado.</div></div>';
-        return `<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-users"></i> Participantes</h3><button class="acl-btn pri" onclick="window._aclMatricular()"><i class="ph ph-user-plus"></i> MATRICULAR COLABORADORES</button></div><p class="acl-dica">${P.total_obrigatorias} aula(s) obrigatória(s) compõem o progresso. Evolução, missões e pontos serão preenchidos nas próximas fases.</p>${tabela}`;
+        return `<div class="acl-barra-acoes"><h3 class="acl-titulo-sec"><i class="ph ph-users"></i> Participantes</h3>${isAdminFull() ? `<button class="acl-btn pri" onclick="window._aclMatricular()"><i class="ph ph-user-plus"></i> MATRICULAR COLABORADORES</button>` : ''}</div><p class="acl-dica">${P.total_obrigatorias} aula(s) obrigatória(s) compõem o progresso. Evolução, missões e pontos serão preenchidos nas próximas fases.</p>${tabela}`;
     }
     window._aclMatricular = async function () {
         let colabs; try { colabs = await api('/acl/colaboradores?trilha=' + A.t.id); } catch (e) { return erro('Erro', e.message); }

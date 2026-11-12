@@ -19,6 +19,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
 
     const TZ = 'America/Sao_Paulo';
     const PAGE_ADMIN = 'academia-lideres-admin';
+    const PAGE_NORMAL = 'academia-lideres-normal';
     const PAGE_MINHA = 'academia-lideres-minha';
     const MAX_MB = 60;
     const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_MB * 1024 * 1024 } });
@@ -144,7 +145,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mod_track ON acl_modulos (track_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_aula_mod ON acl_aulas (module_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_acl_mat_track ON acl_matriculas (track_id)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { seedDemo().then(() => seedDemoAvaliacao()).then(() => seedDemoMissoes()).catch(e => console.error('[ACL] seed:', e.message)); });
+        db.run(`CREATE INDEX IF NOT EXISTS idx_acl_prog_mat ON acl_progresso (matricula_id)`, () => { dbRun("UPDATE acl_trilhas SET status = 'publicada' WHERE status = 'rascunho' AND (demonstracao = 1 OR id IN (SELECT track_id FROM acl_matriculas))").catch(() => {}).then(() => seedDemo()).then(() => seedDemoAvaliacao()).then(() => seedDemoMissoes()).catch(e => console.error('[ACL] seed:', e.message)); });
     });
 
     // ── Permissões ─────────────────────────────────────────────────────────────
@@ -160,12 +161,22 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const v = row && row.visualizar;
         return v === 1 || v === '1' || v === true || v === 'true';
     }
+    async function isAclAdmin(u) {
+        return await temPagina(u, PAGE_ADMIN);
+    }
+    async function canGerenciarAcl(u) {
+        return (await isAclAdmin(u)) || (await temPagina(u, PAGE_NORMAL));
+    }
     const guardAdmin = [authenticateToken, async (req, res, next) => {
-        try { if (await temPagina(req.user, PAGE_ADMIN)) return next(); return res.status(403).json({ error: 'Sem permissão para administrar a Academia de Líderes.' }); }
+        try { if (await canGerenciarAcl(req.user)) return next(); return res.status(403).json({ error: 'Sem permissão para acessar Gerenciar Academia de Líderes.' }); }
+        catch (e) { return res.status(500).json({ error: e.message }); }
+    }];
+    const guardAdminStrict = [authenticateToken, async (req, res, next) => {
+        try { if (await isAclAdmin(req.user)) return next(); return res.status(403).json({ error: 'Apenas usuários com permissão Gerenciar Academia (Líderes) Admin podem vincular ou desvincular colaboradores.' }); }
         catch (e) { return res.status(500).json({ error: e.message }); }
     }];
     const guardMinha = [authenticateToken, async (req, res, next) => {
-        try { if (await temPagina(req.user, PAGE_MINHA) || await temPagina(req.user, PAGE_ADMIN)) return next(); return res.status(403).json({ error: 'Sem permissão para acessar a Academia.' }); }
+        try { if (await temPagina(req.user, PAGE_MINHA) || await canGerenciarAcl(req.user)) return next(); return res.status(403).json({ error: 'Sem permissão para acessar a Academia.' }); }
         catch (e) { return res.status(500).json({ error: e.message }); }
     }];
 
@@ -216,7 +227,8 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             if (cfg && cfg.colaborador_id) { const c = await dbGet(`SELECT ${cols} FROM colaboradores WHERE id = ?`, [cfg.colaborador_id]); if (c) return c; }
         } catch (e) { /* tabela pode não existir */ }
         const u = await dbGet('SELECT id, username, nome, email FROM usuarios WHERE id = ?', [uid]);
-        const todos = await dbAll(`SELECT ${cols} FROM colaboradores WHERE status NOT LIKE 'Desligado%'`);
+        const todos = await dbAll(`SELECT ${cols} FROM colaboradores WHERE status NOT LIKE 'Desligado%'
+            ORDER BY (SELECT COUNT(*) FROM acl_matriculas m WHERE m.colaborador_id = colaboradores.id AND m.status != 'inativo') DESC, id ASC`);
         return matchUsuarioColab(u, todos);
     }
 
@@ -636,7 +648,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             res.json(rows);
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
-    app.post('/api/acl/vincular-usuario', guardAdmin, async (req, res) => {
+    app.post('/api/acl/vincular-usuario', guardAdminStrict, async (req, res) => {
         try {
             const uid = parseInt(req.body && req.body.usuario_id, 10) || 0;
             const cid = parseInt(req.body && req.body.colaborador_id, 10) || 0;
@@ -664,20 +676,37 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             })) });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
-    app.post('/api/acl/trilhas/:id/matriculas', guardAdmin, async (req, res) => {
+    app.post('/api/acl/trilhas/:id/matriculas', guardAdminStrict, async (req, res) => {
         try {
             const tid = parseInt(req.params.id, 10);
             const ids = Array.isArray(req.body && req.body.colaborador_ids) ? req.body.colaborador_ids.map(Number).filter(Boolean) : [];
             if (!ids.length) return res.status(400).json({ error: 'Selecione ao menos um colaborador.' });
+            // Se a trilha estava em rascunho ao receber matrículas, promover para publicada para que apareça imediatamente aos participantes
+            await dbRun("UPDATE acl_trilhas SET status = 'publicada', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'rascunho'", [tid]);
+            const usuariosAtivos = await dbAll('SELECT id, username, nome, email FROM usuarios WHERE ativo = 1');
             let novos = 0;
             for (const cid of ids) {
                 const r = await dbRun('INSERT OR IGNORE INTO acl_matriculas (track_id, colaborador_id, status, data_matricula) VALUES (?, ?, \'ativo\', ?)', [tid, cid, hojeSP()]);
                 if (r.changes) novos++;
+                // Garantir vínculo automático em acl_usuario_vinculo se ainda não houver
+                const jaVinc = await dbGet('SELECT usuario_id FROM acl_usuario_vinculo WHERE colaborador_id = ?', [cid]);
+                if (!jaVinc) {
+                    const col = await dbGet('SELECT id, nome_completo, email FROM colaboradores WHERE id = ?', [cid]);
+                    if (col) {
+                        const usuMatch = usuariosAtivos.find(u => {
+                            const m = matchUsuarioColab(u, [col]);
+                            return m && m.id === col.id;
+                        });
+                        if (usuMatch) {
+                            await dbRun('INSERT OR IGNORE INTO acl_usuario_vinculo (usuario_id, colaborador_id, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)', [usuMatch.id, col.id]);
+                        }
+                    }
+                }
             }
             res.json({ ok: true, novos });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
-    app.delete('/api/acl/matriculas/:id', guardAdmin, async (req, res) => {
+    app.delete('/api/acl/matriculas/:id', guardAdminStrict, async (req, res) => {
         try {
             const id = parseInt(req.params.id, 10);
             await dbRun('DELETE FROM acl_progresso WHERE matricula_id = ?', [id]);
@@ -726,7 +755,9 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
                 porTrilha.push({ id: t.id, nome: t.nome, participantes: mats.length, media: mats.length ? Math.round(soma / mats.length) : 0 });
             }
             const totalColab = await dbGet(`SELECT COUNT(*) n FROM colaboradores WHERE status IN ('Ativo', 'Férias')`);
+            const isAdminFull = await isAclAdmin(req.user);
             res.json({
+                is_admin_full: isAdminFull,
                 total_colaboradores: totalColab.n, participantes: totalPart, ativos, concluidos, em_desenvolvimento: emDesenv, nao_iniciaram: naoIniciaram,
                 trilhas_cadastradas: trilhas.length, missoes_pendentes: (await dbGet("SELECT COUNT(*) n FROM acl_missoes_envios WHERE status = 'em_analise'")).n, trilhas_concluidas: concluidos,
                 media_conclusao: nPct ? Math.round(somaPct / nPct) : 0, certificados_emitidos: (await dbGet('SELECT COUNT(*) n FROM acl_certificados')).n, por_trilha: porTrilha
@@ -861,7 +892,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
                 });
             }
             const mats = await dbAll(`SELECT m.track_id FROM acl_matriculas m JOIN acl_trilhas t ON t.id = m.track_id
-                WHERE m.colaborador_id = ? AND m.status != 'inativo' AND (t.status NOT IN ('rascunho', 'arquivada') OR ? = 1) ORDER BY t.id DESC`, [colab.id, isAdmin ? 1 : 0]);
+                WHERE m.colaborador_id = ? AND m.status != 'inativo' AND (t.status != 'arquivada' OR ? = 1) ORDER BY t.id DESC`, [colab.id, isAdmin ? 1 : 0]);
             const trilhas = [];
             for (const m of mats) {
                 const j = await jornadaDoColab(m.track_id, colab.id);
@@ -894,7 +925,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const tid = parseInt(req.params.id, 10);
             if (colab) {
                 const j = await jornadaDoColab(tid, colab.id);
-                if (j && (!['rascunho', 'arquivada'].includes(j.trilha.status) || isAdmin)) return res.json(j);
+                if (j && (j.trilha.status !== 'arquivada' || isAdmin)) return res.json(j);
             }
             if (isAdmin) {
                 const jp = await jornadaPreviewAdmin(tid);
@@ -911,7 +942,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
             const aulaId = parseInt(req.params.id, 10);
             const a = await dbGet(`SELECT a.id, a.prazo, m.id AS mid, m.data_fim AS mfim, m.ativo, t.id AS tid, t.data_fim AS tfim, t.status FROM acl_aulas a
                 JOIN acl_modulos m ON m.id = a.module_id JOIN acl_trilhas t ON t.id = m.track_id WHERE a.id = ?`, [aulaId]);
-            if (!a || !a.ativo || ['rascunho', 'arquivada'].includes(a.status)) return res.status(404).json({ error: 'Aula não encontrada.' });
+            if (!a || !a.ativo || a.status === 'arquivada') return res.status(404).json({ error: 'Aula não encontrada.' });
             const mat = await dbGet(`SELECT * FROM acl_matriculas WHERE track_id = ? AND colaborador_id = ? AND status != 'inativo'`, [a.tid, colab.id]);
             if (!mat) return res.status(403).json({ error: 'Você não está matriculado nesta trilha.' });
             const concluir = !(req.body && (req.body.concluida === false || req.body.concluida === 0));
@@ -1176,7 +1207,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const colab = await colabDoUsuario(req.user, req);
         if (!colab) { res.status(404).json({ error: 'Seu usuário não está vinculado a um colaborador.' }); return null; }
         const q = await dbGet(`SELECT q.*, t.status AS tstatus, t.data_fim AS tfim FROM acl_avaliacoes q JOIN acl_trilhas t ON t.id = q.track_id WHERE q.id = ?`, [parseInt(req.params.id, 10)]);
-        if (!q || !q.ativo || ['rascunho', 'arquivada'].includes(q.tstatus)) { res.status(404).json({ error: 'Avaliação não encontrada.' }); return null; }
+        if (!q || !q.ativo || q.tstatus === 'arquivada') { res.status(404).json({ error: 'Avaliação não encontrada.' }); return null; }
         const mat = await dbGet(`SELECT * FROM acl_matriculas WHERE track_id = ? AND colaborador_id = ? AND status != 'inativo'`, [q.track_id, colab.id]);
         if (!mat) { res.status(403).json({ error: 'Você não está matriculado nesta trilha.' }); return null; }
         const t = await dbGet('SELECT COUNT(*) n, MAX(aprovado) ap, MAX(nota) melhor FROM acl_tentativas WHERE matricula_id = ? AND quiz_id = ?', [mat.id, q.id]);
@@ -1416,7 +1447,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const colab = await colabDoUsuario(req.user, req);
         if (!colab) { res.status(404).json({ error: 'Seu usuário não está vinculado a um colaborador.' }); return null; }
         const m = await dbGet(`SELECT m.*, t.data_inicio AS t_ini, t.data_fim AS t_fim, t.status AS tstatus, t.nome AS trilha_nome FROM acl_missoes m JOIN acl_trilhas t ON t.id = m.track_id WHERE m.id = ?`, [parseInt(req.params.id, 10)]);
-        if (!m || m.status === 'rascunho' || ['rascunho', 'arquivada'].includes(m.tstatus)) { res.status(404).json({ error: 'Missão não encontrada.' }); return null; }
+        if (!m || m.status === 'rascunho' || m.tstatus === 'arquivada') { res.status(404).json({ error: 'Missão não encontrada.' }); return null; }
         const mat = await dbGet(`SELECT * FROM acl_matriculas WHERE track_id = ? AND colaborador_id = ? AND status != 'inativo'`, [m.track_id, colab.id]);
         if (!mat) { res.status(403).json({ error: 'Você não está matriculado nesta trilha.' }); return null; }
         const envios = await dbAll('SELECT * FROM acl_missoes_envios WHERE mission_id = ? AND matricula_id = ? ORDER BY id DESC', [m.id, mat.id]);
@@ -1529,7 +1560,7 @@ module.exports = function registerAcademiaLideres(app, db, authenticateToken, r2
         const fim = new Date(h + 'T12:00:00'); fim.setDate(fim.getDate() + 90);
         const fimIso = fim.toISOString().slice(0, 10);
         const t = await dbRun(`INSERT INTO acl_trilhas (nome, descricao, objetivo, publico_json, data_inicio, data_fim, carga_horaria, gera_certificado, status, demonstracao)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'rascunho', 1)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'publicada', 1)`,
             ['Academia de Sucesso — Líderes', 'Conteúdo de demonstração: trilha de desenvolvimento para líderes. Edite, publique e matricule os participantes.',
                 'Desenvolver as competências de liderança, comunicação, gestão de pessoas, segurança e resultados.', JSON.stringify(['Líder']), h, fimIso, 40]);
         const modulos = [

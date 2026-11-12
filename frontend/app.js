@@ -920,6 +920,8 @@ window.carregarPermissoesOnline = async function () {
         // Regra fixa solicitada: Ocultar módulos nunca se aplica a liderança da Diretoria.
         // Eles têm acesso automático e irrestrito a todas as telas visualmente.
         window.estoquePerms = { itens: true, equipamentos: true };
+        window.isAcademiaLideresAdminFull = true;
+        window.academiaLideresPerms = { isAdmin: true, isNormal: false };
         document.querySelectorAll('.nav-item').forEach(el => {
             if (el.getAttribute('data-target') === 'comercial-contatos') {
                 el.style.cssText = 'display: none !important;';
@@ -985,6 +987,19 @@ window.carregarPermissoesOnline = async function () {
             equipamentos: !!mapPerms['estoque-equipamentos']
         };
         if (window.estoquePerms.equipamentos) mapPerms['estoque'] = true;
+
+        // Academia de Líderes: separação entre Gerenciar Academia (Líderes) Admin e Normal.
+        // O Admin pode vincular colaboradores e é considerado administrador de todas as telas da Academia.
+        const _hasAclAdmin = !!mapPerms['academia-lideres-admin'];
+        const _hasAclNormal = !!mapPerms['academia-lideres-normal'];
+        window.isAcademiaLideresAdminFull = _hasAclAdmin;
+        window.academiaLideresPerms = { isAdmin: _hasAclAdmin, isNormal: _hasAclNormal && !_hasAclAdmin };
+        if (_hasAclAdmin) {
+            mapPerms['academia-lideres-admin'] = true;
+            mapPerms['academia-lideres-minha'] = true;
+        } else if (_hasAclNormal) {
+            mapPerms['academia-lideres-admin'] = true;
+        }
 
         if (mapPerms['comercial-proposta']) {
             if (mapPerms['comercial-enderecos'] === undefined) mapPerms['comercial-enderecos'] = true;
