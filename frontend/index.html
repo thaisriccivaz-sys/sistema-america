@@ -520,13 +520,13 @@
                 </div>
 
                 <!-- APP (uso operacional / celular) -->
-                <div class="dept-item" style="--dept-color:#0d9488; --dept-bg:#ccfbf1;">
+                <div class="dept-item" style="--dept-color:#556b2f; --dept-bg:#eef3e3;">
                     <button class="dept-btn" title="APP">
                         <i class="ph ph-device-mobile"></i>
                         <span>APP</span>
                     </button>
                     <div class="dept-submenu">
-                        <div class="dept-submenu-header" style="color:#0d9488;"><i class="ph ph-device-mobile"></i> APP</div>
+                        <div class="dept-submenu-header" style="color:#556b2f;"><i class="ph ph-device-mobile"></i> APP</div>
                         <div class="nav-group" id="nav-group-app-lideranca">
                             <button class="nav-group-label nav-group-toggle" onclick="toggleNavGroup('nav-group-app-lideranca')">
                                 <span style="display:flex;align-items:center;gap:0.55rem;">
@@ -6052,6 +6052,14 @@
                 <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Treinamento/Palestra</label>
                 <select id="pres-filtro-treinamento" class="form-control" style="width:100%;" onchange="window.filtrarPresencaTreinamento(this.value)">
                     <option value="">Todos os treinamentos</option>
+                </select>
+            </div>
+            <div id="pres-filtro-integracao-wrap" style="flex:1;min-width:170px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Integração</label>
+                <select id="pres-filtro-integracao" class="form-control" style="width:100%;" onchange="window.filtrarPresencaIntegracao(this.value)">
+                    <option value="">Todos</option>
+                    <option value="Integracao">Treinamentos de Integração</option>
+                    <option value="Outros">Demais Treinamentos</option>
                 </select>
             </div>
             <div style="flex:1;min-width:150px;">

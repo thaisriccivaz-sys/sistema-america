@@ -681,7 +681,7 @@ const MENU_HIERARQUIA = [
         grupos: [{ titulo: 'Telas', telas: ['sac', 'sac-atribuidos'] }]
     },
     {
-        modulo: 'APP', icone: 'ph-device-mobile', cor: '#0d9488',
+        modulo: 'APP', icone: 'ph-device-mobile', cor: '#556b2f',
         grupos: [{ titulo: 'Lideran\u00e7a', telas: ['app-lideranca-candidatos', 'app-lideranca-retiradas', 'app-lideranca-entregas'] }]
     },
     {

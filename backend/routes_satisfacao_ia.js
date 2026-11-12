@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -868,11 +869,18 @@ ${obsStr}`;
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/\n/g, '<br>');
 
+            const destinatariosLista = emailDestino
+                .split(/[;,]+/)
+                .map(s => s.trim())
+                .filter(s => s && s.includes('@'));
+            const toFormatado = destinatariosLista.join(', ');
+
             const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const temLogo = fs.existsSync(logoPath);
             const htmlEmail = `<div style="font-family:Arial,sans-serif;max-width:740px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;">
-                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                ${temLogo ? `<div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:740px;height:auto;display:block;">
-                </div>
+                </div>` : ''}
                 <div style="padding:24px 28px;">
                     <div style="background:#7c3aed;color:#fff;padding:16px 20px;border-radius:10px;margin-bottom:20px;">
                         <h2 style="margin:0;font-size:1.25rem;">Relatório de ${tituloTipo} — ${departamento}</h2>
@@ -893,12 +901,13 @@ ${obsStr}`;
                 </div>
             </div>`;
 
-            await sendMailHelper({
-                to: emailDestino,
+            const mailInfo = await sendMailHelper({
+                to: toFormatado,
                 subject: `Relatório de ${tituloTipo} — Depto. ${departamento} (${perStr})`,
                 html: htmlEmail,
-                attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                attachments: temLogo ? [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] : []
             });
+            console.log(`[RELATORIO-IA] E-mail de ${tituloTipo} (${departamento} - ${perStr}) enviado para ${toFormatado} | MsgId: ${mailInfo && mailInfo.messageId}`);
 
             if (gestor && gestor.usuario_id) {
                 const msgNotif = `📊 O Relatório de ${tituloTipo} do departamento <strong>${departamento}</strong> (${perStr}) foi enviado para seu e-mail (${emailDestino}). Média do setor: <strong>${est.media_geral != null ? est.media_geral.toFixed(1) : '—'}/5</strong>.`;

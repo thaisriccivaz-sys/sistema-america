@@ -317,8 +317,25 @@
         .status-pill-pend { display:inline-flex;align-items:center;gap:.3rem;background:#fef9c3;color:#92400e;border:1px solid #fde047;padding:.22rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700; }
         .status-pill-afastado { display:inline-flex;align-items:center;gap:.3rem;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;padding:.22rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700; }
         .status-pill-na { display:inline-flex;align-items:center;gap:.25rem;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;padding:.2rem .6rem;border-radius:999px;font-size:.74rem;font-weight:700; }
-        .sat-status-edit-select { padding:.18rem .4rem;border-radius:6px;border:1px solid #cbd5e1;background:#fff;font-size:.72rem;font-weight:600;color:#475569;cursor:pointer;outline:none;transition:border-color .15s; }
-        .sat-status-edit-select:hover, .sat-status-edit-select:focus { border-color:#7c3aed; }
+        .sat-status-arrow-btn {
+            width:22px;height:22px;border-radius:999px;border:1px solid transparent;background:transparent;
+            color:#64748b;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+            padding:0;font-size:.78rem;transition:all .15s;flex-shrink:0;
+        }
+        .sat-status-arrow-btn:hover, .sat-status-arrow-btn.open {
+            background:#f1f5f9;border-color:#cbd5e1;color:#1e293b;
+        }
+        .sat-status-dropdown-menu {
+            position:fixed;z-index:12000;background:#fff;border:1px solid #cbd5e1;border-radius:10px;
+            box-shadow:0 10px 25px rgba(15,23,42,.16);padding:5px;min-width:136px;display:flex;flex-direction:column;gap:2px;
+            font-family:'Inter',sans-serif;
+        }
+        .sat-status-dropdown-item {
+            display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border:none;border-radius:7px;
+            background:transparent;color:#334155;font-size:.78rem;font-weight:600;cursor:pointer;text-align:left;
+        }
+        .sat-status-dropdown-item:hover { background:#f8fafc; }
+        .sat-status-dropdown-item.active { background:#f5f3ff;color:#6d28d9;font-weight:700; }
 
         /* colabs table */
         .sat-search-bar { display:flex;gap:.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap; background:#fff; padding:.85rem 1rem; border-radius:12px; border:1px solid #e2e8f0; }
@@ -787,11 +804,9 @@
                             <i class="ph ph-paper-plane-tilt" style="color:#0ea5e9;font-size:1.1rem;"></i>
                             Enviar Avaliação Consolidada para o Gestor do Departamento
                         </div>
-                        ${relSalvo && relSalvo.enviado_gestor_em ? `
-                            <span style="font-size:.76rem;background:#dcfce7;color:#15803d;padding:.25rem .65rem;border-radius:999px;font-weight:700;">
-                                ✓ Enviado para ${escHtml(relSalvo.enviado_para_email || 'gestor')}
-                            </span>
-                        ` : ''}
+                        <span id="sat-ia-envio-badge" style="font-size:.76rem;background:${relSalvo && relSalvo.enviado_gestor_em ? '#dcfce7' : '#f1f5f9'};color:${relSalvo && relSalvo.enviado_gestor_em ? '#15803d' : '#64748b'};padding:.25rem .65rem;border-radius:999px;font-weight:700;${relSalvo && relSalvo.enviado_gestor_em ? '' : 'display:none;'}">
+                            ${relSalvo && relSalvo.enviado_gestor_em ? `✓ Último envio: ${escHtml(relSalvo.enviado_para_email || 'gestor')}` : ''}
+                        </span>
                     </div>
                     <div style="display:flex;gap:.85rem;align-items:flex-end;flex-wrap:wrap;">
                         <div style="flex:1;min-width:180px;">
@@ -845,6 +860,13 @@
                 })
             });
             txt.value = res.relatorio_texto || '';
+            const bdg = document.getElementById('sat-ia-envio-badge');
+            if (bdg) {
+                bdg.style.display = 'inline-flex';
+                bdg.style.background = '#fef9c3';
+                bdg.style.color = '#854d0e';
+                bdg.textContent = 'Texto regerado — clique em "Enviar Avaliação para o Gestor" abaixo para enviar por e-mail';
+            }
         } catch (err) {
             alert('Não foi possível gerar o relatório: ' + err.message);
         } finally {
@@ -915,10 +937,23 @@
                     email_destino
                 })
             });
-            alert(`Relatório de Satisfação do departamento "${_iaModalState.departamento}" enviado com sucesso para ${r.enviado_para}!`);
+            if (typeof Swal !== 'undefined') {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Relatório enviado por e-mail!',
+                    html: `O relatório consolidado do departamento <b>${escHtml(_iaModalState.departamento)}</b> foi enviado para:<br><b>${escHtml(r.enviado_para)}</b>`,
+                    confirmButtonColor: '#7c3aed'
+                });
+            } else {
+                alert(`Relatório de Satisfação do departamento "${_iaModalState.departamento}" enviado com sucesso para ${r.enviado_para}!`);
+            }
             await carregarDadosModalIA();
         } catch (err) {
-            alert('Erro ao enviar relatório ao gestor: ' + err.message);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Falha ao enviar e-mail', text: err.message, confirmButtonColor: '#7c3aed' });
+            } else {
+                alert('Erro ao enviar relatório ao gestor: ' + err.message);
+            }
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = orig;
@@ -1079,15 +1114,13 @@
                 }
 
                 return `<td style="text-align:center;">
-                    <div style="display:inline-flex;align-items:center;justify-content:center;gap:.35rem;flex-wrap:wrap;">
+                    <div style="display:inline-flex;align-items:center;justify-content:center;gap:2px;">
                         ${pillHtml}
-                        <select class="sat-status-edit-select"
-                            title="Alterar status em ${periodLabel(p)} (N/A e Afastado contam como concluídos)"
-                            onchange="window._satAlterarStatusColab(${c.id}, ${p.ano}, ${p.trimestre}, this.value)">
-                            <option value="pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
-                            <option value="afastado" ${st === 'afastado' ? 'selected' : ''}>Afastado</option>
-                            <option value="na" ${st === 'na' ? 'selected' : ''}>N/A</option>
-                        </select>
+                        <button type="button" class="sat-status-arrow-btn"
+                            title="Trocar situação em ${periodLabel(p)}"
+                            onclick="window._satToggleStatusDropdown(event, ${c.id}, ${p.ano}, ${p.trimestre}, '${st}')">
+                            <i class="ph ph-caret-down"></i>
+                        </button>
                     </div>
                 </td>`;
             }).join('')}
@@ -1170,7 +1203,65 @@
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
+    function _fecharStatusDropdownSat() {
+        const old = document.getElementById('sat-floating-status-menu');
+        if (old) old.remove();
+        document.querySelectorAll('.sat-status-arrow-btn.open').forEach(b => b.classList.remove('open'));
+    }
+
+    if (!window._satStatusDropdownDocBound) {
+        window._satStatusDropdownDocBound = true;
+        document.addEventListener('click', (ev) => {
+            if (!ev.target.closest('#sat-floating-status-menu') && !ev.target.closest('.sat-status-arrow-btn')) {
+                _fecharStatusDropdownSat();
+            }
+        });
+        window.addEventListener('scroll', _fecharStatusDropdownSat, true);
+    }
+
+    window._satToggleStatusDropdown = function (ev, colabId, ano, trimestre, stAtual) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const btn = ev.currentTarget;
+        const jaAberto = btn.classList.contains('open');
+        _fecharStatusDropdownSat();
+        if (jaAberto) return;
+
+        btn.classList.add('open');
+        const rect = btn.getBoundingClientRect();
+        const menu = document.createElement('div');
+        menu.id = 'sat-floating-status-menu';
+        menu.className = 'sat-status-dropdown-menu';
+
+        const opcoes = [
+            { val: 'pendente', label: 'Pendente', cor: '#eab308' },
+            { val: 'afastado', label: 'Afastado', cor: '#2563eb' },
+            { val: 'na', label: 'N/A', cor: '#64748b' }
+        ];
+
+        menu.innerHTML = opcoes.map(op => `
+            <button type="button" class="sat-status-dropdown-item ${stAtual === op.val ? 'active' : ''}"
+                onclick="window._satAlterarStatusColab(${colabId}, ${ano}, ${trimestre}, '${op.val}')">
+                <span style="width:8px;height:8px;border-radius:50%;background:${op.cor};flex-shrink:0;"></span>
+                <span style="flex:1;">${op.label}</span>
+                ${stAtual === op.val ? '<i class="ph ph-check" style="font-size:.8rem;"></i>' : ''}
+            </button>
+        `).join('');
+
+        document.body.appendChild(menu);
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.right - mRect.width;
+        if (left < 8) left = 8;
+        if (top + mRect.height > window.innerHeight - 8) {
+            top = Math.max(8, rect.top - mRect.height - 4);
+        }
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+    };
+
     window._satAlterarStatusColab = async function (colabId, ano, trimestre, novoStatus) {
+        _fecharStatusDropdownSat();
         try {
             await fetchJSON('/avaliacoes/satisfacao/status-colaborador', {
                 method: 'PUT',

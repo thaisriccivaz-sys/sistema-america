@@ -14,6 +14,7 @@
     let _treinamentosListaCache = [];
     let _buscaDropdownTrein = '';
     let _ultimoTipoPresenca = '';
+    let _filtroIntegracao = '';
     let _filtroConclusao = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
@@ -66,12 +67,15 @@
         if (view) {
             const h1 = view.querySelector('h1');
             const p = view.querySelector('p');
+            const wrapInteg = document.getElementById('pres-filtro-integracao-wrap');
             if (tipoAtual === 'terapia') {
                 if (h1) h1.textContent = 'Presença Palestras';
                 if (p) p.textContent = 'Visualize e registre a presença em palestras por colaborador.';
+                if (wrapInteg) wrapInteg.style.display = 'none';
             } else {
                 if (h1) h1.textContent = 'Presença Treinamento';
                 if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
+                if (wrapInteg) wrapInteg.style.display = '';
             }
         }
 
@@ -186,9 +190,19 @@
         `;
     }
 
+    function _ehTreinIntegracao(t) {
+        if (t && t.is_integracao !== undefined && t.is_integracao !== null) {
+            return Number(t.is_integracao) === 1;
+        }
+        const cached = _treinamentosListaCache.find(x => String(x.id) === String(t && t.id));
+        return cached ? Number(cached.is_integracao) === 1 : false;
+    }
+
     function _htmlOpcoesDropdownTrein() {
         const q = (_buscaDropdownTrein || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const filtrados = _treinamentosListaCache.filter(t => {
+            if (_filtroIntegracao === 'Integracao' && !_ehTreinIntegracao(t)) return false;
+            if (_filtroIntegracao === 'Outros' && _ehTreinIntegracao(t)) return false;
             if (!q) return true;
             const n = String(t.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             return n.includes(q);
@@ -240,6 +254,8 @@
     window._presMarcarVisiveisTrein = function () {
         const q = (_buscaDropdownTrein || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         _treinamentosListaCache.forEach(t => {
+            if (_filtroIntegracao === 'Integracao' && !_ehTreinIntegracao(t)) return;
+            if (_filtroIntegracao === 'Outros' && _ehTreinIntegracao(t)) return;
             const n = String(t.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             if (!q || n.includes(q)) _filtroTreinamentosIds.add(String(t.id));
         });
@@ -302,6 +318,14 @@
                 const tTipo = (t.tipo || 'treinamento').toLowerCase();
                 return tTipo === tipoAtual.toLowerCase();
             });
+
+            if (tipoAtual !== 'terapia' && _filtroIntegracao) {
+                if (_filtroIntegracao === 'Integracao') {
+                    tr = tr.filter(t => _ehTreinIntegracao(t));
+                } else if (_filtroIntegracao === 'Outros') {
+                    tr = tr.filter(t => !_ehTreinIntegracao(t));
+                }
+            }
             
             if (_filtroTreinamentosIds.size > 0) {
                 tr = tr.filter(t => _filtroTreinamentosIds.has(String(t.id)));
@@ -1347,6 +1371,18 @@
 
     window.filtrarPresencaTreinamento = function (val) {
         _filtroTreinamento = val;
+        renderizar();
+    };
+
+    window.filtrarPresencaIntegracao = function (val) {
+        _filtroIntegracao = val || '';
+        // Quando selecionar Integração, mudar automaticamente o filtro de Conclusão para Pendente
+        if (_filtroIntegracao === 'Integracao') {
+            _filtroConclusao = 'Pendente';
+            const selConc = document.getElementById('pres-filtro-conclusao');
+            if (selConc) selConc.value = 'Pendente';
+        }
+        _renderDropdownTreinamentos(false);
         renderizar();
     };
 

@@ -59,7 +59,7 @@
         if (!r.ok) throw new Error((b && b.error) || ('Erro HTTP ' + r.status));
         return b;
     }
-    const erro = (titulo, msg) => Swal.fire({ icon: 'error', title: titulo, text: msg, confirmButtonColor: '#7c3aed', confirmButtonText: 'OK' });
+    const erro = (titulo, msg) => Swal.fire({ icon: 'error', title: titulo, text: msg, confirmButtonColor: '#556b2f', confirmButtonText: 'OK' });
     const midiaUrl = id => apiBase() + '/app/entregas/midia/' + id + '?token=' + encodeURIComponent(getToken());
     const fotoColab = id => apiBase() + '/colaboradores/foto/' + id;
 
@@ -141,7 +141,7 @@
         w.innerHTML = `
         <header class="alc-head">
             <button class="alc-icon-btn alc-only-mobile" onclick="window._aleMenu()" aria-label="Menu do sistema"><i class="ph ph-list"></i></button>
-            <div class="alc-head-title"><i class="ph ph-truck" style="color:#0284c7"></i><div><h2>Entregas</h2><span>Liderança · Checklist dos equipamentos</span></div></div>
+            <div class="alc-head-title"><i class="ph ph-truck" style="color:#556b2f"></i><div><h2>Entregas</h2><span>Liderança · Checklist dos equipamentos</span></div></div>
             <button class="alc-icon-btn" onclick="window._aleRecarregar()" title="Atualizar" aria-label="Atualizar"><i class="ph ph-arrow-clockwise"></i></button>
         </header>
         ${htmlAgenda()}
@@ -466,7 +466,7 @@
         const el = document.getElementById('ale-salvo'); if (!el) return;
         const m = {
             ok: '<i class="ph ph-cloud-check" style="color:#16a34a"></i>', pendente: '<i class="ph ph-cloud-arrow-up" style="color:#0284c7"></i>',
-            salvando: '<i class="ph ph-spinner ph-spin" style="color:#7c3aed"></i>', erro: '<i class="ph ph-cloud-slash" style="color:#dc2626"></i>'
+            salvando: '<i class="ph ph-spinner ph-spin" style="color:#556b2f"></i>', erro: '<i class="ph ph-cloud-slash" style="color:#dc2626"></i>'
         };
         el.innerHTML = (m[S.saveEstado] || '') + `<small>${S.saveEstado === 'ok' ? 'Salvo' : (S.saveEstado === 'erro' ? 'Erro' : '...')}</small>`;
     }

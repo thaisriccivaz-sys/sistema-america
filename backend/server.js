@@ -112,7 +112,6 @@ const SMTP_CONFIG = {
 const _globalTransporter = nodemailer.createTransport(SMTP_CONFIG);
 async function sendMailHelper(opts) {
     // Gera versão texto puro automaticamente a partir do HTML se nao fornecida
-    // Isso reduz significativamente a chance de cair em spam
     let textPlain = opts.text;
     if (!textPlain && opts.html) {
         textPlain = opts.html
@@ -127,21 +126,50 @@ async function sendMailHelper(opts) {
             .replace(/\n{3,}/g, '\n\n')
             .trim();
     }
-    const defaultEmail = process.env.EMAIL_FROM || SMTP_CONFIG.auth.user || 'suporte@americarental.com.br';
-    
-    return _globalTransporter.sendMail({
-        ...opts,
-        from: opts.from || `"América Rental" <${defaultEmail}>`,
-        replyTo: opts.replyTo || defaultEmail,
-        text: textPlain,
-        headers: {
-            'X-Mailer': 'America-Rental-ERP/1.0',
-            'X-Priority': '3',
-            'Precedence': 'bulk',
-            'List-Unsubscribe': `<mailto:${defaultEmail}?subject=Cancelar>`,
-            ...(opts.headers || {})
+    // IMPORTANTE: quando o envio é via SMTP autenticado (ex: Gmail), o endereço do remetente (From)
+    // DEVE ser o próprio SMTP_USER autenticado para não ser bloqueado por SPF/DMARC como spoofing
+    // no servidor de destino (@americarental.com.br).
+    const authUser = (SMTP_CONFIG.auth && SMTP_CONFIG.auth.user) ? String(SMTP_CONFIG.auth.user).trim() : '';
+    const senderAddr = authUser || process.env.EMAIL_FROM || 'suporte@americarental.com.br';
+    const replyToAddr = opts.replyTo || process.env.EMAIL_FROM || senderAddr;
+
+    let finalFrom = `"América Rental - Sistema" <${senderAddr}>`;
+    if (opts.from) {
+        if (authUser && !String(opts.from).toLowerCase().includes(authUser.toLowerCase())) {
+            const nameMatch = String(opts.from).match(/^\s*"?([^"<]+)"?\s*</);
+            const displayName = nameMatch ? nameMatch[1].trim() : 'América Rental - Sistema';
+            finalFrom = `"${displayName}" <${authUser}>`;
+        } else {
+            finalFrom = opts.from;
         }
-    });
+    }
+
+    const cleanHeaders = {
+        'X-Mailer': 'America-Rental-ERP/1.0',
+        ...(opts.headers || {})
+    };
+    delete cleanHeaders['Precedence'];
+    delete cleanHeaders['List-Unsubscribe'];
+
+    const mailPayload = {
+        ...opts,
+        from: finalFrom,
+        replyTo: replyToAddr,
+        text: textPlain,
+        headers: cleanHeaders
+    };
+
+    try {
+        const info = await _globalTransporter.sendMail(mailPayload);
+        console.log(`[MAIL] Enviado para: ${opts.to} | From: ${finalFrom} | MsgId: ${info && info.messageId} | Resp: ${info && info.response}`);
+        return info;
+    } catch (firstErr) {
+        console.warn('[MAIL] Tentando novo transporter após falha no global:', firstErr.message);
+        const freshTransporter = nodemailer.createTransport(SMTP_CONFIG);
+        const info = await freshTransporter.sendMail(mailPayload);
+        console.log(`[MAIL-RETRY] Enviado para: ${opts.to} | From: ${finalFrom} | MsgId: ${info && info.messageId} | Resp: ${info && info.response}`);
+        return info;
+    }
 }
 
 /**
@@ -35770,6 +35798,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req
           capa_url: t.capa_url,
           validade_dias: t.validade_dias || 0,
           tipo: t.tipo || 'treinamento',
+          is_integracao: Number(t.is_integracao) === 1 ? 1 : 0,
           concluido,
           vencido,
           data_conclusao: dataConclusao,

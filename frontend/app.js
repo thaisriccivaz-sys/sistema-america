@@ -1156,6 +1156,8 @@ function updateBreadcrumb(key) {
     let pageColor = '#f503c5';
     if (entryObj && entryObj.path && entryObj.path.includes('Diretoria')) {
         pageColor = '#d9480f';
+    } else if ((key && key.startsWith('app-')) || (entryObj && entryObj.path && entryObj.path.startsWith('APP'))) {
+        pageColor = '#556b2f';
     }
 
     const activeNav = document.querySelector('.nav-item.active');
@@ -1239,9 +1241,9 @@ const TAB_META = {
     'rh-academia': { color: '#f503c5', icon: 'ph-barbell', title: 'Academia' },
     'rh-padaria': { color: '#f503c5', icon: 'ph-cookie', title: 'Padaria' },
     'rh-faculdade-pagamentos': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
-    'app-lideranca-candidatos': { color: '#0d9488', icon: 'ph-user-list', title: 'Candidatos (APP)' },
-    'app-lideranca-retiradas': { color: '#ca8a04', icon: 'ph-arrow-u-down-left', title: 'Retiradas (APP)' },
-    'app-lideranca-entregas': { color: '#0284c7', icon: 'ph-truck', title: 'Entregas (APP)' },
+    'app-lideranca-candidatos': { color: '#556b2f', icon: 'ph-user-list', title: 'Candidatos (APP)' },
+    'app-lideranca-retiradas': { color: '#556b2f', icon: 'ph-arrow-u-down-left', title: 'Retiradas (APP)' },
+    'app-lideranca-entregas': { color: '#556b2f', icon: 'ph-truck', title: 'Entregas (APP)' },
     'academia-lideres-minha': { color: '#7c3aed', icon: 'ph-student', title: 'Minha Academia' },
     'academia-lideres-admin': { color: '#7c3aed', icon: 'ph-chalkboard-teacher', title: 'Gerenciar Academia' },
     'uniamerica-gestao': { color: '#1e40af', icon: 'ph-graduation-cap', title: 'Gestão de Cursos' },

@@ -56,7 +56,7 @@
         if (!r.ok) throw new Error((b && b.error) || ('Erro HTTP ' + r.status));
         return b;
     }
-    const erro = (titulo, msg) => Swal.fire({ icon: 'error', title: titulo, text: msg, confirmButtonColor: '#7c3aed', confirmButtonText: 'OK' });
+    const erro = (titulo, msg) => Swal.fire({ icon: 'error', title: titulo, text: msg, confirmButtonColor: '#556b2f', confirmButtonText: 'OK' });
     const fotoUrl = id => apiBase() + '/app/lideranca/candidatos/' + id + '/foto?token=' + encodeURIComponent(getToken());
 
     function avatar(c, tam) {
@@ -194,9 +194,9 @@
     function avatarMotorista(nome, url, px) {
         px = px || 22;
         const ini = esc((nome || '?').trim()[0] || '?').toUpperCase();
-        const fbStyle = `width:${px}px;height:${px}px;border-radius:50%;background:#ede9fe;color:#6d28d9;border:1.5px solid #c4b5fd;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(px * 0.5)}px;font-weight:700;flex-shrink:0;`;
+        const fbStyle = `width:${px}px;height:${px}px;border-radius:50%;background:#eef3e3;color:#3f5221;border:1.5px solid #b8c996;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(px * 0.5)}px;font-weight:700;flex-shrink:0;`;
         if (!url) return `<span style="${fbStyle}">${ini}</span>`;
-        return `<img src="${esc(url)}" alt="" loading="lazy" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:cover;border:1.5px solid #7c3aed;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span style="${fbStyle}display:none;">${ini}</span>`;
+        return `<img src="${esc(url)}" alt="" loading="lazy" style="width:${px}px;height:${px}px;border-radius:50%;object-fit:cover;border:1.5px solid #556b2f;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span style="${fbStyle}display:none;">${ini}</span>`;
     }
 
     function cardHtml(i) {
@@ -206,7 +206,7 @@
             : (i.checklist.feitos ? `<span class="alc-badge laranja"><i class="ph ph-list-checks"></i> ${i.checklist.feitos}/${i.checklist.total}</span>` : ''));
         const cnh = i.cnh_categoria ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(i.cnh_categoria)}</span>` : '';
         const mot = i.motorista_vinculado
-            ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#4c1d95;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:999px;padding:3px 10px 3px 4px;margin-top:4px;width:fit-content;max-width:100%;">${avatarMotorista(i.motorista_vinculado, i.motorista_foto_url, 22)} <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
+            ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#3f5221;background:#f4f7ed;border:1px solid #b8c996;border-radius:999px;padding:3px 10px 3px 4px;margin-top:4px;width:fit-content;max-width:100%;">${avatarMotorista(i.motorista_vinculado, i.motorista_foto_url, 22)} <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
             : `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.76rem;font-weight:500;color:#64748b;margin-top:3px;"><i class="ph ph-steering-wheel" style="color:#94a3b8;font-size:0.9rem;flex-shrink:0;"></i> <span>Sem motorista vinculado</span></div>`;
         return `<button class="alc-card ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
             ${avatar(i)}
@@ -295,7 +295,7 @@
         const c = { id: d.id, nome: d.nome, tipo: d.tipo, tem_foto: true };
         const cnh = d.eh_motorista && S.cnh ? `<span class="alc-badge cinza"><i class="ph ph-identification-card"></i> CNH ${esc(S.cnh)}</span>` : '';
         const mot = d.motorista_vinculado
-            ? `<span class="alc-badge" style="background:#f5f3ff;color:#5b21b6;border:1px solid #ddd6fe;padding-left:4px;gap:5px;">${avatarMotorista(d.motorista_vinculado, d.motorista_foto_url, 18)} Mot.: ${esc(d.motorista_vinculado)}</span>`
+            ? `<span class="alc-badge" style="background:#f4f7ed;color:#3f5221;border:1px solid #b8c996;padding-left:4px;gap:5px;">${avatarMotorista(d.motorista_vinculado, d.motorista_foto_url, 18)} Mot.: ${esc(d.motorista_vinculado)}</span>`
             : `<span class="alc-badge cinza"><i class="ph ph-steering-wheel"></i> Sem motorista</span>`;
         return `<header class="alc-det-head">
             <button class="alc-icon-btn" onclick="window._alcFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
@@ -564,7 +564,7 @@
             <select class="alc-cfg-sel" onchange="window._alcCfgSalvar(${l.colaborador_id}, {usuario_id: this.value || null})"><option value="">Sem usuário</option>${cfg.usuarios.map(u => `<option value="${u.id}" ${u.id === l.usuario_id ? 'selected' : ''}>${esc(u.nome)}</option>`).join('')}</select>
             <label class="alc-cfg-sw"><input type="checkbox" ${l.plantao_dia ? 'checked' : ''} onchange="window._alcCfgSalvar(${l.colaborador_id}, {plantao_dia: this.checked})"><span><i class="ph ph-sun"></i> Turno do dia (faz teste)</span></label>
         </div>`).join('');
-        Swal.fire({ title: 'Líderes e turno do dia', width: 640, html: `<p class="alc-cfg-info">Só os líderes com <b>turno do dia</b>, fora de folga e com usuário vinculado recebem o aviso das 07h e veem a pendência dos testes.</p><div class="alc-cfg">${linhas || '<p>Nenhum líder encontrado no departamento Líderes.</p>'}</div>`, confirmButtonText: 'Fechar', confirmButtonColor: '#7c3aed' }).then(() => carregar());
+        Swal.fire({ title: 'Líderes e turno do dia', width: 640, html: `<p class="alc-cfg-info">Só os líderes com <b>turno do dia</b>, fora de folga e com usuário vinculado recebem o aviso das 07h e veem a pendência dos testes.</p><div class="alc-cfg">${linhas || '<p>Nenhum líder encontrado no departamento Líderes.</p>'}</div>`, confirmButtonText: 'Fechar', confirmButtonColor: '#556b2f' }).then(() => carregar());
     };
     window._alcCfgSalvar = async function (colabId, corpo) {
         try { await api('/app/lideranca/config/' + colabId, { method: 'PUT', body: JSON.stringify(corpo) }); }
@@ -598,19 +598,19 @@
         const st = await estadoPush();
         if (st === 'indisponivel') {
             const ios = ehIOS();
-            return Swal.fire({ icon: 'info', title: 'Avisos indisponíveis aqui', confirmButtonColor: '#7c3aed',
+            return Swal.fire({ icon: 'info', title: 'Avisos indisponíveis aqui', confirmButtonColor: '#556b2f',
                 html: ios && !ehInstalado()
                     ? '<div style="text-align:left;line-height:1.7">No <b>iPhone</b> os avisos só funcionam com o site instalado:<br><i class="ph ph-export"></i> Toque em <b>Compartilhar</b><br><i class="ph ph-plus-square"></i> <b>Adicionar à Tela de Início</b><br><i class="ph ph-device-mobile"></i> Abra pelo ícone e toque no sino de novo.</div>'
                     : 'Este navegador não suporta avisos. No Android use o Chrome.' });
         }
-        if (st === 'bloqueado') return Swal.fire({ icon: 'warning', title: 'Avisos bloqueados', html: 'Libere as <b>notificações</b> deste site nas configurações do navegador e toque no sino de novo.', confirmButtonColor: '#7c3aed' });
+        if (st === 'bloqueado') return Swal.fire({ icon: 'warning', title: 'Avisos bloqueados', html: 'Libere as <b>notificações</b> deste site nas configurações do navegador e toque no sino de novo.', confirmButtonColor: '#556b2f' });
         if (st === 'ativo') {
             const r = await Swal.fire({ icon: 'success', title: 'Avisos ativos neste aparelho', html: 'Você será avisado às <b>07h</b> nos dias em que estiver de plantão e houver teste.', showCancelButton: true, showDenyButton: true, confirmButtonText: '<i class="ph ph-bell-ringing"></i> Testar aviso', denyButtonText: 'Desativar', cancelButtonText: 'Fechar', confirmButtonColor: '#16a34a' });
             if (r.isConfirmed) { try { await api('/app/push/teste', { method: 'POST', body: '{}' }); } catch (e) { erro('Falha no teste', e.message); } }
             else if (r.isDenied) await desativarPush();
             return atualizarSino();
         }
-        const r = await Swal.fire({ icon: 'question', title: 'Ativar avisos no celular?', html: 'Receba uma notificação <b>às 07h</b> nos dias em que você estiver de plantão e houver teste de candidato.', showCancelButton: true, confirmButtonText: '<i class="ph ph-bell-ringing"></i> Ativar', cancelButtonText: 'Agora não', confirmButtonColor: '#7c3aed' });
+        const r = await Swal.fire({ icon: 'question', title: 'Ativar avisos no celular?', html: 'Receba uma notificação <b>às 07h</b> nos dias em que você estiver de plantão e houver teste de candidato.', showCancelButton: true, confirmButtonText: '<i class="ph ph-bell-ringing"></i> Ativar', cancelButtonText: 'Agora não', confirmButtonColor: '#556b2f' });
         if (r.isConfirmed) await ativarPush();
         atualizarSino();
     };
