@@ -17013,28 +17013,74 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                 avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas, pdf_url: a.pdf_url, assinado_em: a.assinado_em };
                             });
 
-                            const result = colabs.map(c => {
-                                const pesquisas = {};
-                                periodosOrdenados.forEach(p => {
-                                    const key = `${p.ano}-T${p.trimestre}`;
-                                    // Verificar se o colaborador estava admitido nessa ??poca
-                                    const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
-                                    // Refer??ncia da pesquisa: 1o dia do trimestre
-                                    const _mesInicioMap = tipoAval === 'satisfacao'
-                                        ? { 1: 2, 2: 5, 3: 8, 4: 11 }
-                                        : { 1: 1, 2: 4, 3: 7, 4: 10 };
-                                    const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
-                                    const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
-                                    const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
-                                    pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, nao_admitido: naoAdmitido };
-                                    if (naoAdmitido && !pesquisas[key].respondido) pesquisas[key].nao_admitido = true;
-                                });
-                                const todasMedias = Object.values(pesquisas).filter(p2 => p2.respondido && p2.media !== null).map(p2 => p2.media);
-                                const mediaGeral = todasMedias.length > 0 ? parseFloat((todasMedias.reduce((a, b) => a + b, 0) / todasMedias.length).toFixed(2)) : null;
-                                return { ...c, foto_base64: c.foto_base64 || null, pesquisas, media_geral: mediaGeral };
-                            });
+                            db.all(
+                                `SELECT colaborador_id, ano, trimestre, status_manual FROM satisfacao_status_periodo WHERE colaborador_id IN (${placeholders2})`,
+                                colabIds,
+                                (_errSt, statusRows) => {
+                                    const statusManualMap = {};
+                                    (statusRows || []).forEach(sr => {
+                                        if (!statusManualMap[sr.colaborador_id]) statusManualMap[sr.colaborador_id] = {};
+                                        statusManualMap[sr.colaborador_id][`${sr.ano}-T${sr.trimestre}`] = sr.status_manual;
+                                    });
 
-                            res.json({ periodos: periodosOrdenados, colaboradores: result });
+                                    const result = colabs.map(c => {
+                                        const pesquisas = {};
+                                        periodosOrdenados.forEach(p => {
+                                            const key = `${p.ano}-T${p.trimestre}`;
+                                            const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
+                                            const _mesInicioMap = tipoAval === 'satisfacao'
+                                                ? { 1: 2, 2: 5, 3: 8, 4: 11 }
+                                                : { 1: 1, 2: 4, 3: 7, 4: 10 };
+                                            const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
+                                            const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
+                                            const naoAdmitido = Boolean(dataAdmissao && dataAdmissao > dataPesquisa);
+                                            const stManual = tipoAval === 'satisfacao' ? (statusManualMap[c.id]?.[key] || null) : null;
+
+                                            const baseEntry = avalMap[c.id]?.[key]
+                                                ? { ...avalMap[c.id][key] }
+                                                : { media: null, respondido: false, nao_admitido: naoAdmitido };
+
+                                            if (baseEntry.respondido) {
+                                                baseEntry.status_especial = 'respondido';
+                                                baseEntry.concluido_especial = true;
+                                                baseEntry.status_manual = null;
+                                            } else if (stManual === 'afastado') {
+                                                baseEntry.status_especial = 'afastado';
+                                                baseEntry.concluido_especial = true;
+                                                baseEntry.nao_admitido = false;
+                                                baseEntry.status_manual = 'afastado';
+                                            } else if (stManual === 'na') {
+                                                baseEntry.status_especial = 'na';
+                                                baseEntry.concluido_especial = true;
+                                                baseEntry.nao_admitido = true;
+                                                baseEntry.status_manual = 'na';
+                                            } else if (stManual === 'pendente') {
+                                                baseEntry.status_especial = 'pendente';
+                                                baseEntry.concluido_especial = false;
+                                                baseEntry.nao_admitido = false;
+                                                baseEntry.status_manual = 'pendente';
+                                            } else if (naoAdmitido) {
+                                                baseEntry.status_especial = 'na';
+                                                baseEntry.concluido_especial = true;
+                                                baseEntry.nao_admitido = true;
+                                                baseEntry.status_manual = null;
+                                            } else {
+                                                baseEntry.status_especial = 'pendente';
+                                                baseEntry.concluido_especial = false;
+                                                baseEntry.nao_admitido = false;
+                                                baseEntry.status_manual = null;
+                                            }
+
+                                            pesquisas[key] = baseEntry;
+                                        });
+                                        const todasMedias = Object.values(pesquisas).filter(p2 => p2.respondido && p2.media !== null).map(p2 => p2.media);
+                                        const mediaGeral = todasMedias.length > 0 ? parseFloat((todasMedias.reduce((a, b) => a + b, 0) / todasMedias.length).toFixed(2)) : null;
+                                        return { ...c, foto_base64: c.foto_base64 || null, pesquisas, media_geral: mediaGeral };
+                                    });
+
+                                    res.json({ periodos: periodosOrdenados, colaboradores: result });
+                                }
+                            );
                         }
                     );
                 }

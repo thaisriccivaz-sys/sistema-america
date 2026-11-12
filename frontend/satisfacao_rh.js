@@ -39,17 +39,33 @@
             .replace(/"/g, '&quot;');
     }
 
+    // Escala de 4 níveis: >=4.5 Verde (Bom) | 4.0–4.49 Amarelo (Ponto de Atenção) | 3.0–3.99 Laranja (Atenção Redobrada) | <3.0 Vermelho (Crítico)
     function scoreColor(v) {
         if (v === null || v === undefined || isNaN(v)) return '#94a3b8';
-        if (v >= 4) return '#22c55e';
-        if (v >= 3) return '#f59e0b';
-        return '#ef4444';
+        const num = Number(v);
+        if (num >= 4.5) return '#15803d'; // Verde
+        if (num >= 4.0) return '#a16207'; // Amarelo (< 4.5)
+        if (num >= 3.0) return '#c2410c'; // Laranja (< 4.0)
+        return '#b91c1c';                 // Vermelho (< 3.0)
     }
     function scoreBg(v) {
         if (v === null || v === undefined || isNaN(v)) return 'rgba(148,163,184,.12)';
-        if (v >= 4) return 'rgba(34,197,94,.13)';
-        if (v >= 3) return 'rgba(245,158,11,.13)';
-        return 'rgba(239,68,68,.13)';
+        const num = Number(v);
+        if (num >= 4.5) return '#dcfce7'; // Verde claro
+        if (num >= 4.0) return '#fef9c3'; // Amarelo claro (< 4.5)
+        if (num >= 3.0) return '#ffedd5'; // Laranja claro (< 4.0)
+        return '#fee2e2';                 // Vermelho claro (< 3.0)
+    }
+    function getStatusEspecial(ps) {
+        if (!ps) return 'pendente';
+        if (ps.respondido) return 'respondido';
+        if (ps.status_especial === 'afastado') return 'afastado';
+        if (ps.status_especial === 'na' || ps.nao_admitido) return 'na';
+        return 'pendente';
+    }
+    function isConcluidoColab(ps) {
+        const st = getStatusEspecial(ps);
+        return st === 'respondido' || st === 'afastado' || st === 'na';
     }
     function trendIcon(arr, i) {
         if (i === 0 || arr[i - 1] === null || arr[i - 1] === undefined || arr[i] === null || arr[i] === undefined) return '';
@@ -299,7 +315,10 @@
         /* Status pills for Avaliações tab (sem notas!) */
         .status-pill-ok { display:inline-flex;align-items:center;gap:.3rem;background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:.22rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700; }
         .status-pill-pend { display:inline-flex;align-items:center;gap:.3rem;background:#fef9c3;color:#92400e;border:1px solid #fde047;padding:.22rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700; }
-        .status-pill-na { display:inline-flex;align-items:center;background:#f1f5f9;color:#94a3b8;padding:.2rem .55rem;border-radius:999px;font-size:.74rem;font-weight:600; }
+        .status-pill-afastado { display:inline-flex;align-items:center;gap:.3rem;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;padding:.22rem .65rem;border-radius:999px;font-size:.76rem;font-weight:700; }
+        .status-pill-na { display:inline-flex;align-items:center;gap:.25rem;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;padding:.2rem .6rem;border-radius:999px;font-size:.74rem;font-weight:700; }
+        .sat-status-edit-select { padding:.18rem .4rem;border-radius:6px;border:1px solid #cbd5e1;background:#fff;font-size:.72rem;font-weight:600;color:#475569;cursor:pointer;outline:none;transition:border-color .15s; }
+        .sat-status-edit-select:hover, .sat-status-edit-select:focus { border-color:#7c3aed; }
 
         /* colabs table */
         .sat-search-bar { display:flex;gap:.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap; background:#fff; padding:.85rem 1rem; border-radius:12px; border:1px solid #e2e8f0; }
@@ -404,9 +423,10 @@
             ${renderOverviewCards(activePeriodObj)}
 
             <div class="sat-legend">
-                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (≥4.0)</div>
-                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (3.0–3.9)</div>
-                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>Crítico (&lt;3.0)</div>
+                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#16a34a;"></div>Bom / Ponto Forte (≥ 4,5)</div>
+                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#eab308;"></div>Ponto de Atenção (&lt; 4,5)</div>
+                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f97316;"></div>Atenção Redobrada (&lt; 4,0)</div>
+                <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>Crítico (&lt; 3,0)</div>
                 <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Sem dados no período</div>
             </div>
 
@@ -434,10 +454,14 @@
             : allColabs.filter(c => normDepto(c.departamento) === _filterDeptDash);
 
         const periodoKey = periodoRef ? `${periodoRef.ano}-T${periodoRef.trimestre}` : null;
-        const elegiveis = colabs.filter(c => !(periodoKey && c.pesquisas?.[periodoKey]?.nao_admitido));
+        const elegiveis = colabs.filter(c => {
+            if (!periodoKey) return true;
+            const st = getStatusEspecial(c.pesquisas?.[periodoKey]);
+            return st !== 'na' && st !== 'afastado';
+        });
         const responderam = elegiveis.filter(c => periodoKey && c.pesquisas?.[periodoKey]?.respondido).length;
         const total = elegiveis.length;
-        const faltam = Math.max(0, total - responderam);
+        const faltam = colabs.filter(c => periodoKey && getStatusEspecial(c.pesquisas?.[periodoKey]) === 'pendente').length;
         const pct = total > 0 ? ((responderam / total) * 100).toFixed(1).replace('.0', '') : 0;
 
         // Média geral do período selecionado (filtrada por departamento se selecionado)
@@ -522,7 +546,11 @@
             });
 
             const colabsDepto = (_colabs?.colaboradores || []).filter(c => normDepto(c.departamento) === depto);
-            const elegiveisRef = colabsDepto.filter(c => !(refKey && c.pesquisas?.[refKey]?.nao_admitido));
+            const elegiveisRef = colabsDepto.filter(c => {
+                if (!refKey) return true;
+                const st = getStatusEspecial(c.pesquisas?.[refKey]);
+                return st !== 'na' && st !== 'afastado';
+            });
             const respRef = elegiveisRef.filter(c => refKey && c.pesquisas?.[refKey]?.respondido).length;
             const gestorNome = getGestorDepto(depto);
 
@@ -713,11 +741,22 @@
                     </div>
                 </div>
 
+                <!-- Prévia da Tabela Comparativa de Períodos (enviada por e-mail ao gestor) -->
+                ${data.tabela_comparativa_html ? `
+                <div style="margin-bottom:1.1rem;">
+                    <div style="font-size:.78rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem;display:flex;align-items:center;gap:.4rem;">
+                        <i class="ph ph-table" style="color:#7c3aed;font-size:1rem;"></i>
+                        Quadro Comparativo de Notas (Incluído automaticamente no e-mail ao gestor)
+                    </div>
+                    ${data.tabela_comparativa_html}
+                </div>
+                ` : ''}
+
                 <!-- Botão Gerar com IA -->
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem;">
                     <div style="font-size:.85rem;font-weight:700;color:#334155;display:flex;align-items:center;gap:.4rem;">
                         <i class="ph ph-file-text" style="color:#7c3aed;font-size:1.1rem;"></i>
-                        Diagnóstico Consolidado do Departamento (Anônimo)
+                        Análise Consultiva do Departamento (Sem notas por extenso e sem expor comentários literais)
                     </div>
                     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
                         <button type="button" id="btn-sat-gerar-ia" onclick="window._satGerarRelatorioIA()"
@@ -912,18 +951,22 @@
 
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
                 <span class="sat-filter-label"><i class="ph ph-funnel" style="color:#7c3aed;"></i> Status:</span>
-                <select class="sat-select" id="sat-aval-status-select" style="min-width:155px;" onchange="window._satFilterColabs()">
+                <select class="sat-select" id="sat-aval-status-select" style="min-width:185px;" onchange="window._satFilterColabs()">
                     <option value="all" ${_filterStatusAval === 'all' ? 'selected' : ''}>Todos</option>
                     <option value="pendente" ${_filterStatusAval === 'pendente' ? 'selected' : ''}>Pendentes no período atual</option>
-                    <option value="respondido" ${_filterStatusAval === 'respondido' ? 'selected' : ''}>Respondidos no período atual</option>
+                    <option value="concluido" ${_filterStatusAval === 'concluido' ? 'selected' : ''}>Concluídos (Respondido / Afastado / N/A)</option>
+                    <option value="respondido" ${_filterStatusAval === 'respondido' ? 'selected' : ''}>Apenas Respondidos</option>
+                    <option value="afastado" ${_filterStatusAval === 'afastado' ? 'selected' : ''}>Apenas Afastados</option>
+                    <option value="na" ${_filterStatusAval === 'na' ? 'selected' : ''}>Apenas N/A</option>
                 </select>
             </div>
         </div>
 
         <div class="sat-legend" style="margin-bottom:.75rem;">
-            <div class="sat-legend-item"><span class="status-pill-ok" style="padding:.1rem .45rem;font-size:.7rem;">✓ Respondido</span> Pesquisa preenchida</div>
-            <div class="sat-legend-item"><span class="status-pill-pend" style="padding:.1rem .45rem;font-size:.7rem;">Pendente</span> Aguardando preenchimento</div>
-            <div class="sat-legend-item"><span class="status-pill-na" style="padding:.1rem .45rem;font-size:.7rem;">N/A</span> Não estava admitido na época</div>
+            <div class="sat-legend-item"><span class="status-pill-ok" style="padding:.1rem .45rem;font-size:.7rem;">✓ Respondido</span> Pesquisa concluída</div>
+            <div class="sat-legend-item"><span class="status-pill-afastado" style="padding:.1rem .45rem;font-size:.7rem;">Afastado</span> Colaborador afastado (considerado concluído)</div>
+            <div class="sat-legend-item"><span class="status-pill-na" style="padding:.1rem .45rem;font-size:.7rem;">N/A</span> Não aplicável / Não admitido (considerado concluído)</div>
+            <div class="sat-legend-item"><span class="status-pill-pend" style="padding:.1rem .45rem;font-size:.7rem;">Pendente</span> Aguardando preenchimento (use o seletor ao lado para mudar para N/A ou Afastado)</div>
         </div>
 
         <div class="sat-dept-block" id="sat-colab-table-wrap">
@@ -942,16 +985,20 @@
 
         const lastKey = periodos.length > 0 ? `${periodos[periodos.length - 1].ano}-T${periodos[periodos.length - 1].trimestre}` : null;
         const responderam = colabs.filter(c => lastKey && c.pesquisas?.[lastKey]?.respondido).length;
+        const afastados = colabs.filter(c => lastKey && getStatusEspecial(c.pesquisas?.[lastKey]) === 'afastado').length;
+        const naCount = colabs.filter(c => lastKey && getStatusEspecial(c.pesquisas?.[lastKey]) === 'na').length;
+        const concluidos = responderam + afastados + naCount;
+        const pendentes = Math.max(0, colabs.length - concluidos);
 
         return `
         <div style="padding:.7rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:.8rem;color:#64748b;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
             <div>
                 Mostrando <strong>${colabs.length}</strong> colaboradores ${_filterDeptAval !== 'all' ? `do departamento <strong>${escHtml(_filterDeptAval)}</strong>` : ''} —
-                <span style="color:#16a34a;font-weight:700;">${responderam} responderam</span> no último período,
-                <span style="color:#d97706;font-weight:700;">${colabs.length - responderam} pendentes</span>
+                <span style="color:#16a34a;font-weight:700;">${concluidos} concluídos</span> (${responderam} respondidos${afastados > 0 ? `, <span style="color:#1d4ed8;">${afastados} afastados</span>` : ''}${naCount > 0 ? `, ${naCount} N/A` : ''}),
+                <span style="color:#d97706;font-weight:700;">${pendentes} pendentes</span>
             </div>
             <div style="font-size:.75rem;color:#94a3b8;">
-                <i class="ph ph-eye-slash"></i> As notas individuais ficam ocultas nesta tela para manter a avaliação limpa (consulte a pontuação consolidada na aba <strong>Dashboard</strong>).
+                <i class="ph ph-eye-slash"></i> Notas individuais ocultas nesta tela (consulte a pontuação consolidada na aba <strong>Dashboard</strong>).
             </div>
         </div>
         <div class="sat-table-wrap">
@@ -989,41 +1036,59 @@
                 const key = `${p.ano}-T${p.trimestre}`;
                 const ps = c.pesquisas?.[key];
                 if (!ps) return `<td style="text-align:center;color:#94a3b8;">—</td>`;
-                if (ps.nao_admitido && !ps.respondido) {
-                    return `<td style="text-align:center;"><span class="status-pill-na">N/A</span></td>`;
-                }
-                if (!ps.respondido) {
+
+                if (ps.respondido) {
+                    const respB64 = ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : '';
                     return `<td style="text-align:center;">
                         <button type="button"
                             data-colab-id="${c.id}"
                             data-colab-nome="${escHtml(c.nome_completo || '')}"
                             data-colab-cargo="${escHtml(c.cargo || '')}"
                             data-colab-dept="${escHtml(c.departamento || '')}"
-                            data-respostas=""
+                            data-respostas="${respB64}"
                             data-ano="${p.ano}"
                             data-trim="${p.trimestre}"
                             onclick="window._satOpenFormBtn(this)"
-                            title="Clique para responder ${periodLabel(p)}"
+                            title="Respondido em ${periodLabel(p)} — clique para editar"
                             style="background:transparent;border:none;padding:0;cursor:pointer;">
-                            <span class="status-pill-pend"><i class="ph ph-clock"></i> Pendente</span>
+                            <span class="status-pill-ok"><i class="ph ph-check-circle"></i> Respondido</span>
                         </button>
                     </td>`;
                 }
-                const respB64 = ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : '';
-                return `<td style="text-align:center;">
-                    <button type="button"
+
+                const st = getStatusEspecial(ps);
+                let pillHtml = '';
+                if (st === 'afastado') {
+                    pillHtml = `<span class="status-pill-afastado" title="Colaborador afastado (considerado concluído)"><i class="ph ph-user-focus"></i> Afastado</span>`;
+                } else if (st === 'na') {
+                    pillHtml = `<span class="status-pill-na" title="Não aplicável neste período (considerado concluído)">N/A</span>`;
+                } else {
+                    pillHtml = `<button type="button"
                         data-colab-id="${c.id}"
                         data-colab-nome="${escHtml(c.nome_completo || '')}"
                         data-colab-cargo="${escHtml(c.cargo || '')}"
                         data-colab-dept="${escHtml(c.departamento || '')}"
-                        data-respostas="${respB64}"
+                        data-respostas=""
                         data-ano="${p.ano}"
                         data-trim="${p.trimestre}"
                         onclick="window._satOpenFormBtn(this)"
-                        title="Respondido em ${periodLabel(p)} — clique para editar"
+                        title="Clique para responder ${periodLabel(p)}"
                         style="background:transparent;border:none;padding:0;cursor:pointer;">
-                        <span class="status-pill-ok"><i class="ph ph-check-circle"></i> Respondido</span>
-                    </button>
+                        <span class="status-pill-pend"><i class="ph ph-clock"></i> Pendente</span>
+                    </button>`;
+                }
+
+                return `<td style="text-align:center;">
+                    <div style="display:inline-flex;align-items:center;justify-content:center;gap:.35rem;flex-wrap:wrap;">
+                        ${pillHtml}
+                        <select class="sat-status-edit-select"
+                            title="Alterar status em ${periodLabel(p)} (N/A e Afastado contam como concluídos)"
+                            onchange="window._satAlterarStatusColab(${c.id}, ${p.ano}, ${p.trimestre}, this.value)">
+                            <option value="pendente" ${st === 'pendente' ? 'selected' : ''}>Pendente</option>
+                            <option value="afastado" ${st === 'afastado' ? 'selected' : ''}>Afastado</option>
+                            <option value="na" ${st === 'na' ? 'selected' : ''}>N/A</option>
+                        </select>
+                    </div>
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
@@ -1056,10 +1121,18 @@
         if (_filterDeptAval && _filterDeptAval !== 'all') {
             colabs = colabs.filter(c => normDepto(c.departamento) === _filterDeptAval);
         }
-        if (_filterStatusAval === 'respondido' && lastKey) {
-            colabs = colabs.filter(c => c.pesquisas?.[lastKey]?.respondido);
-        } else if (_filterStatusAval === 'pendente' && lastKey) {
-            colabs = colabs.filter(c => !c.pesquisas?.[lastKey]?.respondido && !c.pesquisas?.[lastKey]?.nao_admitido);
+        if (lastKey && _filterStatusAval !== 'all') {
+            if (_filterStatusAval === 'respondido') {
+                colabs = colabs.filter(c => c.pesquisas?.[lastKey]?.respondido);
+            } else if (_filterStatusAval === 'concluido') {
+                colabs = colabs.filter(c => isConcluidoColab(c.pesquisas?.[lastKey]));
+            } else if (_filterStatusAval === 'afastado') {
+                colabs = colabs.filter(c => getStatusEspecial(c.pesquisas?.[lastKey]) === 'afastado');
+            } else if (_filterStatusAval === 'na') {
+                colabs = colabs.filter(c => getStatusEspecial(c.pesquisas?.[lastKey]) === 'na');
+            } else if (_filterStatusAval === 'pendente') {
+                colabs = colabs.filter(c => getStatusEspecial(c.pesquisas?.[lastKey]) === 'pendente');
+            }
         }
         if (_searchText) {
             const q = _searchText.toLowerCase();
@@ -1095,6 +1168,47 @@
         else { _sortCol = col; _sortDir = 1; }
         const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
+    };
+
+    window._satAlterarStatusColab = async function (colabId, ano, trimestre, novoStatus) {
+        try {
+            await fetchJSON('/avaliacoes/satisfacao/status-colaborador', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    colaborador_id: colabId,
+                    ano: Number(ano),
+                    trimestre: Number(trimestre),
+                    status_manual: novoStatus
+                })
+            });
+
+            // Atualizar localmente imediatamente e recarregar dados
+            const key = `${ano}-T${trimestre}`;
+            const colab = (_colabs?.colaboradores || []).find(c => Number(c.id) === Number(colabId));
+            if (colab && colab.pesquisas && colab.pesquisas[key]) {
+                const ps = colab.pesquisas[key];
+                ps.status_manual = novoStatus;
+                if (novoStatus === 'afastado') {
+                    ps.status_especial = 'afastado';
+                    ps.concluido_especial = true;
+                    ps.nao_admitido = false;
+                } else if (novoStatus === 'na') {
+                    ps.status_especial = 'na';
+                    ps.concluido_especial = true;
+                    ps.nao_admitido = true;
+                } else {
+                    ps.status_especial = 'pendente';
+                    ps.concluido_especial = false;
+                    ps.nao_admitido = false;
+                }
+            }
+
+            const wrap = document.getElementById('sat-colab-table-wrap');
+            if (wrap) wrap.innerHTML = renderColabTable();
+        } catch (err) {
+            alert('Erro ao atualizar status do colaborador: ' + err.message);
+            if (typeof window.initSatisfacaoRH === 'function') window.initSatisfacaoRH(true);
+        }
     };
 
     /* ── FORMULÁRIO DE PREENCHIMENTO / EDIÇÃO DA AVALIAÇÃO ──── */

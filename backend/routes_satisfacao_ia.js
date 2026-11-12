@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// ROTAS: RELATÓRIO IA POR DEPARTAMENTO E ENVIO AO GESTOR — PESQUISA DE SATISFAÇÃO
+// ROTAS: RELATÓRIO IA POR DEPARTAMENTO, STATUS N/A & AFASTADO E ENVIO AO GESTOR
 // Arquivo: backend/routes_satisfacao_ia.js
 // ═══════════════════════════════════════════════════════════════════════════════
 'use strict';
@@ -25,8 +25,45 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         UNIQUE(departamento, ano, trimestre)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS satisfacao_status_periodo (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        colaborador_id INTEGER NOT NULL,
+        ano INTEGER NOT NULL,
+        trimestre INTEGER NOT NULL,
+        status_manual TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(colaborador_id, ano, trimestre)
+    )`);
+
     const MES_TRIM = { 1: 'Fevereiro', 2: 'Maio', 3: 'Agosto', 4: 'Novembro' };
     const labelPeriodo = (ano, trim) => `${MES_TRIM[trim] || ('T' + trim)} (${trim}º Trim. ${ano})`;
+
+    // Escala oficial de cores e níveis:
+    // >= 4.5: Verde (Ponto Forte / Bom)
+    // 4.0 a 4.49 (< 4.5): Amarelo (Ponto de Atenção)
+    // 3.0 a 3.99 (< 4.0): Laranja (Atenção Redobrada)
+    // < 3.0: Vermelho (Crítico)
+    function corTextoNota(v) {
+        if (v === null || v === undefined || isNaN(v)) return '#94a3b8';
+        if (v >= 4.5) return '#15803d';
+        if (v >= 4.0) return '#a16207';
+        if (v >= 3.0) return '#c2410c';
+        return '#b91c1c';
+    }
+    function corFundoNota(v) {
+        if (v === null || v === undefined || isNaN(v)) return '#f1f5f9';
+        if (v >= 4.5) return '#dcfce7';
+        if (v >= 4.0) return '#fef9c3';
+        if (v >= 3.0) return '#ffedd5';
+        return '#fee2e2';
+    }
+    function nivelAtencaoNota(v) {
+        if (v === null || v === undefined || isNaN(v)) return 'Sem dados';
+        if (v >= 4.5) return 'Ponto Forte (Verde)';
+        if (v >= 4.0) return 'Ponto de Atenção (Amarelo)';
+        if (v >= 3.0) return 'Atenção Redobrada (Laranja)';
+        return 'Crítico (Vermelho)';
+    }
 
     async function buscarGestorDepartamento(departamento) {
         if (!departamento) return null;
@@ -62,15 +99,58 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         };
     }
 
-    // Coleta estatísticas e observações 100% ANÔNIMAS do departamento no período
+    // Coleta estatísticas, evolução histórica entre períodos e observações 100% ANÔNIMAS do departamento
     async function coletarDadosAnonimosDepto(departamento, ano, trimestre) {
         const colabsDepto = await dbAll(
-            `SELECT id, nome_completo, cargo, departamento
+            `SELECT id, nome_completo, cargo, departamento, data_admissao
              FROM colaboradores
              WHERE status != 'Desligado'
                AND LOWER(TRIM(COALESCE(departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
             [departamento]
         );
+        const statusManualRows = await dbAll(
+            `SELECT colaborador_id, status_manual
+             FROM satisfacao_status_periodo
+             WHERE ano = ? AND trimestre = ?`,
+            [Number(ano), Number(trimestre)]
+        );
+        const statusManualMap = {};
+        statusManualRows.forEach(r => { statusManualMap[r.colaborador_id] = r.status_manual; });
+
+        const mesInicioMap = { 1: 2, 2: 5, 3: 8, 4: 11 };
+        const mesInicio = mesInicioMap[Number(trimestre)] || ((Number(trimestre) - 1) * 3 + 1);
+        const dataPesquisa = new Date(Number(ano), mesInicio - 1, 1);
+
+        const rows = await dbAll(
+            `SELECT a.colaborador_id, a.respostas_json, c.cargo
+             FROM avaliacoes a
+             JOIN colaboradores c ON c.id = a.colaborador_id
+             WHERE a.tipo = 'satisfacao'
+               AND a.ano = ?
+               AND a.trimestre = ?
+               AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
+            [Number(ano), Number(trimestre), departamento]
+        );
+        const respondidosSet = new Set(rows.map(r => r.colaborador_id));
+
+        // Elegíveis excluem N/A e Afastado (que já são considerados concluídos)
+        let elegiveisCount = 0;
+        let concluidosEspeciaisCount = 0;
+        colabsDepto.forEach(c => {
+            if (respondidosSet.has(c.id)) {
+                elegiveisCount++;
+                return;
+            }
+            const manual = statusManualMap[c.id];
+            const dtAdm = c.data_admissao ? new Date(c.data_admissao) : null;
+            const naoAdmAuto = dtAdm && dtAdm > dataPesquisa;
+            if (manual === 'na' || manual === 'afastado' || (!manual && naoAdmAuto)) {
+                concluidosEspeciaisCount++;
+            } else {
+                elegiveisCount++;
+            }
+        });
+
         const nomesParaAnonimizar = colabsDepto
             .map(c => String(c.nome_completo || '').trim())
             .filter(Boolean);
@@ -91,17 +171,6 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             return s;
         };
 
-        const rows = await dbAll(
-            `SELECT a.respostas_json, c.cargo
-             FROM avaliacoes a
-             JOIN colaboradores c ON c.id = a.colaborador_id
-             WHERE a.tipo = 'satisfacao'
-               AND a.ano = ?
-               AND a.trimestre = ?
-               AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
-            [Number(ano), Number(trimestre), departamento]
-        );
-
         // Carregar templates do banco para mapear índice da pergunta -> texto da pergunta
         const templatesRows = await dbAll(`SELECT grupo_key, categorias_json FROM avaliacao_templates WHERE LOWER(tipo) = 'satisfacao'`).catch(() => []);
         const templatesMap = {};
@@ -114,9 +183,9 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             } catch (e) { /* ignore */ }
         });
 
-        const topicosNotas = {};      // { topico: [notas] }
-        const perguntasNotas = {};    // { "Topico — Pergunta": [notas] }
-        const observacoesAnonimas = []; // [{ contexto, texto }]
+        const topicosNotas = {};
+        const perguntasNotas = {};
+        const observacoesAnonimas = [];
 
         rows.forEach(r => {
             let resp = {};
@@ -130,7 +199,6 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 snapCats = templatesMap[resp.__grupo__];
             }
 
-            // Formato legado { scores: { Topico: media } }
             if (resp.scores && typeof resp.scores === 'object' && !Array.isArray(resp.scores)) {
                 Object.entries(resp.scores).forEach(([topico, val]) => {
                     const n = parseFloat(val);
@@ -174,11 +242,10 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 });
             }
 
-            // Extrair observações por pergunta e observação geral (100% sem nomes)
             if (resp.__obs__ && typeof resp.__obs__ === 'object') {
                 Object.entries(resp.__obs__).forEach(([topico, obsMap]) => {
                     if (topico === 'info_adicional' && typeof obsMap === 'string' && obsMap.trim()) {
-                        observacoesAnonimas.push({ contexto: 'Observação Geral', texto: anonimizarTexto(obsMap) });
+                        observacoesAnonimas.push({ contexto: 'Observação Geral', topico: 'Geral', texto: anonimizarTexto(obsMap) });
                         return;
                     }
                     if (typeof obsMap === 'object' && obsMap !== null) {
@@ -186,9 +253,10 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                             if (txtObs && String(txtObs).trim()) {
                                 const idx = parseInt(idxStr, 10);
                                 const qTxt = snapCats && snapCats[topico] && !isNaN(idx) && snapCats[topico][idx] ? snapCats[topico][idx] : topico;
-                                const notaDada = resp[topico] ? (resp[topico][idxStr] ?? resp[topico][idx] ?? null) : null;
                                 observacoesAnonimas.push({
-                                    contexto: `${topico}${qTxt !== topico ? ' (' + qTxt + ')' : ''}${notaDada ? ' [Nota ' + notaDada + '/5]' : ''}`,
+                                    contexto: `${topico}${qTxt !== topico ? ' (' + qTxt + ')' : ''}`,
+                                    topico,
+                                    pergunta: qTxt,
                                     texto: anonimizarTexto(txtObs)
                                 });
                             }
@@ -198,19 +266,19 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             }
             if (resp.__obs_gerais__ && String(resp.__obs_gerais__).trim()) {
                 const ja = observacoesAnonimas.some(o => o.texto === anonimizarTexto(resp.__obs_gerais__));
-                if (!ja) observacoesAnonimas.push({ contexto: 'Observação Geral', texto: anonimizarTexto(resp.__obs_gerais__) });
+                if (!ja) observacoesAnonimas.push({ contexto: 'Observação Geral', topico: 'Geral', texto: anonimizarTexto(resp.__obs_gerais__) });
             }
         });
 
         const resumoTopicos = Object.entries(topicosNotas).map(([topico, arr]) => {
             const media = arr.length ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
-            return { topico, media, qtd_notas: arr.length };
+            return { topico, media, nivel: nivelAtencaoNota(media), qtd_notas: arr.length };
         }).filter(t => t.media !== null).sort((a, b) => b.media - a.media);
 
         const resumoPerguntas = Object.entries(perguntasNotas).map(([pergunta, arr]) => {
             const media = arr.length ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
             const qtdBaixas = arr.filter(n => n <= 3).length;
-            return { pergunta, media, qtd_respostas: arr.length, qtd_baixas: qtdBaixas };
+            return { pergunta, media, nivel: nivelAtencaoNota(media), qtd_respostas: arr.length, qtd_baixas: qtdBaixas };
         }).filter(p => p.media !== null).sort((a, b) => a.media - b.media);
 
         const todasMediasTopicos = resumoTopicos.map(t => t.media);
@@ -218,58 +286,316 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             ? parseFloat((todasMediasTopicos.reduce((a, b) => a + b, 0) / todasMediasTopicos.length).toFixed(2))
             : null;
 
+        // Coletar histórico comparativo dos períodos até o período selecionado (para a tabela comparativa e tendência)
+        const historico = await coletarHistoricoComparativoDepto(departamento, Number(ano), Number(trimestre));
+
         return {
-            total_colaboradores: colabsDepto.length,
+            total_colaboradores: elegiveisCount,
+            total_bruto_colaboradores: colabsDepto.length,
+            concluidos_especiais: concluidosEspeciaisCount,
             responderam: rows.length,
             media_geral: mediaGeral,
             topicos: resumoTopicos,
             perguntas: resumoPerguntas,
-            observacoes: observacoesAnonimas
+            observacoes: observacoesAnonimas,
+            historico
         };
     }
 
-    function gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est) {
-        const fortes = est.topicos.filter(t => t.media >= 4.0);
-        const fracos = est.topicos.filter(t => t.media < 4.0);
-        const pergCriticas = est.perguntas.filter(p => p.media < 3.8 || p.qtd_baixas > 0).slice(0, 6);
+    // Coleta os últimos períodos (até o período selecionado) do departamento para montar a tabela comparativa igual ao Dashboard (Anexo 2)
+    async function coletarHistoricoComparativoDepto(departamento, anoAte, trimAte) {
+        const periodosDb = await dbAll(
+            `SELECT DISTINCT ano, trimestre FROM avaliacoes
+             WHERE tipo = 'satisfacao'
+               AND (ano < ? OR (ano = ? AND trimestre <= ?))
+             ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+            [anoAte, anoAte, trimAte]
+        );
+        if (!periodosDb.some(p => Number(p.ano) === anoAte && Number(p.trimestre) === trimAte)) {
+            periodosDb.unshift({ ano: anoAte, trimestre: trimAte });
+        }
+        const periodos = periodosDb
+            .slice(0, 4)
+            .sort((a, b) => (a.ano - b.ano) || (a.trimestre - b.trimestre))
+            .map(p => ({
+                ano: Number(p.ano),
+                trimestre: Number(p.trimestre),
+                key: `${p.ano}-T${p.trimestre}`,
+                label: labelPeriodo(Number(p.ano), Number(p.trimestre))
+            }));
 
-        let linhas = [];
-        linhas.push(`1. Visão Geral do Departamento (${departamento} — ${labelPeriodo(ano, trimestre)})`);
-        linhas.push(`Na pesquisa de satisfação referente a ${labelPeriodo(ano, trimestre)}, o departamento ${departamento} contou com a participação de ${est.responderam} de ${est.total_colaboradores} colaborador(es), alcançando média geral de satisfação de ${est.media_geral != null ? est.media_geral.toFixed(2) : '—'} em uma escala de 1 a 5.`);
-        linhas.push('');
-        linhas.push('2. Pontos Fortes Identificados');
-        if (fortes.length) {
-            fortes.forEach(f => {
-                linhas.push(`• ${f.topico} (Média ${f.media.toFixed(2)}/5): percepção positiva da equipe quanto a este pilar.`);
+        const rows = await dbAll(
+            `SELECT a.ano, a.trimestre, a.respostas_json
+             FROM avaliacoes a
+             JOIN colaboradores c ON c.id = a.colaborador_id
+             WHERE a.tipo = 'satisfacao'
+               AND LOWER(TRIM(COALESCE(c.departamento, 'Sem Departamento'))) = LOWER(TRIM(?))`,
+            [departamento]
+        );
+
+        const mapTopicos = {}; // { topico: { '2026-T3': [vals] } }
+        const ordemTopicos = [];
+        const addVal = (topico, key, v) => {
+            if (!topico || topico.startsWith('_') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+            const n = parseFloat(v);
+            if (isNaN(n)) return;
+            if (!mapTopicos[topico]) {
+                mapTopicos[topico] = {};
+                ordemTopicos.push(topico);
+            }
+            if (!mapTopicos[topico][key]) mapTopicos[topico][key] = [];
+            mapTopicos[topico][key].push(n);
+        };
+
+        rows.forEach(r => {
+            const key = `${r.ano}-T${r.trimestre}`;
+            if (!periodos.some(p => p.key === key)) return;
+            let resp = {};
+            try { resp = JSON.parse(r.respostas_json || '{}'); } catch (e) { resp = {}; }
+            if (resp.scores && typeof resp.scores === 'object' && !Array.isArray(resp.scores)) {
+                Object.entries(resp.scores).forEach(([topico, avg]) => addVal(topico, key, avg));
+                return;
+            }
+            Object.entries(resp).forEach(([topico, notas]) => {
+                if (topico.startsWith('__') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+                if (Array.isArray(notas)) {
+                    const nums = notas.map(n => parseFloat(n)).filter(n => !isNaN(n));
+                    if (nums.length) addVal(topico, key, nums.reduce((a, b) => a + b, 0) / nums.length);
+                } else if (typeof notas === 'object' && notas !== null) {
+                    const nums = Object.values(notas).map(n => parseFloat(n)).filter(n => !isNaN(n));
+                    if (nums.length) addVal(topico, key, nums.reduce((a, b) => a + b, 0) / nums.length);
+                } else {
+                    addVal(topico, key, notas);
+                }
             });
-        } else {
-            linhas.push('• Nenhum tópico atingiu média igual ou superior a 4.0 neste ciclo, indicando oportunidade de fortalecimento geral das práticas da área.');
+        });
+
+        const linhasTopicos = ordemTopicos.map(topico => {
+            const valores = periodos.map(p => {
+                const arr = mapTopicos[topico][p.key] || [];
+                return arr.length ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null;
+            });
+            return { topico, valores };
+        });
+
+        const mediasPeriodo = periodos.map((p, idx) => {
+            const vals = linhasTopicos.map(t => t.valores[idx]).filter(v => v !== null && !isNaN(v));
+            return vals.length ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)) : null;
+        });
+
+        return { periodos, topicos: linhasTopicos, medias_periodo: mediasPeriodo };
+    }
+
+    // Gera HTML da tabela comparativa idêntica ao Dashboard (Anexo 2) para o modal e para o e-mail do gestor
+    function montarTabelaComparativaHtml(departamento, gestorNome, est) {
+        const hist = est.historico || { periodos: [], topicos: [], medias_periodo: [] };
+        const periodos = hist.periodos || [];
+        const topicos = hist.topicos || [];
+        if (!periodos.length || !topicos.length) return '';
+
+        const mediaRef = est.media_geral != null ? Number(est.media_geral).toFixed(1) : '—';
+        const corMediaBg = corFundoNota(est.media_geral);
+        const corMediaTxt = corTextoNota(est.media_geral);
+
+        const setaTendenciaHtml = (vals, idx) => {
+            if (idx === 0) return '';
+            const atual = vals[idx];
+            let ant = null;
+            for (let k = idx - 1; k >= 0; k--) {
+                if (vals[k] !== null && vals[k] !== undefined && !isNaN(vals[k])) {
+                    ant = vals[k];
+                    break;
+                }
+            }
+            if (atual === null || atual === undefined || ant === null || ant === undefined) return '';
+            const diff = atual - ant;
+            if (diff >= 0.1) return `<span style="color:#16a34a;font-size:0.82rem;font-weight:800;margin-left:6px;" title="+${diff.toFixed(1)}">▲</span>`;
+            if (diff <= -0.1) return `<span style="color:#dc2626;font-size:0.82rem;font-weight:800;margin-left:6px;" title="${diff.toFixed(1)}">▼</span>`;
+            return `<span style="color:#94a3b8;font-size:0.82rem;font-weight:700;margin-left:6px;" title="Estável">→</span>`;
+        };
+
+        const pillHtml = (v) => {
+            if (v === null || v === undefined || isNaN(v)) {
+                return `<span style="display:inline-block;min-width:44px;padding:4px 10px;border-radius:999px;background:#f1f5f9;color:#94a3b8;font-weight:700;font-size:0.82rem;text-align:center;">—</span>`;
+            }
+            return `<span style="display:inline-block;min-width:44px;padding:4px 10px;border-radius:999px;background:${corFundoNota(v)};color:${corTextoNota(v)};font-weight:700;font-size:0.82rem;text-align:center;">${Number(v).toFixed(1)}</span>`;
+        };
+
+        return `
+        <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;margin:16px 0 22px;">
+            <div style="padding:14px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-weight:800;color:#1e293b;font-size:1rem;">🏢 ${departamento}</span>
+                <span style="background:#ede9fe;color:#7c3aed;border-radius:8px;padding:4px 10px;font-size:0.76rem;font-weight:700;">
+                    👥 ${est.responderam}/${est.total_colaboradores} respondentes
+                </span>
+                ${gestorNome ? `<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:4px 10px;font-size:0.76rem;font-weight:700;">Gestor: ${gestorNome}</span>` : ''}
+                ${est.media_geral != null ? `<span style="background:${corMediaBg};color:${corMediaTxt};border-radius:999px;padding:4px 12px;font-size:0.8rem;font-weight:800;">Média: ${mediaRef}</span>` : ''}
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:10px 14px;text-align:left;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;border-bottom:1px solid #e2e8f0;">Tópico Avaliado</th>
+                            ${periodos.map((p, i) => `<th style="padding:10px 14px;text-align:center;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${p.label}${i > 0 ? ' <span style="font-size:0.65rem;opacity:0.65;">TENDÊNCIA</span>' : ''}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topicos.map(t => `
+                            <tr>
+                                <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${t.topico}</td>
+                                ${t.valores.map((v, i) => `
+                                    <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;text-align:center;white-space:nowrap;">
+                                        ${pillHtml(v)}${setaTendenciaHtml(t.valores, i)}
+                                    </td>
+                                `).join('')}
+                            </tr>
+                        `).join('')}
+                        <tr style="background:#f8fafc;font-weight:700;">
+                            <td style="padding:10px 14px;color:#7c3aed;font-weight:800;">Média do Departamento (${departamento})</td>
+                            ${hist.medias_periodo.map((v, i) => `
+                                <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
+                                    ${pillHtml(v)}${setaTendenciaHtml(hist.medias_periodo, i)}
+                                </td>
+                            `).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:10px 16px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:0.74rem;color:#64748b;display:flex;gap:14px;flex-wrap:wrap;">
+                <span>🟢 <strong>≥ 4,5:</strong> Ponto Forte</span>
+                <span>🟡 <strong>4,0 a 4,4:</strong> Ponto de Atenção</span>
+                <span>🟠 <strong>3,0 a 3,9:</strong> Atenção Redobrada</span>
+                <span>🔴 <strong>&lt; 3,0:</strong> Crítico</span>
+            </div>
+        </div>`;
+    }
+
+    // Motor analítico profundo (sem citar notas por escrito e sem reproduzir texto literal das observações)
+    function gerarRelatorioFallbackEstruturado(departamento, ano, trimestre, est) {
+        const fortes = est.topicos.filter(t => t.media >= 4.5);
+        const atencaoAmarelo = est.topicos.filter(t => t.media >= 4.0 && t.media < 4.5);
+        const atencaoLaranja = est.topicos.filter(t => t.media >= 3.0 && t.media < 4.0);
+        const criticosVermelho = est.topicos.filter(t => t.media < 3.0);
+
+        // Comparar evolução histórica sem expor números frios
+        const hist = est.historico || { periodos: [], topicos: [], medias_periodo: [] };
+        const evoluiu = [];
+        const recuou = [];
+        if (hist.periodos && hist.periodos.length >= 2) {
+            const ultIdx = hist.periodos.length - 1;
+            hist.topicos.forEach(t => {
+                const atual = t.valores[ultIdx];
+                let ant = null;
+                for (let k = ultIdx - 1; k >= 0; k--) {
+                    if (t.valores[k] !== null && t.valores[k] !== undefined) { ant = t.valores[k]; break; }
+                }
+                if (atual !== null && ant !== null) {
+                    if (atual - ant >= 0.1) evoluiu.push(t.topico);
+                    else if (atual - ant <= -0.1) recuou.push(t.topico);
+                }
+            });
         }
+
+        // Mapear temas das observações e perguntas mais sensíveis de forma indireta e analítica
+        const temasSensíveis = new Set();
+        est.observacoes.forEach(o => {
+            const tx = String(o.texto || '').toLowerCase();
+            const ctx = String(o.topico || o.contexto || '').toLowerCase();
+            if (tx.includes('comunica') || tx.includes('aviso') || tx.includes('informa') || ctx.includes('comunica')) {
+                temasSensíveis.add('alinhamento de comunicação interna e clareza no repasse de orientações');
+            }
+            if (tx.includes('equipamento') || tx.includes('ferramenta') || tx.includes('caminh') || tx.includes('veic') || tx.includes('estrutura') || ctx.includes('condi')) {
+                temasSensíveis.add('condições de recursos operacionais, manutenção preventiva e ferramentas de rotina');
+            }
+            if (tx.includes('cresci') || tx.includes('carreira') || tx.includes('oportunidade') || tx.includes('promo') || tx.includes('valoriza') || ctx.includes('cresci')) {
+                temasSensíveis.add('expectativas de desenvolvimento profissional, reconhecimento e perspectiva de evolução interna');
+            }
+            if (tx.includes('rotina') || tx.includes('sobrecarga') || tx.includes('tempo') || tx.includes('prazo') || tx.includes('correria') || ctx.includes('organiza') || ctx.includes('processo')) {
+                temasSensíveis.add('distribuição das demandas diárias, previsibilidade da rotina e fluidez dos processos entre setores');
+            }
+            if (tx.includes('lider') || tx.includes('gestor') || tx.includes('escuta') || tx.includes('apoio') || tx.includes('feedback')) {
+                temasSensíveis.add('proximidade da liderança no acompanhamento diário e momentos estruturados de escuta e feedback');
+            }
+            if (tx.includes('equipe') || tx.includes('colega') || tx.includes('clima') || tx.includes('união') || tx.includes('colabora')) {
+                temasSensíveis.add('integração entre os membros da equipe e espírito de cooperação mútua no turno');
+            }
+        });
+        est.perguntas.filter(p => p.media < 4.2 || p.qtd_baixas > 0).slice(0, 5).forEach(p => {
+            const pNome = p.pergunta.split(' — ')[0] || p.pergunta;
+            temasSensíveis.add(`aperfeiçoamento prático nos critérios ligados a ${pNome.toLowerCase()}`);
+        });
+
+        const linhas = [];
+        linhas.push(`Análise Executiva de Clima e Satisfação — Departamento ${departamento} (${labelPeriodo(ano, trimestre)})`);
         linhas.push('');
-        linhas.push('3. Pontos Fracos e Oportunidades de Melhoria');
-        if (fracos.length) {
-            fracos.forEach(f => {
-                linhas.push(`• ${f.topico} (Média ${f.media.toFixed(2)}/5): requer acompanhamento próximo da gestão para elevação do nível de satisfação.`);
-            });
-        } else if (pergCriticas.length) {
-            pergCriticas.forEach(p => {
-                linhas.push(`• ${p.pergunta} (Média ${p.media.toFixed(2)}/5): apresentou avaliações abaixo do ideal entre parte dos respondentes.`);
-            });
+        linhas.push('1. Pontos Fortes do Departamento');
+        if (fortes.length > 0) {
+            const nomesFortes = fortes.map(f => f.topico).join(', ');
+            linhas.push(`A equipe demonstra uma percepção sólida e bastante favorável nos pilares de ${nomesFortes}. Esses resultados revelam que o setor possui bases bem estruturadas nesses aspectos, refletindo segurança na condução das atividades, boa receptividade ao ambiente de trabalho e alinhamento com as práticas atuais da área.`);
         } else {
-            linhas.push('• Todos os tópicos mantiveram médias acima de 4.0. Recomenda-se manter a consistência e o diálogo aberto com a equipe.');
+            linhas.push(`Embora o departamento apresente aspectos positivos na rotina, nenhum pilar atingiu a faixa máxima de consolidação neste ciclo, o que sinaliza um momento oportuno para estreitar a proximidade com a equipe e fortalecer os fatores de motivação diária.`);
         }
+        if (evoluiu.length > 0) {
+            linhas.push(`Na comparação com as avaliações anteriores, observou-se evolução positiva em ${evoluiu.join(', ')}, demonstrando que as ações recentes na área surtiram efeito perceptível para o time.`);
+        }
+
         linhas.push('');
-        linhas.push('4. Pontos de Atenção Importantes e Síntese das Observações (Anônimo)');
-        if (est.observacoes.length) {
-            linhas.push(`Foram registrados ${est.observacoes.length} apontamento(s) qualitativo(s) pela equipe (preservando o anonimato dos participantes):`);
-            est.observacoes.forEach(o => {
-                linhas.push(`• [${o.contexto}]: "${o.texto}"`);
-            });
+        linhas.push('2. Pontos de Melhoria e Níveis de Atenção');
+        if (criticosVermelho.length === 0 && atencaoLaranja.length === 0 && atencaoAmarelo.length === 0) {
+            linhas.push(`Todos os indicadores do departamento mantiveram-se na faixa verde de satisfação, sem sinalizações em amarelo, laranja ou vermelho neste período. O foco da liderança deve ser a manutenção da consistência e a prevenção de desgastes operacionais.`);
         } else {
-            linhas.push('• Não houve observações escritas adicionais neste período. Recomenda-se realizar roda de conversa com o setor para aprofundar os indicadores numéricos.');
+            if (criticosVermelho.length > 0) {
+                linhas.push(`• Nível Crítico (Vermelho): Os aspectos relacionados a ${criticosVermelho.map(x => x.topico).join(', ')} demandam atuação imediata e prioritária da gestão. A percepção da equipe indica insatisfação acentuada nesses pontos, exigindo revisão direta dos processos e escuta ativa para reversão rápida do cenário.`);
+            }
+            if (atencaoLaranja.length > 0) {
+                linhas.push(`• Atenção Redobrada (Laranja): Os pilares de ${atencaoLaranja.map(x => x.topico).join(', ')} encontram-se na faixa laranja e requerem atenção redobrada. Esse sinal aponta que parte significativa do grupo percebe gargalos ou desgaste nesses temas, sendo fundamental implementar ajustes práticos no curto prazo para evitar que se tornem críticos.`);
+            }
+            if (atencaoAmarelo.length > 0) {
+                linhas.push(`• Ponto de Atenção (Amarelo): Os temas de ${atencaoAmarelo.map(x => x.topico).join(', ')} situam-se na faixa amarela de atenção preventiva. Embora o cenário geral ainda seja favorável, existem oscilações pontuais na percepção de alguns colaboradores que merecem acompanhamento próximo do gestor.`);
+            }
         }
+        if (recuou.length > 0) {
+            linhas.push(`• Tendência Histórica: Em relação ao ciclo anterior, houve retração na percepção sobre ${recuou.join(', ')}, reforçando a importância de investigar mudanças recentes na rotina que possam ter impactado esses indicadores.`);
+        }
+
+        linhas.push('');
+        linhas.push('3. Informações Importantes e Recomendações para a Gestão');
+        if (temasSensíveis.size > 0) {
+            const listaTemas = Array.from(temasSensíveis);
+            linhas.push(`A partir da leitura interpretativa das respostas e das manifestações qualitativas da equipe, nota-se que as principais percepções do departamento concentram-se em: ${listaTemas.join('; ')}.`);
+            linhas.push(`Recomenda-se que a liderança promova conversas periódicas de alinhamento com o time, reforçando a transparência sobre critérios de crescimento, validando as condições de trabalho e acompanhando de perto os pontos sinalizados em amarelo e laranja para sustentar um clima organizacional saudável e produtivo.`);
+        } else {
+            linhas.push(`A análise conjunta das respostas demonstra estabilidade na rotina do setor. Recomenda-se manter rituais periódicos de feedback e diálogo aberto com a equipe para antecipar necessidades operacionais e preservar o engajamento do grupo.`);
+        }
+
         return linhas.join('\n');
     }
+
+    // PUT /api/avaliacoes/satisfacao/status-colaborador — Permite alterar Pendente para N/A ou Afastado (considerado concluído)
+    app.put('/api/avaliacoes/satisfacao/status-colaborador', authenticateToken, async (req, res) => {
+        try {
+            const colaborador_id = parseInt(req.body.colaborador_id, 10);
+            const ano = parseInt(req.body.ano, 10);
+            const trimestre = parseInt(req.body.trimestre, 10);
+            const status_manual = String(req.body.status_manual || '').trim().toLowerCase();
+
+            if (!colaborador_id || !ano || !trimestre || !['pendente', 'na', 'afastado'].includes(status_manual)) {
+                return res.status(400).json({ error: 'Parâmetros inválidos. Informe colaborador_id, ano, trimestre e status_manual (pendente, na ou afastado).' });
+            }
+
+            await dbRun(
+                `INSERT INTO satisfacao_status_periodo (colaborador_id, ano, trimestre, status_manual, updated_at)
+                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(colaborador_id, ano, trimestre)
+                 DO UPDATE SET status_manual = excluded.status_manual, updated_at = CURRENT_TIMESTAMP`,
+                [colaborador_id, ano, trimestre, status_manual]
+            );
+
+            res.json({ ok: true, colaborador_id, ano, trimestre, status_manual });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
 
     // GET /api/avaliacoes/satisfacao/relatorio-ia
     app.get('/api/avaliacoes/satisfacao/relatorio-ia', authenticateToken, async (req, res) => {
@@ -285,6 +611,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 dbGet(`SELECT * FROM satisfacao_relatorios_ia WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]),
                 coletarDadosAnonimosDepto(departamento, ano, trimestre)
             ]);
+            const tabelaComparativaHtml = montarTabelaComparativaHtml(departamento, gestor ? gestor.gestor_nome : null, estatisticas);
             res.json({
                 ok: true,
                 departamento,
@@ -293,7 +620,8 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                 periodo_label: labelPeriodo(ano, trimestre),
                 gestor,
                 relatorio: salvo || null,
-                estatisticas
+                estatisticas,
+                tabela_comparativa_html: tabelaComparativaHtml
             });
         } catch (e) {
             res.status(500).json({ error: e.message });
@@ -343,45 +671,57 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
                     }
                     if (!candidatos.length) candidatos = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
-                    const topicosStr = est.topicos.map(t => `- Tópico "${t.topico}": Média ${t.media.toFixed(2)}/5`).join('\n');
-                    const perguntasStr = est.perguntas.map(p => `- ${p.pergunta}: Média ${p.media.toFixed(2)}/5 (${p.qtd_baixas} nota(s) <= 3 de ${p.qtd_respostas} respostas)`).join('\n');
+                    const classificarFaixa = (m) => {
+                        if (m >= 4.5) return 'VERDE — Ponto Forte (>= 4,5)';
+                        if (m >= 4.0) return 'AMARELO — Ponto de Atenção (4,0 a 4,4)';
+                        if (m >= 3.0) return 'LARANJA — Atenção Redobrada (3,0 a 3,9)';
+                        return 'VERMELHO — Crítico (< 3,0)';
+                    };
+
+                    const topicosStr = est.topicos.map(t => `- Tópico "${t.topico}": Classificação [${classificarFaixa(t.media)}]`).join('\n');
+                    const histStr = (est.historico && est.historico.topicos || []).map(t => {
+                        const serie = (est.historico.periodos || []).map((p, idx) => `${p.label}: ${t.valores[idx] != null ? classificarFaixa(t.valores[idx]) : 'sem dados'}`).join(' -> ');
+                        return `- ${t.topico}: ${serie}`;
+                    }).join('\n');
+                    const perguntasStr = est.perguntas.map(p => `- ${p.pergunta}: Classificação [${classificarFaixa(p.media)}] (${p.qtd_baixas} resposta(s) mais baixas de ${p.qtd_respostas})`).join('\n');
                     const obsStr = est.observacoes.length
-                        ? est.observacoes.map((o, i) => `${i + 1}. [${o.contexto}]: "${o.texto}"`).join('\n')
+                        ? est.observacoes.map((o, i) => `${i + 1}. Contexto [${o.contexto}]: ${o.texto}`).join('\n')
                         : 'Nenhuma observação escrita adicional foi registrada pelos colaboradores.';
 
-                    const prompt = `Você é um Consultor Sênior de Recursos Humanos e Clima Organizacional.
-Analise os resultados consolidados da Pesquisa de Satisfação do departamento "${departamento}" referente ao período "${labelPeriodo(ano, trimestre)}" e elabore um relatório executivo claro, objetivo e construtivo para ser entregue ao Gestor do Departamento.
+                    const prompt = `Você é um Consultor Executivo Sênior de Recursos Humanos e Clima Organizacional.
+Analise as respostas dadas na Pesquisa de Satisfação do departamento "${departamento}" referente ao período "${labelPeriodo(ano, trimestre)}" e elabore uma análise consultiva, profunda e interpretativa para o Gestor do Departamento.
 
-REGRA ABSOLUTA DE ANONIMATO (OBRIGATÓRIA):
-- NUNCA mencione o nome de nenhum colaborador e jamais tente identificar quem deu determinada nota ou escreveu determinada observação.
-- Refira-se sempre no coletivo ou de forma impessoal ("a equipe apontou", "observou-se nos relatos do departamento", "os indicadores mostram").
-- Não utilize formatação Markdown com asteriscos (**) ou hashtags (#). Escreva o texto em português natural (com letras maiúsculas e minúsculas normais, NUNCA tudo em caixa alta) e use marcadores simples com "•".
+DIRETRIZES OBRIGATÓRIAS E INEGOCIÁVEIS:
+1. NÃO ESCREVA AS NOTAS NUMÉRICAS NO TEXTO: O gestor já receberá a tabela visual com os números ao lado deste texto. Portanto, NÃO cite números de médias (como "média 4.5", "nota 3.4/5", etc.) no texto escrito. Foque 100% na leitura qualitativa, comportamental e gerencial.
+2. NÃO TRANSCREVA NEM MENCIONE O TEXTO LITERAL DAS OBSERVAÇÕES: Jamais copie frases entre aspas, não exponha quem escreveu e não seja direto a ponto de reproduzir o comentário do colaborador. Leia as observações escritas, compreenda o contexto por trás delas e transforme-as em uma análise profissional e indireta sobre o clima, os processos, a rotina ou a gestão da área.
+3. CLASSIFICAÇÃO DE ATENÇÃO OBRIGATÓRIA:
+   - Tudo que estiver em VERDE (acima de 4,5) deve ser interpretado como Ponto Forte consolidado.
+   - Tudo que estiver em AMARELO (abaixo de 4,5 até 4,0) é um PONTO DE ATENÇÃO.
+   - Tudo que estiver em LARANJA (abaixo de 4,0 até 3,0) é ATENÇÃO REDOBRADA.
+   - Tudo que estiver em VERMELHO (abaixo de 3,0) é CRÍTICO.
+4. FORMATAÇÃO: Escreva em português natural (letras maiúsculas e minúsculas normais, NUNCA deixe o texto todo em caixa alta), sem asteriscos (**) e sem hashtags (#).
 
-ESTRUTURA OBRIGATÓRIA DO RELATÓRIO:
-1. Visão Geral da Satisfação do Departamento
-(Síntese da adesão: ${est.responderam} de ${est.total_colaboradores} colaboradores responderam, média geral de ${est.media_geral != null ? est.media_geral.toFixed(2) : '—'}/5 e leitura geral do clima da área)
+ESTRUTURE O TEXTO EXATAMENTE NESTES 3 BLOCOS:
+1. Pontos Fortes do Departamento
+(Análise interpretativa e aprofundada dos pilares em faixa verde e dos aspectos que demonstram maturidade, engajamento, bom ambiente ou evolução positiva em relação às pesquisas anteriores)
 
-2. Pontos Fortes
-(Levantamento dos tópicos e perguntas mais bem avaliados pela equipe e aspectos positivos destacados nas observações)
+2. Pontos de Melhoria e Níveis de Atenção
+(Análise detalhada separando claramente o que requer Ponto de Atenção [faixa amarela], o que exige Atenção Redobrada [faixa laranja] e o que está Crítico [faixa vermelha], além de apontar se houve queda ou melhora frente aos ciclos anteriores e o que isso significa na prática do setor)
 
-3. Pontos Fracos e Oportunidades de Melhoria
-(Levantamento objetivo dos tópicos e critérios com menores médias ou maior incidência de notas baixas <= 3)
+3. Informações Importantes e Recomendações para a Gestão
+(Análise indireta, consultiva e inteligente das percepções extraídas das respostas e das informações escritas pelos colaboradores — sem mencionar o texto literal que foi colocado — acompanhada de orientações práticas de liderança para o gestor atuar no departamento)
 
-4. Pontos de Atenção Importantes e Recomendações para a Gestão
-(Análise cuidadosa das observações abertas registradas pelos colaboradores e recomendações práticas de liderança para o gestor atuar no próximo trimestre)
-
-DADOS CONSOLIDADOS DO DEPARTAMENTO "${departamento}":
-- Total de colaboradores ativos no setor: ${est.total_colaboradores}
-- Colaboradores que responderam: ${est.responderam}
-- Média geral do departamento: ${est.media_geral != null ? est.media_geral.toFixed(2) : '—'} / 5.00
-
-MÉDIAS POR TÓPICO:
+DADOS PARA SUA ANÁLISE INTERNA (NÃO REPRODUZA OS NÚMEROS NEM OS TEXTOS LITERAIS):
+CLASSIFICAÇÃO DOS TÓPICOS NO PERÍODO ATUAL:
 ${topicosStr}
 
-DETALHAMENTO POR PERGUNTA (da menor média para a maior):
+HISTÓRICO ENTRE PERÍODOS:
+${histStr}
+
+DETALHAMENTO POR PERGUNTA:
 ${perguntasStr}
 
-OBSERVAÇÕES ANÔNIMAS REGISTRADAS PELOS COLABORADORES:
+INFORMAÇÕES ESCRITAS PELOS COLABORADORES (INTERPRETE O SENTIDO SEM CITAR LITERALMENTE):
 ${obsStr}`;
 
                     for (const modelName of candidatos) {
@@ -399,7 +739,7 @@ ${obsStr}`;
                         }
                     }
                 } catch (errGemini) {
-                    console.warn('[Satisfacao IA] Erro Gemini, usando síntese estruturada:', errGemini.message);
+                    console.warn('[Satisfacao IA] Erro Gemini, usando análise estruturada:', errGemini.message);
                 }
             }
 
@@ -417,13 +757,15 @@ ${obsStr}`;
 
             const salvo = await dbGet(`SELECT * FROM satisfacao_relatorios_ia WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?)) AND ano = ? AND trimestre = ?`, [departamento, ano, trimestre]);
             const gestor = await buscarGestorDepartamento(departamento);
+            const tabelaComparativaHtml = montarTabelaComparativaHtml(departamento, gestor ? gestor.gestor_nome : null, est);
 
             res.json({
                 ok: true,
                 relatorio: salvo,
                 relatorio_texto: textoGerado,
                 estatisticas: est,
-                gestor
+                gestor,
+                tabela_comparativa_html: tabelaComparativaHtml
             });
         } catch (e) {
             res.status(500).json({ error: e.message });
@@ -454,7 +796,7 @@ ${obsStr}`;
         }
     });
 
-    // POST /api/avaliacoes/satisfacao/enviar-gestor — Envia avaliação por e-mail e notificação interna ao Gestor do Departamento
+    // POST /api/avaliacoes/satisfacao/enviar-gestor — Envia avaliação por e-mail (com tabela comparativa do Anexo 2 + análise IA)
     app.post('/api/avaliacoes/satisfacao/enviar-gestor', authenticateToken, async (req, res) => {
         try {
             const departamento = String(req.body.departamento || '').trim();
@@ -486,56 +828,29 @@ ${obsStr}`;
                 [departamento, ano, trimestre, relatorio_texto, JSON.stringify(est), emailDestino]
             );
 
-            // Montar linhas da tabela de tópicos (sem nomes de colaboradores)
-            const topicosHtml = est.topicos.map(t => {
-                const cor = t.media >= 4 ? '#16a34a' : (t.media >= 3 ? '#d97706' : '#dc2626');
-                return `<tr>
-                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#334155;font-weight:600;">${t.topico}</td>
-                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:700;color:${cor};">${t.media.toFixed(2)} / 5.0</td>
-                </tr>`;
-            }).join('');
+            const tabelaComparativaHtml = montarTabelaComparativaHtml(departamento, gestor ? gestor.gestor_nome : null, est);
 
             const relatorioHtml = relatorio_texto
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/\n/g, '<br>');
 
             const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-            const htmlEmail = `<div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;">
+            const htmlEmail = `<div style="font-family:Arial,sans-serif;max-width:740px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#ffffff;">
                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:680px;height:auto;display:block;">
+                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:740px;height:auto;display:block;">
                 </div>
                 <div style="padding:24px 28px;">
                     <div style="background:#7c3aed;color:#fff;padding:16px 20px;border-radius:10px;margin-bottom:20px;">
                         <h2 style="margin:0;font-size:1.25rem;">Relatório de Satisfação do Departamento — ${departamento}</h2>
-                        <div style="font-size:0.9rem;opacity:0.9;margin-top:4px;">Período: ${perStr} · Resultados Consolidados e Anônimos</div>
+                        <div style="font-size:0.9rem;opacity:0.9;margin-top:4px;">Período de Referência: ${perStr} · Histórico Comparativo e Análise Consolidada</div>
                     </div>
                     <p style="color:#334155;font-size:0.95rem;">Olá${gestor && gestor.gestor_nome ? `, <strong>${gestor.gestor_nome}</strong>` : ''},</p>
                     <p style="color:#475569;font-size:0.92rem;line-height:1.5;">
-                        Compartilhamos abaixo o consolidado da <strong>Pesquisa de Satisfação</strong> do departamento <strong>${departamento}</strong> referente a <strong>${perStr}</strong>, acompanhado do levantamento analítico de pontos fortes, pontos de melhoria e pontos de atenção.
+                        Compartilhamos abaixo o quadro comparativo de evolução da <strong>Pesquisa de Satisfação</strong> do departamento <strong>${departamento}</strong> (com as médias por tópico e setas de tendência em relação às pesquisas anteriores), seguido da análise executiva de pontos fortes, pontos de melhoria e informações importantes.
                     </p>
-                    <div style="display:flex;gap:12px;margin:16px 0;background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0;">
-                        <div style="flex:1;text-align:center;">
-                            <div style="font-size:0.75rem;color:#64748b;text-transform:uppercase;font-weight:700;">Adesão do Setor</div>
-                            <div style="font-size:1.35rem;font-weight:800;color:#7c3aed;">${est.responderam}/${est.total_colaboradores}</div>
-                        </div>
-                        <div style="flex:1;text-align:center;">
-                            <div style="font-size:0.75rem;color:#64748b;text-transform:uppercase;font-weight:700;">Média Geral do Setor</div>
-                            <div style="font-size:1.35rem;font-weight:800;color:#16a34a;">${est.media_geral != null ? est.media_geral.toFixed(2) : '—'} / 5.0</div>
-                        </div>
-                    </div>
-                    ${topicosHtml ? `
-                    <h3 style="font-size:0.95rem;color:#1e293b;margin:20px 0 8px;">Médias por Tópico (${perStr})</h3>
-                    <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:0.88rem;margin-bottom:20px;">
-                        <thead>
-                            <tr style="background:#f1f5f9;">
-                                <th style="padding:8px 12px;text-align:left;color:#475569;">Tópico Avaliado</th>
-                                <th style="padding:8px 12px;text-align:center;color:#475569;">Média do Departamento</th>
-                            </tr>
-                        </thead>
-                        <tbody>${topicosHtml}</tbody>
-                    </table>` : ''}
-                    <h3 style="font-size:0.95rem;color:#1e293b;margin:20px 0 8px;">Análise Consolidada (Pontos Fortes, Fracos e Pontos de Atenção)</h3>
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #7c3aed;border-radius:8px;padding:16px;color:#1e293b;font-size:0.9rem;line-height:1.6;">
+                    ${tabelaComparativaHtml}
+                    <h3 style="font-size:0.98rem;color:#1e293b;margin:22px 0 8px;">Análise Consolidada do Departamento</h3>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #7c3aed;border-radius:8px;padding:18px;color:#1e293b;font-size:0.92rem;line-height:1.65;">
                         ${relatorioHtml}
                     </div>
                     <p style="font-size:0.78rem;color:#94a3b8;margin-top:20px;text-align:center;">
@@ -551,9 +866,8 @@ ${obsStr}`;
                 attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
             });
 
-            // Também criar notificação interna no sistema para o gestor, se tiver usuário vinculado
             if (gestor && gestor.usuario_id) {
-                const msgNotif = `📊 O Relatório da Pesquisa de Satisfação do departamento <strong>${departamento}</strong> (${perStr}) foi gerado e enviado para seu e-mail (${emailDestino}). Média do setor: <strong>${est.media_geral != null ? est.media_geral.toFixed(2) : '—'}/5</strong>.`;
+                const msgNotif = `📊 O Relatório da Pesquisa de Satisfação do departamento <strong>${departamento}</strong> (${perStr}) foi enviado para seu e-mail (${emailDestino}). Média do setor: <strong>${est.media_geral != null ? est.media_geral.toFixed(1) : '—'}/5</strong>.`;
                 await dbRun(
                     `INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
                     [gestor.usuario_id, 'pesquisa_satisfacao', msgNotif, JSON.stringify({ departamento, ano, trimestre, media_geral: est.media_geral })]
