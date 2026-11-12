@@ -88,6 +88,8 @@ const TELAS_SISTEMA = [
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais Trein.', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presença Trein.', icone: 'ph-check-square' },
+    { modulo: 'Treinamentos', pagina_id: 'academia-lideres-minha', pagina_nome: 'Minha Academia (Líderes)', icone: 'ph-student' },
+    { modulo: 'Treinamentos', pagina_id: 'academia-lideres-admin', pagina_nome: 'Gerenciar Academia (Líderes)', icone: 'ph-chalkboard-teacher' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
     // Módulo Processos
@@ -669,7 +671,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
-        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }]
+        grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia', 'academia-lideres-minha', 'academia-lideres-admin'] }]
     },
     {
         modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',

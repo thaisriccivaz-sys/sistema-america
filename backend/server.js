@@ -4166,6 +4166,13 @@ try {
     console.error('[APP-RETIRADAS] ERRO ao carregar modulo:', eAppRet.message);
 }
 
+// --- TREINAMENTOS > ACADEMIA DE LIDERES (trilhas, modulos, aulas, progresso; arquivos no R2) ---
+try {
+    require('./routes_academia_lideres')(app, db, authenticateToken, r2);
+} catch (eAcl) {
+    console.error('[ACADEMIA-LIDERES] ERRO ao carregar modulo:', eAcl.message);
+}
+
 // --- APP > LIDERANCA > ENTREGAS (checklist de equipamentos entregues, fotos no R2) ---
 try {
     require('./routes_app_entregas')(app, db, authenticateToken, r2);
