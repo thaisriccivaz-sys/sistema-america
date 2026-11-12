@@ -234,10 +234,10 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
         const pergCriticas = est.perguntas.filter(p => p.media < 3.8 || p.qtd_baixas > 0).slice(0, 6);
 
         let linhas = [];
-        linhas.push(`1. VISÃO GERAL DO DEPARTAMENTO (${departamento.toUpperCase()} — ${labelPeriodo(ano, trimestre)})`);
+        linhas.push(`1. Visão Geral do Departamento (${departamento} — ${labelPeriodo(ano, trimestre)})`);
         linhas.push(`Na pesquisa de satisfação referente a ${labelPeriodo(ano, trimestre)}, o departamento ${departamento} contou com a participação de ${est.responderam} de ${est.total_colaboradores} colaborador(es), alcançando média geral de satisfação de ${est.media_geral != null ? est.media_geral.toFixed(2) : '—'} em uma escala de 1 a 5.`);
         linhas.push('');
-        linhas.push('2. PONTOS FORTES IDENTIFICADOS');
+        linhas.push('2. Pontos Fortes Identificados');
         if (fortes.length) {
             fortes.forEach(f => {
                 linhas.push(`• ${f.topico} (Média ${f.media.toFixed(2)}/5): percepção positiva da equipe quanto a este pilar.`);
@@ -246,7 +246,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             linhas.push('• Nenhum tópico atingiu média igual ou superior a 4.0 neste ciclo, indicando oportunidade de fortalecimento geral das práticas da área.');
         }
         linhas.push('');
-        linhas.push('3. PONTOS FRACOS E OPORTUNIDADES DE MELHORIA');
+        linhas.push('3. Pontos Fracos e Oportunidades de Melhoria');
         if (fracos.length) {
             fracos.forEach(f => {
                 linhas.push(`• ${f.topico} (Média ${f.media.toFixed(2)}/5): requer acompanhamento próximo da gestão para elevação do nível de satisfação.`);
@@ -259,7 +259,7 @@ module.exports = function registerSatisfacaoIA(app, db, authenticateToken, sendM
             linhas.push('• Todos os tópicos mantiveram médias acima de 4.0. Recomenda-se manter a consistência e o diálogo aberto com a equipe.');
         }
         linhas.push('');
-        linhas.push('4. PONTOS DE ATENÇÃO IMPORTANTES E SÍNTESE DAS OBSERVAÇÕES (ANÔNIMO)');
+        linhas.push('4. Pontos de Atenção Importantes e Síntese das Observações (Anônimo)');
         if (est.observacoes.length) {
             linhas.push(`Foram registrados ${est.observacoes.length} apontamento(s) qualitativo(s) pela equipe (preservando o anonimato dos participantes):`);
             est.observacoes.forEach(o => {
@@ -355,19 +355,19 @@ Analise os resultados consolidados da Pesquisa de Satisfação do departamento "
 REGRA ABSOLUTA DE ANONIMATO (OBRIGATÓRIA):
 - NUNCA mencione o nome de nenhum colaborador e jamais tente identificar quem deu determinada nota ou escreveu determinada observação.
 - Refira-se sempre no coletivo ou de forma impessoal ("a equipe apontou", "observou-se nos relatos do departamento", "os indicadores mostram").
-- Não utilize formatação Markdown com asteriscos (**) ou hashtags (#). Use apenas títulos numerados em letras maiúsculas e marcadores simples com "•".
+- Não utilize formatação Markdown com asteriscos (**) ou hashtags (#). Escreva o texto em português natural (com letras maiúsculas e minúsculas normais, NUNCA tudo em caixa alta) e use marcadores simples com "•".
 
 ESTRUTURA OBRIGATÓRIA DO RELATÓRIO:
-1. VISÃO GERAL DA SATISFAÇÃO DO DEPARTAMENTO
+1. Visão Geral da Satisfação do Departamento
 (Síntese da adesão: ${est.responderam} de ${est.total_colaboradores} colaboradores responderam, média geral de ${est.media_geral != null ? est.media_geral.toFixed(2) : '—'}/5 e leitura geral do clima da área)
 
-2. PONTOS FORTES
+2. Pontos Fortes
 (Levantamento dos tópicos e perguntas mais bem avaliados pela equipe e aspectos positivos destacados nas observações)
 
-3. PONTOS FRACOS E OPORTUNIDADES DE MELHORIA
+3. Pontos Fracos e Oportunidades de Melhoria
 (Levantamento objetivo dos tópicos e critérios com menores médias ou maior incidência de notas baixas <= 3)
 
-4. PONTOS DE ATENÇÃO IMPORTANTES E RECOMENDAÇÕES PARA A GESTÃO
+4. Pontos de Atenção Importantes e Recomendações para a Gestão
 (Análise cuidadosa das observações abertas registradas pelos colaboradores e recomendações práticas de liderança para o gestor atuar no próximo trimestre)
 
 DADOS CONSOLIDADOS DO DEPARTAMENTO "${departamento}":

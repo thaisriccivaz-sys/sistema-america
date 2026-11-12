@@ -739,7 +739,7 @@
 
                 <textarea id="sat-ia-textarea" rows="13"
                     placeholder="Clique em 'Gerar Análise com IA' acima para que a IA levante automaticamente os Pontos Fortes, Pontos Fracos e Pontos de Atenção deste departamento sem mencionar o nome de nenhum colaborador..."
-                    style="width:100%;padding:1rem;border-radius:10px;border:1.5px solid #cbd5e1;font-family:'Inter',sans-serif;font-size:.88rem;line-height:1.6;color:#1e293b;background:#fff;resize:vertical;box-sizing:border-box;outline:none;">${escHtml(relSalvo ? relSalvo.relatorio_texto : '')}</textarea>
+                    style="width:100%;padding:1rem;border-radius:10px;border:1.5px solid #cbd5e1;font-family:'Inter',sans-serif;font-size:.88rem;line-height:1.6;color:#1e293b;background:#fff;resize:vertical;box-sizing:border-box;outline:none;text-transform:none !important;">${escHtml(relSalvo ? relSalvo.relatorio_texto : '')}</textarea>
 
                 <!-- Seção de Envio para o Gestor do Departamento -->
                 <div style="margin-top:1.25rem;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.1rem 1.25rem;">

@@ -1540,28 +1540,12 @@ body.has-open-tabs .page-header {
     margin-right: 4px;
 }
 
-/* Deixar a fonte de tudo que está preenchido no sistema em letras maiúsculas (caixa alta) */
-input:not([type="password"]):not([type="email"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not(#login-username):not(#login-password):not(#login-user):not(#login-pass):not(#fu-username):not(#fu-password):not(#cargo-input-name),
+/* Regra padrão do sistema: campos de digitação permitem letras minúsculas e maiúsculas normalmente */
+input,
 select,
 select option,
-textarea:not(#equipamento-est-especificacao):not(#equipamento-est-descricao-proposta) {
-    text-transform: uppercase !important;
-}
-#equipamento-est-especificacao,
-#equipamento-est-descricao-proposta,
-#cargo-input-name,
-#ga-nome,
-#ga-tipo,
-#ga-tipo option,
-.ga-cat-nome,
-.ga-pergunta,
-#view-gerenciar-avaliacoes input,
-#view-gerenciar-avaliacoes select,
-#view-gerenciar-avaliacoes select option,
-#view-gerenciar-avaliacoes textarea {
-    text-transform: none !important;
-}
+textarea,
 input::placeholder,
 textarea::placeholder {
-    text-transform: none !important;
+    text-transform: none;
 }
