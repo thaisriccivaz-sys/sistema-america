@@ -11271,6 +11271,34 @@ app.put('/api/documentos/:id/exige-assinatura', authenticateToken, (req, res) =>
         });
 });
 
+// ASO: permite editar o nome/tipo do ASO anexado entre as opções do Tipo de Exame
+app.put('/api/documentos/:id/tipo-aso', authenticateToken, (req, res) => {
+    const raw = String((req.body && req.body.document_type) || '').trim();
+    const mapaTipos = {
+        'Admissional': 'ASO Admissional',
+        'ASO Admissional': 'ASO Admissional',
+        'Demissional': 'ASO Demissional',
+        'ASO Demissional': 'ASO Demissional',
+        'Pedido de Demissão': 'ASO Pedido de Demissão',
+        'ASO Pedido de Demissão': 'ASO Pedido de Demissão',
+        'Retorno ao trabalho': 'ASO Retorno ao trabalho',
+        'ASO Retorno ao trabalho': 'ASO Retorno ao trabalho',
+        'Periódico': 'ASO Periódico',
+        'ASO Periódico': 'ASO Periódico',
+        'Troca de Função': 'ASO Troca de Função',
+        'ASO Troca de Função': 'ASO Troca de Função'
+    };
+    const novoTipo = mapaTipos[raw];
+    if (!novoTipo) {
+        return res.status(400).json({ error: 'Tipo de ASO inválido.' });
+    }
+    db.run('UPDATE documentos SET document_type = ? WHERE id = ?', [novoTipo, req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Documento não encontrado.' });
+        res.json({ sucesso: true, document_type: novoTipo });
+    });
+});
+
 app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento nao encontrado' });
@@ -30209,7 +30237,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const docMap = {
             'cnh': ['CNH'],
             'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional', 'ASO Admissional', 'ASO Demissional', 'ASO Pedido de Demissão', 'ASO Retorno ao trabalho', 'ASO Troca de Função'],
             'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
@@ -30739,7 +30767,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             const docMapPublico = {
                 'cnh': ['CNH'],
                 'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional', 'ASO Admissional', 'ASO Demissional', 'ASO Pedido de Demissão', 'ASO Retorno ao trabalho', 'ASO Troca de Função'],
                 'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],

@@ -7331,7 +7331,30 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <h4 style="display:flex; align-items:flex-start; margin:0;">
                     ${toggleArrow}
                     <div style="display:flex; flex-direction:column; line-height:1.2;">
-                        <span>${docLabel}</span>
+                        ${(tabId === 'ASO' && existingDoc && existingDoc.id && docType !== 'Exames Complementares') ? (() => {
+                            const _asoOpcoes = [
+                                { label: 'Admissional', value: 'ASO Admissional' },
+                                { label: 'Demissional', value: 'ASO Demissional' },
+                                { label: 'Pedido de Demissão', value: 'ASO Pedido de Demissão' },
+                                { label: 'Retorno ao trabalho', value: 'ASO Retorno ao trabalho' },
+                                { label: 'Periódico', value: 'ASO Periódico' },
+                                { label: 'Troca de Função', value: 'ASO Troca de Função' }
+                            ];
+                            const _temMatch = _asoOpcoes.some(o => docLabel === o.value || docLabel === o.label);
+                            const _optsHtml = (!_temMatch ? '<option value="" selected disabled>Selecione o tipo...</option>' : '') +
+                                _asoOpcoes.map(o => `<option value="${o.value}" ${docLabel === o.value || docLabel === o.label ? 'selected' : ''}>${o.label}</option>`).join('');
+                            return `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <span id="aso-label-view-${existingDoc.id}" style="display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="window.asoToggleEditarTipo(${existingDoc.id})" title="Clique para alterar o tipo de ASO">
+                                    <span>${docLabel}</span>
+                                    <button type="button" onclick="event.stopPropagation(); window.asoToggleEditarTipo(${existingDoc.id})" title="Editar tipo de ASO" style="background:none; border:none; color:#64748b; cursor:pointer; padding:2px 4px; border-radius:4px; display:inline-flex; align-items:center;" onmouseover="this.style.color='#2563eb';this.style.background='#eff6ff'" onmouseout="this.style.color='#64748b';this.style.background='none'"><i class="ph ph-pencil-simple" style="font-size:0.95rem;"></i></button>
+                                </span>
+                                <span id="aso-label-edit-${existingDoc.id}" style="display:none; align-items:center; gap:4px;">
+                                    <select id="aso-select-tipo-${existingDoc.id}" class="form-control" style="padding:3px 8px; font-size:0.85rem; height:32px; width:auto; min-width:175px; border:1px solid #93c5fd; border-radius:6px; font-weight:600; color:#1e293b;" onchange="if(this.value) window.asoSalvarTipoExame(${existingDoc.id}, this.value)">${_optsHtml}</select>
+                                    <button type="button" onclick="const v = document.getElementById('aso-select-tipo-${existingDoc.id}')?.value; if(v) window.asoSalvarTipoExame(${existingDoc.id}, v);" title="Salvar" style="background:#dcfce7; border:1px solid #86efac; color:#15803d; cursor:pointer; padding:4px 6px; border-radius:6px; display:inline-flex; align-items:center;"><i class="ph-bold ph-check" style="font-size:0.85rem;"></i></button>
+                                    <button type="button" onclick="window.asoToggleEditarTipo(${existingDoc.id}, false)" title="Cancelar" style="background:none; border:none; color:#64748b; cursor:pointer; padding:2px 4px; display:inline-flex; align-items:center;"><i class="ph ph-x" style="font-size:0.95rem;"></i></button>
+                                </span>
+                            </div>`;
+                        })() : `<span>${docLabel}</span>`}
                         ${docBadge ? `<div>${docBadge}</div>` : ''}
                     </div>
                 </h4>
@@ -7924,6 +7947,43 @@ window.asoSetExigeAssinatura = async function (docId, valor, radioEl) {
     }
 };
 
+window.asoToggleEditarTipo = function (docId, forceShow) {
+    const viewEl = document.getElementById('aso-label-view-' + docId);
+    const editEl = document.getElementById('aso-label-edit-' + docId);
+    if (!viewEl || !editEl) return;
+    const mostrar = typeof forceShow === 'boolean' ? forceShow : (editEl.style.display === 'none');
+    viewEl.style.display = mostrar ? 'none' : 'inline-flex';
+    editEl.style.display = mostrar ? 'inline-flex' : 'none';
+    if (mostrar) {
+        const sel = document.getElementById('aso-select-tipo-' + docId);
+        if (sel) sel.focus();
+    }
+};
+
+window.asoSalvarTipoExame = async function (docId, novoTipo) {
+    try {
+        const res = await fetch(`${API_URL}/documentos/${docId}/tipo-aso`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document_type: novoTipo })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Erro ao atualizar tipo de ASO');
+        const tipoFinal = data.document_type || novoTipo;
+        if (typeof currentDocs !== 'undefined' && Array.isArray(currentDocs)) {
+            const d = currentDocs.find(x => String(x.id) === String(docId));
+            if (d) d.document_type = tipoFinal;
+        }
+        if (Array.isArray(window.lastASODocs)) {
+            const d2 = window.lastASODocs.find(x => String(x.id) === String(docId));
+            if (d2) d2.document_type = tipoFinal;
+        }
+        window.renderASOAno();
+    } catch (e) {
+        alert('Não foi possível alterar o tipo de ASO: ' + e.message);
+    }
+};
+
 window.renderASOAno = function () {
     const yEl = document.getElementById('aso_year');
     const y = yEl ? yEl.value : new Date().getFullYear().toString();
@@ -7937,10 +7997,11 @@ window.renderASOAno = function () {
     const isMotorista = viewedColaborador && (viewedColaborador.cargo || '').toUpperCase().includes('MOTORISTA');
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
-    // Documentos obrigatórios
-    const list = ['ASO Periódico'];
+    // Documentos obrigatórios (se já houver algum ASO salvo no ano com outro tipo, ex: ASO Admissional, não cria card duplicado de ASO Periódico)
+    const jaTemAsoNoAno = filteredByYear.some(d => (d.document_type || '').toUpperCase().startsWith('ASO'));
+    const list = jaTemAsoNoAno ? [] : ['ASO Periódico'];
     if (isMotorista) list.push('Exames Complementares');
-    if (isDesligado) list.push('ASO Demissional');
+    if (isDesligado && !filteredByYear.some(d => d.document_type === 'ASO Demissional')) list.push('ASO Demissional');
 
     list.forEach(docType => {
         const existingDoc = filteredByYear.find(d => d.document_type === docType);
@@ -14967,7 +15028,8 @@ function updateAdmissaoStepPercentages(colab) {
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
 
     // Reproduzir regras de ASO
-    const listAso = ['ASO Periódico'];
+    const jaTemAsoStep5 = asoDocs.some(d => (d.document_type || '').toUpperCase().startsWith('ASO'));
+    const listAso = jaTemAsoStep5 ? [] : ['ASO Periódico'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
 
     let preenchidos5 = 0;
