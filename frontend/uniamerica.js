@@ -1555,7 +1555,7 @@
         if (!backdrop || !_aulaEditor) return;
 
         const somaPerguntas = _aulaEditor.perguntas.length;
-        const somaMissoes = _aulaEditor.missoes.length;
+        const somaMissoes = _aulaEditor.missoes.reduce((acc, m) => acc + Math.max(1, (m.campos || []).length), 0);
 
         backdrop.innerHTML = `
             <div class="ua-modal" style="max-width:980px;">
@@ -1813,10 +1813,9 @@
         desenharModalEditorAula();
     };
 
-    // ── ABA 3 DO EDITOR DE AULA: MISSÕES DA SEMANA (1 PT QUANDO CUMPRIDA E 0 QUANDO NÃO CUMPRIDA, PDF R2 E CAMPOS DINÂMICOS) ──
+    // ── ABA 3 DO EDITOR DE AULA: MISSÕES DA SEMANA (1 PT POR CADA CAMPO/ITEM DA MISSÃO, SEM MULTIPLA ESCOLHA E SEM OBRIGATORIEDADE) ──
     const TIPOS_CAMPO_MISSAO = [
         { val: 'texto', lbl: 'Texto / Pergunta aberta' },
-        { val: 'multipla_escolha', lbl: 'Questão de Múltipla Escolha' },
         { val: 'documento', lbl: 'Anexo de Documentos / Arquivos' },
         { val: 'audio', lbl: 'Anexo / Gravação de Áudio' },
         { val: 'imagem', lbl: 'Anexo de Imagens / Fotos' },
@@ -1824,13 +1823,13 @@
     ];
 
     function renderAbaEditorMissoes() {
-        const somaMissoes = _aulaEditor.missoes.length;
+        const somaMissoes = _aulaEditor.missoes.reduce((acc, m) => acc + Math.max(1, (m.campos || []).length), 0);
         return `
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <div style="font-size:0.83rem;color:#1e3a8a;">
                     <i class="ph ph-rocket-launch"></i>
-                    <strong>Validade de 1 semana (7 dias)</strong> a partir da presença na aula.
-                    Cada missão vale <strong>1 ponto quando cumprida</strong> e <strong>0 ponto quando não cumprida</strong>.
+                    <strong>Prazo até a conclusão da próxima aula.</strong>
+                    Cada item/campo adicionado na missão vale <strong>1 ponto quando cumprido</strong> e <strong>0 ponto quando não cumprido</strong>.
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span class="ua-badge" style="background:#1d4ed8;color:#fff;font-size:0.82rem;">Soma Máxima: ${somaMissoes} pt${somaMissoes === 1 ? '' : 's'}</span>
@@ -1846,7 +1845,9 @@
                 </div>
             ` : `
                 <div style="display:flex;flex-direction:column;gap:16px;">
-                    ${_aulaEditor.missoes.map((m, mIdx) => `
+                    ${_aulaEditor.missoes.map((m, mIdx) => {
+                        const ptsMissao = Math.max(1, (m.campos || []).length);
+                        return `
                         <div style="border:1px solid #cbd5e1;border-radius:16px;padding:16px;background:#fff;">
                             <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:end;margin-bottom:10px;">
                                 <div>
@@ -1855,7 +1856,7 @@
                                            value="${esc(m.titulo)}"
                                            oninput="window._uaEditarMissaoProp(${mIdx}, 'titulo', this.value)">
                                 </div>
-                                <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;height:36px;padding:0 12px;">Vale 1 pt (Cumprida = 1 | Não cumprida = 0)</span>
+                                <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;height:36px;padding:0 12px;">Vale ${ptsMissao} pt${ptsMissao === 1 ? '' : 's'} (1 pt por campo)</span>
                                 <button type="button" class="ua-btn ua-btn-danger" onclick="window._uaRemoverMissaoAula(${mIdx})">
                                     <i class="ph ph-trash"></i>
                                 </button>
@@ -1883,9 +1884,9 @@
 
                             <div style="border-top:1px solid #f1f5f9;padding-top:10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-                                    <strong style="font-size:0.83rem;color:#334155;"><i class="ph ph-sliders-horizontal"></i> Campos Dinâmicos da Missão (${(m.campos || []).length})</strong>
+                                    <strong style="font-size:0.83rem;color:#334155;"><i class="ph ph-sliders-horizontal"></i> Campos Dinâmicos da Missão (${(m.campos || []).length} • ${ptsMissao} pt${ptsMissao === 1 ? '' : 's'})</strong>
                                     <button type="button" class="ua-btn ua-btn-ghost" style="padding:5px 11px;font-size:0.79rem;" onclick="window._uaAddCampoDinamicoMissao(${mIdx})">
-                                        <i class="ph ph-plus"></i> Adicionar Campo Dinâmico
+                                        <i class="ph ph-plus"></i> Adicionar Campo Dinâmico (+1 pt)
                                     </button>
                                 </div>
 
@@ -1898,31 +1899,21 @@
                                                     ${TIPOS_CAMPO_MISSAO.map(t => `<option value="${t.val}" ${cp.tipo === t.val ? 'selected' : ''}>${t.lbl}</option>`).join('')}
                                                 </select>
                                                 <input type="text" class="ua-input" style="padding:7px 10px;font-size:0.83rem;"
-                                                       placeholder="Pergunta ou instrução deste campo (ex.: Envie uma foto da ata / Grave um áudio relatando...)"
+                                                       placeholder="Pergunta ou instrução deste campo (ex.: Envie uma foto da ata / Descreva como aplicou...)"
                                                        value="${esc(cp.label || '')}"
                                                        oninput="window._uaEditarCampoMissao(${mIdx}, ${cpIdx}, 'label', this.value)">
-                                                <label style="font-size:0.78rem;display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;">
-                                                    <input type="checkbox" ${cp.obrigatorio ? 'checked' : ''} onchange="window._uaEditarCampoMissao(${mIdx}, ${cpIdx}, 'obrigatorio', this.checked)"> Obrigatório
-                                                </label>
+                                                <span class="ua-badge" style="background:#eef2ff;color:#4338ca;font-size:0.75rem;">Vale 1 pt</span>
                                                 <button type="button" class="ua-btn ua-btn-danger" style="padding:5px 8px;" onclick="window._uaRemoverCampoMissao(${mIdx}, ${cpIdx})">
                                                     <i class="ph ph-x"></i>
                                                 </button>
                                             </div>
-                                            ${cp.tipo === 'multipla_escolha' ? `
-                                                <div style="margin-top:8px;padding-left:8px;">
-                                                    <label style="font-size:0.76rem;color:#64748b;display:block;margin-bottom:4px;">Alternativas (uma por linha ou separadas por ponto e vírgula ";"):</label>
-                                                    <input type="text" class="ua-input" style="padding:6px 10px;font-size:0.81rem;"
-                                                           placeholder="Ex.: Sim, apliquei integralmente; Apliquei parcialmente; Ainda não consegui aplicar"
-                                                           value="${esc((cp.opcoes || []).join('; '))}"
-                                                           oninput="window._uaEditarOpcoesCampoMissao(${mIdx}, ${cpIdx}, this.value)">
-                                                </div>
-                                            ` : ''}
                                         </div>
                                     `).join('')}
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             `}
         `;
@@ -1938,7 +1929,7 @@
             pdf_r2_key: null,
             pdf_nome: null,
             campos: [
-                { id: 'campo_' + Date.now(), tipo: 'texto', label: 'Descreva como você executou a missão nesta semana:', obrigatorio: true, opcoes: [] }
+                { id: 'campo_' + Date.now(), tipo: 'texto', label: 'Descreva como você executou a missão nesta semana:', obrigatorio: false, opcoes: [] }
             ]
         });
         desenharModalEditorAula();
@@ -2538,66 +2529,84 @@
                             p.missoes.map(em => {
                                 const sub = em.submissao;
                                 const defM = defsMissoesMap[em.missao_id] || { campos: [] };
+                                const camposLista = (Array.isArray(defM.campos) && defM.campos.length > 0)
+                                    ? defM.campos
+                                    : [{ id: '_unico', tipo: 'texto', label: em.titulo }];
+                                const maxPts = camposLista.length;
                                 const respostas = (sub && sub.respostas) ? sub.respostas : {};
+                                const avalCamposSalvos = (sub && sub.avaliacao_campos) ? sub.avaliacao_campos : {};
                                 const jaAvaliada = sub && sub.status === 'avaliada';
                                 const notaAtual = (jaAvaliada && sub.nota_gestor !== null && sub.nota_gestor !== undefined)
-                                    ? (Number(sub.nota_gestor) > 0 ? 1 : 0)
+                                    ? Number(sub.nota_gestor)
                                     : null;
 
                                 return `
                                     <div style="border:1px solid ${sub && !jaAvaliada ? '#fdba74' : '#e2e8f0'};background:${sub && !jaAvaliada ? '#fff7ed' : '#fff'};border-radius:10px;padding:12px;margin-top:8px;">
-                                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                                             <div style="font-size:0.86rem;font-weight:700;color:#1e293b;">
                                                 <i class="ph ph-rocket-launch" style="color:#0e7490;"></i> ${esc(em.titulo)}
-                                                <span style="font-weight:500;color:#64748b;font-size:0.78rem;">(Vale 1 ponto)</span>
+                                                <span style="font-weight:600;color:#1d4ed8;font-size:0.78rem;">(Vale ${maxPts} ponto${maxPts === 1 ? '' : 's'})</span>
                                             </div>
                                             ${jaAvaliada
-                                                ? `<span class="ua-badge" style="background:${notaAtual === 1 ? '#dcfce7' : '#fee2e2'};color:${notaAtual === 1 ? '#15803d' : '#b91c1c'};">
-                                                       <i class="ph ${notaAtual === 1 ? 'ph-check-circle' : 'ph-x-circle'}"></i>
-                                                       ${notaAtual === 1 ? 'Cumprida: 1 pt' : 'Não cumprida: 0 pt'}
+                                                ? `<span class="ua-badge" style="background:${notaAtual > 0 ? '#dcfce7' : '#fee2e2'};color:${notaAtual > 0 ? '#15803d' : '#b91c1c'};">
+                                                       <i class="ph ${notaAtual > 0 ? 'ph-check-circle' : 'ph-x-circle'}"></i>
+                                                       Pontuação: ${notaAtual} / ${maxPts} pt(s)
                                                    </span>`
                                                 : (sub
                                                     ? `<span class="ua-badge" style="background:#ffedd5;color:#c2410c;"><i class="ph ph-clock"></i> Entregue — aguardando avaliação</span>`
                                                     : `<span class="ua-badge" style="background:#f1f5f9;color:#64748b;">Não enviada pelo colaborador</span>`)}
                                         </div>
 
-                                        ${sub ? `
-                                            <div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.82rem;display:flex;flex-direction:column;gap:6px;">
-                                                ${(defM.campos || []).map(cp => {
-                                                    const val = respostas[cp.id];
-                                                    const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
-                                                    return `
-                                                        <div>
-                                                            <strong style="color:#334155;">${esc(cp.label)}:</strong>
+                                        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+                                            ${camposLista.map((cp, cpIdx) => {
+                                                const val = respostas[cp.id];
+                                                const arqsCampo = (em.arquivos || []).filter(ar => ar.campo_id === cp.id);
+                                                let valAval = avalCamposSalvos[cp.id];
+                                                if ((valAval === undefined || valAval === null) && jaAvaliada && notaAtual !== null) {
+                                                    valAval = cpIdx < notaAtual ? 1 : 0;
+                                                }
+                                                const selVal = (valAval === 1 || valAval === '1') ? 1 : ((valAval === 0 || valAval === '0') ? 0 : null);
+
+                                                return `
+                                                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.82rem;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                                                        <div style="flex:1;min-width:220px;">
+                                                            <div style="font-weight:700;color:#334155;">${esc(cp.label)} <span style="font-weight:500;color:#64748b;font-size:0.75rem;">(Vale 1 ponto)</span></div>
                                                             ${cp.tipo === 'estrelas'
-                                                                ? `<span style="color:#f59e0b;margin-left:6px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</span>`
-                                                                : (val ? `<div style="margin-top:2px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : '')}
+                                                                ? `<div style="color:#f59e0b;margin-top:3px;">${'★'.repeat(Number(val) || 0)}${'☆'.repeat(Math.max(0, 5 - (Number(val) || 0)))} (${val || 0}/5)</div>`
+                                                                : (val ? `<div style="margin-top:3px;color:#0f172a;white-space:pre-wrap;">${esc(String(val))}</div>` : (arqsCampo.length === 0 ? `<div style="margin-top:3px;color:#94a3b8;font-style:italic;">Não preenchido pelo colaborador</div>` : ''))}
                                                             ${arqsCampo.map(arq => {
                                                                 const u = authMediaUrl(arq.url);
                                                                 if (String(arq.tipo_mime || '').startsWith('audio/')) {
-                                                                    return `<div style="margin-top:4px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
+                                                                    return `<div style="margin-top:5px;"><audio controls src="${esc(u)}" style="height:34px;max-width:320px;"></audio></div>`;
                                                                 }
                                                                 if (String(arq.tipo_mime || '').startsWith('image/')) {
-                                                                    return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
+                                                                    return `<div style="margin-top:5px;"><div style="font-size:0.76rem;color:#475569;margin-bottom:3px;">${esc(fixFileName(arq.nome_arquivo))}</div><a href="${esc(u)}" target="_blank"><img src="${esc(u)}" style="max-height:90px;border-radius:8px;border:1px solid #cbd5e1;"></a></div>`;
                                                                 }
-                                                                return `<div style="margin-top:4px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(fixFileName(arq.nome_arquivo))}</a></div>`;
+                                                                return `<div style="margin-top:5px;"><a href="${esc(u)}" target="_blank" style="color:#2563eb;font-weight:600;"><i class="ph ph-file-arrow-down"></i> ${esc(fixFileName(arq.nome_arquivo))}</a></div>`;
                                                             }).join('')}
                                                         </div>
-                                                    `;
-                                                }).join('')}
-                                            </div>
-                                        ` : ''}
+                                                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                                            <label style="font-size:0.78rem;font-weight:700;color:#0f172a;">Cumprimento:</label>
+                                                            <select class="ua-select ua-av-m-campo-sel"
+                                                                    data-colab="${p.colaborador_id}"
+                                                                    data-missao="${esc(em.missao_id)}"
+                                                                    data-campo="${esc(cp.id)}"
+                                                                    data-label="${esc(cp.label)}"
+                                                                    style="width:215px;padding:6px 10px;font-weight:700;font-size:0.81rem;">
+                                                                <option value="" ${selVal === null ? 'selected' : ''} disabled>Selecione (1 ou 0)...</option>
+                                                                <option value="1" ${selVal === 1 ? 'selected' : ''}>✅ Cumprida (1 ponto)</option>
+                                                                <option value="0" ${selVal === 0 ? 'selected' : ''}>❌ Não cumprida (0 ponto)</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
 
                                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                            <label style="font-size:0.8rem;font-weight:700;color:#0f172a;">Pontuação:</label>
-                                            <select id="ua-av-m-nota-${p.colaborador_id}-${em.missao_id}" class="ua-select" style="width:215px;padding:6px 10px;font-weight:700;">
-                                                <option value="" ${notaAtual === null ? 'selected' : ''} disabled>Selecione (1 ou 0)...</option>
-                                                <option value="1" ${notaAtual === 1 ? 'selected' : ''}>✅ Cumprida (1 ponto)</option>
-                                                <option value="0" ${notaAtual === 0 ? 'selected' : ''}>❌ Não cumprida (0 ponto)</option>
-                                            </select>
                                             <input type="text"
                                                    id="ua-av-m-fb-${p.colaborador_id}-${em.missao_id}"
-                                                   class="ua-input" style="flex:1;min-width:200px;padding:6px 10px;"
+                                                   class="ua-input" style="flex:1;min-width:220px;padding:6px 10px;"
                                                    placeholder="Feedback da avaliação da missão..."
                                                    value="${esc(sub ? sub.feedback_gestor || '' : '')}">
                                             <button type="button" class="ua-btn ua-btn-primary" style="padding:7px 14px;font-size:0.81rem;"
@@ -2981,13 +2990,23 @@
     };
 
     window._uaSalvarAvalMissao = async function (aulaId, colabId, missaoId) {
-        const notaEl = document.getElementById(`ua-av-m-nota-${colabId}-${missaoId}`);
+        const seletores = Array.from(document.querySelectorAll(`.ua-av-m-campo-sel[data-colab="${colabId}"][data-missao="${missaoId}"]`));
         const fbEl = document.getElementById(`ua-av-m-fb-${colabId}-${missaoId}`);
-        const rawVal = notaEl ? notaEl.value : '';
-        const nota = rawVal === '' ? NaN : parseInt(rawVal, 10);
-        if (isNaN(nota) || (nota !== 0 && nota !== 1)) {
-            return msgErro('Pontuação obrigatória', 'Selecione se a missão foi Cumprida (1 ponto) ou Não cumprida (0 ponto).');
+        const avaliacaoCampos = {};
+        let soma = 0;
+
+        for (const sel of seletores) {
+            const cId = sel.getAttribute('data-campo');
+            const cLbl = sel.getAttribute('data-label') || 'Missão';
+            const rawVal = sel.value;
+            const n = rawVal === '' ? NaN : parseInt(rawVal, 10);
+            if (isNaN(n) || (n !== 0 && n !== 1)) {
+                return msgErro('Verificação obrigatória', `Selecione se o item "${cLbl}" foi Cumprido (1 ponto) ou Não cumprido (0 ponto).`);
+            }
+            avaliacaoCampos[cId] = n;
+            soma += n;
         }
+
         try {
             await api('/uniamerica/submissoes-missao/avaliar', {
                 method: 'PUT',
@@ -2995,11 +3014,12 @@
                     aula_id: aulaId,
                     colaborador_id: colabId,
                     missao_id: missaoId,
-                    nota_gestor: nota,
+                    nota_gestor: soma,
+                    avaliacao_campos: avaliacaoCampos,
                     feedback_gestor: fbEl ? fbEl.value : ''
                 }
             });
-            toastOk(nota === 1 ? 'Missão avaliada como Cumprida (+1 ponto)!' : 'Missão avaliada como Não cumprida (0 ponto).');
+            toastOk(`Avaliação salva! Pontuação atribuída: ${soma} / ${seletores.length || 1} ponto(s).`);
             if (document.getElementById('ua-modal-play-curso') && _playEstado) {
                 await window._uaRecarregarAvaliacoesPlay();
             }
@@ -3375,16 +3395,6 @@
                                 ${c.avaliacao_geral_obs ? ` • <em>Avaliação Geral: ${esc(c.avaliacao_geral_obs)}</em>` : ''}
                             </div>
                         </div>
-                        ${G.isAdmin && !document.getElementById('ua-modal-play-curso') && !document.getElementById('ua-modal-ranking-curso') ? `
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirModalPremiosCurso(${c.id})">
-                                <i class="ph ph-gift"></i> Configurar Prêmios (${(q.premios || []).length})
-                            </button>
-                            <button class="ua-btn ua-btn-ghost" onclick="window._uaAbrirModalCurso(${c.id})">
-                                <i class="ph ph-note-pencil"></i> Editar Curso
-                            </button>
-                        </div>
-                        ` : ''}
                     </div>
 
                     <div style="overflow-x:auto;">
@@ -3405,11 +3415,14 @@
                             <tbody>
                                 ${q.ranking.length === 0 ? `<tr><td colspan="9" style="text-align:center;padding:24px;color:#94a3b8;">Nenhum colaborador vinculado a este curso.</td></tr>` :
                                     q.ranking.map(r => {
-                                        const medalha = r.posicao === 1 ? '🥇 1º' : r.posicao === 2 ? '🥈 2º' : r.posicao === 3 ? '🥉 3º' : `${r.posicao}º`;
                                         const presOk = r.elegivel_certificado;
+                                        const temPosicao = presOk && r.posicao !== null && r.posicao !== undefined && Number(r.posicao) > 0;
+                                        const medalha = !temPosicao
+                                            ? '<span style="color:#94a3b8;font-weight:600;font-size:0.82rem;">—</span>'
+                                            : (r.posicao === 1 ? '🥇 1º' : r.posicao === 2 ? '🥈 2º' : r.posicao === 3 ? '🥉 3º' : `${r.posicao}º`);
                                         return `
-                                            <tr style="${r.posicao <= 3 && r.nota_total > 0 ? 'background:#fefce8;' : ''}">
-                                                <td style="font-weight:800;font-size:0.95rem;color:${r.posicao === 1 ? '#b45309' : '#1e293b'};">${medalha}</td>
+                                            <tr style="${temPosicao && r.posicao <= 3 && r.nota_total > 0 ? 'background:#fefce8;' : ''}">
+                                                <td style="font-weight:800;font-size:0.95rem;color:${temPosicao && r.posicao === 1 ? '#b45309' : '#1e293b'};">${medalha}</td>
                                                 <td>
                                                     <div style="font-weight:700;color:#0f172a;">${esc(r.nome_completo)}</div>
                                                     <div style="font-size:0.75rem;color:#64748b;">${esc(r.cargo || '')}</div>
@@ -3599,10 +3612,14 @@
             : '0 horas';
         const nomeTreinamento = String(dados.nome_curso || '').trim();
 
+        const instrutorBruto = String(dados.ministrado_por_nome || '').trim();
+        const nomeInstrutor = instrutorBruto ? limparNomeParaCertificado(instrutorBruto) : '';
+        const sufixoMinistrado = nomeInstrutor ? ` Curso ministrado por ${nomeInstrutor}.` : '';
+
         const segmentos = [
             { text: 'Concluiu com êxito o treinamento ', bold: false },
             { text: nomeTreinamento, bold: true },
-            { text: `, realizado na UniAmérica - América Rental, com carga horária total de ${cargaTxt}, demonstrando dedicação, participação em todas as aulas e aproveitamento satisfatório.`, bold: false }
+            { text: `, realizado na UniAmérica - América Rental, com carga horária total de ${cargaTxt}, demonstrando dedicação, participação em todas as aulas e aproveitamento satisfatório.${sufixoMinistrado}`, bold: false }
         ];
 
         ctx.save();
@@ -3674,10 +3691,10 @@
             linhasTokens.push({ items: linhaAtual, width: largAtual });
         }
 
-        const startY = usouModeloAnexo2 ? 806 : 815;
-        const lineHeight = 50;
+        const startY = linhasTokens.length >= 4 ? (usouModeloAnexo2 ? 792 : 802) : (usouModeloAnexo2 ? 806 : 815);
+        const lineHeight = linhasTokens.length >= 4 ? 44 : 50;
         ctx.textAlign = 'left';
-        linhasTokens.slice(0, 4).forEach((ln, idx) => {
+        linhasTokens.slice(0, 5).forEach((ln, idx) => {
             let curX = (W / 2) - (ln.width / 2);
             const curY = startY + idx * lineHeight;
             ln.items.forEach((it, wIdx) => {
@@ -3713,11 +3730,23 @@
         }
 
         try {
+            let nomeInstrutor = String(c.ministrado_por_nome || '').trim();
+            if (!nomeInstrutor) {
+                try {
+                    const uStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+                    if (uStr) {
+                        const uObj = JSON.parse(uStr);
+                        nomeInstrutor = String(uObj.nome_completo || uObj.nome || uObj.username || '').replace(/[._-]+/g, ' ').trim();
+                    }
+                } catch (_) {}
+            }
+
             const dataUrl = await renderizarCanvasCertificadoAnexo2({
                 nome_colaborador: part.nome_completo,
                 nome_curso: c.nome,
                 carga_horaria: c.carga_horaria,
-                periodo_texto: periodoTexto
+                periodo_texto: periodoTexto,
+                ministrado_por_nome: nomeInstrutor
             });
 
             const salvo = await api(`/uniamerica/cursos/${cursoId}/certificados`, {
@@ -3729,7 +3758,7 @@
                 }
             });
 
-            abrirModalPreviewCertificado(part.nome_completo, c.nome, dataUrl, salvo.codigo_validacao);
+            abrirModalPreviewCertificado(part.nome_completo, c.nome, dataUrl, salvo.codigo_validacao, cursoId, colaboradorId);
             // Atualiza em background para refletir certificado emitido
             const idsParam = G.filtroCursoIds.size > 0 ? `?curso_ids=${Array.from(G.filtroCursoIds).join(',')}` : '';
             const r = await api('/uniamerica/ranking' + idsParam);
@@ -3745,7 +3774,7 @@
         }
     };
 
-    function abrirModalPreviewCertificado(nomeColab, nomeCurso, imgSrc, codigoValidacao) {
+    function abrirModalPreviewCertificado(nomeColab, nomeCurso, imgSrc, codigoValidacao, cursoId, colaboradorId) {
         const old = document.getElementById('ua-modal-certificado');
         if (old) old.remove();
         const backdrop = document.createElement('div');
@@ -3762,11 +3791,16 @@
                     <img id="ua-cert-preview-img" src="${imgSrc}" alt="Certificado" style="max-width:100%;max-height:68vh;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,0.45);">
                     ${codigoValidacao ? `<div style="color:#cbd5e1;font-size:0.78rem;margin-top:10px;">Código de validação salvo no R2: <strong>${esc(codigoValidacao)}</strong></div>` : ''}
                 </div>
-                <div class="ua-modal-ft">
+                <div class="ua-modal-ft" style="flex-wrap:wrap;gap:8px;">
                     <button class="ua-btn ua-btn-ghost" onclick="document.getElementById('ua-modal-certificado').remove()">Fechar</button>
                     <button class="ua-btn ua-btn-ghost" onclick="window._uaImprimirCertificadoPreview()">
                         <i class="ph ph-printer"></i> Imprimir Certificado
                     </button>
+                    ${cursoId && colaboradorId ? `
+                        <button type="button" class="ua-btn ua-btn-success" id="ua-btn-enviar-cert-email" onclick="window._uaEnviarCertificadoPorEmail(${cursoId}, ${colaboradorId})">
+                            <i class="ph ph-envelope-simple"></i> Enviar Certificado por E-mail
+                        </button>
+                    ` : ''}
                     <a class="ua-btn ua-btn-primary" href="${imgSrc}" download="${esc(nomeArq)}" style="text-decoration:none;">
                         <i class="ph ph-download-simple"></i> Baixar Imagem do Certificado (PNG)
                     </a>
@@ -3775,6 +3809,33 @@
         `;
         document.body.appendChild(backdrop);
     }
+
+    window._uaEnviarCertificadoPorEmail = async function (cursoId, colaboradorId) {
+        const btn = document.getElementById('ua-btn-enviar-cert-email');
+        const img = document.getElementById('ua-cert-preview-img');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-circle-notch"></i> Enviando por e-mail...';
+        }
+        try {
+            const res = await api(`/uniamerica/cursos/${cursoId}/certificados/enviar-email`, {
+                method: 'POST',
+                body: {
+                    colaborador_id: colaboradorId,
+                    imagem_base64: img ? img.src : ''
+                }
+            });
+            toastOk(`Certificado enviado com sucesso para o e-mail pessoal (${res.email})!`);
+        } catch (e) {
+            msgErro('Erro ao enviar certificado por e-mail', e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    };
 
     window._uaImprimirCertificadoPreview = function () {
         const img = document.getElementById('ua-cert-preview-img');
@@ -4296,6 +4357,7 @@
         const jaAvaliada = sub && sub.status === 'avaliada';
         const bloqueadaEdicao = !aula.presente || jaAvaliada || aula.prazo_expirado;
 
+        const maxPtsMissao = Math.max(1, (m.campos || []).length);
         return `
             <div style="border:1px solid ${jaAvaliada ? '#86efac' : '#cbd5e1'};background:${jaAvaliada ? '#f0fdf4' : '#fff'};border-radius:14px;padding:16px;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
@@ -4304,9 +4366,9 @@
                         ${m.descricao ? `<div style="font-size:0.84rem;color:#475569;margin-top:3px;">${esc(m.descricao)}</div>` : ''}
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;">Vale 1 pt</span>
+                        <span class="ua-badge" style="background:#dbeafe;color:#1d4ed8;">Vale ${maxPtsMissao} pt${maxPtsMissao === 1 ? '' : 's'}</span>
                         ${jaAvaliada
-                            ? `<span class="ua-badge" style="background:${Number(sub.nota_gestor) > 0 ? '#16a34a' : '#dc2626'};color:#fff;font-size:0.84rem;">${Number(sub.nota_gestor) > 0 ? 'Cumprida: +1 pt' : 'Não cumprida: 0 pt'}</span>`
+                            ? `<span class="ua-badge" style="background:${Number(sub.nota_gestor) > 0 ? '#16a34a' : '#dc2626'};color:#fff;font-size:0.84rem;">Pontuação: +${Number(sub.nota_gestor) || 0} / ${maxPtsMissao} pt(s)</span>`
                             : (sub
                                 ? `<span class="ua-badge" style="background:#fef3c7;color:#92400e;">Enviada — será avaliada na próxima aula</span>`
                                 : (aula.prazo_expirado
@@ -4409,9 +4471,12 @@
 
         return `
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
-                <label style="font-size:0.84rem;font-weight:700;color:#1e293b;display:block;margin-bottom:6px;">
-                    ${esc(cp.label)} ${cp.obrigatorio ? '<span style="color:#dc2626;">*</span>' : ''}
-                </label>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+                    <label style="font-size:0.84rem;font-weight:700;color:#1e293b;display:block;">
+                        ${esc(cp.label)}
+                    </label>
+                    <span class="ua-badge" style="background:#eef2ff;color:#4338ca;font-size:0.74rem;flex-shrink:0;">Vale 1 pt</span>
+                </div>
                 ${controleHtml}
             </div>
         `;
@@ -4548,23 +4613,13 @@
             if (cp.tipo === 'texto') {
                 const el = document.getElementById(domId);
                 const val = el ? el.value.trim() : '';
-                if (cp.obrigatorio && !val) return msgErro('Campo obrigatório', `Preencha o campo "${cp.label}".`);
-                respostas[cp.id] = val;
-            } else if (cp.tipo === 'multipla_escolha') {
-                const sel = document.querySelector(`input[name="${domId}"]:checked`);
-                const val = sel ? sel.value : '';
-                if (cp.obrigatorio && !val) return msgErro('Campo obrigatório', `Selecione uma opção em "${cp.label}".`);
                 respostas[cp.id] = val;
             } else if (cp.tipo === 'estrelas') {
                 const subAnt = missaoAlvo.submissao && missaoAlvo.submissao.respostas ? missaoAlvo.submissao.respostas[cp.id] : 0;
                 const val = Number(M.estrelasTemp[keyEstrela] || subAnt || 0);
-                if (cp.obrigatorio && !val) return msgErro('Avaliação por estrelas obrigatória', `Selecione de 1 a 5 estrelas em "${cp.label}".`);
                 respostas[cp.id] = val;
             } else {
                 const arqs = (missaoAlvo.arquivos || []).filter(a => a.campo_id === cp.id);
-                if (cp.obrigatorio && arqs.length === 0) {
-                    return msgErro('Anexo obrigatório', `Envie pelo menos um arquivo em "${cp.label}".`);
-                }
                 respostas[cp.id] = arqs.map(a => a.nome_arquivo).join(', ');
             }
         }

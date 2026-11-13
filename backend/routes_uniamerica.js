@@ -168,6 +168,9 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
         db.run(`ALTER TABLE uniamerica_presencas ADD COLUMN token_formulario TEXT`, () => {});
         db.run(`ALTER TABLE uniamerica_presencas ADD COLUMN email_formulario_enviado_em DATETIME`, () => {});
         db.run(`ALTER TABLE uniamerica_presencas ADD COLUMN email_formulario_destino TEXT`, () => {});
+        db.run(`ALTER TABLE uniamerica_submissoes_missao ADD COLUMN avaliacao_campos_json TEXT DEFAULT '{}'`, () => {});
+        db.run(`ALTER TABLE uniamerica_cursos ADD COLUMN ministrado_por_usuario_id INTEGER`, () => {});
+        db.run(`ALTER TABLE uniamerica_cursos ADD COLUMN ministrado_por_nome TEXT`, () => {});
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_aulas_curso ON uniamerica_aulas(curso_id, ordem)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_pres_curso ON uniamerica_presencas(curso_id, aula_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_ua_sub_teste ON uniamerica_submissoes_teste(curso_id, aula_id)`);
@@ -362,6 +365,38 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
         const u = await dbGet('SELECT id, username, nome, email FROM usuarios WHERE id = ?', [uid]);
         const todos = await dbAll(`SELECT ${cols} FROM colaboradores WHERE status NOT LIKE 'Desligado%' ORDER BY nome_completo ASC`);
         return matchUsuarioColab(u, todos);
+    }
+
+    async function obterNomeInstrutorUsuario(user) {
+        if (!user) return '';
+        try {
+            const colab = await resolverColaboradorDoUsuario(user, null);
+            if (colab && colab.nome_completo) {
+                return String(colab.nome_completo).replace(/^[💎🥇🥈🥉\s]+/u, '').trim();
+            }
+        } catch (_) {}
+        if (user.id) {
+            try {
+                const u = await dbGet('SELECT id, username, nome, email FROM usuarios WHERE id = ?', [user.id]);
+                if (u) {
+                    const raw = String(u.nome || u.username || '').trim();
+                    if (raw) {
+                        return raw
+                            .replace(/[._-]+/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            .split(' ')
+                            .map(w => w ? (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : '')
+                            .join(' ');
+                    }
+                }
+            } catch (_) {}
+        }
+        const fallback = String(user.nome || user.username || '').trim();
+        return fallback
+            .replace(/[._-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
     // ── Colaboradores vinculados ao CURSO INTEIRO (por Depto + Colaborador + Presença registrada) ────
@@ -616,7 +651,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             };
         });
 
-        // Calcular pontuação máxima possível do curso (1 ponto por pergunta + 1 ponto por missão)
+        // Calcular pontuação máxima possível do curso (1 ponto por pergunta + 1 ponto por cada campo/item de missão)
         let maxPontosTestes = 0;
         let maxPontosMissoes = 0;
         aulas.forEach(a => {
@@ -624,7 +659,10 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             const pergs = parseJson(a.perguntas_json, []);
             maxPontosTestes += pergs.length;
             const missoes = parseJson(a.missoes_json, []);
-            maxPontosMissoes += missoes.length;
+            missoes.forEach(m => {
+                const qtdCampos = Array.isArray(m.campos) && m.campos.length > 0 ? m.campos.length : 1;
+                maxPontosMissoes += qtdCampos;
+            });
         });
 
         const participantes = colabs.map(c => {
@@ -659,12 +697,14 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 const missoesAula = parseJson(a.missoes_json, []);
                 let ptsMissoesAula = 0;
                 missoesAula.forEach(m => {
+                    const maxPtsM = Array.isArray(m.campos) && m.campos.length > 0 ? m.campos.length : 1;
                     const sm = missaoMap[`${a.id}_${m.id}_${c.id}`];
                     if (sm) {
                         missoesEntregues++;
                         if (sm.status === 'avaliada' && sm.nota_gestor !== null && sm.nota_gestor !== undefined) {
                             missoesAvaliadas++;
-                            ptsMissoesAula += (Number(sm.nota_gestor) > 0 ? 1 : 0);
+                            const notaNum = Math.max(0, Math.min(maxPtsM, Number(sm.nota_gestor) || 0));
+                            ptsMissoesAula += notaNum;
                         }
                     }
                 });
@@ -688,6 +728,7 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             return {
                 colaborador_id: c.id,
                 nome_completo: c.nome_completo,
+                email_particular: c.email || c.email_corporativo || '',
                 cargo: c.cargo,
                 departamento: c.departamento,
                 foto_url: `/api/colaboradores/foto/${c.id}`,
@@ -707,23 +748,40 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             };
         });
 
-        // Ordenar da maior nota para a menor nota (desempate por presença e nome)
+        // Ordenar: primeiro quem realizou TODAS as aulas (elegivel_certificado = true), depois por maior nota_total, presença e nome
         participantes.sort((a, b) => {
+            if (Boolean(b.elegivel_certificado) !== Boolean(a.elegivel_certificado)) {
+                return b.elegivel_certificado ? 1 : -1;
+            }
             if (b.nota_total !== a.nota_total) return b.nota_total - a.nota_total;
             if (b.aulas_presentes !== a.aulas_presentes) return b.aulas_presentes - a.aulas_presentes;
             return String(a.nome_completo || '').localeCompare(String(b.nome_completo || ''), 'pt-BR');
         });
 
-        participantes.forEach((p, idx) => {
-            p.posicao = idx + 1;
-            p.premio = premioPorColocacao[idx + 1] || null;
+        // Regra obrigatória (Anexo 5): Colaboradores que NÃO realizaram todas as aulas não ficam em nenhuma posição de ranking nem ganham prêmio
+        let colocacaoElegivel = 0;
+        participantes.forEach((p) => {
+            if (p.elegivel_certificado) {
+                colocacaoElegivel += 1;
+                p.posicao = colocacaoElegivel;
+                p.premio = premioPorColocacao[colocacaoElegivel] || null;
+            } else {
+                p.posicao = null;
+                p.premio = null;
+            }
         });
+
+        let ministradoPorNome = String(curso.ministrado_por_nome || '').trim();
+        if (!ministradoPorNome && (curso.ministrado_por_usuario_id || curso.created_by)) {
+            ministradoPorNome = await obterNomeInstrutorUsuario({ id: curso.ministrado_por_usuario_id || curso.created_by });
+        }
 
         const cargaHorariaCalculada = parseFloat(aulas.reduce((acc, a) => acc + (parseFloat(a.carga_horaria) || 0), 0).toFixed(2));
 
         return {
             curso: {
                 ...curso,
+                ministrado_por_nome: ministradoPorNome,
                 carga_horaria: cargaHorariaCalculada,
                 capa_stream_url: curso.capa_r2_key ? r2StreamUrl(curso.capa_r2_key) : (curso.capa_url || null)
             },
@@ -1208,19 +1266,18 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
         return arr.map((m, idx) => {
             const campos = Array.isArray(m.campos) ? m.campos.map((c, cIdx) => ({
                 id: c.id || `campo_${Date.now()}_${idx}_${cIdx}`,
-                tipo: ['texto', 'multipla_escolha', 'documento', 'audio', 'imagem', 'estrelas'].includes(c.tipo) ? c.tipo : 'texto',
+                tipo: ['texto', 'documento', 'audio', 'imagem', 'estrelas'].includes(c.tipo) ? c.tipo : 'texto',
                 label: String(c.label || '').trim(),
-                obrigatorio: !!c.obrigatorio,
-                opcoes: Array.isArray(c.opcoes) ? c.opcoes.map(o => String(o || '').trim()).filter(Boolean) : [],
-                correta_idx: c.correta_idx !== undefined && c.correta_idx !== null && c.correta_idx !== '' ? parseInt(c.correta_idx, 10) : null
+                obrigatorio: false,
+                opcoes: []
             })).filter(c => c.label) : [];
 
             return {
                 id: m.id || `m_${Date.now()}_${idx}`,
                 titulo: String(m.titulo || '').trim(),
                 descricao: String(m.descricao || '').trim(),
-                nota_maxima: 1,
-                prazo_dias: 7, // Regra obrigatória: missões válidas por 1 semana (7 dias)
+                nota_maxima: Math.max(1, campos.length),
+                prazo_dias: 7, // Regra obrigatória: missões válidas até a próxima aula
                 pdf_r2_key: m.pdf_r2_key || null,
                 pdf_nome: m.pdf_nome ? corrigirMojibakeNome(m.pdf_nome) : null,
                 campos
@@ -1441,13 +1498,30 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 [aulaId]
             );
 
-            // Verificar se todas as aulas do curso já foram concluídas; se sim, marcar o curso como concluído
-            const todasAulas = await dbAll(`SELECT id, status_aula FROM uniamerica_aulas WHERE curso_id = ?`, [aula.curso_id]);
+            // Verificar se todas as aulas do curso já foram concluídas; se sim, marcar o curso como concluído e gravar o usuário logado que ministrou/concluiu a última aula
+            const todasAulas = await dbAll(`SELECT id, ordem, ultima_aula, status_aula FROM uniamerica_aulas WHERE curso_id = ? ORDER BY ordem ASC, id ASC`, [aula.curso_id]);
             const todasConcluidas = todasAulas.length > 0 && todasAulas.every(a => a.status_aula === 'concluida');
+            const ehUltimaAula = Number(aula.ultima_aula) === 1 || (todasAulas.length > 0 && Number(todasAulas[todasAulas.length - 1].id) === Number(aulaId));
+            const nomeInstrutor = await obterNomeInstrutorUsuario(req.user);
+
             if (todasConcluidas) {
                 await dbRun(
-                    `UPDATE uniamerica_cursos SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                    [aula.curso_id]
+                    `UPDATE uniamerica_cursos
+                     SET status = 'concluido',
+                         ministrado_por_usuario_id = ?,
+                         ministrado_por_nome = CASE WHEN ? != '' THEN ? ELSE ministrado_por_nome END,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [req.user.id || null, nomeInstrutor, nomeInstrutor, aula.curso_id]
+                );
+            } else if (ehUltimaAula && nomeInstrutor) {
+                await dbRun(
+                    `UPDATE uniamerica_cursos
+                     SET ministrado_por_usuario_id = ?,
+                         ministrado_por_nome = ?,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [req.user.id || null, nomeInstrutor, aula.curso_id]
                 );
             }
 
@@ -1628,7 +1702,13 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 testeMap[t.colaborador_id] = { ...t, respostas, acertos, TotalPerguntas: perguntas.length, pontos_calculados: acertos };
             });
             const missaoMap = {};
-            missoesRows.forEach(m => { missaoMap[`${m.colaborador_id}_${m.missao_id}`] = { ...m, respostas: parseJson(m.respostas_json, {}) }; });
+            missoesRows.forEach(m => {
+                missaoMap[`${m.colaborador_id}_${m.missao_id}`] = {
+                    ...m,
+                    respostas: parseJson(m.respostas_json, {}),
+                    avaliacao_campos: parseJson(m.avaliacao_campos_json, {})
+                };
+            });
 
             const arqMap = {};
             arquivosRows.forEach(ar => {
@@ -1901,36 +1981,72 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
         }
     });
 
-    // Gestor avalia / confirma pontuação da Missão (nota obrigatória de 1 a 10)
+    // Gestor avalia / confirma pontuação de cada item/campo da Missão (1 ponto por item cumprido, 0 por não cumprido)
     app.put('/api/uniamerica/submissoes-missao/avaliar', guardGestor, async (req, res) => {
         try {
             const aulaId = parseInt(req.body.aula_id, 10);
             const colaboradorId = parseInt(req.body.colaborador_id, 10);
             const missaoId = String(req.body.missao_id || '').trim();
-            const notaGestor = parseFloat(req.body.nota_gestor);
             const feedbackGestor = String(req.body.feedback_gestor || '').trim();
+            const avaliacaoCamposRaw = (req.body.avaliacao_campos && typeof req.body.avaliacao_campos === 'object')
+                ? req.body.avaliacao_campos
+                : null;
 
-            if (!aulaId || !colaboradorId || !missaoId || isNaN(notaGestor) || (notaGestor !== 0 && notaGestor !== 1)) {
-                return res.status(400).json({ error: 'Selecione se a missão foi Cumprida (1 ponto) ou Não cumprida (0 ponto).' });
+            if (!aulaId || !colaboradorId || !missaoId) {
+                return res.status(400).json({ error: 'Dados incompletos para avaliar a missão.' });
             }
 
             const aula = await dbGet(`SELECT * FROM uniamerica_aulas WHERE id = ?`, [aulaId]);
             if (!aula) return res.status(404).json({ error: 'Aula não encontrada.' });
 
+            const missoesAula = parseJson(aula.missoes_json, []);
+            const defMissao = missoesAula.find(m => String(m.id) === missaoId) || { campos: [] };
+            const camposMissao = Array.isArray(defMissao.campos) && defMissao.campos.length > 0
+                ? defMissao.campos
+                : [{ id: '_unico', label: defMissao.titulo || 'Missão' }];
+            const maxPts = camposMissao.length;
+
+            let notaFinal = NaN;
+            const avaliacaoCamposFinal = {};
+
+            if (avaliacaoCamposRaw) {
+                let soma = 0;
+                for (const cp of camposMissao) {
+                    const v = avaliacaoCamposRaw[cp.id];
+                    const n = (v === 1 || v === '1' || v === true) ? 1 : ((v === 0 || v === '0' || v === false) ? 0 : NaN);
+                    if (isNaN(n)) {
+                        return res.status(400).json({ error: `Selecione se o item "${cp.label || 'Missão'}" foi cumprido (1 ponto) ou não cumprido (0 ponto).` });
+                    }
+                    avaliacaoCamposFinal[cp.id] = n;
+                    soma += n;
+                }
+                notaFinal = soma;
+            } else {
+                const n = parseFloat(req.body.nota_gestor);
+                if (isNaN(n) || n < 0 || n > maxPts) {
+                    return res.status(400).json({ error: `Selecione uma pontuação válida (0 a ${maxPts} ponto(s)).` });
+                }
+                notaFinal = n;
+                camposMissao.forEach((cp, idx) => {
+                    avaliacaoCamposFinal[cp.id] = idx < notaFinal ? 1 : 0;
+                });
+            }
+
             await dbRun(
                 `INSERT INTO uniamerica_submissoes_missao
-                 (curso_id, aula_id, missao_id, colaborador_id, respostas_json, nota_gestor, feedback_gestor, status, avaliado_por, avaliado_em)
-                 VALUES (?, ?, ?, ?, '{}', ?, ?, 'avaliada', ?, CURRENT_TIMESTAMP)
+                 (curso_id, aula_id, missao_id, colaborador_id, respostas_json, nota_gestor, avaliacao_campos_json, feedback_gestor, status, avaliado_por, avaliado_em)
+                 VALUES (?, ?, ?, ?, '{}', ?, ?, ?, 'avaliada', ?, CURRENT_TIMESTAMP)
                  ON CONFLICT(aula_id, missao_id, colaborador_id)
                  DO UPDATE SET nota_gestor = excluded.nota_gestor,
+                               avaliacao_campos_json = excluded.avaliacao_campos_json,
                                feedback_gestor = excluded.feedback_gestor,
                                status = 'avaliada',
                                avaliado_por = excluded.avaliado_por,
                                avaliado_em = CURRENT_TIMESTAMP`,
-                [aula.curso_id, aulaId, missaoId, colaboradorId, notaGestor, feedbackGestor, req.user.id || null]
+                [aula.curso_id, aulaId, missaoId, colaboradorId, notaFinal, JSON.stringify(avaliacaoCamposFinal), feedbackGestor, req.user.id || null]
             );
 
-            res.json({ ok: true, nota_gestor: notaGestor });
+            res.json({ ok: true, nota_gestor: notaFinal, max_pontos: maxPts, avaliacao_campos: avaliacaoCamposFinal });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
@@ -2113,8 +2229,85 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
             res.json({
                 ok: true,
                 codigo_validacao: codigo,
+                ministrado_por_nome: quadro.curso.ministrado_por_nome || '',
                 arquivo_url: r2Key ? r2StreamUrl(r2Key) : null
             });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // Enviar Certificado do Curso para o e-mail pessoal do colaborador
+    app.post('/api/uniamerica/cursos/:cursoId/certificados/enviar-email', guardGestor, async (req, res) => {
+        try {
+            const cursoId = parseInt(req.params.cursoId, 10);
+            const colaboradorId = parseInt(req.body.colaborador_id, 10);
+            const imagemBase64 = String(req.body.imagem_base64 || '').trim();
+
+            if (!cursoId || !colaboradorId) {
+                return res.status(400).json({ error: 'Informe o curso e o colaborador.' });
+            }
+
+            const [curso, colab, cert] = await Promise.all([
+                dbGet(`SELECT * FROM uniamerica_cursos WHERE id = ?`, [cursoId]),
+                dbGet(`SELECT id, nome_completo, email, email_corporativo FROM colaboradores WHERE id = ?`, [colaboradorId]),
+                dbGet(`SELECT * FROM uniamerica_certificados WHERE curso_id = ? AND colaborador_id = ?`, [cursoId, colaboradorId])
+            ]);
+
+            if (!curso) return res.status(404).json({ error: 'Curso não encontrado.' });
+            if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+            const emailParticular = String(colab.email || '').trim();
+            const emailCorp = String(colab.email_corporativo || '').trim();
+            const emailDestino = (emailParticular && emailParticular.includes('@'))
+                ? emailParticular
+                : ((emailCorp && emailCorp.includes('@')) ? emailCorp : '');
+
+            if (!emailDestino) {
+                return res.status(400).json({ error: 'Este colaborador não possui e-mail pessoal cadastrado na tela de Colaboradores.' });
+            }
+
+            let certBuffer = null;
+            if (imagemBase64) {
+                const raw = imagemBase64.replace(/^data:image\/\w+;base64,/, '');
+                certBuffer = Buffer.from(raw, 'base64');
+            } else if (cert && cert.r2_key) {
+                const dl = await baixarBufferDoR2(cert.r2_key);
+                if (dl && dl.buffer) certBuffer = dl.buffer;
+            }
+
+            if (!certBuffer) {
+                return res.status(400).json({ error: 'Imagem do certificado não encontrada para envio.' });
+            }
+
+            const nomeLimpo = String(colab.nome_completo || '').replace(/^[💎🥇🥈🥉\s]+/u, '').trim();
+            const nomeFirst = nomeLimpo.split(' ')[0] || 'Colaborador';
+            const nomeArquivo = `Certificado_${sanitizeFileName(nomeLimpo)}_${sanitizeFileName(curso.nome)}.png`;
+            const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+
+            const attachments = [];
+            if (fs.existsSync(logoPath)) {
+                attachments.push({ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' });
+            }
+            attachments.push({
+                filename: nomeArquivo,
+                content: certBuffer,
+                contentType: 'image/png',
+                cid: 'certificado-uniamerica'
+            });
+
+            if (typeof sendMailHelper !== 'function') {
+                return res.status(500).json({ error: 'Serviço de envio de e-mail não configurado no servidor.' });
+            }
+
+            await sendMailHelper({
+                to: emailDestino,
+                subject: `Certificado de Conclusão — ${curso.nome} (UniAmérica)`,
+                html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;"><div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Parabéns pela conclusão do treinamento, ${nomeFirst}!</h2><p>Olá <strong>${nomeLimpo}</strong>,</p><p>Segue abaixo e em anexo o seu <strong>Certificado de Conclusão</strong> do treinamento <strong>${curso.nome}</strong>, realizado na <strong>UniAmérica - América Rental</strong>.</p><div style="margin:20px 0;text-align:center;"><img src="cid:certificado-uniamerica" alt="Certificado ${curso.nome}" style="max-width:100%;height:auto;border-radius:8px;border:1px solid #cbd5e1;"></div><p style="font-size:13px;color:#475569;">Você também pode baixar o arquivo em alta resolução anexado a este e-mail.</p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail enviado pela UniAmérica - América Rental.</p></div></div></body></html>`,
+                attachments
+            });
+
+            res.json({ ok: true, email: emailDestino });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
@@ -2167,7 +2360,13 @@ module.exports = function registerUniAmerica(app, db, authenticateToken, r2, sen
                 const testeMap = {};
                 testesRows.forEach(t => { testeMap[t.aula_id] = { ...t, respostas: parseJson(t.respostas_json, {}) }; });
                 const missaoMap = {};
-                missoesRows.forEach(m => { missaoMap[`${m.aula_id}_${m.missao_id}`] = { ...m, respostas: parseJson(m.respostas_json, {}) }; });
+                missoesRows.forEach(m => {
+                    missaoMap[`${m.aula_id}_${m.missao_id}`] = {
+                        ...m,
+                        respostas: parseJson(m.respostas_json, {}),
+                        avaliacao_campos: parseJson(m.avaliacao_campos_json, {})
+                    };
+                });
                 const arqMap = {};
                 arqRows.forEach(ar => {
                     const k = `${ar.aula_id}_${ar.missao_id}`;
