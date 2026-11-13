@@ -225,7 +225,7 @@
             { id: 'pendente', titulo: 'Pendentes — você estava de plantão', icone: 'ph-warning-circle', cor: '#dc2626', f: i => i.pendente },
             { id: 'hoje', titulo: 'Hoje', icone: 'ph-sun', cor: '#2563eb', f: i => !i.pendente && i.situacao === 'hoje' },
             { id: 'futuro', titulo: 'Próximos', icone: 'ph-calendar-check', cor: '#475569', f: i => !i.pendente && i.situacao === 'futuro' },
-            { id: 'passado', titulo: 'Dias anteriores', icone: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && i.situacao === 'passado' },
+            { id: 'passado', titulo: 'Não feito (dias anteriores)', icone: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && i.situacao === 'passado' },
             { id: 'respondido', titulo: 'Respondidos', icone: 'ph-check-circle', cor: '#16a34a', f: i => i.situacao === 'respondido' }
         ];
         return grupos.map(g => {
@@ -239,7 +239,7 @@
         if (i.situacao === 'respondido') return '<span class="alc-badge verde"><i class="ph ph-check-circle"></i> Respondido</span>';
         if (i.pendente) return '<span class="alc-badge vermelho"><i class="ph ph-warning-circle"></i> Pendente</span>';
         if (i.situacao === 'hoje') return '<span class="alc-badge azul"><i class="ph ph-sun"></i> Hoje</span>';
-        if (i.situacao === 'passado') return '<span class="alc-badge cinza"><i class="ph ph-clock-counter-clockwise"></i> Passou</span>';
+        if (i.situacao === 'passado') return '<span class="alc-badge cinza"><i class="ph ph-clock-counter-clockwise"></i> Não feito</span>';
         return '<span class="alc-badge cinza"><i class="ph ph-calendar-check"></i> Agendado</span>';
     }
 
@@ -261,11 +261,6 @@
             ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#3f5221;background:#f4f7ed;border:1px solid #b8c996;border-radius:999px;padding:3px 10px 3px 4px;margin-top:4px;width:fit-content;max-width:100%;">${avatarMotorista(i.motorista_vinculado, i.motorista_foto_url, 22)} <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
             : `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.76rem;font-weight:500;color:#64748b;margin-top:3px;"><i class="ph ph-steering-wheel" style="color:#94a3b8;font-size:0.9rem;flex-shrink:0;"></i> <span>Sem motorista vinculado</span></div>`;
 
-        const escDia = i.lider_responsavel_dia || (obterEscalaDoDia(i.data_teste_1) || {}).diurno || {};
-        const escalados = escDia.escalados || [];
-        const liderRespHtml = escalados.length > 0
-            ? `<div class="alc-card-lider-resp" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.78rem;color:#334155;margin-top:4px;"><span style="font-weight:700;color:#475569;">☀️ Líder Resp.:</span> ${renderChipsLideres(escalados, 20)}</div>`
-            : '';
         const realHtml = i.realizado_por && i.realizado_por.nome
             ? `<div class="alc-card-lider-real" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.78rem;color:#15803d;margin-top:3px;"><span style="font-weight:700;">✅ Realizado por:</span> ${renderChipsLideres([i.realizado_por], 20)}</div>`
             : '';
@@ -277,7 +272,6 @@
                 <div class="alc-card-linha"><span class="alc-tipo" style="color:${tipoCor(i.tipo)};"><i class="ph ${tipoIcone(i.tipo)}"></i> ${esc(tipoRotulo(i.tipo))}</span>
                     <span class="alc-data"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_teste_1))}</span></div>
                 ${mot}
-                ${liderRespHtml}
                 ${realHtml}
                 <div class="alc-card-badges">${badgeSituacao(i)}${ck}${cnh}</div>
                 ${(!i.respondido && i.checklist.feitos) ? `<div class="alc-barra"><i style="width:${pct}%;"></i></div>` : ''}

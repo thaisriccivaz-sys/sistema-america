@@ -681,15 +681,17 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
                         <input type="radio" name="av_${catIdx}_${i}" value="${v}" ${checked} style="position:absolute; opacity:0; pointer-events:none;" onchange="updateAvaliacaoProgress(${catIdx}, ${totalQ})">
                         <div class="radio-nota" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background: ${checked?bg:'#fff'}; color: ${checked?'#fff':c}; border-color:${checked?c:'#cbd5e1'}; transition:all 0.15s;" 
-                             onclick="this.parentElement.parentElement.querySelectorAll('.radio-nota').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
+                             onclick="this.parentElement.parentElement.querySelectorAll('.radio-nota').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color; if('${tipo}'==='satisfacao'){ var oi=this.closest('form').elements['av_obs_${catIdx}_${i}']; if(oi){ if(${v}<=4){ oi.placeholder='Observação obrigatória (nota de 1 a 4) *'; if(!oi.value.trim()){ oi.style.borderColor='#ef4444'; oi.style.background='#fef2f2'; } } else { oi.placeholder='Observação (opcional)...'; oi.style.borderColor='#cbd5e1'; oi.style.background='#ffffff'; } } }"
                              data-color="${c}" data-bg="${c}">
                             ${v}
                         </div>
                     </label>
                 `;
             }
+            const obsObrigAv = (tipo === 'satisfacao' && val != null && parseInt(val, 10) <= 4);
+            const obsFaltandoAv = obsObrigAv && !String(obsStr || '').trim();
             html += `           </div>
-                        <input type="text" name="av_obs_${catIdx}_${i}" value="${obsStr}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${i}" value="${obsStr}" placeholder="${obsObrigAv ? 'Observação obrigatória (nota de 1 a 4) *' : 'Observação (opcional)...'}" oninput="if(this.value.trim()){this.style.borderColor='#cbd5e1';this.style.background='#ffffff';}" style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid ${obsFaltandoAv ? '#ef4444' : '#cbd5e1'}; background:${obsFaltandoAv ? '#fef2f2' : '#ffffff'}; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
         });
@@ -776,6 +778,7 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
 
     let totalQ = 0;
     let ansQ = 0;
+    let erroObsSatisfacao = null;
 
     categories.forEach((cat, catIdx) => {
         respostas[cat] = {};
@@ -784,20 +787,50 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         catQuestions.forEach((q, i) => {
             if (!q || !q.trim()) return; // ignora perguntas em branco (igual ao display)
             totalQ++;
+            let notaSelecionada = null;
             const rads = form.elements[`av_${catIdx}_${i}`];
             if (rads && rads.length) {
                 const selected = Array.from(rads).find(r => r.checked);
                 if (selected) {
                     respostas[cat][i] = selected.value;
+                    notaSelecionada = parseInt(selected.value, 10);
                     ansQ++;
                 }
             }
             const obsInput = form.elements[`av_obs_${catIdx}_${i}`];
-            if (obsInput && obsInput.value.trim().length > 0) {
-                respostas.__obs__[cat][i] = obsInput.value.trim();
+            const obsTxt = obsInput ? obsInput.value.trim() : '';
+            if (obsTxt.length > 0) {
+                respostas.__obs__[cat][i] = obsTxt;
+            }
+            if (tipo === 'satisfacao' && notaSelecionada != null && notaSelecionada <= 4 && !obsTxt) {
+                if (obsInput) {
+                    obsInput.style.borderColor = '#ef4444';
+                    obsInput.style.background = '#fef2f2';
+                }
+                if (!erroObsSatisfacao) {
+                    erroObsSatisfacao = { input: obsInput, pergunta: q, nota: notaSelecionada };
+                }
             }
         });
     });
+
+    if (erroObsSatisfacao) {
+        if (errSpan) errSpan.textContent = 'Preencha a observação obrigatória para todas as notas de 1 a 4.';
+        if (erroObsSatisfacao.input) {
+            try { erroObsSatisfacao.input.scrollIntoView({ behavior: 'smooth', block: 'center' }); erroObsSatisfacao.input.focus(); } catch (_) {}
+        }
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Observação obrigatória',
+                text: `Para notas de 4 para baixo (nota ${erroObsSatisfacao.nota}), é obrigatório preencher uma observação na pergunta: "${erroObsSatisfacao.pergunta}". Apenas a nota 5 tem observação opcional.`,
+                confirmButtonColor: '#0f4c81'
+            });
+        } else {
+            alert(`Observação obrigatória: para notas de 4 para baixo (nota ${erroObsSatisfacao.nota}), preencha a observação na pergunta "${erroObsSatisfacao.pergunta}".`);
+        }
+        return;
+    }
 
     const hiddenStatusEl = document.getElementById('av_hidden_status');
     if (hiddenStatusEl && hiddenStatusEl.value) {

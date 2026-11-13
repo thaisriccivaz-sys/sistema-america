@@ -1316,6 +1316,23 @@
         el.style.borderColor = el.dataset.color;
         const inp = el.previousElementSibling;
         if (inp) inp.checked = true;
+
+        const notaVal = inp ? parseInt(inp.value, 10) : 5;
+        const obsName = String(grp || '').replace(/^av_/, 'av_obs_');
+        const obsInp = document.querySelector('#sat-modal-form input[name="' + obsName + '"]');
+        if (obsInp) {
+            if (notaVal <= 4) {
+                obsInp.placeholder = 'Observação obrigatória (nota de 1 a 4) *';
+                if (!obsInp.value.trim()) {
+                    obsInp.style.borderColor = '#ef4444';
+                    obsInp.style.background = '#fef2f2';
+                }
+            } else {
+                obsInp.placeholder = 'Observação (opcional)...';
+                obsInp.style.borderColor = '#cbd5e1';
+                obsInp.style.background = '#ffffff';
+            }
+        }
     };
 
     window._satOpenFormBtn = function (btn, isReadonly = false) {
@@ -1383,7 +1400,7 @@
                 
                 <div style="padding:2rem;overflow-y:auto;flex:1;background:#f8fafc;" id="sat-form-body">
                     <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
-                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom) e adicione uma observação caso aplicável.
+                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom). Para notas de 1 a 4 é obrigatório preencher uma observação (apenas nota 5 é opcional).
                     </p>
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -1435,9 +1452,11 @@
                     </label>`;
                 }
 
+                const obsObrigatoria = (rowVal != null && rowVal <= 4);
+                const obsFaltando = obsObrigatoria && !String(obsStr || '').trim();
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${escHtml(obsStr)}" ${isReadonly ? 'disabled' : ''} placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${escHtml(obsStr)}" ${isReadonly ? 'disabled' : ''} placeholder="${obsObrigatoria ? 'Observação obrigatória (nota de 1 a 4) *' : 'Observação (opcional)...'}" oninput="if(this.value.trim()){this.style.borderColor='#cbd5e1';this.style.background='#ffffff';}" style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid ${obsFaltando ? '#ef4444' : '#cbd5e1'}; background:${obsFaltando ? '#fef2f2' : '#ffffff'}; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -1490,6 +1509,7 @@
         const respostas = { __obs__: {} };
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
+        let erroObsObrigatoria = null;
 
         categories.forEach((cat, catIdx) => {
             respostas[cat] = {};
@@ -1498,14 +1518,43 @@
                 if (!q || !q.trim()) return;
                 const rads = form.elements[`av_${catIdx}_${i}`];
                 const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
+                let notaNum = null;
                 if (selected) {
-                    respostas[cat][i] = parseInt(selected.value, 10);
+                    notaNum = parseInt(selected.value, 10);
+                    respostas[cat][i] = notaNum;
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
-                if (obs && obs.value.trim()) respostas.__obs__[cat][i] = obs.value.trim();
+                const obsTxt = obs ? obs.value.trim() : '';
+                if (obsTxt) respostas.__obs__[cat][i] = obsTxt;
+                if (notaNum != null && notaNum <= 4 && !obsTxt) {
+                    if (obs) {
+                        obs.style.borderColor = '#ef4444';
+                        obs.style.background = '#fef2f2';
+                    }
+                    if (!erroObsObrigatoria) {
+                        erroObsObrigatoria = { input: obs, pergunta: q, nota: notaNum };
+                    }
+                }
             });
             if (Object.keys(respostas.__obs__[cat]).length === 0) delete respostas.__obs__[cat];
         });
+
+        if (erroObsObrigatoria) {
+            if (erroObsObrigatoria.input) {
+                try { erroObsObrigatoria.input.scrollIntoView({ behavior: 'smooth', block: 'center' }); erroObsObrigatoria.input.focus(); } catch (_) {}
+            }
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Observação obrigatória',
+                    text: `Para notas de 4 para baixo (nota ${erroObsObrigatoria.nota}), é obrigatório preencher uma observação na pergunta: "${erroObsObrigatoria.pergunta}". Apenas a nota 5 tem observação opcional.`,
+                    confirmButtonColor: '#0f4c81'
+                });
+            } else {
+                alert(`Observação obrigatória: para notas de 4 para baixo (nota ${erroObsObrigatoria.nota}), preencha a observação na pergunta "${erroObsObrigatoria.pergunta}".`);
+            }
+            return;
+        }
 
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) {

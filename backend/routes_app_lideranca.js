@@ -361,8 +361,9 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 else if (data < hoje) situacao = 'passado';
                 else if (data === hoje) situacao = 'hoje';
                 else situacao = 'futuro';
+                const INICIO_CONTROLE_PADRAO = '2026-12-01';
                 const souPlantao = (escDia.diurno.escalados || []).some(p => p.usuario_id && Number(p.usuario_id) === Number(meuId));
-                const pendente = !respondido && data < hoje && souPlantao;
+                const pendente = !respondido && data >= INICIO_CONTROLE_PADRAO && data < hoje && souPlantao;
 
                 const avRow = avMap[c.id];
                 const realInfo = (avRow && avRow.avaliador_nome)

@@ -23,7 +23,7 @@ module.exports = function registerAppEntregasRoutes(app, db, authenticateToken, 
     const ORIGEM = 'entrega';
     const ORIGEM_TXT = 'entrega';
     const TZ = 'America/Sao_Paulo';
-    const INICIO_CONTROLE_PADRAO = '2026-11-10'; // "a partir de ontem" (pedido em 11/11/2026)
+    const INICIO_CONTROLE_PADRAO = '2026-12-01'; // Atividades vencidas começam em 01/12/2026
     const MAX_VIDEO_MB = 60;
     const uploadMem = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_VIDEO_MB * 1024 * 1024 } });
 
@@ -120,6 +120,7 @@ module.exports = function registerAppEntregasRoutes(app, db, authenticateToken, 
             try {
                 await dbRun(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
                 await dbRun(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('entregas_inicio_controle', '${INICIO_CONTROLE_PADRAO}')`);
+                await dbRun(`UPDATE configuracoes_sistema SET valor = '${INICIO_CONTROLE_PADRAO}' WHERE chave = 'entregas_inicio_controle' AND valor < '${INICIO_CONTROLE_PADRAO}'`);
 
                 const colsCk = await dbAll(`PRAGMA table_info(entregas_checklist)`);
                 const colNamesCk = new Set(colsCk.map(c => c.name));

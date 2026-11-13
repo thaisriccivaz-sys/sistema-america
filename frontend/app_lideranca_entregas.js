@@ -332,7 +332,7 @@
             { t: 'OK', ic: 'ph-thumbs-up', cor: '#16a34a', f: i => !i.pendente && !i.tem_avaria && i.situacao === 'ok' },
             { t: 'Agendadas', ic: 'ph-calendar-check', cor: '#2563eb', f: i => !i.pendente && !i.tem_avaria && i.situacao !== 'ok' && i.futura && i.situacao !== 'sem_checklist' },
             { t: 'Sem checklist (produto sem modelo)', ic: 'ph-prohibit', cor: '#94a3b8', f: i => !i.pendente && i.situacao === 'sem_checklist' },
-            { t: 'Sem conferência (antes de ' + ini + ')', ic: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && !i.tem_avaria && !i.futura && (i.situacao === 'pendente' || i.situacao === 'andamento') }
+            { t: 'Não feito (antes de ' + ini + ')', ic: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && !i.tem_avaria && !i.futura && (i.situacao === 'pendente' || i.situacao === 'andamento') }
         ];
         return grupos.map(g => {
             const l = itens.filter(i => !ja.has(i.os_id) && g.f(i));
@@ -368,13 +368,11 @@
             const itensD = itens.filter(i => (i.turno_escala || 'diurno') !== 'noturno');
             const itensN = itens.filter(i => i.turno_escala === 'noturno');
             if (itensD.length) {
-                const respD = itensD[0].responsavel_escala;
-                html += `<div class="alr-turno-divisor diurno"><span>☀️ Entregas Diurnas (${itensD.length})</span>${respD ? `<span class="alr-turno-divisor-resp">Resp.: ${renderPessoasChips(respD.escalados, respD.nomes, 20)}</span>` : ''}</div>`;
+                html += `<div class="alr-turno-divisor diurno"><span>☀️ Entregas Diurnas (${itensD.length})</span></div>`;
                 html += renderizarGruposInternos(itensD, ini, ja);
             }
             if (itensN.length) {
-                const respN = itensN[0].responsavel_escala;
-                html += `<div class="alr-turno-divisor noturno"><span>🌙 Entregas Noturnas (${itensN.length})</span>${respN ? `<span class="alr-turno-divisor-resp">Resp.: ${renderPessoasChips(respN.escalados, respN.nomes, 20)}</span>` : ''}</div>`;
+                html += `<div class="alr-turno-divisor noturno"><span>🌙 Entregas Noturnas (${itensN.length})</span></div>`;
                 html += renderizarGruposInternos(itensN, ini, ja);
             }
         } else {
@@ -391,19 +389,15 @@
         if (i.pendente) return '<span class="alc-badge vermelho"><i class="ph ph-warning-circle"></i> Pendente</span>' + av;
         if (i.situacao === 'andamento') return '<span class="alc-badge laranja"><i class="ph ph-list-checks"></i> Em andamento</span>' + av;
         if (i.futura) return '<span class="alc-badge azul"><i class="ph ph-calendar-check"></i> Agendada</span>';
-        return '<span class="alc-badge cinza"><i class="ph ph-clock-counter-clockwise"></i> Sem conferência</span>';
+        return '<span class="alc-badge cinza"><i class="ph ph-clock-counter-clockwise"></i> Não feito</span>';
     }
     const iconeStatusUnidade = u => u.status === 'avaria' ? '<i class="ph-fill ph-thumbs-down" style="color:#dc2626"></i>' : (u.status === 'ok' ? '<i class="ph-fill ph-thumbs-up" style="color:#16a34a"></i>' : (u.status === 'andamento' ? '<i class="ph ph-hourglass-medium" style="color:#ea580c"></i>' : '<i class="ph ph-circle-dashed" style="color:#94a3b8"></i>'));
 
     function barraLiderCard(i) {
-        const ehNot = i.turno_escala === 'noturno';
-        const resp = i.responsavel_escala || {};
         const real = Array.isArray(i.realizado_por) ? i.realizado_por : [];
+        if (!real.length) return '';
         return `<div class="arr-vlider-bar" style="border-radius:8px;margin:6px 0;border:1px solid #e2e8f0;">
-            <span class="arr-vlider-resp"><i class="ph-bold ph-user-focus"></i> Resp. (${ehNot ? '🌙 Noite' : '☀️ Dia'}): ${renderPessoasChips(resp.escalados, resp.nomes, 20)}</span>
-            ${real.length
-                ? `<span class="arr-vlider-real ok"><i class="ph-fill ph-check-circle"></i> Realizado por: ${renderPessoasChips(real, '', 20)}</span>`
-                : `<span class="arr-vlider-real pend"><i class="ph-fill ph-hourglass-high"></i> Realizado por: Pendente</span>`}
+            <span class="arr-vlider-real ok"><i class="ph-fill ph-check-circle"></i> Realizado por: ${renderPessoasChips(real, '', 20)}</span>
         </div>`;
     }
 

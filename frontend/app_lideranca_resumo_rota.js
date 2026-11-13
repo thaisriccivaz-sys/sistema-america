@@ -454,20 +454,11 @@
         const badgeCls = st.total === 0 ? 'cinza' : (st.completo ? 'verde' : (st.concluidos > 0 ? 'laranja' : 'vermelho'));
         const badgeTxt = st.total === 0 ? 'Sem itens' : (st.completo ? `Concluído (${st.concluidos}/${st.total})` : `${st.concluidos}/${st.total} OK`);
 
-        const respEscala = v.responsavel_escala || {};
-        const escaladosTurno = (respEscala.escalados && respEscala.escalados.length)
-            ? respEscala.escalados
-            : ((turnoAtivo === 'noturno' ? escalaDia?.noturno?.escalados : escalaDia?.diurno?.escalados) || []);
-        const nomeRespTurno = respEscala.nomes || (turnoAtivo === 'noturno' ? escalaDia?.noturno?.nomes : escalaDia?.diurno?.nomes) || '—';
         const realizadoPor = v.realizado_por || [];
-
-        const respBarHtml = escaladosTurno.length > 0
-            ? renderPessoasChips(escaladosTurno, 22)
-            : `<b>${esc(nomeRespTurno)}</b>`;
 
         const realizadoBarHtml = realizadoPor.length > 0
             ? `${renderPessoasChips(realizadoPor, 22)}${realizadoPor[0].atualizado_em ? ` <small class="arr-real-dt">(${esc(fmtDataHora(realizadoPor[0].atualizado_em))})</small>` : ''}`
-            : `<b>Pendente</b>`;
+            : `<b>Não feito</b>`;
 
         // Equipe: Motorista, Ajudante Geral e Candidato(s) se tiver
         const crewHtml = [
@@ -484,8 +475,8 @@
                         ? renderPessoasChips([{ nome: obs.lider_nome || 'Líder', colab_id: obs.lider_colab_id, foto_url: obs.lider_foto_url }], 20)
                         : '';
                     const subInfoHtml = obs.checked
-                        ? `✅ Realizado por: ${chipReal}${obs.atualizado_em ? ' (' + esc(fmtDataHora(obs.atualizado_em)) + ')' : ''} • Resp. escala: ${esc(nomeRespTurno)}`
-                        : `⏳ Resp. na escala (${turnoAtivo === 'noturno' ? 'Noturna' : 'Diurna'}): ${esc(nomeRespTurno)}`;
+                        ? `<span class="arr-row-sub">✅ Realizado por: ${chipReal}${obs.atualizado_em ? ' (' + esc(fmtDataHora(obs.atualizado_em)) + ')' : ''}</span>`
+                        : '';
                     return `
                     <button type="button" class="arr-row interactive ${obs.checked ? 'checked' : ''}"
                         data-action="toggle-check"
@@ -494,7 +485,7 @@
                         data-key="${esc(obs.item_key)}">
                         <div class="arr-row-txt">
                             ${formatarTextoObsHtml(obs.texto)}
-                            <span class="arr-row-sub">${subInfoHtml}</span>
+                            ${subInfoHtml}
                         </div>
                         <span class="arr-chk" title="Marcar observação como verificada"><i class="ph-bold ph-check"></i></span>
                     </button>`;
@@ -505,7 +496,8 @@
         // - Sem caixa de check para não induzir clique nesta tela
         // - 'concluido' (todos os checklists de entrega e retirada do veículo completos) → check em verde (✓)
         // - 'em_andamento' (iniciou um checklist mas não finalizou todos do veículo) → exclamação em amarelo (!)
-        // - 'pendente_vencido' (no dia seguinte não foi feito e ficou pendente) → X em vermelho (✖)
+        // - 'pendente_vencido' (no dia seguinte não foi feito e ficou pendente, a partir de 01/12) → X em vermelho (✖)
+        // - 'nao_feito' (antes de 01/12 não concluído) → fica como Não feito (sem dar como concluído)
         // - 'aguardando' (no dia da rota e ainda não iniciado) → sem caixa / sem ícone
         const stCkVeic = v.status_ent_ret_veiculo || {};
         const estadoCkVeic = stCkVeic.estado_visual || 'aguardando';
@@ -538,6 +530,9 @@
             }
             if (estadoCkVeic === 'pendente_vencido') {
                 return `<span class="arr-row-sub err">❌ Pendente / Não realizado no menu ${esc(labelMenu)} (${it.concluidas}/${it.total_unidades})</span>`;
+            }
+            if (estadoCkVeic === 'nao_feito') {
+                return `<span class="arr-row-sub">Não feito no menu ${esc(labelMenu)} (${it.concluidas}/${it.total_unidades})</span>`;
             }
             return '';
         }
@@ -607,8 +602,8 @@
                                     ? renderPessoasChips([{ nome: ins.lider_nome || 'Líder', colab_id: ins.lider_colab_id, foto_url: ins.lider_foto_url }], 20)
                                     : '';
                                 const subInsHtml = ins.checked
-                                    ? `✅ Realizado por: ${chipIns}${ins.atualizado_em ? ' (' + esc(fmtDataHora(ins.atualizado_em)) + ')' : ''}`
-                                    : `⏳ Resp. escala: ${esc(nomeRespTurno)}`;
+                                    ? `<small class="arr-row-sub">✅ Realizado por: ${chipIns}${ins.atualizado_em ? ' (' + esc(fmtDataHora(ins.atualizado_em)) + ')' : ''}</small>`
+                                    : '';
                                 return `
                                 <button type="button" class="arr-insumo-row ${ins.checked ? 'checked' : ''}"
                                     data-action="toggle-check"
@@ -618,7 +613,7 @@
                                     <span class="arr-insumo-ico">${esc(ins.icone || '📦')}</span>
                                     <span class="arr-insumo-txt">
                                         ${esc(ins.texto)}
-                                        <small class="arr-row-sub">${subInsHtml}</small>
+                                        ${subInsHtml}
                                     </span>
                                     <span class="arr-chk"><i class="ph-bold ph-check"></i></span>
                                 </button>`;
@@ -638,16 +633,13 @@
                     <i class="ph-fill ${st.completo ? 'ph-check-circle' : 'ph-clock'}"></i> ${badgeTxt}
                 </span>
             </div>
+            ${realizadoPor.length > 0 ? `
             <div class="arr-vlider-bar">
-                <div class="arr-vlider-item">
-                    <i class="ph-fill ph-user-focus"></i>
-                    <span>Resp. Escala (${turnoAtivo === 'noturno' ? '🌙 Noturna' : '☀️ Diurna'}): ${respBarHtml}</span>
-                </div>
-                <div class="arr-vlider-item ${realizadoPor.length > 0 ? 'ok' : 'pend'}">
-                    <i class="ph-fill ${realizadoPor.length > 0 ? 'ph-check-circle' : 'ph-hourglass'}"></i>
+                <div class="arr-vlider-item ok">
+                    <i class="ph-fill ph-check-circle"></i>
                     <span>Realizado por: ${realizadoBarHtml}</span>
                 </div>
-            </div>
+            </div>` : ''}
             <div class="arr-vbody">
                 <div class="arr-crew">
                     ${crewHtml}
@@ -718,6 +710,7 @@
         root.querySelectorAll('[data-turno]').forEach(b => {
             b.onclick = () => {
                 S.turno = b.dataset.turno;
+                S.resumoId = null;
                 carregar(false);
             };
         });
@@ -725,6 +718,8 @@
         root.querySelectorAll('[data-resumo-id]').forEach(b => {
             b.onclick = () => {
                 S.resumoId = Number(b.dataset.resumoId);
+                const nm = normBusca(b.textContent || '');
+                S.turno = /noturn|noite/.test(nm) ? 'noturno' : 'diurno';
                 carregar(false);
             };
         });

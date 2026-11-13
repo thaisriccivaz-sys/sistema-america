@@ -582,7 +582,8 @@ body.app-mobile-on #view-app-lideranca-entregas { padding: 0 !important; }
     flex-shrink: 0;
     transition: all 0.15s ease;
 }
-.arr-row.checked .arr-chk {
+.arr-row.checked .arr-chk,
+.arr-insumo-row.checked .arr-chk {
     background: #16a34a;
     border-color: #16a34a;
     color: #ffffff;

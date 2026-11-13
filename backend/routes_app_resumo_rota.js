@@ -709,11 +709,27 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             usuario_nome: r.usuario_nome
         }));
 
-        const chosenRow = (resumoIdOpcional && rowsResumo.find(r => String(r.id) === String(resumoIdOpcional))) || rowsResumo[rowsResumo.length - 1];
-        const resumoEhNoturno = /noturn|noite/i.test(norm(chosenRow.nome || ''));
-        const turnoAtivo = (turnoOpcional === 'noturno' || turnoOpcional === 'diurno')
-            ? turnoOpcional
-            : (escalaDia.turno_usuario || (resumoEhNoturno ? 'noturno' : 'diurno'));
+        const rowsDiurnos = rowsResumo.filter(r => !/noturn|noite/i.test(norm(r.nome || '')));
+        const rowsNoturnos = rowsResumo.filter(r => /noturn|noite/i.test(norm(r.nome || '')));
+        const rowPadraoDiurno = rowsDiurnos.length ? rowsDiurnos[rowsDiurnos.length - 1] : rowsResumo[rowsResumo.length - 1];
+        const rowPadraoNoturno = rowsNoturnos.length ? rowsNoturnos[rowsNoturnos.length - 1] : rowsResumo[rowsResumo.length - 1];
+        const temResumosSeparadosPorTurno = rowPadraoDiurno && rowPadraoNoturno && String(rowPadraoDiurno.id) !== String(rowPadraoNoturno.id);
+
+        const rowExplicito = resumoIdOpcional ? rowsResumo.find(r => String(r.id) === String(resumoIdOpcional)) : null;
+        let turnoAtivo;
+        let chosenRow;
+        if (rowExplicito) {
+            chosenRow = rowExplicito;
+            const resumoEhNoturno = /noturn|noite/i.test(norm(chosenRow.nome || ''));
+            turnoAtivo = (turnoOpcional === 'noturno' || turnoOpcional === 'diurno')
+                ? turnoOpcional
+                : (resumoEhNoturno ? 'noturno' : 'diurno');
+        } else {
+            turnoAtivo = (turnoOpcional === 'noturno' || turnoOpcional === 'diurno')
+                ? turnoOpcional
+                : (escalaDia.turno_usuario || (rowsDiurnos.length ? 'diurno' : 'noturno'));
+            chosenRow = (turnoAtivo === 'noturno') ? rowPadraoNoturno : rowPadraoDiurno;
+        }
 
         const parsedDados = parseJson(chosenRow.dados, {});
         const veiculosRaw = Array.isArray(parsedDados)
@@ -735,13 +751,15 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         // Resolvedor de colaborador para converter usernames (ex: Thais.Ricci) em nome do colaborador + foto
         const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
 
-        // Checks manuais já gravados para este resumo (separa Diurno e Noturno pelo prefixo 'noturno::')
-        const checksRows = await dbAll(
-            `SELECT veiculo_key, item_key, tipo_item, checked, lider_id, lider_nome, lider_colab_id, atualizado_em
+        // Checks manuais já gravados para os resumos do dia
+        const idsResumosDia = [...new Set([chosenRow.id, rowPadraoDiurno.id, rowPadraoNoturno.id])];
+        const checksRowsTodos = await dbAll(
+            `SELECT resumo_id, veiculo_key, item_key, tipo_item, checked, lider_id, lider_nome, lider_colab_id, atualizado_em
              FROM app_resumo_rota_checks
-             WHERE resumo_id = ?`,
-            [chosenRow.id]
+             WHERE resumo_id IN (${idsResumosDia.map(() => '?').join(',')})`,
+            idsResumosDia
         );
+        const checksRows = checksRowsTodos.filter(r => String(r.resumo_id) === String(chosenRow.id));
         const checksByTurnoVeiculo = {
             diurno: new Map(),
             noturno: new Map()
@@ -751,7 +769,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             noturno: new Map()
         };
 
-        checksRows.forEach(r => {
+        checksRowsTodos.forEach(r => {
             const resolved = (r.lider_id || r.lider_nome || r.lider_colab_id)
                 ? resolverColab({ usuario_id: r.lider_id, colab_id: r.lider_colab_id, nome: r.lider_nome })
                 : null;
@@ -761,22 +779,31 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             const rawKey = String(r.item_key || '');
             const ehNoturnoKey = rawKey.startsWith('noturno::');
-            const tKey = ehNoturnoKey ? 'noturno' : 'diurno';
             const cleanItemKey = ehNoturnoKey ? rawKey.slice('noturno::'.length) : rawKey;
-            const mapT = checksByTurnoVeiculo[tKey];
-            if (!mapT.has(r.veiculo_key)) mapT.set(r.veiculo_key, new Map());
-            mapT.get(r.veiculo_key).set(cleanItemKey, Object.assign({}, r, {
-                item_key: cleanItemKey,
-                lider_nome: nomeResolvido,
-                lider_colab_id: colabIdResolvido,
-                lider_foto_url: fotoResolvida
-            }));
+
+            let tKeyCard = ehNoturnoKey ? 'noturno' : 'diurno';
+            if (temResumosSeparadosPorTurno) {
+                if (String(r.resumo_id) === String(rowPadraoNoturno.id)) tKeyCard = 'noturno';
+                else if (String(r.resumo_id) === String(rowPadraoDiurno.id)) tKeyCard = 'diurno';
+            }
+
+            if (String(r.resumo_id) === String(chosenRow.id)) {
+                const tKeyLocal = temResumosSeparadosPorTurno ? turnoAtivo : (ehNoturnoKey ? 'noturno' : 'diurno');
+                const mapT = checksByTurnoVeiculo[tKeyLocal];
+                if (!mapT.has(r.veiculo_key)) mapT.set(r.veiculo_key, new Map());
+                mapT.get(r.veiculo_key).set(cleanItemKey, Object.assign({}, r, {
+                    item_key: cleanItemKey,
+                    lider_nome: nomeResolvido,
+                    lider_colab_id: colabIdResolvido,
+                    lider_foto_url: fotoResolvida
+                }));
+            }
 
             if (r.checked && nomeResolvido) {
                 const kLider = normLow(nomeResolvido);
-                const ex = realizadoresPorTurno[tKey].get(kLider);
+                const ex = realizadoresPorTurno[tKeyCard].get(kLider);
                 if (!ex || String(r.atualizado_em || '') > String(ex.atualizado_em || '')) {
-                    realizadoresPorTurno[tKey].set(kLider, {
+                    realizadoresPorTurno[tKeyCard].set(kLider, {
                         nome: nomeResolvido,
                         colab_id: colabIdResolvido,
                         foto_url: fotoResolvida,
@@ -974,17 +1001,21 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const unidIniciadasVeic = todosCkVeic.reduce((s, x) => s + Number(x.iniciadas || 0), 0);
             const todosCkCompletos = unidTotalVeic > 0 && unidConcluidasVeic >= unidTotalVeic;
             const algumCkIniciado = unidIniciadasVeic > 0 || unidConcluidasVeic > 0;
+            const INICIO_CONTROLE_RESUMO = '2026-12-01';
             const diaPassado = iso < hojeSP();
+            const diaVencido = diaPassado && iso >= INICIO_CONTROLE_RESUMO;
 
             let estadoCkVeiculo = 'aguardando';
             if (unidTotalVeic === 0) {
                 estadoCkVeiculo = 'sem_checklist';
             } else if (todosCkCompletos) {
                 estadoCkVeiculo = 'concluido';
-            } else if (diaPassado) {
+            } else if (diaVencido) {
                 estadoCkVeiculo = 'pendente_vencido';
             } else if (algumCkIniciado) {
                 estadoCkVeiculo = 'em_andamento';
+            } else if (diaPassado) {
+                estadoCkVeiculo = 'nao_feito';
             }
 
             const lideresCkSet = new Set();
@@ -1133,22 +1164,74 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             };
         });
 
+        function calcularProgressoDeRowResumo(rowRef) {
+            const pDados = parseJson(rowRef.dados, {});
+            const vRaw = Array.isArray(pDados) ? pDados : (pDados && Array.isArray(pDados.veiculos) ? pDados.veiculos : []);
+            const mapChecks = new Map();
+            checksRowsTodos.filter(r => String(r.resumo_id) === String(rowRef.id) && r.checked).forEach(r => {
+                const cleanKey = String(r.item_key || '').replace(/^noturno::/, '');
+                if (!mapChecks.has(r.veiculo_key)) mapChecks.set(r.veiculo_key, new Map());
+                mapChecks.get(r.veiculo_key).set(cleanKey, { checked: 1 });
+            });
+            let tot = 0;
+            let fts = 0;
+            vRaw.forEach((vItem, iIdx) => {
+                const vk = slug(vItem.veiculo || `veiculo_${iIdx}`);
+                const vc = mapChecks.get(vk) || new Map();
+                const sec = parseSecoesColB(
+                    obterColBBaseLimpa(vItem),
+                    vItem,
+                    vc,
+                    (mod, nomeEq, qtd) => ({ checked: false, status: mod ? 'pendente' : 'sem_checklist', concluidas: 0, total_unidades: qtd }),
+                    (mod, nomeEq, qtd) => ({ checked: false, status: mod ? 'pendente' : 'sem_checklist', concluidas: 0, total_unidades: qtd })
+                );
+                tot += sec.observacoes.length;
+                fts += sec.observacoes.filter(o => o.checked).length;
+                const insAll = sec.manutencoes.flatMap(m => m.insumos);
+                tot += insAll.length;
+                fts += insAll.filter(i => i.checked).length;
+                if (sec.entregas.some(e => e.status !== 'sem_checklist')) tot += 1;
+                if (sec.retiradas.some(r => r.status !== 'sem_checklist')) tot += 1;
+            });
+            return { total: tot, feitos: fts, concluido: tot > 0 && fts >= tot };
+        }
+
         const totalGeralPorTurno = totalItensManuaisBase + totalEntRetAuto;
         const feitosGeralDiurno = feitosManuaisDiurno + feitosEntRetAuto;
         const feitosGeralNoturno = feitosManuaisNoturno + feitosEntRetAuto;
 
-        escalaDia.diurno.progresso = {
-            total: totalGeralPorTurno,
-            feitos: feitosGeralDiurno,
-            concluido: totalGeralPorTurno > 0 && feitosGeralDiurno >= totalGeralPorTurno
-        };
+        if (temResumosSeparadosPorTurno) {
+            if (String(chosenRow.id) === String(rowPadraoDiurno.id)) {
+                escalaDia.diurno.progresso = {
+                    total: totalGeralPorTurno,
+                    feitos: feitosGeralDiurno,
+                    concluido: totalGeralPorTurno > 0 && feitosGeralDiurno >= totalGeralPorTurno
+                };
+                escalaDia.noturno.progresso = calcularProgressoDeRowResumo(rowPadraoNoturno);
+            } else if (String(chosenRow.id) === String(rowPadraoNoturno.id)) {
+                escalaDia.noturno.progresso = {
+                    total: totalGeralPorTurno,
+                    feitos: feitosGeralNoturno,
+                    concluido: totalGeralPorTurno > 0 && feitosGeralNoturno >= totalGeralPorTurno
+                };
+                escalaDia.diurno.progresso = calcularProgressoDeRowResumo(rowPadraoDiurno);
+            } else {
+                escalaDia.diurno.progresso = calcularProgressoDeRowResumo(rowPadraoDiurno);
+                escalaDia.noturno.progresso = calcularProgressoDeRowResumo(rowPadraoNoturno);
+            }
+        } else {
+            escalaDia.diurno.progresso = {
+                total: totalGeralPorTurno,
+                feitos: feitosGeralDiurno,
+                concluido: totalGeralPorTurno > 0 && feitosGeralDiurno >= totalGeralPorTurno
+            };
+            escalaDia.noturno.progresso = {
+                total: totalGeralPorTurno,
+                feitos: feitosGeralNoturno,
+                concluido: totalGeralPorTurno > 0 && feitosGeralNoturno >= totalGeralPorTurno
+            };
+        }
         escalaDia.diurno.realizado_por = [...realizadoresPorTurno.diurno.values()];
-
-        escalaDia.noturno.progresso = {
-            total: totalGeralPorTurno,
-            feitos: feitosGeralNoturno,
-            concluido: totalGeralPorTurno > 0 && feitosGeralNoturno >= totalGeralPorTurno
-        };
         escalaDia.noturno.realizado_por = [...realizadoresPorTurno.noturno.values()];
 
         return {
