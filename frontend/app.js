@@ -3852,8 +3852,9 @@ function aplicarFiltrosColaboradores() {
         return parseFloat(val) || 0;
     };
 
+    const normSearch = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const f = {
-        nome: (document.getElementById('f-nome')?.value || '').toLowerCase().trim(),
+        nome: normSearch(document.getElementById('f-nome-inline')?.value || document.getElementById('f-nome')?.value || ''),
         email: (document.getElementById('f-email')?.value || '').toLowerCase().trim(),
         cpf: (document.getElementById('f-cpf')?.value || '').replace(/\D/g, ''),
         nascIni: document.getElementById('f-nasc-ini')?.value || '',
@@ -3877,7 +3878,7 @@ function aplicarFiltrosColaboradores() {
     };
 
     const lista = _todosColaboradores.filter(c => {
-        if (f.nome && !(c.nome_completo || '').toLowerCase().includes(f.nome)) return false;
+        if (f.nome && !normSearch(c.nome_completo || '').includes(f.nome)) return false;
         if (f.email && !((c.email || '') + '|' + (c.email_corporativo || '')).toLowerCase().includes(f.email)) return false;
         if (f.cpf && !(c.cpf || '').replace(/\D/g, '').includes(f.cpf)) return false;
         if (f.nascIni || f.nascFim) {
@@ -4009,7 +4010,7 @@ function aplicarFiltrosColaboradores() {
 }
 
 function limparFiltrosColaboradores() {
-    ['f-nome', 'f-cpf', 'f-nasc-ini', 'f-nasc-fim', 'f-estado-civil', 'f-sexo', 'f-tipo-departamento', 'f-departamento',
+    ['f-nome', 'f-nome-inline', 'f-cpf', 'f-nasc-ini', 'f-nasc-fim', 'f-estado-civil', 'f-sexo', 'f-tipo-departamento', 'f-departamento',
         'f-cargo', 'f-experiencia', 'f-sal-min', 'f-sal-max',
         'f-escala', 'f-dependentes', 'f-tipo-cadastro-hidden',
         'f-tam-camiseta', 'f-tam-calca', 'f-tam-calcado', 'f-apto-sorteio'
@@ -4023,6 +4024,8 @@ function limparFiltrosColaboradores() {
         }
     });
 
+    const clrInline = document.getElementById('f-nome-inline-clear');
+    if (clrInline) clrInline.style.display = 'none';
     const checkboxes = document.querySelectorAll('.f-beneficios-chk');
     checkboxes.forEach(c => c.checked = false);
 
@@ -4363,6 +4366,18 @@ function renderColaboradores(lista) {
             <button onclick="openFiltroSidebar()" style="padding:0.3rem 0.85rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-size:0.8rem; cursor:pointer; color:#334155; font-weight:600; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
                 <i class="ph ph-funnel"></i> Filtros
             </button>
+            <div style="position:relative; display:inline-flex; align-items:center; flex-shrink:0;">
+                <i class="ph ph-magnifying-glass" style="position:absolute; left:0.55rem; color:#64748b; font-size:0.85rem; pointer-events:none;"></i>
+                <input id="f-nome-inline" type="text" placeholder="Pesquisar colaborador..." autocomplete="off"
+                    oninput="const fn = document.getElementById('f-nome'); if (fn) fn.value = this.value; const clr = document.getElementById('f-nome-inline-clear'); if (clr) clr.style.display = this.value ? 'inline-flex' : 'none'; aplicarFiltrosColaboradores();"
+                    style="padding:0.3rem 1.7rem 0.3rem 1.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.8rem; color:#334155; outline:none; width:200px; transition:border-color 0.2s;"
+                    onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+                <button type="button" id="f-nome-inline-clear" title="Limpar pesquisa"
+                    onclick="const inp = document.getElementById('f-nome-inline'); if (inp) { inp.value = ''; inp.focus(); } const fn = document.getElementById('f-nome'); if (fn) fn.value = ''; this.style.display = 'none'; aplicarFiltrosColaboradores();"
+                    style="display:none; position:absolute; right:0.35rem; background:none; border:none; color:#94a3b8; cursor:pointer; padding:2px; align-items:center; justify-content:center; font-size:0.85rem;">
+                    <i class="ph ph-x-circle"></i>
+                </button>
+            </div>
             <button onclick="exportarColaboradoresXLSX()" style="padding:0.3rem 0.85rem; border:none; border-radius:6px; background:#10b981; font-size:0.8rem; font-weight:600; cursor:pointer; color:#fff; display:flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
                 <i class="ph ph-file-xls" style="font-size:1rem;"></i> Exportar XLSX
             </button>
@@ -4392,7 +4407,7 @@ function renderColaboradores(lista) {
                 
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Nome</label>
-                    <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <input id="f-nome" type="text" placeholder="Pesquisar nome..." oninput="const fni = document.getElementById('f-nome-inline'); if (fni) fni.value = this.value; const clr = document.getElementById('f-nome-inline-clear'); if (clr) clr.style.display = this.value ? 'inline-flex' : 'none'; aplicarFiltrosColaboradores()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                 </div>
                 <div>
                     <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:3px;">Apto ao Sorteio?</label>
