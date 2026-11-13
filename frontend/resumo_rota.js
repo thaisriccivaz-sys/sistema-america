@@ -987,9 +987,12 @@ window.rrImportarPlanilha = async function(input) {
         ]);
         if (resFrota.ok) {
             const list = await resFrota.json();
+            window._rrFrotaTipoMap = window._rrFrotaTipoMap || {};
             list.forEach(item => {
                 const placaNorm = (item.placa || '').replace(/[-\s]/g, '').toUpperCase();
-                frotaMap[placaNorm] = { carga: parseInt(item.capacidade_carga) || 0, temCadastro: item.capacidade_carga !== null && item.capacidade_carga !== '', em_manutencao: item.em_manutencao };
+                const tipoVeic = (item.tipo_veiculo || '').toLowerCase().trim();
+                window._rrFrotaTipoMap[placaNorm] = tipoVeic;
+                frotaMap[placaNorm] = { carga: parseInt(item.capacidade_carga) || 0, temCadastro: item.capacidade_carga !== null && item.capacidade_carga !== '', em_manutencao: item.em_manutencao, tipo_veiculo: tipoVeic };
             });
         }
         if (resColab.ok) {
@@ -1221,11 +1224,7 @@ window.rrImportarPlanilha = async function(input) {
             });
         });
 
-        if (faltantes.size > 0) {
-            v.alertasHabEquipe = [...faltantes];
-        } else {
-            v.alertasHabEquipe = [];
-        }
+        v.alertasHabEquipe = window._rrFiltrarHabEquipePorVeiculo(v, [...faltantes]);
     });
 
 
@@ -1473,12 +1472,15 @@ function _rrRenderCorpo() {
             ${badgeAlerta}
             ${badgeDisp}
             ${badgeAviso}
-            ${(v.alertasHabEquipe && v.alertasHabEquipe.length > 0)
-                ? `<div style="background:#fef3c7;color:#92400e;padding:10px 18px;border-bottom:1px solid #fde68a;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:8px;">
-                    <i class="ph ph-shield-warning" style="font-size:1.1rem;color:#d97706;"></i>
-                    <span>⚠️ Habilidade da Equipe ausente nesta rota: <b>${v.alertasHabEquipe.join(', ')}</b> — Nenhum membro da equipe possui esta habilidade cadastrada.</span>
-                   </div>`
-                : ''}
+            ${(() => {
+                const _habsFiltradas = window._rrFiltrarHabEquipePorVeiculo ? window._rrFiltrarHabEquipePorVeiculo(v, v.alertasHabEquipe) : (v.alertasHabEquipe || []);
+                return (_habsFiltradas && _habsFiltradas.length > 0)
+                    ? `<div style="background:#fef3c7;color:#92400e;padding:10px 18px;border-bottom:1px solid #fde68a;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-shield-warning" style="font-size:1.1rem;color:#d97706;"></i>
+                        <span>⚠️ Habilidade da Equipe ausente nesta rota: <b>${_habsFiltradas.join(', ')}</b> — Nenhum membro da equipe possui esta habilidade cadastrada.</span>
+                       </div>`
+                    : '';
+            })()}
             <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
                 <div style="flex:1 1 40%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo da Rota</div>
@@ -2078,8 +2080,33 @@ window._rrAtualizarVeiculo = function(idx, campo, valor) {
     }
 };
 
+window._rrFiltrarHabEquipePorVeiculo = function(v, habsList) {
+    if (!Array.isArray(habsList) || !habsList.length) return [];
+    const vStr = String((v && v.veiculo) || '').toUpperCase();
+    const placaNorm = vStr.split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
+    const tipoFrota = String((window._rrFrotaTipoMap && window._rrFrotaTipoMap[placaNorm]) || (v && v._tipoVeiculo) || '').toLowerCase().trim();
+    const ehCaminhaoTanque = tipoFrota === 'caminhão tanque' || tipoFrota === 'caminhao tanque' || vStr.includes('TANQUE');
+    const ehCaminhaoCarroceria = tipoFrota === 'caminhão' || tipoFrota === 'caminhao' || ((vStr.includes('CAMINHÃO') || vStr.includes('CAMINHAO')) && !vStr.includes('CAMINHONETE') && !vStr.includes('TANQUE'));
+    return habsList.filter(h => {
+        const hNorm = String(h || '').toLowerCase().trim();
+        if (hNorm === 'caminhão tanque' || hNorm === 'caminhao tanque') return ehCaminhaoTanque;
+        if (hNorm === 'caminhão carroceria' || hNorm === 'caminhao carroceria') return ehCaminhaoCarroceria;
+        return true;
+    });
+};
+
 window._rrCarregarDicionarioColaboradores = async function() {
     try {
+        fetch('/api/frota/veiculos', { headers: _rrAuthHeaders() }).then(r => r.ok ? r.json() : []).then(list => {
+            window._rrFrotaTipoMap = window._rrFrotaTipoMap || {};
+            (list || []).forEach(item => {
+                const placaNorm = (item.placa || '').replace(/[-\s]/g, '').toUpperCase();
+                if (placaNorm) window._rrFrotaTipoMap[placaNorm] = (item.tipo_veiculo || '').toLowerCase().trim();
+            });
+            if (typeof _rrVeiculos !== 'undefined' && _rrVeiculos && _rrVeiculos.length && typeof _rrRenderCorpo === 'function') {
+                _rrRenderCorpo();
+            }
+        }).catch(() => {});
         const res = await fetch('/api/colaboradores/resumo', { headers: _rrAuthHeaders() });
         if (!res.ok) return;
         const list = await res.json();

@@ -425,17 +425,169 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     async function requireApp(req, res, next) {
         try {
             if (isTopAdmin(req.user)) return next();
+            const uid = req.user && req.user.id;
             const gid = req.user && req.user.grupo_permissao_id;
-            if (!gid) return res.status(403).json({ error: 'Sem permissão para acessar Resumo da Rota.' });
-            const row = await dbGet(
-                `SELECT visualizar FROM permissoes_grupo WHERE grupo_id = ? AND pagina_id IN (?, 'app-lideranca-entregas', 'app-lideranca-retiradas') AND (visualizar = 1 OR visualizar = '1' OR visualizar = 'true') LIMIT 1`,
-                [gid, PAGE_ID]
-            );
-            if (row) return next();
+            if (gid) {
+                const row = await dbGet(
+                    `SELECT visualizar FROM permissoes_grupo WHERE grupo_id = ? AND pagina_id IN (?, 'app-lideranca-entregas', 'app-lideranca-retiradas', 'app-lideranca-candidatos') AND (visualizar = 1 OR visualizar = '1' OR visualizar = 'true') LIMIT 1`,
+                    [gid, PAGE_ID]
+                );
+                if (row) return next();
+            }
+            if (uid) {
+                try {
+                    const rowU = await dbGet(
+                        `SELECT visualizar FROM permissoes_usuario WHERE usuario_id = ? AND pagina_id IN (?, 'app-lideranca-entregas', 'app-lideranca-retiradas', 'app-lideranca-candidatos') AND (visualizar = 1 OR visualizar = '1' OR visualizar = 'true') LIMIT 1`,
+                        [uid, PAGE_ID]
+                    );
+                    if (rowU) return next();
+                } catch (_) { /* tabela opcional */ }
+                const rowLider = await dbGet(`SELECT colaborador_id FROM app_lider_config WHERE usuario_id = ? LIMIT 1`, [uid]);
+                if (rowLider) return next();
+            }
+            if (req.user && /lider/i.test(norm(req.user.departamento || req.user.grupo_nome || req.user.role || ''))) {
+                return next();
+            }
             return res.status(403).json({ error: 'Sem permissão para acessar Resumo da Rota.' });
         } catch (e) { return res.status(500).json({ error: e.message }); }
     }
     const guard = [authenticateToken, requireApp];
+
+    // ── Cálculo da Escala dos Líderes (Diurna e Noturna) no dia ─────────────────
+    const DIA_MAP = { dom: 0, domingo: 0, seg: 1, segunda: 1, ter: 2, terca: 2, qua: 3, quarta: 3, qui: 4, quinta: 4, sex: 5, sexta: 5, sab: 6, sabado: 6 };
+    const PLANTAO_DIURNO_PADRAO = ['eduardo', 'vivian'];
+
+    function colabDeFolga(c, dateStr) {
+        const escalaStr = String(c.escala_tipo || '').toLowerCase();
+        let explicitas = [];
+        try {
+            const p = JSON.parse(c.escala_folgas || '[]');
+            explicitas = Array.isArray(p) ? p.map(f => normLow(f)) : [normLow(p)];
+        } catch (e) {
+            explicitas = String(c.escala_folgas || '').split(/[,;]+/).map(f => normLow(f)).filter(Boolean);
+        }
+        const folgasDow = explicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
+        const temCiclo = !!c.escala_ciclo_inicio && escalaStr.includes('folga');
+        const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
+        const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
+        const dayMs = 1000 * 60 * 60 * 24;
+
+        const isDomingoDeLei = ds => {
+            if (!temCiclo || !cicloBase) return false;
+            const d = new Date(ds + 'T12:00:00');
+            if (d.getDay() !== 0) return false;
+            const ref = new Date(cicloBase);
+            while (ref.getDay() !== 0) ref.setDate(ref.getDate() + 1);
+            const n = Math.round(Math.round((d - ref) / dayMs) / 7);
+            return ((n % 3) + 3) % 3 === 0;
+        };
+
+        const fi = isoDate(c.ferias_programadas_inicio);
+        const ff = isoDate(c.ferias_programadas_fim);
+        if (fi && ff && dateStr >= fi && dateStr <= ff) return true;
+
+        const d = new Date(dateStr + 'T12:00:00');
+        const dow = d.getDay();
+        if (escalaStr.includes('12x36')) {
+            if (!c.escala_ciclo_inicio) return false;
+            const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
+            if (diff < 0) return false;
+            return Math.round(diff / dayMs) % 2 === 1;
+        }
+        if (dow === 0 && isDomingoDeLei(dateStr)) return true;
+        if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
+            const dom = new Date(dateStr + 'T12:00:00');
+            dom.setDate(dom.getDate() - dow);
+            if (isDomingoDeLei(dom.toISOString().split('T')[0])) return false;
+        }
+        if (escalaStr.includes('escala_uma_folga') || escalaStr.includes('escala_duas_folgas')) {
+            if (folgasDow.length > 0) return folgasDow.includes(dow);
+        }
+        if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
+            if (dow === 0) return true;
+            if (dow === 6 && c.escala_ciclo_inicio) {
+                const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                if (diff < 0) return false;
+                return Math.round(diff / (dayMs * 7)) % 2 === 1;
+            }
+            return false;
+        }
+        if (escalaStr.includes('seg_sexta') || escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) return dow === 0 || dow === 6;
+        if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) return dow === 0;
+        return dow === 0;
+    }
+
+    async function obterEscalaLideresNoDia(iso, uidLogado) {
+        const rows = await dbAll(`
+            SELECT c.id AS colab_id, c.nome_completo, c.cargo, c.departamento, c.status,
+                   c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio,
+                   c.ferias_programadas_inicio, c.ferias_programadas_fim,
+                   c.foto_base64, c.foto_path,
+                   cfg.usuario_id, cfg.plantao_dia
+            FROM colaboradores c
+            LEFT JOIN app_lider_config cfg ON cfg.colaborador_id = c.id
+            WHERE COALESCE(LOWER(TRIM(c.status)), '') != 'desligado'
+        `);
+
+        const lideres = rows.filter(r =>
+            r.plantao_dia !== null && r.plantao_dia !== undefined
+            || normLow(r.departamento).includes('lider')
+            || normLow(r.cargo).includes('lider')
+        );
+
+        const diurnoTodos = [];
+        const noturnoTodos = [];
+        let turnoUsuario = null;
+
+        for (const l of lideres) {
+            const pNome = normLow(l.nome_completo).split(/\s+/)[0] || '';
+            let ehDiurno;
+            if (l.plantao_dia !== null && l.plantao_dia !== undefined) {
+                ehDiurno = Number(l.plantao_dia) === 1;
+            } else if (String(l.escala_tipo || '').toLowerCase().includes('12x36')) {
+                ehDiurno = false;
+            } else {
+                ehDiurno = PLANTAO_DIURNO_PADRAO.includes(pNome);
+            }
+
+            const folga = colabDeFolga(l, iso);
+            const item = {
+                colab_id: l.colab_id,
+                usuario_id: l.usuario_id || null,
+                nome: l.nome_completo,
+                nome_curto: l.nome_completo.trim().split(/\s+/).slice(0, 2).join(' '),
+                turno: ehDiurno ? 'diurno' : 'noturno',
+                de_folga: folga,
+                foto_url: l.foto_base64 || `/api/colaboradores/foto/${l.colab_id}`
+            };
+
+            if (uidLogado && Number(l.usuario_id) === Number(uidLogado)) {
+                turnoUsuario = ehDiurno ? 'diurno' : 'noturno';
+            }
+
+            if (ehDiurno) diurnoTodos.push(item);
+            else noturnoTodos.push(item);
+        }
+
+        const diurnoEscalados = diurnoTodos.filter(l => !l.de_folga);
+        const diurnoFolga = diurnoTodos.filter(l => l.de_folga);
+        const noturnoEscalados = noturnoTodos.filter(l => !l.de_folga);
+        const noturnoFolga = noturnoTodos.filter(l => l.de_folga);
+
+        return {
+            turno_usuario: turnoUsuario,
+            diurno: {
+                escalados: diurnoEscalados.length ? diurnoEscalados : diurnoTodos,
+                folga: diurnoFolga,
+                nomes: (diurnoEscalados.length ? diurnoEscalados : diurnoTodos).map(l => l.nome_curto).join(' / ') || 'Sem líder escalado'
+            },
+            noturno: {
+                escalados: noturnoEscalados.length ? noturnoEscalados : noturnoTodos,
+                folga: noturnoFolga,
+                nomes: (noturnoEscalados.length ? noturnoEscalados : noturnoTodos).map(l => l.nome_curto).join(' / ') || 'Sem líder escalado'
+            }
+        };
+    }
 
     async function liderDoReq(req) {
         const uid = (req.user && req.user.id) || null;
@@ -654,9 +806,16 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     }
 
     // ── Montar resposta completa de uma data ────────────────────────────────────
-    async function montarResumoDoDia(iso, resumoIdOpcional) {
+    async function montarResumoDoDia(iso, resumoIdOpcional, turnoOpcional, uidLogado) {
         const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return { data: iso, resumos: [], resumo_ativo: null, veiculos: [] };
+        const escalaDia = await obterEscalaLideresNoDia(iso, uidLogado);
+        const turnoDefault = (turnoOpcional === 'noturno' || turnoOpcional === 'diurno')
+            ? turnoOpcional
+            : (escalaDia.turno_usuario || 'diurno');
+
+        if (!m) {
+            return { data: iso, turno_ativo: turnoDefault, escala_dia: escalaDia, resumos: [], resumo_ativo: null, veiculos: [] };
+        }
         const prefixoBr = `${m[3]}-${m[2]}-${m[1]}`;
 
         // Buscar todos os resumos salvos para esta data
@@ -666,7 +825,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         );
 
         if (!rowsResumo.length) {
-            return { data: iso, resumos: [], resumo_ativo: null, veiculos: [] };
+            return { data: iso, turno_ativo: turnoDefault, escala_dia: escalaDia, resumos: [], resumo_ativo: null, veiculos: [] };
         }
 
         // Lista de resumos disponíveis no dia
@@ -678,6 +837,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         }));
 
         const chosenRow = (resumoIdOpcional && rowsResumo.find(r => String(r.id) === String(resumoIdOpcional))) || rowsResumo[rowsResumo.length - 1];
+        const resumoEhNoturno = /noturn|noite/i.test(norm(chosenRow.nome || ''));
+        const turnoAtivo = (turnoOpcional === 'noturno' || turnoOpcional === 'diurno')
+            ? turnoOpcional
+            : (escalaDia.turno_usuario || (resumoEhNoturno ? 'noturno' : 'diurno'));
+
         const parsedDados = parseJson(chosenRow.dados, {});
         const veiculosRaw = Array.isArray(parsedDados)
             ? parsedDados
@@ -695,18 +859,46 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             [iso, iso, iso, iso]
         );
 
-        // Checks manuais já gravados para este resumo
+        // Checks manuais já gravados para este resumo (separa Diurno e Noturno pelo prefixo 'noturno::')
         const checksRows = await dbAll(
             `SELECT veiculo_key, item_key, tipo_item, checked, lider_nome, lider_colab_id, atualizado_em
              FROM app_resumo_rota_checks
              WHERE resumo_id = ?`,
             [chosenRow.id]
         );
-        const checksByVeiculo = new Map();
+        const checksByTurnoVeiculo = {
+            diurno: new Map(),
+            noturno: new Map()
+        };
+        const realizadoresPorTurno = {
+            diurno: new Map(),
+            noturno: new Map()
+        };
+
         checksRows.forEach(r => {
-            if (!checksByVeiculo.has(r.veiculo_key)) checksByVeiculo.set(r.veiculo_key, new Map());
-            checksByVeiculo.get(r.veiculo_key).set(r.item_key, r);
+            const rawKey = String(r.item_key || '');
+            const ehNoturnoKey = rawKey.startsWith('noturno::');
+            const tKey = ehNoturnoKey ? 'noturno' : 'diurno';
+            const cleanItemKey = ehNoturnoKey ? rawKey.slice('noturno::'.length) : rawKey;
+            const mapT = checksByTurnoVeiculo[tKey];
+            if (!mapT.has(r.veiculo_key)) mapT.set(r.veiculo_key, new Map());
+            mapT.get(r.veiculo_key).set(cleanItemKey, Object.assign({}, r, { item_key: cleanItemKey }));
+
+            if (r.checked && r.lider_nome) {
+                const kLider = normLow(r.lider_nome);
+                const ex = realizadoresPorTurno[tKey].get(kLider);
+                if (!ex || String(r.atualizado_em || '') > String(ex.atualizado_em || '')) {
+                    realizadoresPorTurno[tKey].set(kLider, {
+                        nome: r.lider_nome,
+                        colab_id: r.lider_colab_id || null,
+                        foto_url: r.lider_colab_id ? `/api/colaboradores/foto/${r.lider_colab_id}` : null,
+                        atualizado_em: r.atualizado_em
+                    });
+                }
+            }
         });
+
+        const checksByVeiculo = checksByTurnoVeiculo[turnoAtivo];
 
         // Coletar todas as OS de Entrega e Retirada do dia (e as citadas nos veículos)
         const numerosOsRota = new Set();
@@ -745,10 +937,19 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             osPorNumero.get(num).push(o);
         });
 
+        // Contadores globais por turno (para exibir nos cards de Escala Diurna e Escala Noturna)
+        let totalItensManuaisBase = 0;
+        let totalEntRetAuto = 0;
+        let feitosEntRetAuto = 0;
+        let feitosManuaisDiurno = 0;
+        let feitosManuaisNoturno = 0;
+
         // Montar cada veículo
         const veiculos = veiculosRaw.map((v, idx) => {
             const vKey = slug(v.veiculo || `veiculo_${idx}`);
             const vChecks = checksByVeiculo.get(vKey) || new Map();
+            const vChecksDiurno = checksByTurnoVeiculo.diurno.get(vKey) || new Map();
+            const vChecksNoturno = checksByTurnoVeiculo.noturno.get(vKey) || new Map();
 
             const motInfo = matchColab(v.motorista);
             const ajuInfo = matchColab(v.ajudante);
@@ -794,8 +995,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             function calcStatusChecklist(osLista, ckMap, modeloAlvo, qtdLinha) {
                 if (!modeloAlvo) {
-                    // Equipamentos sem checklist (ex: Carrinho, Limpa Fossa, Visita Técnica)
-                    return { checked: true, status: 'sem_checklist', concluidas: qtdLinha, total_unidades: qtdLinha, tem_avaria: false, lider_nome: null, os_list: [] };
+                    return { checked: true, status: 'sem_checklist', concluidas: qtdLinha, total_unidades: qtdLinha, tem_avaria: false, lider_nome: null, atualizado_em: null, os_list: [] };
                 }
                 const unidades = [];
                 const osEnvolvidas = [];
@@ -808,7 +1008,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                             unidades.push({
                                 concluido: !!(row && row.concluido_em),
                                 tem_avaria: !!(row && row.concluido_em && row.tem_avaria),
-                                lider_nome: row && row.concluido_em ? row.lider_nome : null
+                                lider_nome: row && row.concluido_em ? row.lider_nome : null,
+                                lider_colab_id: row && row.concluido_em ? row.lider_colab_id : null,
+                                concluido_em: row && row.concluido_em ? row.concluido_em : null
                             });
                         });
                     }
@@ -817,7 +1019,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 const totalUnid = unidades.length || qtdLinha;
                 const concl = unidades.filter(u => u.concluido).length;
                 const algumaAvaria = unidades.some(u => u.tem_avaria);
-                const ultimoLider = (unidades.find(u => u.lider_nome) || {}).lider_nome || null;
+                const uComLider = unidades.find(u => u.lider_nome) || {};
                 const checked = unidades.length > 0 && concl >= unidades.length;
                 const status = checked ? (algumaAvaria ? 'avaria' : 'ok') : (concl > 0 ? 'andamento' : 'pendente');
 
@@ -827,7 +1029,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     concluidas: concl,
                     total_unidades: totalUnid,
                     tem_avaria: algumaAvaria,
-                    lider_nome: ultimoLider,
+                    lider_nome: uComLider.lider_nome || null,
+                    lider_colab_id: uComLider.lider_colab_id || null,
+                    atualizado_em: uComLider.concluido_em || null,
                     os_list: osEnvolvidas
                 };
             }
@@ -860,6 +1064,42 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const totalChecks = totalObs + totalEnt + totalRet + totalIns;
             const feitosChecks = feitasObs + feitasEnt + feitasRet + feitosIns;
 
+            // Contabilizar progresso por turno (Diurno vs Noturno)
+            totalItensManuaisBase += (totalObs + totalIns);
+            totalEntRetAuto += (totalEnt + totalRet);
+            feitosEntRetAuto += (feitasEnt + feitasRet);
+
+            secoes.observacoes.forEach(o => {
+                if (vChecksDiurno.get(o.item_key)?.checked) feitosManuaisDiurno++;
+                if (vChecksNoturno.get(o.item_key)?.checked) feitosManuaisNoturno++;
+            });
+            todosInsumos.forEach(ins => {
+                if (vChecksDiurno.get(ins.item_key)?.checked) feitosManuaisDiurno++;
+                if (vChecksNoturno.get(ins.item_key)?.checked) feitosManuaisNoturno++;
+            });
+
+            // Quem realizou os checks deste veículo no turno ativo
+            const realizadoresVeicMap = new Map();
+            const registrarRealizador = (nomeLider, colabIdLider, dataHora) => {
+                if (!nomeLider) return;
+                const k = normLow(nomeLider);
+                const infoC = matchColab(nomeLider);
+                const cid = colabIdLider || (infoC ? infoC.id : null);
+                const ex = realizadoresVeicMap.get(k);
+                if (!ex || String(dataHora || '') > String(ex.atualizado_em || '')) {
+                    realizadoresVeicMap.set(k, {
+                        nome: nomeLider,
+                        colab_id: cid,
+                        foto_url: cid ? `/api/colaboradores/foto/${cid}` : (infoC ? infoC.foto_url : null),
+                        atualizado_em: dataHora || null
+                    });
+                }
+            };
+            secoes.observacoes.forEach(o => { if (o.checked && o.lider_nome) registrarRealizador(o.lider_nome, null, o.atualizado_em); });
+            todosInsumos.forEach(ins => { if (ins.checked && ins.lider_nome) registrarRealizador(ins.lider_nome, null, ins.atualizado_em); });
+            secoes.entregas.forEach(e => { if (e.checked && e.lider_nome) registrarRealizador(e.lider_nome, null, e.atualizado_em); });
+            secoes.retiradas.forEach(r => { if (r.checked && r.lider_nome) registrarRealizador(r.lider_nome, null, r.atualizado_em); });
+
             // Resumo consolidado de insumos do veículo (para facilitar separação no galpão)
             const resumoInsumosMap = new Map();
             todosInsumos.forEach(ins => {
@@ -867,6 +1107,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 atual.qtd += ins.qtd;
                 resumoInsumosMap.set(ins.id, atual);
             });
+
+            const respTurnoAtual = turnoAtivo === 'noturno' ? escalaDia.noturno : escalaDia.diurno;
 
             return {
                 veiculo_key: vKey,
@@ -884,6 +1126,14 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     foto_url: (ajuInfo && ajuInfo.foto_url) || v._fotoAjudante || null
                 },
                 candidatos: candsVeic,
+                responsavel_escala: {
+                    turno: turnoAtivo,
+                    nomes: respTurnoAtual.nomes,
+                    escalados: respTurnoAtual.escalados,
+                    diurno_nomes: escalaDia.diurno.nomes,
+                    noturno_nomes: escalaDia.noturno.nomes
+                },
+                realizado_por: [...realizadoresVeicMap.values()],
                 titulo_entrega: secoes.titulo_entrega,
                 observacoes: secoes.observacoes,
                 entregas: secoes.entregas,
@@ -904,9 +1154,29 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             };
         });
 
+        const totalGeralPorTurno = totalItensManuaisBase + totalEntRetAuto;
+        const feitosGeralDiurno = feitosManuaisDiurno + feitosEntRetAuto;
+        const feitosGeralNoturno = feitosManuaisNoturno + feitosEntRetAuto;
+
+        escalaDia.diurno.progresso = {
+            total: totalGeralPorTurno,
+            feitos: feitosGeralDiurno,
+            concluido: totalGeralPorTurno > 0 && feitosGeralDiurno >= totalGeralPorTurno
+        };
+        escalaDia.diurno.realizado_por = [...realizadoresPorTurno.diurno.values()];
+
+        escalaDia.noturno.progresso = {
+            total: totalGeralPorTurno,
+            feitos: feitosGeralNoturno,
+            concluido: totalGeralPorTurno > 0 && feitosGeralNoturno >= totalGeralPorTurno
+        };
+        escalaDia.noturno.realizado_por = [...realizadoresPorTurno.noturno.values()];
+
         return {
             hoje: hojeSP(),
             data: iso,
+            turno_ativo: turnoAtivo,
+            escala_dia: escalaDia,
             resumos: listaResumos,
             resumo_ativo: {
                 id: chosenRow.id,
@@ -924,6 +1194,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const hoje = hojeSP();
             const dataSel = isoDate(req.query.data) || hoje;
             const resumoId = req.query.resumo_id || null;
+            const turnoSel = req.query.turno || null;
             const de = isoDate(req.query.de) || somaDias(dataSel, -7);
             const ate = isoDate(req.query.ate) || somaDias(dataSel, 7);
 
@@ -941,7 +1212,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 }
             });
 
-            const dadosDia = await montarResumoDoDia(dataSel, resumoId);
+            const uid = req.user && req.user.id;
+            const dadosDia = await montarResumoDoDia(dataSel, resumoId, turnoSel, uid);
             res.json(Object.assign({}, dadosDia, { dias_agenda: diasAgenda }));
         } catch (e) {
             console.error('[APP-RESUMO-ROTA] GET:', e);
@@ -954,7 +1226,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     // (Entregas e Retiradas são bloqueadas aqui pois só podem ser marcadas via checklist próprio)
     app.post('/api/app/resumo-rota/check', guard, async (req, res) => {
         try {
-            const { resumo_id, data_rota, veiculo_key, item_key, tipo_item, checked } = req.body || {};
+            const { resumo_id, turno, data_rota, veiculo_key, item_key, tipo_item, checked } = req.body || {};
             if (!resumo_id || !veiculo_key || !item_key) {
                 return res.status(400).json({ error: 'Parâmetros obrigatórios ausentes.' });
             }
@@ -964,6 +1236,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const lider = await liderDoReq(req);
             const chkVal = checked ? 1 : 0;
             const iso = isoDate(data_rota) || hojeSP();
+            const cleanKey = String(item_key).replace(/^noturno::/, '');
+            const dbItemKey = (turno === 'noturno') ? `noturno::${cleanKey}` : cleanKey;
 
             await dbRun(
                 `INSERT INTO app_resumo_rota_checks (resumo_id, data_rota, veiculo_key, item_key, tipo_item, checked, lider_id, lider_nome, lider_colab_id, atualizado_em)
@@ -975,7 +1249,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     lider_nome = excluded.lider_nome,
                     lider_colab_id = excluded.lider_colab_id,
                     atualizado_em = CURRENT_TIMESTAMP`,
-                [resumo_id, iso, veiculo_key, item_key, tipo_item || 'obs', chkVal, lider.id, lider.nome, lider.colabId]
+                [resumo_id, iso, veiculo_key, dbItemKey, tipo_item || 'obs', chkVal, lider.id, lider.nome, lider.colabId]
             );
 
             res.json({
@@ -994,7 +1268,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     // Permite marcar todos os insumos de um equipamento ou veículo de uma vez se desejado
     app.post('/api/app/resumo-rota/check-lote', guard, async (req, res) => {
         try {
-            const { resumo_id, data_rota, veiculo_key, itens, checked } = req.body || {};
+            const { resumo_id, turno, data_rota, veiculo_key, itens, checked } = req.body || {};
             if (!resumo_id || !veiculo_key || !Array.isArray(itens) || !itens.length) {
                 return res.status(400).json({ error: 'Parâmetros inválidos.' });
             }
@@ -1004,6 +1278,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             for (const it of itens) {
                 if (!it || !it.item_key || it.tipo_item === 'entrega' || it.tipo_item === 'retirada') continue;
+                const cleanKey = String(it.item_key).replace(/^noturno::/, '');
+                const dbItemKey = (turno === 'noturno') ? `noturno::${cleanKey}` : cleanKey;
                 await dbRun(
                     `INSERT INTO app_resumo_rota_checks (resumo_id, data_rota, veiculo_key, item_key, tipo_item, checked, lider_id, lider_nome, lider_colab_id, atualizado_em)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -1013,7 +1289,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         lider_nome = excluded.lider_nome,
                         lider_colab_id = excluded.lider_colab_id,
                         atualizado_em = CURRENT_TIMESTAMP`,
-                    [resumo_id, iso, veiculo_key, it.item_key, it.tipo_item || 'insumo', chkVal, lider.id, lider.nome, lider.colabId]
+                    [resumo_id, iso, veiculo_key, dbItemKey, it.tipo_item || 'insumo', chkVal, lider.id, lider.nome, lider.colabId]
                 );
             }
 

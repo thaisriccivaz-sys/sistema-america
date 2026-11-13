@@ -3674,9 +3674,6 @@ function rrSincronizarHabEquipeDeAtendimento() {
     if (osState.tiposServico.has('CARRETINHA')) {
         osState.habEquipe.add('Carretinha Caminhonete');
     }
-    if (osState.tiposServico.has('TANQUE GRANDE')) {
-        osState.habEquipe.add('Caminhão Tanque');
-    }
 
     // Atualiza a UI
     rrAtualizarCheckboxesHabEquipe();

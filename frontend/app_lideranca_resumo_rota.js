@@ -2,6 +2,8 @@
 // APP › Liderança › Resumo da Rota (Operacional / Mobile-First)
 // Baseado na imagem exportada do Resumo da Rota (Anexo 1):
 // - Cabeçalho verde AMÉRICA RENTAL — Resumo de Rota — [Dia da semana, Data]
+// - Escala Diurna e Escala Noturna dos líderes no dia (mostra o líder responsável
+//   pela escala do dia e quem realizou o checklist quando realizado)
 // - Cards por veículo com placa/modelo, fotos circulares de Motorista, Ajudante e Candidato
 // - Checks manuais nas Observações de rota e nos Insumos de Manutenção
 // - Checks automáticos nas Entregas (via menu Entregas) e Retiradas (via menu Retiradas)
@@ -17,16 +19,24 @@
     const S = {
         data: hojeISO(),
         resumoId: null,
+        turno: null, // 'diurno' | 'noturno'
         modoAgenda: 'semana',
         cursor: new Date(),
         filtro: 'todos', // todos | pendentes | concluidos
         busca: '',
         dadosDia: null,
-        contagemPorDia: {},
+        diasAgenda: {},
         carregando: false
     };
 
-    function tok() { return localStorage.getItem('rh_token') || localStorage.getItem('token') || ''; }
+    function tok() {
+        return window.currentToken
+            || (typeof currentToken !== 'undefined' ? currentToken : '')
+            || localStorage.getItem('erp_token')
+            || localStorage.getItem('rh_token')
+            || localStorage.getItem('token')
+            || '';
+    }
     function hdr(json) {
         const h = { 'Authorization': 'Bearer ' + tok() };
         if (json) h['Content-Type'] = 'application/json';
@@ -55,6 +65,12 @@
         const [y, m, d] = s.split('-');
         return `${d}/${m}/${y}`;
     }
+    function fmtDataHora(s) {
+        if (!s) return '';
+        const str = String(s).replace(' ', 'T') + (String(s).includes('Z') || String(s).includes('T') ? '' : 'Z');
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? String(s) : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    }
     function fmtDataExtenso(s) {
         const dt = parseISO(s);
         if (isNaN(dt.getTime())) return fmtBR(s);
@@ -74,7 +90,6 @@
 
     function formatarTextoObsHtml(txt) {
         const limpo = esc(txt || '');
-        // Destaca o nome do cliente antes dos dois-pontos (igual ao Anexo 1)
         const idx = limpo.indexOf(':');
         if (idx > 0 && idx < 65) {
             const antes = limpo.slice(0, idx + 1);
@@ -84,14 +99,6 @@
         return limpo;
     }
 
-    function iconeInsumo(insumoKey) {
-        if (insumoKey === 'quimica') return '🧪';
-        if (insumoKey === 'papel_higienico') return '🧻';
-        if (insumoKey === 'papel_toalha') return '📄';
-        if (insumoKey === 'sabonete_liquido') return '🧴';
-        return '📦';
-    }
-
     function statsVeiculo(v) {
         let total = 0;
         let concluidos = 0;
@@ -99,29 +106,27 @@
             total++;
             if (o.checked) concluidos++;
         });
-        (v.entregas || []).forEach(sg => {
-            (sg.itens || []).forEach(it => {
-                total++;
-                if (it.checked) concluidos++;
-            });
-        });
-        (v.retiradas || []).forEach(it => {
+        (v.entregas || []).forEach(it => {
+            if (it.status === 'sem_checklist') return;
             total++;
             if (it.checked) concluidos++;
         });
-        (v.manutencoes || []).forEach(sg => {
-            (sg.itens || []).forEach(it => {
-                (it.insumos || []).forEach(ins => {
-                    total++;
-                    if (ins.checked) concluidos++;
-                });
+        (v.retiradas || []).forEach(it => {
+            if (it.status === 'sem_checklist') return;
+            total++;
+            if (it.checked) concluidos++;
+        });
+        (v.manutencoes || []).forEach(it => {
+            (it.insumos || []).forEach(ins => {
+                total++;
+                if (ins.checked) concluidos++;
             });
         });
         return {
             total,
             concluidos,
             pendentes: Math.max(0, total - concluidos),
-            completo: total > 0 && concluidos === total
+            completo: total === 0 || concluidos >= total
         };
     }
 
@@ -158,11 +163,15 @@
         try {
             let url = `/api/app/resumo-rota?data=${encodeURIComponent(S.data)}`;
             if (S.resumoId) url += `&resumo_id=${encodeURIComponent(S.resumoId)}`;
+            if (S.turno) url += `&turno=${encodeURIComponent(S.turno)}`;
             const r = await api(url);
             S.dadosDia = r;
-            S.contagemPorDia = r.contagem_por_dia || {};
-            if (r.resumo_selecionado && r.resumo_selecionado.id) {
-                S.resumoId = r.resumo_selecionado.id;
+            S.diasAgenda = r.dias_agenda || {};
+            if (r.resumo_ativo && r.resumo_ativo.id) {
+                S.resumoId = r.resumo_ativo.id;
+            }
+            if (r.turno_ativo) {
+                S.turno = r.turno_ativo;
             }
             S.carregando = false;
             renderLista();
@@ -179,13 +188,14 @@
         const root = document.getElementById('app-lideranca-resumo-rota-container');
         if (!root) return;
 
-        // Preserva foco no campo de busca digitável se o usuário estiver digitando
         const buscaAtiva = document.activeElement && document.activeElement.id === 'arr-busca-input';
         const posCursor = buscaAtiva ? document.activeElement.selectionStart : null;
 
         const dDia = S.dadosDia || {};
         const todosVeiculos = dDia.veiculos || [];
-        const resumosDoDia = dDia.resumos_do_dia || [];
+        const resumosDoDia = dDia.resumos || [];
+        const escalaDia = dDia.escala_dia || {};
+        const turnoAtivo = S.turno || dDia.turno_ativo || 'diurno';
         const geral = statsGeral(todosVeiculos);
 
         const q = normBusca(S.busca);
@@ -200,9 +210,9 @@
                 v.ajudante?.nome,
                 ...(v.candidatos || []).map(c => c.nome),
                 ...(v.observacoes || []).map(o => o.texto),
-                ...(v.entregas || []).flatMap(sg => (sg.itens || []).map(i => i.texto)),
+                ...(v.entregas || []).map(i => i.texto),
                 ...(v.retiradas || []).map(i => i.texto),
-                ...(v.manutencoes || []).flatMap(sg => (sg.itens || []).map(i => i.texto))
+                ...(v.manutencoes || []).map(i => i.texto)
             ].map(normBusca).join(' ');
             return textos.includes(q);
         });
@@ -229,11 +239,13 @@
 
             ${renderAgenda()}
 
+            ${renderPainelEscalaLideres(escalaDia, turnoAtivo)}
+
             ${resumosDoDia.length > 1 ? `
             <div class="arr-resumos-bar">
                 ${resumosDoDia.map(r => `
                     <button class="alc-chip ${Number(r.id) === Number(S.resumoId) ? 'on' : ''}" data-resumo-id="${r.id}">
-                        <i class="ph ph-Note"></i> ${esc(r.nome)}
+                        <i class="ph ph-note"></i> ${esc(r.nome)}
                     </button>
                 `).join('')}
             </div>` : ''}
@@ -254,7 +266,10 @@
             <div class="arr-banner">
                 <div class="arr-banner-left">
                     <div class="arr-banner-brand">AMÉRICA RENTAL</div>
-                    <div class="arr-banner-sub">Resumo de Rota — ${esc(fmtDataExtenso(S.data))}</div>
+                    <div class="arr-banner-sub">
+                        Resumo de Rota — ${esc(fmtDataExtenso(S.data))}
+                        • <b>${turnoAtivo === 'noturno' ? '🌙 Checklist Escala Noturna' : '☀️ Checklist Escala Diurna'}</b>
+                    </div>
                 </div>
                 <div class="arr-banner-right">
                     <div class="arr-banner-prog">
@@ -273,7 +288,7 @@
                        </div>`
                     : (veiculosFiltrados.length === 0
                         ? `<div class="alc-vazio"><i class="ph ph-magnifying-glass"></i><p>Nenhum veículo encontrado para este filtro.</p></div>`
-                        : veiculosFiltrados.map(renderCardVeiculo).join(''))
+                        : veiculosFiltrados.map(v => renderCardVeiculo(v, turnoAtivo, escalaDia)).join(''))
                 }
             </div>
         </div>`;
@@ -287,6 +302,45 @@
                 try { if (posCursor != null) inp.setSelectionRange(posCursor, posCursor); } catch (_) {}
             }
         }
+    }
+
+    function renderPainelEscalaLideres(escalaDia, turnoAtivo) {
+        const diu = escalaDia.diurno || { nomes: '—', escalados: [], folga: [], progresso: { feitos: 0, total: 0 }, realizado_por: [] };
+        const not = escalaDia.noturno || { nomes: '—', escalados: [], folga: [], progresso: { feitos: 0, total: 0 }, realizado_por: [] };
+
+        function cardTurno(chave, icone, titulo, dadosTurno) {
+            const ativo = turnoAtivo === chave;
+            const prog = dadosTurno.progresso || { feitos: 0, total: 0, concluido: false };
+            const real = dadosTurno.realizado_por || [];
+            const folgaNomes = (dadosTurno.folga || []).map(f => f.nome_curto).join(', ');
+            const realTxt = real.length > 0
+                ? `Realizado por: ${real.map(r => r.nome).join(', ')}${real[0].atualizado_em ? ' (' + fmtDataHora(real[0].atualizado_em) + ')' : ''}`
+                : 'Ainda não realizado neste turno';
+
+            return `
+            <button type="button" class="arr-escala-card ${chave} ${ativo ? 'on' : ''}" data-turno="${chave}">
+                <div class="arr-escala-top">
+                    <span class="arr-escala-tit">${icone} ${titulo}</span>
+                    <span class="alc-badge ${prog.concluido ? 'verde' : (prog.feitos > 0 ? 'laranja' : 'cinza')}">
+                        ${prog.feitos}/${prog.total}
+                    </span>
+                </div>
+                <div class="arr-escala-resp">
+                    Responsável (Escala): <b>${esc(dadosTurno.nomes || '—')}</b>
+                    ${folgaNomes ? `<small style="display:block;color:#94a3b8;">Folga no dia: ${esc(folgaNomes)}</small>` : ''}
+                </div>
+                <div class="arr-escala-real ${real.length > 0 ? '' : 'pend'}">
+                    <i class="ph-fill ${real.length > 0 ? 'ph-check-circle' : 'ph-clock'}"></i>
+                    <span>${esc(realTxt)}</span>
+                </div>
+            </button>`;
+        }
+
+        return `
+        <div class="arr-escala-grid">
+            ${cardTurno('diurno', '☀️', 'Escala Diurna', diu)}
+            ${cardTurno('noturno', '🌙', 'Escala Noturna', not)}
+        </div>`;
     }
 
     function renderAgenda() {
@@ -332,7 +386,8 @@
 
     function celulaDia(d, mostrarDow) {
         const k = iso(d);
-        const qtd = S.contagemPorDia[k] || 0;
+        const infoDia = S.diasAgenda[k];
+        const qtd = infoDia ? infoDia.qtd_resumos : 0;
         const sel = S.data === k;
         const ehHoje = k === hojeISO();
         return `<button class="alc-dia ${sel ? 'sel' : ''} ${ehHoje ? 'hoje' : ''} ${qtd ? 'tem' : ''}" data-dia="${k}">
@@ -343,7 +398,7 @@
     }
 
     function renderCrewMember(pessoa, tipoClass, cargoLabel) {
-        if (!pessoa || !pessoa.nome) return '';
+        if (!pessoa || !pessoa.nome || pessoa.nome === '—') return '';
         const ini = esc(iniciais(pessoa.nome));
         const inner = pessoa.foto_url
             ? `<img src="${esc(pessoa.foto_url)}" alt="" onerror="this.outerHTML='<span class=\\'arr-ring-fb\\'>${ini}</span>'">`
@@ -360,10 +415,17 @@
         </div>`;
     }
 
-    function renderCardVeiculo(v) {
+    function renderCardVeiculo(v, turnoAtivo, escalaDia) {
         const st = statsVeiculo(v);
         const badgeCls = st.total === 0 ? 'cinza' : (st.completo ? 'verde' : (st.concluidos > 0 ? 'laranja' : 'vermelho'));
         const badgeTxt = st.total === 0 ? 'Sem itens' : (st.completo ? `Concluído (${st.concluidos}/${st.total})` : `${st.concluidos}/${st.total} OK`);
+
+        const respEscala = v.responsavel_escala || {};
+        const nomeRespTurno = respEscala.nomes || (turnoAtivo === 'noturno' ? escalaDia?.noturno?.nomes : escalaDia?.diurno?.nomes) || '—';
+        const realizadoPor = v.realizado_por || [];
+        const realizadoTxt = realizadoPor.length > 0
+            ? `${realizadoPor.map(r => r.nome).join(', ')}${realizadoPor[0].atualizado_em ? ' (' + fmtDataHora(realizadoPor[0].atualizado_em) + ')' : ''}`
+            : 'Pendente';
 
         // Equipe: Motorista, Ajudante Geral e Candidato(s) se tiver
         const crewHtml = [
@@ -375,82 +437,95 @@
         // 1. Observações de rota (check manual)
         const obsHtml = (v.observacoes || []).length > 0 ? `
             <div class="arr-sec">
-                ${v.observacoes.map(obs => `
+                ${v.observacoes.map(obs => {
+                    const subInfo = obs.checked
+                        ? `✅ Realizado por: ${obs.lider_nome || 'Líder'}${obs.atualizado_em ? ' (' + fmtDataHora(obs.atualizado_em) + ')' : ''} • Resp. escala: ${nomeRespTurno}`
+                        : `⏳ Resp. na escala (${turnoAtivo === 'noturno' ? 'Noturna' : 'Diurna'}): ${nomeRespTurno}`;
+                    return `
                     <button type="button" class="arr-row interactive ${obs.checked ? 'checked' : ''}"
                         data-action="toggle-check"
-                        data-veiculo="${esc(v.veiculo)}"
+                        data-veiculo-key="${esc(v.veiculo_key)}"
                         data-tipo="obs"
                         data-key="${esc(obs.item_key)}">
-                        <div class="arr-row-txt">${formatarTextoObsHtml(obs.texto)}</div>
+                        <div class="arr-row-txt">
+                            ${formatarTextoObsHtml(obs.texto)}
+                            <span class="arr-row-sub">${esc(subInfo)}</span>
+                        </div>
                         <span class="arr-chk" title="Marcar observação como verificada"><i class="ph-bold ph-check"></i></span>
-                    </button>
-                `).join('')}
+                    </button>`;
+                }).join('')}
             </div>` : '';
 
         // 2. Entregas (check automático pelo menu de Entregas)
-        const entregasHtml = (v.entregas || []).map(sg => `
+        const entregasHtml = (v.entregas || []).length > 0 ? `
             <div class="arr-sec">
-                <div class="arr-sec-title entrega">${esc(sg.titulo)}</div>
-                ${(sg.itens || []).map(it => {
-                    const cls = it.checked ? 'checked' : (it.parcial ? 'parcial' : '');
+                <div class="arr-sec-title entrega">${esc(v.titulo_entrega || 'ENTREGA OBRA:')}</div>
+                ${v.entregas.map(it => {
+                    const parcial = !it.checked && it.concluidas > 0;
+                    const cls = it.checked ? 'checked' : (parcial ? 'parcial' : '');
                     const statusSub = it.checked
-                        ? `✅ Checklist de entrega concluído (${it.unidades_concluidas}/${it.unidades_total})`
-                        : `⏳ Pendente no menu Entregas (${it.unidades_concluidas}/${it.unidades_total} concluído) — toque para abrir`;
+                        ? `✅ Checklist concluído (${it.concluidas}/${it.total_unidades})${it.lider_nome ? ' • Realizado por: ' + it.lider_nome : ''}${it.atualizado_em ? ' (' + fmtDataHora(it.atualizado_em) + ')' : ''}`
+                        : `⏳ Pendente no menu Entregas (${it.concluidas}/${it.total_unidades}) • Resp. escala: ${nomeRespTurno} — toque p/ abrir`;
                     return `
                     <button type="button" class="arr-row interactive ${cls}"
                         data-action="goto-entregas"
                         data-veiculo="${esc(v.veiculo)}"
                         data-texto="${esc(it.texto)}"
-                        data-concluidas="${it.unidades_concluidas}"
-                        data-total="${it.unidades_total}">
+                        data-lider="${esc(it.lider_nome || '')}"
+                        data-concluidas="${it.concluidas}"
+                        data-total="${it.total_unidades}">
                         <div class="arr-row-txt">
                             <strong>${esc(it.texto)}</strong>
-                            <span class="arr-row-sub">${statusSub}</span>
+                            <span class="arr-row-sub">${esc(statusSub)}</span>
                         </div>
                         <span class="arr-chk auto" title="Check automático pelo Checklist de Entregas">
-                            <i class="ph-bold ${it.checked ? 'ph-check' : (it.parcial ? 'ph-dots-three' : 'ph-check')}"></i>
+                            <i class="ph-bold ${it.checked ? 'ph-check' : (parcial ? 'ph-dots-three' : 'ph-check')}"></i>
                         </span>
                     </button>`;
                 }).join('')}
-            </div>
-        `).join('');
+            </div>` : '';
 
         // 3. Retiradas (check automático pelo menu de Retiradas)
         const retiradasHtml = (v.retiradas || []).length > 0 ? `
             <div class="arr-sec">
                 <div class="arr-sec-title retirada">⭕ RETIRADA:</div>
                 ${v.retiradas.map(it => {
-                    const cls = it.checked ? 'checked' : (it.parcial ? 'parcial' : '');
+                    const parcial = !it.checked && it.concluidas > 0;
+                    const cls = it.checked ? 'checked' : (parcial ? 'parcial' : '');
                     const statusSub = it.checked
-                        ? `✅ Checklist de retirada concluído (${it.unidades_concluidas}/${it.unidades_total})`
-                        : `⏳ Pendente no menu Retiradas (${it.unidades_concluidas}/${it.unidades_total} concluído) — toque para abrir`;
+                        ? `✅ Checklist concluído (${it.concluidas}/${it.total_unidades})${it.lider_nome ? ' • Realizado por: ' + it.lider_nome : ''}${it.atualizado_em ? ' (' + fmtDataHora(it.atualizado_em) + ')' : ''}`
+                        : `⏳ Pendente no menu Retiradas (${it.concluidas}/${it.total_unidades}) • Resp. escala: ${nomeRespTurno} — toque p/ abrir`;
                     return `
                     <button type="button" class="arr-row interactive ${cls}"
                         data-action="goto-retiradas"
                         data-veiculo="${esc(v.veiculo)}"
                         data-texto="${esc(it.texto)}"
-                        data-concluidas="${it.unidades_concluidas}"
-                        data-total="${it.unidades_total}">
+                        data-lider="${esc(it.lider_nome || '')}"
+                        data-concluidas="${it.concluidas}"
+                        data-total="${it.total_unidades}">
                         <div class="arr-row-txt">
                             <strong>${esc(it.texto)}</strong>
-                            <span class="arr-row-sub">${statusSub}</span>
+                            <span class="arr-row-sub">${esc(statusSub)}</span>
                         </div>
                         <span class="arr-chk auto" title="Check automático pelo Checklist de Retiradas">
-                            <i class="ph-bold ${it.checked ? 'ph-check' : (it.parcial ? 'ph-dots-three' : 'ph-check')}"></i>
+                            <i class="ph-bold ${it.checked ? 'ph-check' : (parcial ? 'ph-dots-three' : 'ph-check')}"></i>
                         </span>
                     </button>`;
                 }).join('')}
             </div>` : '';
 
         // 4. Manutenção + Insumos necessários por equipamento (check manual em cada insumo)
-        const manutencoesHtml = (v.manutencoes || []).map(sg => `
+        let ultimoTituloManut = '';
+        const manutencoesHtml = (v.manutencoes || []).length > 0 ? `
             <div class="arr-sec">
-                <div class="arr-sec-title manutencao">${esc(sg.titulo)}</div>
-                ${(sg.itens || []).map(it => {
+                ${v.manutencoes.map(it => {
+                    const mostrarTitulo = it.secao_titulo && it.secao_titulo !== ultimoTituloManut;
+                    if (it.secao_titulo) ultimoTituloManut = it.secao_titulo;
                     const insumos = it.insumos || [];
                     const insConcluidos = insumos.filter(x => x.checked).length;
                     const todosInsOk = insumos.length > 0 && insConcluidos === insumos.length;
                     return `
+                    ${mostrarTitulo ? `<div class="arr-sec-title manutencao">${esc(it.secao_titulo)}</div>` : ''}
                     <div class="arr-manut-card">
                         <div class="arr-manut-head">
                             <span>${esc(it.texto)}</span>
@@ -461,32 +536,48 @@
                         </div>
                         ${insumos.length > 0 ? `
                         <div class="arr-insumos-list">
-                            ${insumos.map(ins => `
+                            ${insumos.map(ins => {
+                                const subIns = ins.checked
+                                    ? `✅ Realizado por: ${ins.lider_nome || 'Líder'}${ins.atualizado_em ? ' (' + fmtDataHora(ins.atualizado_em) + ')' : ''}`
+                                    : `⏳ Resp. escala: ${nomeRespTurno}`;
+                                return `
                                 <button type="button" class="arr-insumo-row ${ins.checked ? 'checked' : ''}"
                                     data-action="toggle-check"
-                                    data-veiculo="${esc(v.veiculo)}"
+                                    data-veiculo-key="${esc(v.veiculo_key)}"
                                     data-tipo="insumo"
                                     data-key="${esc(ins.item_key)}">
-                                    <span class="arr-insumo-ico">${iconeInsumo(ins.insumo_key)}</span>
-                                    <span class="arr-insumo-txt">${esc(ins.label)}</span>
+                                    <span class="arr-insumo-ico">${esc(ins.icone || '📦')}</span>
+                                    <span class="arr-insumo-txt">
+                                        ${esc(ins.texto)}
+                                        <small class="arr-row-sub">${esc(subIns)}</small>
+                                    </span>
                                     <span class="arr-chk"><i class="ph-bold ph-check"></i></span>
-                                </button>
-                            `).join('')}
+                                </button>`;
+                            }).join('')}
                         </div>` : `<div class="arr-sem-insumos">Este equipamento não requer insumos de manutenção.</div>`}
                     </div>`;
                 }).join('')}
-            </div>
-        `).join('');
+            </div>` : '';
 
         return `
-        <article class="arr-vcard ${st.completo ? 'concluido' : ''}" data-vcard="${esc(v.veiculo)}">
+        <article class="arr-vcard ${st.completo ? 'concluido' : ''}" data-vcard="${esc(v.veiculo_key)}">
             <div class="arr-vhead">
                 <div class="arr-vtitle">
                     <span>🚚 ${esc(v.veiculo)}</span>
                 </div>
-                <span class="alc-badge ${badgeCls}" data-vbadge="${esc(v.veiculo)}">
+                <span class="alc-badge ${badgeCls}">
                     <i class="ph-fill ${st.completo ? 'ph-check-circle' : 'ph-clock'}"></i> ${badgeTxt}
                 </span>
+            </div>
+            <div class="arr-vlider-bar">
+                <div class="arr-vlider-item">
+                    <i class="ph-fill ph-user-focus"></i>
+                    <span>Resp. Escala (${turnoAtivo === 'noturno' ? '🌙 Noturna' : '☀️ Diurna'}): <b>${esc(nomeRespTurno)}</b></span>
+                </div>
+                <div class="arr-vlider-item ${realizadoPor.length > 0 ? 'ok' : 'pend'}">
+                    <i class="ph-fill ${realizadoPor.length > 0 ? 'ph-check-circle' : 'ph-hourglass'}"></i>
+                    <span>Realizado por: <b>${esc(realizadoTxt)}</b></span>
+                </div>
             </div>
             <div class="arr-vbody">
                 <div class="arr-crew">
@@ -555,6 +646,13 @@
             };
         });
 
+        root.querySelectorAll('[data-turno]').forEach(b => {
+            b.onclick = () => {
+                S.turno = b.dataset.turno;
+                carregar(false);
+            };
+        });
+
         root.querySelectorAll('[data-resumo-id]').forEach(b => {
             b.onclick = () => {
                 S.resumoId = Number(b.dataset.resumoId);
@@ -569,41 +667,35 @@
             };
         });
 
-        // Checks manuais: Observações e Insumos
         root.querySelectorAll('[data-action="toggle-check"]').forEach(btn => {
             btn.onclick = () => toggleManualCheck(btn);
         });
 
-        // Entregas: informa que é automático pelo checklist de Entregas e permite abrir a tela de Entregas
         root.querySelectorAll('[data-action="goto-entregas"]').forEach(btn => {
             btn.onclick = () => abrirModalChecklistAutomatico('entrega', btn);
         });
 
-        // Retiradas: informa que é automático pelo checklist de Retiradas e permite abrir a tela de Retiradas
         root.querySelectorAll('[data-action="goto-retiradas"]').forEach(btn => {
             btn.onclick = () => abrirModalChecklistAutomatico('retirada', btn);
         });
     }
 
     async function toggleManualCheck(btn) {
-        const veiculo = btn.dataset.veiculo;
+        const veiculoKey = btn.dataset.veiculoKey;
         const tipo = btn.dataset.tipo; // 'obs' | 'insumo'
         const itemKey = btn.dataset.key;
-        if (!veiculo || !tipo || !itemKey || !S.dadosDia) return;
+        if (!veiculoKey || !tipo || !itemKey || !S.dadosDia || !S.resumoId) return;
 
-        const vObj = (S.dadosDia.veiculos || []).find(v => v.veiculo === veiculo);
+        const vObj = (S.dadosDia.veiculos || []).find(v => v.veiculo_key === veiculoKey);
         if (!vObj) return;
 
         let targetItem = null;
         if (tipo === 'obs') {
             targetItem = (vObj.observacoes || []).find(o => o.item_key === itemKey);
         } else if (tipo === 'insumo') {
-            for (const sg of (vObj.manutencoes || [])) {
-                for (const eq of (sg.itens || [])) {
-                    const found = (eq.insumos || []).find(ins => ins.item_key === itemKey);
-                    if (found) { targetItem = found; break; }
-                }
-                if (targetItem) break;
+            for (const eq of (vObj.manutencoes || [])) {
+                const found = (eq.insumos || []).find(ins => ins.item_key === itemKey);
+                if (found) { targetItem = found; break; }
             }
         }
         if (!targetItem) return;
@@ -611,21 +703,24 @@
         const novoEstado = !targetItem.checked;
         targetItem.checked = novoEstado;
         vibrar(20);
-
-        // Atualiza a UI imediatamente (autosave otimista)
         renderLista();
 
         try {
-            await api('/api/app/resumo-rota/check', {
+            const res = await api('/api/app/resumo-rota/check', {
                 method: 'POST',
                 body: JSON.stringify({
-                    data_ref: S.data,
-                    veiculo,
-                    tipo_item: tipo,
+                    resumo_id: S.resumoId,
+                    turno: S.turno || S.dadosDia.turno_ativo || 'diurno',
+                    data_rota: S.data,
+                    veiculo_key: veiculoKey,
                     item_key: itemKey,
+                    tipo_item: tipo,
                     checked: novoEstado
                 })
             });
+            targetItem.lider_nome = res.lider_nome || null;
+            targetItem.atualizado_em = res.atualizado_em || null;
+            carregar(true);
         } catch (e) {
             targetItem.checked = !novoEstado;
             renderLista();
@@ -639,6 +734,7 @@
         const ehEntrega = tipo === 'entrega';
         const veiculo = btn.dataset.veiculo || '';
         const texto = btn.dataset.texto || '';
+        const lider = btn.dataset.lider || '';
         const concluidas = Number(btn.dataset.concluidas || 0);
         const total = Number(btn.dataset.total || 0);
         const completo = total > 0 && concluidas >= total;
@@ -659,10 +755,11 @@
                 <div style="text-align:left;font-size:0.95rem;line-height:1.45;color:#334155;">
                     <p style="margin:0 0 8px;"><b>Veículo:</b> ${esc(veiculo)}</p>
                     <p style="margin:0 0 8px;"><b>Equipamento:</b> ${esc(texto)}</p>
-                    <p style="margin:0 0 12px;"><b>Status atual:</b> ${completo
+                    <p style="margin:0 0 8px;"><b>Status atual:</b> ${completo
                         ? `<span style="color:#16a34a;font-weight:800;">Concluído (${concluidas}/${total})</span>`
                         : `<span style="color:#d97706;font-weight:800;">${concluidas} de ${total} concluído(s)</span>`
                     }</p>
+                    ${lider ? `<p style="margin:0 0 12px;"><b>Realizado por:</b> ${esc(lider)}</p>` : ''}
                     <div style="background:#f1f5f9;border-radius:10px;padding:10px 12px;font-size:0.86rem;color:#475569;">
                         O check de <b>${nomeMenu}</b> no Resumo da Rota é preenchido <b>automaticamente</b> assim que o checklist de cada equipamento é concluído na tela de <b>${nomeMenu}</b>.
                     </div>
@@ -705,7 +802,6 @@
             new MutationObserver(() => {
                 aplicarModoCelular();
                 if (v.classList.contains('active') && S.dadosDia) {
-                    // Recarrega silenciosamente ao voltar para a aba para refletir checks de Entregas/Retiradas
                     carregar(true);
                 }
             }).observe(v, { attributes: true, attributeFilter: ['class'] });
