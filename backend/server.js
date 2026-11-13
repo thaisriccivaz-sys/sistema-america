@@ -53443,7 +53443,7 @@ app.get('/api/rh/ferias-retorno-pendentes', authenticateToken, (req, res) => {
         const verificarPermissaoGestor = (cb) => {
             if (!userRow.grupo_permissao_id) return cb(false);
             db.get(
-                "SELECT visualizar FROM permissoes_modulo WHERE grupo_id = ? AND pagina_id = 'rh-agenda-gestor-escala'",
+                "SELECT visualizar FROM permissoes_grupo WHERE grupo_id = ? AND pagina_id = 'rh-agenda-gestor-escala'",
                 [userRow.grupo_permissao_id],
                 (errP, permRow) => {
                     if (errP || !permRow) return cb(false);
