@@ -16834,8 +16834,28 @@ app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
 
 // --- ROTAS DE AVALIA????O ---
 app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM avaliacoes WHERE colaborador_id = ? ORDER BY ano DESC, trimestre ASC', [req.params.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    const sql = `
+        SELECT a.*,
+               COALESCE(sd.pdf_r2, fd.pdf_r2) AS pdf_url,
+               COALESCE(sd.selfie_r2, fd.selfie_r2) AS selfie_url,
+               COALESCE(sd.assinatura_r2, fd.assinatura_r2) AS assinatura_url,
+               COALESCE(sd.assinado_em, fd.assinado_em) AS assinado_em,
+               sd.ip_address AS ip_address,
+               sd.usuario_nome AS usuario_nome,
+               sd.id AS sat_doc_id
+        FROM avaliacoes a
+        LEFT JOIN feedback_documentos fd ON a.tipo = 'desempenho' AND a.colaborador_id = fd.colaborador_id AND a.ano = fd.ano AND a.trimestre = fd.trimestre
+        LEFT JOIN satisfacao_documentos sd ON a.tipo = 'satisfacao' AND a.colaborador_id = sd.colaborador_id AND a.ano = sd.ano AND a.trimestre = sd.trimestre
+        WHERE a.colaborador_id = ?
+        ORDER BY a.ano DESC, a.trimestre ASC
+    `;
+    db.all(sql, [req.params.id], (err, rows) => {
+        if (err) {
+            return db.all('SELECT * FROM avaliacoes WHERE colaborador_id = ? ORDER BY ano DESC, trimestre ASC', [req.params.id], (err2, rows2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json(rows2 || []);
+            });
+        }
         res.json(rows || []);
     });
 });
@@ -17100,7 +17120,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         const dept = (row.departamento || '').toLowerCase();
                         const cargo = (row.cargo || '').toLowerCase();
                         let grupo = 'escritorio';
-                        if (cargo.includes('motorista') || dept.includes('motorista') || dept.includes('logàstica') || dept.includes('logistica')) {
+                        if (cargo.includes('motorista') || dept.includes('motorista') || cargo.includes('ajudante') || dept.includes('ajudante') || dept.includes('pátio') || dept.includes('patio') || dept.includes('logàstica') || dept.includes('logistica')) {
                             grupo = 'motorista';
                         } else if (dept.includes('manutencao') || dept.includes('manutenção')) {
                             grupo = 'manutencao';
@@ -17131,7 +17151,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         }
                         
                         Object.entries(respostas).forEach(([topico, notas]) => {
-                            if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+                            if (String(topico || '').startsWith('__') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                             if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
                             if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
                             if (Array.isArray(notas)) {
@@ -17235,9 +17255,17 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                     const placeholders2 = colabIds.map(() => '?').join(',');
 
                     db.all(
-                        `SELECT a.colaborador_id, a.ano, a.trimestre, a.respostas_json, a.created_at, fd.pdf_r2 as pdf_url, fd.assinado_em
+                        `SELECT a.colaborador_id, a.ano, a.trimestre, a.respostas_json, a.created_at,
+                                COALESCE(sd.pdf_r2, fd.pdf_r2) as pdf_url,
+                                COALESCE(sd.selfie_r2, fd.selfie_r2) as selfie_url,
+                                COALESCE(sd.assinatura_r2, fd.assinatura_r2) as assinatura_url,
+                                COALESCE(sd.assinado_em, fd.assinado_em) as assinado_em,
+                                sd.ip_address as ip_address,
+                                sd.usuario_nome as usuario_nome,
+                                sd.id as sat_doc_id
                          FROM avaliacoes a
-                         LEFT JOIN feedback_documentos fd ON a.colaborador_id = fd.colaborador_id AND a.ano = fd.ano AND a.trimestre = fd.trimestre
+                         LEFT JOIN feedback_documentos fd ON a.tipo = 'desempenho' AND a.colaborador_id = fd.colaborador_id AND a.ano = fd.ano AND a.trimestre = fd.trimestre
+                         LEFT JOIN satisfacao_documentos sd ON a.tipo = 'satisfacao' AND a.colaborador_id = sd.colaborador_id AND a.ano = sd.ano AND a.trimestre = sd.trimestre
                          WHERE a.tipo = ? AND a.colaborador_id IN (${placeholders2})
                          ORDER BY a.ano DESC, a.trimestre DESC`,
                         [tipoAval, ...colabIds],
@@ -17259,7 +17287,7 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     todas = Object.values(respostas.scores).map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 } else {
                                     Object.entries(respostas).forEach(([topico, val]) => {
-                                        if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+                                        if (String(topico || '').startsWith('__') || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                                         if (Array.isArray(val)) {
                                             todas = todas.concat(val.map(n => parseFloat(n)).filter(n => !isNaN(n)));
                                         } else if (val !== null && val !== undefined && typeof val !== 'object') {
@@ -17277,7 +17305,7 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     });
                                 }
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
-                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas, pdf_url: a.pdf_url, assinado_em: a.assinado_em };
+                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas, pdf_url: a.pdf_url, selfie_url: a.selfie_url || null, assinatura_url: a.assinatura_url || null, assinado_em: a.assinado_em, ip_address: a.ip_address || null, usuario_nome: a.usuario_nome || null, sat_doc_id: a.sat_doc_id || null };
                             });
 
                             db.all(
@@ -52611,6 +52639,469 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
 
     } catch (err) {
         console.error('[FEEDBACK_DOC/assinar] Erro:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// DOCUMENTOS ASSINADOS + SELFIE DA PESQUISA DE SATISFAÇÃO
+// ============================================================
+db.run(`CREATE TABLE IF NOT EXISTS satisfacao_documentos (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  colaborador_id   INTEGER NOT NULL,
+  ano              INTEGER NOT NULL,
+  trimestre        INTEGER NOT NULL,
+  usuario_nome     TEXT,
+  aplicador_nome   TEXT,
+  ip_address       TEXT,
+  dispositivo      TEXT,
+  assinatura_r2    TEXT,
+  selfie_r2        TEXT,
+  pdf_r2           TEXT,
+  hash_pdf         TEXT,
+  assinado_em      TEXT,
+  created_at       TEXT DEFAULT (datetime('now','-3 hours')),
+  updated_at       TEXT DEFAULT (datetime('now','-3 hours')),
+  UNIQUE(colaborador_id, ano, trimestre)
+)`, (err) => {
+    if (err) console.error('[SATISFACAO_DOC] Erro ao criar tabela:', err.message);
+    else console.log('[SATISFACAO_DOC] Tabela satisfacao_documentos OK.');
+});
+
+// Limpeza automática de templates legados/incompletos de satisfação no banco (< 10 categorias ou perguntas antigas de 4 tópicos)
+db.all("SELECT id, nome, grupo_key, categorias_json FROM avaliacao_templates WHERE tipo = 'satisfacao'", [], (errT, rowsT) => {
+    if (!errT && Array.isArray(rowsT)) {
+        rowsT.forEach(t => {
+            try {
+                const cats = JSON.parse(t.categorias_json || '{}');
+                const catCount = Object.keys(cats || {}).length;
+                const rawStr = String(t.categorias_json || '');
+                if (catCount < 10 || rawStr.includes('Você se sente integrado à sua equipe?')) {
+                    db.run("DELETE FROM avaliacao_templates WHERE id = ?", [t.id], () => {
+                        console.log(`[SATISFACAO_TEMPLATE] Removido template legado incompleto id=${t.id} (${t.nome})`);
+                    });
+                }
+            } catch (_) {}
+        });
+    }
+});
+
+// GET /api/meu-ip — Retorna o IP real do cliente no momento da fotografia + nome do usuário logado
+app.get('/api/meu-ip', authenticateToken, (req, res) => {
+    const rawIp = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : '') ||
+                  req.headers['cf-connecting-ip'] ||
+                  req.headers['x-real-ip'] ||
+                  req.socket?.remoteAddress || '';
+    const ip = String(rawIp || '').replace(/^::ffff:/i, '') || '127.0.0.1';
+    const userId = req.user?.id || null;
+    if (!userId) {
+        return res.json({ ip, usuario_nome: req.user?.nome || req.user?.username || '' });
+    }
+    db.get(`SELECT u.nome, u.username, c.nome_completo AS colab_nome
+            FROM usuarios u
+            LEFT JOIN colaboradores c ON c.id = u.colaborador_id
+            WHERE u.id = ?`, [userId], (_err, row) => {
+        const usuarioNome = (row && (row.colab_nome || row.nome || row.username)) || req.user?.nome || req.user?.username || '';
+        res.json({ ip, usuario_nome: usuarioNome });
+    });
+});
+
+// GET /api/satisfacao-documentos/:colabId/:ano/:trim
+app.get('/api/satisfacao-documentos/:colabId/:ano/:trim', authenticateToken, (req, res) => {
+    const { colabId, ano, trim } = req.params;
+    db.get(
+        `SELECT sd.*, c.nome_completo AS colaborador_nome, c.cargo, c.departamento
+         FROM satisfacao_documentos sd
+         LEFT JOIN colaboradores c ON c.id = sd.colaborador_id
+         WHERE sd.colaborador_id = ? AND sd.ano = ? AND sd.trimestre = ?`,
+        [colabId, ano, trim],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(row || null);
+        }
+    );
+});
+
+// GET /api/satisfacao-documentos/id/:id (usado pela Trilha de Auditoria)
+app.get('/api/satisfacao-documentos/id/:id', authenticateToken, (req, res) => {
+    db.get(
+        `SELECT sd.*, c.nome_completo AS colaborador_nome, c.cargo, c.departamento
+         FROM satisfacao_documentos sd
+         LEFT JOIN colaboradores c ON c.id = sd.colaborador_id
+         WHERE sd.id = ?`,
+        [req.params.id],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'Comprovante de Pesquisa de Satisfação não encontrado.' });
+            res.json(row);
+        }
+    );
+});
+
+// POST /api/satisfacao-documentos/assinar
+app.post('/api/satisfacao-documentos/assinar', authenticateToken, async (req, res) => {
+    const {
+        colaborador_id, ano, trimestre, respostas_json,
+        assinatura_base64, selfie_base64, perguntas_text,
+        usuario_nome, aplicador_nome, data_hora_foto, ip_foto,
+        dispositivo, gps_lat, gps_lon
+    } = req.body;
+
+    if (!colaborador_id || !ano || !trimestre) {
+        return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
+    }
+    if (!assinatura_base64 || !selfie_base64) {
+        return res.status(400).json({ error: 'Assinatura e selfie são obrigatórias para finalizar 100% da pesquisa.' });
+    }
+
+    try {
+        const r2mod = require('./utils/r2');
+        const crypto = require('crypto');
+        const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+
+        const rawIp = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : '') ||
+                      req.headers['cf-connecting-ip'] ||
+                      req.headers['x-real-ip'] ||
+                      req.socket?.remoteAddress || '';
+        const reqIp = String(rawIp || '').replace(/^::ffff:/i, '') || '127.0.0.1';
+        const ipFinal = (ip_foto && ip_foto !== 'Carregando...') ? String(ip_foto).trim() : reqIp;
+
+        // 1. Se respostas_json foi enviado, garantir que está salvo na tabela avaliacoes
+        if (respostas_json) {
+            const respStr = typeof respostas_json === 'string' ? respostas_json : JSON.stringify(respostas_json);
+            await new Promise((resolve, reject) => {
+                db.run(`
+                    INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json)
+                    VALUES (?, 'satisfacao', ?, ?, ?)
+                    ON CONFLICT(colaborador_id, ano, trimestre, tipo)
+                    DO UPDATE SET respostas_json=excluded.respostas_json, created_at=CURRENT_TIMESTAMP
+                `, [colaborador_id, ano, trimestre, respStr], (err) => err ? reject(err) : resolve());
+            });
+        }
+
+        // 2. Buscar dados do colaborador e respostas salvas
+        const colab = await new Promise((resolve, reject) =>
+            db.get(`SELECT id, nome_completo, cargo, departamento FROM colaboradores WHERE id = ?`, [colaborador_id], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+        const avalRow = await new Promise((resolve, reject) =>
+            db.get(`SELECT respostas_json FROM avaliacoes WHERE colaborador_id = ? AND ano = ? AND trimestre = ? AND tipo = 'satisfacao'`,
+                [colaborador_id, ano, trimestre], (err, row) => err ? reject(err) : resolve(row))
+        );
+        let respostas = {};
+        try {
+            respostas = avalRow?.respostas_json
+                ? JSON.parse(avalRow.respostas_json)
+                : (typeof respostas_json === 'string' ? JSON.parse(respostas_json) : (respostas_json || {}));
+        } catch (_) { respostas = {}; }
+
+        const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const dtIsoBRT = nowBRT.toISOString().replace('T', ' ').substring(0, 19);
+        const dtBR = data_hora_foto || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const dtFileStr = nowBRT.toISOString().replace(/[:.T]/g, '-').substring(0, 19);
+
+        const nomeColabLimpo = String(colab.nome_completo || 'Colaborador').trim();
+        const nomeUsuarioPesquisa = String(usuario_nome || nomeColabLimpo).trim();
+
+        const safeNome = nomeColabLimpo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const prefix = `PesquisaSatisfacao/${safeNome}/${ano}-T${trimestre}`;
+
+        // 3. Upload assinatura e selfie no R2
+        const sigBuffer = Buffer.from(assinatura_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const sigKey = `${prefix}/assinatura_${dtFileStr}.png`;
+        const sigUrl = await r2mod.uploadToR2(sigKey, sigBuffer, 'image/png');
+
+        const selfBuffer = Buffer.from(selfie_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const selfieKey = `${prefix}/selfie_${dtFileStr}.jpg`;
+        const selfieUrl = await r2mod.uploadToR2(selfieKey, selfBuffer, 'image/jpeg');
+
+        // 4. Gerar PDF assinado com pdf-lib
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        const safePdfStr = (s) => String(s ?? '').replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+
+        let logoEmbed = null;
+        try {
+            const fsMod = require('fs');
+            const pathMod = require('path');
+            const logoPath = pathMod.join(__dirname, '../frontend/assets/logo-header.png');
+            if (fsMod.existsSync(logoPath)) {
+                const buf = fsMod.readFileSync(logoPath);
+                try { logoEmbed = await pdfDoc.embedPng(buf); }
+                catch (_) { logoEmbed = await pdfDoc.embedJpg(buf); }
+            }
+        } catch (_) {}
+
+        const PAGE_W = 595, PAGE_H = 842;
+        const MARGIN = 45;
+        const LINE_H = 16;
+        let bannerWidth = PAGE_W;
+        let bannerHeight = 75;
+        if (logoEmbed) {
+            const dims = logoEmbed.scaleToFit(PAGE_W, PAGE_H / 4);
+            bannerWidth = dims.width;
+            bannerHeight = dims.height;
+        }
+        const HEADER_H = bannerHeight + 32;
+
+        let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        let y = PAGE_H - MARGIN;
+
+        function drawHeader() {
+            if (logoEmbed) {
+                const logoX = (PAGE_W - bannerWidth) / 2;
+                page.drawImage(logoEmbed, { x: logoX, y: PAGE_H - bannerHeight, width: bannerWidth, height: bannerHeight });
+            } else {
+                page.drawRectangle({ x: 0, y: PAGE_H - bannerHeight, width: PAGE_W, height: bannerHeight, color: rgb(0.059, 0.298, 0.506) });
+                page.drawText('America Rental', { x: MARGIN, y: PAGE_H - 30, size: 14, font: fontBold, color: rgb(1, 1, 1) });
+            }
+            page.drawRectangle({ x: 0, y: PAGE_H - bannerHeight - 32, width: PAGE_W, height: 32, color: rgb(0.059, 0.298, 0.506) });
+            page.drawText(safePdfStr('Pesquisa de Satisfacao — Comprovante Assinado'), {
+                x: MARGIN, y: PAGE_H - bannerHeight - 20, size: 11, font: fontBold, color: rgb(1, 1, 1)
+            });
+        }
+
+        function checkNewPage(neededH = LINE_H * 2) {
+            if (y < MARGIN + neededH) {
+                page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+                y = PAGE_H - MARGIN;
+                drawHeader();
+                y -= HEADER_H + 10;
+            }
+        }
+
+        function writeLine(text, opts = {}) {
+            checkNewPage();
+            page.drawText(safePdfStr(text), {
+                x: opts.x || MARGIN,
+                y,
+                size: opts.size || 9.5,
+                font: opts.bold ? fontBold : font,
+                color: opts.color || rgb(0.2, 0.2, 0.2),
+                maxWidth: opts.maxWidth || PAGE_W - MARGIN * 2
+            });
+            y -= (opts.lineH || LINE_H);
+        }
+
+        function writeWrappedLine(text, opts = {}) {
+            const fontToUse = opts.bold ? fontBold : font;
+            const size = opts.size || 9.5;
+            const maxWidth = opts.maxWidth || PAGE_W - MARGIN * 2;
+            const color = opts.color || rgb(0.2, 0.2, 0.2);
+            const paragraphs = safePdfStr(text).split('\n');
+            for (const para of paragraphs) {
+                if (!para.trim()) {
+                    y -= (opts.lineH || LINE_H);
+                    checkNewPage(LINE_H * 2);
+                    continue;
+                }
+                const words = para.split(' ');
+                let line = '';
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const testWidth = fontToUse.widthOfTextAtSize(testLine, size);
+                    if (testWidth > maxWidth && line.trim().length > 0) {
+                        checkNewPage(LINE_H * 2);
+                        page.drawText(line.trim(), { x: opts.x || MARGIN, y, size, font: fontToUse, color });
+                        y -= (opts.lineH || LINE_H);
+                        line = words[n] + ' ';
+                    } else {
+                        line = testLine;
+                    }
+                }
+                if (line.trim().length > 0) {
+                    checkNewPage(LINE_H * 2);
+                    page.drawText(line.trim(), { x: opts.x || MARGIN, y, size, font: fontToUse, color });
+                    y -= (opts.lineH || LINE_H);
+                }
+            }
+        }
+
+        function section(title) {
+            checkNewPage(LINE_H * 3);
+            y -= 4;
+            page.drawRectangle({ x: MARGIN - 5, y: y - 4, width: PAGE_W - MARGIN * 2 + 10, height: LINE_H + 4, color: rgb(0.88, 0.93, 0.98) });
+            page.drawText(safePdfStr(title), { x: MARGIN, y, size: 10.5, font: fontBold, color: rgb(0.059, 0.298, 0.506) });
+            y -= LINE_H + 5;
+        }
+
+        drawHeader();
+        y -= HEADER_H + 8;
+
+        writeLine(`Colaborador (Usuario da Pesquisa): ${nomeColabLimpo}`, { bold: true, size: 11 });
+        writeLine(`Cargo: ${colab.cargo || '-'}  |  Departamento: ${colab.departamento || '-'}`, { size: 9.5 });
+        writeLine(`Periodo da Pesquisa: ${ano} - ${trimestre}o Trimestre`, { size: 9.5 });
+        writeLine(`Data e Hora da Pesquisa/Foto: ${dtBR}  |  IP na Fotografia: ${ipFinal}`, { size: 9.5, bold: true, color: rgb(0.059, 0.298, 0.506) });
+        y -= 6;
+
+        const sysKeys = new Set(['__obs__', '__status__', '__grupo__', '__categorias_snapshot__', '__obs_gerais__', '__feedback_obs__', 'scores', 'topicos', 'info_adicional']);
+        const topicos = (perguntas_text && typeof perguntas_text === 'object' && Object.keys(perguntas_text).length > 0)
+            ? Object.keys(perguntas_text)
+            : Object.keys(respostas).filter(k => !sysKeys.has(k));
+        const obsMap = respostas.__obs__ || {};
+
+        for (let tIdx = 0; tIdx < topicos.length; tIdx++) {
+            const topico = topicos[tIdx];
+            const rawNotas = respostas[topico];
+            const obsTopico = obsMap[topico] || {};
+            const pArr = (perguntas_text && Array.isArray(perguntas_text[topico])) ? perguntas_text[topico] : [];
+            const maxLen = Math.max(pArr.length, Array.isArray(rawNotas) ? rawNotas.length : (rawNotas && typeof rawNotas === 'object' ? Object.keys(rawNotas).length : 0));
+            if (maxLen === 0) continue;
+
+            section(`${tIdx + 1}. ${topico}`);
+
+            for (let i = 0; i < maxLen; i++) {
+                const nota = rawNotas != null ? (rawNotas[i] ?? rawNotas[String(i)] ?? null) : null;
+                if (nota === null || nota === undefined) continue;
+                const pText = pArr[i] || `Pergunta ${i + 1}`;
+                const obsColab = (obsTopico[i] ?? obsTopico[String(i)]) || '';
+
+                checkNewPage(LINE_H * 3.5);
+                writeWrappedLine(`${i + 1}) ${pText}`, { bold: true, size: 9.5 });
+                y -= 4;
+
+                const notaNum = parseFloat(nota);
+                let bgCor = rgb(0.13, 0.65, 0.38);
+                if (notaNum <= 2) bgCor = rgb(0.93, 0.26, 0.26);
+                else if (notaNum === 3) bgCor = rgb(0.96, 0.62, 0.04);
+                else if (notaNum === 4) bgCor = rgb(0.40, 0.68, 0.12);
+
+                page.drawRectangle({ x: MARGIN + 8, y: y + 2, width: 70, height: 14, color: bgCor });
+                page.drawText(safePdfStr(`Nota: ${nota}/5`), { x: MARGIN + 15, y: y + 5, size: 8.5, font: fontBold, color: rgb(1, 1, 1) });
+                y -= LINE_H;
+
+                if (obsColab) {
+                    writeWrappedLine(`   Observacao: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
+                }
+            }
+        }
+
+        const obsGeral = respostas.__obs_gerais__ || respostas.__obs__?.info_adicional || '';
+        if (obsGeral) {
+            section('Informacoes Adicionais / Observacao Geral');
+            writeWrappedLine(obsGeral, { size: 9.5 });
+        }
+
+        // Selfie + Assinatura lado a lado
+        const sideH = 185;
+        checkNewPage(sideH + 55);
+        section('Comprovante de Assinatura e Fotografia da Pesquisa de Satisfacao');
+
+        // Selfie (lado esquerdo)
+        try {
+            let selfieEmbed;
+            if (selfie_base64.includes('image/png')) {
+                selfieEmbed = await pdfDoc.embedPng(selfBuffer);
+            } else {
+                selfieEmbed = await pdfDoc.embedJpg(selfBuffer);
+            }
+            const imgW = 190, imgH = 142;
+            page.drawImage(selfieEmbed, { x: MARGIN, y: y - imgH, width: imgW, height: imgH });
+            page.drawText(safePdfStr(`Colaborador: ${nomeColabLimpo}`), { x: MARGIN, y: y - imgH - 12, size: 8, font: fontBold, color: rgb(0.15, 0.15, 0.15) });
+            page.drawText(safePdfStr(`Data/Hora: ${dtBR}`), { x: MARGIN, y: y - imgH - 22, size: 7.8, font, color: rgb(0.3, 0.3, 0.3) });
+            page.drawText(safePdfStr(`IP na fotografia: ${ipFinal}`), { x: MARGIN, y: y - imgH - 32, size: 7.8, font, color: rgb(0.3, 0.3, 0.3) });
+        } catch (imgErr) {
+            writeLine('[Selfie nao incorporada]', { size: 9, color: rgb(0.6, 0.2, 0.2) });
+        }
+
+        // Assinatura (lado direito)
+        const sigColX = MARGIN + 220;
+        try {
+            const sigEmbed = await pdfDoc.embedPng(sigBuffer);
+            const sigW = 210, sigH = 90;
+            const sigTopY = y - 15;
+            page.drawImage(sigEmbed, { x: sigColX, y: sigTopY - sigH, width: sigW, height: sigH });
+            page.drawLine({
+                start: { x: sigColX, y: sigTopY - sigH - 6 },
+                end: { x: sigColX + sigW, y: sigTopY - sigH - 6 },
+                thickness: 0.8, color: rgb(0.3, 0.3, 0.3)
+            });
+            page.drawText(safePdfStr(nomeColabLimpo), { x: sigColX, y: sigTopY - sigH - 18, size: 9, font: fontBold, color: rgb(0.15, 0.15, 0.15) });
+            page.drawText(safePdfStr(`Assinado em: ${dtBR}`), { x: sigColX, y: sigTopY - sigH - 30, size: 8, font, color: rgb(0.35, 0.35, 0.35) });
+            page.drawText(safePdfStr(`IP: ${ipFinal}`), { x: sigColX, y: sigTopY - sigH - 41, size: 8, font, color: rgb(0.35, 0.35, 0.35) });
+        } catch (sigErr) {
+            page.drawText('[Assinatura nao incorporada]', { x: sigColX, y: y - 50, size: 9, font, color: rgb(0.6, 0.2, 0.2) });
+        }
+
+        y -= sideH + 10;
+
+        const allPages = pdfDoc.getPages();
+        allPages.forEach((p, pi) => {
+            p.drawText(safePdfStr(`Pag. ${pi + 1} / ${allPages.length}  |  America Rental — Pesquisa de Satisfacao Assinada`), {
+                x: MARGIN, y: 20, size: 8, font, color: rgb(0.6, 0.6, 0.6)
+            });
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        const pdfBuffer = Buffer.from(pdfBytes);
+        const hashPdf = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+        const pdfKey = `${prefix}/pesquisa_satisfacao_assinada_${dtFileStr}.pdf`;
+        const pdfUrl = await r2mod.uploadToR2(pdfKey, pdfBuffer, 'application/pdf');
+
+        // 5. Upsert em satisfacao_documentos
+        await new Promise((resolve, reject) => {
+            db.run(`
+                INSERT INTO satisfacao_documentos (
+                    colaborador_id, ano, trimestre, usuario_nome, aplicador_nome,
+                    ip_address, dispositivo, assinatura_r2, selfie_r2, pdf_r2, hash_pdf, assinado_em, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))
+                ON CONFLICT(colaborador_id, ano, trimestre)
+                DO UPDATE SET
+                    usuario_nome = excluded.usuario_nome,
+                    aplicador_nome = excluded.aplicador_nome,
+                    ip_address = excluded.ip_address,
+                    dispositivo = excluded.dispositivo,
+                    assinatura_r2 = excluded.assinatura_r2,
+                    selfie_r2 = excluded.selfie_r2,
+                    pdf_r2 = excluded.pdf_r2,
+                    hash_pdf = excluded.hash_pdf,
+                    assinado_em = excluded.assinado_em,
+                    updated_at = datetime('now','-3 hours')
+            `, [
+                colaborador_id, ano, trimestre, nomeUsuarioPesquisa, String(aplicador_nome || ''),
+                ipFinal, String(dispositivo || req.headers['user-agent'] || ''),
+                sigUrl, selfieUrl, pdfUrl, hashPdf, dtBR
+            ], (err) => err ? reject(err) : resolve());
+        });
+
+        const satDocRow = await new Promise((resolve) => {
+            db.get(`SELECT id FROM satisfacao_documentos WHERE colaborador_id = ? AND ano = ? AND trimestre = ?`, [colaborador_id, ano, trimestre], (_e, r) => resolve(r));
+        });
+        const satDocId = satDocRow ? satDocRow.id : 0;
+
+        // 6. Registrar na Trilha de Auditoria (assinaturas_auditoria)
+        const docLabel = `Pesquisa de Satisfação — ${trimestre}º Trim/${ano}`;
+        db.run(
+            `INSERT INTO assinaturas_auditoria
+               (documento_id, document_type, colaborador_id, colaborador_nome,
+                gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura, pesquisa_respondida_em)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                satDocId, docLabel, colaborador_id, nomeColabLimpo,
+                gps_lat || null, gps_lon || null,
+                String(dispositivo || req.headers['user-agent'] || ''),
+                ipFinal, hashPdf, dtIsoBRT
+            ],
+            (errAud) => {
+                if (errAud) console.error('[SATISFACAO-AUDITORIA] Erro ao registrar na trilha:', errAud.message);
+            }
+        );
+
+        res.json({
+            success: true,
+            id: satDocId,
+            pdf_url: pdfUrl,
+            assinatura_url: sigUrl,
+            selfie_url: selfieUrl,
+            assinado_em: dtBR,
+            ip: ipFinal,
+            colaborador_nome: nomeColabLimpo
+        });
+    } catch (err) {
+        console.error('[SATISFACAO_DOC/assinar] Erro:', err);
         res.status(500).json({ error: err.message });
     }
 });

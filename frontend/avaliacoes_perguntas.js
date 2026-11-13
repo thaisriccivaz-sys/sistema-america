@@ -377,32 +377,122 @@ window.AVALIACAO_QUESTIONS = {
     }
 };
 
+// Backup canônico imutável para impedir que templates de satisfação (10 categorias) sejam perdidos ou sobrescritos incorretamente
+window.AVALIACAO_QUESTIONS_CANONICAL = JSON.parse(JSON.stringify(window.AVALIACAO_QUESTIONS));
+
+// Garantir que Ajudantes e Motoristas compartilhem exatamente o mesmo objeto na Pesquisa de Satisfação
+if (window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao && window.AVALIACAO_QUESTIONS.satisfacao.motorista) {
+    window.AVALIACAO_QUESTIONS.satisfacao.ajudante = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+    window.AVALIACAO_QUESTIONS.satisfacao.ajudante_patio = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+    window.AVALIACAO_QUESTIONS.satisfacao['ajudante_pátio'] = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+    window.AVALIACAO_QUESTIONS.satisfacao.ajudante_geral = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+}
+
+// Helper global para recuperar respostas/observações salvas mesmo se o nome da categoria mudou (maiúsculas, acentos ou posição)
+window.resolveSavedAvaliacaoCategory = function(savedContainer, targetCat, catIdx, templateCats) {
+    if (!savedContainer || typeof savedContainer !== 'object') return null;
+    if (savedContainer[targetCat] !== undefined) return savedContainer[targetCat];
+
+    const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const targetNorm = norm(targetCat);
+    const sysKeys = new Set(['__obs__', '__status__', '__grupo__', '__categorias_snapshot__', '__obs_gerais__', '__feedback_obs__', 'scores', 'topicos', 'info_adicional']);
+    const savedKeys = Object.keys(savedContainer).filter(k => !sysKeys.has(k));
+
+    // 1. Match normalizado (case-insensitive e sem acentos)
+    for (const k of savedKeys) {
+        if (norm(k) === targetNorm) return savedContainer[k];
+    }
+
+    // 2. Aliases conhecidos entre versões antigas e atuais
+    const aliases = {
+        'organizacao e rotina de trabalho': ['rotina e carga de trabalho', 'rotina de trabalho'],
+        'rotina e carga de trabalho': ['organizacao e rotina de trabalho', 'rotina de trabalho'],
+        'comunicacao e lideranca': ['lideranca e empresa', 'lideranca'],
+        'lideranca e empresa': ['comunicacao e lideranca', 'lideranca'],
+        'condicoes de trabalho e equipamentos': ['condicoes de trabalho e estrutura', 'ferramentas, equipamentos e condicoes de trabalho']
+    };
+    const possibleAliases = aliases[targetNorm] || [];
+    for (const k of savedKeys) {
+        if (possibleAliases.includes(norm(k))) return savedContainer[k];
+    }
+
+    // 3. Fallback posicional seguro (apenas se a chave na mesma posição não for outra categoria canônica do template atual)
+    const templateNormSet = new Set((templateCats || []).map(c => norm(c)));
+    const candidateKey = savedKeys[catIdx];
+    if (candidateKey && !templateNormSet.has(norm(candidateKey))) {
+        return savedContainer[candidateKey];
+    }
+
+    return null;
+};
+
 window.matchTemplateGroup = function(tipo, dept, cargo) {
-    if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS[tipo]) return null;
-    const groups = Object.keys(window.AVALIACAO_QUESTIONS[tipo]);
-    if (groups.length === 0) return null;
+    if (!window.AVALIACAO_QUESTIONS) return null;
+    if (!window.AVALIACAO_QUESTIONS[tipo] && window.AVALIACAO_QUESTIONS_CANONICAL && window.AVALIACAO_QUESTIONS_CANONICAL[tipo]) {
+        window.AVALIACAO_QUESTIONS[tipo] = JSON.parse(JSON.stringify(window.AVALIACAO_QUESTIONS_CANONICAL[tipo]));
+    }
+    if (!window.AVALIACAO_QUESTIONS[tipo]) return null;
 
     // Normaliza removendo acentos para comparação robusta
     const norm = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const d = norm(dept).replace(/_/g, ' ');
+    const c = norm(cargo).replace(/_/g, ' ');
 
-    const d = norm(dept);
-    const c = norm(cargo);
+    // REGRA OBRIGATÓRIA PARA PESQUISA DE SATISFAÇÃO:
+    // Motoristas e Ajudantes SEMPRE usam exatamente o mesmo formulário ('motorista').
+    if (tipo === 'satisfacao') {
+        const canonSat = (window.AVALIACAO_QUESTIONS_CANONICAL && window.AVALIACAO_QUESTIONS_CANONICAL.satisfacao) || {};
+        ['motorista', 'manutencao', 'escritorio'].forEach(baseKey => {
+            if (!window.AVALIACAO_QUESTIONS.satisfacao[baseKey] && canonSat[baseKey]) {
+                window.AVALIACAO_QUESTIONS.satisfacao[baseKey] = JSON.parse(JSON.stringify(canonSat[baseKey]));
+            }
+        });
+        // Sincronizar aliases de ajudante com motorista para que nunca haja divergência
+        if (window.AVALIACAO_QUESTIONS.satisfacao.motorista) {
+            window.AVALIACAO_QUESTIONS.satisfacao.ajudante = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+            window.AVALIACAO_QUESTIONS.satisfacao.ajudante_patio = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+            window.AVALIACAO_QUESTIONS.satisfacao['ajudante_pátio'] = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+            window.AVALIACAO_QUESTIONS.satisfacao.ajudante_geral = window.AVALIACAO_QUESTIONS.satisfacao.motorista;
+        }
 
-    // 1. Tentar match EXATO
+        const isMotoristaOuAjudante =
+            c.includes('motorista') || d.includes('motorista') ||
+            c.includes('ajudante') || d.includes('ajudante') ||
+            d.includes('patio') || c.includes('patio');
+        if (isMotoristaOuAjudante) {
+            return 'motorista';
+        }
+
+        const isManutencao =
+            d.includes('manutencao') || c.includes('manutencao') ||
+            c.includes('mecanico') || d.includes('oficina');
+        if (isManutencao) {
+            return 'manutencao';
+        }
+    }
+
+    const groups = Object.keys(window.AVALIACAO_QUESTIONS[tipo]);
+    if (groups.length === 0) return null;
+
+    // 1. Tentar match EXATO (priorizando cargo antes de departamento)
     for (const g of groups) {
-        const gNorm = norm(g);
-        if (d && d === gNorm) return g;
+        const gNorm = norm(g).replace(/_/g, ' ');
         if (c && c === gNorm) return g;
+    }
+    for (const g of groups) {
+        const gNorm = norm(g).replace(/_/g, ' ');
+        if (d && d === gNorm) return g;
     }
 
     // 2. Tentar match PARCIAL nas chaves customizadas
     for (let g of groups) {
         const gClean = norm(g).replace(/_/g, ' ');
-        if (d && (d.includes(gClean) || gClean.includes(d))) return g;
+        if (!gClean) continue;
         if (c && (c.includes(gClean) || gClean.includes(c))) return g;
+        if (d && (d.includes(gClean) || gClean.includes(d))) return g;
     }
 
-    // 3. Fallbacks globais legados
+    // 3. Fallbacks globais
     if (tipo === 'desempenho') {
         if (groups.includes('lideranca') && (d.includes('lideran') || d.includes('lider') || c.includes('lideran') || c.includes('lider') || c.includes('supervis') || c.includes('gerent') || c.includes('direto'))) {
             return 'lideranca';
@@ -411,9 +501,8 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
     }
 
     if (tipo === 'satisfacao') {
-        // Para satisfacao, SEM fallback: retornar null quando nenhum template do banco bate.
-        // O formulario exibira mensagem orientando o admin a cadastrar o template.
-        return null;
+        if (groups.includes('escritorio')) return 'escritorio';
+        return groups[0] || null;
     }
 
     if (tipo === 'experiencia') {
@@ -426,4 +515,3 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
     // Nenhum match encontrado
     return null;
 };
-

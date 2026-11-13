@@ -528,27 +528,55 @@ function gaSyncAvaliacaoQuestions() {
     if (typeof AVALIACAO_QUESTIONS === 'undefined') return;
     if (gaTemplates.length === 0) return;
 
-    // Para satisfacao: limpar chaves vindas do arquivo antes de aplicar as do banco,
-    // evitando que grupos antigos (motorista, manutencao, escritorio) sirvam de fallback errado.
-    const tiposSatisfacao = new Set(gaTemplates.filter(t => t.tipo === 'satisfacao').map(t => t.tipo));
-    if (tiposSatisfacao.has('satisfacao')) {
-        AVALIACAO_QUESTIONS.satisfacao = {};
+    // Preservar sempre a base canônica de satisfação (motorista, manutencao, escritorio com 10 categorias)
+    if (window.AVALIACAO_QUESTIONS_CANONICAL && window.AVALIACAO_QUESTIONS_CANONICAL.satisfacao) {
+        if (!AVALIACAO_QUESTIONS.satisfacao) AVALIACAO_QUESTIONS.satisfacao = {};
+        ['motorista', 'manutencao', 'escritorio'].forEach(k => {
+            AVALIACAO_QUESTIONS.satisfacao[k] = JSON.parse(JSON.stringify(window.AVALIACAO_QUESTIONS_CANONICAL.satisfacao[k]));
+        });
     }
 
     gaTemplates.forEach(t => {
         try {
             const cats = JSON.parse(t.categorias_json);
+            if (!cats || typeof cats !== 'object') return;
+            const catKeys = Object.keys(cats);
+            if (catKeys.length === 0) return;
+
+            // Ignorar templates legados/incompletos de satisfação (< 10 categorias ou perguntas antigas de 4 tópicos)
+            if (t.tipo === 'satisfacao') {
+                const rawStr = String(t.categorias_json || '');
+                if (catKeys.length < 10 || rawStr.includes('Você se sente integrado à sua equipe?')) {
+                    return;
+                }
+            }
+
             if (!AVALIACAO_QUESTIONS[t.tipo]) AVALIACAO_QUESTIONS[t.tipo] = {};
-            // Suportar chave múltipla (comma-separated departments)
             const chaves = (t.grupo_key || '').split(',').map(c => c.trim()).filter(Boolean);
-            chaves.forEach(ch => AVALIACAO_QUESTIONS[t.tipo][ch] = cats);
+            chaves.forEach(ch => {
+                // Para satisfação, nunca permitir que um template de Escritório sobrescreva motorista ou ajudante
+                if (t.tipo === 'satisfacao') {
+                    const chNorm = ch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const nomeNorm = String(t.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const isMotoristaTpl = nomeNorm.includes('motorista') || chaves.includes('motorista');
+                    if ((chNorm.includes('motorista') || chNorm.includes('ajudante')) && !isMotoristaTpl) {
+                        return;
+                    }
+                }
+                AVALIACAO_QUESTIONS[t.tipo][ch] = cats;
+            });
         } catch(e) {}
     });
+
+    // Garantir unificação obrigatória: Ajudantes e Motoristas usam exatamente o mesmo template em Satisfação
+    if (AVALIACAO_QUESTIONS.satisfacao && AVALIACAO_QUESTIONS.satisfacao.motorista) {
+        AVALIACAO_QUESTIONS.satisfacao.ajudante = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao.ajudante_patio = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao['ajudante_pátio'] = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao.ajudante_geral = AVALIACAO_QUESTIONS.satisfacao.motorista;
+    }
 }
 
-// ============================================================
-// TOAST SIMPLES
-// ============================================================
 window._gaToast = function(msg, type = 'success') {
     const colors = { success: '#10b981', warning: '#f59e0b', error: '#ef4444' };
     const toast = document.createElement('div');

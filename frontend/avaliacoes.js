@@ -23,9 +23,25 @@ window.renderAvaliacaoTab = async function(container) {
                 // Só injeta se ainda não existir para não sobrescrever hardcoded com dado vazio
                 try {
                     const cats = JSON.parse(t.categorias_json || '{}');
-                    if (cats && Object.keys(cats).length > 0) {
+                    const catKeys = cats ? Object.keys(cats) : [];
+                    if (catKeys.length > 0) {
+                        if (tipo === 'satisfacao') {
+                            const rawStr = t.categorias_json || '';
+                            if (catKeys.length < 10 || rawStr.includes('Você se sente integrado à sua equipe?')) {
+                                continue;
+                            }
+                        }
+                        const keysList = chave.split(',').map(s => s.trim()).filter(Boolean);
+                        const isMotoristaTemplate = keysList.some(k => {
+                            const kl = k.toLowerCase();
+                            return kl.includes('motorista') || kl.includes('ajudante');
+                        });
                         // Registra uma entrada por cada chave separada por vírgula
-                        for (const k of chave.split(',').map(s => s.trim()).filter(Boolean)) {
+                        for (const k of keysList) {
+                            const kl = k.toLowerCase();
+                            if (tipo === 'satisfacao' && !isMotoristaTemplate && (kl === 'motorista' || kl.startsWith('ajudante'))) {
+                                continue;
+                            }
                             AVALIACAO_QUESTIONS[tipo][k] = cats;
                         }
                     }
@@ -62,7 +78,13 @@ window.renderAvaliacaoTab = async function(container) {
     const pkSat = `av-group-satisfacao-${colabId}`;
     const pkDes = `av-group-desempenho-${colabId}`;
     const pkExp = `av-group-experiencia-${colabId}`;
-    if (!window.tabPersistence[pkSat]) window.tabPersistence[pkSat] = defaultSatisfacao;
+    if (AVALIACAO_QUESTIONS.satisfacao && AVALIACAO_QUESTIONS.satisfacao.motorista) {
+        AVALIACAO_QUESTIONS.satisfacao.ajudante = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao.ajudante_patio = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao['ajudante_pátio'] = AVALIACAO_QUESTIONS.satisfacao.motorista;
+        AVALIACAO_QUESTIONS.satisfacao.ajudante_geral = AVALIACAO_QUESTIONS.satisfacao.motorista;
+    }
+    window.tabPersistence[pkSat] = defaultSatisfacao;
     if (!window.tabPersistence[pkDes]) window.tabPersistence[pkDes] = defaultDesempenho;
     if (!window.tabPersistence[pkExp]) window.tabPersistence[pkExp] = defaultExperiencia;
 
@@ -125,8 +147,10 @@ window.renderAvaliacaoTab = async function(container) {
         avYear.forEach(av => {
             const res = JSON.parse(av.respostas_json);
             let totalSum = 0; let totalCount = 0;
-            categories.forEach(cat => {
-                const catAnswers = res[cat] || {};
+            categories.forEach((cat, catIdx) => {
+                const catAnswers = (typeof window.resolveSavedAvaliacaoCategory === 'function'
+                    ? window.resolveSavedAvaliacaoCategory(res, cat, catIdx, categories)
+                    : res[cat]) || {};
                 let sum = 0; let count = 0;
                 Object.values(catAnswers).forEach(val => {
                     const n = parseFloat(val);
@@ -195,7 +219,7 @@ window.renderAvaliacaoTab = async function(container) {
                 const res = JSON.parse(av.respostas_json);
                 // Recupera o groupKey salvo dentro do JSON (campo __grupo__) para garantir
                 // que o formulário abra com o mesmo template, mesmo que auto-detect falhe
-                const savedGrupo = res.__grupo__;
+                const savedGrupo = tipo === 'satisfacao' ? safeGroupKey : res.__grupo__;
                 if (savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]) {
                     av.__resolvedGroupKey__ = savedGrupo;
                 }
@@ -207,21 +231,15 @@ window.renderAvaliacaoTab = async function(container) {
 
                 let totalQ = 0, ansQ = 0;
 
-                // -----------------------------------------------------------------------
-                // CÁLCULO DE % CORRETO:
-                // 1. Prioridade: template do __grupo__ salvo no JSON
-                // 2. Fallback: __categorias_snapshot__ salvo no JSON (para avaliações sem __grupo__)
-                // 3. Último fallback: conta diretamente o que foi salvo (com mapeamento por posição)
-                // -----------------------------------------------------------------------
                 const grupoParaPerc = savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]
                     ? savedGrupo
                     : null;
 
-                let questionsParaPerc = grupoParaPerc
-                    ? AVALIACAO_QUESTIONS[tipo][grupoParaPerc]
-                    : null;
+                let questionsParaPerc = (tipo === 'satisfacao')
+                    ? questions
+                    : (grupoParaPerc ? AVALIACAO_QUESTIONS[tipo][grupoParaPerc] : null);
 
-                // Fallback 1: usa o snapshot salvo no próprio JSON
+                // Fallback 1: usa o snapshot salvo no próprio JSON (exceto satisfacao legada)
                 if (!questionsParaPerc && res.__categorias_snapshot__) {
                     try {
                         const snap = JSON.parse(res.__categorias_snapshot__);
@@ -231,31 +249,20 @@ window.renderAvaliacaoTab = async function(container) {
 
                 // Fallback 2: tenta o template atual mapeado por posição
                 if (!questionsParaPerc) {
-                    // Usa as perguntas do template atual do colaborador
-                    questionsParaPerc = questions; // template current (já detectado por dept)
+                    questionsParaPerc = questions;
                 }
 
                 if (questionsParaPerc) {
                     const templateCats = Object.keys(questionsParaPerc);
-                    // Coleta as categorias com notas salvas (exclui campos de sistema)
-                    const savedScoreCats = Object.keys(res).filter(k =>
-                        k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
-                    );
-                    // Para cada categoria do template, tenta encontrar notas salvas
-                    // primeiro pelo nome exato, depois pela posição (mapeamento)
                     templateCats.forEach((cat, idx) => {
+                        const resolvedCatAns = (typeof window.resolveSavedAvaliacaoCategory === 'function')
+                            ? window.resolveSavedAvaliacaoCategory(res, cat, idx, templateCats)
+                            : (res[cat] || null);
                         (questionsParaPerc[cat] || []).forEach((q, i) => {
                             if (q && q.trim()) {
                                 totalQ++;
-                                // Tenta pelo nome exato
-                                if (res[cat] && res[cat][i]) {
+                                if (resolvedCatAns && resolvedCatAns[i] !== undefined && resolvedCatAns[i] !== null && resolvedCatAns[i] !== '') {
                                     ansQ++;
-                                } else {
-                                    // Tenta pelo mesmo índice de posição entre categorias salvas
-                                    const altCat = savedScoreCats[idx];
-                                    if (altCat && altCat !== cat && res[altCat] && res[altCat][i]) {
-                                        ansQ++;
-                                    }
                                 }
                             }
                         });
@@ -290,17 +297,35 @@ window.renderAvaliacaoTab = async function(container) {
                         ${(() => {
                             const av = hasData ? avYear.find(a=>a.trimestre===t) : null;
                             const effectiveGroupKey = (av && av.__resolvedGroupKey__) ? av.__resolvedGroupKey__ : safeGroupKey;
+                            const hasSatSignedDoc = (tipo === 'satisfacao' && av && (av.sat_doc_id || av.pdf_url || av.selfie_url));
+                            const satBtnPayload = hasSatSignedDoc ? JSON.stringify({
+                                id: av.sat_doc_id || null,
+                                colabId: viewedColaborador.id,
+                                ano: year,
+                                trimestre: t,
+                                nome: viewedColaborador.nome_completo || '',
+                                pdf_url: av.pdf_url || '',
+                                selfie_url: av.selfie_url || '',
+                                assinatura_url: av.assinatura_url || '',
+                                assinado_em: av.assinado_em || '',
+                                ip_address: av.ip_address || '',
+                                usuario_nome: av.usuario_nome || viewedColaborador.nome_completo || ''
+                            }).replace(/"/g, '&quot;') : '';
                             return `<button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:${isFull?'#083566':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                                 <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                             </button>
-                            ${isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
+                            ${hasSatSignedDoc ? `
+                            <button onclick="window.verComprovanteSatisfacao(${satBtnPayload})" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center; gap:4px;" title="Visualizar Documento Assinado e Foto">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            ` : (isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
                             <button onclick="window.open('${avUrl}', '_blank')" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar PDF Assinado">
                                 <i class="ph ph-eye"></i>
                             </button>
                             ` : `
                             <button onclick="viewAvaliacaoPDF('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:#10b981; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar Avaliação em PDF">
                                 <i class="ph ph-eye"></i>
-                            </button>`) : ''}
+                            </button>`) : '')}
                             ${hasData ? `<button onclick="deleteAvaliacao(${avId})" style="background:#ef4444; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Excluir Avaliação Definitivamente">
                                 <i class="ph ph-trash"></i>
                             </button>` : ''}`;
@@ -507,8 +532,6 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         if (savedAnswers.__obs__) {
             savedObs = savedAnswers.__obs__;
         }
-        // Se o groupKey passado for inválido (null, "null", sem template carregado),
-        // tenta recuperar o __grupo__ salvo dentro do próprio respostas_json
         const passedKeyInvalid = !groupKey || groupKey === 'null' || groupKey === 'undefined'
             || !AVALIACAO_QUESTIONS[tipo] || !AVALIACAO_QUESTIONS[tipo][groupKey];
         if (passedKeyInvalid && savedAnswers.__grupo__) {
@@ -516,6 +539,15 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
             if (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedKey]) {
                 groupKey = savedKey;
             }
+        }
+    }
+
+    // Para Pesquisa de Satisfação, garantir sempre o grupo canônico do cargo/departamento
+    // (Motoristas e Ajudantes usam sempre o mesmo questionário de 10 categorias)
+    if (tipo === 'satisfacao') {
+        const canonicalGroup = window.matchTemplateGroup('satisfacao', viewedColaborador.departamento || '', viewedColaborador.cargo || '');
+        if (canonicalGroup && AVALIACAO_QUESTIONS.satisfacao && AVALIACAO_QUESTIONS.satisfacao[canonicalGroup]) {
+            groupKey = canonicalGroup;
         }
     }
 
@@ -532,15 +564,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
 
     let questions = null;
 
-    // -----------------------------------------------------------------------
-    // SOLUÇÃO DO SUMIÇO DE RESPOSTAS:
-    // Se o template for editado lá no "Gerenciar Avaliações" (ex: mudar o nome
-    // de uma categoria), o form tentaria abrir usando as novas categorias, mas 
-    // os dados foram salvos com as categorias antigas. Isso fazia as respostas
-    // aparecerem em branco e se perderem ao salvar.
-    // O __categorias_snapshot__ guarda o template EXATO usado na época.
-    // -----------------------------------------------------------------------
-    if (existing && savedAnswers) {
+    if (existing && savedAnswers && tipo !== 'satisfacao') {
         if (savedAnswers.__categorias_snapshot__) {
             try {
                 const snap = JSON.parse(savedAnswers.__categorias_snapshot__);
@@ -549,46 +573,32 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                 }
             } catch(e) {}
         }
-        // Se não tiver snapshot: NÃO tentar reconstruir pelas categorias antigas.
-        // Isso causava o form mostrar nomes/perguntas desatualizadas.
-        // O mapeamento por posição (abaixo) cuida de aproveitar as notas antigas
-        // mesmo quando os nomes das categorias mudaram no template atual.
     }
-
 
     if (!questions) {
         questions = AVALIACAO_QUESTIONS[tipo][groupKey];
     }
 
-    // -----------------------------------------------------------------------
-    // MAPEAMENTO DE NOTAS POR POSIÇÃO:
-    // As notas podem estar salvas sob nomes de categorias ANTIGOS (ex: "Organização
-    // e Rotina de Trabalho") enquanto o snapshot/template atual usa nomes NOVOS
-    // (ex: "Rotina e Carga de Trabalho"). Para não perder essas notas, mapeamos
-    // as categorias por POSIÇÃO quando o nome exato não bate.
-    // -----------------------------------------------------------------------
     const categories = Object.keys(questions);
     if (savedAnswers && Object.keys(savedAnswers).length > 0) {
-        // Pega as categorias com NOTAS salvas (exclui campos de sistema)
-        const savedScoreCats = Object.keys(savedAnswers).filter(k =>
-            k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
-        );
-        // Para cada categoria do template atual, verifica se existe no savedAnswers
-        // Se não existir pelo nome, tenta pegar pela POSIÇÃO da categoria antiga
+        const resolvedScoreMap = {};
         categories.forEach((newCat, idx) => {
-            if (!savedAnswers[newCat] && savedScoreCats[idx]) {
-                // Nome não bate, mas existe uma categoria na mesma posição → mapeia
-                savedAnswers[newCat] = savedAnswers[savedScoreCats[idx]];
-            }
+            const resolved = (typeof window.resolveSavedAvaliacaoCategory === 'function')
+                ? window.resolveSavedAvaliacaoCategory(savedAnswers, newCat, idx, categories)
+                : savedAnswers[newCat];
+            if (resolved) resolvedScoreMap[newCat] = resolved;
         });
-        // Faz o mesmo para as observações
+        Object.assign(savedAnswers, resolvedScoreMap);
+
         if (savedAnswers.__obs__) {
-            const savedObsCats = Object.keys(savedAnswers.__obs__);
+            const resolvedObsMap = {};
             categories.forEach((newCat, idx) => {
-                if (!savedAnswers.__obs__[newCat] && savedObsCats[idx]) {
-                    savedAnswers.__obs__[newCat] = savedAnswers.__obs__[savedObsCats[idx]];
-                }
+                const resolvedObs = (typeof window.resolveSavedAvaliacaoCategory === 'function')
+                    ? window.resolveSavedAvaliacaoCategory(savedAnswers.__obs__, newCat, idx, categories)
+                    : savedAnswers.__obs__[newCat];
+                if (resolvedObs) resolvedObsMap[newCat] = resolvedObs;
             });
+            Object.assign(savedAnswers.__obs__, resolvedObsMap);
             savedObs = savedAnswers.__obs__;
         }
     }
@@ -870,7 +880,34 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         errSpan.textContent = 'Salvando...';
         await apiPost('/avaliacoes', { colaborador_id: viewedColaborador.id, tipo, ano, trimestre, respostas_json: JSON.stringify(respostas) });
         
-        // Se estiver 100%, gera o PDF e salva
+        if (tipo === 'satisfacao' && is100Percent && typeof window._satAbrirModalAssinaturaSelfie === 'function') {
+            const modal = document.getElementById('modal-avaliacao');
+            if (modal) modal.remove();
+            renderAvaliacaoTab(document.getElementById('docs-list-container'));
+            if (typeof window.loadColaboradores === 'function') {
+                window.loadColaboradores();
+            }
+            window._satAbrirModalAssinaturaSelfie({
+                colabId: viewedColaborador.id,
+                nome: viewedColaborador.nome_completo || '',
+                cargo: viewedColaborador.cargo || '',
+                dept: viewedColaborador.departamento || '',
+                ano: ano,
+                trimestre: trimestre,
+                grupo: groupKey,
+                respostas: respostas,
+                perguntasGroup: activeQuestions,
+                onSigned: function() {
+                    renderAvaliacaoTab(document.getElementById('docs-list-container'));
+                    if (typeof window.loadColaboradores === 'function') {
+                        window.loadColaboradores();
+                    }
+                }
+            });
+            return;
+        }
+
+        // Se estiver 100% (desempenho/experiencia), gera o PDF e salva
         if (is100Percent && typeof html2pdf !== 'undefined') {
             errSpan.textContent = 'Gerando PDF...';
             await generateAndUploadEvaluationPDF(viewedColaborador.id, viewedColaborador.nome_completo, tipo, ano, trimestre, groupKey, respostas);
@@ -1174,6 +1211,22 @@ window.viewAvaliacaoPDF = async function(tipo, ano, trimestre, groupKey) {
     const colabId = viewedColaborador.id;
     const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
     const av = avaliacoes.find(a => Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trimestre) && a.tipo === tipo);
+    if (tipo === 'satisfacao' && av && (av.sat_doc_id || av.pdf_url || av.selfie_url) && typeof window.verComprovanteSatisfacao === 'function') {
+        window.verComprovanteSatisfacao({
+            id: av.sat_doc_id || null,
+            colabId: colabId,
+            ano: ano,
+            trimestre: trimestre,
+            nome: viewedColaborador.nome_completo || '',
+            pdf_url: av.pdf_url || '',
+            selfie_url: av.selfie_url || '',
+            assinatura_url: av.assinatura_url || '',
+            assinado_em: av.assinado_em || '',
+            ip_address: av.ip_address || '',
+            usuario_nome: av.usuario_nome || viewedColaborador.nome_completo || ''
+        });
+        return;
+    }
     if (!av || !av.respostas_json) {
         alert('Respostas não encontradas no servidor para gerar a visualização.');
         return;

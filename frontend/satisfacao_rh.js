@@ -1074,20 +1074,30 @@
 
                 if (ps.respondido) {
                     const respB64 = ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : '';
+                    const temDocAssinado = Boolean(ps.pdf_url || ps.selfie_url || ps.sat_doc_id);
+                    const safeNomeJs = String(c.nome_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     return `<td style="text-align:center;">
-                        <button type="button"
-                            data-colab-id="${c.id}"
-                            data-colab-nome="${escHtml(c.nome_completo || '')}"
-                            data-colab-cargo="${escHtml(c.cargo || '')}"
-                            data-colab-dept="${escHtml(c.departamento || '')}"
-                            data-respostas="${respB64}"
-                            data-ano="${p.ano}"
-                            data-trim="${p.trimestre}"
-                            onclick="window._satOpenFormBtn(this)"
-                            title="Respondido em ${periodLabel(p)} — clique para editar"
-                            style="background:transparent;border:none;padding:0;cursor:pointer;">
-                            <span class="status-pill-ok"><i class="ph ph-check-circle"></i> Respondido</span>
-                        </button>
+                        <div style="display:inline-flex;align-items:center;justify-content:center;gap:4px;">
+                            <button type="button"
+                                data-colab-id="${c.id}"
+                                data-colab-nome="${escHtml(c.nome_completo || '')}"
+                                data-colab-cargo="${escHtml(c.cargo || '')}"
+                                data-colab-dept="${escHtml(c.departamento || '')}"
+                                data-respostas="${respB64}"
+                                data-ano="${p.ano}"
+                                data-trim="${p.trimestre}"
+                                onclick="window._satOpenFormBtn(this)"
+                                title="Respondido em ${periodLabel(p)} — clique para editar"
+                                style="background:transparent;border:none;padding:0;cursor:pointer;">
+                                <span class="status-pill-ok"><i class="ph ph-check-circle"></i> Respondido</span>
+                            </button>
+                            ${temDocAssinado ? `<button type="button"
+                                onclick="window.verComprovanteSatisfacao({ colabId: ${c.id}, ano: ${p.ano}, trimestre: ${p.trimestre}, nome: '${safeNomeJs}' })"
+                                title="Ver Documento Assinado e Foto da Pesquisa"
+                                style="background:#0f4c81;color:#fff;border:none;border-radius:6px;width:26px;height:24px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.85rem;">
+                                <i class="ph ph-eye"></i>
+                            </button>` : ''}
+                        </div>
                     </td>`;
                 }
 
@@ -1125,18 +1135,27 @@
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
-                <button
-                    data-colab-id="${c.id}"
-                    data-colab-nome="${escHtml(c.nome_completo || '')}"
-                    data-colab-cargo="${escHtml(c.cargo || '')}"
-                    data-colab-dept="${escHtml(c.departamento || '')}"
-                    data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
-                    data-ano="${periodos.length > 0 ? periodos[periodos.length - 1].ano : ''}"
-                    data-trim="${periodos.length > 0 ? periodos[periodos.length - 1].trimestre : ''}"
-                    onclick="window._satOpenFormBtn(this)"
-                    style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.38rem 0.7rem;font-size:0.76rem;cursor:pointer;font-weight:600;">
-                    <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
-                </button>
+                <div style="display:inline-flex;align-items:center;justify-content:center;gap:5px;">
+                    <button
+                        data-colab-id="${c.id}"
+                        data-colab-nome="${escHtml(c.nome_completo || '')}"
+                        data-colab-cargo="${escHtml(c.cargo || '')}"
+                        data-colab-dept="${escHtml(c.departamento || '')}"
+                        data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
+                        data-ano="${periodos.length > 0 ? periodos[periodos.length - 1].ano : ''}"
+                        data-trim="${periodos.length > 0 ? periodos[periodos.length - 1].trimestre : ''}"
+                        onclick="window._satOpenFormBtn(this)"
+                        style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.38rem 0.7rem;font-size:0.76rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
+                    </button>
+                    ${(lastP && (lastP.pdf_url || lastP.selfie_url || lastP.sat_doc_id) && periodos.length > 0) ? `<button
+                        type="button"
+                        onclick="window.verComprovanteSatisfacao({ colabId: ${c.id}, ano: ${periodos[periodos.length - 1].ano}, trimestre: ${periodos[periodos.length - 1].trimestre}, nome: '${String(c.nome_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}' })"
+                        title="Ver Documento Assinado e Foto da Pesquisa"
+                        style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.38rem 0.55rem;font-size:0.88rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-eye"></i>
+                    </button>` : ''}
+                </div>
             </td>
         </tr>`;
     }
@@ -1360,10 +1379,11 @@
         if (typeof saved === 'string') {
             try { saved = JSON.parse(saved); } catch (e) { saved = {}; }
         }
+        if (!saved || typeof saved !== 'object') saved = {};
         if (saved && saved.scores && typeof saved.scores === 'object') {
             saved = {};
         }
-        if (!saved.__obs__) saved.__obs__ = {};
+        if (!saved.__obs__ || typeof saved.__obs__ !== 'object') saved.__obs__ = {};
 
         const grupo = grupoFromDeptCargo(dept, cargo);
         if (!grupo) {
@@ -1378,15 +1398,15 @@
                         Não há um template de avaliação de satisfação cadastrado para o departamento<br>
                         <strong style="color:#0f4c81;">${escHtml(dept || cargo || 'deste colaborador')}</strong>.
                     </p>
-                    <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:1.5rem;">
-                        Acesse <strong>Avaliações → Gerenciar Avaliações</strong> e crie um template incluindo esse departamento.
-                    </p>
                     <button onclick="document.getElementById('sat-modal-overlay').remove()" style="padding:0.6rem 1.5rem;background:#0f4c81;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fechar</button>
                 </div>`;
             document.body.appendChild(overlay);
             return;
         }
+
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
+        const templateCats = Object.keys(perguntasGroup || {});
+        window._satCurrentColabMeta = { colabId, nome, cargo, dept, ano, trim, saved };
 
         let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:#fff;border-radius:14px;width:100%;max-width:98%;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
@@ -1400,7 +1420,7 @@
                 
                 <div style="padding:2rem;overflow-y:auto;flex:1;background:#f8fafc;" id="sat-form-body">
                     <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
-                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom). Para notas de 1 a 4 é obrigatório preencher uma observação (apenas nota 5 é opcional).
+                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom). Para notas de 1 a 4 é obrigatório preencher uma observação (apenas nota 5 é opcional). Ao finalizar 100% das perguntas será solicitada assinatura e selfie.
                     </p>
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -1408,7 +1428,7 @@
                     <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}', ${ano}, ${trim})">`;
 
         let catIdx = 0;
-        Object.keys(perguntasGroup).forEach(topico => {
+        templateCats.forEach(topico => {
             html += `
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:1.5rem; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="background:#f1f5f9; padding:0.75rem 1rem; border-bottom:1px solid #e2e8f0;">
@@ -1417,11 +1437,16 @@
                 <div style="padding:1rem;">
             `;
 
+            const topicoSaved = typeof window.resolveSavedAvaliacaoCategory === 'function'
+                ? window.resolveSavedAvaliacaoCategory(saved, topico, catIdx, templateCats)
+                : saved[topico];
+            const obsSaved = (typeof window.resolveSavedAvaliacaoCategory === 'function'
+                ? window.resolveSavedAvaliacaoCategory(saved.__obs__, topico, catIdx, templateCats)
+                : (saved.__obs__ && saved.__obs__[topico])) || {};
+
             perguntasGroup[topico].forEach((pergunta, idx) => {
                 if (!pergunta || !pergunta.trim()) return;
-                const topicoSaved = saved[topico];
                 const val = topicoSaved != null ? (topicoSaved[idx] ?? topicoSaved[String(idx)] ?? null) : null;
-                const obsSaved = saved.__obs__ && saved.__obs__[topico] ? saved.__obs__[topico] : {};
                 const obsStr = (obsSaved[idx] ?? obsSaved[String(idx)]) || '';
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
@@ -1456,7 +1481,7 @@
                 const obsFaltando = obsObrigatoria && !String(obsStr || '').trim();
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${escHtml(obsStr)}" ${isReadonly ? 'disabled' : ''} placeholder="${obsObrigatoria ? 'Observação obrigatória (nota de 1 a 4) *' : 'Observação (opcional)...'}" oninput="if(this.value.trim()){this.style.borderColor='#cbd5e1';this.style.background='#ffffff';}" style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid ${obsFaltando ? '#ef4444' : '#cbd5e1'}; background:${obsFaltando ? '#fef2f2' : '#ffffff'}; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${escHtml(obsStr)}" ${isReadonly ? 'disabled' : ''} placeholder="${obsObrigatoria ? 'Observação obrigatória (nota de 1 a 4) *' : 'Observação (opcional)...'}" oninput="if(this.value.trim()){this.style.borderColor='#cbd5e1';this.style.background='#ffffff';}" style="text-transform:none; flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid ${obsFaltando ? '#ef4444' : '#cbd5e1'}; background:${obsFaltando ? '#fef2f2' : '#ffffff'}; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -1468,7 +1493,7 @@
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
-                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${escHtml(infoAdic)}</textarea>
+                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="text-transform:none;width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${escHtml(infoAdic)}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
@@ -1510,18 +1535,24 @@
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
         let erroObsObrigatoria = null;
+        let totalQ = 0;
+        let ansQ = 0;
 
         categories.forEach((cat, catIdx) => {
-            respostas[cat] = {};
+            respostas[cat] = [];
             respostas.__obs__[cat] = {};
             perguntasGroup[cat].forEach((q, i) => {
                 if (!q || !q.trim()) return;
+                totalQ++;
                 const rads = form.elements[`av_${catIdx}_${i}`];
                 const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
                 let notaNum = null;
                 if (selected) {
                     notaNum = parseInt(selected.value, 10);
                     respostas[cat][i] = notaNum;
+                    ansQ++;
+                } else {
+                    respostas[cat][i] = null;
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
                 const obsTxt = obs ? obs.value.trim() : '';
@@ -1563,16 +1594,20 @@
         }
 
         respostas.__grupo__ = grupo;
+        try {
+            respostas.__categorias_snapshot__ = JSON.stringify(perguntasGroup);
+        } catch (_) {}
 
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
             submitBtn.disabled = true;
 
+            const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
             const r = await fetch(API.replace('/api', '') + '/api/avaliacoes', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token'))
+                    'Authorization': 'Bearer ' + tok
                 },
                 body: JSON.stringify({
                     colaborador_id: colabId,
@@ -1585,14 +1620,483 @@
 
             if (!r.ok) throw new Error(await r.text());
 
-            alert('Pesquisa salva com sucesso!');
+            const is100 = (totalQ > 0 && ansQ === totalQ);
+            const meta = window._satCurrentColabMeta || {};
+            const colabObj = (_colabs?.colaboradores || []).find(c => Number(c.id) === Number(colabId));
+            const nomeColab = meta.nome || colabObj?.nome_completo || 'Colaborador';
+            const cargoColab = meta.cargo || colabObj?.cargo || '';
+            const deptColab = meta.dept || colabObj?.departamento || '';
+
             window._satCloseForm();
 
-            if (typeof window.initSatisfacaoRH === 'function') window.initSatisfacaoRH(true);
+            if (is100) {
+                window._satAbrirModalAssinaturaSelfie({
+                    colabId,
+                    nome: nomeColab,
+                    cargo: cargoColab,
+                    dept: deptColab,
+                    ano: currentYear,
+                    trimestre: currentQ,
+                    grupo,
+                    respostas,
+                    perguntasGroup,
+                    onSigned: function () {
+                        if (typeof window.initSatisfacaoRH === 'function') window.initSatisfacaoRH(true);
+                    }
+                });
+            } else {
+                alert(`Progresso salvo (${ansQ}/${totalQ} perguntas respondidas). Ao completar 100% das perguntas será solicitada a assinatura e a selfie.`);
+                if (typeof window.initSatisfacaoRH === 'function') window.initSatisfacaoRH(true);
+            }
         } catch (err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
-            submitBtn.innerHTML = '<i class="ph ph-check-circle"></i> Salvar Respostas';
-            submitBtn.disabled = false;
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="ph ph-check-circle"></i> Salvar Respostas';
+                submitBtn.disabled = false;
+            }
+        }
+    };
+
+    /* ── MODAL GLOBAL DE ASSINATURA + SELFIE OBRIGATÓRIA (100% SATISFAÇÃO) ── */
+    window._satAbrirModalAssinaturaSelfie = async function (opts) {
+        const { colabId, nome, cargo, dept, ano, trimestre, grupo, respostas, perguntasGroup, onSigned } = opts || {};
+        const nomeLimpo = (typeof window.limparPrefixoGrupoCliente === 'function') ? window.limparPrefixoGrupoCliente(nome || '') : String(nome || '');
+
+        if (!window.SignaturePad) {
+            try {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js';
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            } catch (_) {}
+        }
+
+        document.getElementById('sat-sign-overlay')?.remove();
+
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        let clientIp = 'Carregando...';
+        let usuarioLogadoNome = '';
+        try {
+            const erpU = JSON.parse(localStorage.getItem('erp_user') || '{}');
+            usuarioLogadoNome = erpU.nome_completo || erpU.nome || erpU.username || '';
+        } catch (_) {}
+
+        const html = `
+        <div id="sat-sign-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(4px);z-index:10005;display:flex;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:760px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.4);overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                    <div>
+                        <div style="color:#fff;font-size:1.08rem;font-weight:700;"><i class="ph ph-signature" style="margin-right:6px;"></i>Assinatura e Selfie Obrigatórias — Pesquisa de Satisfação (100%)</div>
+                        <div style="color:#bfdbfe;font-size:0.84rem;margin-top:3px;">Colaborador: <strong>${escHtml(nomeLimpo)}</strong> · ${escHtml(dept || '')}${cargo ? ' · ' + escHtml(cargo) : ''} · ${ano} / ${trimestre}º Trimestre</div>
+                    </div>
+                </div>
+
+                <div style="overflow-y:auto;flex:1;padding:1.4rem;">
+                    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:0.9rem 1.15rem;margin-bottom:1.2rem;">
+                        <div style="font-size:0.88rem;color:#1e3a8a;font-weight:700;margin-bottom:4px;"><i class="ph ph-check-circle" style="margin-right:4px;color:#0284c7;"></i>Preenchimento 100% Concluído</div>
+                        <p style="margin:0;font-size:0.83rem;color:#1e40af;line-height:1.5;">
+                            Para finalizar a Pesquisa de Satisfação de <strong>${escHtml(nomeLimpo)}</strong>, é obrigatório coletar a <strong>assinatura digital</strong> e tirar uma <strong>selfie</strong>.
+                            A foto registrará automaticamente o nome do colaborador, a data/hora exata e o IP no momento da fotografia.
+                        </p>
+                    </div>
+
+                    <div style="display:flex;gap:1.25rem;flex-wrap:wrap;">
+                        <!-- Assinatura -->
+                        <div style="flex:1;min-width:290px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;">
+                                <i class="ph ph-pen-nib" style="color:#0f4c81;margin-right:4px;"></i>1. Assinatura do Colaborador *
+                            </label>
+                            <div style="position:relative;border:2px dashed #94a3b8;border-radius:10px;background:#f8fafc;overflow:hidden;">
+                                <canvas id="sat-sig-canvas" style="width:100%;display:block;touch-action:none;cursor:crosshair;" height="175"></canvas>
+                                <button type="button" onclick="window._satClearSig()" style="position:absolute;top:8px;right:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:4px 9px;font-size:0.75rem;color:#dc2626;cursor:pointer;font-weight:600;">
+                                    <i class="ph ph-eraser"></i> Limpar
+                                </button>
+                            </div>
+                            <p style="font-size:0.75rem;color:#64748b;margin:5px 0 0;">Assine utilizando o dedo (celular/tablet) ou o mouse no quadro acima.</p>
+                        </div>
+
+                        <!-- Selfie com Carimbo -->
+                        <div style="flex:1.15;min-width:310px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;">
+                                <i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>2. Selfie com Nome, Data/Hora e IP *
+                            </label>
+                            <div style="position:relative;border-radius:10px;overflow:hidden;background:#0f172a;width:100%;height:215px;border:1.5px solid #cbd5e1;">
+                                <video id="sat-selfie-video" autoplay playsinline muted style="width:100%;height:215px;object-fit:cover;display:block;"></video>
+                                <div id="sat-selfie-live-meta" style="position:absolute;left:0;right:0;bottom:0;background:rgba(15,23,42,0.82);color:#fff;padding:6px 10px;font-family:monospace;font-size:11px;line-height:1.35;">
+                                    <div style="font-weight:700;color:#38bdf8;">Colaborador: ${escHtml(nomeLimpo)}</div>
+                                    <div id="sat-selfie-live-ts">Data/Hora: --/--/---- --:--:--</div>
+                                    <div id="sat-selfie-live-ip">IP: Carregando...</div>
+                                </div>
+                                <canvas id="sat-selfie-canvas" style="display:none;"></canvas>
+                                <img id="sat-selfie-preview" style="display:none;width:100%;height:215px;object-fit:contain;background:#0f172a;" />
+                            </div>
+                            <div style="display:flex;gap:0.6rem;margin-top:0.6rem;">
+                                <button type="button" id="sat-btn-capturar" onclick="window._satCaptureSelfie()" style="flex:1;background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.55rem 1rem;font-size:0.84rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                    <i class="ph ph-camera"></i> Tirar Selfie
+                                </button>
+                                <button type="button" id="sat-btn-recapturar" onclick="window._satRetakeSelfie()" style="display:none;flex:1;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.55rem 1rem;font-size:0.84rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;gap:6px;">
+                                    <i class="ph ph-arrow-counter-clockwise"></i> Tirar Outra Foto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;align-items:center;gap:0.75rem;background:#f8fafc;flex-shrink:0;">
+                    <button type="button" id="sat-btn-confirmar-assinatura" onclick="window._satConfirmarAssinaturaSelfie()" style="padding:0.7rem 1.5rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);font-size:0.9rem;">
+                        <i class="ph ph-check-circle"></i> Finalizar, Assinar e Salvar Documento
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        // Fetch IP real no momento da abertura da câmera
+        (async function fetchIpNow() {
+            try {
+                const rIp = await fetch(API.replace('/api', '') + '/api/meu-ip', {
+                    headers: { 'Authorization': 'Bearer ' + tok }
+                });
+                if (rIp.ok) {
+                    const jIp = await rIp.json();
+                    if (jIp.ip) clientIp = jIp.ip;
+                    if (jIp.usuario_nome) usuarioLogadoNome = jIp.usuario_nome;
+                }
+            } catch (_) {}
+            if (!clientIp || clientIp === 'Carregando...') {
+                try {
+                    const rExt = await fetch('https://api.ipify.org?format=json');
+                    if (rExt.ok) {
+                        const jExt = await rExt.json();
+                        if (jExt.ip) clientIp = jExt.ip;
+                    }
+                } catch (_) { clientIp = 'Não identificado'; }
+            }
+            const ipEl = document.getElementById('sat-selfie-live-ip');
+            if (ipEl) ipEl.textContent = 'IP: ' + clientIp;
+        })();
+
+        // Inicializar SignaturePad
+        const sigCanvas = document.getElementById('sat-sig-canvas');
+        sigCanvas.width = sigCanvas.parentElement.offsetWidth || 340;
+        if (window.SignaturePad) {
+            window._satSigPad = new window.SignaturePad(sigCanvas, {
+                backgroundColor: 'rgba(255,255,255,0)',
+                penColor: '#0f172a',
+                minWidth: 1.5,
+                maxWidth: 3
+            });
+        }
+        window._satClearSig = function () {
+            if (window._satSigPad) window._satSigPad.clear();
+        };
+
+        window._satStopCamera = function () {
+            if (window._satCameraStream) {
+                window._satCameraStream.getTracks().forEach(t => t.stop());
+                window._satCameraStream = null;
+            }
+        };
+
+        window._satSelfieData = null;
+        window._satSelfieTimestamp = null;
+
+        function getFormattedBRT() {
+            return new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        }
+
+        window._satCaptureSelfie = function () {
+            const vid = document.getElementById('sat-selfie-video');
+            const can = document.getElementById('sat-selfie-canvas');
+            const pre = document.getElementById('sat-selfie-preview');
+            const metaBox = document.getElementById('sat-selfie-live-meta');
+            if (!vid || !can || !pre) return;
+
+            const w = vid.videoWidth || 640;
+            const h = vid.videoHeight || 480;
+            can.width = w;
+            can.height = h;
+            const ctx = can.getContext('2d');
+            ctx.drawImage(vid, 0, 0, w, h);
+
+            const dtMomento = getFormattedBRT();
+            window._satSelfieTimestamp = dtMomento;
+
+            // Desenhar tarja inferior na própria foto com Nome do Colaborador (Usuário da pesquisa), Data/Hora e IP
+            const barH = Math.max(68, Math.round(h * 0.16));
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+            ctx.fillRect(0, h - barH, w, barH);
+
+            const fontSizeTitle = Math.max(13, Math.round(w * 0.024));
+            const fontSizeSub = Math.max(12, Math.round(w * 0.021));
+            const padX = 12;
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = `bold ${fontSizeTitle}px monospace`;
+            ctx.fillText(`Colaborador: ${nomeLimpo}`, padX, h - barH + fontSizeTitle + 6);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${fontSizeSub}px monospace`;
+            ctx.fillText(`Data/Hora: ${dtMomento}`, padX, h - barH + fontSizeTitle + fontSizeSub + 12);
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = `bold ${fontSizeSub}px monospace`;
+            ctx.fillText(`IP: ${clientIp}`, padX, h - barH + fontSizeTitle + fontSizeSub * 2 + 18);
+
+            window._satSelfieData = can.toDataURL('image/jpeg', 0.90);
+            pre.src = window._satSelfieData;
+
+            vid.style.display = 'none';
+            if (metaBox) metaBox.style.display = 'none';
+            pre.style.display = 'block';
+
+            const btnCap = document.getElementById('sat-btn-capturar');
+            const btnRec = document.getElementById('sat-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'none';
+            if (btnRec) btnRec.style.display = 'flex';
+        };
+
+        window._satRetakeSelfie = function () {
+            window._satSelfieData = null;
+            window._satSelfieTimestamp = null;
+            const vid = document.getElementById('sat-selfie-video');
+            const pre = document.getElementById('sat-selfie-preview');
+            const metaBox = document.getElementById('sat-selfie-live-meta');
+            if (pre) pre.style.display = 'none';
+            if (vid) vid.style.display = 'block';
+            if (metaBox) metaBox.style.display = 'block';
+
+            const btnCap = document.getElementById('sat-btn-capturar');
+            const btnRec = document.getElementById('sat-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'flex';
+            if (btnRec) btnRec.style.display = 'none';
+        };
+
+        // Iniciar câmera
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false });
+            window._satCameraStream = stream;
+            const vid = document.getElementById('sat-selfie-video');
+            if (vid) vid.srcObject = stream;
+
+            const tickClock = () => {
+                const tsEl = document.getElementById('sat-selfie-live-ts');
+                if (!tsEl || !window._satCameraStream) return;
+                tsEl.textContent = 'Data/Hora: ' + getFormattedBRT();
+                if (!window._satSelfieData) setTimeout(tickClock, 1000);
+            };
+            tickClock();
+        } catch (camErr) {
+            const cap = document.getElementById('sat-btn-capturar');
+            if (cap) {
+                cap.disabled = true;
+                cap.title = 'Câmera indisponível: ' + camErr.message;
+            }
+            alert('Não foi possível acessar a câmera para a selfie obrigatória: ' + camErr.message);
+        }
+
+        window._satConfirmarAssinaturaSelfie = async function () {
+            if (!window._satSigPad || window._satSigPad.isEmpty()) {
+                alert('É obrigatório assinar no quadro de assinatura antes de finalizar.');
+                return;
+            }
+            if (!window._satSelfieData) {
+                alert('É obrigatório tirar a selfie antes de finalizar.');
+                return;
+            }
+
+            const btn = document.getElementById('sat-btn-confirmar-assinatura');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<div class="spinner-sm" style="border-color:#a7f3d0;border-top-color:#fff;width:16px;height:16px;border-width:2px;"></div> Gerando Documento e Salvando...';
+            }
+
+            try {
+                const assinatura_base64 = window._satSigPad.toDataURL('image/png');
+                const selfie_base64 = window._satSelfieData;
+                const data_hora_foto = window._satSelfieTimestamp || getFormattedBRT();
+
+                const r = await fetch(API.replace('/api', '') + '/api/satisfacao-documentos/assinar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + tok
+                    },
+                    body: JSON.stringify({
+                        colaborador_id: colabId,
+                        ano,
+                        trimestre,
+                        respostas_json: JSON.stringify(respostas),
+                        assinatura_base64,
+                        selfie_base64,
+                        perguntas_text: perguntasGroup,
+                        usuario_nome: nomeLimpo,
+                        aplicador_nome: usuarioLogadoNome,
+                        data_hora_foto,
+                        ip_foto: clientIp,
+                        dispositivo: navigator.userAgent
+                    })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'Erro ao salvar assinatura e selfie.');
+
+                window._satStopCamera();
+                document.getElementById('sat-sign-overlay')?.remove();
+
+                if (typeof onSigned === 'function') {
+                    try { onSigned(data); } catch (_) {}
+                }
+
+                // Abrir comprovante com o documento assinado e a foto
+                window.verComprovanteSatisfacao({
+                    id: data.id,
+                    colabId,
+                    ano,
+                    trimestre,
+                    nome: nomeLimpo,
+                    pdf_url: data.pdf_url,
+                    selfie_url: data.selfie_url,
+                    assinatura_url: data.assinatura_url,
+                    assinado_em: data.assinado_em || data_hora_foto,
+                    ip_address: data.ip || clientIp
+                });
+            } catch (err) {
+                alert('Erro ao finalizar documento assinado: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph ph-check-circle"></i> Finalizar, Assinar e Salvar Documento';
+                }
+            }
+        };
+    };
+
+    /* ── VISUALIZADOR GLOBAL DO DOCUMENTO ASSINADO + FOTO (TRILHA / PRONTUÁRIO / RH) ── */
+    window.verComprovanteSatisfacao = async function (optsOrId) {
+        document.getElementById('modal-comprovante-satisfacao')?.remove();
+
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        let info = (typeof optsOrId === 'object' && optsOrId !== null) ? { ...optsOrId } : { id: optsOrId };
+
+        const loadModal = document.createElement('div');
+        loadModal.id = 'modal-comprovante-satisfacao';
+        loadModal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.82);z-index:10010;display:flex;align-items:center;justify-content:center;padding:16px;';
+        loadModal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:2rem;min-width:300px;text-align:center;color:#64748b;">
+            <i class="ph ph-spinner ph-spin" style="font-size:2rem;display:block;margin-bottom:8px;"></i> Carregando documento assinado e foto...
+        </div>`;
+        document.body.appendChild(loadModal);
+
+        try {
+            if (!info.pdf_url || !info.selfie_url) {
+                let urlFetch = null;
+                if (info.id) {
+                    urlFetch = API.replace('/api', '') + '/api/satisfacao-documentos/id/' + info.id;
+                } else if (info.colabId && info.ano && info.trimestre) {
+                    urlFetch = API.replace('/api', '') + `/api/satisfacao-documentos/${info.colabId}/${info.ano}/${info.trimestre}`;
+                }
+                if (urlFetch) {
+                    const r = await fetch(urlFetch, { headers: { 'Authorization': 'Bearer ' + tok } });
+                    if (r.ok) {
+                        const row = await r.json();
+                        if (row) {
+                            info = {
+                                ...info,
+                                id: row.id,
+                                colabId: row.colaborador_id,
+                                ano: row.ano,
+                                trimestre: row.trimestre,
+                                nome: row.colaborador_nome || row.usuario_nome || info.nome || 'Colaborador',
+                                cargo: row.cargo || info.cargo || '',
+                                departamento: row.departamento || info.departamento || '',
+                                pdf_url: row.pdf_r2 || info.pdf_url,
+                                selfie_url: row.selfie_r2 || info.selfie_url,
+                                assinatura_url: row.assinatura_r2 || info.assinatura_url,
+                                assinado_em: row.assinado_em || info.assinado_em,
+                                ip_address: row.ip_address || info.ip_address
+                            };
+                        }
+                    }
+                }
+            }
+
+            if (!info.pdf_url && !info.selfie_url) {
+                loadModal.remove();
+                alert('Este registro de Pesquisa de Satisfação ainda não possui assinatura e selfie registradas.');
+                return;
+            }
+
+            const nomeExib = info.nome || info.colaborador_nome || 'Colaborador';
+            const dtExib = info.assinado_em || '—';
+            const ipExib = info.ip_address || '—';
+
+            loadModal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:1150px;height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.45);">
+                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:1rem;flex-wrap:wrap;">
+                    <div>
+                        <div style="color:#fff;font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                            <i class="ph ph-shield-check" style="font-size:1.3rem;color:#7dd3fc;"></i>
+                            Comprovante Assinado — Pesquisa de Satisfação ${info.ano ? `(${info.trimestre}º Trim/${info.ano})` : ''}
+                        </div>
+                        <div style="color:#e0f2fe;font-size:0.82rem;margin-top:2px;">
+                            Colaborador: <strong>${escHtml(nomeExib)}</strong> · Data/Hora: <strong>${escHtml(dtExib)}</strong> · IP: <strong>${escHtml(ipExib)}</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        ${info.pdf_url ? `<a href="${info.pdf_url}" target="_blank" style="background:#10b981;color:#fff;text-decoration:none;padding:0.45rem 0.95rem;border-radius:8px;font-size:0.82rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                            <i class="ph ph-file-pdf"></i> Abrir / Baixar PDF
+                        </a>` : ''}
+                        <button onclick="document.getElementById('modal-comprovante-satisfacao').remove()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+                    </div>
+                </div>
+
+                <div style="flex:1;display:flex;overflow:hidden;background:#f1f5f9;flex-wrap:wrap;">
+                    <!-- Coluna Esquerda: Selfie com Metadados + Assinatura -->
+                    <div style="width:360px;max-width:100%;background:#fff;border-right:1px solid #e2e8f0;padding:1.25rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;flex-shrink:0;">
+                        <div>
+                            <div style="font-size:0.78rem;font-weight:800;color:#0f4c81;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                                <i class="ph ph-camera"></i> Fotografia (Selfie da Pesquisa)
+                            </div>
+                            ${info.selfie_url ? `
+                                <div style="border:1.5px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#0f172a;">
+                                    <img src="${info.selfie_url}" alt="Selfie da Pesquisa" style="width:100%;max-height:250px;object-fit:contain;display:block;cursor:pointer;" onclick="window.open(this.src,'_blank')" title="Clique para ampliar a foto" />
+                                    <div style="background:#0f172a;color:#fff;padding:8px 10px;font-family:monospace;font-size:0.76rem;line-height:1.45;border-top:1px solid #334155;">
+                                        <div><strong style="color:#38bdf8;">Usuário / Colaborador:</strong> ${escHtml(nomeExib)}</div>
+                                        <div><strong style="color:#38bdf8;">Dia e Hora:</strong> ${escHtml(dtExib)}</div>
+                                        <div><strong style="color:#38bdf8;">IP na Fotografia:</strong> ${escHtml(ipExib)}</div>
+                                    </div>
+                                </div>
+                            ` : '<div style="padding:1rem;background:#f8fafc;border-radius:8px;color:#94a3b8;font-size:0.83rem;text-align:center;">Foto não disponível</div>'}
+                        </div>
+
+                        <div>
+                            <div style="font-size:0.78rem;font-weight:800;color:#0f4c81;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                                <i class="ph ph-signature"></i> Assinatura Digital
+                            </div>
+                            ${info.assinatura_url ? `
+                                <div style="border:1.5px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc;text-align:center;">
+                                    <img src="${info.assinatura_url}" alt="Assinatura" style="max-width:100%;max-height:110px;object-fit:contain;" />
+                                    <div style="border-top:1px solid #cbd5e1;margin-top:6px;padding-top:4px;font-size:0.78rem;font-weight:700;color:#334155;">${escHtml(nomeExib)}</div>
+                                </div>
+                            ` : '<div style="padding:1rem;background:#f8fafc;border-radius:8px;color:#94a3b8;font-size:0.83rem;text-align:center;">Assinatura não disponível</div>'}
+                        </div>
+                    </div>
+
+                    <!-- Coluna Direita: Documento PDF Assinado -->
+                    <div style="flex:1;min-width:320px;height:100%;display:flex;flex-direction:column;background:#334155;">
+                        ${info.pdf_url ? `
+                            <iframe src="${info.pdf_url}" style="width:100%;height:100%;border:none;flex:1;"></iframe>
+                        ` : `
+                            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:0.95rem;">PDF não disponível</div>
+                        `}
+                    </div>
+                </div>
+            </div>`;
+        } catch (err) {
+            loadModal.remove();
+            alert('Erro ao abrir comprovante: ' + err.message);
         }
     };
 })();
