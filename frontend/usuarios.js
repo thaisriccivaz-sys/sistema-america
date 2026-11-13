@@ -210,7 +210,7 @@ function renderTabelaUsuarios() {
             ? `<img src="${fotoSrc}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';"><div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:none;align-items:center;justify-content:center;color:#94a3b8;font-weight:bold;font-size:1rem;flex-shrink:0;border:2px solid #e2e8f0;"><i class="ph ph-user"></i></div>`
             : `<div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:bold;font-size:1rem;flex-shrink:0;border:2px solid #e2e8f0;"><i class="ph ph-user"></i></div>`;
 
-        return `<tr style="opacity:${u.ativo ? 1 : 0.45};">
+        return `<tr class="${u.ativo ? '' : 'usr-inativo'}">
             <td><div style="display:flex;align-items:center;gap:12px;">${fotoHtml} <strong>${u.nome || u.username}</strong></div></td>
             <td><code>${u.username}</code></td>
             <td>${u.departamento || '-'}</td>
@@ -267,6 +267,12 @@ window.abrirFormUsuario = async function(userId = null) {
     const searchInp = document.getElementById('fu-colab-search');
     if (searchInp) searchInp.value = '';
     
+    const _ativoWrap = document.getElementById('fu-ativo-wrap');
+    const _ativoChk = document.getElementById('fu-ativo');
+    if (_ativoWrap && _ativoChk) {
+        _ativoWrap.style.display = user ? 'block' : 'none';
+        _ativoChk.checked = user ? !!user.ativo : true;
+    }
     document.getElementById('fu-nome').value = user ? (user.nome || '') : '';
     document.getElementById('fu-email').value = user ? (user.email || '') : '';
     document.getElementById('fu-departamento').value = user ? (user.departamento || '') : '';
@@ -488,6 +494,10 @@ window.salvarUsuarioView = async function() {
     // Payload do usuario (grupo_permissao_id sera definido apos criar grupo personalizado)
     const payload = { nome, username, email, departamento };
     if (password) payload.password = password;
+    if (userId) {
+        const _chkAtivo = document.getElementById('fu-ativo');
+        if (_chkAtivo) payload.ativo = _chkAtivo.checked ? 1 : 0;
+    }
 
     try {
         const userUrl = userId ? `${API_URL}/usuarios/${userId}` : `${API_URL}/usuarios`;
