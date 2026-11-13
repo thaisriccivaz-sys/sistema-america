@@ -304,3 +304,396 @@ body.app-mobile-on #view-app-lideranca-retiradas { padding: 0 !important; }
 .alr-busca input { width: 100%; min-height: 48px; padding: 0 44px 0 44px; font-size: 16px; border: 1.5px solid #cbd5e1; border-radius: 14px; background: #fff; color: #0f172a; outline: none; }
 .alr-busca input:focus { border-color: #556b2f; box-shadow: 0 0 0 3px rgba(85,107,47,.15); }
 .alr-busca-x { position: absolute; right: 6px; width: 40px; height: 40px; border: 0; background: transparent; font-size: 22px; color: #94a3b8; cursor: pointer; }
+
+/* ═══════════════ APP › Liderança › Resumo da Rota (arr-*) ═══════════════ */
+body.app-mobile-on #view-app-lideranca-resumo-rota,
+body.app-mobile-on #view-app-lideranca-entregas { padding: 0 !important; }
+
+.arr-wrap { max-width: 860px; }
+
+/* Banner verde idêntico à imagem exportada (Anexo 1) */
+.arr-banner {
+    background: linear-gradient(135deg, #155d38 0%, #1e7d4b 55%, #2d9e5f 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 14px 18px;
+    margin: 10px 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 4px 14px rgba(21, 93, 56, 0.22);
+}
+.arr-banner-left { min-width: 0; flex: 1; }
+.arr-banner-brand {
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    line-height: 1.15;
+    color: #ffffff;
+}
+.arr-banner-sub {
+    font-size: 0.88rem;
+    color: #bbf7d0;
+    margin-top: 2px;
+    font-weight: 500;
+}
+.arr-banner-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.arr-banner-prog {
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.86rem;
+    padding: 5px 11px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Seletor quando há mais de 1 resumo salvo no mesmo dia */
+.arr-resumos-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 0 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Card de veículo estilo Anexo 1 */
+.arr-vcard {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+.arr-vcard.concluido {
+    border-color: #86efac;
+}
+.arr-vhead {
+    background: #e8edf2;
+    padding: 10px 14px;
+    border-bottom: 1.5px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.arr-vtitle {
+    font-size: 1.02rem;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+.arr-vtitle span {
+    word-break: break-word;
+}
+.arr-vbody {
+    display: flex;
+    align-items: stretch;
+}
+
+/* Coluna esquerda: Motorista, Ajudante Geral e Candidato */
+.arr-crew {
+    width: 195px;
+    flex-shrink: 0;
+    padding: 12px 12px;
+    border-right: 1px solid #e2e8f0;
+    background: #fafbfc;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 10px;
+}
+.arr-crew-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.arr-crew-item:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.arr-ring {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    padding: 2px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.arr-ring.mot { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+.arr-ring.aju { background: linear-gradient(135deg, #d97706, #f59e0b); }
+.arr-ring.cand { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+.arr-ring-in {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #ffffff;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.arr-ring-in img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.arr-ring-fb {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.arr-ring.mot .arr-ring-fb { background: #1d4ed8; }
+.arr-ring.aju .arr-ring-fb { background: #d97706; }
+.arr-ring.cand .arr-ring-fb { background: #7c3aed; }
+.arr-crew-info { min-width: 0; flex: 1; }
+.arr-crew-name {
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.arr-crew-role {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 2px;
+}
+.arr-crew-role.cand {
+    color: #7c3aed;
+    font-weight: 700;
+}
+
+/* Coluna direita: Observações, Entregas, Retiradas, Manutenções & Insumos */
+.arr-services {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.arr-sec {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.arr-sec-title {
+    font-size: 0.85rem;
+    font-weight: 900;
+    letter-spacing: 0.25px;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.arr-sec-title.obs { color: #0f172a; }
+.arr-sec-title.entrega { color: #1e40af; }
+.arr-sec-title.retirada { color: #b91c1c; }
+.arr-sec-title.manutencao { color: #78350f; }
+
+/* Linhas clicáveis / de status */
+.arr-row {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+.arr-row.interactive {
+    cursor: pointer;
+    user-select: none;
+}
+.arr-row.interactive:active {
+    transform: scale(0.99);
+}
+.arr-row.checked {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+.arr-row.parcial {
+    background: #fffbeb;
+    border-color: #fcd34d;
+}
+.arr-row-txt {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    color: #1e293b;
+    line-height: 1.35;
+    word-break: break-word;
+}
+.arr-row.checked .arr-row-txt {
+    color: #166534;
+}
+.arr-row-sub {
+    display: block;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* Botão visual de Check (≥ 40px dentro de linha ≥ 48px) */
+.arr-chk {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 2.5px solid #cbd5e1;
+    background: #ffffff;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+.arr-row.checked .arr-chk {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #ffffff;
+}
+.arr-row.parcial .arr-chk {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #ffffff;
+}
+.arr-chk.auto {
+    border-style: solid;
+}
+
+/* Bloco de equipamento de manutenção + lista de insumos */
+.arr-manut-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    overflow: hidden;
+}
+.arr-manut-head {
+    padding: 8px 12px;
+    background: #fdf8f3;
+    border-bottom: 1px solid #f3e8dc;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #78350f;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.arr-insumos-list {
+    padding: 6px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.arr-insumo-row {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+}
+.arr-insumo-row:active {
+    transform: scale(0.99);
+}
+.arr-insumo-row.checked {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+.arr-insumo-ico {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.arr-insumo-txt {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #334155;
+}
+.arr-insumo-row.checked .arr-insumo-txt {
+    color: #166534;
+}
+.arr-sem-insumos {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Responsividade Mobile (360px - 520px): empilha a equipe no topo do card sem perder o visual do Anexo 1 */
+@media (max-width: 540px) {
+    .arr-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 14px;
+    }
+    .arr-banner-right {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .arr-vbody {
+        flex-direction: column;
+    }
+    .arr-crew {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+    .arr-crew-item {
+        flex: 1 1 140px;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    .arr-services {
+        padding: 10px 10px;
+    }
+}

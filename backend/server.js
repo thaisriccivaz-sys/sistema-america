@@ -4361,6 +4361,13 @@ try {
     console.error('[APP-ENTREGAS] ERRO ao carregar modulo:', eAppEnt.message);
 }
 
+// --- APP > LIDERANCA > RESUMO DA ROTA (visualizacao do resumo com checks de obs, entregas, retiradas e insumos) ---
+try {
+    require('./routes_app_resumo_rota')(app, db, authenticateToken);
+} catch (eAppResRota) {
+    console.error('[APP-RESUMO-ROTA] ERRO ao carregar modulo:', eAppResRota.message);
+}
+
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
 try {
     require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);

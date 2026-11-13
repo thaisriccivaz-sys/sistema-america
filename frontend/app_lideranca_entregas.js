@@ -280,10 +280,7 @@
     // ── Modo celular (tela cheia dentro do sistema) ─────────────────────────────
     window._aleMenu = function () { document.body.classList.toggle('app-rail-open'); };
     function aplicarModoCelular() {
-        const v = document.getElementById('view-app-lideranca-entregas');
-        const vCand = document.getElementById('view-app-lideranca-candidatos'); // mesma regra para Candidatos e Entregas
-        const vEnt = document.getElementById('view-app-lideranca-retiradas');
-        const ativo = !!((v && v.classList.contains('active')) || (vCand && vCand.classList.contains('active')) || (vEnt && vEnt.classList.contains('active')));
+        const ativo = !!document.querySelector('[id^="view-app-lideranca-"].active');
         document.body.classList.toggle('app-mobile-on', ativo && window.innerWidth <= 768);
         if (!ativo) document.body.classList.remove('app-rail-open');
     }
@@ -547,6 +544,7 @@
             const prox = d.unidades.findIndex(x => !x.concluido);
             S.ui = prox >= 0 ? prox : S.ui;
             carregarEstadoDaUnidade(); desenharDetalhe();
+            if (typeof window._arrRecarregarSilencioso === 'function') window._arrRecarregarSilencioso();
             const c = document.getElementById('ale-det-corpo'); if (c) c.scrollTop = 0;
         } catch (e) { erro('Não foi possível concluir', e.message); }
     };

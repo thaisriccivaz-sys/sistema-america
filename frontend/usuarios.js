@@ -29,6 +29,7 @@ const TELAS_SISTEMA = [
     { modulo: 'APP', pagina_id: 'app-lideranca-candidatos', pagina_nome: 'Lideran\u00e7a \u203a Candidatos', icone: 'ph-user-list' },
     { modulo: 'APP', pagina_id: 'app-lideranca-retiradas', pagina_nome: 'Lideran\u00e7a \u203a Retiradas', icone: 'ph-arrow-u-down-left' },
     { modulo: 'APP', pagina_id: 'app-lideranca-entregas',  pagina_nome: 'Lideran\u00e7a \u203a Entregas',  icone: 'ph-truck' },
+    { modulo: 'APP', pagina_id: 'app-lideranca-resumo-rota', pagina_nome: 'Lideran\u00e7a \u203a Resumo da Rota', icone: 'ph-map-trifold' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-ajudantes',   pagina_nome: 'Ajudantes',  icone: 'ph-rocket' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-motoristas',  pagina_nome: 'Motoristas', icone: 'ph-rocket' },
     // Prontuário Digital Abas
@@ -693,7 +694,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'APP', icone: 'ph-device-mobile', cor: '#556b2f',
-        grupos: [{ titulo: 'Lideran\u00e7a', telas: ['app-lideranca-candidatos', 'app-lideranca-retiradas', 'app-lideranca-entregas'] }]
+        grupos: [{ titulo: 'Lideran\u00e7a', telas: ['app-lideranca-candidatos', 'app-lideranca-retiradas', 'app-lideranca-entregas', 'app-lideranca-resumo-rota'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
