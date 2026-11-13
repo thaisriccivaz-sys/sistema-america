@@ -22,6 +22,35 @@ const NOMES_NOTURNO_PADRAO = ['vitor', 'ana paula'];
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 const normLow = s => norm(s).toLowerCase().replace(/\s+/g, ' ');
 
+// Normaliza tanto instância `db` (sqlite3.Database) quanto funções promisificadas `(dbAll, dbRun)`
+function _wrapDb(dbOrFn, secondFn) {
+    if (dbOrFn && typeof dbOrFn === 'object' && typeof dbOrFn.all === 'function') {
+        const db = dbOrFn;
+        const dbAll = (sql, params = []) => new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []));
+        });
+        const dbGet = (sql, params = []) => new Promise((resolve, reject) => {
+            db.get(sql, params, (err, row) => err ? reject(err) : resolve(row || null));
+        });
+        const dbRun = (sql, params = []) => new Promise((resolve, reject) => {
+            db.run(sql, params, function (err) {
+                err ? reject(err) : resolve({ lastID: this.lastID, changes: this.changes });
+            });
+        });
+        return { dbAll, dbGet, dbRun };
+    }
+    if (typeof dbOrFn === 'function') {
+        const dbAll = dbOrFn;
+        const dbRun = typeof secondFn === 'function' ? secondFn : null;
+        const dbGet = async (sql, params = []) => {
+            const rows = await dbAll(sql, params);
+            return Array.isArray(rows) ? (rows[0] || null) : (rows || null);
+        };
+        return { dbAll, dbGet, dbRun };
+    }
+    throw new Error('lideranca_escala: parâmetro de banco inválido (esperado instância db ou função dbAll)');
+}
+
 function isoDate(s) {
     const str = String(s || '').trim();
     const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -144,7 +173,7 @@ function ehLiderOperacional(c) {
 }
 
 function turnoDoLider(l) {
-    const nome = normLow(l.nome_completo);
+    const nome = normLow(l.nome_completo || l.nome);
     if (NOMES_DIURNO_PADRAO.some(p => nome === p || nome.startsWith(p + ' '))) return 'diurno';
     if (NOMES_NOTURNO_PADRAO.some(p => nome === p || nome.startsWith(p + ' '))) return 'noturno';
     if (l.plantao_dia !== null && l.plantao_dia !== undefined) {
@@ -161,7 +190,7 @@ function calcularTurnoComRegraFerias(listaLideresTurno, iso) {
     const d = new Date(iso + 'T12:00:00');
     const dow = d.getDay(); // 0 = Dom, 1..5 = Seg..Sex, 6 = Sáb
 
-    const comFeriasMarcadas = listaLideresTurno.map(l => Object.assign({}, l, {
+    const comFeriasMarcadas = (listaLideresTurno || []).map(l => Object.assign({}, l, {
         em_ferias: colabEmFerias(l, iso)
     }));
 
@@ -201,7 +230,39 @@ function calcularTurnoComRegraFerias(listaLideresTurno, iso) {
     };
 }
 
-async function carregarLideresBase(dbAll, dbRun) {
+// Sincroniza os 4 líderes operacionais na tabela `app_lider_config` (removendo Joaquim Santana)
+async function sincronizarLideresPadrao(dbOrDbAll, dbRunOpt) {
+    try {
+        const { dbAll, dbGet, dbRun } = _wrapDb(dbOrDbAll, dbRunOpt);
+        if (dbRun) {
+            try {
+                await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%')`);
+            } catch (_) { /* ignora */ }
+        }
+        const colabs = await dbAll(`SELECT id, nome_completo, departamento, cargo, status, escala_tipo FROM colaboradores WHERE COALESCE(LOWER(TRIM(status)), '') != 'desligado'`);
+        const lideres = colabs.filter(ehLiderOperacional);
+        const usuarios = await dbAll(`SELECT id, username, nome FROM usuarios`);
+        const primeiroNome = s => normLow(s).split(/\s+/)[0] || '';
+
+        for (const c of lideres) {
+            const cfg = await dbGet('SELECT colaborador_id, usuario_id, plantao_dia FROM app_lider_config WHERE colaborador_id = ?', [c.id]);
+            const pn = primeiroNome(c.nome_completo);
+            const candidatos = usuarios.filter(u => primeiroNome(u.nome) === pn || primeiroNome(u.username) === pn);
+            const uid = candidatos.length === 1 ? candidatos[0].id : null;
+            const plantaoDia = turnoDoLider(c) === 'diurno' ? 1 : 0;
+            if (!cfg && dbRun) {
+                await dbRun('INSERT INTO app_lider_config (colaborador_id, usuario_id, plantao_dia) VALUES (?, ?, ?)', [c.id, uid, plantaoDia]);
+            } else if (cfg && !cfg.usuario_id && uid && dbRun) {
+                await dbRun('UPDATE app_lider_config SET usuario_id = ? WHERE colaborador_id = ?', [uid, c.id]);
+            }
+        }
+    } catch (e) {
+        console.warn('[LIDERANCA-ESCALA] Aviso ao sincronizar líderes padrão:', e.message);
+    }
+}
+
+async function carregarLideresBase(dbOrDbAll, dbRunOpt) {
+    const { dbAll, dbRun } = _wrapDb(dbOrDbAll, dbRunOpt);
     if (dbRun) {
         try {
             await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%')`);
@@ -222,10 +283,13 @@ async function carregarLideresBase(dbAll, dbRun) {
 
     const lideres = rows.filter(ehLiderOperacional).map(l => {
         const turno = turnoDoLider(l);
+        const temFoto = !!((l.foto_base64 && String(l.foto_base64).trim() !== '') || (l.foto_path && String(l.foto_path).trim() !== ''));
         return {
+            id: l.colab_id,
             colab_id: l.colab_id,
             usuario_id: l.usuario_id || null,
             nome: l.nome_completo,
+            nome_completo: l.nome_completo,
             nome_curto: nomeCurtoColab(l.nome_completo),
             turno,
             status: l.status,
@@ -238,6 +302,7 @@ async function carregarLideresBase(dbAll, dbRun) {
             ferias_fracionadas_tipo: l.ferias_fracionadas_tipo,
             ferias_fracionadas_inicio2: l.ferias_fracionadas_inicio2,
             ferias_fracionadas_fim2: l.ferias_fracionadas_fim2,
+            tem_foto: temFoto,
             foto_url: `/api/colaboradores/foto/${l.colab_id}`
         };
     });
@@ -246,12 +311,13 @@ async function carregarLideresBase(dbAll, dbRun) {
 }
 
 function calcularEscalaDiaFromLideres(lideres, iso, uidLogado) {
-    const diurnoBase = lideres.filter(l => l.turno === 'diurno');
-    const noturnoBase = lideres.filter(l => l.turno === 'noturno');
+    const lista = Array.isArray(lideres) ? lideres : [];
+    const diurnoBase = lista.filter(l => l.turno === 'diurno');
+    const noturnoBase = lista.filter(l => l.turno === 'noturno');
 
     let turnoUsuario = null;
     if (uidLogado) {
-        const achado = lideres.find(l => l.usuario_id && Number(l.usuario_id) === Number(uidLogado));
+        const achado = lista.find(l => l.usuario_id && Number(l.usuario_id) === Number(uidLogado));
         if (achado) turnoUsuario = achado.turno;
     }
 
@@ -265,13 +331,16 @@ function calcularEscalaDiaFromLideres(lideres, iso, uidLogado) {
     };
 }
 
-async function obterEscalaLideresNoDia(dbAll, iso, uidLogado, dbRun) {
-    const lideres = await carregarLideresBase(dbAll, dbRun);
+// Alias compatível com todas as rotas de APP › Liderança
+const calcularEscalaEmData = calcularEscalaDiaFromLideres;
+
+async function obterEscalaLideresNoDia(dbOrDbAll, iso, uidLogado, dbRunOpt) {
+    const lideres = await carregarLideresBase(dbOrDbAll, dbRunOpt);
     return calcularEscalaDiaFromLideres(lideres, iso, uidLogado);
 }
 
-// Resolve qualquer usuário/nome/username (ex: 'Thais.Ricci') para o colaborador real (nome + colab_id + foto_url)
-function criarResolvedorColaborador(colabs, usuarios, configs) {
+// Construtor síncrono interno a partir das listas já carregadas
+function _buildResolvedorFromArrays(colabs, usuarios, configs) {
     const listaColabs = Array.isArray(colabs) ? colabs : [];
     const mapUserById = new Map();
     (usuarios || []).forEach(u => mapUserById.set(Number(u.id), u));
@@ -311,7 +380,8 @@ function criarResolvedorColaborador(colabs, usuarios, configs) {
         return null;
     }
 
-    return function resolverPessoa({ usuario_id, colab_id, nome }) {
+    return function resolverPessoa(opts) {
+        const { usuario_id, colab_id, nome } = opts || {};
         let colab = null;
         if (colab_id && mapColabById.has(Number(colab_id))) {
             colab = mapColabById.get(Number(colab_id));
@@ -335,6 +405,7 @@ function criarResolvedorColaborador(colabs, usuarios, configs) {
             return {
                 colab_id: colab.id,
                 nome: nc,
+                nome_curto: nc,
                 nome_completo: colab.nome_completo,
                 foto_url: `/api/colaboradores/foto/${colab.id}`
             };
@@ -346,27 +417,57 @@ function criarResolvedorColaborador(colabs, usuarios, configs) {
             .replace(/[._]+/g, ' ')
             .trim()
             .replace(/\b\w/g, l => l.toUpperCase());
+        const ncFallback = nomeCurtoColab(fallbackLimpo);
         return {
             colab_id: null,
-            nome: nomeCurtoColab(fallbackLimpo),
+            nome: ncFallback,
+            nome_curto: ncFallback,
             nome_completo: fallbackLimpo,
             foto_url: null
         };
     };
 }
 
-async function resolverLiderDoReq(dbGet, dbAll, req) {
-    const uid = (req.user && req.user.id) || null;
-    const colabs = await dbAll(`SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores`);
-    const usuarios = uid ? await dbAll(`SELECT id, username, nome, email, departamento FROM usuarios WHERE id = ?`, [uid]) : [];
-    const configs = uid ? await dbAll(`SELECT colaborador_id, usuario_id FROM app_lider_config WHERE usuario_id = ?`, [uid]) : [];
-    const resolver = criarResolvedorColaborador(colabs, usuarios, configs);
-    const r = resolver({ usuario_id: uid, nome: req.user && (req.user.nome || req.user.username) });
+// Aceita TANTO `(colabs, usuarios, configs)` síncrono QUANTO `(db)` / `(dbAll)` assíncrono!
+function criarResolvedorColaborador(dbOrColabs, usuarios, configs) {
+    if (Array.isArray(dbOrColabs)) {
+        return _buildResolvedorFromArrays(dbOrColabs, usuarios, configs);
+    }
+    return (async () => {
+        const { dbAll } = _wrapDb(dbOrColabs);
+        const [colabsRows, usuariosRows, configsRows] = await Promise.all([
+            dbAll(`SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores`).catch(() => []),
+            dbAll(`SELECT id, username, nome, email, departamento FROM usuarios`).catch(() => []),
+            dbAll(`SELECT colaborador_id, usuario_id FROM app_lider_config`).catch(() => [])
+        ]);
+        return _buildResolvedorFromArrays(colabsRows, usuariosRows, configsRows);
+    })();
+}
+
+// Aceita TANTO `resolverLiderDoReq(db, req)` (2 args) QUANTO `resolverLiderDoReq(dbGet, dbAll, req)` (3 args)
+async function resolverLiderDoReq(arg1, arg2, arg3) {
+    let dbSource = arg1;
+    let req = arg2;
+    if (typeof arg1 === 'function' && typeof arg2 === 'function') {
+        dbSource = arg2; // dbAll
+        req = arg3;
+    }
+    const { dbAll } = _wrapDb(dbSource);
+    const uid = (req && req.user && req.user.id) || null;
+    const [colabs, usuarios, configs] = await Promise.all([
+        dbAll(`SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores`).catch(() => []),
+        uid ? dbAll(`SELECT id, username, nome, email, departamento FROM usuarios WHERE id = ?`, [uid]).catch(() => []) : Promise.resolve([]),
+        uid ? dbAll(`SELECT colaborador_id, usuario_id FROM app_lider_config WHERE usuario_id = ?`, [uid]).catch(() => []) : Promise.resolve([])
+    ]);
+    const resolver = _buildResolvedorFromArrays(colabs, usuarios, configs);
+    const r = resolver({ usuario_id: uid, nome: req && req.user && (req.user.nome || req.user.username) });
     return {
         id: uid,
         nome: r.nome,
+        nome_curto: r.nome,
         nome_completo: r.nome_completo,
         colabId: r.colab_id,
+        colab_id: r.colab_id,
         foto_url: r.foto_url
     };
 }
@@ -382,8 +483,10 @@ module.exports = {
     ehLiderOperacional,
     turnoDoLider,
     calcularTurnoComRegraFerias,
+    sincronizarLideresPadrao,
     carregarLideresBase,
     calcularEscalaDiaFromLideres,
+    calcularEscalaEmData,
     obterEscalaLideresNoDia,
     criarResolvedorColaborador,
     resolverLiderDoReq
