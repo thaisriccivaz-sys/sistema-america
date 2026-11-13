@@ -77,13 +77,13 @@
     }
     function avatarHTML(col, size = 36) {
         const initials = (col.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
-        const fotoSrc = col.foto_base64 || (col.foto_path ? (col.id ? `${API}/colaboradores/foto/${col.id}` : (col.foto_path.startsWith('http') ? col.foto_path : `${API.replace('/api', '')}/${col.foto_path}`)) : null);
-        if (fotoSrc) {
-            const finalSrc = fotoSrc.startsWith('data:') || fotoSrc.startsWith('http') || fotoSrc.startsWith('/') ? fotoSrc : `data:image/jpeg;base64,${fotoSrc}`;
-            return `<img src="${finalSrc}" alt="${initials}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;">`;
-        }
         const colors = ['#7c3aed', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#ec4899'];
         const bg = colors[(col.nome_completo || '').charCodeAt(0) % colors.length];
+        const fotoSrc = col.foto_base64 || (col.id ? `${API}/colaboradores/foto/${col.id}` : (col.foto_path ? (col.foto_path.startsWith('http') ? col.foto_path : `${API.replace('/api', '')}/${col.foto_path}`) : null));
+        if (fotoSrc) {
+            const finalSrc = fotoSrc.startsWith('data:') || fotoSrc.startsWith('http') || fotoSrc.startsWith('/') ? fotoSrc : `data:image/jpeg;base64,${fotoSrc}`;
+            return `<img src="${finalSrc}" alt="${initials}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};display:none;align-items:center;justify-content:center;color:#fff;font-size:${Math.round(size * 0.38)}px;font-weight:700;flex-shrink:0;">${initials}</div>`;
+        }
         return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:${Math.round(size * 0.38)}px;font-weight:700;flex-shrink:0;">${initials}</div>`;
     }
     function fmtScore(v) {

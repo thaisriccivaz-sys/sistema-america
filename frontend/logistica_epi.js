@@ -31,7 +31,7 @@
 
     function _fotoUrl(c) {
         if (c.foto_base64) return c.foto_base64;
-        if (c.foto_path) return API + '/colaboradores/foto/' + c.id;
+        if (c.id) return API + '/colaboradores/foto/' + c.id;
         return null;
     }
 

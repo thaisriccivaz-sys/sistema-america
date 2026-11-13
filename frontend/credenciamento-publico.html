@@ -122,7 +122,7 @@
                 <div class="bg-gray-50 p-4 rounded border">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div class="flex items-center gap-3">
-                            ${c.foto_base64 ? `<img src="${c.foto_base64}" alt="Foto" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #16a34a;flex-shrink:0;">` : '<div style="width:56px;height:56px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class=\"fas fa-user\" style=\"color:#94a3b8;font-size:1.5rem;\"></i></div>'}
+                            ${(c.foto_base64 || c.id) ? `<img src="${c.foto_base64 || '/api/colaboradores/foto/' + c.id}" alt="Foto" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #16a34a;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';"><div style="width:56px;height:56px;border-radius:50%;background:#e2e8f0;display:none;align-items:center;justify-content:center;flex-shrink:0;"><i class=\"fas fa-user\" style=\"color:#94a3b8;font-size:1.5rem;\"></i></div>` : '<div style="width:56px;height:56px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class=\"fas fa-user\" style=\"color:#94a3b8;font-size:1.5rem;\"></i></div>'}
                             <h4 class="font-bold text-lg text-gray-800">${c.nome}</h4>
                         </div>
                         ${c.is_apenas_dados ? `
@@ -308,6 +308,14 @@
                         const fname = `Colaboradores/${nomeColab}/Foto.${ext}`;
                         zip.file(fname, base64Data, {base64: true});
                         totalAdded++;
+                    } else if (c.foto_base64 || c.id) {
+                        const fotoUrlZip = (c.foto_base64 && !c.foto_base64.includes('base64,')) ? c.foto_base64 : `/api/colaboradores/foto/${c.id}`;
+                        fetches.push(
+                            fetch(fotoUrlZip)
+                                .then(r => r.ok ? r.blob() : null)
+                                .then(blob => { if (blob && blob.size > 0) { zip.file(`Colaboradores/${nomeColab}/Foto.jpg`, blob); totalAdded++; } })
+                                .catch(() => null)
+                        );
                     }
 
                     (c.documentos || []).forEach(d => {

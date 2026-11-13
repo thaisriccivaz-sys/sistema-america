@@ -1426,14 +1426,145 @@ db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE 
     else console.log('[MIGRATION] Docs Ordem de Servico removidos dos prontuarios.');
 });
 
+// Helper universal para vincular registro de usuarios com colaboradores (suporta variações de grafia/preposições/username)
+global.matchUsuarioComColaborador = function(u, colabs) {
+    if (!u || !Array.isArray(colabs) || !colabs.length) return null;
+    const norm = (s) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ") : "";
+    const normSpell = (s) => norm(s).replace(/z/g, "s");
+    const stopWords = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+    const deptWords = new Set(['rh', 'comercial', 'logistica', 'financeiro', 'adm', 'administrativo', 'diretoria', 'operacional', 'processos', 'sac', 'ti', 'marketing', 'patio', 'lideranca']);
+    const getTokens = (s) => normSpell(s).split(/[^a-z0-9]+/).filter(t => t && !stopWords.has(t));
+
+    const uNome = norm(u.nome);
+    const uSpell = normSpell(u.nome);
+    const uTokens = getTokens(u.nome);
+    const uEmail = norm(u.email);
+
+    // 1. Nome exato normalizado
+    let c = colabs.find(col => uNome && norm(col.nome_completo) === uNome);
+    if (c) return c;
+
+    // 2. Nome exato com equivalência s/z (ex: Sousa vs Souza)
+    c = colabs.find(col => uSpell && normSpell(col.nome_completo) === uSpell);
+    if (c) return c;
+
+    // 3. Substring direta
+    c = colabs.find(col => {
+        const cNome = norm(col.nome_completo);
+        return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
+    });
+    if (c) return c;
+
+    // 4. Todos os tokens do nome batem (ignorando de/da/do e s/z)
+    if (uTokens.length >= 2) {
+        c = colabs.find(col => {
+            const cTokens = getTokens(col.nome_completo);
+            if (cTokens.length < 2) return false;
+            return uTokens.every(t => cTokens.includes(t)) || cTokens.every(t => uTokens.includes(t));
+        });
+        if (c) return c;
+    }
+
+    // 5. E-mail corporativo ou pessoal
+    if (uEmail) {
+        c = colabs.find(col => norm(col.email) === uEmail || norm(col.email_corporativo) === uEmail);
+        if (c) return c;
+    }
+
+    // 6. Username tokens (ex: sara.azevedo -> ['sara', 'azevedo'])
+    const userParts = normSpell(u.username || '').split(/[._-]+/).filter(t => t && t.length >= 3 && !deptWords.has(t) && !stopWords.has(t));
+    if (userParts.length >= 2) {
+        c = colabs.find(col => {
+            const cTokens = getTokens(col.nome_completo);
+            return userParts.every(p => cTokens.some(ct => ct === p || ct.startsWith(p)));
+        });
+        if (c) return c;
+    } else if (userParts.length === 1) {
+        const firstPart = userParts[0];
+        const candidates = colabs.filter(col => {
+            const cTokens = getTokens(col.nome_completo);
+            return cTokens.length > 0 && cTokens[0] === firstPart;
+        });
+        if (candidates.length === 1) return candidates[0];
+        if (candidates.length > 1 && u.departamento) {
+            const byDept = candidates.find(col => norm(col.departamento) === norm(u.departamento));
+            if (byDept) return byDept;
+        }
+    }
+
+    return null;
+};
+
+global.desabilitarAcessoColaboradorDesligado = function(colaboradorId) {
+    if (!colaboradorId) return;
+    db.get(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE id = ?`, [colaboradorId], (errC, colab) => {
+        if (errC || !colab) return;
+        db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errU, usuarios) => {
+            if (errU || !Array.isArray(usuarios)) return;
+            usuarios.forEach(u => {
+                const matched = global.matchUsuarioComColaborador(u, [colab]);
+                if (matched) {
+                    db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], (errUpd) => {
+                        if (!errUpd) console.log(`[ACESSO] Usuário ${u.username} (ID=${u.id}) desabilitado automaticamente pois colaborador ${colab.nome_completo} está Desligado.`);
+                    });
+                }
+            });
+        });
+    });
+};
+
 // MIGRATION: Garantir que colaboradores com tipo_contrato = Serviço que estavam como Desligado passem para status = Serviço (12/11/2026)
 db.run(`CREATE TABLE IF NOT EXISTS _migrations_applied (key TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
     db.get(`SELECT key FROM _migrations_applied WHERE key = 'fix_servico_status_20261112'`, [], (errM, rowM) => {
         if (!errM && !rowM) {
-            db.run(`/* INCLUIR_SERVICO */ UPDATE colaboradores SET status = 'Serviço', cargo = '' WHERE LOWER(TRIM(COALESCE(tipo_contrato, ''))) IN ('serviço', 'servico') AND status = 'Desligado'`, (errU) => {
+            db.run(`/* INCLUIR_SERVICO */ UPDATE colaboradores SET status = 'Serviço', cargo = '', departamento = '' WHERE LOWER(TRIM(COALESCE(tipo_contrato, ''))) IN ('serviço', 'servico') AND status = 'Desligado'`, (errU) => {
                 if (!errU) {
                     db.run(`INSERT OR IGNORE INTO _migrations_applied (key) VALUES ('fix_servico_status_20261112')`);
                 }
+            });
+        }
+    });
+    // Garantir cargo e departamento vazios para contrato Serviço
+    db.run(`/* INCLUIR_SERVICO */ UPDATE colaboradores SET cargo = '', departamento = '' WHERE LOWER(TRIM(COALESCE(tipo_contrato, ''))) IN ('serviço', 'servico')`);
+
+    // Excluir usuário da Débora (desligada) e desabilitar acessos de todos os colaboradores Desligados
+    db.run(`DELETE FROM usuarios WHERE LOWER(TRIM(username)) = 'debora.rh' OR LOWER(TRIM(nome)) LIKE '%debora alexandre salvador%' OR LOWER(TRIM(nome)) LIKE '%débora alexandre salvador%'`, function(errDeb) {
+        if (!errDeb && this.changes > 0) console.log('[MIGRATION] Usuário da Débora excluído com sucesso.');
+    });
+
+    db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE LOWER(TRIM(COALESCE(status, ''))) = 'desligado'`, [], (errDesl, colabsDesligados) => {
+        if (!errDesl && Array.isArray(colabsDesligados) && colabsDesligados.length > 0) {
+            db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errUs, activeUsers) => {
+                if (!errUs && Array.isArray(activeUsers)) {
+                    activeUsers.forEach(u => {
+                        const matchedDesl = global.matchUsuarioComColaborador(u, colabsDesligados);
+                        if (matchedDesl) {
+                            db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], () => {
+                                console.log(`[MIGRATION] Usuário ${u.username} inativado automaticamente (colaborador desligado: ${matchedDesl.nome_completo}).`);
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+    // Sincronizar colaboradores.foto_path a partir da tabela documentos (aba Fotos / FOTO_PERFIL) quando foto_path estiver vazio
+    db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_path, foto_base64 FROM colaboradores WHERE (foto_path IS NULL OR TRIM(foto_path) = '')`, [], (errFp, colabsSemFotoPath) => {
+        if (!errFp && Array.isArray(colabsSemFotoPath)) {
+            colabsSemFotoPath.forEach(col => {
+                db.get(
+                    `SELECT r2_key, file_path FROM documentos WHERE colaborador_id = ? AND (LOWER(TRIM(tab_name)) IN ('fotos', 'foto_perfil') OR LOWER(TRIM(document_type)) LIKE '%foto%') AND ((r2_key IS NOT NULL AND TRIM(r2_key) != '') OR (file_path IS NOT NULL AND TRIM(file_path) != '')) ORDER BY (r2_key IS NOT NULL AND TRIM(r2_key) != '') DESC, id DESC LIMIT 1`,
+                    [col.id],
+                    (errDocF, docF) => {
+                        if (!errDocF && docF) {
+                            const novoPath = (docF.r2_key && docF.r2_key.trim()) ? docF.r2_key.trim() : (docF.file_path ? docF.file_path.trim() : null);
+                            if (novoPath) {
+                                db.run(`UPDATE colaboradores SET foto_path = ? WHERE id = ?`, [novoPath, col.id]);
+                            }
+                        }
+                    }
+                );
             });
         }
     });
@@ -4408,8 +4539,17 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome }, SECRET_KEY, { expiresIn: '8h' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome, page_bookmarks: user.page_bookmarks } });
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status FROM colaboradores`, [], (errCol, allColabs) => {
+            if (!errCol && Array.isArray(allColabs) && global.matchUsuarioComColaborador) {
+                const matchedColab = global.matchUsuarioComColaborador(user, allColabs);
+                if (matchedColab && String(matchedColab.status || '').trim().toLowerCase() === 'desligado') {
+                    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [user.id]);
+                    return res.status(403).json({ error: 'Colaborador desligado. Acesso bloqueado.' });
+                }
+            }
+            const token = jwt.sign({ id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome }, SECRET_KEY, { expiresIn: '8h' });
+            res.json({ token, user: { id: user.id, username: user.username, role: user.role, grupo_permissao_id: user.grupo_permissao_id, departamento: user.departamento, grupo_nome: user.grupo_nome, page_bookmarks: user.page_bookmarks } });
+        });
     });
 });
 
@@ -5370,6 +5510,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
     const data = req.body;
     if (String(data.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(data.tipo_contrato || '').trim().toLowerCase() === 'servico') {
         data.cargo = '';
+        data.departamento = '';
         data.status = (String(data.status || '').trim() === 'Desligado') ? 'Desligado' : 'Serviço';
     }
     const nomeOriginal = data.nome_completo || data.nome;
@@ -6033,6 +6174,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const id = req.params.id;
     if (String(data.tipo_contrato || '').trim().toLowerCase() === 'serviço' || String(data.tipo_contrato || '').trim().toLowerCase() === 'servico') {
         data.cargo = '';
+        data.departamento = '';
         data.status = (String(data.status || '').trim() === 'Desligado') ? 'Desligado' : 'Serviço';
     }
 
@@ -6173,10 +6315,11 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
             res.json({ message: 'Colaborador atualizado com sucesso' });
 
-            // Se o status mudou para Desligado, verificar se era responsavel por departamento e inativar usuário do sistema
-            if (data.status === 'Desligado' && oldColab.status !== 'Desligado') {
-                checkColaboradorDesligado(id);
-                db.run("UPDATE usuarios SET ativo = 0 WHERE nome = ?", [data.nome_completo || oldColab.nome_completo], (err) => {
+            // Se o status é Desligado, verificar se era responsavel por departamento e inativar usuário do sistema
+            if (String(data.status || '').trim() === 'Desligado') {
+                if (oldColab.status !== 'Desligado') checkColaboradorDesligado(id);
+                if (global.desabilitarAcessoColaboradorDesligado) global.desabilitarAcessoColaboradorDesligado(id);
+                db.run("UPDATE usuarios SET ativo = 0 WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(nome)) = LOWER(TRIM(?))", [data.nome_completo || oldColab.nome_completo, oldColab.nome_completo], (err) => {
                     if (err) console.error("Erro ao inativar usuário vinculado:", err);
                 });
             }
@@ -6512,7 +6655,10 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
             excluirDefinitivamente();
         } else {
             db.run("UPDATE colaboradores SET status = 'Desligado' WHERE id = ?", [id], function (updateErr) {
-                if (!updateErr) checkColaboradorDesligado(id);
+                if (!updateErr) {
+                    checkColaboradorDesligado(id);
+                    if (global.desabilitarAcessoColaboradorDesligado) global.desabilitarAcessoColaboradorDesligado(id);
+                }
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
                 res.json({ message: 'Colaborador inativado com sucesso (status: Desligado)' });
             });
@@ -6619,37 +6765,51 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
 });
 
 app.get('/api/colaboradores/foto/:id', (req, res) => {
-    db.get('SELECT foto_base64, foto_path FROM colaboradores WHERE id = ?', [req.params.id], async (err, row) => {
+    db.get('/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) {
             return res.status(404).json({ error: 'Colaborador nao encontrado' });
         }
 
-        // Prioridade 1: base64 salvo no banco
-        if (row.foto_base64 && row.foto_base64.startsWith('data:image')) {
-            const matches = row.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-                const mimeType = matches[1];
-                const buffer = Buffer.from(matches[2], 'base64');
-                res.set('Content-Type', mimeType);
-                res.set('Cache-Control', 'public, max-age=86400');
-                return res.send(buffer);
+        // Prioridade 1: base64 salvo no banco (com ou sem prefixo data:image)
+        if (row.foto_base64 && typeof row.foto_base64 === 'string' && row.foto_base64.trim().length > 50) {
+            const b64Str = row.foto_base64.trim();
+            if (b64Str.startsWith('data:image')) {
+                const matches = b64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (matches && matches.length === 3) {
+                    const mimeType = matches[1];
+                    const buffer = Buffer.from(matches[2], 'base64');
+                    res.set('Content-Type', mimeType);
+                    res.set('Cache-Control', 'public, max-age=86400');
+                    return res.send(buffer);
+                }
+            } else if (!b64Str.startsWith('http') && !b64Str.startsWith('s3://') && !b64Str.startsWith('files/') && !b64Str.startsWith('Colaboradores/')) {
+                try {
+                    const buffer = Buffer.from(b64Str, 'base64');
+                    if (buffer.length > 100) {
+                        res.set('Content-Type', 'image/jpeg');
+                        res.set('Cache-Control', 'public, max-age=86400');
+                        return res.send(buffer);
+                    }
+                } catch (_) {}
             }
         }
 
         const extractR2Key = (p) => {
             if (!p || typeof p !== 'string') return null;
-            if (p.startsWith('s3://')) return p.replace(/^s3:\/\/[^/]+\//, '');
-            if (p.startsWith('http://') || p.startsWith('https://')) {
+            const trimmed = p.trim();
+            if (!trimmed) return null;
+            if (trimmed.startsWith('s3://')) return trimmed.replace(/^s3:\/\/[^/]+\//, '');
+            if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
                 try {
-                    const key = decodeURIComponent(new URL(p).pathname.replace(/^\/+/, ''));
+                    const key = decodeURIComponent(new URL(trimmed).pathname.replace(/^\/+/, ''));
                     return key || null;
                 } catch (_) { return null; }
             }
-            const norm = p.replace(/\\/g, '/');
+            const norm = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
             if (norm.startsWith('files/')) return norm.replace(/^files\/+/, '');
             if (norm.startsWith('Colaboradores/')) return norm;
             if (norm.includes('Colaboradores/')) return norm.substring(norm.indexOf('Colaboradores/'));
-            return null;
+            return norm;
         };
 
         // Prioridade 2: arquivo físico local (se existir no disco)
@@ -6667,31 +6827,46 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             }
         }
 
-        // Prioridade 3: Cloudflare R2 via SDK (suporta s3://, URL R2, caminho relativo ou registro na aba Fotos)
+        // Prioridade 3: Cloudflare R2 via SDK (suporta s3://, URL R2, caminho relativo, aba Fotos/FOTO_PERFIL ou busca na pasta R2 do colaborador)
         const r2 = require('./utils/r2');
         if (r2.isReady()) {
             const candidateKeys = [];
-            const keyFromFotoPath = extractR2Key(row.foto_path);
-            if (keyFromFotoPath) candidateKeys.push(keyFromFotoPath);
+            const addCandidate = (k) => {
+                if (k && typeof k === 'string' && k.trim() && !candidateKeys.includes(k.trim())) {
+                    candidateKeys.push(k.trim());
+                }
+            };
+
+            addCandidate(extractR2Key(row.foto_path));
 
             try {
-                const docFoto = await new Promise((resolve) => {
-                    db.get(
-                        `SELECT r2_key, file_path FROM documentos WHERE colaborador_id = ? AND tab_name = 'Fotos' ORDER BY id DESC LIMIT 1`,
+                const docFotos = await new Promise((resolve) => {
+                    db.all(
+                        `SELECT r2_key, file_path FROM documentos WHERE colaborador_id = ? AND (LOWER(TRIM(tab_name)) IN ('fotos', 'foto_perfil') OR LOWER(TRIM(document_type)) LIKE '%foto%' OR LOWER(TRIM(file_name)) LIKE 'foto_%') ORDER BY (r2_key IS NOT NULL AND TRIM(r2_key) != '') DESC, id DESC`,
                         [req.params.id],
-                        (e, dRow) => resolve(e ? null : dRow)
+                        (e, dRows) => resolve(e ? [] : (dRows || []))
                     );
                 });
-                if (docFoto) {
-                    if (docFoto.r2_key && !candidateKeys.includes(docFoto.r2_key)) candidateKeys.push(docFoto.r2_key);
-                    const k2 = extractR2Key(docFoto.file_path);
-                    if (k2 && !candidateKeys.includes(k2)) candidateKeys.push(k2);
-                }
+                docFotos.forEach(docFoto => {
+                    addCandidate(extractR2Key(docFoto.r2_key));
+                    addCandidate(docFoto.r2_key);
+                    addCandidate(extractR2Key(docFoto.file_path));
+                });
             } catch (_) {}
+
+            if (row.nome_completo) {
+                const safeNome = formatarNome(row.nome_completo);
+                addCandidate(`Colaboradores/${safeNome}/01_FICHA_CADASTRAL/Foto_${safeNome}.jpg`);
+                addCandidate(`Colaboradores/${safeNome}/FOTOS/Foto_${safeNome}.jpg`);
+                addCandidate(`Colaboradores/${safeNome}/Fotos/Foto_${safeNome}.jpg`);
+            }
 
             for (const r2Key of candidateKeys) {
                 try {
                     const { stream, contentType } = await r2.downloadStreamFromR2(r2Key);
+                    if (!row.foto_path || !row.foto_path.trim()) {
+                        db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ? AND (foto_path IS NULL OR TRIM(foto_path) = "")', [r2Key, row.id]);
+                    }
                     res.set('Content-Type', (contentType && contentType.startsWith('image/')) ? contentType : 'image/jpeg');
                     res.set('Cache-Control', 'public, max-age=86400');
                     res.set('Access-Control-Allow-Origin', '*');
@@ -6699,6 +6874,28 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
                 } catch (_) {
                     // Tenta próxima chave candidata
                 }
+            }
+
+            // Fallback de descoberta no R2: listar objetos na pasta do colaborador caso a chave tenha timestamp diferente
+            if (row.nome_completo && typeof r2.listObjectsFromR2 === 'function') {
+                try {
+                    const safeNome = formatarNome(row.nome_completo);
+                    const objs = await r2.listObjectsFromR2(`Colaboradores/${safeNome}/`);
+                    const imgObjs = (objs || [])
+                        .filter(o => o && o.Key && /\.(jpg|jpeg|png|webp)$/i.test(o.Key) && (/\/(fotos|01_ficha_cadastral)\//i.test(o.Key) || /foto_/i.test(o.Key)))
+                        .sort((a, b) => new Date(b.LastModified || 0) - new Date(a.LastModified || 0));
+                    for (const obj of imgObjs) {
+                        if (candidateKeys.includes(obj.Key)) continue;
+                        try {
+                            const { stream, contentType } = await r2.downloadStreamFromR2(obj.Key);
+                            db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ?', [obj.Key, row.id]);
+                            res.set('Content-Type', (contentType && contentType.startsWith('image/')) ? contentType : 'image/jpeg');
+                            res.set('Cache-Control', 'public, max-age=86400');
+                            res.set('Access-Control-Allow-Origin', '*');
+                            return stream.pipe(res);
+                        } catch (_) {}
+                    }
+                } catch (_) {}
             }
         }
 
@@ -19367,25 +19564,24 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
                    g.nome as grupo_nome
             FROM usuarios u
             LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id
+            WHERE LOWER(TRIM(COALESCE(u.username, ''))) != 'debora.rh'
+              AND LOWER(TRIM(COALESCE(u.nome, ''))) NOT LIKE '%debora alexandre salvador%'
+              AND LOWER(TRIM(COALESCE(u.nome, ''))) NOT LIKE '%débora alexandre salvador%'
             ORDER BY u.nome`, [], (err, usuarios) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
             if (errC) return res.json(usuarios);
             
-            const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
-            
-            usuarios.forEach(u => {
-                const uNome = norm(u.nome);
-                let c = colabs.find(col => norm(col.nome_completo) === uNome);
-                if (!c) {
-                    c = colabs.find(col => {
-                        const cNome = norm(col.nome_completo);
-                        return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
-                    });
-                }
+            (usuarios || []).forEach(u => {
+                const c = global.matchUsuarioComColaborador ? global.matchUsuarioComColaborador(u, colabs) : null;
                 if (c) {
-                    u.foto_colaborador = c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null);
+                    u.colaborador_id = c.id;
+                    if (String(c.status || '').trim().toLowerCase() === 'desligado' && u.ativo !== 0) {
+                        u.ativo = 0;
+                        db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [u.id]);
+                    }
+                    u.foto_colaborador = c.foto_base64 || ('/api/colaboradores/foto/' + c.id);
                 }
             });
             
@@ -30054,7 +30250,31 @@ const _handleDownloadZip = async (req, res) => {
                 
                 if (docsExigidos.includes('foto_colaborador')) {
                     if (colab.foto_base64) { addBase64IfExists(colab.foto_base64, `${folderName}/${nomeColabSafe}_Foto.png`); addedCats.add('foto_colaborador'); }
-                    else if (colab.foto_path) { if (addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`)) addedCats.add('foto_colaborador'); }
+                    else if (colab.foto_path) {
+                        if (addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`)) {
+                            addedCats.add('foto_colaborador');
+                        } else {
+                            try {
+                                const r2FotoUtils = require('./utils/r2');
+                                if (r2FotoUtils.isReady()) {
+                                    let fKey = String(colab.foto_path).trim();
+                                    if (fKey.startsWith('s3://')) fKey = fKey.replace(/^s3:\/\/[^/]+\//, '');
+                                    else if (fKey.startsWith('http://') || fKey.startsWith('https://')) {
+                                        try { fKey = decodeURIComponent(new URL(fKey).pathname.replace(/^\/+/, '')); } catch(_) {}
+                                    } else {
+                                        fKey = fKey.replace(/\\/g, '/').replace(/^files\/+/, '');
+                                    }
+                                    const fData = await r2FotoUtils.downloadStreamFromR2(fKey);
+                                    if (fData && fData.stream) {
+                                        const fChunks = [];
+                                        for await (const ch of fData.stream) fChunks.push(Buffer.isBuffer(ch) ? ch : Buffer.from(ch));
+                                        archive.append(Buffer.concat(fChunks), { name: `${folderName}/${nomeColabSafe}_Foto.jpg` });
+                                        addedCats.add('foto_colaborador');
+                                    }
+                                }
+                            } catch (_) {}
+                        }
+                    }
                 }
 
                 // Buscar documentos da tabela documentos
@@ -30932,7 +31152,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 validade: cred.valid_until,
                 colaboradores: colabs.map(c => {
                     const row = colabFotos.find(f => String(f.id) === String(c.id));
-                    const foto_base64 = fotoExigida ? (row ? row.foto_base64 || null : null) : null;
+                    const foto_base64 = fotoExigida ? (row ? (row.foto_base64 || (row.foto_path ? '/api/colaboradores/foto/' + c.id : null)) : null) : null;
                     return {
                         ...c,
                         cpf: row ? row.cpf || c.cpf : c.cpf,
@@ -37222,7 +37442,7 @@ app.get('/api/integracao/processos', authenticateToken, (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
     let sql, params;
     if (isAdmin) {
-        sql = `SELECT p.*, c.nome_completo, c.cargo, c.foto_base64, c.departamento, c.meio_transporte,
+        sql = `SELECT p.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.departamento, c.meio_transporte,
                       d.tipo as tipo_departamento,
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.status = 'pendente') as pendentes,
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id) as total
@@ -37233,7 +37453,7 @@ app.get('/api/integracao/processos', authenticateToken, (req, res) => {
                ORDER BY p.criado_em DESC`;
         params = [];
     } else {
-        sql = `SELECT DISTINCT p.*, c.nome_completo, c.cargo, c.foto_base64, c.departamento, c.meio_transporte,
+        sql = `SELECT DISTINCT p.*, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.departamento, c.meio_transporte,
                       d.tipo as tipo_departamento,
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.responsavel_user_id = ? AND ps.status = 'pendente') as pendentes,
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.responsavel_user_id = ?) as total
@@ -37256,7 +37476,7 @@ app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
     const processoId = req.params.id;
     const userId = req.user && req.user.id;
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
-    db.get(`SELECT p.*, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.meio_transporte,
+    db.get(`SELECT p.*, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.foto_path, c.meio_transporte,
                    d.tipo as tipo_departamento
             FROM integracao_processos p
             JOIN colaboradores c ON c.id = p.colaborador_id
@@ -51714,7 +51934,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                             departamento: c.dept_efetivo || c.departamento,
                             status: c.status,
                             username: c.username,
-                            foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
+                            foto_colaborador: c.foto_base64 || ('/api/colaboradores/foto/' + c.id)
                         };
                     }
                     // 2. Tenta casar pelo nome normalizado
@@ -51746,7 +51966,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                         departamento: c.dept_efetivo || c.departamento,
                         status: c.status,
                         username: resolvedUser ? resolvedUser.username : null,
-                        foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
+                        foto_colaborador: c.foto_base64 || ('/api/colaboradores/foto/' + c.id)
                     };
                 });
 
@@ -51789,7 +52009,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                             status: gestorColab ? gestorColab.status : 'Ativo',
                             username: gestorUser ? gestorUser.username : null,
                             foto_colaborador: gestorColab
-                                ? (gestorColab.foto_base64 || (gestorColab.foto_path ? '/api/colaboradores/foto/' + gestorColab.id : null))
+                                ? (gestorColab.foto_base64 || ('/api/colaboradores/foto/' + gestorColab.id))
                                 : null
                         };
                         result.unshift(gestorEntry);

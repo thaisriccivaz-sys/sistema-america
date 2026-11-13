@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 const { Upload } = require("@aws-sdk/lib-storage");
 const fs = require('fs');
 
@@ -94,7 +94,25 @@ async function downloadStreamFromR2(destinationKey, range) {
     }
 }
 
+
+async function listObjectsFromR2(prefix) {
+    if (!s3Client || !prefix) return [];
+    try {
+        const command = new ListObjectsV2Command({
+            Bucket: R2_BUCKET_NAME,
+            Prefix: prefix,
+            MaxKeys: 50
+        });
+        const response = await s3Client.send(command);
+        return (response && Array.isArray(response.Contents)) ? response.Contents : [];
+    } catch (e) {
+        console.error(`[R2 Storage] Erro ao listar prefixo ${prefix}:`, e.message);
+        return [];
+    }
+}
+
 module.exports = {
+    listObjectsFromR2,
     uploadToR2,
     deleteFromR2,
     downloadStreamFromR2,

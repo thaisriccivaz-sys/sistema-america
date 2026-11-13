@@ -1683,7 +1683,7 @@ async function _rrRenderColabDisponiveis() {
     const naRota = disponiveis.filter(c => nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
     const semAtribuicao = disponiveis.filter(c => !nomesNaRota.has((c.nome_completo || '').toLowerCase().trim()));
 
-    const fotoUrl = c => c.foto_path ? `/api/colaboradores/foto/${c.id}` : null;
+    const fotoUrl = c => c.id ? `/api/colaboradores/foto/${c.id}` : null;
     const avatarHtml = c => {
         const f = fotoUrl(c);
         const iniciais = (c.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();

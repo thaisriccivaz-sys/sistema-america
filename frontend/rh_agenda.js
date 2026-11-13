@@ -280,10 +280,11 @@
                     const st = ESC_STYLE[status] || ESC_STYLE.disponivel;
                     const nome1 = (colab.nome_completo || '').split(' ').slice(0,2).join(' ');
                     const inicial = (colab.nome_completo || '?').charAt(0).toUpperCase();
-                    const fotoHTML = colab.foto_base64
-                        ? `<img src="${colab.foto_base64}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${st.border};" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                    const fotoSrcEsc = colab.foto_base64 || (colab.id ? `/api/colaboradores/foto/${colab.id}` : '');
+                    const fotoHTML = fotoSrcEsc
+                        ? `<img src="${fotoSrcEsc}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid ${st.border};" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
                         : '';
-                    const avatarHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${st.bg};border:1.5px solid ${st.border};display:${colab.foto_base64?'none':'flex'};align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
+                    const avatarHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${st.bg};border:1.5px solid ${st.border};display:${fotoSrcEsc?'none':'flex'};align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${st.color};flex-shrink:0;">${inicial}</div>`;
                     const sublabel = status === 'disponivel' && colab.horario_entrada
                         ? `${colab.horario_entrada}${colab.horario_saida?'-'+colab.horario_saida:''}`
                         : ({disponivel:'Disponível',folga:'Folga',ferias:'Férias',afastado:'Afastado',falta:'Falta',aso:'ASO',terapia:'Terapia'}[status]||'');
@@ -338,7 +339,7 @@
                         colabsEnvolvidos.map(id => {
                             const col = agendaColabs.find(x => String(x.id) === String(id));
                             if (!col) return '';
-                            if (col.foto_base64 || col.foto_path) {
+                            if (col.foto_base64 || col.foto_path || col.id) {
                                 const fotoUrl = col.foto_base64 || `/api/colaboradores/foto/${col.id}`;
                                 return `<img src="${fotoUrl}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid ${t.color};" title="${col.nome_completo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                 <div style="width:16px;height:16px;border-radius:50%;background:#fff;color:${t.color};border:1px solid ${t.color};display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;" title="${col.nome_completo}">${col.nome_completo.charAt(0).toUpperCase()}</div>`;

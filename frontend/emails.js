@@ -65,7 +65,7 @@
         var color = colors[(nome||'a').charCodeAt(0) % colors.length];
         var dv = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:'+(size*0.4)+'px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">'+initial+'</div>';
         var dvHidden = '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:'+(size*0.4)+'px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;">'+initial+'</div>';
-        var src = b64 ? b64 : (colabId && foto ? base + '/api/colaboradores/foto/' + colabId : (foto ? (foto.startsWith('http')?foto:base+'/'+foto) : null));
+        var src = b64 ? b64 : (colabId ? base + '/api/colaboradores/foto/' + colabId : (foto ? (foto.startsWith('http')?foto:base+'/'+foto) : null));
         if (src) {
             return '<img src="'+src+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);flex-shrink:0;" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';">' + dvHidden;
         }

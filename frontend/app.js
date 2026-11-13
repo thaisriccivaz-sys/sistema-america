@@ -628,29 +628,50 @@ async function carregarFotoUsuarioTopbar() {
         });
         if (!resColabs.ok) return;
         const colaboradores = await resColabs.json();
-        const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+        const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim() : "";
+        const normSZ = (s) => norm(s).replace(/z/g, "s");
         const uNome = norm(usuarioAtual.nome);
-        let colaborador = colaboradores.find(c => norm(c.nome_completo) === uNome);
+        const uUser = norm(usuarioAtual.username);
+        let colaborador = colaboradores.find(c => norm(c.nome_completo) === uNome || normSZ(c.nome_completo) === normSZ(usuarioAtual.nome));
         if (!colaborador) {
             colaborador = colaboradores.find(c => {
                 const cNome = norm(c.nome_completo);
                 return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
             });
         }
+        if (!colaborador && uNome) {
+            const stopWords = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
+            const uTokens = normSZ(usuarioAtual.nome).split(' ').filter(t => t && !stopWords.has(t));
+            if (uTokens.length >= 2) {
+                colaborador = colaboradores.find(c => {
+                    const cTokens = normSZ(c.nome_completo).split(' ').filter(t => t && !stopWords.has(t));
+                    return uTokens.every(ut => cTokens.includes(ut)) || (cTokens.length >= 2 && cTokens[0] === uTokens[0] && cTokens.some((ct, idx) => idx > 0 && uTokens.includes(ct)));
+                });
+            }
+        }
+        if (!colaborador && uUser) {
+            const userParts = uUser.split(/[._-]+/).filter(p => p.length >= 3 && p !== 'rh' && p !== 'adm' && p !== 'admin');
+            if (userParts.length >= 1) {
+                const matches = colaboradores.filter(c => {
+                    const cTokens = normSZ(c.nome_completo).split(' ');
+                    return userParts.every(up => cTokens.some(ct => ct === normSZ(up) || ct.startsWith(normSZ(up))));
+                });
+                if (matches.length === 1) colaborador = matches[0];
+            }
+        }
 
         if (!colaborador || !colaborador.id) return;
 
-        // Tenta carregar foto via base64 ou via URL
+        // Tenta carregar foto via base64 ou via rota de foto (R2 / documentos / disco)
         if (colaborador.foto_base64) {
             imgEl.src = colaborador.foto_base64;
             imgEl.style.display = 'block';
             iconEl.style.display = 'none';
-        } else if (colaborador.foto_path) {
-            // Tenta carregar via API
+        } else {
             const fotoUrl = `${API_URL}/colaboradores/foto/${colaborador.id}`;
-            imgEl.src = fotoUrl;
             imgEl.onload = () => { imgEl.style.display = 'block'; iconEl.style.display = 'none'; };
             imgEl.onerror = () => { imgEl.style.display = 'none'; iconEl.style.display = ''; };
+            imgEl.src = fotoUrl;
         }
     } catch (e) {
         console.log('[Avatar] Foto de usuario nao carregada:', e.message);
@@ -4741,6 +4762,7 @@ window.toggleContratoServico = function (tipoContrato, fromSelectChange) {
             cargoInput.value = '';
             cargoInput.disabled = true;
             cargoInput.required = false;
+            cargoInput.removeAttribute('required');
             cargoInput.placeholder = 'Sem cargo (Contrato de Serviço)';
             cargoInput.style.background = '#f1f5f9';
             cargoInput.style.color = '#94a3b8';
@@ -4750,10 +4772,34 @@ window.toggleContratoServico = function (tipoContrato, fromSelectChange) {
         } else {
             cargoInput.disabled = false;
             cargoInput.required = true;
+            cargoInput.setAttribute('required', 'required');
             cargoInput.placeholder = 'Digite para buscar...';
             cargoInput.style.background = '';
             cargoInput.style.color = '';
             cargoInput.style.cursor = '';
+        }
+    }
+    const deptInput = document.getElementById('colab-departamento');
+    const deptList = document.getElementById('colab-departamento-list');
+    if (deptInput) {
+        if (isServico) {
+            deptInput.value = '';
+            deptInput.disabled = true;
+            deptInput.required = false;
+            deptInput.removeAttribute('required');
+            deptInput.placeholder = 'Sem departamento (Contrato de Serviço)';
+            deptInput.style.background = '#f1f5f9';
+            deptInput.style.color = '#94a3b8';
+            deptInput.style.cursor = 'not-allowed';
+            if (deptList) deptList.style.display = 'none';
+        } else {
+            deptInput.disabled = false;
+            deptInput.required = true;
+            deptInput.setAttribute('required', 'required');
+            deptInput.placeholder = 'Preenchido pelo cargo (pode ser alterado)';
+            deptInput.style.background = '';
+            deptInput.style.color = '';
+            deptInput.style.cursor = '';
         }
     }
     const chipServico = document.getElementById('status-chip-servico');
@@ -5347,14 +5393,22 @@ window.editColaborador = async function (id) {
         if (c.foto_base64) {
             if (stateSaved) stateSaved.style.display = 'none';
             if (fotoPreview) {
+                fotoPreview.onload = null;
+                fotoPreview.onerror = null;
                 fotoPreview.style.display = 'block';
                 fotoPreview.src = c.foto_base64;
             }
-        } else if (c.foto_path) {
-            // Fallback para rota de foto do servidor (suporta R2, base64 e disco)
-            if (stateSaved) stateSaved.style.display = 'none';
+        } else if (c.id) {
+            // Rota de foto do servidor (suporta R2, documentos Fotos, base64 e disco)
             if (fotoPreview) {
-                fotoPreview.style.display = 'block';
+                fotoPreview.onload = () => {
+                    if (stateSaved) stateSaved.style.display = 'none';
+                    fotoPreview.style.display = 'block';
+                };
+                fotoPreview.onerror = () => {
+                    if (stateSaved) stateSaved.style.display = 'flex';
+                    fotoPreview.style.display = 'none';
+                };
                 fotoPreview.src = `${API_URL}/colaboradores/foto/${c.id}?t=${Date.now()}`;
             }
         } else {
@@ -5513,8 +5567,8 @@ if (formColab) {
             email: document.getElementById('colab-email').value,
             email_corporativo: document.getElementById('colab-email-corporativo') ? document.getElementById('colab-email-corporativo').value : '',
             endereco: document.getElementById('colab-endereco').value,
-            cargo: (String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'serviço') ? '' : document.getElementById('colab-cargo').value,
-            departamento: document.getElementById('colab-departamento').value,
+            cargo: (String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'serviço' || String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'servico') ? '' : document.getElementById('colab-cargo').value,
+            departamento: (String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'serviço' || String(document.getElementById('colab-contrato').value || '').trim().toLowerCase() === 'servico') ? '' : document.getElementById('colab-departamento').value,
             data_admissao: document.getElementById('colab-admissao').value,
             tipo_contrato: document.getElementById('colab-contrato').value,
             salario: document.getElementById('colab-salario').value,
@@ -5853,13 +5907,25 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
     const fotoLink = document.getElementById('prontuario-foto-link');
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
-        const fotoSrc = viewedColaborador.foto_base64 ||
-            (viewedColaborador.foto_path ? `${API_URL}/colaboradores/foto/${viewedColaborador.id}?t=${Date.now()}` : null);
-        if (fotoSrc) {
-            fotoImg.src = fotoSrc;
+        if (viewedColaborador.foto_base64) {
+            fotoImg.onload = null;
+            fotoImg.onerror = null;
+            fotoImg.src = viewedColaborador.foto_base64;
             if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${viewedColaborador.id}`;
             fotoImg.style.display = 'block';
             fotoPlaceholder.style.display = 'none';
+        } else if (viewedColaborador.id) {
+            fotoImg.onload = () => {
+                if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${viewedColaborador.id}`;
+                fotoImg.style.display = 'block';
+                fotoPlaceholder.style.display = 'none';
+            };
+            fotoImg.onerror = () => {
+                fotoImg.style.display = 'none';
+                if (fotoLink) fotoLink.removeAttribute('href');
+                fotoPlaceholder.style.display = 'flex';
+            };
+            fotoImg.src = `${API_URL}/colaboradores/foto/${viewedColaborador.id}?t=${Date.now()}`;
         } else {
             fotoImg.style.display = 'none';
             if (fotoLink) fotoLink.removeAttribute('href');

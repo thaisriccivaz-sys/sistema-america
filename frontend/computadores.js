@@ -72,7 +72,7 @@
         var src = '';
         if (fotoBase64) {
             src = fotoBase64.indexOf('data:') === 0 ? fotoBase64 : 'data:image/jpeg;base64,' + fotoBase64;
-        } else if (colabId && fotoPath) {
+        } else if (colabId) {
             src = base + '/api/colaboradores/foto/' + colabId;
         } else if (fotoPath) {
             src = (fotoPath.indexOf('http://') === 0 || fotoPath.indexOf('https://') === 0 || fotoPath.indexOf('data:') === 0)
