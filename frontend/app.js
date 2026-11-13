@@ -1096,6 +1096,34 @@ window.carregarPermissoesOnline = async function () {
             }
         });
         
+        // Ocultar títulos de seção do submenu (ex: Treinamentos, Palestras, UniAmérica) quando
+        // nenhum item da seção estiver liberado para o usuário
+        deptSubmenus.forEach(submenu => {
+            const headerObj = submenu.parentElement;
+            if (headerObj && headerObj.id === 'dept-item-gestao') return;
+            let titulo = null;
+            let itens = [];
+            const fecharSecao = () => {
+                if (titulo && itens.length > 0) {
+                    const algumLiberado = itens.some(a => mapPerms[a.getAttribute('data-target')] === true);
+                    titulo.style.display = algumLiberado ? '' : 'none';
+                }
+            };
+            Array.from(submenu.children).forEach(el => {
+                const ehTitulo = el.tagName === 'DIV' && el.children.length === 0 && (el.textContent || '').trim() !== '';
+                if (ehTitulo) {
+                    fecharSecao();
+                    titulo = el;
+                    itens = [];
+                } else if (el.matches && el.matches('.nav-item[data-target]')) {
+                    itens.push(el);
+                } else if (el.querySelectorAll) {
+                    el.querySelectorAll('.nav-item[data-target]').forEach(a => itens.push(a));
+                }
+            });
+            fecharSecao();
+        });
+
         // Lógica especial para o menu "Gestão" (exclusivo para gestores de departamento)
         // Usa o mesmo padrão do SAC: lê nome completo do erp_user e compara com responsavel_nome
         fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || ''}` } })
