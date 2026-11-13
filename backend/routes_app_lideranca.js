@@ -15,6 +15,7 @@
 "use strict";
 
 const multer = require('multer');
+const escalaUtil = require('./utils/lideranca_escala');
 
 module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken, r2) {
 
@@ -51,8 +52,8 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
     const cnhDoTipo = t => { const m = String(t || '').match(/motorista\s*([bd])\b/i); return m ? m[1].toUpperCase() : null; };
     async function nomeUsuario(req) {
         try {
-            const u = await dbGet("SELECT COALESCE(NULLIF(TRIM(nome),''), username) AS n FROM usuarios WHERE id = ?", [req.user && req.user.id]);
-            if (u && u.n) return u.n;
+            const l = await escalaUtil.resolverLiderDoReq(db, req);
+            if (l && l.nome) return l.nome;
         } catch (e) { /* usa fallback */ }
         return usuarioReq(req);
     }
@@ -235,38 +236,18 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
     }
 
     // ── Líderes: configuração (turno do dia) e vínculo usuário ↔ colaborador ───
-    const isDeptLider = dep => normTxt(dep).includes('lider');
-    const primeiroNome = s => normTxt(s).split(/\s+/)[0] || '';
-    const PLANTAO_PADRAO = ['eduardo', 'vivian']; // turno do dia (Ana Paula e Vitor são da noite)
-
+    // 4 líderes (2 de dia: Eduardo e Vivian; 2 de noite: Vitor Leandro e Ana Paula)
+    // Regra de férias: quando um do dia está de férias, o outro do dia trabalha de seg a sex
+    // (o mesmo quando um da noite está de férias). Exclui Joaquim Santana.
     async function sincronizarLideres() {
-        try {
-            const lideres = (await dbAll(`SELECT id, nome_completo, departamento, status FROM colaboradores`))
-                .filter(c => isDeptLider(c.departamento) && normTxt(c.status) !== 'desligado');
-            const usuarios = await dbAll(`SELECT id, username, nome FROM usuarios`);
-            for (const c of lideres) {
-                const cfg = await dbGet('SELECT colaborador_id, usuario_id FROM app_lider_config WHERE colaborador_id = ?', [c.id]);
-                const pn = primeiroNome(c.nome_completo);
-                const candidatos = usuarios.filter(u => primeiroNome(u.nome) === pn || primeiroNome(u.username) === pn);
-                const uid = candidatos.length === 1 ? candidatos[0].id : null;
-                if (!cfg) {
-                    await dbRun('INSERT INTO app_lider_config (colaborador_id, usuario_id, plantao_dia) VALUES (?, ?, ?)',
-                        [c.id, uid, PLANTAO_PADRAO.includes(pn) ? 1 : 0]);
-                } else if (!cfg.usuario_id && uid) {
-                    await dbRun('UPDATE app_lider_config SET usuario_id = ? WHERE colaborador_id = ?', [uid, c.id]);
-                }
-            }
-        } catch (e) { console.error('[APP-LIDERANCA] Erro ao sincronizar líderes:', e.message); }
+        await escalaUtil.sincronizarLideresPadrao(db);
     }
     setTimeout(sincronizarLideres, 7000);
 
     // Líderes de plantão (turno do dia, ativos, fora de folga) em uma data
     async function plantonistasDoDia(dataIso) {
-        const rows = await dbAll(`SELECT cfg.colaborador_id, cfg.usuario_id, c.nome_completo, c.status, c.escala_tipo, c.escala_folgas,
-                                         c.escala_ciclo_inicio, c.ferias_programadas_inicio, c.ferias_programadas_fim
-                                  FROM app_lider_config cfg JOIN colaboradores c ON c.id = cfg.colaborador_id
-                                  WHERE cfg.plantao_dia = 1`);
-        return rows.filter(r => normTxt(r.status) !== 'desligado' && !colabDeFolga(r, dataIso));
+        const esc = await escalaUtil.obterEscalaLideresNoDia(db, dataIso, null);
+        return (esc && esc.diurno && esc.diurno.escalados) || [];
     }
 
     // ── Checklist: cálculo de progresso ─────────────────────────────────────────
@@ -321,10 +302,13 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         };
     }
 
-    // Lista de candidatos com 1º dia agendado + situação para o líder logado
+    // Lista de candidatos com 1º dia agendado + situação para o líder logado + líder responsável por cada dia (com foto)
     app.get('/api/app/lideranca/candidatos', guard, async (req, res) => {
         try {
             const hoje = isoDate(req.query.hoje) || hojeSP();
+            const meuId = req.user && req.user.id;
+            const lideresBase = await escalaUtil.carregarLideresBase(db);
+            const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
 
             const cands = await dbAll(`SELECT id, nome, tipo, status,
                                               COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
@@ -334,8 +318,8 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                                        WHERE COALESCE(status, '') != 'ARQUIVADO'
                                          AND COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) IS NOT NULL
                                        ORDER BY COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) DESC, nome`);
-            const checks = await dbAll(`SELECT candidato_id, tipo, itens_json, concluido_em FROM candidatos_checklist_lider WHERE dia = '1'`);
-            const avals = await dbAll(`SELECT candidato_id FROM candidatos_teste_avaliacoes WHERE dia = '1'`);
+            const checks = await dbAll(`SELECT candidato_id, tipo, itens_json, lider_id, lider_nome, concluido_em FROM candidatos_checklist_lider WHERE dia = '1'`);
+            const avals = await dbAll(`SELECT candidato_id, avaliador_nome FROM candidatos_teste_avaliacoes WHERE dia = '1'`);
             let rotasRows = [];
             try {
                 rotasRows = await dbAll(`SELECT r.candidato_teste_id, c2.nome_completo AS motorista_nome
@@ -345,38 +329,65 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
             const rotMap = {}; rotasRows.forEach(r => { if (r.motorista_nome) rotMap[r.candidato_teste_id] = r.motorista_nome; });
             const chkMap = {}; checks.forEach(c => { chkMap[c.candidato_id] = c; });
             const avSet = new Set(avals.map(a => a.candidato_id));
+            const avMap = {}; avals.forEach(a => { avMap[a.candidato_id] = a; });
             const resolverFotoMot = await montarMapaFotosColaboradores();
 
-            const meuId = req.user && req.user.id;
-            const cachePlantao = {};
-            const souPlantao = async data => {
-                if (!(data in cachePlantao)) cachePlantao[data] = (await plantonistasDoDia(data)).some(p => p.usuario_id && p.usuario_id === meuId);
-                return cachePlantao[data];
+            const escalaPorDia = {};
+            const obterEscala = dataIso => {
+                if (!escalaPorDia[dataIso]) {
+                    escalaPorDia[dataIso] = escalaUtil.calcularEscalaEmData(lideresBase, dataIso, meuId);
+                }
+                return escalaPorDia[dataIso];
             };
+
+            // Pré-calcular 45 dias antes e 45 dias depois de hoje para qualquer clique na agenda mostrar a foto do líder na hora
+            const dRef = new Date(hoje + 'T12:00:00');
+            for (let delta = -45; delta <= 45; delta++) {
+                const dt = new Date(dRef);
+                dt.setDate(dRef.getDate() + delta);
+                obterEscala(dt.toISOString().slice(0, 10));
+            }
 
             const itens = [];
             for (const c of cands) {
                 const data = isoDate(c.data_teste_1);
                 if (!data) continue;
+                const escDia = obterEscala(data);
                 const respondido = avSet.has(c.id);
-                const ck = resumoChecklist(c.tipo, chkMap[c.id]);
+                const ckRow = chkMap[c.id];
+                const ck = resumoChecklist(c.tipo, ckRow);
                 let situacao;
                 if (respondido) situacao = 'respondido';
                 else if (data < hoje) situacao = 'passado';
                 else if (data === hoje) situacao = 'hoje';
                 else situacao = 'futuro';
-                const pendente = !respondido && data < hoje && await souPlantao(data);
+                const souPlantao = (escDia.diurno.escalados || []).some(p => p.usuario_id && Number(p.usuario_id) === Number(meuId));
+                const pendente = !respondido && data < hoje && souPlantao;
+
+                const avRow = avMap[c.id];
+                const realInfo = (avRow && avRow.avaliador_nome)
+                    ? resolverColab({ nome: avRow.avaliador_nome })
+                    : ((ckRow && (ckRow.lider_id || ckRow.lider_nome)) ? resolverColab({ usuario_id: ckRow.lider_id, nome: ckRow.lider_nome }) : null);
+
                 itens.push({
                     id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: data,
                     tem_foto: !!c.tem_foto, cnh_categoria: cnhDoTipo(c.tipo) || c.cnh_categoria || null,
                     motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, data, rotMap[c.id]),
                     motorista_foto_url: resolverFotoMot(extrairMotoristaVinculado(c.rota_motorista, data, rotMap[c.id])),
+                    lider_responsavel_dia: escDia.diurno,
+                    realizado_por: realInfo ? { nome: realInfo.nome, colab_id: realInfo.colab_id, foto_url: realInfo.foto_url } : null,
                     checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido },
                     respondido, situacao, pendente
                 });
             }
             const cfgMe = meuId ? await dbGet('SELECT plantao_dia FROM app_lider_config WHERE usuario_id = ?', [meuId]) : null;
-            res.json({ hoje, itens, plantao_dia: !!(cfgMe && cfgMe.plantao_dia) });
+            res.json({
+                hoje,
+                itens,
+                plantao_dia: !!(cfgMe && cfgMe.plantao_dia),
+                escala_hoje: obterEscala(hoje),
+                escala_por_dia: escalaPorDia
+            });
         } catch (e) {
             console.error('[APP-LIDERANCA] GET candidatos:', e);
             res.status(500).json({ error: e.message });
@@ -415,6 +426,15 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
             let respostas = null;
             if (av) { try { respostas = JSON.parse(av.respostas_json || '{}'); } catch (e) { respostas = {}; } }
             const dt1 = isoDate(c.data_teste_1);
+            const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
+            const escDia = dt1 ? await escalaUtil.obterEscalaLideresNoDia(db, dt1, req.user && req.user.id) : null;
+            const ckLiderRes = ckRow && (ckRow.lider_id || ckRow.lider_nome)
+                ? resolverColab({ usuario_id: ckRow.lider_id, nome: ckRow.lider_nome })
+                : null;
+            const avLiderRes = av && av.avaliador_nome
+                ? resolverColab({ nome: av.avaliador_nome })
+                : null;
+
             res.json({
                 id: c.id, nome: c.nome, tipo: c.tipo, data_teste_1: dt1,
                 eh_motorista: isTipoMotorista(c.tipo),
@@ -422,10 +442,26 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                 cnh_fixa: !!cnhDoTipo(c.tipo),
                 motorista_vinculado: extrairMotoristaVinculado(c.rota_motorista, dt1, rotaRow && rotaRow.motorista_nome),
                 motorista_foto_url: (await montarMapaFotosColaboradores())(extrairMotoristaVinculado(c.rota_motorista, dt1, rotaRow && rotaRow.motorista_nome)),
+                lider_responsavel_dia: escDia ? escDia.diurno : null,
                 itens: itensDoTipo(c.tipo),
-                checklist: { feitos: ck.feitos, nao_feitos: ck.nao_feitos, total: ck.total, concluido: ck.concluido, estado: ck.itens, lider_nome: ckRow ? ckRow.lider_nome : null, concluido_em: ckRow ? ckRow.concluido_em : null },
+                checklist: {
+                    feitos: ck.feitos,
+                    nao_feitos: ck.nao_feitos,
+                    total: ck.total,
+                    concluido: ck.concluido,
+                    estado: ck.itens,
+                    lider_nome: ckLiderRes ? ckLiderRes.nome : (ckRow ? ckRow.lider_nome : null),
+                    lider_foto_url: ckLiderRes ? ckLiderRes.foto_url : null,
+                    concluido_em: ckRow ? ckRow.concluido_em : null
+                },
                 perguntas: perguntasDoTipo(c.tipo),
-                avaliacao: av ? { avaliador_nome: av.avaliador_nome, media: av.media_notas, respostas, created_at: av.created_at } : null
+                avaliacao: av ? {
+                    avaliador_nome: avLiderRes ? avLiderRes.nome : av.avaliador_nome,
+                    avaliador_foto_url: avLiderRes ? avLiderRes.foto_url : null,
+                    media: av.media_notas,
+                    respostas,
+                    created_at: av.created_at
+                } : null
             });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
@@ -550,6 +586,14 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
+    app.get('/api/app/lideranca/escala-dia', guard, async (req, res) => {
+        try {
+            const data = isoDate(req.query.data) || hojeSP();
+            const esc = await escalaUtil.obterEscalaLideresNoDia(db, data, req.user && req.user.id);
+            res.json(Object.assign({ data }, esc));
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
     // ── Configuração dos líderes (turno do dia) — Diretoria/Administrador ──────
     app.get('/api/app/lideranca/config', authenticateToken, requireTopAdmin, async (req, res) => {
         try {
@@ -558,7 +602,10 @@ module.exports = function registerAppLiderancaRoutes(app, db, authenticateToken,
                                          FROM app_lider_config cfg JOIN colaboradores c ON c.id = cfg.colaborador_id
                                          ORDER BY c.nome_completo`);
             const usuarios = await dbAll(`SELECT id, username, nome FROM usuarios WHERE COALESCE(ativo,1) = 1 ORDER BY COALESCE(NULLIF(nome,''), username)`);
-            res.json({ lideres: lideres.filter(l => normTxt(l.status) !== 'desligado'), usuarios: usuarios.map(u => ({ id: u.id, nome: u.nome || u.username })) });
+            res.json({
+                lideres: lideres.filter(l => normTxt(l.status) !== 'desligado' && !normTxt(l.nome_completo).includes('joaquim')),
+                usuarios: usuarios.map(u => ({ id: u.id, nome: u.nome || u.username }))
+            });
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
     app.put('/api/app/lideranca/config/:colabId', authenticateToken, requireTopAdmin, async (req, res) => {

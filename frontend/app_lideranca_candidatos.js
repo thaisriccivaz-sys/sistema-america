@@ -116,9 +116,55 @@
         <div id="alc-lista">${htmlLista()}</div>`;
     }
 
+    function obterEscalaDoDia(iso) {
+        if (!S.dados) return null;
+        const map = S.dados.escala_por_dia || {};
+        if (map[iso]) return map[iso];
+        if (iso === S.dados.hoje && S.dados.escala_hoje) return S.dados.escala_hoje;
+        return null;
+    }
+
+    function renderChipsLideres(lista, px) {
+        px = px || 24;
+        const arr = Array.isArray(lista) ? lista.filter(p => p && (p.nome_curto || p.nome)) : [];
+        if (!arr.length) return '';
+        return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">${arr.map(p => {
+            const n = p.nome_curto || p.nome;
+            const url = p.foto_url || (p.colab_id ? `/api/colaboradores/foto/${p.colab_id}` : null);
+            return `<span style="display:inline-flex;align-items:center;gap:5px;background:#ffffff;border:1px solid #cbd5e1;border-radius:999px;padding:2px 9px 2px 3px;font-weight:700;color:#1e293b;font-size:0.78rem;">${avatarMotorista(n, url, px)}<span>${esc(n)}</span></span>`;
+        }).join('')}</span>`;
+    }
+
+    function htmlBannerLiderDoDia(isoAlvo) {
+        const escDia = obterEscalaDoDia(isoAlvo);
+        if (!escDia || !escDia.diurno) return '';
+        const diu = escDia.diurno;
+        const escalados = diu.escalados || [];
+        const folgaList = diu.folga || [];
+        const emFerias = folgaList.filter(f => f.em_ferias);
+        const emFolga = folgaList.filter(f => !f.em_ferias);
+        const ehHoje = isoAlvo === hojeIso();
+
+        return `
+        <div class="alc-lider-dia-bar" style="margin-top:10px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#f4f7ed 0%,#eef5e4 100%);border:1px solid #c5d6a7;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:0.8rem;font-weight:800;color:#3f5221;display:inline-flex;align-items:center;gap:5px;">
+                    <i class="ph-fill ph-sun" style="color:#d97706;font-size:1rem;"></i>
+                    Líder responsável (${ehHoje ? 'Hoje · ' : ''}${esc(fmtCurta(isoAlvo))}):
+                </span>
+                ${escalados.length ? renderChipsLideres(escalados, 26) : `<b style="font-size:0.82rem;color:#475569;">${esc(diu.nomes || 'Sem líder escalado')}</b>`}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.74rem;">
+                ${emFerias.length ? `<span style="color:#b45309;background:#fef3c7;border:1px solid #fde68a;padding:2px 8px;border-radius:999px;font-weight:700;">🏖️ Férias: ${esc(emFerias.map(f => f.nome_curto || f.nome).join(', '))}</span>` : ''}
+                ${emFolga.length ? `<span style="color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;padding:2px 8px;border-radius:999px;font-weight:600;">Folga: ${esc(emFolga.map(f => f.nome_curto || f.nome).join(', '))}</span>` : ''}
+            </div>
+        </div>`;
+    }
+
     function htmlAgenda() {
         const cont = contagens();
         const hoje = hojeIso();
+        const diaFoco = S.diaSel || hoje;
         let corpo = '';
         let titulo = '';
         if (S.modo === 'semana') {
@@ -150,6 +196,7 @@
                 <button class="alc-chip" onclick="window._alcHoje()"><i class="ph ph-sun"></i> Hoje</button>
             </div>
             ${corpo}
+            ${htmlBannerLiderDoDia(diaFoco)}
             ${S.diaSel ? `<button class="alc-filtro" onclick="window._alcDia('${S.diaSel}')"><i class="ph ph-funnel-x"></i> Mostrando ${esc(fmtCurta(S.diaSel))} — toque para ver todos</button>` : ''}
         </section>`;
     }
@@ -159,8 +206,13 @@
         const d = dataDe(iso);
         const cls = ['alc-dia', iso === hoje ? 'hoje' : '', iso === S.diaSel ? 'sel' : '', c ? 'tem' : '', c && c.pend ? 'pend' : ''].join(' ');
         const badge = c ? `<span class="alc-dia-badge ${c.pend ? 'red' : ''}">${c.total}</span>` : '';
+        const escDia = obterEscalaDoDia(iso);
+        const escalados = (escDia && escDia.diurno && escDia.diurno.escalados) || [];
+        const fotosDiaHtml = (!mes && escalados.length)
+            ? `<span class="alc-dia-lideres" title="Líder responsável: ${esc(escalados.map(l => l.nome_curto || l.nome).join(' / '))}" style="display:flex;align-items:center;justify-content:center;gap:2px;margin-top:3px;">${escalados.map(l => avatarMotorista(l.nome_curto || l.nome, l.foto_url || (l.colab_id ? `/api/colaboradores/foto/${l.colab_id}` : null), 18)).join('')}</span>`
+            : '';
         return `<button class="${cls}" onclick="window._alcDia('${iso}')" aria-label="${esc(fmtCurta(iso))}">
-            ${mes ? '' : `<span class="alc-dia-dow">${DIAS[d.getDay()]}</span>`}<span class="alc-dia-num">${d.getDate()}</span>${badge}</button>`;
+            ${mes ? '' : `<span class="alc-dia-dow">${DIAS[d.getDay()]}</span>`}<span class="alc-dia-num">${d.getDate()}</span>${fotosDiaHtml}${badge}</button>`;
     }
 
     function htmlLista() {
@@ -208,6 +260,16 @@
         const mot = i.motorista_vinculado
             ? `<div class="alc-card-mot" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:#3f5221;background:#f4f7ed;border:1px solid #b8c996;border-radius:999px;padding:3px 10px 3px 4px;margin-top:4px;width:fit-content;max-width:100%;">${avatarMotorista(i.motorista_vinculado, i.motorista_foto_url, 22)} <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Motorista: <b>${esc(i.motorista_vinculado)}</b></span></div>`
             : `<div class="alc-card-mot" style="display:flex;align-items:center;gap:5px;font-size:0.76rem;font-weight:500;color:#64748b;margin-top:3px;"><i class="ph ph-steering-wheel" style="color:#94a3b8;font-size:0.9rem;flex-shrink:0;"></i> <span>Sem motorista vinculado</span></div>`;
+
+        const escDia = i.lider_responsavel_dia || (obterEscalaDoDia(i.data_teste_1) || {}).diurno || {};
+        const escalados = escDia.escalados || [];
+        const liderRespHtml = escalados.length > 0
+            ? `<div class="alc-card-lider-resp" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.78rem;color:#334155;margin-top:4px;"><span style="font-weight:700;color:#475569;">☀️ Líder Resp.:</span> ${renderChipsLideres(escalados, 20)}</div>`
+            : '';
+        const realHtml = i.realizado_por && i.realizado_por.nome
+            ? `<div class="alc-card-lider-real" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.78rem;color:#15803d;margin-top:3px;"><span style="font-weight:700;">✅ Realizado por:</span> ${renderChipsLideres([i.realizado_por], 20)}</div>`
+            : '';
+
         return `<button class="alc-card ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
             ${avatar(i)}
             <div class="alc-card-corpo">
@@ -215,6 +277,8 @@
                 <div class="alc-card-linha"><span class="alc-tipo" style="color:${tipoCor(i.tipo)};"><i class="ph ${tipoIcone(i.tipo)}"></i> ${esc(tipoRotulo(i.tipo))}</span>
                     <span class="alc-data"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_teste_1))}</span></div>
                 ${mot}
+                ${liderRespHtml}
+                ${realHtml}
                 <div class="alc-card-badges">${badgeSituacao(i)}${ck}${cnh}</div>
                 ${(!i.respondido && i.checklist.feitos) ? `<div class="alc-barra"><i style="width:${pct}%;"></i></div>` : ''}
             </div>
@@ -234,7 +298,17 @@
         desenhar();
     };
     window._alcHoje = function () { S.semanaIni = inicioSemana(hojeIso()); S.mesRef = hojeIso().slice(0, 7); S.diaSel = null; desenhar(); };
-    window._alcDia = function (iso) { S.diaSel = S.diaSel === iso ? null : iso; desenhar(); };
+    window._alcDia = async function (iso) {
+        S.diaSel = S.diaSel === iso ? null : iso;
+        if (S.diaSel && S.dados && (!S.dados.escala_por_dia || !S.dados.escala_por_dia[S.diaSel])) {
+            try {
+                const esc = await api('/app/lideranca/escala-dia?data=' + encodeURIComponent(S.diaSel));
+                S.dados.escala_por_dia = S.dados.escala_por_dia || {};
+                S.dados.escala_por_dia[S.diaSel] = esc;
+            } catch (_) { /* ignora */ }
+        }
+        desenhar();
+    };
 
     // ── Modo celular (tela cheia dentro do sistema) ─────────────────────────────
     window._alcMenu = function () { document.body.classList.toggle('app-rail-open'); };
@@ -294,12 +368,17 @@
         const mot = d.motorista_vinculado
             ? `<span class="alc-badge" style="background:#f4f7ed;color:#3f5221;border:1px solid #b8c996;padding-left:4px;gap:5px;">${avatarMotorista(d.motorista_vinculado, d.motorista_foto_url, 18)} Mot.: ${esc(d.motorista_vinculado)}</span>`
             : `<span class="alc-badge cinza"><i class="ph ph-steering-wheel"></i> Sem motorista</span>`;
+        const escDia = d.lider_responsavel_dia || {};
+        const escalados = escDia.escalados || [];
+        const liderBadge = escalados.length
+            ? `<span class="alc-badge" style="background:#fef9c3;color:#854d0e;border:1px solid #fde047;padding-left:4px;gap:5px;">☀️ Resp.: ${escalados.map(l => `${avatarMotorista(l.nome_curto || l.nome, l.foto_url || (l.colab_id ? `/api/colaboradores/foto/${l.colab_id}` : null), 18)} ${esc(l.nome_curto || l.nome)}`).join(' / ')}</span>`
+            : '';
         return `<header class="alc-det-head">
             <button class="alc-icon-btn" onclick="window._alcFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
             ${avatar(c, 'sm')}
             <div class="alc-det-id"><div class="alc-det-nome">${esc(d.nome)}</div>
                 <div class="alc-card-badges"><span class="alc-badge" style="background:${tipoCor(d.tipo)}18;color:${tipoCor(d.tipo)};"><i class="ph ${tipoIcone(d.tipo)}"></i> ${esc(tipoRotulo(d.tipo))}</span>${cnh}
-                <span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_teste_1))}</span>${mot}</div></div>
+                <span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_teste_1))}</span>${mot}${liderBadge}</div></div>
             <span class="alc-salvo" id="alc-salvo"></span>
         </header>`;
     }
@@ -546,8 +625,11 @@
         const media = av.media != null ? Number(av.media).toFixed(1) : '—';
         const itens = d.itens.map(it => { const e = (d.checklist.estado || {})[it.id] || {}; return `<li class="${e.ok ? 'ok' : (e.nao ? 'nao' : '')}"><i class="ph ${e.ok ? 'ph-check-circle' : (e.nao ? 'ph-x-circle' : 'ph-circle')}"></i><span>${esc(it.texto)}${e.obs ? ' <em>— ' + esc(e.obs) + '</em>' : ''}</span></li>`; }).join('');
         const qs = d.perguntas.map((q, i) => { const n = (av.respostas || {})[i]; const f = FACES.find(x => x.v === n); return `<li><span>${esc(q)}</span><b style="color:${f ? f.c : '#64748b'};">${f ? f.e : ''} ${n || '—'}</b></li>`; }).join('');
+        const avChip = av.avaliador_nome
+            ? `<span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">${avatarMotorista(av.avaliador_nome, av.avaliador_foto_url, 20)} ${esc(av.avaliador_nome)}</span>`
+            : '';
         return `<div class="alc-resumo">
-            <div class="alc-resumo-topo"><i class="ph ph-check-circle"></i><div><b>Avaliação enviada</b><small>${esc(av.avaliador_nome || '')} · ${esc(fmtDataHora(av.created_at))}</small></div><span class="alc-media">Média ${esc(media)}</span></div>
+            <div class="alc-resumo-topo"><i class="ph ph-check-circle"></i><div><b>Avaliação enviada</b><small style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;">${avChip} · ${esc(fmtDataHora(av.created_at))}</small></div><span class="alc-media">Média ${esc(media)}</span></div>
             <h4><i class="ph ph-list-checks"></i> Checklist (${d.checklist.feitos}/${d.checklist.total}${d.checklist.nao_feitos ? ' · ' + d.checklist.nao_feitos + ' não feito' + (d.checklist.nao_feitos > 1 ? 's' : '') : ''})</h4><ul class="alc-res-lista chk">${itens}</ul>
             <h4><i class="ph ph-chat-centered-dots"></i> Perguntas do 1º dia</h4><ul class="alc-res-lista qs">${qs}</ul></div>`;
     }

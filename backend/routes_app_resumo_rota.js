@@ -14,6 +14,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 "use strict";
 
+const escalaUtil = require('./utils/lideranca_escala');
+
 module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken) {
 
     const PAGE_ID = 'app-lideranca-resumo-rota';
@@ -457,158 +459,14 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     const guard = [authenticateToken, requireApp];
 
     // ── Cálculo da Escala dos Líderes (Diurna e Noturna) no dia ─────────────────
-    const DIA_MAP = { dom: 0, domingo: 0, seg: 1, segunda: 1, ter: 2, terca: 2, qua: 3, quarta: 3, qui: 4, quinta: 4, sex: 5, sexta: 5, sab: 6, sabado: 6 };
-    const PLANTAO_DIURNO_PADRAO = ['eduardo', 'vivian'];
-
-    function colabDeFolga(c, dateStr) {
-        const escalaStr = String(c.escala_tipo || '').toLowerCase();
-        let explicitas = [];
-        try {
-            const p = JSON.parse(c.escala_folgas || '[]');
-            explicitas = Array.isArray(p) ? p.map(f => normLow(f)) : [normLow(p)];
-        } catch (e) {
-            explicitas = String(c.escala_folgas || '').split(/[,;]+/).map(f => normLow(f)).filter(Boolean);
-        }
-        const folgasDow = explicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
-        const temCiclo = !!c.escala_ciclo_inicio && escalaStr.includes('folga');
-        const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
-        const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
-        const dayMs = 1000 * 60 * 60 * 24;
-
-        const isDomingoDeLei = ds => {
-            if (!temCiclo || !cicloBase) return false;
-            const d = new Date(ds + 'T12:00:00');
-            if (d.getDay() !== 0) return false;
-            const ref = new Date(cicloBase);
-            while (ref.getDay() !== 0) ref.setDate(ref.getDate() + 1);
-            const n = Math.round(Math.round((d - ref) / dayMs) / 7);
-            return ((n % 3) + 3) % 3 === 0;
-        };
-
-        const fi = isoDate(c.ferias_programadas_inicio);
-        const ff = isoDate(c.ferias_programadas_fim);
-        if (fi && ff && dateStr >= fi && dateStr <= ff) return true;
-
-        const d = new Date(dateStr + 'T12:00:00');
-        const dow = d.getDay();
-        if (escalaStr.includes('12x36')) {
-            if (!c.escala_ciclo_inicio) return false;
-            const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
-            if (diff < 0) return false;
-            return Math.round(diff / dayMs) % 2 === 1;
-        }
-        if (dow === 0 && isDomingoDeLei(dateStr)) return true;
-        if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
-            const dom = new Date(dateStr + 'T12:00:00');
-            dom.setDate(dom.getDate() - dow);
-            if (isDomingoDeLei(dom.toISOString().split('T')[0])) return false;
-        }
-        if (escalaStr.includes('escala_uma_folga') || escalaStr.includes('escala_duas_folgas')) {
-            if (folgasDow.length > 0) return folgasDow.includes(dow);
-        }
-        if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
-            if (dow === 0) return true;
-            if (dow === 6 && c.escala_ciclo_inicio) {
-                const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
-                if (diff < 0) return false;
-                return Math.round(diff / (dayMs * 7)) % 2 === 1;
-            }
-            return false;
-        }
-        if (escalaStr.includes('seg_sexta') || escalaStr.includes('5x2') || escalaStr.includes('5 x 2')) return dow === 0 || dow === 6;
-        if (escalaStr.includes('6x1') || escalaStr.includes('6 x 1')) return dow === 0;
-        return dow === 0;
-    }
-
+    // Utiliza o utilitário centralizado (4 líderes: 2 dia e 2 noite, sem Joaquim Santana,
+    // com regra de férias seg-sex e resolução de nome + foto de colaborador)
     async function obterEscalaLideresNoDia(iso, uidLogado) {
-        const rows = await dbAll(`
-            SELECT c.id AS colab_id, c.nome_completo, c.cargo, c.departamento, c.status,
-                   c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio,
-                   c.ferias_programadas_inicio, c.ferias_programadas_fim,
-                   c.foto_base64, c.foto_path,
-                   cfg.usuario_id, cfg.plantao_dia
-            FROM colaboradores c
-            LEFT JOIN app_lider_config cfg ON cfg.colaborador_id = c.id
-            WHERE COALESCE(LOWER(TRIM(c.status)), '') != 'desligado'
-        `);
-
-        const lideres = rows.filter(r =>
-            r.plantao_dia !== null && r.plantao_dia !== undefined
-            || normLow(r.departamento).includes('lider')
-            || normLow(r.cargo).includes('lider')
-        );
-
-        const diurnoTodos = [];
-        const noturnoTodos = [];
-        let turnoUsuario = null;
-
-        for (const l of lideres) {
-            const pNome = normLow(l.nome_completo).split(/\s+/)[0] || '';
-            let ehDiurno;
-            if (l.plantao_dia !== null && l.plantao_dia !== undefined) {
-                ehDiurno = Number(l.plantao_dia) === 1;
-            } else if (String(l.escala_tipo || '').toLowerCase().includes('12x36')) {
-                ehDiurno = false;
-            } else {
-                ehDiurno = PLANTAO_DIURNO_PADRAO.includes(pNome);
-            }
-
-            const folga = colabDeFolga(l, iso);
-            const item = {
-                colab_id: l.colab_id,
-                usuario_id: l.usuario_id || null,
-                nome: l.nome_completo,
-                nome_curto: l.nome_completo.trim().split(/\s+/).slice(0, 2).join(' '),
-                turno: ehDiurno ? 'diurno' : 'noturno',
-                de_folga: folga,
-                foto_url: l.foto_base64 || `/api/colaboradores/foto/${l.colab_id}`
-            };
-
-            if (uidLogado && Number(l.usuario_id) === Number(uidLogado)) {
-                turnoUsuario = ehDiurno ? 'diurno' : 'noturno';
-            }
-
-            if (ehDiurno) diurnoTodos.push(item);
-            else noturnoTodos.push(item);
-        }
-
-        const diurnoEscalados = diurnoTodos.filter(l => !l.de_folga);
-        const diurnoFolga = diurnoTodos.filter(l => l.de_folga);
-        const noturnoEscalados = noturnoTodos.filter(l => !l.de_folga);
-        const noturnoFolga = noturnoTodos.filter(l => l.de_folga);
-
-        return {
-            turno_usuario: turnoUsuario,
-            diurno: {
-                escalados: diurnoEscalados.length ? diurnoEscalados : diurnoTodos,
-                folga: diurnoFolga,
-                nomes: (diurnoEscalados.length ? diurnoEscalados : diurnoTodos).map(l => l.nome_curto).join(' / ') || 'Sem líder escalado'
-            },
-            noturno: {
-                escalados: noturnoEscalados.length ? noturnoEscalados : noturnoTodos,
-                folga: noturnoFolga,
-                nomes: (noturnoEscalados.length ? noturnoEscalados : noturnoTodos).map(l => l.nome_curto).join(' / ') || 'Sem líder escalado'
-            }
-        };
+        return escalaUtil.obterEscalaLideresNoDia(db, iso, uidLogado);
     }
 
     async function liderDoReq(req) {
-        const uid = (req.user && req.user.id) || null;
-        let nome = (req.user && (req.user.nome || req.user.username)) || 'Líder';
-        try {
-            const u = await dbGet("SELECT COALESCE(NULLIF(TRIM(nome),''), username) AS n FROM usuarios WHERE id = ?", [uid]);
-            if (u && u.n) nome = u.n;
-        } catch (e) { /* fallback */ }
-        let colabId = null;
-        try {
-            const cfg = uid ? await dbGet('SELECT colaborador_id FROM app_lider_config WHERE usuario_id = ?', [uid]) : null;
-            if (cfg) colabId = cfg.colaborador_id;
-            if (!colabId) {
-                const c = await dbGet('SELECT id FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) LIMIT 1', [nome]);
-                if (c) colabId = c.id;
-            }
-        } catch (e) { /* sem foto */ }
-        return { id: uid, nome, colabId };
+        return escalaUtil.resolverLiderDoReq(db, req);
     }
 
     // ── Resolver foto e ID de colaborador por nome (Motorista / Ajudante) ──────
@@ -711,6 +569,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     detalhe,
                     checked: !!(chk && chk.checked),
                     lider_nome: chk && chk.checked ? chk.lider_nome : null,
+                    lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
+                    lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
                     atualizado_em: chk && chk.checked ? chk.atualizado_em : null
                 });
                 continue;
@@ -742,6 +602,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     total_unidades: st.total_unidades,
                     tem_avaria: st.tem_avaria,
                     lider_nome: st.lider_nome,
+                    lider_colab_id: st.lider_colab_id || null,
+                    lider_foto_url: st.lider_foto_url || null,
                     atualizado_em: st.atualizado_em || null,
                     os_list: st.os_list
                 });
@@ -761,6 +623,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     total_unidades: st.total_unidades,
                     tem_avaria: st.tem_avaria,
                     lider_nome: st.lider_nome,
+                    lider_colab_id: st.lider_colab_id || null,
+                    lider_foto_url: st.lider_foto_url || null,
                     atualizado_em: st.atualizado_em || null,
                     os_list: st.os_list
                 });
@@ -774,6 +638,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         item_key: ik,
                         checked: !!(chk && chk.checked),
                         lider_nome: chk && chk.checked ? chk.lider_nome : null,
+                        lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
+                        lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
                         atualizado_em: chk && chk.checked ? chk.atualizado_em : null
                     });
                 });
@@ -866,9 +732,12 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             [iso, iso, iso, iso]
         );
 
+        // Resolvedor de colaborador para converter usernames (ex: Thais.Ricci) em nome do colaborador + foto
+        const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
+
         // Checks manuais já gravados para este resumo (separa Diurno e Noturno pelo prefixo 'noturno::')
         const checksRows = await dbAll(
-            `SELECT veiculo_key, item_key, tipo_item, checked, lider_nome, lider_colab_id, atualizado_em
+            `SELECT veiculo_key, item_key, tipo_item, checked, lider_id, lider_nome, lider_colab_id, atualizado_em
              FROM app_resumo_rota_checks
              WHERE resumo_id = ?`,
             [chosenRow.id]
@@ -883,22 +752,34 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         };
 
         checksRows.forEach(r => {
+            const resolved = (r.lider_id || r.lider_nome || r.lider_colab_id)
+                ? resolverColab({ usuario_id: r.lider_id, colab_id: r.lider_colab_id, nome: r.lider_nome })
+                : null;
+            const nomeResolvido = (resolved && resolved.nome) || r.lider_nome || null;
+            const colabIdResolvido = (resolved && resolved.colab_id) || r.lider_colab_id || null;
+            const fotoResolvida = (resolved && resolved.foto_url) || (colabIdResolvido ? `/api/colaboradores/foto/${colabIdResolvido}` : null);
+
             const rawKey = String(r.item_key || '');
             const ehNoturnoKey = rawKey.startsWith('noturno::');
             const tKey = ehNoturnoKey ? 'noturno' : 'diurno';
             const cleanItemKey = ehNoturnoKey ? rawKey.slice('noturno::'.length) : rawKey;
             const mapT = checksByTurnoVeiculo[tKey];
             if (!mapT.has(r.veiculo_key)) mapT.set(r.veiculo_key, new Map());
-            mapT.get(r.veiculo_key).set(cleanItemKey, Object.assign({}, r, { item_key: cleanItemKey }));
+            mapT.get(r.veiculo_key).set(cleanItemKey, Object.assign({}, r, {
+                item_key: cleanItemKey,
+                lider_nome: nomeResolvido,
+                lider_colab_id: colabIdResolvido,
+                lider_foto_url: fotoResolvida
+            }));
 
-            if (r.checked && r.lider_nome) {
-                const kLider = normLow(r.lider_nome);
+            if (r.checked && nomeResolvido) {
+                const kLider = normLow(nomeResolvido);
                 const ex = realizadoresPorTurno[tKey].get(kLider);
                 if (!ex || String(r.atualizado_em || '') > String(ex.atualizado_em || '')) {
                     realizadoresPorTurno[tKey].set(kLider, {
-                        nome: r.lider_nome,
-                        colab_id: r.lider_colab_id || null,
-                        foto_url: r.lider_colab_id ? `/api/colaboradores/foto/${r.lider_colab_id}` : null,
+                        nome: nomeResolvido,
+                        colab_id: colabIdResolvido,
+                        foto_url: fotoResolvida,
                         atualizado_em: r.atualizado_em
                     });
                 }
@@ -931,9 +812,15 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             : [];
 
         const entMap = new Map();
-        entCheckRows.forEach(r => entMap.set(`${r.os_id}|${r.unit_key}`, r));
+        entCheckRows.forEach(r => {
+            const uKey = r.unit_key || r.unidade_key;
+            if (uKey) entMap.set(`${r.os_id}|${uKey}`, r);
+        });
         const retMap = new Map();
-        retCheckRows.forEach(r => retMap.set(`${r.os_id}|${r.unit_key}`, r));
+        retCheckRows.forEach(r => {
+            const uKey = r.unit_key || r.unidade_key;
+            if (uKey) retMap.set(`${r.os_id}|${uKey}`, r);
+        });
 
         // Indexar OS de os_logistica por numero_os
         const osPorNumero = new Map();
@@ -1013,21 +900,30 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         units.forEach(u => {
                             const row = ckMap.get(`${os.id}|${u.key}`);
                             let temItem = false;
-                            if (row && row.itens_json) {
+                            const rawJson = row && (row.itens_json || row.checklist_json);
+                            if (rawJson) {
                                 try {
-                                    const obj = JSON.parse(row.itens_json);
+                                    const obj = JSON.parse(rawJson);
                                     temItem = !!(obj && typeof obj === 'object' && Object.keys(obj).length > 0);
                                 } catch (_) { temItem = false; }
                             }
-                            const concluido = !!(row && row.concluido_em);
+                            const conclEm = row && (row.concluido_em || row.conferido_em);
+                            const concluido = !!conclEm;
                             const iniciado = concluido || temItem;
+                            const rawLiderId = row && (row.lider_id || row.conferido_por_id);
+                            const rawLiderNome = row && (row.lider_nome || row.conferido_por_nome);
+                            const rawColabId = row && row.lider_colab_id;
+                            const resolved = (iniciado && (rawLiderId || rawLiderNome || rawColabId))
+                                ? resolverColab({ usuario_id: rawLiderId, colab_id: rawColabId, nome: rawLiderNome })
+                                : null;
                             unidades.push({
                                 iniciado,
                                 concluido,
                                 tem_avaria: !!(concluido && row.tem_avaria),
-                                lider_nome: row && (row.concluido_em || temItem) ? row.lider_nome : null,
-                                lider_colab_id: row && (row.concluido_em || temItem) ? row.lider_colab_id : null,
-                                concluido_em: row && row.concluido_em ? row.concluido_em : (row ? row.atualizado_em : null)
+                                lider_nome: resolved ? resolved.nome : (iniciado ? rawLiderNome : null),
+                                lider_colab_id: resolved ? resolved.colab_id : (iniciado ? rawColabId : null),
+                                lider_foto_url: resolved ? resolved.foto_url : null,
+                                concluido_em: conclEm || (row ? row.atualizado_em : null)
                             });
                         });
                     }
@@ -1050,6 +946,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     tem_avaria: algumaAvaria,
                     lider_nome: uComLider.lider_nome || null,
                     lider_colab_id: uComLider.lider_colab_id || null,
+                    lider_foto_url: uComLider.lider_foto_url || null,
                     atualizado_em: uComLider.concluido_em || null,
                     os_list: osEnvolvidas
                 };
@@ -1091,10 +988,23 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             }
 
             const lideresCkSet = new Set();
+            const realizadoresEntRetMap = new Map();
             let ultDataCkVeic = null;
             todosCkVeic.forEach(x => {
                 if (x.lider_nome) {
-                    String(x.lider_nome).split(',').map(s => s.trim()).filter(Boolean).forEach(n => lideresCkSet.add(n));
+                    String(x.lider_nome).split(',').map(s => s.trim()).filter(Boolean).forEach(n => {
+                        const res = resolverColab({ nome: n, colab_id: x.lider_colab_id });
+                        const nomeReal = (res && res.nome) || n;
+                        lideresCkSet.add(nomeReal);
+                        const k = normLow(nomeReal);
+                        if (!realizadoresEntRetMap.has(k)) {
+                            realizadoresEntRetMap.set(k, {
+                                nome: nomeReal,
+                                colab_id: (res && res.colab_id) || x.lider_colab_id || null,
+                                foto_url: (res && res.foto_url) || x.lider_foto_url || null
+                            });
+                        }
+                    });
                 }
                 if (x.atualizado_em && (!ultDataCkVeic || String(x.atualizado_em) > String(ultDataCkVeic))) {
                     ultDataCkVeic = x.atualizado_em;
@@ -1110,6 +1020,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 iniciadas: unidIniciadasVeic,
                 total_unidades: unidTotalVeic,
                 lider_nome: [...lideresCkSet].join(', ') || null,
+                realizado_por: [...realizadoresEntRetMap.values()],
                 atualizado_em: ultDataCkVeic
             };
 
@@ -1143,25 +1054,28 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             // Quem realizou os checks deste veículo no turno ativo
             const realizadoresVeicMap = new Map();
             const registrarRealizador = (nomeLider, colabIdLider, dataHora) => {
-                if (!nomeLider) return;
-                const k = normLow(nomeLider);
-                const infoC = matchColab(nomeLider);
-                const cid = colabIdLider || (infoC ? infoC.id : null);
+                if (!nomeLider && !colabIdLider) return;
+                const resolved = resolverColab({ colab_id: colabIdLider, nome: nomeLider });
+                const nomeFinal = (resolved && resolved.nome) || nomeLider;
+                if (!nomeFinal) return;
+                const k = normLow(nomeFinal);
+                const cid = (resolved && resolved.colab_id) || colabIdLider || null;
+                const foto = (resolved && resolved.foto_url) || (cid ? `/api/colaboradores/foto/${cid}` : null);
                 const ex = realizadoresVeicMap.get(k);
                 if (!ex || String(dataHora || '') > String(ex.atualizado_em || '')) {
                     realizadoresVeicMap.set(k, {
-                        nome: nomeLider,
+                        nome: nomeFinal,
                         colab_id: cid,
-                        foto_url: cid ? `/api/colaboradores/foto/${cid}` : (infoC ? infoC.foto_url : null),
+                        foto_url: foto,
                         atualizado_em: dataHora || null
                     });
                 }
             };
-            secoes.observacoes.forEach(o => { if (o.checked && o.lider_nome) registrarRealizador(o.lider_nome, null, o.atualizado_em); });
-            todosInsumos.forEach(ins => { if (ins.checked && ins.lider_nome) registrarRealizador(ins.lider_nome, null, ins.atualizado_em); });
+            secoes.observacoes.forEach(o => { if (o.checked && o.lider_nome) registrarRealizador(o.lider_nome, o.lider_colab_id, o.atualizado_em); });
+            todosInsumos.forEach(ins => { if (ins.checked && ins.lider_nome) registrarRealizador(ins.lider_nome, ins.lider_colab_id, ins.atualizado_em); });
             if (todosCkCompletos) {
-                secoes.entregas.forEach(e => { if (e.checked && e.lider_nome) registrarRealizador(e.lider_nome, null, e.atualizado_em); });
-                secoes.retiradas.forEach(r => { if (r.checked && r.lider_nome) registrarRealizador(r.lider_nome, null, r.atualizado_em); });
+                secoes.entregas.forEach(e => { if (e.checked && e.lider_nome) registrarRealizador(e.lider_nome, e.lider_colab_id, e.atualizado_em); });
+                secoes.retiradas.forEach(r => { if (r.checked && r.lider_nome) registrarRealizador(r.lider_nome, r.lider_colab_id, r.atualizado_em); });
             }
 
             // Resumo consolidado de insumos do veículo (para facilitar separação no galpão)
@@ -1321,6 +1235,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 ok: true,
                 checked: !!chkVal,
                 lider_nome: chkVal ? lider.nome : null,
+                lider_colab_id: chkVal ? (lider.colabId || null) : null,
+                lider_foto_url: chkVal ? (lider.foto_url || null) : null,
                 atualizado_em: new Date().toISOString()
             });
         } catch (e) {
@@ -1358,7 +1274,13 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 );
             }
 
-            res.json({ ok: true, checked: !!chkVal, lider_nome: chkVal ? lider.nome : null });
+            res.json({
+                ok: true,
+                checked: !!chkVal,
+                lider_nome: chkVal ? lider.nome : null,
+                lider_colab_id: chkVal ? (lider.colabId || null) : null,
+                lider_foto_url: chkVal ? (lider.foto_url || null) : null
+            });
         } catch (e) {
             console.error('[APP-RESUMO-ROTA] POST check-lote:', e);
             res.status(500).json({ error: 'Erro ao salvar checks: ' + e.message });

@@ -847,3 +847,144 @@ body.app-mobile-on #view-app-lideranca-entregas { padding: 0 !important; }
         padding: 10px 10px;
     }
 }
+
+/* Avatares circulares dos Líderes e de Quem Realizou (Resumo da Rota / Entregas / Retiradas / Candidatos) */
+.arr-mini-av {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
+    color: #ffffff;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+    vertical-align: middle;
+}
+.arr-mini-av img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.arr-mini-av-fb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+.arr-lider-chips {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    vertical-align: middle;
+}
+.arr-lider-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 2px 8px 2px 3px;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    color: #0f172a;
+}
+.arr-lider-chip b {
+    font-weight: 700;
+    color: #0f172a;
+}
+.arr-real-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.arr-escala-card.ativo.diurno {
+    border-color: #d97706;
+    background: #fffbeb;
+    box-shadow: 0 3px 10px rgba(217, 119, 6, 0.14);
+}
+.arr-escala-card.ativo.noturno {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    box-shadow: 0 3px 10px rgba(79, 70, 229, 0.16);
+}
+.arr-escala-tag {
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.arr-escala-prog {
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+}
+.arr-escala-prog.ok {
+    background: #dcfce7;
+    color: #166534;
+}
+.arr-escala-folga {
+    font-size: 0.74rem;
+    color: #64748b;
+    font-weight: 600;
+}
+.arr-escala-real.vazio {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.arr-vlider-resp,
+.arr-vlider-real {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-size: 0.78rem;
+}
+.arr-vlider-real.ok {
+    color: #166534;
+    font-weight: 700;
+}
+.arr-vlider-real.pend {
+    color: #b45309;
+    font-weight: 600;
+}
+.alr-turno-divisor {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    margin: 12px 0 6px;
+}
+.alr-turno-divisor.diurno {
+    background: #fefce8;
+    border: 1.5px solid #fde047;
+    color: #854d0e;
+}
+.alr-turno-divisor.noturno {
+    background: #eef2ff;
+    border: 1.5px solid #c7d2fe;
+    color: #3730a3;
+}
+.alr-turno-divisor-resp {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}

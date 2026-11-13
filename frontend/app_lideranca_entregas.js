@@ -3,10 +3,10 @@
  * APP › Liderança › Entregas  (uso OPERACIONAL — mobile-first, ícones, toques grandes)
  *
  * - Agenda (semana / mês) com as entregas do pipeline; filtros: Todos · Pendentes · OK · Com avaria
+ * - Separado por turno: ☀️ Escala Diurna e 🌙 Escala Noturna (com foto + nome do líder responsável na escala e de quem realizou)
  * - Cada equipamento entregue (1 por unidade da OS) tem checklist por modelo: 👍 OK / 👎 avariado,
- *   observação, FOTO obrigatória por item e vídeo opcional (arquivos no Cloudflare R2)
- * - Mostra motorista + veículo da rota do dia (Resumo de Rota) e o líder que conferiu (foto + nome)
- * - Pendência vale para todos os líderes liberados no Controle de Acesso (sem regra de turno)
+ *   observação, FOTO obrigatória por item e ÁUDIO opcional gravado ao vivo pelo microfone (arquivos no Cloudflare R2)
+ * - Mostra motorista + veículo da rota do dia (Resumo de Rota) e o líder que conferiu (foto + nome do colaborador)
  *
  * Endpoints: /api/app/entregas/*   |   Permissão: página 'app-lideranca-entregas'
  */
@@ -25,8 +25,11 @@
     const iconeItem = id => { for (const [re, ic] of ICONES_ITEM) if (re.test(id)) return ic; return 'ph-check-square'; };
 
     const S = {
-        busca: '', dados: null, diaSel: null, modo: 'semana', semanaIni: null, mesRef: null, filtro: 'todos',
-        det: null, ui: 0, estado: {}, mid: {}, vid: null, local: {}, subindo: {}, saveTimer: null, saveEstado: 'ok', carregando: false
+        busca: '', dados: null, diaSel: null, modo: 'semana', semanaIni: null, mesRef: null,
+        filtro: 'todos', turnoSel: 'todos',
+        det: null, ui: 0, estado: {}, mid: {}, aud: null, vid: null, local: {}, subindo: {},
+        rec: null, recTimer: null, recSeg: 0, _cancelaRec: false,
+        saveTimer: null, saveEstado: 'ok', carregando: false
     };
 
     // ── Utilidades ───────────────────────────────────────────────────────────────
@@ -73,10 +76,34 @@
 
     function avatarPessoa(nome, colabId, fotoPath, cls) {
         const ini = esc((String(nome || '?').trim()[0] || '?').toUpperCase());
-        const src = fotoPath ? (String(fotoPath).startsWith('/api') ? fotoPath : apiBase() + fotoPath) : (colabId ? fotoColab(colabId) : '');
+        const src = fotoPath ? (String(fotoPath).startsWith('/api') || String(fotoPath).startsWith('http') ? fotoPath : apiBase() + fotoPath) : (colabId ? fotoColab(colabId) : '');
         const fb = oculto => `<span class="alr-av-fb" style="${oculto ? 'display:none;' : ''}">${ini}</span>`;
         if (!src) return `<span class="alr-av ${cls || ''}">${fb(false)}</span>`;
         return `<span class="alr-av ${cls || ''}"><img src="${esc(src)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">${fb(true)}</span>`;
+    }
+
+    function renderAvatarMini(pessoa, size) {
+        const sz = size || 22;
+        const nome = (pessoa && (pessoa.nome_curto || pessoa.nome)) || 'Líder';
+        const ini = esc((String(nome).trim()[0] || '?').toUpperCase());
+        const url = (pessoa && pessoa.foto_url) || (pessoa && pessoa.colab_id ? fotoColab(pessoa.colab_id) : '');
+        const bg = '#556b2f';
+        if (!url) {
+            return `<span class="arr-mini-av" style="width:${sz}px;height:${sz}px;font-size:${Math.max(9, Math.round(sz * 0.44))}px;background:${bg};" title="${esc(nome)}">${ini}</span>`;
+        }
+        return `<span class="arr-mini-av" style="width:${sz}px;height:${sz}px;font-size:${Math.max(9, Math.round(sz * 0.44))}px;background:${bg};" title="${esc(nome)}">` +
+            `<img src="${esc(url)}" alt="${esc(nome)}" loading="lazy" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">` +
+            `<span class="arr-mini-av-fb" style="display:none;">${ini}</span>` +
+        `</span>`;
+    }
+
+    function renderPessoasChips(lista, fallbackTexto, size) {
+        const arr = Array.isArray(lista) ? lista.filter(Boolean) : [];
+        if (!arr.length) return `<span class="arr-lider-empty">${esc(fallbackTexto || 'Não definido')}</span>`;
+        return `<span class="arr-lider-chips">` + arr.map(p => {
+            const nome = p.nome_curto || p.nome || 'Líder';
+            return `<span class="arr-lider-chip">${renderAvatarMini(p, size || 22)}<b>${esc(nome)}</b></span>`;
+        }).join('') + `</span>`;
     }
 
     // ── Tela principal ───────────────────────────────────────────────────────────
@@ -112,27 +139,41 @@
     function contagens() {
         const m = {};
         (S.dados.itens || []).forEach(i => {
+            if (S.turnoSel !== 'todos' && (i.turno_escala || 'diurno') !== S.turnoSel) return;
             const o = m[i.data_entrega] = m[i.data_entrega] || { total: 0, pend: 0, avaria: 0 };
             o.total++; if (i.pendente) o.pend++; if (i.tem_avaria) o.avaria++;
         });
         return m;
     }
 
+    function basePorTurno(lista) {
+        if (S.turnoSel === 'diurno') return lista.filter(i => (i.turno_escala || 'diurno') !== 'noturno');
+        if (S.turnoSel === 'noturno') return lista.filter(i => i.turno_escala === 'noturno');
+        return lista;
+    }
+
     function listaFiltrada() {
         const q = String(S.busca || '').trim().toLowerCase();
         const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
-        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
-        const pendGlobais = (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i)));
+        const todosBase = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
+        const todos = basePorTurno(todosBase);
+        const pendGlobais = basePorTurno((S.dados.itens || []).filter(i => i.pendente && (!q || casa(i))));
         if (S.filtro === 'ok') return todos.filter(i => i.situacao === 'ok');
         if (S.filtro === 'avaria') return todos.filter(i => i.tem_avaria);
-        if (S.filtro === 'pendentes') return pendGlobais.slice().sort((a, b) => (a.data_entrega + a.cliente).localeCompare(b.data_entrega + b.cliente)); // pendência vale para todos os dias desde o início do controle
+        if (S.filtro === 'pendentes') return pendGlobais.slice().sort((a, b) => (a.data_entrega + a.cliente).localeCompare(b.data_entrega + b.cliente));
         return todos;
     }
     function contadoresFiltro() {
         const q = String(S.busca || '').trim().toLowerCase();
         const casa = i => String(i.numero_os || '').toLowerCase().includes(q) || String(i.cliente || '').toLowerCase().includes(q);
-        const todos = q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []));
-        return { todos: todos.length, pendentes: (S.dados.itens || []).filter(i => i.pendente && (!q || casa(i))).length, ok: todos.filter(i => i.situacao === 'ok').length, avaria: todos.filter(i => i.tem_avaria).length };
+        const todos = basePorTurno(q ? (S.dados.itens || []).filter(casa) : (S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || [])));
+        const pendentes = basePorTurno((S.dados.itens || []).filter(i => i.pendente && (!q || casa(i))));
+        return {
+            todos: todos.length,
+            pendentes: pendentes.length,
+            ok: todos.filter(i => i.situacao === 'ok').length,
+            avaria: todos.filter(i => i.tem_avaria).length
+        };
     }
 
     function desenhar() {
@@ -145,12 +186,93 @@
             <button class="alc-icon-btn" onclick="window._aleRecarregar()" title="Atualizar" aria-label="Atualizar"><i class="ph ph-arrow-clockwise"></i></button>
         </header>
         ${htmlAgenda()}
+        ${htmlEscalaTurnos()}
         <div class="alr-busca"><i class="ph ph-magnifying-glass"></i><input id="ale-busca" type="search" inputmode="search" autocomplete="off" placeholder="Pesquisar nº da OS ou cliente" value="${esc(S.busca)}" oninput="window._aleBusca(this.value)" onfocus="window._aleBuscaFoco=true" onblur="window._aleBuscaFoco=false">${S.busca ? '<button type="button" class="alr-busca-x" onclick="window._aleBusca(\'\')" aria-label="Limpar pesquisa"><i class="ph ph-x-circle"></i></button>' : ''}</div>
         <div id="ale-filtros">${htmlFiltros()}</div>
         <div id="ale-lista">${htmlLista()}</div>`;
         const bi = document.getElementById('ale-busca');
         if (bi && window._aleBuscaFoco) { bi.focus(); try { bi.setSelectionRange(bi.value.length, bi.value.length); } catch (x) { /* ignora */ } }
     }
+
+    // ── Cards de Escala Diurna e Escala Noturna (igual ao Resumo da Rota) ────────
+    function htmlEscalaTurnos() {
+        const diaRef = S.diaSel || (S.dados && S.dados.hoje) || hojeIso();
+        const escMap = (S.dados && S.dados.escala_por_dia) || {};
+        const escDia = escMap[diaRef] || (S.dados && S.dados.escala_hoje) || {};
+        const dEsc = escDia.diurno || { nomes: 'Eduardo Assis / Vivian Regina', escalados: [], folga: [] };
+        const nEsc = escDia.noturno || { nomes: 'Vitor Leandro / Ana Paula', escalados: [], folga: [] };
+
+        const baseLista = S.diaSel ? itensDoDia(S.diaSel) : (S.dados.itens || []);
+        const itensD = baseLista.filter(i => (i.turno_escala || 'diurno') !== 'noturno' && i.situacao !== 'sem_checklist');
+        const itensN = baseLista.filter(i => i.turno_escala === 'noturno' && i.situacao !== 'sem_checklist');
+
+        const conclD = itensD.filter(i => i.situacao === 'ok' || i.situacao === 'avaria').length;
+        const conclN = itensN.filter(i => i.situacao === 'ok' || i.situacao === 'avaria').length;
+
+        const colRealizadores = lista => {
+            const m = new Map();
+            lista.forEach(os => {
+                (os.realizado_por || []).forEach(r => {
+                    const k = String(r.nome || '').toLowerCase();
+                    if (k && !m.has(k)) m.set(k, r);
+                });
+            });
+            return [...m.values()];
+        };
+        const realD = colRealizadores(itensD);
+        const realN = colRealizadores(itensN);
+
+        const renderFolgaOuFerias = listaFolga => {
+            const arr = Array.isArray(listaFolga) ? listaFolga : [];
+            if (!arr.length) return '';
+            const ferias = arr.filter(f => f.em_ferias);
+            const folgas = arr.filter(f => !f.em_ferias);
+            const partes = [];
+            if (ferias.length) partes.push(`🏖️ Férias: ${ferias.map(f => esc(f.nome_curto || f.nome)).join(' / ')}`);
+            if (folgas.length) partes.push(`Folga no dia: ${folgas.map(f => esc(f.nome_curto || f.nome)).join(' / ')}`);
+            return `<div class="arr-escala-folga">${partes.join(' · ')}</div>`;
+        };
+
+        const renderRealizado = (realList, totalTurno, conclTurno) => {
+            if (realList.length) {
+                return `<div class="arr-escala-real ok"><i class="ph-fill ph-check-circle"></i> <span class="arr-real-lbl">Realizado por:</span> ${renderPessoasChips(realList, '', 20)}</div>`;
+            }
+            if (totalTurno > 0) {
+                return `<div class="arr-escala-real pend"><i class="ph-fill ph-clock"></i> Ainda não realizado neste turno (${conclTurno}/${totalTurno})</div>`;
+            }
+            return `<div class="arr-escala-real vazio"><i class="ph ph-minus-circle"></i> Sem entregas neste turno</div>`;
+        };
+
+        const dAtivo = S.turnoSel === 'diurno';
+        const nAtivo = S.turnoSel === 'noturno';
+
+        return `<div class="arr-escala-grid" style="margin-bottom:10px;">
+            <div class="arr-escala-card diurno ${dAtivo ? 'ativo' : ''}" onclick="window._aleTurno('diurno')" role="button" tabindex="0" title="Toque para filtrar entregas diurnas">
+                <div class="arr-escala-top">
+                    <span class="arr-escala-tag diurno">☀️ Escala Diurna</span>
+                    <span class="arr-escala-prog ${itensD.length && conclD === itensD.length ? 'ok' : ''}">${conclD}/${itensD.length}</span>
+                </div>
+                <div class="arr-escala-resp"><span class="arr-resp-lbl">Responsável (Escala):</span> ${renderPessoasChips(dEsc.escalados, dEsc.nomes, 24)}</div>
+                ${renderFolgaOuFerias(dEsc.folga)}
+                ${renderRealizado(realD, itensD.length, conclD)}
+            </div>
+            <div class="arr-escala-card noturno ${nAtivo ? 'ativo' : ''}" onclick="window._aleTurno('noturno')" role="button" tabindex="0" title="Toque para filtrar entregas noturnas">
+                <div class="arr-escala-top">
+                    <span class="arr-escala-tag noturno">🌙 Escala Noturna</span>
+                    <span class="arr-escala-prog ${itensN.length && conclN === itensN.length ? 'ok' : ''}">${conclN}/${itensN.length}</span>
+                </div>
+                <div class="arr-escala-resp"><span class="arr-resp-lbl">Responsável (Escala):</span> ${renderPessoasChips(nEsc.escalados, nEsc.nomes, 24)}</div>
+                ${renderFolgaOuFerias(nEsc.folga)}
+                ${renderRealizado(realN, itensN.length, conclN)}
+            </div>
+        </div>
+        ${S.turnoSel !== 'todos' ? `<button class="alc-filtro" style="margin-bottom:10px;" onclick="window._aleTurno('todos')"><i class="ph ph-funnel-x"></i> Filtrando apenas turno ${S.turnoSel === 'noturno' ? '🌙 Noturno' : '☀️ Diurno'} — toque para ver Dia e Noite</button>` : ''}`;
+    }
+
+    window._aleTurno = function (t) {
+        S.turnoSel = (S.turnoSel === t) ? 'todos' : t;
+        desenhar();
+    };
 
     function htmlFiltros() {
         const c = contadoresFiltro();
@@ -203,14 +325,7 @@
         return `<button class="${cls}" onclick="window._aleDia('${iso}')" aria-label="${esc(fmtCurta(iso))}">${mes ? '' : `<span class="alc-dia-dow">${DIAS[d.getDay()]}</span>`}<span class="alc-dia-num">${d.getDate()}</span>${badge}</button>`;
     }
 
-    function htmlLista() {
-        const itens = listaFiltrada();
-        const extras = (S.diaSel && (S.filtro === 'todos')) ? (S.dados.itens || []).filter(i => i.pendente && i.data_entrega !== S.diaSel) : [];
-        if (!itens.length && !extras.length) {
-            const msg = S.filtro === 'ok' ? 'Nenhuma entrega OK.' : (S.filtro === 'avaria' ? 'Nenhum equipamento com avaria.' : (S.filtro === 'pendentes' ? 'Nenhuma entrega pendente. 🎉' : (S.diaSel ? 'Nenhuma entrega neste dia.' : 'Nenhuma entrega no período.')));
-            return `<div class="alc-vazio"><i class="ph ph-package"></i><div>${msg}</div></div>`;
-        }
-        const ini = fmtBr(S.dados.inicio_controle);
+    function renderizarGruposInternos(itens, ini, ja) {
         const grupos = [
             { t: 'Pendentes — conferir', ic: 'ph-warning-circle', cor: '#dc2626', f: i => i.pendente },
             { t: 'Com avaria', ic: 'ph-thumbs-down', cor: '#b91c1c', f: i => !i.pendente && i.tem_avaria },
@@ -219,16 +334,52 @@
             { t: 'Sem checklist (produto sem modelo)', ic: 'ph-prohibit', cor: '#94a3b8', f: i => !i.pendente && i.situacao === 'sem_checklist' },
             { t: 'Sem conferência (antes de ' + ini + ')', ic: 'ph-clock-counter-clockwise', cor: '#64748b', f: i => !i.pendente && !i.tem_avaria && !i.futura && (i.situacao === 'pendente' || i.situacao === 'andamento') }
         ];
-        let html = '';
-        if (extras.length) {
-            html += `<section class="alc-grupo"><h3 style="color:#dc2626;"><i class="ph ph-warning-circle"></i> Pendentes de outros dias <span class="alc-contador" style="background:#dc2626;">${extras.length}</span></h3>${extras.map(cardHtml).join('')}</section>`;
-        }
-        const ja = new Set(extras.map(i => i.os_id));
-        html += grupos.map(g => {
+        return grupos.map(g => {
             const l = itens.filter(i => !ja.has(i.os_id) && g.f(i));
             if (!l.length) return '';
             return `<section class="alc-grupo"><h3 style="color:${g.cor};"><i class="ph ${g.ic}"></i> ${esc(g.t)} <span class="alc-contador" style="background:${g.cor};">${l.length}</span></h3>${l.map(cardHtml).join('')}</section>`;
         }).join('');
+    }
+
+    function htmlLista() {
+        const itens = listaFiltrada();
+        const extras = (S.diaSel && (S.filtro === 'todos'))
+            ? basePorTurno((S.dados.itens || []).filter(i => i.pendente && i.data_entrega !== S.diaSel))
+            : [];
+        if (!itens.length && !extras.length) {
+            const msg = S.filtro === 'ok' ? 'Nenhuma entrega OK.' : (S.filtro === 'avaria' ? 'Nenhum equipamento com avaria.' : (S.filtro === 'pendentes' ? 'Nenhuma entrega pendente. 🎉' : (S.diaSel ? 'Nenhuma entrega neste dia/turno.' : 'Nenhuma entrega no período.')));
+            return `<div class="alc-vazio"><i class="ph ph-package"></i><div>${msg}</div></div>`;
+        }
+        const ini = fmtBr(S.dados.inicio_controle);
+        let html = '';
+        if (extras.length) {
+            const extrasD = extras.filter(i => (i.turno_escala || 'diurno') !== 'noturno');
+            const extrasN = extras.filter(i => i.turno_escala === 'noturno');
+            if (extrasD.length) {
+                html += `<section class="alc-grupo"><h3 style="color:#dc2626;"><i class="ph ph-warning-circle"></i> ☀️ Pendentes Diurnas de outros dias <span class="alc-contador" style="background:#dc2626;">${extrasD.length}</span></h3>${extrasD.map(cardHtml).join('')}</section>`;
+            }
+            if (extrasN.length) {
+                html += `<section class="alc-grupo"><h3 style="color:#dc2626;"><i class="ph ph-warning-circle"></i> 🌙 Pendentes Noturnas de outros dias <span class="alc-contador" style="background:#dc2626;">${extrasN.length}</span></h3>${extrasN.map(cardHtml).join('')}</section>`;
+            }
+        }
+        const ja = new Set(extras.map(i => i.os_id));
+
+        if (S.turnoSel === 'todos') {
+            const itensD = itens.filter(i => (i.turno_escala || 'diurno') !== 'noturno');
+            const itensN = itens.filter(i => i.turno_escala === 'noturno');
+            if (itensD.length) {
+                const respD = itensD[0].responsavel_escala;
+                html += `<div class="alr-turno-divisor diurno"><span>☀️ Entregas Diurnas (${itensD.length})</span>${respD ? `<span class="alr-turno-divisor-resp">Resp.: ${renderPessoasChips(respD.escalados, respD.nomes, 20)}</span>` : ''}</div>`;
+                html += renderizarGruposInternos(itensD, ini, ja);
+            }
+            if (itensN.length) {
+                const respN = itensN[0].responsavel_escala;
+                html += `<div class="alr-turno-divisor noturno"><span>🌙 Entregas Noturnas (${itensN.length})</span>${respN ? `<span class="alr-turno-divisor-resp">Resp.: ${renderPessoasChips(respN.escalados, respN.nomes, 20)}</span>` : ''}</div>`;
+                html += renderizarGruposInternos(itensN, ini, ja);
+            }
+        } else {
+            html += renderizarGruposInternos(itens, ini, ja);
+        }
         return html;
     }
 
@@ -244,17 +395,32 @@
     }
     const iconeStatusUnidade = u => u.status === 'avaria' ? '<i class="ph-fill ph-thumbs-down" style="color:#dc2626"></i>' : (u.status === 'ok' ? '<i class="ph-fill ph-thumbs-up" style="color:#16a34a"></i>' : (u.status === 'andamento' ? '<i class="ph ph-hourglass-medium" style="color:#ea580c"></i>' : '<i class="ph ph-circle-dashed" style="color:#94a3b8"></i>'));
 
+    function barraLiderCard(i) {
+        const ehNot = i.turno_escala === 'noturno';
+        const resp = i.responsavel_escala || {};
+        const real = Array.isArray(i.realizado_por) ? i.realizado_por : [];
+        return `<div class="arr-vlider-bar" style="border-radius:8px;margin:6px 0;border:1px solid #e2e8f0;">
+            <span class="arr-vlider-resp"><i class="ph-bold ph-user-focus"></i> Resp. (${ehNot ? '🌙 Noite' : '☀️ Dia'}): ${renderPessoasChips(resp.escalados, resp.nomes, 20)}</span>
+            ${real.length
+                ? `<span class="arr-vlider-real ok"><i class="ph-fill ph-check-circle"></i> Realizado por: ${renderPessoasChips(real, '', 20)}</span>`
+                : `<span class="arr-vlider-real pend"><i class="ph-fill ph-hourglass-high"></i> Realizado por: Pendente</span>`}
+        </div>`;
+    }
+
     function cardHtml(i) {
+        const ehNot = i.turno_escala === 'noturno';
+        const badgeTurno = `<span class="alc-badge" style="${ehNot ? 'background:#ede9fe;color:#5b21b6;' : 'background:#fef9c3;color:#854d0e;'}">${ehNot ? '🌙 Noturno' : '☀️ Diurno'}</span>`;
         const rota = i.rota
             ? `<div class="alr-rota">${avatarPessoa(i.rota.motorista, null, i.rota.motorista_foto, 'xs')}<span><i class="ph ph-truck"></i> ${esc(i.rota.veiculo || '—')} · <i class="ph ph-steering-wheel"></i> ${esc(i.rota.motorista || '—')}</span></div>`
             : `<div class="alr-rota vazio"><i class="ph ph-truck"></i> Rota ainda não definida</div>`;
-        const unid = i.unidades.map(u => `<div class="alr-unid"><span class="alr-unid-st">${iconeStatusUnidade(u)}</span><span class="alr-unid-nome">${esc(u.rotulo)}</span>${u.concluido ? `<span class="alr-unid-lider">${avatarPessoa(u.lider_nome, u.lider_colab_id, null, 'xs')}<small>${esc(u.lider_nome || '')}</small></span>` : (u.itens_feitos ? `<small class="alr-unid-prog">${u.itens_feitos}/${u.itens_total}</small>` : '')}</div>`).join('');
+        const unid = i.unidades.map(u => `<div class="alr-unid"><span class="alr-unid-st">${iconeStatusUnidade(u)}</span><span class="alr-unid-nome">${esc(u.rotulo)}</span>${u.concluido ? `<span class="alr-unid-lider">${avatarPessoa(u.lider_nome, u.lider_colab_id, u.lider_foto_url, 'xs')}<small>${esc(u.lider_nome || '')}</small></span>` : (u.itens_feitos ? `<small class="alr-unid-prog">${u.itens_feitos}/${u.itens_total}</small>` : '')}</div>`).join('');
         return `<button class="alc-card alr-card ${i.pendente ? 'pend' : ''} ${i.tem_avaria ? 'avaria' : ''}" onclick="window._aleAbrir(${i.os_id})">
             <div class="alc-card-corpo">
                 <div class="alr-card-topo"><div class="alc-card-nome">${esc(nomeCliente(i.cliente))}</div></div>
                 <div class="alc-card-linha"><span><i class="ph ph-hash"></i> OS ${esc(i.numero_os)}</span><span><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_entrega))}</span>${i.hora_inicio ? `<span><i class="ph ph-clock"></i> ${esc(i.hora_inicio)}</span>` : ''}</div>
                 <div class="alr-end"><i class="ph ph-map-pin"></i> ${esc(i.endereco || '')}</div>
-                <div class="alc-card-badges">${badgeSituacao(i)}</div>
+                <div class="alc-card-badges">${badgeTurno}${badgeSituacao(i)}</div>
+                ${barraLiderCard(i)}
                 ${rota}
                 ${i.unidades.length ? `<div class="alr-unids">${unid}</div>` : ''}
             </div>
@@ -301,7 +467,16 @@
         document.body.classList.add('alc-no-scroll');
         return o;
     }
+    function pararGravacaoAudio(cancelar) {
+        if (S.rec) {
+            S._cancelaRec = !!cancelar;
+            try { S.rec.stop(); } catch (e) { /* já parado */ }
+            S.rec = null;
+        }
+        clearInterval(S.recTimer);
+    }
     function fecharOverlay() {
+        pararGravacaoAudio(true);
         const o = document.getElementById('ale-overlay'); if (o) o.remove();
         document.body.classList.remove('alc-no-scroll');
     }
@@ -310,10 +485,15 @@
     const unidadeAtual = () => S.det.unidades[S.ui];
 
     function carregarEstadoDaUnidade() {
+        pararGravacaoAudio(true);
         const u = unidadeAtual();
         S.estado = {}; Object.keys(u.estado || {}).forEach(k => { S.estado[k] = Object.assign({}, u.estado[k]); });
-        S.mid = {}; S.vid = null;
-        (u.midias || []).forEach(m => { if (m.tipo === 'foto') S.mid[m.item] = m.id; else if (m.tipo === 'video') S.vid = m.id; });
+        S.mid = {}; S.aud = null; S.vid = null;
+        (u.midias || []).forEach(m => {
+            if (m.tipo === 'foto') S.mid[m.item] = m.id;
+            else if (m.tipo === 'audio') S.aud = m.id;
+            else if (m.tipo === 'video') S.vid = m.id;
+        });
         S.local = {}; S.subindo = {}; S.saveEstado = 'ok';
     }
 
@@ -343,18 +523,21 @@
 
     function cabecalhoDetalhe() {
         const d = S.det;
+        const ehNot = d.turno_escala === 'noturno';
+        const badgeTurno = `<span class="alc-badge" style="${ehNot ? 'background:#ede9fe;color:#5b21b6;' : 'background:#fef9c3;color:#854d0e;'}">${ehNot ? '🌙 Noturno' : '☀️ Diurno'}</span>`;
         return `<header class="alc-det-head">
             <button class="alc-icon-btn" onclick="window._aleFechar()" aria-label="Voltar"><i class="ph ph-arrow-left"></i></button>
             <div class="alc-det-id"><div class="alc-det-nome">${esc(nomeCliente(d.cliente))}</div>
-                <div class="alc-card-badges"><span class="alc-badge cinza"><i class="ph ph-hash"></i> OS ${esc(d.numero_os)}</span><span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_entrega))}</span>${badgeSituacao(d)}</div></div>
+                <div class="alc-card-badges"><span class="alc-badge cinza"><i class="ph ph-hash"></i> OS ${esc(d.numero_os)}</span><span class="alc-badge cinza"><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(d.data_entrega))}</span>${badgeTurno}${badgeSituacao(d)}</div></div>
             <span class="alc-salvo" id="ale-salvo"></span>
         </header>`;
     }
     function boxRota() {
         const d = S.det, r = d.rota;
         const end = `<div class="alr-end" style="margin:0 0 8px;"><i class="ph ph-map-pin"></i> ${esc(d.endereco || '')}${d.complemento ? ' — ' + esc(d.complemento) : ''}</div>`;
-        if (!r) return `${end}<div class="alr-rotabox vazio"><i class="ph ph-truck"></i><div><b>Rota ainda não definida</b><small>Esta entrega não está no Resumo de Rota de ${esc(fmtBr(d.data_entrega))}.</small></div></div>`;
-        return `${end}<div class="alr-rotabox">${avatarPessoa(r.motorista, null, r.motorista_foto, 'md')}<div><small>Acompanhe a entrega de</small><b>${esc(r.motorista || '—')}</b><span><i class="ph ph-truck"></i> ${esc(r.veiculo || '—')}${r.ajudante ? ' · <i class="ph ph-hard-hat"></i> ' + esc(r.ajudante) : ''}</span></div></div>`;
+        const liderBar = barraLiderCard(d);
+        if (!r) return `${end}${liderBar}<div class="alr-rotabox vazio"><i class="ph ph-truck"></i><div><b>Rota ainda não definida</b><small>Esta entrega não está no Resumo de Rota de ${esc(fmtBr(d.data_entrega))}.</small></div></div>`;
+        return `${end}${liderBar}<div class="alr-rotabox">${avatarPessoa(r.motorista, null, r.motorista_foto, 'md')}<div><small>Acompanhe a entrega de</small><b>${esc(r.motorista || '—')}</b><span><i class="ph ph-truck"></i> ${esc(r.veiculo || '—')}${r.ajudante ? ' · <i class="ph ph-hard-hat"></i> ' + esc(r.ajudante) : ''}</span></div></div>`;
     }
     function abasUnidades() {
         const d = S.det;
@@ -417,14 +600,24 @@
                 ${obsFalta ? '<div class="alr-aviso red"><i class="ph ph-warning-circle"></i> Descreva a avaria</div>' : ''}
             </div>`;
         }).join('');
-        const videoBox = `<div class="alr-video">
-            <div class="alr-video-tit"><i class="ph ph-video-camera"></i> Vídeo do equipamento <em>(opcional)</em></div>
-            ${S.vid ? `<video controls playsinline preload="metadata" src="${esc(midiaUrl(S.vid))}"></video><button class="alc-btn alc-btn-sec" onclick="window._aleExcluirVideo()"><i class="ph ph-trash"></i> Remover vídeo</button>`
-                : `<label class="alc-btn alc-btn-sec alr-video-btn">${S.subindo.video ? '<i class="ph ph-spinner ph-spin"></i> Enviando vídeo...' : '<i class="ph ph-record"></i> Gravar / anexar vídeo (até 60 MB)'}<input type="file" accept="video/*" capture="environment" onchange="window._aleVideo(this)"></label>`}
+
+        const gravando = !!S.rec;
+        const tempo = `${pad(Math.floor(S.recSeg / 60))}:${pad(S.recSeg % 60)}`;
+        const audioSrc = S.local.audio || (S.aud ? midiaUrl(S.aud) : '');
+        const audioBox = `<div class="alr-video">
+            <div class="alr-video-tit"><i class="ph ph-microphone"></i> Áudio do equipamento <em>(opcional — apenas gravar ao vivo)</em></div>
+            ${S.subindo.audio
+                ? `<div class="alc-btn alc-btn-sec alr-video-btn"><i class="ph ph-spinner ph-spin"></i> Enviando áudio gravado...</div>`
+                : `<button type="button" class="alc-btn ${gravando ? 'alc-btn-ok' : 'alc-btn-sec'} alr-video-btn" style="${gravando ? 'background:#dc2626;color:#fff;border-color:#dc2626;' : ''}" onclick="window._aleGravarAudio()">
+                    <i class="ph-fill ${gravando ? 'ph-stop-circle' : 'ph-microphone'}"></i>
+                    <span id="ale-rec-txt">${gravando ? '🔴 Gravando áudio... ' + tempo + ' (toque para parar)' : (audioSrc ? 'Gravar novo áudio pelo microfone' : 'Gravar áudio pelo microfone')}</span>
+                </button>`}
+            ${audioSrc ? `<div style="margin-top:8px;"><audio controls preload="metadata" src="${esc(audioSrc)}" style="width:100%;"></audio><button type="button" class="alc-btn alc-btn-sec" style="margin-top:6px;width:100%;" onclick="window._aleExcluirAudio()"><i class="ph ph-trash"></i> Remover áudio gravado</button></div>` : ''}
         </div>`;
+
         return `<div class="alc-prog"><div class="alc-prog-txt"><b>${feitos}/${total}</b> itens completos <span>${pct}%</span></div><div class="alc-barra grande"><i style="width:${pct}%;"></i></div></div>
             <p class="alc-dica"><i class="ph ph-hand-tap"></i> Em cada item: <b>👍 OK</b> ou <b>👎 Avariado</b> + <b>foto</b> (obrigatória).</p>
-            <div class="alc-itens">${linhas}</div>${videoBox}`;
+            <div class="alc-itens">${linhas}</div>${audioBox}`;
     }
     function barraChecklist() {
         const falta = faltaItens();
@@ -468,7 +661,7 @@
         el.innerHTML = (m[S.saveEstado] || '') + `<small>${S.saveEstado === 'ok' ? 'Salvo' : (S.saveEstado === 'erro' ? 'Erro' : '...')}</small>`;
     }
 
-    // ── Fotos / vídeo ───────────────────────────────────────────────────────────
+    // ── Fotos / Gravação de Áudio ao vivo ───────────────────────────────────────
     function comprimir(file, maxLado, q) {
         return new Promise((resolve, reject) => {
             const img = new Image(), url = URL.createObjectURL(file);
@@ -497,28 +690,80 @@
             await salvarAgora();
             const blob = await comprimir(file, 1600, 0.8);
             const m = await enviarMidia(id, blob, id + '.jpg');
-            if (!S.det || S.det.os_id + '|' + unidadeAtual().key !== chave) return; // trocou de equipamento durante o envio
+            if (!S.det || S.det.os_id + '|' + unidadeAtual().key !== chave) return;
             S.mid[id] = m.id; S.local[id] = URL.createObjectURL(blob);
         } catch (e) { erro('Foto não enviada', e.message); }
         delete S.subindo[id]; atualizar(true);
     };
-    window._aleVideo = async function (input) {
-        const file = input.files && input.files[0]; input.value = '';
-        if (!file) return;
-        if (file.size > 60 * 1024 * 1024) { erro('Vídeo muito grande', 'O vídeo tem ' + Math.round(file.size / 1048576) + ' MB. O limite é 60 MB — grave um vídeo mais curto ou em qualidade menor.'); return; }
-        S.subindo.video = true; atualizar(true);
+
+    // Gravação de áudio ao vivo pelo microfone (proibido anexar arquivo salvo do celular/computador)
+    window._aleGravarAudio = async function () {
+        if (S.rec) {
+            pararGravacaoAudio(false);
+            return;
+        }
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+            return erro('Gravação indisponível', 'Este navegador não permite gravar áudio ao vivo pelo microfone.');
+        }
         try {
-            await salvarAgora();
-            const m = await enviarMidia('video', file, file.name || 'video.mp4');
-            S.vid = m.id;
-        } catch (e) { erro('Vídeo não enviado', e.message); }
-        delete S.subindo.video; atualizar(true);
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
+            const chunks = [];
+            const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+            const chave = S.det.os_id + '|' + unidadeAtual().key;
+            rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+            rec.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                clearInterval(S.recTimer);
+                S.rec = null;
+                if (S._cancelaRec) { S._cancelaRec = false; return; }
+                const blobType = rec.mimeType || mime || 'audio/webm';
+                const blob = new Blob(chunks, { type: blobType });
+                if (!blob.size) { atualizar(true); return; }
+                const ext = /mp4|m4a/.test(blobType) ? 'm4a' : (/ogg/.test(blobType) ? 'ogg' : 'webm');
+                S.subindo.audio = true;
+                atualizar(true);
+                try {
+                    await salvarAgora();
+                    const m = await enviarMidia('audio', blob, 'audio.' + ext);
+                    if (!S.det || S.det.os_id + '|' + unidadeAtual().key !== chave) return;
+                    S.aud = m.id;
+                    if (S.local.audio) URL.revokeObjectURL(S.local.audio);
+                    S.local.audio = URL.createObjectURL(blob);
+                } catch (e) {
+                    erro('Áudio não enviado', e.message);
+                }
+                delete S.subindo.audio;
+                atualizar(true);
+            };
+            S.recSeg = 0;
+            S._cancelaRec = false;
+            S.rec = rec;
+            rec.start();
+            S.recTimer = setInterval(() => {
+                S.recSeg++;
+                const el = document.getElementById('ale-rec-txt');
+                if (el) el.textContent = '🔴 Gravando áudio... ' + pad(Math.floor(S.recSeg / 60)) + ':' + pad(S.recSeg % 60) + ' (toque para parar)';
+            }, 1000);
+            atualizar(true);
+        } catch (e) {
+            S.rec = null;
+            erro('Microfone bloqueado', 'Permita o uso do microfone nas configurações do navegador para gravar o áudio.');
+        }
     };
-    window._aleExcluirVideo = async function () {
-        const r = await Swal.fire({ icon: 'question', title: 'Remover o vídeo?', showCancelButton: true, confirmButtonText: 'Remover', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626' });
+
+    window._aleExcluirAudio = async function () {
+        if (!S.aud) return;
+        const r = await Swal.fire({ icon: 'question', title: 'Remover o áudio gravado?', showCancelButton: true, confirmButtonText: 'Remover', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626' });
         if (!r.isConfirmed) return;
-        try { await api('/app/entregas/midia/' + S.vid, { method: 'DELETE' }); S.vid = null; atualizar(true); } catch (e) { erro('Não foi possível remover', e.message); }
+        try {
+            await api('/app/entregas/midia/' + S.aud, { method: 'DELETE' });
+            S.aud = null;
+            if (S.local.audio) { URL.revokeObjectURL(S.local.audio); delete S.local.audio; }
+            atualizar(true);
+        } catch (e) { erro('Não foi possível remover', e.message); }
     };
+
     window._aleVerFoto = function (id) {
         const src = S.local[id] || (S.mid[id] ? midiaUrl(S.mid[id]) : ''); if (!src) return;
         lightbox(src);
@@ -536,6 +781,7 @@
         const r = await Swal.fire({ icon: 'question', title: 'Concluir a conferência?', html: `<b>${esc(u.rotulo)}</b><br>Depois de concluída não dá para editar.`, showCancelButton: true, confirmButtonText: 'Concluir', cancelButtonText: 'Voltar', confirmButtonColor: '#16a34a' });
         if (!r.isConfirmed) return;
         try {
+            pararGravacaoAudio(true);
             S.saveEstado = 'pendente'; await salvarAgora();
             const res = await api(`/app/entregas/os/${S.det.os_id}/unidades/${u.key}/concluir`, { method: 'POST' });
             await Swal.fire({ icon: res.tem_avaria ? 'warning' : 'success', title: res.tem_avaria ? 'Conferência concluída — com AVARIA' : 'Conferência concluída!', timer: 1600, showConfirmButton: false });
@@ -552,6 +798,7 @@
     // ── Conferência concluída (somente leitura) ─────────────────────────────────
     function htmlConcluida(u) {
         const mids = {}; (u.midias || []).forEach(m => { if (m.tipo === 'foto') mids[m.item] = m.id; });
+        const aud = (u.midias || []).find(m => m.tipo === 'audio');
         const vid = (u.midias || []).find(m => m.tipo === 'video');
         const linhas = u.itens.map((it, idx) => {
             const e = (u.estado || {})[it.id] || {};
@@ -563,10 +810,11 @@
                 ${e.obs ? `<div class="alr-obs-ro"><i class="ph ph-note-pencil"></i> ${esc(e.obs)}</div>` : ''}
             </div>`;
         }).join('');
-        return `<div class="alr-lider ${u.tem_avaria ? 'avaria' : ''}">${avatarPessoa(u.lider_nome, u.lider_colab_id, null, 'md')}
+        return `<div class="alr-lider ${u.tem_avaria ? 'avaria' : ''}">${avatarPessoa(u.lider_nome, u.lider_colab_id, u.lider_foto_url, 'md')}
             <div><small>Conferido por</small><b>${esc(u.lider_nome || '—')}</b><span><i class="ph ph-clock"></i> ${esc(fmtDataHora(u.concluido_em))}</span></div>
             ${u.tem_avaria ? '<span class="alc-badge vermelho"><i class="ph ph-warning-octagon"></i> AVARIA</span>' : '<span class="alc-badge verde"><i class="ph ph-thumbs-up"></i> OK</span>'}</div>
             <div class="alc-itens">${linhas}</div>
+            ${aud ? `<div class="alr-video"><div class="alr-video-tit"><i class="ph ph-microphone"></i> Áudio gravado</div><audio controls preload="metadata" src="${esc(midiaUrl(aud.id))}" style="width:100%;"></audio></div>` : ''}
             ${vid ? `<div class="alr-video"><div class="alr-video-tit"><i class="ph ph-video-camera"></i> Vídeo</div><video controls playsinline preload="metadata" src="${esc(midiaUrl(vid.id))}"></video></div>` : ''}`;
     }
     function barraConcluida(u) {

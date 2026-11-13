@@ -4441,7 +4441,7 @@
             controleHtml = `
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     ${!desabilitado ? `
-                        <label class="ua-btn ua-btn-ghost" style="cursor:pointer;font-size:0.82rem;">
+                        <label class="ua-btn ua-btn-ghost" style="${cp.tipo === 'audio' ? 'display:none;' : 'cursor:pointer;font-size:0.82rem;'}">
                             <i class="ph ph-upload-simple"></i> Enviar ${cp.tipo === 'imagem' ? 'Imagem/Foto' : cp.tipo === 'audio' ? 'Arquivo de Áudio' : 'Documento/Arquivo'}
                             <input type="file" accept="${accept}" style="display:none;"
                                    onchange="window._uaUploadArquivoCampoMissao(${aulaId}, '${esc(missao.id)}', '${esc(cp.id)}', this)">

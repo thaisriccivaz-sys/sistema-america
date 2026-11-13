@@ -15,6 +15,7 @@
 
 const multer = require('multer');
 const crypto = require('crypto');
+const escalaUtil = require('./utils/lideranca_escala');
 
 module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken, r2) {
 
@@ -111,43 +112,109 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         return Array.isArray(prods) && prods.length > 0 && prods.every(p => /VISITA/.test(norm(p && (p.desc || p.produto)).toUpperCase()));
     };
 
-    // ── Migrações ───────────────────────────────────────────────────────────────
-    db.serialize(() => {
-        db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
-        db.run(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('retiradas_inicio_controle', '${INICIO_CONTROLE_PADRAO}')`);
-        db.run(`CREATE TABLE IF NOT EXISTS retiradas_checklist (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            os_id          INTEGER NOT NULL,
-            unit_key       TEXT NOT NULL,
-            numero_os      TEXT,
-            data_retirada  TEXT,
-            modelo         TEXT,
-            unidade_idx    INTEGER,
-            unidade_total  INTEGER,
-            itens_json     TEXT,
-            tem_avaria     INTEGER DEFAULT 0,
-            veiculo        TEXT,
-            motorista      TEXT,
-            lider_id       INTEGER,
-            lider_nome     TEXT,
-            lider_colab_id INTEGER,
-            iniciado_em    DATETIME DEFAULT CURRENT_TIMESTAMP,
-            atualizado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
-            concluido_em   DATETIME,
-            UNIQUE (os_id, unit_key)
-        )`);
-        db.run(`CREATE TABLE IF NOT EXISTS retiradas_checklist_midias (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            checklist_id INTEGER NOT NULL,
-            tipo         TEXT NOT NULL,
-            item         TEXT,
-            r2_key       TEXT,
-            content_type TEXT,
-            criado_em    DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_ret_ck_data ON retiradas_checklist (data_retirada)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_ret_mid_ck ON retiradas_checklist_midias (checklist_id)`);
-    });
+    // ── Migrações (garante colunas unit_key / checklist_id mesmo em banco legado) ──
+    let _schemaReadyPromise = null;
+    function ensureSchemaReady() {
+        if (_schemaReadyPromise) return _schemaReadyPromise;
+        _schemaReadyPromise = (async () => {
+            try {
+                await dbRun(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`);
+                await dbRun(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('retiradas_inicio_controle', '${INICIO_CONTROLE_PADRAO}')`);
+
+                const colsCk = await dbAll(`PRAGMA table_info(retiradas_checklist)`);
+                const colNamesCk = new Set(colsCk.map(c => c.name));
+                const legacyUnidadeKeyNotNull = colsCk.some(c => c.name === 'unidade_key' && c.notnull);
+
+                if (colsCk.length > 0 && (!colNamesCk.has('unit_key') || legacyUnidadeKeyNotNull)) {
+                    await dbRun(`DROP TABLE IF EXISTS retiradas_checklist_v1_bak`);
+                    await dbRun(`ALTER TABLE retiradas_checklist RENAME TO retiradas_checklist_v1_bak`);
+                }
+
+                await dbRun(`CREATE TABLE IF NOT EXISTS retiradas_checklist (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    os_id          INTEGER NOT NULL,
+                    unit_key       TEXT NOT NULL,
+                    numero_os      TEXT,
+                    data_retirada  TEXT,
+                    modelo         TEXT,
+                    unidade_idx    INTEGER,
+                    unidade_total  INTEGER,
+                    itens_json     TEXT,
+                    tem_avaria     INTEGER DEFAULT 0,
+                    veiculo        TEXT,
+                    motorista      TEXT,
+                    lider_id       INTEGER,
+                    lider_nome     TEXT,
+                    lider_colab_id INTEGER,
+                    iniciado_em    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    concluido_em   DATETIME,
+                    UNIQUE (os_id, unit_key)
+                )`);
+
+                const bakExists = await dbGet(`SELECT name FROM sqlite_master WHERE type='table' AND name='retiradas_checklist_v1_bak'`);
+                if (bakExists) {
+                    const bakCols = new Set((await dbAll(`PRAGMA table_info(retiradas_checklist_v1_bak)`)).map(c => c.name));
+                    const exprUnitKey = bakCols.has('unit_key') ? 'COALESCE(unit_key, unidade_key)' : (bakCols.has('unidade_key') ? 'unidade_key' : "'1-1'");
+                    const exprItens = bakCols.has('itens_json') ? 'COALESCE(itens_json, checklist_json, "{}")' : (bakCols.has('checklist_json') ? 'COALESCE(checklist_json, "{}")' : "'{}'");
+                    const exprIdx = bakCols.has('unidade_idx') ? 'unidade_idx' : (bakCols.has('indice') ? 'indice' : '1');
+                    const exprTot = bakCols.has('unidade_total') ? 'unidade_total' : (bakCols.has('total_modelo') ? 'total_modelo' : '1');
+                    const exprLidId = bakCols.has('lider_id') ? 'lider_id' : (bakCols.has('conferido_por_id') ? 'conferido_por_id' : 'NULL');
+                    const exprLidNome = bakCols.has('lider_nome') ? 'lider_nome' : (bakCols.has('conferido_por_nome') ? 'conferido_por_nome' : 'NULL');
+                    const exprConcl = bakCols.has('concluido_em') ? 'concluido_em' : (bakCols.has('conferido_em') ? 'conferido_em' : 'NULL');
+                    try {
+                        await dbRun(`INSERT OR IGNORE INTO retiradas_checklist
+                            (id, os_id, unit_key, modelo, unidade_idx, unidade_total, itens_json, tem_avaria, veiculo, motorista, lider_id, lider_nome, atualizado_em, concluido_em)
+                            SELECT id, os_id, ${exprUnitKey}, modelo, ${exprIdx}, ${exprTot}, ${exprItens}, COALESCE(tem_avaria, 0), veiculo, motorista, ${exprLidId}, ${exprLidNome}, COALESCE(atualizado_em, CURRENT_TIMESTAMP), ${exprConcl}
+                            FROM retiradas_checklist_v1_bak WHERE os_id IS NOT NULL AND ${exprUnitKey} IS NOT NULL`);
+                    } catch (eMig) {
+                        console.warn('[APP-RETIRADAS] Aviso ao migrar retiradas_checklist_v1_bak:', eMig.message);
+                    }
+                    await dbRun(`DROP TABLE IF EXISTS retiradas_checklist_v1_bak`);
+                } else if (colsCk.length > 0) {
+                    const addCols = [
+                        ['numero_os', 'TEXT'], ['data_retirada', 'TEXT'], ['modelo', 'TEXT'],
+                        ['unidade_idx', 'INTEGER'], ['unidade_total', 'INTEGER'], ['itens_json', 'TEXT'],
+                        ['tem_avaria', 'INTEGER DEFAULT 0'], ['veiculo', 'TEXT'], ['motorista', 'TEXT'],
+                        ['lider_id', 'INTEGER'], ['lider_nome', 'TEXT'], ['lider_colab_id', 'INTEGER'],
+                        ['iniciado_em', 'DATETIME'], ['atualizado_em', 'DATETIME'], ['concluido_em', 'DATETIME']
+                    ];
+                    for (const [cn, ct] of addCols) {
+                        if (!colNamesCk.has(cn)) {
+                            try { await dbRun(`ALTER TABLE retiradas_checklist ADD COLUMN ${cn} ${ct}`); } catch (_) {}
+                        }
+                    }
+                }
+
+                const colsMid = await dbAll(`PRAGMA table_info(retiradas_checklist_midias)`);
+                const colNamesMid = new Set(colsMid.map(c => c.name));
+                const legacyMidNotNull = colsMid.some(c => (c.name === 'os_id' || c.name === 'unidade_key') && c.notnull);
+
+                if (colsMid.length > 0 && (!colNamesMid.has('checklist_id') || legacyMidNotNull)) {
+                    await dbRun(`DROP TABLE IF EXISTS retiradas_checklist_midias_v1_bak`);
+                    await dbRun(`ALTER TABLE retiradas_checklist_midias RENAME TO retiradas_checklist_midias_v1_bak`);
+                    await dbRun(`DROP TABLE IF EXISTS retiradas_checklist_midias_v1_bak`);
+                }
+
+                await dbRun(`CREATE TABLE IF NOT EXISTS retiradas_checklist_midias (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    checklist_id INTEGER NOT NULL,
+                    tipo         TEXT NOT NULL,
+                    item         TEXT,
+                    r2_key       TEXT,
+                    content_type TEXT,
+                    criado_em    DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`);
+
+                await dbRun(`CREATE INDEX IF NOT EXISTS idx_ret_ck_data ON retiradas_checklist (data_retirada)`);
+                await dbRun(`CREATE INDEX IF NOT EXISTS idx_ret_mid_ck ON retiradas_checklist_midias (checklist_id)`);
+            } catch (e) {
+                console.error('[APP-RETIRADAS] Erro na migração de schema:', e.message);
+            }
+        })();
+        return _schemaReadyPromise;
+    }
+    ensureSchemaReady();
 
     // ── Permissão (Controle de Acesso → página 'app-lideranca-retiradas') ──────
     function isTopAdmin(u) {
@@ -156,6 +223,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
     }
     async function requireApp(req, res, next) {
         try {
+            await ensureSchemaReady();
             if (isTopAdmin(req.user)) return next();
             const gid = req.user && req.user.grupo_permissao_id;
             if (!gid) return res.status(403).json({ error: 'Sem permissão para acessar Retiradas.' });
@@ -172,24 +240,9 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         return (r && isoDate(r.valor)) || INICIO_CONTROLE_PADRAO;
     }
 
-    // Líder que está conferindo (nome do usuário + colaborador para a foto)
+    // Líder que está conferindo (nome do colaborador + colaborador_id para a foto)
     async function liderDoReq(req) {
-        const uid = (req.user && req.user.id) || null;
-        let nome = (req.user && (req.user.nome || req.user.username)) || 'Líder';
-        try {
-            const u = await dbGet("SELECT COALESCE(NULLIF(TRIM(nome),''), username) AS n FROM usuarios WHERE id = ?", [uid]);
-            if (u && u.n) nome = u.n;
-        } catch (e) { /* usa fallback */ }
-        let colabId = null;
-        try {
-            const cfg = uid ? await dbGet('SELECT colaborador_id FROM app_lider_config WHERE usuario_id = ?', [uid]) : null;
-            if (cfg) colabId = cfg.colaborador_id;
-            if (!colabId) {
-                const c = await dbGet('SELECT id FROM colaboradores WHERE LOWER(TRIM(nome_completo)) = LOWER(TRIM(?)) LIMIT 1', [nome]);
-                if (c) colabId = c.id;
-            }
-        } catch (e) { /* sem foto */ }
-        return { id: uid, nome, colabId };
+        return escalaUtil.resolverLiderDoReq(db, req);
     }
 
     // ── Rota do dia: numero_os → veículo / motorista (Resumo de Rota) ──────────
@@ -234,26 +287,31 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
 
     // ── Montagem de uma retirada (OS) com situação por unidade ─────────────────
     function estadoDoRow(row) { return row ? parseJson(row.itens_json, {}) : {}; }
-    function resumoUnidade(u, row, fotosItem) {
+    function resumoUnidade(u, row, fotosItem, resolverColab) {
         const itens = MODELOS[u.modelo].itens;
         const estado = estadoDoRow(row);
         const feitos = itens.filter(i => { const e = estado[i.id]; return e && (e.ok || e.nao) && fotosItem.has(i.id); }).length;
         const concluido = !!(row && row.concluido_em);
         const avaria = concluido && !!row.tem_avaria;
+        const resolved = (concluido && resolverColab && (row.lider_id || row.lider_nome || row.lider_colab_id))
+            ? resolverColab({ usuario_id: row.lider_id, colab_id: row.lider_colab_id, nome: row.lider_nome })
+            : null;
         return {
             key: u.key, modelo: u.modelo, modelo_nome: MODELOS[u.modelo].nome, icone: MODELOS[u.modelo].icone,
             rotulo: u.rotulo, produto: u.produto, indice: u.indice, total: u.total,
             itens_total: itens.length, itens_feitos: feitos,
             status: concluido ? (avaria ? 'avaria' : 'ok') : (feitos > 0 ? 'andamento' : 'pendente'),
             concluido, tem_avaria: avaria,
-            lider_nome: concluido ? row.lider_nome : null, lider_colab_id: concluido ? row.lider_colab_id : null,
+            lider_nome: concluido ? ((resolved && resolved.nome) || row.lider_nome) : null,
+            lider_colab_id: concluido ? ((resolved && resolved.colab_id) || row.lider_colab_id) : null,
+            lider_foto_url: concluido ? ((resolved && resolved.foto_url) || (row.lider_colab_id ? `/api/colaboradores/foto/${row.lider_colab_id}` : null)) : null,
             concluido_em: concluido ? row.concluido_em : null
         };
     }
-    function resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio) {
+    function resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio, escalaDia, resolverColab) {
         const unidades = units.map(u => {
             const row = rows[`${os.id}|${u.key}`];
-            return resumoUnidade(u, row, row ? (fotosPorCk[row.id] || new Set()) : new Set());
+            return resumoUnidade(u, row, row ? (fotosPorCk[row.id] || new Set()) : new Set(), resolverColab);
         });
         const concl = unidades.filter(u => u.concluido).length;
         const algumaAvaria = unidades.some(u => u.tem_avaria);
@@ -264,10 +322,37 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         else situacao = 'pendente';
         const data = isoDate(os.data_os);
         const incompleta = unidades.length > 0 && concl < unidades.length;
+        const ehNoturno = (rota && rota.turno === 'Noite') || /noturn|noite/i.test(norm((os.turno || '') + ' ' + ((rota && rota.resumo) || '')));
+        const turnoEscala = ehNoturno ? 'noturno' : 'diurno';
+        const respTurno = escalaDia ? (turnoEscala === 'noturno' ? escalaDia.noturno : escalaDia.diurno) : null;
+
+        const realizadoresMap = new Map();
+        unidades.forEach(u => {
+            if (u.concluido && u.lider_nome) {
+                const k = norm(u.lider_nome).toLowerCase();
+                if (!realizadoresMap.has(k)) {
+                    realizadoresMap.set(k, {
+                        nome: u.lider_nome,
+                        colab_id: u.lider_colab_id || null,
+                        foto_url: u.lider_foto_url || (u.lider_colab_id ? `/api/colaboradores/foto/${u.lider_colab_id}` : null),
+                        concluido_em: u.concluido_em || null
+                    });
+                }
+            }
+        });
+
         return {
             os_id: os.id, numero_os: os.numero_os, cliente: os.cliente, endereco: os.endereco, complemento: os.complemento || '',
             contrato: os.contrato || '', data_retirada: data, tipo_servico: os.tipo_servico,
             hora_inicio: os.hora_inicio || '', hora_fim: os.hora_fim || '', turno_os: os.turno || '',
+            turno_escala: turnoEscala,
+            responsavel_escala: respTurno ? {
+                turno: turnoEscala,
+                nomes: respTurno.nomes,
+                escalados: respTurno.escalados,
+                folga: respTurno.folga
+            } : null,
+            realizado_por: [...realizadoresMap.values()],
             unidades, concluidas: concl, total_unidades: unidades.length,
             situacao, tem_avaria: algumaAvaria,
             pendente: incompleta && data >= inicio && data <= hoje,
@@ -302,6 +387,10 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             const de = isoDate(req.query.de) || somaDias(hoje, -7);
             const ate = isoDate(req.query.ate) || somaDias(hoje, 14);
             const q = String(req.query.q || '').replace(/[^\w-]/g, '').slice(0, 20); // pesquisa por nº da OS (em qualquer data)
+            const uid = req.user && req.user.id;
+            const lideresBase = await escalaUtil.carregarLideresBase(db);
+            const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
+
             const oss = (await dbAll(`SELECT id, numero_os, cliente, endereco, complemento, contrato, data_os, tipo_servico, produtos, hora_inicio, hora_fim, turno
                 FROM os_logistica
                 WHERE status = 'ativo' AND LOWER(tipo_servico) LIKE '%retirada%' AND data_os IS NOT NULL AND data_os != ''
@@ -311,13 +400,32 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             const { rows, fotosPorCk } = await carregarRowsEFotos(oss.map(o => o.id));
             const datas = [...new Set(oss.map(o => isoDate(o.data_os)).filter(Boolean))];
             const rotas = {};
-            for (const d of datas) rotas[d] = await mapaRotaDoDia(d);
+            const escalaPorDia = {};
+            const obterEscala = dIso => {
+                if (!escalaPorDia[dIso]) {
+                    escalaPorDia[dIso] = escalaUtil.calcularEscalaEmData(lideresBase, dIso, uid);
+                }
+                return escalaPorDia[dIso];
+            };
+            for (let delta = -15; delta <= 21; delta++) {
+                obterEscala(somaDias(hoje, delta));
+            }
+            for (const d of datas) {
+                rotas[d] = await mapaRotaDoDia(d);
+                obterEscala(d);
+            }
             const itens = oss.map(os => {
                 const data = isoDate(os.data_os);
                 const rota = (rotas[data] || {})[String(os.numero_os || '').trim()] || null;
-                return resumoOS(os, unidadesDaOS(os), rows, fotosPorCk, rota, hoje, inicio);
+                return resumoOS(os, unidadesDaOS(os), rows, fotosPorCk, rota, hoje, inicio, obterEscala(data), resolverColab);
             });
-            res.json({ hoje, inicio_controle: inicio, de, ate, itens });
+            const escalaHoje = obterEscala(hoje);
+            res.json({
+                hoje, inicio_controle: inicio, de, ate, itens,
+                escala_hoje: escalaHoje,
+                escala_por_dia: escalaPorDia,
+                turno_usuario: escalaHoje.turno_usuario
+            });
         } catch (e) {
             console.error('[APP-RETIRADAS] GET lista:', e);
             res.status(500).json({ error: 'Erro ao carregar retiradas: ' + e.message });
@@ -325,7 +433,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
     });
 
     // ── Detalhe de uma retirada (OS) com itens, estado e mídias ────────────────
-    async function detalheOS(osId) {
+    async function detalheOS(osId, uid) {
         const os = await dbGet(`SELECT id, numero_os, cliente, endereco, complemento, contrato, data_os, tipo_servico, produtos, hora_inicio, hora_fim, turno, observacoes
             FROM os_logistica WHERE id = ? AND status = 'ativo'`, [osId]);
         if (!os) return null;
@@ -334,7 +442,9 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         const rota = ((await mapaRotaDoDia(data))[String(os.numero_os || '').trim()]) || null;
         const units = unidadesDaOS(os);
         const { rows, fotosPorCk } = await carregarRowsEFotos([os.id]);
-        const base = resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio);
+        const escalaDia = await escalaUtil.obterEscalaLideresNoDia(db, data || hoje, uid);
+        const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
+        const base = resumoOS(os, units, rows, fotosPorCk, rota, hoje, inicio, escalaDia, resolverColab);
         const midiasPorCk = {};
         const ckIds = Object.values(rows).map(r => r.id);
         if (ckIds.length) {
@@ -354,7 +464,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
     }
     app.get('/api/app/retiradas/os/:id', guard, async (req, res) => {
         try {
-            const d = await detalheOS(parseInt(req.params.id, 10));
+            const d = await detalheOS(parseInt(req.params.id, 10), req.user && req.user.id);
             if (!d) return res.status(404).json({ error: 'Retirada não encontrada.' });
             res.json(d);
         } catch (e) {
@@ -406,7 +516,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         }
     });
 
-    // ── POST foto (1 por item) ou vídeo (opcional, 1 por equipamento) → R2 ─────
+    // ── POST foto (1 por item), áudio gravado ou vídeo (opcional) → R2 ─────────
     app.post('/api/app/retiradas/os/:id/unidades/:key/midia', guard, uploadMem.single('arquivo'), async (req, res) => {
         try {
             if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
@@ -418,30 +528,36 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             const item = String((req.body && req.body.item) || '').trim();
             const mime = String(req.file.mimetype || '').toLowerCase();
             const ehVideo = item === 'video';
-            if (ehVideo) {
+            const ehAudio = item === 'audio';
+            if (ehAudio) {
+                if (!/^(audio|video)\//.test(mime)) return res.status(400).json({ error: 'O arquivo precisa ser um áudio gravado.' });
+            } else if (ehVideo) {
                 if (!/^video\//.test(mime)) return res.status(400).json({ error: 'O arquivo precisa ser um vídeo.' });
             } else {
                 if (!/^image\//.test(mime)) return res.status(400).json({ error: 'O arquivo precisa ser uma foto.' });
                 if (!MODELOS[ctx.unit.modelo].itens.some(i => i.id === item)) return res.status(400).json({ error: 'Item inválido para este equipamento.' });
                 if (req.file.size > 12 * 1024 * 1024) return res.status(413).json({ error: 'Foto muito grande (máx. 12 MB).' });
             }
-            const ext = ehVideo ? (/quicktime/.test(mime) ? 'mov' : (/webm/.test(mime) ? 'webm' : 'mp4')) : (/png/.test(mime) ? 'png' : (/webp/.test(mime) ? 'webp' : 'jpg'));
+            const ext = ehAudio
+                ? (/mp4|m4a/.test(mime) ? 'm4a' : (/ogg/.test(mime) ? 'ogg' : 'webm'))
+                : (ehVideo ? (/quicktime/.test(mime) ? 'mov' : (/webm/.test(mime) ? 'webm' : 'mp4')) : (/png/.test(mime) ? 'png' : (/webp/.test(mime) ? 'webp' : 'jpg')));
+            const tipoMidia = ehAudio ? 'audio' : (ehVideo ? 'video' : 'foto');
+            const itemMidia = ehAudio ? 'audio' : (ehVideo ? 'video' : item);
             const [y, m, d] = (ctx.data || hojeSP()).split('-');
             const hash = crypto.randomBytes(4).toString('hex');
-            const r2Key = `retiradas-checklist/${y}/${m}/${d}/OS${String(ctx.os.numero_os || ctx.os.id).replace(/[^\w-]/g, '')}_${ctx.unit.modelo}${ctx.unit.indice}_${ehVideo ? 'video' : item}_${Date.now()}_${hash}.${ext}`;
+            const r2Key = `retiradas-checklist/${y}/${m}/${d}/OS${String(ctx.os.numero_os || ctx.os.id).replace(/[^\w-]/g, '')}_${ctx.unit.modelo}${ctx.unit.indice}_${itemMidia}_${Date.now()}_${hash}.${ext}`;
             await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
 
-            // substitui a mídia anterior do mesmo item (foto) / do vídeo
+            // substitui a mídia anterior no banco (mantendo os arquivos intactos no R2 conforme regra obrigatória)
             const antigas = await dbAll(`SELECT id, r2_key FROM retiradas_checklist_midias WHERE checklist_id = ? AND tipo = ? AND item = ?`,
-                [ctx.row.id, ehVideo ? 'video' : 'foto', ehVideo ? 'video' : item]);
+                [ctx.row.id, tipoMidia, itemMidia]);
             const ins = await dbRun(`INSERT INTO retiradas_checklist_midias (checklist_id, tipo, item, r2_key, content_type) VALUES (?, ?, ?, ?, ?)`,
-                [ctx.row.id, ehVideo ? 'video' : 'foto', ehVideo ? 'video' : item, r2Key, req.file.mimetype]);
+                [ctx.row.id, tipoMidia, itemMidia, r2Key, req.file.mimetype]);
             for (const a of antigas) {
-                try { await r2.deleteFromR2(a.r2_key); } catch (e2) { /* segue */ }
                 await dbRun('DELETE FROM retiradas_checklist_midias WHERE id = ?', [a.id]);
             }
             await dbRun('UPDATE retiradas_checklist SET atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [ctx.row.id]);
-            res.json({ ok: true, midia: { id: ins.lastID, tipo: ehVideo ? 'video' : 'foto', item: ehVideo ? 'video' : item } });
+            res.json({ ok: true, midia: { id: ins.lastID, tipo: tipoMidia, item: itemMidia } });
         } catch (e) {
             console.error('[APP-RETIRADAS] POST midia:', e);
             if (e && e.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Arquivo acima de ${MAX_VIDEO_MB} MB.` });
@@ -454,13 +570,12 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         next(err);
     });
 
-    // ── DELETE mídia (antes de concluir): apaga do R2 e depois do banco ────────
+    // ── DELETE mídia (antes de concluir): remove registro do banco (mantendo arquivo no R2) ──
     app.delete('/api/app/retiradas/midia/:id', guard, async (req, res) => {
         try {
             const m = await dbGet(`SELECT m.id, m.r2_key, c.concluido_em FROM retiradas_checklist_midias m JOIN retiradas_checklist c ON c.id = m.checklist_id WHERE m.id = ?`, [req.params.id]);
             if (!m) return res.status(404).json({ error: 'Arquivo não encontrado.' });
             if (m.concluido_em) return res.status(409).json({ error: 'Esta conferência já foi concluída.' });
-            if (m.r2_key && r2 && r2.isReady()) { try { await r2.deleteFromR2(m.r2_key); } catch (e2) { /* segue */ } }
             await dbRun('DELETE FROM retiradas_checklist_midias WHERE id = ?', [m.id]);
             res.json({ ok: true });
         } catch (e) { res.status(500).json({ error: e.message }); }
