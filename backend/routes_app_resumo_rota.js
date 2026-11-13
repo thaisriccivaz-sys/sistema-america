@@ -190,15 +190,18 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
     // ── Cálculo de Insumos de Manutenção por Equipamento ──────────────────────
     // Regras informadas pelo usuário:
     // - Banheiro STD e LX obra: 1 química, 1 pacote de papel higiênico
-    // - Banheiros ELX: 1 química, 1 pacote de papel higiênico, 1 pacote de papel toalha, 200ml sabonete líquido
-    // - PBII: 2 pacotes de papel toalha, 200ml sabonete líquido
-    // - PBIII: 3 pacotes de papel toalha, 400ml sabonete líquido
+    // - Banheiros ELX obra: 1 química, 1 pacote de papel higiênico, 1 pacote de papel toalha, 200ml sabonete líquido
+    // - Banheiro STD e LX evento: 1 química, 1/2 pacote de papel higiênico (arredondado p/ cima: Math.ceil(0.5 * q))
+    // - Banheiros ELX evento: 1 química, 1/2 pacote de papel higiênico (arredondado p/ cima: Math.ceil(0.5 * q)), 1 pacote de papel toalha, 200ml sabonete líquido
+    // - PBII obra e evento: 2 pacotes de papel toalha, 200ml sabonete líquido
+    // - PBIII obra e evento: 3 pacotes de papel toalha, 400ml sabonete líquido
     // - Outros equipamentos: não têm insumos
     function calcularInsumosEquipamento(nomeEquip, qtd) {
         const q = Math.max(1, parseInt(qtd, 10) || 1);
         const t = norm(nomeEquip).toUpperCase();
+        const ehEvento = /\bEVENTO\b/.test(t);
 
-        // 1. PBIII (checar antes de PBII)
+        // 1. PBIII obra e evento (checar antes de PBII)
         if (/\bPB\s*III\b|\bPIA\s*III\b/.test(t)) {
             const pacToalha = 3 * q;
             const mlSab = 400 * q;
@@ -207,7 +210,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 { id: 'sabonete',     icone: '🧴', nome: 'Sabonete líquido', qtd: mlSab, unidade: 'ml', texto: `${mlSab}ml sabonete líquido` }
             ];
         }
-        // 2. PBII
+        // 2. PBII obra e evento
         if (/\bPB\s*II\b|\bPIA\s*II\b/.test(t)) {
             const pacToalha = 2 * q;
             const mlSab = 200 * q;
@@ -216,10 +219,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 { id: 'sabonete',     icone: '🧴', nome: 'Sabonete líquido', qtd: mlSab, unidade: 'ml', texto: `${mlSab}ml sabonete líquido` }
             ];
         }
-        // 3. Banheiros ELX (checar antes de LX)
+        // 3. Banheiros ELX obra e evento (checar antes de LX)
         if (/\b(ELX|SLX)\b|EXTRA\s*LUXO/.test(t)) {
             const quim = 1 * q;
-            const pacHig = 1 * q;
+            const pacHig = ehEvento ? Math.ceil(0.5 * q) : (1 * q);
             const pacToalha = 1 * q;
             const mlSab = 200 * q;
             return [
@@ -229,10 +232,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 { id: 'sabonete',        icone: '🧴', nome: 'Sabonete líquido', qtd: mlSab,     unidade: 'ml',        texto: `${mlSab}ml sabonete líquido` }
             ];
         }
-        // 4. Banheiro STD e LX
+        // 4. Banheiro STD e LX obra e evento
         if (/\bSTD\b|STANDARD|\bLX\b/.test(t)) {
             const quim = 1 * q;
-            const pacHig = 1 * q;
+            const pacHig = ehEvento ? Math.ceil(0.5 * q) : (1 * q);
             return [
                 { id: 'quimica',         icone: '🧪', nome: 'Química',         qtd: quim,   unidade: 'unid.',     texto: `${quim} ${quim === 1 ? 'química' : 'químicas'}` },
                 { id: 'papel_higienico', icone: '🧻', nome: 'Papel higiênico', qtd: pacHig, unidade: 'pacote(s)', texto: `${pacHig} ${pacHig === 1 ? 'pacote' : 'pacotes'} de papel higiênico` }
@@ -735,9 +738,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     checked: st.checked,
                     status: st.status,
                     concluidas: st.concluidas,
+                    iniciadas: st.iniciadas || 0,
                     total_unidades: st.total_unidades,
                     tem_avaria: st.tem_avaria,
                     lider_nome: st.lider_nome,
+                    atualizado_em: st.atualizado_em || null,
                     os_list: st.os_list
                 });
             } else if (secaoAtual === 'RETIRADA') {
@@ -752,9 +757,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     checked: st.checked,
                     status: st.status,
                     concluidas: st.concluidas,
+                    iniciadas: st.iniciadas || 0,
                     total_unidades: st.total_unidades,
                     tem_avaria: st.tem_avaria,
                     lider_nome: st.lider_nome,
+                    atualizado_em: st.atualizado_em || null,
                     os_list: st.os_list
                 });
             } else if (secaoAtual === 'MANUTENCAO' || secaoAtual === 'AVULSA') {
@@ -995,7 +1002,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             function calcStatusChecklist(osLista, ckMap, modeloAlvo, qtdLinha) {
                 if (!modeloAlvo) {
-                    return { checked: true, status: 'sem_checklist', concluidas: qtdLinha, total_unidades: qtdLinha, tem_avaria: false, lider_nome: null, atualizado_em: null, os_list: [] };
+                    return { checked: true, status: 'sem_checklist', iniciadas: qtdLinha, concluidas: qtdLinha, total_unidades: qtdLinha, tem_avaria: false, lider_nome: null, atualizado_em: null, os_list: [] };
                 }
                 const unidades = [];
                 const osEnvolvidas = [];
@@ -1005,12 +1012,22 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         osEnvolvidas.push({ os_id: os.id, numero_os: os.numero_os, cliente: os.cliente });
                         units.forEach(u => {
                             const row = ckMap.get(`${os.id}|${u.key}`);
+                            let temItem = false;
+                            if (row && row.itens_json) {
+                                try {
+                                    const obj = JSON.parse(row.itens_json);
+                                    temItem = !!(obj && typeof obj === 'object' && Object.keys(obj).length > 0);
+                                } catch (_) { temItem = false; }
+                            }
+                            const concluido = !!(row && row.concluido_em);
+                            const iniciado = concluido || temItem;
                             unidades.push({
-                                concluido: !!(row && row.concluido_em),
-                                tem_avaria: !!(row && row.concluido_em && row.tem_avaria),
-                                lider_nome: row && row.concluido_em ? row.lider_nome : null,
-                                lider_colab_id: row && row.concluido_em ? row.lider_colab_id : null,
-                                concluido_em: row && row.concluido_em ? row.concluido_em : null
+                                iniciado,
+                                concluido,
+                                tem_avaria: !!(concluido && row.tem_avaria),
+                                lider_nome: row && (row.concluido_em || temItem) ? row.lider_nome : null,
+                                lider_colab_id: row && (row.concluido_em || temItem) ? row.lider_colab_id : null,
+                                concluido_em: row && row.concluido_em ? row.concluido_em : (row ? row.atualizado_em : null)
                             });
                         });
                     }
@@ -1018,14 +1035,16 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
                 const totalUnid = unidades.length || qtdLinha;
                 const concl = unidades.filter(u => u.concluido).length;
+                const inic = unidades.filter(u => u.iniciado).length;
                 const algumaAvaria = unidades.some(u => u.tem_avaria);
                 const uComLider = unidades.find(u => u.lider_nome) || {};
                 const checked = unidades.length > 0 && concl >= unidades.length;
-                const status = checked ? (algumaAvaria ? 'avaria' : 'ok') : (concl > 0 ? 'andamento' : 'pendente');
+                const status = checked ? (algumaAvaria ? 'avaria' : 'ok') : (inic > 0 ? 'andamento' : 'pendente');
 
                 return {
                     checked,
                     status,
+                    iniciadas: inic,
                     concluidas: concl,
                     total_unidades: totalUnid,
                     tem_avaria: algumaAvaria,
@@ -1050,12 +1069,55 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const feitasObs = secoes.observacoes.filter(o => o.checked).length;
 
             const entComCk = secoes.entregas.filter(e => e.status !== 'sem_checklist');
-            const totalEnt = entComCk.length;
-            const feitasEnt = entComCk.filter(e => e.checked).length;
-
             const retComCk = secoes.retiradas.filter(r => r.status !== 'sem_checklist');
-            const totalRet = retComCk.length;
-            const feitasRet = retComCk.filter(r => r.checked).length;
+            const todosCkVeic = [...entComCk, ...retComCk];
+
+            const unidTotalVeic = todosCkVeic.reduce((s, x) => s + Number(x.total_unidades || 0), 0);
+            const unidConcluidasVeic = todosCkVeic.reduce((s, x) => s + Number(x.concluidas || 0), 0);
+            const unidIniciadasVeic = todosCkVeic.reduce((s, x) => s + Number(x.iniciadas || 0), 0);
+            const todosCkCompletos = unidTotalVeic > 0 && unidConcluidasVeic >= unidTotalVeic;
+            const algumCkIniciado = unidIniciadasVeic > 0 || unidConcluidasVeic > 0;
+            const diaPassado = iso < hojeSP();
+
+            let estadoCkVeiculo = 'aguardando';
+            if (unidTotalVeic === 0) {
+                estadoCkVeiculo = 'sem_checklist';
+            } else if (todosCkCompletos) {
+                estadoCkVeiculo = 'concluido';
+            } else if (diaPassado) {
+                estadoCkVeiculo = 'pendente_vencido';
+            } else if (algumCkIniciado) {
+                estadoCkVeiculo = 'em_andamento';
+            }
+
+            const lideresCkSet = new Set();
+            let ultDataCkVeic = null;
+            todosCkVeic.forEach(x => {
+                if (x.lider_nome) {
+                    String(x.lider_nome).split(',').map(s => s.trim()).filter(Boolean).forEach(n => lideresCkSet.add(n));
+                }
+                if (x.atualizado_em && (!ultDataCkVeic || String(x.atualizado_em) > String(ultDataCkVeic))) {
+                    ultDataCkVeic = x.atualizado_em;
+                }
+            });
+
+            const statusEntRetVeiculo = {
+                estado_visual: estadoCkVeiculo, // 'concluido' | 'em_andamento' | 'pendente_vencido' | 'aguardando' | 'sem_checklist'
+                todos_completos: todosCkCompletos,
+                algum_iniciado: algumCkIniciado,
+                dia_passado: diaPassado,
+                concluidas: unidConcluidasVeic,
+                iniciadas: unidIniciadasVeic,
+                total_unidades: unidTotalVeic,
+                lider_nome: [...lideresCkSet].join(', ') || null,
+                atualizado_em: ultDataCkVeic
+            };
+
+            const totalEnt = entComCk.length > 0 ? 1 : 0;
+            const feitasEnt = (entComCk.length > 0 && todosCkCompletos) ? 1 : 0;
+
+            const totalRet = retComCk.length > 0 ? 1 : 0;
+            const feitasRet = (retComCk.length > 0 && todosCkCompletos) ? 1 : 0;
 
             const todosInsumos = secoes.manutencoes.flatMap(m => m.insumos);
             const totalIns = todosInsumos.length;
@@ -1097,8 +1159,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             };
             secoes.observacoes.forEach(o => { if (o.checked && o.lider_nome) registrarRealizador(o.lider_nome, null, o.atualizado_em); });
             todosInsumos.forEach(ins => { if (ins.checked && ins.lider_nome) registrarRealizador(ins.lider_nome, null, ins.atualizado_em); });
-            secoes.entregas.forEach(e => { if (e.checked && e.lider_nome) registrarRealizador(e.lider_nome, null, e.atualizado_em); });
-            secoes.retiradas.forEach(r => { if (r.checked && r.lider_nome) registrarRealizador(r.lider_nome, null, r.atualizado_em); });
+            if (todosCkCompletos) {
+                secoes.entregas.forEach(e => { if (e.checked && e.lider_nome) registrarRealizador(e.lider_nome, null, e.atualizado_em); });
+                secoes.retiradas.forEach(r => { if (r.checked && r.lider_nome) registrarRealizador(r.lider_nome, null, r.atualizado_em); });
+            }
 
             // Resumo consolidado de insumos do veículo (para facilitar separação no galpão)
             const resumoInsumosMap = new Map();
@@ -1134,6 +1198,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     noturno_nomes: escalaDia.noturno.nomes
                 },
                 realizado_por: [...realizadoresVeicMap.values()],
+                status_ent_ret_veiculo: statusEntRetVeiculo,
                 titulo_entrega: secoes.titulo_entrega,
                 observacoes: secoes.observacoes,
                 entregas: secoes.entregas,

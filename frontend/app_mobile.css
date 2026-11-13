@@ -760,6 +760,56 @@ body.app-mobile-on #view-app-lideranca-entregas { padding: 0 !important; }
     font-weight: 600;
 }
 
+/* Linhas de Entregas e Retiradas somente leitura (sem caixa de check vazia) */
+.arr-row.readonly {
+    cursor: default;
+    user-select: text;
+}
+.arr-row.vencido {
+    background: #fef2f2;
+    border-color: #f87171;
+}
+.arr-row-sub.ok {
+    color: #166534;
+    font-weight: 700;
+}
+.arr-row-sub.warn {
+    color: #b45309;
+    font-weight: 700;
+}
+.arr-row-sub.err {
+    color: #b91c1c;
+    font-weight: 700;
+}
+
+/* Indicador de status do checklist de entrega/retirada do veículo (verde ✓, amarelo !, vermelho ✖) */
+.arr-ck-status {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+.arr-ck-status.verde {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.28);
+}
+.arr-ck-status.amarelo {
+    background: #f59e0b;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+}
+.arr-ck-status.vermelho {
+    background: #dc2626;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+}
+
 /* Responsividade Mobile (360px - 520px): empilha a equipe no topo do card sem perder o visual do Anexo 1 */
 @media (max-width: 540px) {
     .arr-escala-grid {

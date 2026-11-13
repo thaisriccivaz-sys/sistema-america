@@ -106,16 +106,20 @@
             total++;
             if (o.checked) concluidos++;
         });
-        (v.entregas || []).forEach(it => {
-            if (it.status === 'sem_checklist') return;
+        const entComCk = (v.entregas || []).filter(it => it.status !== 'sem_checklist');
+        const retComCk = (v.retiradas || []).filter(it => it.status !== 'sem_checklist');
+        const stCk = v.status_ent_ret_veiculo || {};
+        const todosCkCompletos = stCk.todos_completos != null
+            ? !!stCk.todos_completos
+            : ((entComCk.length + retComCk.length > 0) && entComCk.every(e => e.checked) && retComCk.every(r => r.checked));
+        if (entComCk.length > 0) {
             total++;
-            if (it.checked) concluidos++;
-        });
-        (v.retiradas || []).forEach(it => {
-            if (it.status === 'sem_checklist') return;
+            if (todosCkCompletos) concluidos++;
+        }
+        if (retComCk.length > 0) {
             total++;
-            if (it.checked) concluidos++;
-        });
+            if (todosCkCompletos) concluidos++;
+        }
         (v.manutencoes || []).forEach(it => {
             (it.insumos || []).forEach(ins => {
                 total++;
@@ -456,61 +460,80 @@
                 }).join('')}
             </div>` : '';
 
-        // 2. Entregas (check automático pelo menu de Entregas)
+        // Status unificado dos checklists de Entrega e Retirada do veículo:
+        // - Sem caixa de check para não induzir clique nesta tela
+        // - 'concluido' (todos os checklists de entrega e retirada do veículo completos) → check em verde (✓)
+        // - 'em_andamento' (iniciou um checklist mas não finalizou todos do veículo) → exclamação em amarelo (!)
+        // - 'pendente_vencido' (no dia seguinte não foi feito e ficou pendente) → X em vermelho (✖)
+        // - 'aguardando' (no dia da rota e ainda não iniciado) → sem caixa / sem ícone
+        const stCkVeic = v.status_ent_ret_veiculo || {};
+        const estadoCkVeic = stCkVeic.estado_visual || 'aguardando';
+
+        function badgeStatusCkVeiculo(it) {
+            if (it.status === 'sem_checklist') return '';
+            if (estadoCkVeic === 'concluido') {
+                return `<span class="arr-ck-status verde" title="Todos os checklists de entrega e retirada do veículo foram concluídos"><i class="ph-bold ph-check"></i></span>`;
+            }
+            if (estadoCkVeic === 'em_andamento') {
+                return `<span class="arr-ck-status amarelo" title="Checklist iniciado, aguardando finalizar todos os checklists do veículo">!</span>`;
+            }
+            if (estadoCkVeic === 'pendente_vencido') {
+                return `<span class="arr-ck-status vermelho" title="Checklist não realizado / pendente"><i class="ph-bold ph-x"></i></span>`;
+            }
+            return '';
+        }
+
+        function subStatusCkVeiculo(it, labelMenu) {
+            if (it.status === 'sem_checklist') return '';
+            if (estadoCkVeic === 'concluido') {
+                const lid = stCkVeic.lider_nome || it.lider_nome;
+                const dt = stCkVeic.atualizado_em || it.atualizado_em;
+                return `<span class="arr-row-sub ok">✅ Checklists do veículo concluídos (${it.concluidas}/${it.total_unidades})${lid ? ' • Realizado por: ' + esc(lid) : ''}${dt ? ' (' + esc(fmtDataHora(dt)) + ')' : ''}</span>`;
+            }
+            if (estadoCkVeic === 'em_andamento') {
+                return `<span class="arr-row-sub warn">⚠️ Checklist iniciado e não finalizado (${it.concluidas}/${it.total_unidades} neste item • ${stCkVeic.concluidas || 0}/${stCkVeic.total_unidades || 0} no veículo)</span>`;
+            }
+            if (estadoCkVeic === 'pendente_vencido') {
+                return `<span class="arr-row-sub err">❌ Pendente / Não realizado no menu ${esc(labelMenu)} (${it.concluidas}/${it.total_unidades})</span>`;
+            }
+            return '';
+        }
+
+        const clsRowCkVeic = estadoCkVeic === 'concluido'
+            ? 'checked'
+            : (estadoCkVeic === 'em_andamento' ? 'parcial' : (estadoCkVeic === 'pendente_vencido' ? 'vencido' : ''));
+
+        // 2. Entregas (status automático ao final de todos os checklists do veículo — sem caixa de check)
         const entregasHtml = (v.entregas || []).length > 0 ? `
             <div class="arr-sec">
                 <div class="arr-sec-title entrega">${esc(v.titulo_entrega || 'ENTREGA OBRA:')}</div>
                 ${v.entregas.map(it => {
-                    const parcial = !it.checked && it.concluidas > 0;
-                    const cls = it.checked ? 'checked' : (parcial ? 'parcial' : '');
-                    const statusSub = it.checked
-                        ? `✅ Checklist concluído (${it.concluidas}/${it.total_unidades})${it.lider_nome ? ' • Realizado por: ' + it.lider_nome : ''}${it.atualizado_em ? ' (' + fmtDataHora(it.atualizado_em) + ')' : ''}`
-                        : `⏳ Pendente no menu Entregas (${it.concluidas}/${it.total_unidades}) • Resp. escala: ${nomeRespTurno} — toque p/ abrir`;
+                    const cls = it.status === 'sem_checklist' ? '' : clsRowCkVeic;
                     return `
-                    <button type="button" class="arr-row interactive ${cls}"
-                        data-action="goto-entregas"
-                        data-veiculo="${esc(v.veiculo)}"
-                        data-texto="${esc(it.texto)}"
-                        data-lider="${esc(it.lider_nome || '')}"
-                        data-concluidas="${it.concluidas}"
-                        data-total="${it.total_unidades}">
+                    <div class="arr-row readonly ${cls}">
                         <div class="arr-row-txt">
                             <strong>${esc(it.texto)}</strong>
-                            <span class="arr-row-sub">${esc(statusSub)}</span>
+                            ${subStatusCkVeiculo(it, 'Entregas')}
                         </div>
-                        <span class="arr-chk auto" title="Check automático pelo Checklist de Entregas">
-                            <i class="ph-bold ${it.checked ? 'ph-check' : (parcial ? 'ph-dots-three' : 'ph-check')}"></i>
-                        </span>
-                    </button>`;
+                        ${badgeStatusCkVeiculo(it)}
+                    </div>`;
                 }).join('')}
             </div>` : '';
 
-        // 3. Retiradas (check automático pelo menu de Retiradas)
+        // 3. Retiradas (status automático ao final de todos os checklists do veículo — sem caixa de check)
         const retiradasHtml = (v.retiradas || []).length > 0 ? `
             <div class="arr-sec">
                 <div class="arr-sec-title retirada">⭕ RETIRADA:</div>
                 ${v.retiradas.map(it => {
-                    const parcial = !it.checked && it.concluidas > 0;
-                    const cls = it.checked ? 'checked' : (parcial ? 'parcial' : '');
-                    const statusSub = it.checked
-                        ? `✅ Checklist concluído (${it.concluidas}/${it.total_unidades})${it.lider_nome ? ' • Realizado por: ' + it.lider_nome : ''}${it.atualizado_em ? ' (' + fmtDataHora(it.atualizado_em) + ')' : ''}`
-                        : `⏳ Pendente no menu Retiradas (${it.concluidas}/${it.total_unidades}) • Resp. escala: ${nomeRespTurno} — toque p/ abrir`;
+                    const cls = it.status === 'sem_checklist' ? '' : clsRowCkVeic;
                     return `
-                    <button type="button" class="arr-row interactive ${cls}"
-                        data-action="goto-retiradas"
-                        data-veiculo="${esc(v.veiculo)}"
-                        data-texto="${esc(it.texto)}"
-                        data-lider="${esc(it.lider_nome || '')}"
-                        data-concluidas="${it.concluidas}"
-                        data-total="${it.total_unidades}">
+                    <div class="arr-row readonly ${cls}">
                         <div class="arr-row-txt">
                             <strong>${esc(it.texto)}</strong>
-                            <span class="arr-row-sub">${esc(statusSub)}</span>
+                            ${subStatusCkVeiculo(it, 'Retiradas')}
                         </div>
-                        <span class="arr-chk auto" title="Check automático pelo Checklist de Retiradas">
-                            <i class="ph-bold ${it.checked ? 'ph-check' : (parcial ? 'ph-dots-three' : 'ph-check')}"></i>
-                        </span>
-                    </button>`;
+                        ${badgeStatusCkVeiculo(it)}
+                    </div>`;
                 }).join('')}
             </div>` : '';
 
