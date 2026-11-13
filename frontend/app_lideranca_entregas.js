@@ -401,14 +401,54 @@
         </div>`;
     }
 
+    function emojiEquipamento(u, tipoServico) {
+        if (u && u.icone_emoji) return u.icone_emoji;
+        const txt = String((u && (u.rotulo || u.descricao || u.modelo)) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const ts = String(tipoServico || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const ehEvento = /\bEVENTO\b/.test(txt) || (!/\bOBRA\b/.test(txt) && ts.includes('EVENTO'));
+        const mod = (u && u.modelo) || '';
+        if (mod === 'guarita_dupla' || (txt.includes('GUARITA') && txt.includes('DUPLA'))) return '⚪';
+        if (mod === 'guarita' || txt.includes('GUARITA')) return '⬜';
+        if (mod === 'chuveiro' || txt.includes('CHUVEIRO')) return '🚿';
+        if (mod === 'hidraulico' || txt.includes('HIDRAULIC')) return '🚽';
+        if (mod === 'mictorio' || txt.includes('MICTORIO') || txt.includes('KROS')) return '💦';
+        if (mod === 'pia' || txt.includes('PBII') || txt.includes('PBIII') || txt.includes('PIA') || txt.includes('LAVATORIO')) return '🧼';
+        if (mod === 'pne' || txt.includes('PCD') || txt.includes('PNE')) return ehEvento ? '🧑🏾‍🦽' : '♿';
+        if (mod === 'elx' || txt.includes('ELX') || txt.includes('EXTRA LUXO') || txt.includes('SUPER LUXO')) return ehEvento ? '🟣' : '🔵';
+        if (mod === 'luxo' || txt.includes('LUXO') || /\bLX\b/.test(txt)) return ehEvento ? '🟪' : '🟦';
+        if (mod === 'std' || txt.includes('STD') || txt.includes('STANDARD') || txt.includes('PADRAO')) return ehEvento ? '💜' : '💙';
+        return '📦';
+    }
+    function rotuloUnidadeComEmoji(u, tipoServico) {
+        const rot = String((u && u.rotulo) || '').trim();
+        const em = emojiEquipamento(u, tipoServico);
+        if (!em || (rot && rot.startsWith(em))) return rot;
+        return em + ' ' + rot;
+    }
+
+    function classeCorCard(i) {
+        if (i.situacao === 'ok' || i.situacao === 'avaria') return 'card-verde';
+        const algumaIniciada = Array.isArray(i.unidades) && i.unidades.some(u => u.concluido || (u.itens_feitos && u.itens_feitos > 0) || u.status === 'andamento');
+        if (i.situacao === 'andamento' || algumaIniciada) return 'card-amarelo';
+        if (i.atrasada || i.pendente) return 'card-vermelho';
+        return '';
+    }
+    function classeCorUnid(u, i) {
+        if (u.concluido || u.status === 'ok' || u.status === 'avaria') return 'unid-verde';
+        if (u.status === 'andamento' || (u.itens_feitos && u.itens_feitos > 0)) return 'unid-amarelo';
+        if (i && (i.atrasada || i.pendente)) return 'unid-vermelho';
+        return '';
+    }
+
     function cardHtml(i) {
         const ehNot = i.turno_escala === 'noturno';
         const badgeTurno = `<span class="alc-badge" style="${ehNot ? 'background:#ede9fe;color:#5b21b6;' : 'background:#fef9c3;color:#854d0e;'}">${ehNot ? '🌙 Noturno' : '☀️ Diurno'}</span>`;
         const rota = i.rota
             ? `<div class="alr-rota">${avatarPessoa(i.rota.motorista, null, i.rota.motorista_foto, 'xs')}<span><i class="ph ph-truck"></i> ${esc(i.rota.veiculo || '—')} · <i class="ph ph-steering-wheel"></i> ${esc(i.rota.motorista || '—')}</span></div>`
             : `<div class="alr-rota vazio"><i class="ph ph-truck"></i> Rota ainda não definida</div>`;
-        const unid = i.unidades.map(u => `<div class="alr-unid"><span class="alr-unid-st">${iconeStatusUnidade(u)}</span><span class="alr-unid-nome">${esc(u.rotulo)}</span>${u.concluido ? `<span class="alr-unid-lider">${avatarPessoa(u.lider_nome, u.lider_colab_id, u.lider_foto_url, 'xs')}<small>${esc(u.lider_nome || '')}</small></span>` : (u.itens_feitos ? `<small class="alr-unid-prog">${u.itens_feitos}/${u.itens_total}</small>` : '')}</div>`).join('');
-        return `<button class="alc-card alr-card ${i.pendente ? 'pend' : ''} ${i.tem_avaria ? 'avaria' : ''}" onclick="window._aleAbrir(${i.os_id})">
+        const unid = i.unidades.map(u => `<div class="alr-unid ${classeCorUnid(u, i)}"><span class="alr-unid-st">${iconeStatusUnidade(u)}</span><span class="alr-unid-nome">${esc(rotuloUnidadeComEmoji(u, i.tipo_servico))}</span>${u.concluido ? `<span class="alr-unid-lider">${avatarPessoa(u.lider_nome, u.lider_colab_id, u.lider_foto_url, 'xs')}<small>${esc(u.lider_nome || '')}</small></span>` : (u.itens_feitos ? `<small class="alr-unid-prog">${u.itens_feitos}/${u.itens_total}</small>` : '')}</div>`).join('');
+        const corCard = classeCorCard(i);
+        return `<button class="alc-card alr-card ${corCard} ${i.pendente ? 'pend' : ''} ${i.tem_avaria ? 'avaria' : ''}" onclick="window._aleAbrir(${i.os_id})">
             <div class="alc-card-corpo">
                 <div class="alr-card-topo"><div class="alc-card-nome">${esc(nomeCliente(i.cliente))}</div></div>
                 <div class="alc-card-linha"><span><i class="ph ph-hash"></i> OS ${esc(i.numero_os)}</span><span><i class="ph ph-calendar-blank"></i> ${esc(fmtCurta(i.data_entrega))}</span>${i.hora_inicio ? `<span><i class="ph ph-clock"></i> ${esc(i.hora_inicio)}</span>` : ''}</div>
@@ -536,7 +576,7 @@
     function abasUnidades() {
         const d = S.det;
         if (d.unidades.length <= 1) return '';
-        return `<nav class="alr-abas">${d.unidades.map((u, i) => `<button class="alr-aba ${i === S.ui ? 'on' : ''} st-${u.status}" onclick="window._aleUnidade(${i})">${iconeStatusUnidade(u)} <span>${esc(u.rotulo)}</span></button>`).join('')}</nav>`;
+        return `<nav class="alr-abas">${d.unidades.map((u, i) => `<button class="alr-aba ${i === S.ui ? 'on' : ''} st-${u.status}" onclick="window._aleUnidade(${i})">${iconeStatusUnidade(u)} <span>${esc(rotuloUnidadeComEmoji(u, d.tipo_servico))}</span></button>`).join('')}</nav>`;
     }
     window._aleUnidade = async function (i) {
         if (i === S.ui) return;

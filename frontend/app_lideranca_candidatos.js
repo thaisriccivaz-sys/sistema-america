@@ -265,7 +265,10 @@
             ? `<div class="alc-card-lider-real" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.78rem;color:#15803d;margin-top:3px;"><span style="font-weight:700;">✅ Realizado por:</span> ${renderChipsLideres([i.realizado_por], 20)}</div>`
             : '';
 
-        return `<button class="alc-card ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
+        const corCard = (i.situacao === 'respondido' || i.respondido)
+            ? 'card-verde'
+            : ((i.checklist && i.checklist.feitos > 0) ? 'card-amarelo' : (i.pendente ? 'card-vermelho' : ''));
+        return `<button class="alc-card ${corCard} ${i.pendente ? 'pend' : ''}" onclick="window._alcAbrir(${i.id})">
             ${avatar(i)}
             <div class="alc-card-corpo">
                 <div class="alc-card-nome">${esc(i.nome)}</div>

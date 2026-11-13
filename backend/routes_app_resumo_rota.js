@@ -128,15 +128,93 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         'INTEGRAÇÃO':              '👷',
         '👷':                      '👷',
         'APOIO DE SUCCAO':         '💧',
+        'APOIO DE SUCÇÃO':         '💧',
         '💧':                      '💧',
         'AVULSO':                  '❗',
         '❗':                      '❗',
+        'REPAROS':                 '🔧',
+        'REPARO':                  '🔧',
+        '🔧':                      '🔧',
+        'MONTAGEM':                '🛠️',
+        'DESMONTAGEM':             '🛠️',
+        '🛠️':                      '🛠️',
         'UTILITARIO':              '🛻',
         'UTILITÁRIO':              '🛻',
         '🛻':                      '🛻',
         'BANHEIRO ITINERANTE':     '🔛',
         '🔛':                      '🔛',
     };
+
+    function ehApenasTipoServico(str) {
+        if (!str) return false;
+        const nucleo = norm(str)
+            .toUpperCase()
+            .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\u{200C}\u{200B}\u{FEFF}\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '')
+            .replace(/[.,;:!?-]+$/g, '')
+            .trim();
+        if (!nucleo) return false;
+        return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nucleo);
+    }
+
+    function extrairObsValida(obsMotorista, obsInternas, servico) {
+        const limpar = (raw) => {
+            if (!raw) return '';
+            let s = String(raw)
+                .replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '')
+                .replace(/^[,\s]+|[,\s]+$/g, '')
+                .trim();
+            s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
+            if (!s) return '';
+            if (ehApenasTipoServico(s)) return '';
+            const sNorm = norm(s).toUpperCase().replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
+            const servNorm = norm(servico || '').toUpperCase().replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
+            if (servNorm && sNorm === servNorm) return '';
+            return s;
+        };
+        const c1 = limpar(obsMotorista);
+        if (c1) return c1;
+        const c2 = limpar(obsInternas);
+        if (c2) return c2;
+        return '';
+    }
+
+    // Itens de saída que devem aparecer para o líder no Resumo da Rota:
+    // - Variáveis/Ícones: Levar Carrinho (🛒), Levar Extensora (🌀), Apoio de Sucção (💧), Levar EPI (🦺)
+    // - Habilidade da Equipe: VAC (🏗️), Reparos (🔧), Montagem (🛠️), Desmontagem (🛠️)
+    const REGRAS_SAIDA_LIDER = [
+        { id: 'CARRINHO',    icon: '🛒', label: 'LEVAR CARRINHO',   regex: /🛒|LEVAR\s+CARRINHO/i },
+        { id: 'EXTENSORA',   icon: '🌀', label: 'LEVAR EXTENSORA',  regex: /🌀|LEVAR\s+EXTENSORA|\bEXTENSORA\b/i },
+        { id: 'SUCCAO',      icon: '💧', label: 'APOIO DE SUCÇÃO',  regex: /💧|APOIO\s+(?:DE\s+)?SUCC?[AÃ]O/i },
+        { id: 'EPI',         icon: '🦺', label: 'LEVAR EPI',        regex: /🦺|LEVAR\s+EPI|\bEPI\b/i },
+        { id: 'VAC',         icon: '🏗️', label: 'VAC',              regex: /🏗️|\bVAC\b/i },
+        { id: 'REPAROS',     icon: '🔧', label: 'REPAROS',          regex: /🔧|\bREPAROS?\b/i },
+        { id: 'DESMONTAGEM', icon: '🛠️', label: 'DESMONTAGEM',      regex: /\bDESMONTAGEM\b/i },
+        { id: 'MONTAGEM',    icon: '🛠️', label: 'MONTAGEM',         regex: /🛠️|\bMONTAGEM\b/i },
+    ];
+
+    function detectarItensSaidaTexto(texto) {
+        const s = String(texto || '');
+        const normS = norm(s).toUpperCase();
+        const encontrados = [];
+        for (const r of REGRAS_SAIDA_LIDER) {
+            if (r.id === 'MONTAGEM' && /\bDESMONTAGEM\b/i.test(normS) && !/\bMONTAGEM\b/i.test(normS.replace(/\bDESMONTAGEM\b/gi, ''))) {
+                continue;
+            }
+            if (r.regex.test(s) || r.regex.test(normS)) {
+                encontrados.push(r);
+            }
+        }
+        return encontrados;
+    }
+
+    function detectarItensSaidaOS(os) {
+        if (!os) return [];
+        const habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
+        const vars = Array.isArray(os.variaveis) ? os.variaveis.join(' ') : (os.variaveis || '');
+        const habEq = Array.isArray(os.habilidade_equipe) ? os.habilidade_equipe.join(' ') : (os.habilidade_equipe || '');
+        const combinado = [vars, habEq, habs, os.cliente, os.obs, os.observacoes_internas, os.notas_raw].filter(Boolean).join(' ');
+        return detectarItensSaidaTexto(combinado);
+    }
 
     function rrObsIcon(t) {
         const up = String(t || '').toUpperCase();
@@ -276,48 +354,41 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         (v.os || []).forEach(os => {
             const habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
             const vars = Array.isArray(os.variaveis) ? os.variaveis.join(' ') : (os.variaveis || '');
-            const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs, vars].filter(Boolean).join(' ');
+            const habEq = Array.isArray(os.habilidade_equipe) ? os.habilidade_equipe.join(' ') : (os.habilidade_equipe || '');
+            const textoParaIcone = [os.cliente, os.obs, os.observacoes_internas, os.notas_raw, habs, vars, habEq].filter(Boolean).join(' ');
             let icon = rrObsIcon(textoParaIcone);
             const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
             if (temInfoImportante && !icon.includes('🚨')) icon = '🚨' + icon;
-            if (!os.obs && !icon) return;
+            if (!os.obs && !os.observacoes_internas && !icon) return;
 
             let nome = String(os.cliente || '').trim();
-            nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim();
+            nome = nome.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔧🛠️]+/gu, '').trim();
             if (nome.length > 20) nome = nome.substring(0, 20).trim();
 
-            let obsLimpa = String(os.obs || '');
-            obsLimpa = obsLimpa.replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '');
-            obsLimpa = obsLimpa.replace(/^[,\s]+|[,\s]+$/g, '').trim();
-            obsLimpa = obsLimpa.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽]+/gu, '').trim().toUpperCase();
+            let obsExtraida = extrairObsValida(os.obs, os.observacoes_internas, os.servico);
+            if (!obsExtraida && os.notas_raw) {
+                const notasNorm = String(os.notas_raw).replace(/\r\r\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                for (const ln of notasNorm.split('\n').map(l => l.trim()).filter(Boolean)) {
+                    const lnUp = norm(ln).toUpperCase();
+                    if (ehApenasTipoServico(lnUp)) continue;
+                    if (/^\d+\s+\S/.test(ln) || /^\d+X\s*-/.test(lnUp)) continue;
+                    const cand = extrairObsValida(ln, '', os.servico);
+                    if (cand) { obsExtraida = cand; break; }
+                }
+            }
 
-            const servicoLimpo = String(os.servico || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨]+/gu, '').trim().toUpperCase();
-            if (obsLimpa && servicoLimpo && obsLimpa === servicoLimpo) obsLimpa = '';
-            if (obsLimpa && /^(ENTREGA|RETIRADA|MANUTENCAO|MANUTENÇÃO|COMPRAS|VISITA|LIMPA FOSSA)\b/.test(norm(obsLimpa).toUpperCase())) obsLimpa = '';
+            let obsLimpa = String(obsExtraida || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '').trim().toUpperCase();
+
+            if (!obsLimpa) {
+                const itensSaida = detectarItensSaidaOS(os);
+                if (itensSaida.length > 0) {
+                    obsLimpa = [...new Set(itensSaida.map(i => i.label))].join(' / ');
+                }
+            }
 
             if (obsLimpa) {
                 const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
                 if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
-            } else if (icon) {
-                const textoSemCliente = [os.obs, os.notas_raw, habs, vars].filter(Boolean).join(' ');
-                const iconSemCliente = rrObsIcon(textoSemCliente);
-                if (iconSemCliente) {
-                    let obsDoNotasRaw = '';
-                    if (os.notas_raw) {
-                        const notasNorm = String(os.notas_raw).replace(/\r\r\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-                        for (const ln of notasNorm.split('\n').map(l => l.trim()).filter(Boolean)) {
-                            const lnUp = norm(ln).toUpperCase();
-                            const lnNucleo = lnUp.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]+/gu, '').trim();
-                            if (/^ENTREGA\b|^RETIRADA\b|^MANUTEN|^COMPRAS\b|^VISITA\b|^LIMPA FOSSA\b/.test(lnNucleo)) continue;
-                            if (/^\d+\s+\S/.test(ln) || /^\d+X\s*-/.test(lnUp)) continue;
-                            const lnLimpa = ln.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🔗❗🌀🚨]+/gu, '').trim().toUpperCase();
-                            if (lnLimpa) { obsDoNotasRaw = lnLimpa; break; }
-                        }
-                    }
-                    const fallbackTxt = obsDoNotasRaw || (iconSemCliente.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!');
-                    const linhaObs = `${iconSemCliente} ${nome}: ${fallbackTxt}`;
-                    if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
-                }
             }
         });
         if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
@@ -374,11 +445,36 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         return lines.join('\n');
     }
 
+    function normClienteCurto(str) {
+        let s = String(str || '').trim();
+        s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '').trim();
+        s = norm(s).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+        return s.substring(0, 20).trim();
+    }
+
     function obterColBBaseLimpa(v) {
         let base = v.colBEditado || montarColB(v);
         const suffixMark = '\nMotorista:';
         const suffIdx = base.indexOf(suffixMark);
         if (suffIdx !== -1) base = base.substring(0, suffIdx);
+        if (base && (base.includes('AVISO IMPORTANTE!') || base.includes('VERIFICAR DETALHES!')) && v && Array.isArray(v.os) && v.os.length > 0) {
+            const fresh = montarColB(v);
+            const freshLines = fresh.split('\n');
+            const repaired = base.split('\n').map(line => {
+                if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;
+                const colonIdx = line.indexOf(':');
+                if (colonIdx === -1) return line;
+                const prefix = normClienteCurto(line.substring(0, colonIdx));
+                if (!prefix) return '';
+                const matchFresh = freshLines.find(fl => {
+                    const cIdx = fl.indexOf(':');
+                    if (cIdx === -1 || fl.trim().endsWith(':')) return false;
+                    return normClienteCurto(fl.substring(0, cIdx)) === prefix && !fl.includes('AVISO IMPORTANTE!') && !fl.includes('VERIFICAR DETALHES!');
+                });
+                return matchFresh || '';
+            }).filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''));
+            base = repaired.join('\n').replace(/^\n+/, '');
+        }
         return base;
     }
 
@@ -552,9 +648,6 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             }
 
             if (secaoAtual === 'OBS') {
-                // Linha de observação
-                const itemKey = 'obs_' + slug(trimmed);
-                const chk = checksMap.get(itemKey);
                 let titulo = '';
                 let detalhe = trimmed;
                 const colonIdx = trimmed.indexOf(':');
@@ -562,11 +655,72 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     titulo = trimmed.substring(0, colonIdx + 1);
                     detalhe = trimmed.substring(colonIdx + 1).trim();
                 }
+
+                // Verificar se esta observação pertence a um item de saída (Levar Carrinho, Levar Extensora,
+                // Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem)
+                const cliPrefix = colonIdx !== -1 ? normClienteCurto(titulo.slice(0, -1)) : '';
+                const osMatchList = cliPrefix
+                    ? (veiculoObj.os || []).filter(o => normClienteCurto(o.cliente) === cliPrefix)
+                    : [];
+                const itensLinha = detectarItensSaidaTexto(trimmed);
+                const itensOS = [];
+                osMatchList.forEach(o => {
+                    detectarItensSaidaOS(o).forEach(it => {
+                        if (!itensOS.some(x => x.id === it.id)) itensOS.push(it);
+                    });
+                });
+                const todosItensSaida = [...itensLinha];
+                itensOS.forEach(it => {
+                    if (!todosItensSaida.some(x => x.id === it.id)) todosItensSaida.push(it);
+                });
+
+                // Filtrar: mostrar no checklist do líder APENAS observações de saída
+                if (todosItensSaida.length === 0) {
+                    continue;
+                }
+
+                // Garantir que os ícones dos itens de saída apareçam no título
+                const iconesSaidaFaltando = [];
+                todosItensSaida.forEach(it => {
+                    if (it.icon && !titulo.includes(it.icon) && !iconesSaidaFaltando.includes(it.icon)) {
+                        iconesSaidaFaltando.push(it.icon);
+                    }
+                });
+                if (iconesSaidaFaltando.length > 0) {
+                    titulo = iconesSaidaFaltando.join(' ') + (titulo ? ' ' + titulo : '');
+                }
+
+                // Se o detalhe estava como "AVISO IMPORTANTE!" ou vazio, buscar obs real da OS ou listar os itens de saída
+                if (!detalhe || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(detalhe)) {
+                    let obsReal = '';
+                    for (const o of osMatchList) {
+                        const ext = extrairObsValida(o.obs, o.observacoes_internas, o.servico);
+                        if (ext) { obsReal = ext.toUpperCase(); break; }
+                    }
+                    detalhe = obsReal || [...new Set(todosItensSaida.map(i => i.label))].join(' / ');
+                } else {
+                    // Se a OS tem habilidades de saída (ex: VAC, Reparos, Montagem, Desmontagem) que não estão mencionadas no detalhe, acrescentar
+                    const labelsExtras = todosItensSaida
+                        .filter(it => ['VAC', 'REPAROS', 'MONTAGEM', 'DESMONTAGEM'].includes(it.id))
+                        .map(it => it.label)
+                        .filter(lb => !norm(detalhe).toUpperCase().includes(norm(lb).toUpperCase()));
+                    if (labelsExtras.length > 0) {
+                        detalhe = `${detalhe} (${labelsExtras.join(' / ')})`;
+                    }
+                }
+
+                const textoFinal = titulo ? `${titulo} ${detalhe}` : detalhe;
+                const itemKeyOrig = 'obs_' + slug(trimmed);
+                const itemKeyFinal = 'obs_' + slug(textoFinal);
+                const chk = checksMap.get(itemKeyFinal) || checksMap.get(itemKeyOrig)
+                    || (cliPrefix ? [...checksMap.entries()].find(([k]) => k.startsWith('obs_') && k.includes(slug(cliPrefix)))?.[1] : null);
+
                 observacoes.push({
-                    item_key: itemKey,
-                    texto: trimmed,
+                    item_key: chk ? (checksMap.has(itemKeyFinal) ? itemKeyFinal : (checksMap.has(itemKeyOrig) ? itemKeyOrig : itemKeyFinal)) : itemKeyFinal,
+                    texto: textoFinal,
                     titulo,
                     detalhe,
+                     _cliPrefix: cliPrefix,
                     checked: !!(chk && chk.checked),
                     lider_nome: chk && chk.checked ? chk.lider_nome : null,
                     lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
@@ -667,6 +821,49 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 outros.push({ secao: secaoAtual, texto: trimmed });
             }
         }
+
+        // Garantir que TODAS as OSs do veículo com itens de saída (Levar Carrinho, Levar Extensora,
+        // Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem) apareçam no checklist do líder,
+        // mesmo que v.colBEditado tenha sido salvo antes de incluir Habilidade da Equipe ou sem texto de obs
+        (veiculoObj.os || []).forEach(o => {
+            const itensOS = detectarItensSaidaOS(o);
+            if (!itensOS.length) return;
+            const cliCurto = normClienteCurto(o.cliente);
+            let nomeExib = String(o.cliente || '').trim()
+                .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔧🛠️]+/gu, '')
+                .trim();
+            if (nomeExib.length > 20) nomeExib = nomeExib.substring(0, 20).trim();
+            const obsReal = extrairObsValida(o.obs, o.observacoes_internas, o.servico);
+            const labelsSaida = [...new Set(itensOS.map(i => i.label))].join(' / ');
+            const detalheCand = obsReal ? obsReal.toUpperCase() : labelsSaida;
+
+            const jaTemClienteEObs = observacoes.some(ex =>
+                ex._cliPrefix === cliCurto && (
+                    !obsReal || norm(ex.detalhe).toUpperCase().includes(norm(obsReal).toUpperCase())
+                )
+            );
+            if (jaTemClienteEObs) return;
+
+            const iconesUnicos = [...new Set(itensOS.map(i => i.icon).filter(Boolean))].join(' ');
+            const titulo = `${iconesUnicos ? iconesUnicos + ' ' : ''}${nomeExib}:`;
+            const textoFinal = `${titulo} ${detalheCand}`;
+            const itemKeyFinal = 'obs_' + slug(textoFinal);
+            const chk = checksMap.get(itemKeyFinal)
+                || (cliCurto ? [...checksMap.entries()].find(([k]) => k.startsWith('obs_') && k.includes(slug(cliCurto)))?.[1] : null);
+
+            observacoes.push({
+                item_key: itemKeyFinal,
+                texto: textoFinal,
+                titulo,
+                detalhe: detalheCand,
+                _cliPrefix: cliCurto,
+                checked: !!(chk && chk.checked),
+                lider_nome: chk && chk.checked ? chk.lider_nome : null,
+                lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
+                lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
+                atualizado_em: chk && chk.checked ? chk.atualizado_em : null
+            });
+        });
 
         return {
             titulo_entrega: tituloEntrega,
@@ -824,9 +1021,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         });
 
         const osDoDia = await dbAll(
-            `SELECT id, numero_os, cliente, data_os, tipo_servico, produtos
+            `SELECT id, numero_os, cliente, data_os, tipo_servico, produtos, observacoes, observacoes_internas, habilidades, variaveis, habilidade_equipe
              FROM os_logistica
-             WHERE status = 'ativo' AND (data_os = ? ${numerosOsRota.size ? `OR TRIM(CAST(numero_os AS TEXT)) IN (${[...numerosOsRota].map(() => '?').join(',')})` : ''})`,
+             WHERE status = 'ativo' AND (substr(data_os, 1, 10) = ? ${numerosOsRota.size ? `OR TRIM(CAST(numero_os AS TEXT)) IN (${[...numerosOsRota].map(() => '?').join(',')})` : ''})`,
             [iso, ...numerosOsRota]
         );
 
@@ -849,13 +1046,20 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             if (uKey) retMap.set(`${r.os_id}|${uKey}`, r);
         });
 
-        // Indexar OS de os_logistica por numero_os
+        // Indexar OS de os_logistica por numero_os e por nome curto do cliente
         const osPorNumero = new Map();
+        const osPorCliente = new Map();
         osDoDia.forEach(o => {
             const num = String(o.numero_os || '').trim();
-            if (!num) return;
-            if (!osPorNumero.has(num)) osPorNumero.set(num, []);
-            osPorNumero.get(num).push(o);
+            if (num) {
+                if (!osPorNumero.has(num)) osPorNumero.set(num, []);
+                osPorNumero.get(num).push(o);
+            }
+            const cliK = normClienteCurto(o.cliente);
+            if (cliK) {
+                if (!osPorCliente.has(cliK)) osPorCliente.set(cliK, []);
+                osPorCliente.get(cliK).push(o);
+            }
         });
 
         // Contadores globais por turno (para exibir nos cards de Escala Diurna e Escala Noturna)
@@ -890,15 +1094,33 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 foto_url: c.foto_base64 || null
             }));
 
-            // Mapear OSs de ENTREGA e RETIRADA deste veículo para cruzar com entregas_checklist e retiradas_checklist
+            // Mapear OSs de ENTREGA e RETIRADA deste veículo e enriquecer v.os com observações e habilidades de os_logistica
             const osEntVeiculo = [];
             const osRetVeiculo = [];
             const vistosEnt = new Set();
             const vistosRet = new Set();
 
             (v.os || []).forEach(o => {
-                const num = String(o._numero_os || '').trim();
-                const candidatosDb = osPorNumero.get(num) || [];
+                const num = String(o._numero_os || o.numero_os || '').trim();
+                const cliK = normClienteCurto(o.cliente);
+                const candidatosDb = [...(osPorNumero.get(num) || []), ...(osPorCliente.get(cliK) || [])];
+                if (candidatosDb.length) {
+                    const matchObs = candidatosDb.find(d => extrairObsValida(d.observacoes, d.observacoes_internas, d.tipo_servico));
+                    if (matchObs && !extrairObsValida(o.obs, o.observacoes_internas, o.servico)) {
+                        o.obs = extrairObsValida(matchObs.observacoes, matchObs.observacoes_internas, matchObs.tipo_servico);
+                        o.observacoes_internas = matchObs.observacoes_internas || '';
+                    }
+                    const d0 = candidatosDb[0];
+                    if ((!o.habilidades || !o.habilidades.length) && d0.habilidades) {
+                        o.habilidades = parseJson(d0.habilidades, [d0.habilidades]);
+                    }
+                    if ((!o.variaveis || !o.variaveis.length) && d0.variaveis) {
+                        o.variaveis = parseJson(d0.variaveis, [d0.variaveis]);
+                    }
+                    if ((!o.habilidade_equipe || !o.habilidade_equipe.length) && d0.habilidade_equipe) {
+                        o.habilidade_equipe = parseJson(d0.habilidade_equipe, [d0.habilidade_equipe]);
+                    }
+                }
                 if (o.tipo === 'ENTREGA') {
                     const dbOs = candidatosDb.find(d => /entrega/i.test(norm(d.tipo_servico))) || candidatosDb[0];
                     if (dbOs && !vistosEnt.has(dbOs.id)) {

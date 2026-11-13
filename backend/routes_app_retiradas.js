@@ -81,10 +81,36 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         if (/HIDRAUL/.test(t)) return 'HIDRAULICO';
         if (/MICTORIO/.test(t)) return 'MICTORIO';
         if (/\bPIA\b|PB\s?I{2,3}\b/.test(t)) return 'PIA';
-        if (/\b(ELX|SLX)\b|EXTRA\s?LUXO/.test(t)) return 'ELX';
+        if (/\b(ELX|EXL|SLX)\b|EXTRA\s?LUXO/.test(t)) return 'ELX';
         if (/\bLX\b/.test(t)) return 'LX';
         if (/\bSTD\b|STANDARD/.test(t)) return 'STD';
         return null;
+    }
+
+    // Ícone oficial e nome de exibição de acordo com o tipo de equipamento (Obra vs Evento)
+    function infoEquipamento(descProduto, tipoServico, modelo) {
+        const d = norm(descProduto).toUpperCase().trim();
+        const ts = norm(tipoServico).toUpperCase().trim();
+        const ehEvento = /\bE\b$|\bEVENTO\b/.test(d) || (!/\bO\b$|\bOBRA\b/.test(d) && /\bEVENTO\b/.test(ts));
+        const sufixo = ehEvento ? 'Evento' : 'Obra';
+        const mod = modelo || mapModelo(descProduto) || '';
+        if (mod === 'STD' || /\bSTD\b|STANDARD/.test(d)) return { emoji: ehEvento ? '💜' : '💙', nome: `STD ${sufixo}` };
+        if (mod === 'LX' || /\bLX\b/.test(d)) return { emoji: ehEvento ? '🟪' : '🟦', nome: `LX ${sufixo}` };
+        if (mod === 'ELX' || /\b(ELX|EXL|SLX)\b|EXTRA\s?LUXO/.test(d)) return { emoji: ehEvento ? '🟣' : '🔵', nome: `ELX ${sufixo}` };
+        if (mod === 'PCD' || /\bPCD\b/.test(d)) return { emoji: ehEvento ? '🧑🏾‍🦽' : '♿', nome: `PCD ${sufixo}` };
+        if (mod === 'CHUVEIRO' || /CHUVEIRO/.test(d)) return { emoji: '🚿', nome: `Chuveiro ${sufixo}` };
+        if (mod === 'HIDRAULICO' || /HIDRAUL/.test(d)) return { emoji: '🚽', nome: `Hidráulico ${sufixo}` };
+        if (mod === 'MICTORIO' || /MICTORIO/.test(d)) return { emoji: '💦', nome: `Mictório ${sufixo}` };
+        if (mod === 'PIA' || /\bPIA\b|PB\s?I{2,3}\b/.test(d)) {
+            if (/III/.test(d)) return { emoji: '🧼', nome: `PBIII ${sufixo}` };
+            if (/II/.test(d)) return { emoji: '🧼', nome: `PBII ${sufixo}` };
+            return { emoji: '🧼', nome: `Pia ${sufixo}` };
+        }
+        if (mod === 'GUARITA' || /GUARITA/.test(d)) {
+            if (/DUPLA/.test(d)) return { emoji: '⚪', nome: `Guarita Dupla ${sufixo}` };
+            return { emoji: '⬜', nome: `Guarita ${sufixo}` };
+        }
+        return { emoji: '💙', nome: (MODELOS[mod] && MODELOS[mod].nome) || String(descProduto || '').trim() };
     }
 
     // Uma "unidade" por equipamento retirado (OS com 3 STD → 3 checklists independentes)
@@ -92,10 +118,20 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         const prods = parseJson(os.produtos, []);
         const units = [];
         (Array.isArray(prods) ? prods : []).forEach((p, pi) => {
-            const modelo = mapModelo(p && (p.desc || p.produto));
+            const desc = (p && (p.desc || p.produto || '')) || '';
+            const modelo = mapModelo(desc);
             if (!modelo) return;
+            const infoEq = infoEquipamento(desc, os.tipo_servico, modelo);
             const qtd = Math.min(50, Math.max(1, parseInt(p.qtd, 10) || 1));
-            for (let n = 1; n <= qtd; n++) units.push({ key: `${pi + 1}-${n}`, modelo, produto: String((p.desc || p.produto || '')).trim() });
+            for (let n = 1; n <= qtd; n++) {
+                units.push({
+                    key: `${pi + 1}-${n}`,
+                    modelo,
+                    produto: String(desc).trim(),
+                    icone_emoji: infoEq.emoji,
+                    nome_equipamento: infoEq.nome
+                });
+            }
         });
         const total = {}; units.forEach(u => { total[u.modelo] = (total[u.modelo] || 0) + 1; });
         const visto = {};
@@ -103,7 +139,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             visto[u.modelo] = (visto[u.modelo] || 0) + 1;
             u.indice = visto[u.modelo];
             u.total = total[u.modelo];
-            u.rotulo = MODELOS[u.modelo].nome + (u.total > 1 ? ` ${u.indice}/${u.total}` : '');
+            u.rotulo = `${u.icone_emoji ? u.icone_emoji + ' ' : ''}${u.nome_equipamento || MODELOS[u.modelo].nome}` + (u.total > 1 ? ` ${u.indice}/${u.total}` : '');
         });
         return units;
     }
@@ -298,7 +334,8 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             ? resolverColab({ usuario_id: row.lider_id, colab_id: row.lider_colab_id, nome: row.lider_nome })
             : null;
         return {
-            key: u.key, modelo: u.modelo, modelo_nome: MODELOS[u.modelo].nome, icone: MODELOS[u.modelo].icone,
+            key: u.key, modelo: u.modelo, modelo_nome: u.nome_equipamento || MODELOS[u.modelo].nome, icone: MODELOS[u.modelo].icone,
+            icone_emoji: u.icone_emoji || '💙',
             rotulo: u.rotulo, produto: u.produto, indice: u.indice, total: u.total,
             itens_total: itens.length, itens_feitos: feitos,
             status: concluido ? (avaria ? 'avaria' : 'ok') : (feitos > 0 ? 'andamento' : 'pendente'),
@@ -357,6 +394,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
             unidades, concluidas: concl, total_unidades: unidades.length,
             situacao, tem_avaria: algumaAvaria,
             pendente: incompleta && data >= inicio && data <= hoje,
+            atrasada: incompleta && data < hoje && data >= inicio,
             futura: data > hoje,
             rota: rota || null
         };

@@ -786,6 +786,12 @@ async function pipelineExportarExcel(registrosOverride) {
         // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente)
         let obsStr = stripClientPrefix(r.observacoes, r.cliente);
         let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
+        if (/^MANUTEN[CÇ][AÃ]O\s+AVULSA$/i.test(obsStr.trim())) {
+            obsStr = '';
+        }
+        if (!obsStr && obsIntStr && !/^MANUTEN[CÇ][AÃ]O\s+AVULSA$/i.test(obsIntStr.trim())) {
+            obsStr = obsIntStr;
+        }
         
         const icVarStr = icVar.join(''); // icVar é array, converter para string
         let obsComIcone = '';

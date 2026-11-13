@@ -2846,7 +2846,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 turno: diurno?.checked ? 'Diurno' : 'Noturno',
                 dias_semana: diasSelecionados,
                 produtos: osState.produtos || [],
-                observacoes: document.getElementById('rr-input-obs')?.value?.trim() || '',
+                observacoes: (() => {
+                    const rawObs = document.getElementById('rr-input-obs')?.value?.trim() || '';
+                    const rawObsInt = document.getElementById('rr-input-obs-internas')?.value?.trim() || '';
+                    const isPlaceholder = /^manuten[cç][aã]o\s+avulsa$/i.test(rawObs);
+                    if ((!rawObs || isPlaceholder) && rawObsInt) return rawObsInt;
+                    return rawObs;
+                })(),
                 observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
                 habilidades: habilidadesSelecionadas,
                 variaveis: variaveisSelecionadas,

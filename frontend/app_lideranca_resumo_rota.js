@@ -467,6 +467,9 @@
             ...(v.candidatos || []).map(c => renderCrewMember(c, 'cand', c.cargo || 'Candidato em Teste'))
         ].filter(Boolean).join('') || `<div style="font-size:0.8rem;color:#94a3b8;">Sem equipe definida</div>`;
 
+        const dataRotaIso = (S.dadosDia && S.dadosDia.data) || S.data || '';
+        const rotaAtrasada = !!(dataRotaIso && dataRotaIso >= '2026-12-01' && dataRotaIso < hojeISO());
+
         // 1. Observações de rota (check manual)
         const obsHtml = (v.observacoes || []).length > 0 ? `
             <div class="arr-sec">
@@ -477,8 +480,9 @@
                     const subInfoHtml = obs.checked
                         ? `<span class="arr-row-sub">✅ Realizado por: ${chipReal}${obs.atualizado_em ? ' (' + esc(fmtDataHora(obs.atualizado_em)) + ')' : ''}</span>`
                         : '';
+                    const clsObs = obs.checked ? 'checked' : (rotaAtrasada ? 'vencido' : '');
                     return `
-                    <button type="button" class="arr-row interactive ${obs.checked ? 'checked' : ''}"
+                    <button type="button" class="arr-row interactive ${clsObs}"
                         data-action="toggle-check"
                         data-veiculo-key="${esc(v.veiculo_key)}"
                         data-tipo="obs"
@@ -585,9 +589,10 @@
                     const insumos = it.insumos || [];
                     const insConcluidos = insumos.filter(x => x.checked).length;
                     const todosInsOk = insumos.length > 0 && insConcluidos === insumos.length;
+                    const clsManut = insumos.length === 0 ? '' : (todosInsOk ? 'concluido' : (insConcluidos > 0 ? 'em-andamento' : (rotaAtrasada ? 'atrasado' : '')));
                     return `
                     ${mostrarTitulo ? `<div class="arr-sec-title manutencao">${esc(it.secao_titulo)}</div>` : ''}
-                    <div class="arr-manut-card">
+                    <div class="arr-manut-card ${clsManut}">
                         <div class="arr-manut-head">
                             <span>${esc(it.texto)}</span>
                             ${insumos.length > 0
@@ -604,8 +609,9 @@
                                 const subInsHtml = ins.checked
                                     ? `<small class="arr-row-sub">✅ Realizado por: ${chipIns}${ins.atualizado_em ? ' (' + esc(fmtDataHora(ins.atualizado_em)) + ')' : ''}</small>`
                                     : '';
+                                const clsIns = ins.checked ? 'checked' : (rotaAtrasada ? 'vencido' : '');
                                 return `
-                                <button type="button" class="arr-insumo-row ${ins.checked ? 'checked' : ''}"
+                                <button type="button" class="arr-insumo-row ${clsIns}"
                                     data-action="toggle-check"
                                     data-veiculo-key="${esc(v.veiculo_key)}"
                                     data-tipo="insumo"
@@ -623,8 +629,14 @@
                 }).join('')}
             </div>` : '';
 
+        const clsVcard = st.total > 0 && st.completo
+            ? 'concluido'
+            : ((st.concluidos > 0 || estadoCkVeic === 'em_andamento')
+                ? 'em-andamento'
+                : ((estadoCkVeic === 'pendente_vencido' || (rotaAtrasada && st.total > 0)) ? 'atrasado' : ''));
+
         return `
-        <article class="arr-vcard ${st.completo ? 'concluido' : ''}" data-vcard="${esc(v.veiculo_key)}">
+        <article class="arr-vcard ${clsVcard}" data-vcard="${esc(v.veiculo_key)}">
             <div class="arr-vhead">
                 <div class="arr-vtitle">
                     <span>🚚 ${esc(v.veiculo)}</span>

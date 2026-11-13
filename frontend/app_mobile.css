@@ -989,3 +989,152 @@ body.app-mobile-on #view-app-lideranca-entregas { padding: 0 !important; }
     font-size: 0.78rem;
     font-weight: 700;
 }
+
+/* ═══════════════ Cores de Fundo de Quadro Inteiro por Status do Checklist ═══════════════ */
+/* 1. Entregas, Retiradas e Candidatos (.alc-card / .alr-card) */
+.alc-card.card-verde,
+.alr-card.card-verde {
+    background: #dcfce7 !important;
+    border: 2px solid #4ade80 !important;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.12) !important;
+}
+.alc-card.card-verde .alr-rota,
+.alr-card.card-verde .alr-rota,
+.alc-card.card-verde .arr-vlider-bar,
+.alr-card.card-verde .arr-vlider-bar {
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: #86efac !important;
+}
+
+.alc-card.card-amarelo,
+.alr-card.card-amarelo {
+    background: #fef9c3 !important;
+    border: 2px solid #facc15 !important;
+    box-shadow: 0 2px 8px rgba(234, 179, 8, 0.14) !important;
+}
+.alc-card.card-amarelo .alr-rota,
+.alr-card.card-amarelo .alr-rota,
+.alc-card.card-amarelo .arr-vlider-bar,
+.alr-card.card-amarelo .arr-vlider-bar {
+    background: rgba(255, 255, 255, 0.75) !important;
+    border-color: #fde047 !important;
+}
+
+.alc-card.card-vermelho,
+.alr-card.card-vermelho,
+.alc-card.pend {
+    background: #fee2e2 !important;
+    border: 2px solid #f87171 !important;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.14) !important;
+}
+.alc-card.card-vermelho .alr-rota,
+.alr-card.card-vermelho .alr-rota,
+.alc-card.card-vermelho .arr-vlider-bar,
+.alr-card.card-vermelho .arr-vlider-bar {
+    background: rgba(255, 255, 255, 0.75) !important;
+    border-color: #fca5a5 !important;
+}
+
+/* Linhas de unidades dentro do card de Entrega / Retirada */
+.alr-unid {
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+.alr-unid.unid-verde {
+    background: rgba(187, 247, 208, 0.65);
+    color: #14532d;
+}
+.alr-unid.unid-amarelo {
+    background: rgba(254, 240, 138, 0.75);
+    color: #713f12;
+}
+.alr-unid.unid-vermelho {
+    background: rgba(254, 202, 202, 0.7);
+    color: #7f1d1d;
+}
+
+/* 2. Resumo da Rota (.arr-vcard, .arr-row, .arr-insumo-row, .arr-manut-card) */
+.arr-vcard.concluido {
+    background: #dcfce7 !important;
+    border: 2px solid #4ade80 !important;
+}
+.arr-vcard.concluido .arr-vhead {
+    background: #bbf7d0 !important;
+    border-bottom-color: #86efac !important;
+}
+.arr-vcard.concluido .arr-crew,
+.arr-vcard.concluido .arr-vlider-bar {
+    background: rgba(240, 253, 244, 0.85) !important;
+    border-color: #bbf7d0 !important;
+}
+
+.arr-vcard.em-andamento {
+    background: #fefce8 !important;
+    border: 2px solid #facc15 !important;
+}
+.arr-vcard.em-andamento .arr-vhead {
+    background: #fef08a !important;
+    border-bottom-color: #fde047 !important;
+}
+.arr-vcard.em-andamento .arr-crew,
+.arr-vcard.em-andamento .arr-vlider-bar {
+    background: rgba(254, 252, 232, 0.85) !important;
+    border-color: #fef08a !important;
+}
+
+.arr-vcard.atrasado {
+    background: #fef2f2 !important;
+    border: 2px solid #f87171 !important;
+}
+.arr-vcard.atrasado .arr-vhead {
+    background: #fecaca !important;
+    border-bottom-color: #fca5a5 !important;
+}
+.arr-vcard.atrasado .arr-crew,
+.arr-vcard.atrasado .arr-vlider-bar {
+    background: rgba(254, 242, 242, 0.85) !important;
+    border-color: #fecaca !important;
+}
+
+.arr-row.checked,
+.arr-insumo-row.checked {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+}
+.arr-row.parcial {
+    background: #fef9c3 !important;
+    border-color: #facc15 !important;
+}
+.arr-row.vencido,
+.arr-insumo-row.vencido {
+    background: #fee2e2 !important;
+    border-color: #f87171 !important;
+}
+
+.arr-manut-card.concluido {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+}
+.arr-manut-card.concluido .arr-manut-head {
+    background: #bbf7d0 !important;
+    border-bottom-color: #86efac !important;
+    color: #14532d !important;
+}
+.arr-manut-card.em-andamento {
+    background: #fef9c3 !important;
+    border-color: #facc15 !important;
+}
+.arr-manut-card.em-andamento .arr-manut-head {
+    background: #fef08a !important;
+    border-bottom-color: #fde047 !important;
+    color: #713f12 !important;
+}
+.arr-manut-card.atrasado {
+    background: #fee2e2 !important;
+    border-color: #f87171 !important;
+}
+.arr-manut-card.atrasado .arr-manut-head {
+    background: #fecaca !important;
+    border-bottom-color: #fca5a5 !important;
+    color: #7f1d1d !important;
+}

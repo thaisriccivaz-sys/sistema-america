@@ -9222,11 +9222,107 @@ app.get('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/resumo-rota/:id - Pega dados de um resumo específico
+// GET /api/logistica/resumo-rota/:id - Pega dados de um resumo específico (enriquecendo observações e reparando "AVISO IMPORTANTE!")
 app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM logistica_resumo_rota WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(row || {});
+        if (!row || !row.dados) return res.json(row || {});
+        try {
+            const parsed = JSON.parse(row.dados);
+            const veiculos = Array.isArray(parsed) ? parsed : (parsed.veiculos || []);
+            const mData = String(row.nome || '').match(/(\d{2})[-/](\d{2})[-/](\d{4})/);
+            const dataIso = mData ? `${mData[3]}-${mData[2]}-${mData[1]}` : String(row.criado_em || '').slice(0, 10);
+            const numsSet = new Set();
+            veiculos.forEach(v => (v.os || []).forEach(o => {
+                const n = String(o._numero_os || o.numero_os || '').trim();
+                if (n) numsSet.add(n);
+            }));
+            const nums = [...numsSet];
+            const sql = nums.length > 0
+                ? `SELECT numero_os, cliente, tipo_servico, data_os, observacoes, observacoes_internas, habilidades, variaveis, habilidade_equipe FROM os_logistica WHERE status = 'ativo' AND (TRIM(CAST(numero_os AS TEXT)) IN (${nums.map(() => '?').join(',')}) OR substr(data_os,1,10) = ?) ORDER BY id DESC`
+                : `SELECT numero_os, cliente, tipo_servico, data_os, observacoes, observacoes_internas, habilidades, variaveis, habilidade_equipe FROM os_logistica WHERE status = 'ativo' AND substr(data_os,1,10) = ? ORDER BY id DESC`;
+            const params = nums.length > 0 ? [...nums, dataIso] : [dataIso];
+
+            db.all(sql, params, (osErr, osRows) => {
+                if (!osErr && osRows && osRows.length) {
+                    const ehApenasServico = (s) => {
+                        if (!s) return false;
+                        const nuc = String(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                            .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\u{200C}\u{200B}\u{FEFF}\s❗⭕🔗🌀🚨🔧🛠️]+/gu, '')
+                            .replace(/[.,;:!?-]+$/g, '').trim();
+                        if (!nuc) return false;
+                        return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nuc);
+                    };
+                    const extrairObs = (obsM, obsI) => {
+                        for (const raw of [obsM, obsI]) {
+                            if (!raw) continue;
+                            let s = String(raw).replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '').replace(/^[,\s]+|[,\s]+$/g, '').trim();
+                            s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
+                            if (s && !ehApenasServico(s)) return s;
+                        }
+                        return '';
+                    };
+                    const normCli = (c) => String(c || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
+                    const byNum = {};
+                    const byCli = {};
+                    osRows.forEach(r => {
+                        const nk = String(r.numero_os || '').trim();
+                        if (nk) { if (!byNum[nk]) byNum[nk] = []; byNum[nk].push(r); }
+                        const ck = normCli(r.cliente);
+                        if (ck) { if (!byCli[ck]) byCli[ck] = []; byCli[ck].push(r); }
+                    });
+
+                    veiculos.forEach(v => {
+                        const obsPorCliente = {};
+                        (v.os || []).forEach(o => {
+                            const nk = String(o._numero_os || o.numero_os || '').trim();
+                            const ck = normCli(o.cliente);
+                            const candidatos = [...(byNum[nk] || []), ...(byCli[ck] || [])];
+                            let obsAtual = extrairObs(o.obs, o.observacoes_internas);
+                            if (!obsAtual && candidatos.length) {
+                                const matchRow = candidatos.find(r => extrairObs(r.observacoes, r.observacoes_internas));
+                                if (matchRow) {
+                                    obsAtual = extrairObs(matchRow.observacoes, matchRow.observacoes_internas);
+                                    o.obs = obsAtual;
+                                    o.observacoes_internas = matchRow.observacoes_internas || '';
+                                }
+                            }
+                            if (candidatos.length) {
+                                const r0 = candidatos[0];
+                                if ((!o.habilidades || !o.habilidades.length) && r0.habilidades) {
+                                    try { o.habilidades = typeof r0.habilidades === 'string' ? JSON.parse(r0.habilidades) : r0.habilidades; } catch (_) {}
+                                }
+                                if ((!o.variaveis || !o.variaveis.length) && r0.variaveis) {
+                                    try { o.variaveis = typeof r0.variaveis === 'string' ? JSON.parse(r0.variaveis) : r0.variaveis; } catch (_) {}
+                                }
+                                if ((!o.habilidade_equipe || !o.habilidade_equipe.length) && r0.habilidade_equipe) {
+                                    try { o.habilidade_equipe = typeof r0.habilidade_equipe === 'string' ? JSON.parse(r0.habilidade_equipe) : r0.habilidade_equipe; } catch (_) {}
+                                }
+                            }
+                            if (ck && obsAtual && !obsPorCliente[ck]) {
+                                obsPorCliente[ck] = obsAtual.toUpperCase();
+                            }
+                        });
+
+                        if (v.colBEditado && (v.colBEditado.includes('AVISO IMPORTANTE!') || v.colBEditado.includes('VERIFICAR DETALHES!'))) {
+                            v.colBEditado = v.colBEditado.split('\n').map(line => {
+                                if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;
+                                const cIdx = line.indexOf(':');
+                                if (cIdx === -1) return line;
+                                const cliKey = normCli(line.substring(0, cIdx));
+                                const realTxt = cliKey ? obsPorCliente[cliKey] : '';
+                                if (realTxt) return line.substring(0, cIdx + 1) + ' ' + realTxt;
+                                return '';
+                            }).filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === '')).join('\n').replace(/^\n+/, '');
+                        }
+                    });
+                    row.dados = JSON.stringify(Array.isArray(parsed) ? veiculos : { ...parsed, veiculos });
+                }
+                res.json(row || {});
+            });
+        } catch (e) {
+            res.json(row || {});
+        }
     });
 });
 
@@ -24605,7 +24701,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             // Busca em lote para o Resumo de Rota (sem LIMIT, apenas as OS da planilha)
             const _ph = _nums.map(() => '?').join(',');
             db.all(
-                `SELECT * FROM os_logistica WHERE numero_os IN (${_ph}) AND status = 'ativo' ORDER BY id DESC`,
+                `SELECT * FROM os_logistica WHERE TRIM(CAST(numero_os AS TEXT)) IN (${_ph}) AND status = 'ativo' ORDER BY id DESC`,
                 _nums,
                 (err, rows) => {
                     if (err) return res.status(500).json({ error: err.message });
