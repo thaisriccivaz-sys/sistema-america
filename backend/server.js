@@ -1495,20 +1495,37 @@ global.matchUsuarioComColaborador = function(u, colabs) {
     return null;
 };
 
+// REGRA ESTRITA (usada para BLOQUEAR acesso): o usuário só é considerado "de colaborador desligado" quando
+// o nome é IGUAL (sem acento/caixa/espaços) ao de colaborador(es) e TODOS os colaboradores com esse nome estão Desligados.
+// Nunca usar o vínculo aproximado (matchUsuarioComColaborador) para bloquear acesso.
+global.usuarioEhDeColaboradorDesligado = function(u, colabs) {
+    if (!u || !Array.isArray(colabs)) return null;
+    const norm = (s) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ") : "";
+    const uNome = norm(u.nome);
+    if (!uNome || uNome.includes(' ') === false) return null;
+    const iguais = colabs.filter(c => norm(c.nome_completo) === uNome);
+    if (!iguais.length) return null;
+    const todosDesligados = iguais.every(c => String(c.status || '').trim().toLowerCase() === 'desligado');
+    return todosDesligados ? iguais[0] : null;
+};
+
 global.desabilitarAcessoColaboradorDesligado = function(colaboradorId) {
     if (!colaboradorId) return;
     db.get(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE id = ?`, [colaboradorId], (errC, colab) => {
         if (errC || !colab) return;
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, status FROM colaboradores`, [], (errAll, todosColabs) => {
+        if (errAll) return;
         db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errU, usuarios) => {
             if (errU || !Array.isArray(usuarios)) return;
             usuarios.forEach(u => {
-                const matched = global.matchUsuarioComColaborador(u, [colab]);
-                if (matched) {
+                const matched = global.usuarioEhDeColaboradorDesligado(u, todosColabs);
+                if (matched && matched.id === colab.id) {
                     db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], (errUpd) => {
                         if (!errUpd) console.log(`[ACESSO] Usuário ${u.username} (ID=${u.id}) desabilitado automaticamente pois colaborador ${colab.nome_completo} está Desligado.`);
                     });
                 }
             });
+        });
         });
     });
 };
@@ -1532,22 +1549,7 @@ db.run(`CREATE TABLE IF NOT EXISTS _migrations_applied (key TEXT PRIMARY KEY, ap
         if (!errDeb && this.changes > 0) console.log('[MIGRATION] Usuário da Débora excluído com sucesso.');
     });
 
-    db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE LOWER(TRIM(COALESCE(status, ''))) = 'desligado'`, [], (errDesl, colabsDesligados) => {
-        if (!errDesl && Array.isArray(colabsDesligados) && colabsDesligados.length > 0) {
-            db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errUs, activeUsers) => {
-                if (!errUs && Array.isArray(activeUsers)) {
-                    activeUsers.forEach(u => {
-                        const matchedDesl = global.matchUsuarioComColaborador(u, colabsDesligados);
-                        if (matchedDesl) {
-                            db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], () => {
-                                console.log(`[MIGRATION] Usuário ${u.username} inativado automaticamente (colaborador desligado: ${matchedDesl.nome_completo}).`);
-                            });
-                        }
-                    });
-                }
-            });
-        }
-    });
+    // (Removido: inativação em massa de usuários a cada startup — causava bloqueio indevido de colaboradores ativos.)
 
     // Sincronizar colaboradores.foto_path a partir da tabela documentos (aba Fotos / FOTO_PERFIL) quando foto_path estiver vazio
     db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_path, foto_base64 FROM colaboradores WHERE (foto_path IS NULL OR TRIM(foto_path) = '')`, [], (errFp, colabsSemFotoPath) => {
@@ -4541,9 +4543,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status FROM colaboradores`, [], (errCol, allColabs) => {
             if (!errCol && Array.isArray(allColabs) && global.matchUsuarioComColaborador) {
-                const matchedColab = global.matchUsuarioComColaborador(user, allColabs);
-                if (matchedColab && String(matchedColab.status || '').trim().toLowerCase() === 'desligado') {
-                    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [user.id]);
+                const matchedColab = global.usuarioEhDeColaboradorDesligado(user, allColabs);
+                if (matchedColab) {
                     return res.status(403).json({ error: 'Colaborador desligado. Acesso bloqueado.' });
                 }
             }
@@ -19577,10 +19578,6 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
                 const c = global.matchUsuarioComColaborador ? global.matchUsuarioComColaborador(u, colabs) : null;
                 if (c) {
                     u.colaborador_id = c.id;
-                    if (String(c.status || '').trim().toLowerCase() === 'desligado' && u.ativo !== 0) {
-                        u.ativo = 0;
-                        db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [u.id]);
-                    }
                     u.foto_colaborador = c.foto_base64 || ('/api/colaboradores/foto/' + c.id);
                 }
             });
