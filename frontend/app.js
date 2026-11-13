@@ -954,6 +954,7 @@ window.carregarPermissoesOnline = async function () {
             }
         });
         if (typeof window.aplicarPermissoesAbasEstoque === 'function') window.aplicarPermissoesAbasEstoque();
+        if (typeof window.verificarRetornoFeriasEscala === 'function') setTimeout(() => window.verificarRetornoFeriasEscala(), 600);
         return; // Retorna cedo ignorando qualquer grupo
     }
 
@@ -1030,7 +1031,11 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-tabela-precos'] === undefined) mapPerms['comercial-tabela-precos'] = true;
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
         }
+        if (mapPerms['rh-agenda-gestor-escala']) {
+            mapPerms['rh-agenda'] = true;
+        }
         window.activeUserPerms = mapPerms;
+        if (typeof window.verificarRetornoFeriasEscala === 'function') setTimeout(() => window.verificarRetornoFeriasEscala(), 600);
 
         // Percorre todos os botões de navegação (.nav-item)
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
@@ -5872,6 +5877,10 @@ if (formColab) {
             } else {
                 // Colaborador salvo sem sync (novo colaborador)
             }
+
+            // Atualizar telas de APP Liderança caso estejam abertas em segundo plano e checar retorno de férias
+            if (typeof window._refreshAppLiderancaViews === 'function') window._refreshAppLiderancaViews();
+            if (typeof window.verificarRetornoFeriasEscala === 'function') setTimeout(() => window.verificarRetornoFeriasEscala(true), 400);
 
             // Fecha a aba do formulário e vai para a lista de colaboradores
             const formTabIdx = appOpenTabs.findIndex(t => t.target === 'form-colaborador');
@@ -24655,3 +24664,521 @@ window.abrirHistoricoGeradorList = function(id) {
     document.getElementById('gerador-id').value = id;
     window.abrirHistoricoGeradorAtual();
 };
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POPUP OBRIGATÓRIO DE RETORNO DE FÉRIAS — ATUALIZAR ESCALA E HORÁRIOS DE TRABALHO
+// Aparece para o usuário com 'Agenda RH - Gestor de escala' (bloqueando a tela sem X)
+// e também para 'thais.ricci' (com botão X permitindo fechar sem preencher).
+// ═══════════════════════════════════════════════════════════════════════════════
+window._feriasRetornoState = {
+    pendentes: [],
+    idx: 0,
+    podeFechar: true,
+    fechadoNaSessaoKeys: new Set(),
+    lockTimer: null
+};
+
+window._refreshAppLiderancaViews = function () {
+    try {
+        if (typeof window._alrRecarregar === 'function') window._alrRecarregar();
+        else if (document.getElementById('alr-root') && typeof window.renderAppLiderancaRetiradas === 'function') window.renderAppLiderancaRetiradas();
+    } catch (_) {}
+    try {
+        if (typeof window._aleRecarregar === 'function') window._aleRecarregar();
+        else if (document.getElementById('ale-root') && typeof window.renderAppLiderancaEntregas === 'function') window.renderAppLiderancaEntregas();
+    } catch (_) {}
+    try {
+        if (typeof window._arrRecarregarSilencioso === 'function') window._arrRecarregarSilencioso();
+        else if (document.getElementById('arr-root') && typeof window.renderAppLiderancaResumoRota === 'function') window.renderAppLiderancaResumoRota();
+    } catch (_) {}
+    try {
+        if (document.getElementById('alc-root') && typeof window.renderAppLiderancaCandidatos === 'function') window.renderAppLiderancaCandidatos();
+    } catch (_) {}
+};
+
+window.verificarRetornoFeriasEscala = async function (forcarReexibir) {
+    if (!currentToken) return;
+    try {
+        const res = await fetch(`${API_URL}/rh/ferias-retorno-pendentes`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.exibir || !Array.isArray(data.pendentes) || data.pendentes.length === 0) {
+            const existing = document.getElementById('modal-retorno-ferias-escala');
+            if (existing) existing.remove();
+            if (window._feriasRetornoState.lockTimer) {
+                clearInterval(window._feriasRetornoState.lockTimer);
+                window._feriasRetornoState.lockTimer = null;
+            }
+            return;
+        }
+
+        const podeFechar = !!data.pode_fechar;
+        let lista = data.pendentes;
+
+        // Se for thais.ricci (podeFechar = true) e já fechou esses itens nesta sessão, só abre se houver novo item ou forcarReexibir
+        if (podeFechar && !forcarReexibir) {
+            lista = lista.filter(item => !window._feriasRetornoState.fechadoNaSessaoKeys.has(`${item.id}|${item.data_fim_ferias}`));
+            if (lista.length === 0) return;
+        }
+
+        window._feriasRetornoState.pendentes = lista;
+        window._feriasRetornoState.podeFechar = podeFechar;
+        if (window._feriasRetornoState.idx >= lista.length) {
+            window._feriasRetornoState.idx = 0;
+        }
+
+        // Se o modal já está aberto e o usuário está preenchendo, não recriar por cima
+        if (document.getElementById('modal-retorno-ferias-escala')) return;
+
+        window._abrirModalRetornoFeriasEscala();
+
+        // Se for o Gestor de Escala (não pode fechar), garantir trava contínua da tela até preencher
+        if (!podeFechar && !window._feriasRetornoState.lockTimer) {
+            window._feriasRetornoState.lockTimer = setInterval(() => {
+                if (window._feriasRetornoState.pendentes.length > 0 && !document.getElementById('modal-retorno-ferias-escala')) {
+                    window._abrirModalRetornoFeriasEscala();
+                }
+            }, 1500);
+        }
+    } catch (e) {
+        console.warn('[FERIAS-RETORNO] Erro ao verificar pendências:', e);
+    }
+};
+
+function _fmtBrDateRetorno(iso) {
+    if (!iso) return '—';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
+window._abrirModalRetornoFeriasEscala = function () {
+    const st = window._feriasRetornoState;
+    if (!st.pendentes || !st.pendentes.length) return;
+    const item = st.pendentes[st.idx] || st.pendentes[0];
+    const podeFechar = st.podeFechar;
+
+    const existing = document.getElementById('modal-retorno-ferias-escala');
+    if (existing) existing.remove();
+
+    let folgasArr = [];
+    try {
+        const parsed = JSON.parse(item.escala_folgas || '[]');
+        folgasArr = Array.isArray(parsed) ? parsed : [String(parsed)];
+    } catch (_) {
+        folgasArr = String(item.escala_folgas || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    }
+
+    const diasSemana = [
+        { val: 'Seg', lbl: 'Seg' },
+        { val: 'Ter', lbl: 'Ter' },
+        { val: 'Qua', lbl: 'Qua' },
+        { val: 'Qui', lbl: 'Qui' },
+        { val: 'Sex', lbl: 'Sex' },
+        { val: 'Sab', lbl: 'Sáb' },
+        { val: 'Dom', lbl: 'Dom' }
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-retorno-ferias-escala';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,0.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;';
+
+    overlay.innerHTML = `
+        <div style="background:#ffffff;border-radius:14px;width:100%;max-width:680px;box-shadow:0 25px 60px rgba(0,0,0,0.45);border:1px solid #e2e8f0;overflow:hidden;font-family:Inter,system-ui,sans-serif;animation:fadeIn 0.2s ease;">
+            <!-- Cabeçalho -->
+            <div style="background:linear-gradient(135deg,#0f4c81 0%,#1e3a8a 100%);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph ph-airplane-landing" style="font-size:1.6rem;color:#38bdf8;"></i>
+                    <div>
+                        <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#fff;">Retorno de Férias — Escala e Horários de Trabalho</h3>
+                        <small style="color:#bae6fd;font-size:0.78rem;">
+                            ${podeFechar ? 'Confirme ou atualize a escala de retorno de férias do colaborador' : 'Ação obrigatória: atualize ou confirme a escala de retorno para liberar o sistema'}
+                            ${st.pendentes.length > 1 ? ` • Colaborador ${st.idx + 1} de ${st.pendentes.length}` : ''}
+                        </small>
+                    </div>
+                </div>
+                ${podeFechar ? `
+                <button type="button" onclick="window._fecharModalRetornoFeriasEscala()" title="Fechar" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                    <i class="ph ph-x"></i>
+                </button>` : ''}
+            </div>
+
+            <!-- Identificação do Colaborador -->
+            <div style="padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <img src="${item.foto_url}" onerror="this.style.display='none'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #0f4c81;background:#e2e8f0;">
+                    <div>
+                        <div style="font-weight:800;font-size:1rem;color:#0f172a;">${item.nome_completo}</div>
+                        <div style="font-size:0.8rem;color:#475569;font-weight:600;">${item.departamento || '—'} • ${item.cargo || '—'}</div>
+                    </div>
+                </div>
+                <div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;">
+                    <i class="ph ph-calendar-check"></i> Fim das Férias: ${_fmtBrDateRetorno(item.data_fim_ferias)}
+                </div>
+            </div>
+
+            <!-- Corpo: Apenas Escala e Horários de Trabalho -->
+            <div style="padding:20px;max-height:72vh;overflow-y:auto;">
+                <h4 style="font-size:0.95rem;color:#0f4c81;margin:0 0 14px 0;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-clock-user"></i> Escala e Horários de Trabalho
+                </h4>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div style="grid-column:span 2;">
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:5px;">Padrão de Escala / Frequência</label>
+                        <select id="ret-ferias-escala-padrao" onchange="window._retFeriasToggleEscalaTipo()" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;color:#0f172a;background:#fff;box-sizing:border-box;">
+                            <option value="" disabled ${!item.escala_tipo ? 'selected' : ''}>Selecionar Padrão</option>
+                            <option value="padrao_seis_dias" ${item.escala_tipo === 'padrao_seis_dias' ? 'selected' : ''}>Seg à Sábado (Horas iguais)</option>
+                            <option value="padrao_sab_4h" ${item.escala_tipo === 'padrao_sab_4h' ? 'selected' : ''}>Seg à Sexta e Sábado 4h</option>
+                            <option value="padrao_sab_alternado" ${item.escala_tipo === 'padrao_sab_alternado' ? 'selected' : ''}>Seg à Sexta e Sábados Alternados (Compensado)</option>
+                            <option value="padrao_seg_sexta" ${item.escala_tipo === 'padrao_seg_sexta' ? 'selected' : ''}>Seg à Sexta</option>
+                            <option value="escala_uma_folga" ${item.escala_tipo === 'escala_uma_folga' ? 'selected' : ''}>Folga 1 Dia na Semana</option>
+                            <option value="escala_duas_folgas" ${item.escala_tipo === 'escala_duas_folgas' ? 'selected' : ''}>Folga 2 Dias na Semana</option>
+                            <option value="escala_12x36" ${item.escala_tipo === 'escala_12x36' ? 'selected' : ''}>12x36</option>
+                        </select>
+                    </div>
+
+                    <!-- Folga 1 Dia na Semana -->
+                    <div id="ret-ferias-box-uma-folga" style="grid-column:span 2;display:none;background:#f0fdf4;padding:12px 14px;border-radius:8px;border:1px solid #bbf7d0;">
+                        <label style="color:#15803d;font-weight:700;font-size:0.84rem;display:block;margin-bottom:8px;">
+                            <i class="ph ph-calendar-check"></i> Selecione o dia de folga semanal deste colaborador
+                        </label>
+                        <div style="display:flex;flex-wrap:wrap;gap:14px;">
+                            ${diasSemana.map(d => `
+                                <label style="display:flex;align-items:center;gap:5px;font-size:0.86rem;font-weight:600;color:#1e293b;cursor:pointer;">
+                                    <input type="checkbox" class="cb-ret-uma-folga" value="${d.val}" ${folgasArr.includes(d.val) ? 'checked' : ''} onchange="if(this.checked){document.querySelectorAll('.cb-ret-uma-folga').forEach(el=>{if(el!==this)el.checked=false;});}"> ${d.lbl}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <small style="display:block;margin-top:8px;font-size:0.76rem;color:#166534;">
+                            <i class="ph ph-info"></i> Marque exatamente 1 dia de folga por semana. Os demais dias serão trabalhados (7h20 por dia).
+                        </small>
+                    </div>
+
+                    <!-- Folga 2 Dias na Semana -->
+                    <div id="ret-ferias-box-duas-folgas" style="grid-column:span 2;display:none;background:#fffcf8;padding:12px 14px;border-radius:8px;border:1px solid #ffe8cc;">
+                        <label style="color:#fd7e14;font-weight:700;font-size:0.84rem;display:block;margin-bottom:8px;">
+                            <i class="ph ph-calendar-plus"></i> Selecione os 2 dias de folga semanais deste colaborador
+                        </label>
+                        <div style="display:flex;flex-wrap:wrap;gap:14px;">
+                            ${diasSemana.map(d => `
+                                <label style="display:flex;align-items:center;gap:5px;font-size:0.86rem;font-weight:600;color:#1e293b;cursor:pointer;">
+                                    <input type="checkbox" class="cb-ret-duas-folgas" value="${d.val}" ${folgasArr.includes(d.val) ? 'checked' : ''}> ${d.lbl}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <small style="display:block;margin-top:8px;font-size:0.76rem;color:#9a3412;">
+                            <i class="ph ph-info"></i> Quando houver folga obrigatória de Domingo (revezamento), o sistema sobrepõe automaticamente a primeira folga da semana.
+                        </small>
+                    </div>
+
+                    <!-- Data de Início do Ciclo / Referência (12x36, Sábados Alternados ou Domingo de Lei) -->
+                    <div id="ret-ferias-box-ciclo" style="grid-column:span 2;display:none;background:#fdf4ff;padding:12px 14px;border-radius:8px;border:1px solid #e9d5ff;">
+                        <label id="ret-ferias-lbl-ciclo" style="color:#7c3aed;font-weight:700;font-size:0.84rem;display:block;margin-bottom:6px;">
+                            <i class="ph ph-calendar-blank"></i> 12x36 — Data de início do ciclo
+                        </label>
+                        <input type="date" id="ret-ferias-ciclo-inicio" value="${item.escala_ciclo_inicio || ''}" style="padding:8px 12px;border:1px solid #d8b4fe;border-radius:6px;font-size:0.9rem;color:#0f172a;background:#fff;">
+                        <small id="ret-ferias-help-ciclo" style="display:block;margin-top:8px;font-size:0.76rem;color:#6b21a8;"></small>
+                    </div>
+
+                    <!-- Horários Seg-Sex -->
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:5px;">Entrada (Seg-Sex)</label>
+                        <input type="time" id="ret-ferias-entrada" value="${item.horario_entrada || ''}" onchange="window._retFeriasCalcularSaida()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:5px;">Saída (Seg-Sex) <small style="color:#64748b;">(Automático)</small></label>
+                        <input type="time" id="ret-ferias-saida" value="${item.horario_saida || ''}" readonly style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#f1f5f9;color:#475569;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:5px;">Início Intervalo</label>
+                        <input type="time" id="ret-ferias-int-entrada" value="${item.intervalo_entrada || ''}" onchange="window._retFeriasCalcularSaida()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:5px;">Fim Intervalo</label>
+                        <input type="time" id="ret-ferias-int-saida" value="${item.intervalo_saida || ''}" onchange="window._retFeriasCalcularSaida()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+
+                    <!-- Horário de Sábado -->
+                    <div id="ret-ferias-box-sabado" style="grid-column:span 2;display:none;background:#eef2f7;padding:12px 14px;border-radius:8px;border:1px solid #d1d9e6;">
+                        <label style="color:#4c6ef5;font-weight:700;font-size:0.84rem;display:block;margin-bottom:8px;">
+                            <i class="ph ph-calendar-star"></i> Horário de Sábado (4 horas)
+                        </label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div>
+                                <label style="display:block;font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:4px;">Entrada Sábado</label>
+                                <input type="time" id="ret-ferias-sab-entrada" value="${item.sabado_entrada || ''}" onchange="window._retFeriasCalcularSaida()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#fff;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:0.8rem;font-weight:600;color:#334155;margin-bottom:4px;">Saída Sábado (Automático)</label>
+                                <input type="time" id="ret-ferias-sab-saida" value="${item.sabado_saida || ''}" readonly style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#f8f9fa;color:#475569;box-sizing:border-box;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ret-ferias-erro" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:0.83rem;font-weight:600;"></div>
+            </div>
+
+            <!-- Rodapé -->
+            <div style="padding:14px 20px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
+                ${podeFechar ? `
+                <button type="button" onclick="window._fecharModalRetornoFeriasEscala()" class="btn btn-secondary" style="padding:9px 16px;border-radius:8px;font-weight:600;">
+                    Fechar
+                </button>` : ''}
+                <button type="button" id="btn-salvar-retorno-ferias" onclick="window._salvarModalRetornoFeriasEscala()" class="btn btn-primary" style="background:#16a34a;border:none;color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-check-circle"></i> Salvar e Atualizar Cadastro
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    window._retFeriasToggleEscalaTipo(true);
+};
+
+window._retFeriasToggleEscalaTipo = function (preservarChecks) {
+    const sel = document.getElementById('ret-ferias-escala-padrao');
+    if (!sel) return;
+    const tipo = sel.value;
+    const boxUma = document.getElementById('ret-ferias-box-uma-folga');
+    const boxDuas = document.getElementById('ret-ferias-box-duas-folgas');
+    const boxCiclo = document.getElementById('ret-ferias-box-ciclo');
+    const lblCiclo = document.getElementById('ret-ferias-lbl-ciclo');
+    const helpCiclo = document.getElementById('ret-ferias-help-ciclo');
+    const boxSab = document.getElementById('ret-ferias-box-sabado');
+
+    if (boxUma) boxUma.style.display = (tipo === 'escala_uma_folga') ? 'block' : 'none';
+    if (boxDuas) boxDuas.style.display = (tipo === 'escala_duas_folgas') ? 'block' : 'none';
+
+    if (!preservarChecks) {
+        if (tipo !== 'escala_uma_folga') document.querySelectorAll('.cb-ret-uma-folga').forEach(cb => cb.checked = false);
+        if (tipo !== 'escala_duas_folgas') document.querySelectorAll('.cb-ret-duas-folgas').forEach(cb => cb.checked = false);
+    }
+
+    if (tipo === 'escala_uma_folga' || tipo === 'escala_duas_folgas') {
+        if (boxCiclo) boxCiclo.style.display = 'block';
+        if (lblCiclo) lblCiclo.innerHTML = '<i class="ph ph-calendar-blank"></i> Domingo de Lei — Data de Referência do Ciclo';
+        if (helpCiclo) helpCiclo.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>domingo de folga (Domingo de Lei)</strong> de referência. A cada 3 domingos, o sistema marca automaticamente o Domingo de Lei.';
+    } else if (tipo === 'escala_12x36') {
+        if (boxCiclo) boxCiclo.style.display = 'block';
+        if (lblCiclo) lblCiclo.innerHTML = '<i class="ph ph-calendar-blank"></i> 12x36 — Data de início do ciclo';
+        if (helpCiclo) helpCiclo.innerHTML = '<i class="ph ph-info"></i> Informe o <strong>primeiro dia de trabalho</strong> desta pessoa. O sistema alterna automaticamente: <strong>1 dia trabalha → 1 dia folga (36h)</strong>.';
+    } else if (tipo === 'padrao_sab_alternado') {
+        if (boxCiclo) boxCiclo.style.display = 'block';
+        if (lblCiclo) lblCiclo.innerHTML = '<i class="ph ph-calendar-blank"></i> Sábados Alternados — Data de referência';
+        if (helpCiclo) helpCiclo.innerHTML = '<i class="ph ph-info"></i> Informe um <strong>sábado trabalhado</strong> de referência. O sistema alterna automaticamente: <strong>sábado trabalha → sábado folga → sábado trabalha...</strong>';
+    } else {
+        if (boxCiclo) boxCiclo.style.display = 'none';
+    }
+
+    if (boxSab) {
+        if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') {
+            boxSab.style.display = 'block';
+        } else {
+            boxSab.style.display = 'none';
+        }
+    }
+
+    window._retFeriasCalcularSaida();
+};
+
+window._retFeriasCalcularSaida = function () {
+    const sel = document.getElementById('ret-ferias-escala-padrao');
+    if (!sel) return;
+    const tipo = sel.value;
+    const entrada = (document.getElementById('ret-ferias-entrada') || {}).value || '';
+    const intEntEl = document.getElementById('ret-ferias-int-entrada');
+    const intSaiEl = document.getElementById('ret-ferias-int-saida');
+    const outSaida = document.getElementById('ret-ferias-saida');
+    const intEntrada = intEntEl ? intEntEl.value : '';
+    const intSaida = intSaiEl ? intSaiEl.value : '';
+
+    if (tipo === 'escala_12x36') {
+        if (entrada) {
+            const [he, me] = entrada.split(':').map(Number);
+            const entradaMins = he * 60 + me;
+            const saidaMins = entradaMins + 12 * 60;
+            const hSaida = Math.floor(saidaMins / 60) % 24;
+            const mSaida = saidaMins % 60;
+            if (outSaida) outSaida.value = `${String(hSaida).padStart(2, '0')}:${String(mSaida).padStart(2, '0')}`;
+            if (!intEntrada && !intSaida && intEntEl && intSaiEl) {
+                const pIni = entradaMins + 6 * 60;
+                const pFim = pIni + 60;
+                intEntEl.value = `${String(Math.floor(pIni / 60) % 24).padStart(2, '0')}:${String(pIni % 60).padStart(2, '0')}`;
+                intSaiEl.value = `${String(Math.floor(pFim / 60) % 24).padStart(2, '0')}:${String(pFim % 60).padStart(2, '0')}`;
+            }
+        } else if (outSaida) {
+            outSaida.value = '';
+        }
+        return;
+    }
+
+    if (tipo && entrada) {
+        let intervaloMins = 0;
+        if (intEntrada && intSaida) {
+            const [h1, m1] = intEntrada.split(':').map(Number);
+            const [h2, m2] = intSaida.split(':').map(Number);
+            intervaloMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (intervaloMins < 0) intervaloMins += 24 * 60;
+        }
+        let workMins = 0;
+        if (tipo === 'padrao_seis_dias' || tipo === 'escala_uma_folga') workMins = 7 * 60 + 20;
+        else if (tipo === 'padrao_sab_4h' || tipo === 'padrao_sab_alternado') workMins = 8 * 60;
+        else if (tipo === 'escala_duas_folgas' || tipo === 'padrao_seg_sexta') workMins = 8 * 60 + 48;
+
+        if (workMins >= 360 && !intEntrada && !intSaida && intEntEl && intSaiEl) {
+            const [he, me] = entrada.split(':').map(Number);
+            const tEnt = (he * 60 + me) + 240;
+            const tSai = tEnt + 60;
+            intEntEl.value = `${String(Math.floor(tEnt / 60) % 24).padStart(2, '0')}:${String(tEnt % 60).padStart(2, '0')}`;
+            intSaiEl.value = `${String(Math.floor(tSai / 60) % 24).padStart(2, '0')}:${String(tSai % 60).padStart(2, '0')}`;
+            intervaloMins = 60;
+        }
+
+        if (workMins > 0 && outSaida) {
+            const [he, me] = entrada.split(':').map(Number);
+            const totalMins = (he * 60 + me) + workMins + intervaloMins;
+            outSaida.value = `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+        }
+    }
+
+    const sabEntrada = (document.getElementById('ret-ferias-sab-entrada') || {}).value || '';
+    const outSabSaida = document.getElementById('ret-ferias-sab-saida');
+    if (sabEntrada && outSabSaida) {
+        const [hse, mse] = sabEntrada.split(':').map(Number);
+        const totalSabMins = (hse * 60 + mse) + 240;
+        outSabSaida.value = `${String(Math.floor(totalSabMins / 60) % 24).padStart(2, '0')}:${String(totalSabMins % 60).padStart(2, '0')}`;
+    } else if (outSabSaida) {
+        outSabSaida.value = '';
+    }
+};
+
+window._fecharModalRetornoFeriasEscala = function () {
+    const st = window._feriasRetornoState;
+    if (!st.podeFechar) return; // Segurança: gestor de escala nunca pode fechar sem preencher
+    (st.pendentes || []).forEach(item => {
+        st.fechadoNaSessaoKeys.add(`${item.id}|${item.data_fim_ferias}`);
+    });
+    const el = document.getElementById('modal-retorno-ferias-escala');
+    if (el) el.remove();
+};
+
+window._salvarModalRetornoFeriasEscala = async function () {
+    const st = window._feriasRetornoState;
+    const item = st.pendentes[st.idx] || st.pendentes[0];
+    if (!item) return;
+
+    const erroEl = document.getElementById('ret-ferias-erro');
+    const showErr = (msg) => {
+        if (erroEl) {
+            erroEl.textContent = msg;
+            erroEl.style.display = 'block';
+        } else {
+            alert(msg);
+        }
+    };
+    if (erroEl) erroEl.style.display = 'none';
+
+    const escala_tipo = (document.getElementById('ret-ferias-escala-padrao') || {}).value || '';
+    if (!escala_tipo) return showErr('Selecione o Padrão de Escala / Frequência.');
+
+    let folgas = ['Dom'];
+    if (escala_tipo === 'escala_uma_folga') {
+        folgas = Array.from(document.querySelectorAll('.cb-ret-uma-folga:checked')).map(cb => cb.value);
+        if (folgas.length !== 1) return showErr('Selecione exatamente 1 dia de folga semanal.');
+    } else if (escala_tipo === 'escala_duas_folgas') {
+        folgas = Array.from(document.querySelectorAll('.cb-ret-duas-folgas:checked')).map(cb => cb.value);
+        if (folgas.length !== 2) return showErr('Selecione os 2 dias de folga semanais deste colaborador.');
+    }
+
+    const escala_ciclo_inicio = (document.getElementById('ret-ferias-ciclo-inicio') || {}).value || null;
+    if (escala_tipo === 'escala_12x36' && !escala_ciclo_inicio) {
+        return showErr('Informe a Data de início do ciclo 12x36.');
+    }
+    if (escala_tipo === 'padrao_sab_alternado' && !escala_ciclo_inicio) {
+        return showErr('Informe a Data de referência dos Sábados Alternados.');
+    }
+
+    const horario_entrada = (document.getElementById('ret-ferias-entrada') || {}).value || '';
+    const horario_saida = (document.getElementById('ret-ferias-saida') || {}).value || '';
+    const intervalo_entrada = (document.getElementById('ret-ferias-int-entrada') || {}).value || '';
+    const intervalo_saida = (document.getElementById('ret-ferias-int-saida') || {}).value || '';
+    const sabado_entrada = (document.getElementById('ret-ferias-sab-entrada') || {}).value || '';
+    const sabado_saida = (document.getElementById('ret-ferias-sab-saida') || {}).value || '';
+
+    if (!horario_entrada) {
+        return showErr('Informe o horário de Entrada (Seg-Sex).');
+    }
+
+    const btn = document.getElementById('btn-salvar-retorno-ferias');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/rh/ferias-retorno-confirmar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({
+                colaborador_id: item.id,
+                data_fim_ferias: item.data_fim_ferias,
+                escala_tipo,
+                escala_folgas: JSON.stringify(folgas),
+                escala_ciclo_inicio,
+                horario_entrada,
+                horario_saida,
+                intervalo_entrada,
+                intervalo_saida,
+                sabado_entrada: (escala_tipo === 'padrao_sab_4h' || escala_tipo === 'padrao_sab_alternado') ? sabado_entrada : null,
+                sabado_saida: (escala_tipo === 'padrao_sab_4h' || escala_tipo === 'padrao_sab_alternado') ? sabado_saida : null
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            throw new Error(data.error || 'Erro ao salvar escala de retorno de férias.');
+        }
+
+        // Remove este colaborador da fila de pendentes
+        st.pendentes.splice(st.idx, 1);
+        if (st.idx >= st.pendentes.length) st.idx = 0;
+
+        // Atualizar caches e telas de Agenda RH, Agenda Logística e APP Liderança
+        if (typeof window.loadColaboradores === 'function') window.loadColaboradores();
+        if (typeof window._refreshAppLiderancaViews === 'function') window._refreshAppLiderancaViews();
+        if (typeof window.renderRhAgenda === 'function' && document.getElementById('rh-agenda-container')) {
+            try { window.renderRhAgenda(); } catch (_) {}
+        }
+
+        const el = document.getElementById('modal-retorno-ferias-escala');
+        if (el) el.remove();
+
+        if (st.pendentes.length > 0) {
+            window._abrirModalRetornoFeriasEscala();
+        } else if (st.lockTimer) {
+            clearInterval(st.lockTimer);
+            st.lockTimer = null;
+        }
+    } catch (e) {
+        showErr(e.message || 'Falha ao salvar.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+};
+
+// Verificação periódica a cada 60 segundos para detectar retornos de férias automaticamente
+setInterval(() => {
+    if (typeof window.verificarRetornoFeriasEscala === 'function') {
+        window.verificarRetornoFeriasEscala();
+    }
+}, 60000);

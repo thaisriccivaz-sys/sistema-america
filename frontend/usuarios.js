@@ -17,6 +17,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
     { modulo: 'Diretoria', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
+    { modulo: 'RH', pagina_id: 'rh-agenda-gestor-escala', pagina_nome: 'Agenda RH - Gestor de escala', icone: 'ph-calendar-check' },
     { modulo: 'RH', pagina_id: 'recibos',                pagina_nome: 'Recibos', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
     { modulo: 'RH', pagina_id: 'rh-academia',          pagina_nome: 'Academia', icone: 'ph-barbell' },

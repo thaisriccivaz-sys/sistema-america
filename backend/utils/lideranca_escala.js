@@ -15,9 +15,9 @@ const DIA_MAP = {
     sab: 6, sabado: 6
 };
 
-// Os 2 líderes do turno Diurno por padrão (Vitor e Ana Paula são do Noturno)
+// Os 2 líderes do turno Diurno por padrão (Vitor Leandro e Ana Paula são do Noturno)
 const NOMES_DIURNO_PADRAO = ['eduardo', 'vivian'];
-const NOMES_NOTURNO_PADRAO = ['vitor', 'ana paula'];
+const NOMES_NOTURNO_PADRAO = ['vitor leandro', 'ana paula'];
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 const normLow = s => norm(s).toLowerCase().replace(/\s+/g, ' ');
@@ -106,8 +106,9 @@ function colabDeFolgaNormal(c, dateStr) {
         explicitas = String(c.escala_folgas || '').split(/[,;]+/).map(f => normLow(f)).filter(Boolean);
     }
     const folgasDow = explicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
-    const temCiclo = !!c.escala_ciclo_inicio && escalaStr.includes('folga');
-    const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
+    const cicloIso = isoDate(c.escala_ciclo_inicio);
+    const temCiclo = !!cicloIso && escalaStr.includes('folga');
+    const cicloBase = temCiclo ? new Date(cicloIso + 'T12:00:00') : null;
     const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
     const dayMs = 1000 * 60 * 60 * 24;
 
@@ -124,10 +125,10 @@ function colabDeFolgaNormal(c, dateStr) {
     const d = new Date(dateStr + 'T12:00:00');
     const dow = d.getDay();
     if (escalaStr.includes('12x36')) {
-        if (!c.escala_ciclo_inicio) return false;
-        const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
-        if (diff < 0) return false;
-        return Math.round(diff / dayMs) % 2 === 1;
+        if (!cicloIso) return false;
+        const diffDays = Math.round((d - new Date(cicloIso + 'T12:00:00')) / dayMs);
+        // Par (0, ±2, ±4...) = trabalha; Ímpar (±1, ±3...) = folga (vale para datas antes e depois da referência)
+        return ((diffDays % 2) + 2) % 2 === 1;
     }
     if (dow === 0 && isDomingoDeLei(dateStr)) return true;
     if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
@@ -140,10 +141,9 @@ function colabDeFolgaNormal(c, dateStr) {
     }
     if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
         if (dow === 0) return true;
-        if (dow === 6 && c.escala_ciclo_inicio) {
-            const diff = d - new Date(c.escala_ciclo_inicio + 'T12:00:00');
-            if (diff < 0) return false;
-            return Math.round(diff / (dayMs * 7)) % 2 === 1;
+        if (dow === 6 && cicloIso) {
+            const diffWeeks = Math.round((d - new Date(cicloIso + 'T12:00:00')) / (dayMs * 7));
+            return ((diffWeeks % 2) + 2) % 2 === 1;
         }
         return false;
     }
@@ -152,23 +152,23 @@ function colabDeFolgaNormal(c, dateStr) {
     return dow === 0;
 }
 
-// Verifica se um colaborador pertence aos 4 líderes operacionais (excluindo Joaquim Santana)
+// Verifica se um colaborador pertence aos 4 líderes operacionais
+// (Vivian Regina, Eduardo Assis, Vitor Leandro e Ana Paula — excluindo Joaquim Santana e Vitor Gabriel)
 function ehLiderOperacional(c) {
     if (!c) return false;
     const nome = normLow(c.nome_completo);
-    if (!nome || nome.includes('joaquim')) return false;
+    if (!nome || nome.includes('joaquim') || nome.includes('vitor gabriel')) return false;
     if (normLow(c.status) === 'desligado') return false;
-    const dep = normLow(c.departamento);
-    if (dep.includes('lider')) return true;
-    // Fallback pelos 4 nomes conhecidos caso o departamento esteja grafado diferente
     if (
         nome.startsWith('vivian ') ||
         nome.startsWith('eduardo ') ||
-        nome.startsWith('vitor ') ||
+        nome.startsWith('vitor leandro') ||
         nome.startsWith('ana paula ')
     ) {
         return true;
     }
+    const dep = normLow(c.departamento);
+    if (dep.includes('lider')) return true;
     return false;
 }
 
@@ -230,13 +230,13 @@ function calcularTurnoComRegraFerias(listaLideresTurno, iso) {
     };
 }
 
-// Sincroniza os 4 líderes operacionais na tabela `app_lider_config` (removendo Joaquim Santana)
+// Sincroniza os 4 líderes operacionais na tabela `app_lider_config` (removendo Joaquim Santana e Vitor Gabriel)
 async function sincronizarLideresPadrao(dbOrDbAll, dbRunOpt) {
     try {
         const { dbAll, dbGet, dbRun } = _wrapDb(dbOrDbAll, dbRunOpt);
         if (dbRun) {
             try {
-                await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%')`);
+                await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%' OR LOWER(nome_completo) LIKE '%vitor gabriel%')`);
             } catch (_) { /* ignora */ }
         }
         const colabs = await dbAll(`SELECT id, nome_completo, departamento, cargo, status, escala_tipo FROM colaboradores WHERE COALESCE(LOWER(TRIM(status)), '') != 'desligado'`);
@@ -265,7 +265,7 @@ async function carregarLideresBase(dbOrDbAll, dbRunOpt) {
     const { dbAll, dbRun } = _wrapDb(dbOrDbAll, dbRunOpt);
     if (dbRun) {
         try {
-            await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%')`);
+            await dbRun(`DELETE FROM app_lider_config WHERE colaborador_id IN (SELECT id FROM colaboradores WHERE LOWER(nome_completo) LIKE '%joaquim%' OR LOWER(nome_completo) LIKE '%vitor gabriel%')`);
         } catch (_) { /* ignora */ }
     }
     const rows = await dbAll(`

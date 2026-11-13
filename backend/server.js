@@ -6281,6 +6281,28 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         db.run(query, values, async function (updateErr) {
             if (updateErr) return res.status(400).json({ error: updateErr.message });
 
+            // Se a Data Fim das férias foi alterada no cadastro, limpar confirmação anterior para disparar o popup no retorno
+            try {
+                const normIsoF = (s) => {
+                    const str = String(s || '').trim();
+                    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+                    const mBr = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+                    if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+                    return '';
+                };
+                const oldF1 = normIsoF(oldColab.ferias_programadas_fim);
+                const newF1 = data.ferias_programadas_fim !== undefined ? normIsoF(data.ferias_programadas_fim) : oldF1;
+                if (newF1 && newF1 !== oldF1) {
+                    db.run('DELETE FROM ferias_retorno_escala_confirmacoes WHERE colaborador_id = ? AND data_fim = ?', [id, newF1], () => {});
+                }
+                const oldF2 = normIsoF(oldColab.ferias_fracionadas_fim2);
+                const newF2 = data.ferias_fracionadas_fim2 !== undefined ? normIsoF(data.ferias_fracionadas_fim2) : oldF2;
+                if (newF2 && newF2 !== oldF2) {
+                    db.run('DELETE FROM ferias_retorno_escala_confirmacoes WHERE colaborador_id = ? AND data_fim = ?', [id, newF2], () => {});
+                }
+            } catch (_) {}
+
             const newDir = path.join(BASE_PATH, newSafeName);
 
             if (oldSafeName !== newSafeName) {
@@ -32036,13 +32058,13 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     // ?????? 12x36: ciclo alternado (dia trabalha / dia folga) ??????????????????????????????
                     if (escalaStr.includes('12x36')) {
                         if (c.escala_ciclo_inicio) {
-                            const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
-                            const diffMs = d - ciclo12;
-                            if (diffMs < 0) return false; // antes do início do ciclo: disponºvel
-                            const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
-                            return diffDias % 2 === 1; // par = trabalha, ímpar = folga (36h)
+                            const rawCiclo = String(c.escala_ciclo_inicio).trim();
+                            const isoCiclo = rawCiclo.includes('/') ? rawCiclo.split('/').reverse().join('-') : rawCiclo;
+                            const ciclo12 = new Date(isoCiclo + 'T12:00:00');
+                            const diffDias = Math.round((d - ciclo12) / (1000 * 60 * 60 * 24));
+                            return ((diffDias % 2) + 2) % 2 === 1; // par = trabalha, ímpar = folga (36h)
                         }
-                        return false; // sem data de refer??ncia: sempre disponºvel
+                        return false;
                     }
 
                     // ?????? Verificar Domingo de Lei ?????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -32073,13 +32095,12 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
                         if (dow === 0) return true; // domingo à folga fixa
                         if (dow === 6 && c.escala_ciclo_inicio) {
-                            // Contar quantos sábados desde o sábado de refer??ncia
-                            const sabRef = new Date(c.escala_ciclo_inicio + 'T12:00:00');
+                            const rawCiclo = String(c.escala_ciclo_inicio).trim();
+                            const isoCiclo = rawCiclo.includes('/') ? rawCiclo.split('/').reverse().join('-') : rawCiclo;
+                            const sabRef = new Date(isoCiclo + 'T12:00:00');
                             const d = new Date(dateStr + 'T12:00:00');
-                            const diffMs = d - sabRef;
-                            if (diffMs < 0) return false; // antes da refer??ncia
-                            const diffSemanas = Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
-                            return diffSemanas % 2 === 1; // 0=trabalha, 1=folga, 2=trabalha...
+                            const diffSemanas = Math.round((d - sabRef) / (1000 * 60 * 60 * 24 * 7));
+                            return ((diffSemanas % 2) + 2) % 2 === 1;
                         }
                         return false; // dias de semana: nunca folga por esta regra
                     }
@@ -32248,7 +32269,8 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
                 };
                 const getF = (ds) => {
                     const dd = new Date(ds+'T12:00:00'); const dow = dd.getDay();
-                    if (escStr.includes('12x36')) { if (c.escala_ciclo_inicio) { const c12=new Date(c.escala_ciclo_inicio+'T12:00:00'); const dif=Math.round((dd-c12)/86400000); if(dif<0)return false; return dif%2===1; } return false; }
+                    if (escStr.includes('12x36')) { if (c.escala_ciclo_inicio) { const rc=String(c.escala_ciclo_inicio).trim(); const ic=rc.includes('/')?rc.split('/').reverse().join('-'):rc; const c12=new Date(ic+'T12:00:00'); const dif=Math.round((dd-c12)/86400000); return ((dif%2)+2)%2===1; } return false; }
+                    if (escStr.includes('sab_alternado')||escStr.includes('sabado_alternado')) { if (dow===0) return true; if (dow===6 && c.escala_ciclo_inicio) { const rc=String(c.escala_ciclo_inicio).trim(); const ic=rc.includes('/')?rc.split('/').reverse().join('-'):rc; const sRef=new Date(ic+'T12:00:00'); const difSem=Math.round((dd-sRef)/(86400000*7)); return ((difSem%2)+2)%2===1; } return false; }
                     if (dow===0 && isDDL(ds)) return true;
                     if (ult!==null && dow===ult) { const sun=new Date(ds+'T12:00:00'); sun.setDate(sun.getDate()-dow); if(isDDL(sun.toISOString().split('T')[0])) return false; }
                     if (escStr.includes('escala_uma_folga')||escStr.includes('escala_duas_folgas')) { if(fDow.length>0) return fDow.includes(dow); }
@@ -32318,11 +32340,11 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
 
         if (escalaStr.includes('12x36')) {
             if (c.escala_ciclo_inicio) {
-                const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
-                const diffMs = d - ciclo12;
-                if (diffMs < 0) return false;
-                const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
-                return diffDias % 2 === 1;
+                const rawCiclo = String(c.escala_ciclo_inicio).trim();
+                const isoCiclo = rawCiclo.includes('/') ? rawCiclo.split('/').reverse().join('-') : rawCiclo;
+                const ciclo12 = new Date(isoCiclo + 'T12:00:00');
+                const diffDias = Math.round((d - ciclo12) / (1000 * 60 * 60 * 24));
+                return ((diffDias % 2) + 2) % 2 === 1;
             }
             return false;
         }
@@ -53231,4 +53253,274 @@ db.run("ALTER TABLE licencas ADD COLUMN r2_key TEXT", (err) => { if (err && !err
 // [FIX] Migracao de correcao para adicionar coluna documento_url
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_url TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION documento_url]', err.message);
+});
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RETORNO DE FÉRIAS — ATUALIZAÇÃO OBRIGATÓRIA DE ESCALA E HORÁRIOS (GESTOR DE ESCALA)
+// Departamentos/Cargos monitorados: Liderança, Motoristas, Ajudante de Pátio / Ajudante Geral
+// ═══════════════════════════════════════════════════════════════════════════════
+db.run(`CREATE TABLE IF NOT EXISTS ferias_retorno_escala_confirmacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL,
+    data_fim TEXT NOT NULL,
+    usuario_id INTEGER,
+    usuario_nome TEXT,
+    confirmado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(colaborador_id, data_fim)
+)`, (errTbl) => {
+    if (errTbl) return console.error('[FERIAS-RETORNO] Erro ao criar tabela:', errTbl.message);
+
+    // Seed inicial único: marcar férias antigas já encerradas antes da implantação para não travar com dados históricos de meses atrás
+    db.get("SELECT valor FROM configuracoes_sistema WHERE chave = 'ferias_retorno_seed_v1'", [], (errCfg, rowCfg) => {
+        if (errCfg || rowCfg) return;
+        const hojeIsoSeed = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+        const toIso = (s) => {
+            const str = String(s || '').trim();
+            const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+            const mBr = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+            if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+            return null;
+        };
+        db.all(`SELECT id, status, ferias_programadas_fim, ferias_fracionadas, ferias_fracionadas_tipo, ferias_fracionadas_fim2 FROM colaboradores`, [], (errC, rowsC) => {
+            if (!errC && Array.isArray(rowsC)) {
+                rowsC.forEach(c => {
+                    const st = String(c.status || '').trim().toLowerCase();
+                    if (st === 'férias' || st === 'ferias') return; // quem ainda está com status Férias não entra no seed
+                    const f1 = toIso(c.ferias_programadas_fim);
+                    if (f1 && f1 < hojeIsoSeed) {
+                        db.run(`INSERT OR IGNORE INTO ferias_retorno_escala_confirmacoes (colaborador_id, data_fim, usuario_nome) VALUES (?, ?, 'SEED_HISTORICO')`, [c.id, f1]);
+                    }
+                    const f2 = (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada') ? toIso(c.ferias_fracionadas_fim2) : null;
+                    if (f2 && f2 < hojeIsoSeed) {
+                        db.run(`INSERT OR IGNORE INTO ferias_retorno_escala_confirmacoes (colaborador_id, data_fim, usuario_nome) VALUES (?, ?, 'SEED_HISTORICO')`, [c.id, f2]);
+                    }
+                });
+            }
+            db.run("INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('ferias_retorno_seed_v1', ?)", [hojeIsoSeed], () => {});
+        });
+    });
+});
+
+function _ehColabMonitoradoRetornoFerias(c) {
+    if (!c) return false;
+    const normStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const st = normStr(c.status);
+    if (st === 'desligado') return false;
+    const dep = normStr(c.departamento);
+    const cargo = normStr(c.cargo);
+    const combined = dep + ' ' + cargo;
+    if (
+        combined.includes('lider') ||
+        combined.includes('motorista') ||
+        combined.includes('ajudante') ||
+        combined.includes('patio')
+    ) {
+        return true;
+    }
+    return false;
+}
+
+function _parseIsoDateFerias(s) {
+    const str = String(s || '').trim();
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    const mBr = str.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+    if (mBr) return `${mBr[3]}-${mBr[2]}-${mBr[1]}`;
+    return null;
+}
+
+app.get('/api/rh/ferias-retorno-pendentes', authenticateToken, (req, res) => {
+    const uid = req.user && req.user.id;
+    if (!uid) return res.json({ exibir: false, pode_fechar: true, pendentes: [] });
+
+    db.get('SELECT id, username, nome, role, departamento, grupo_permissao_id FROM usuarios WHERE id = ?', [uid], (errU, userRow) => {
+        if (errU || !userRow) return res.json({ exibir: false, pode_fechar: true, pendentes: [] });
+
+        const normStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const uname = normStr(userRow.username);
+        const unome = normStr(userRow.nome);
+        const isThais = (uname === 'thais.ricci' || unome.startsWith('thais ricci'));
+
+        const verificarPermissaoGestor = (cb) => {
+            if (!userRow.grupo_permissao_id) return cb(false);
+            db.get(
+                "SELECT visualizar FROM permissoes_modulo WHERE grupo_id = ? AND pagina_id = 'rh-agenda-gestor-escala'",
+                [userRow.grupo_permissao_id],
+                (errP, permRow) => {
+                    if (errP || !permRow) return cb(false);
+                    const v = permRow.visualizar;
+                    cb(v === 1 || v === '1' || v === true || v === 'true');
+                }
+            );
+        };
+
+        verificarPermissaoGestor((isGestorEscala) => {
+            if (!isThais && !isGestorEscala) {
+                return res.json({ exibir: false, pode_fechar: true, pendentes: [] });
+            }
+
+            // Para thais.ricci é possível fechar no X sem preencher; para o usuário com Agenda RH - Gestor de escala não pode fechar sem preencher
+            const podeFechar = isThais ? true : false;
+            const hojeIso = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+
+            db.all(`SELECT colaborador_id, data_fim FROM ferias_retorno_escala_confirmacoes`, [], (errConf, confRows) => {
+                const confirmadosSet = new Set((confRows || []).map(r => `${r.colaborador_id}|${r.data_fim}`));
+
+                db.all(`SELECT id, nome_completo, departamento, cargo, status,
+                               escala_tipo, escala_folgas, escala_ciclo_inicio,
+                               horario_entrada, horario_saida, intervalo_entrada, intervalo_saida,
+                               sabado_entrada, sabado_saida,
+                               ferias_programadas_inicio, ferias_programadas_fim,
+                               ferias_fracionadas, ferias_fracionadas_tipo,
+                               ferias_fracionadas_inicio2, ferias_fracionadas_fim2
+                        FROM colaboradores
+                        WHERE COALESCE(LOWER(TRIM(status)), '') != 'desligado'
+                        ORDER BY nome_completo ASC`, [], (errCol, colabs) => {
+                    if (errCol) return res.status(500).json({ error: errCol.message });
+
+                    const pendentes = [];
+                    (colabs || []).forEach(c => {
+                        if (!_ehColabMonitoradoRetornoFerias(c)) return;
+
+                        const candidatosPeriodos = [];
+                        const f1Fim = _parseIsoDateFerias(c.ferias_programadas_fim);
+                        const f1Ini = _parseIsoDateFerias(c.ferias_programadas_inicio);
+                        if (f1Fim) {
+                            candidatosPeriodos.push({ inicio: f1Ini, fim: f1Fim, periodo: 1 });
+                        }
+                        if (c.ferias_fracionadas === 'Sim' && c.ferias_fracionadas_tipo === 'Tirada') {
+                            const f2Fim = _parseIsoDateFerias(c.ferias_fracionadas_fim2);
+                            const f2Ini = _parseIsoDateFerias(c.ferias_fracionadas_inicio2);
+                            if (f2Fim) {
+                                candidatosPeriodos.push({ inicio: f2Ini, fim: f2Fim, periodo: 2 });
+                            }
+                        }
+
+                        // Ordena do mais recente para o mais antigo
+                        candidatosPeriodos.sort((a, b) => b.fim.localeCompare(a.fim));
+
+                        for (const per of candidatosPeriodos) {
+                            if (per.fim <= hojeIso && !confirmadosSet.has(`${c.id}|${per.fim}`)) {
+                                pendentes.push({
+                                    id: c.id,
+                                    nome_completo: c.nome_completo,
+                                    departamento: c.departamento || '',
+                                    cargo: c.cargo || '',
+                                    status: c.status || 'Ativo',
+                                    foto_url: `/api/colaboradores/foto/${c.id}`,
+                                    data_inicio_ferias: per.inicio || '',
+                                    data_fim_ferias: per.fim,
+                                    escala_tipo: c.escala_tipo || '',
+                                    escala_folgas: c.escala_folgas || '[]',
+                                    escala_ciclo_inicio: _parseIsoDateFerias(c.escala_ciclo_inicio) || '',
+                                    horario_entrada: c.horario_entrada || '',
+                                    horario_saida: c.horario_saida || '',
+                                    intervalo_entrada: c.intervalo_entrada || '',
+                                    intervalo_saida: c.intervalo_saida || '',
+                                    sabado_entrada: c.sabado_entrada || '',
+                                    sabado_saida: c.sabado_saida || ''
+                                });
+                                break; // apenas 1 entrada por colaborador por vez
+                            }
+                        }
+                    });
+
+                    res.json({
+                        exibir: pendentes.length > 0,
+                        pode_fechar: podeFechar,
+                        is_thais: isThais,
+                        is_gestor_escala: isGestorEscala,
+                        pendentes
+                    });
+                });
+            });
+        });
+    });
+});
+
+app.post('/api/rh/ferias-retorno-confirmar', authenticateToken, (req, res) => {
+    const {
+        colaborador_id,
+        data_fim_ferias,
+        escala_tipo,
+        escala_folgas,
+        escala_ciclo_inicio,
+        horario_entrada,
+        horario_saida,
+        intervalo_entrada,
+        intervalo_saida,
+        sabado_entrada,
+        sabado_saida
+    } = req.body || {};
+
+    if (!colaborador_id || !data_fim_ferias) {
+        return res.status(400).json({ error: 'colaborador_id e data_fim_ferias são obrigatórios.' });
+    }
+    if (!escala_tipo) {
+        return res.status(400).json({ error: 'Selecione o Padrão de Escala / Frequência.' });
+    }
+
+    const folgasJson = typeof escala_folgas === 'string' ? escala_folgas : JSON.stringify(escala_folgas || []);
+    const usuarioId = (req.user && req.user.id) || null;
+    const usuarioNome = (req.user && (req.user.nome || req.user.username)) || 'Gestor de Escala';
+
+    db.get('SELECT id, status, nome_completo FROM colaboradores WHERE id = ?', [colaborador_id], (errC, colab) => {
+        if (errC || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+        const stAtual = String(colab.status || '').trim().toLowerCase();
+        const novoStatus = (stAtual === 'férias' || stAtual === 'ferias') ? 'Ativo' : colab.status;
+
+        db.run(
+            `UPDATE colaboradores
+             SET escala_tipo = ?,
+                 escala_folgas = ?,
+                 escala_ciclo_inicio = ?,
+                 horario_entrada = ?,
+                 horario_saida = ?,
+                 intervalo_entrada = ?,
+                 intervalo_saida = ?,
+                 sabado_entrada = ?,
+                 sabado_saida = ?,
+                 status = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [
+                escala_tipo,
+                folgasJson,
+                escala_ciclo_inicio || null,
+                horario_entrada || null,
+                horario_saida || null,
+                intervalo_entrada || null,
+                intervalo_saida || null,
+                sabado_entrada || null,
+                sabado_saida || null,
+                novoStatus,
+                colaborador_id
+            ],
+            function (errUp) {
+                if (errUp) return res.status(500).json({ error: errUp.message });
+
+                db.run(
+                    `INSERT OR REPLACE INTO ferias_retorno_escala_confirmacoes (colaborador_id, data_fim, usuario_id, usuario_nome, confirmado_em)
+                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+                    [colaborador_id, data_fim_ferias, usuarioId, usuarioNome],
+                    function (errIns) {
+                        if (errIns) return res.status(500).json({ error: errIns.message });
+
+                        db.run(
+                            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id)
+                             VALUES (?, 'Retorno de Férias - Escala', 'escala_tipo', ?, ?, ?)`,
+                            [usuarioNome, 'Retorno Férias (' + data_fim_ferias + ')', escala_tipo + ' / ' + folgasJson + ' / ' + (escala_ciclo_inicio || ''), colaborador_id],
+                            () => {}
+                        );
+
+                        res.json({ success: true, colaborador_id, data_fim_ferias });
+                    }
+                );
+            }
+        );
+    });
 });
