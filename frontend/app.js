@@ -5005,11 +5005,11 @@ window.resetFormColaborador = function () {
     const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
     if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
 
-    if (stateNew) stateNew.style.display = 'none';
-    if (stateUploadable) stateUploadable.style.display = 'block';
-    if (stateSaved) stateSaved.style.display = 'flex';
+    if (stateNew) stateNew.style.display = 'flex';
+    if (stateUploadable) stateUploadable.style.display = 'none';
+    if (stateSaved) stateSaved.style.display = 'none';
     if (fotoPreview) { fotoPreview.style.display = 'none'; fotoPreview.src = ''; }
-    if (fotoInput) { fotoInput.disabled = false; fotoInput.value = ''; fotoInput._uploadedForColabId = null; fotoInput._iaBase64 = null; }
+    if (fotoInput) fotoInput.disabled = true;
 
     checkQuickDocsState();
     const errorCpf = document.getElementById('cpf-error');
@@ -5443,7 +5443,7 @@ window.editColaborador = async function (id) {
 
         if (stateNew) stateNew.style.display = 'none';
         if (stateUploadable) stateUploadable.style.display = 'block';
-        if (fotoInput) { fotoInput.disabled = false; fotoInput.value = ''; fotoInput._uploadedForColabId = null; fotoInput._iaBase64 = null; }
+        if (fotoInput) fotoInput.disabled = false;
 
         if (c.foto_base64) {
             if (stateSaved) stateSaved.style.display = 'none';
@@ -5858,25 +5858,19 @@ if (formColab) {
                 });
                 const dataSync = await syncRes.json();
                 
-                // Upload da foto caso tenha sido selecionada no input (e ainda não enviada no preview para este ID)
+                // Upload da foto caso tenha sido selecionada no input
                 const fotoInput = document.getElementById('colab-foto-input');
-                if (fotoInput && fotoInput._iaUploadPromise) {
-                    try { await fotoInput._iaUploadPromise; } catch (_) {}
-                }
-                if (fotoInput && fotoInput.files && fotoInput.files[0] && String(fotoInput._uploadedForColabId || '') !== String(colabId)) {
-                    if (submitter) submitter.innerHTML = '<i class="ph ph-sparkle ph-spin"></i> Padronizando foto com IA...';
+                if (fotoInput && fotoInput.files && fotoInput.files[0]) {
                     const fdFoto = new FormData();
                     fdFoto.append('nome', data.nome_completo);
-                    if (fotoInput._iaBase64) fdFoto.append('foto_ia_base64', fotoInput._iaBase64);
                     fdFoto.append('foto', fotoInput.files[0]);
                     await fetch(`${API_URL}/upload-foto/${colabId}`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${currentToken}` },
                         body: fdFoto
                     });
+                    // Limpar input após upload para não reenviar sem necessidade
                     fotoInput.value = '';
-                    fotoInput._uploadedForColabId = String(colabId);
-                    fotoInput._iaBase64 = null;
                 }
                 
                 // Navegação silenciosa — sem alertas de confirmação
@@ -6047,10 +6041,8 @@ window.uploadFotoProntuario = async function (input) {
     const colabId = viewedColaborador.id;
 
     const formData = new FormData();
-    formData.append('nome', viewedColaborador.nome_completo || '');
     formData.append('foto', file);
-
-    if (typeof showToast === 'function') showToast('Padronizando foto corporativa com IA...', 'info');
+    formData.append('nome', viewedColaborador.nome_completo || ''); // Adicionado nome para o backend criar pasta
 
     try {
         const response = await fetch(`${API_URL}/upload-foto/${colabId}`, {
@@ -6060,7 +6052,7 @@ window.uploadFotoProntuario = async function (input) {
         });
 
         if (response.ok) {
-            const respData = await response.json().catch(() => ({}));
+            // Recarregar prontuário para atualizar foto
             const updated = await apiGet(`/colaboradores/${colabId}`);
             if (updated) {
                 viewedColaborador = updated;
@@ -6068,20 +6060,12 @@ window.uploadFotoProntuario = async function (input) {
                 const fotoLink = document.getElementById('prontuario-foto-link');
                 const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
                 if (fotoImg && fotoPlaceholder) {
-                    const newSrc = respData.foto_base64 || `${API_URL}/colaboradores/foto/${updated.id}?t=${Date.now()}`;
+                    const newSrc = `${API_URL}/colaboradores/foto/${updated.id}?t=${Date.now()}`;
                     fotoImg.src = newSrc;
-                    if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${updated.id}?t=${Date.now()}`;
+                    if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${updated.id}`;
                     fotoImg.style.display = 'block';
                     fotoPlaceholder.style.display = 'none';
                 }
-            }
-            await loadDocumentosList();
-            const activeTab = document.querySelector('#tabs-list li.active');
-            if (activeTab && activeTab.dataset.tab === 'Fotos') {
-                window.renderTabContent('Fotos', 'Fotos', true);
-            }
-            if (typeof showToast === 'function') {
-                showToast(respData.ia_aplicada ? 'Foto padronizada com IA e original salva na aba Fotos!' : 'Foto atualizada com sucesso!', 'success');
             }
         } else {
             alert('Erro ao atualizar foto.');
@@ -6735,7 +6719,7 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
     const sortOrder = document.getElementById('doc-sort-select')?.value || 'recent';
 
     // Filtragem e Ordenação dos dados
-    let filteredDocs = currentDocs.filter(d => d.tab_name === tabId || (tabId === 'Fotos' && (d.tab_name === 'Fotos' || d.tab_name === 'FOTO_PERFIL')));
+    let filteredDocs = currentDocs.filter(d => d.tab_name === tabId);
 
     // Filtro de Texto
     if (searchTerm) {
@@ -7772,7 +7756,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
                     ${(() => {
             const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
-            const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && tabId !== 'Fotos' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc && !asoHideSign;
+            const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc && !asoHideSign;
             return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
@@ -7906,7 +7890,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
             <div>
                 <label class="btn btn-primary" style="margin-bottom: 0px; height: 38px; display: flex; align-items: center;">
                     <i class="ph ph-plus"></i> ${btnLabel}
-                    <input type="file" accept="${tabId === 'Fotos' ? 'image/*,.pdf' : '.pdf'}" style="display:none;" onchange="uploadDynamicDocument(this, '${tabId}')">
+                    <input type="file" accept=".pdf" style="display:none;" onchange="uploadDynamicDocument(this, '${tabId}')">
                 </label>
             </div>
         </div>
@@ -9628,11 +9612,8 @@ window.uploadDocument = async function (inputEl, tabId, docType, year = null, mo
     const file = inputEl.files[0];
     if (!file) return;
 
-    const isFotoTab = tabId === 'Fotos' || tabId === 'FOTO_PERFIL';
-    const isImgFile = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(file.name);
-    const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    if (!isPdfFile && !(isFotoTab && isImgFile)) {
-        alert(isFotoTab ? 'Apenas imagens (JPG, PNG, WEBP) ou PDF são permitidos.' : 'Apenas arquivos PDF sao permitidos.');
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Apenas arquivos PDF sao permitidos.');
         inputEl.value = '';
         return;
     }
@@ -9842,22 +9823,11 @@ window.viewDoc = async function (docId) {
             if (modalTitle) modalTitle.textContent = doc?.document_type || doc?.file_name || 'Documento';
             modalBody.innerHTML = '';
 
-            const isImageDoc = doc && /\.(jpg|jpeg|png|webp)$/i.test(doc.file_name || doc.file_path || '');
-            if (isImageDoc) {
-                const imgWrapper = document.createElement('div');
-                imgWrapper.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0f172a;border-radius:8px;overflow:auto;padding:12px;';
-                const imgEl = document.createElement('img');
-                imgEl.src = viewUrl;
-                imgEl.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
-                imgWrapper.appendChild(imgEl);
-                modalBody.appendChild(imgWrapper);
-            } else {
-                // Usar iframe com URL direta (funciona com redirect do Assinafy)
-                const iframe = document.createElement('iframe');
-                iframe.src = viewUrl;
-                iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
-                modalBody.appendChild(iframe);
-            }
+            // Usar iframe com URL direta (funciona com redirect do Assinafy)
+            const iframe = document.createElement('iframe');
+            iframe.src = viewUrl;
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+            modalBody.appendChild(iframe);
 
             const btnDownload = document.getElementById('btn-download-doc');
             if (btnDownload) btnDownload.onclick = () => { window.open(downloadUrl, '_blank'); };
@@ -10044,102 +10014,44 @@ function updateStatusChip(val, forceServico) {
 
 window.previewFoto = function (input) {
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        input._uploadedForColabId = null;
-        input._iaBase64 = null;
-
-        const stateSaved = document.getElementById('photo-state-saved');
-        const preview = document.getElementById('colab-foto-preview');
-        const uploadableLabel = document.getElementById('photo-state-uploadable');
-
         const reader = new FileReader();
         reader.onload = function (e) {
+            const stateSaved = document.getElementById('photo-state-saved');
+            const preview = document.getElementById('colab-foto-preview');
             if (stateSaved) stateSaved.style.display = 'none';
             if (preview) {
-                preview.onload = null;
-                preview.onerror = null;
                 preview.style.display = 'block';
                 preview.src = e.target.result;
             }
-        };
-        reader.readAsDataURL(file);
-
-        // Exibir indicador visual de padronização por IA sobre o círculo da foto
-        let badgeEl = document.getElementById('probation-badge-container');
-        const prevBadgeHtml = badgeEl ? badgeEl.innerHTML : '';
-        if (badgeEl) {
-            badgeEl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 7px;white-space:nowrap;"><i class="ph ph-sparkle ph-spin"></i> IA 3x4...</span>';
         }
-        if (preview) preview.style.opacity = '0.65';
+        reader.readAsDataURL(input.files[0]);
 
-        const colabId = document.getElementById('colab-id') ? document.getElementById('colab-id').value : '';
+        // Auto Upload if ID is present
+        const colabId = document.getElementById('colab-id').value;
         if (colabId) {
-            const nomeColab = (document.getElementById('colab-nome') && document.getElementById('colab-nome').value) || '';
+            const nomeColab = document.getElementById('colab-nome').value;
             const fd = new FormData();
-            fd.append('nome', nomeColab);
-            fd.append('foto', file);
+            fd.append('nome', nomeColab); // Nome deve vir antes do arquivo para o Multer ler primeiro!
+            fd.append('foto', input.files[0]);
 
-            input._iaUploadPromise = fetch(`${API_URL}/upload-foto/${colabId}`, {
+            fetch(`${API_URL}/upload-foto/${colabId}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${currentToken}` },
                 body: fd
             })
                 .then(res => res.json())
                 .then(data => {
-                    if (preview) preview.style.opacity = '1';
-                    if (badgeEl) badgeEl.innerHTML = prevBadgeHtml;
-                    if (data && data.sucesso) {
-                        input._uploadedForColabId = String(colabId);
-                        input._iaBase64 = data.foto_base64 || null;
-                        if (preview) {
-                            preview.onload = null;
-                            preview.onerror = null;
-                            preview.style.display = 'block';
-                            preview.src = data.foto_base64 || `${API_URL}/colaboradores/foto/${colabId}?t=${Date.now()}`;
-                        }
+                    if (data.sucesso) {
+                        // A pré-visualização base64 já está correta no círculo.
+                        // Não substituímos src por URL do servidor (efêmero no Render).
+                        // Apenas garantimos que a foto seja visível após o upload.
+                        const preview = document.getElementById('colab-foto-preview');
+                        const stateSaved = document.getElementById('photo-state-saved');
+                        if (preview) preview.style.display = 'block';
                         if (stateSaved) stateSaved.style.display = 'none';
-                        if (typeof showToast === 'function') {
-                            showToast(data.ia_aplicada ? 'Foto corporativa padronizada com IA!' : 'Foto salva com sucesso!', 'success');
-                        }
                     }
                 })
-                .catch(err => {
-                    if (preview) preview.style.opacity = '1';
-                    if (badgeEl) badgeEl.innerHTML = prevBadgeHtml;
-                    console.error("Erro no auto-upload de foto com IA:", err);
-                });
-        } else {
-            // Novo colaborador (ainda sem ID): padronizar a pré-visualização com IA imediatamente
-            const fd = new FormData();
-            fd.append('foto', file);
-            input._iaUploadPromise = fetch(`${API_URL}/padronizar-foto-ia`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${currentToken}` },
-                body: fd
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (preview) preview.style.opacity = '1';
-                    if (badgeEl) badgeEl.innerHTML = prevBadgeHtml;
-                    if (data && data.sucesso && data.foto_base64) {
-                        input._iaBase64 = data.foto_base64;
-                        if (preview) {
-                            preview.onload = null;
-                            preview.onerror = null;
-                            preview.style.display = 'block';
-                            preview.src = data.foto_base64;
-                        }
-                        if (stateSaved) stateSaved.style.display = 'none';
-                        if (typeof showToast === 'function' && data.ia_aplicada) {
-                            showToast('Foto padronizada com IA (será salva junto ao cadastro)!', 'success');
-                        }
-                    }
-                })
-                .catch(err => {
-                    if (preview) preview.style.opacity = '1';
-                    if (badgeEl) badgeEl.innerHTML = prevBadgeHtml;
-                    console.error("Erro ao pré-padronizar foto com IA:", err);
-                });
+                .catch(err => console.error("Erro no auto-upload de foto:", err));
         }
     }
 }
