@@ -420,7 +420,10 @@
         return '📦';
     }
     function rotuloUnidadeComEmoji(u, tipoServico) {
-        const rot = String((u && u.rotulo) || '').trim();
+        let rot = String((u && u.rotulo) || '').trim();
+        if (/\bGuarita\s+(Obra|Evento)\b/i.test(rot) && !/Individual|Dupla/i.test(rot)) {
+            rot = rot.replace(/\bGuarita\s+(Obra|Evento)\b/i, 'Guarita Individual $1');
+        }
         const em = emojiEquipamento(u, tipoServico);
         if (!em || (rot && rot.startsWith(em))) return rot;
         return em + ' ' + rot;

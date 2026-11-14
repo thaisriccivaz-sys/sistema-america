@@ -1,5 +1,43 @@
 
 // Helper para garantir que não haja duplicação de Motorista/Ajudante e reparar linhas genéricas "AVISO IMPORTANTE!"
+window._rrLimparLinksVideo = function(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/(?:📸\s*)?(?:V[ÍIíi]DEO\s*:\s*)?HTTPS?:\/\/\S+/giu, '')
+        .replace(/\bV[ÍIíi]DEO\s*:\s*/giu, '')
+        .replace(/\s+[—–-]\s*$/g, '')
+        .replace(/^\s*[—–-]\s+/g, '')
+        .trim();
+};
+
+window._rrNormNomeColab = function(s) {
+    return String(s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+};
+
+window._rrResolverFotoColab = function(nome, mapOpcional) {
+    const fMap = mapOpcional || window._rrColabFotoMap || {};
+    if (!nome || !fMap) return null;
+    const rawKey = String(nome).toLowerCase().trim();
+    if (fMap[rawKey]) return fMap[rawKey];
+    const normKey = window._rrNormNomeColab(nome);
+    if (!normKey) return null;
+    if (fMap[normKey]) return fMap[normKey];
+    const qParts = normKey.split(' ').filter(Boolean);
+    for (const [k, url] of Object.entries(fMap)) {
+        const kn = window._rrNormNomeColab(k);
+        if (!kn) continue;
+        if (kn === normKey || kn.startsWith(normKey) || normKey.startsWith(kn)) return url;
+        const kParts = kn.split(' ').filter(Boolean);
+        if (qParts.length >= 2 && qParts.every(p => kParts.includes(p))) return url;
+    }
+    return null;
+};
+
 window._rrObterColBBaseLimpa = function(v) {
     let base = v.colBEditado || window._rrMontarColB(v);
     const suffixMark = '\nMotorista:';
@@ -7,29 +45,75 @@ window._rrObterColBBaseLimpa = function(v) {
     if (suffIdx !== -1) {
         base = base.substring(0, suffIdx);
     }
-    if (base && /\?{2,}\s*ATTEND AMBIENTAL/i.test(base)) {
+    if (!base) return '';
+    if (/\?{2,}\s*ATTEND AMBIENTAL/i.test(base)) {
         base = base.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
     }
-    if (base && (base.includes('AVISO IMPORTANTE!') || base.includes('VERIFICAR DETALHES!')) && v && Array.isArray(v.os) && v.os.length > 0) {
-        const fresh = window._rrMontarColB(v);
-        const freshLines = fresh.split('\n');
-        const repaired = base.split('\n').map(line => {
-            if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;
-            const colonIdx = line.indexOf(':');
-            if (colonIdx === -1) return line;
-            const prefix = line.substring(0, colonIdx).replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim().toUpperCase();
-            if (!prefix) return '';
+    base = base.replace(/\bGUARITA\s+OBRA\b/gi, 'GUARITA INDIVIDUAL OBRA')
+               .replace(/\bGUARITA\s+EVENTO\b/gi, 'GUARITA INDIVIDUAL EVENTO');
+
+    const fresh = (v && Array.isArray(v.os) && v.os.length > 0) ? window._rrMontarColB(v) : '';
+    const freshLines = fresh ? fresh.split('\n') : [];
+
+    const normCli = (str) => String(str || '')
+        .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
+
+    const obsComClienteTextos = [];
+    base.split('\n').forEach(l => {
+        const tr = l.trim();
+        const cIdx = tr.indexOf(':');
+        if (cIdx !== -1 && !tr.endsWith(':')) {
+            const det = tr.substring(cIdx + 1).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+            if (det && det.length >= 8) obsComClienteTextos.push(det);
+        }
+    });
+
+    const linhasProcessadas = base.split('\n').map(line => {
+        const tr = line.trim();
+        if (!tr) return '';
+
+        if (tr.indexOf(':') === -1 && /LIMPA\s+FOSSA/i.test(tr)) {
+            const partesDash = tr.split(/\s+[-–]\s+/);
+            if (partesDash.length > 1) {
+                const detDash = partesDash.slice(1).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+                if (detDash && obsComClienteTextos.some(oc => oc.includes(detDash) || detDash.includes(oc))) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        const temVideo = /V[ÍIíi]DEO\s*:\s*HTTPS?:\/\/|HTTPS?:\/\/[^\s]*FLUXOAR/i.test(tr);
+        const temAviso = tr.includes('AVISO IMPORTANTE!') || tr.includes('VERIFICAR DETALHES!');
+        if (temVideo || temAviso) {
+            const colonIdx = tr.indexOf(':');
+            if (colonIdx === -1) return null;
+            const prefix = normCli(tr.substring(0, colonIdx));
+            if (!prefix) return null;
             const matchFresh = freshLines.find(fl => {
                 const cIdx = fl.indexOf(':');
                 if (cIdx === -1 || fl.trim().endsWith(':')) return false;
-                const flPrefix = fl.substring(0, cIdx).replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim().toUpperCase();
-                return flPrefix === prefix && !fl.includes('AVISO IMPORTANTE!') && !fl.includes('VERIFICAR DETALHES!');
+                return normCli(fl.substring(0, cIdx)) === prefix
+                    && !fl.includes('AVISO IMPORTANTE!')
+                    && !fl.includes('VERIFICAR DETALHES!')
+                    && !/V[ÍIíi]DEO\s*:\s*HTTPS?:\/\/|HTTPS?:\/\/[^\s]*FLUXOAR/i.test(fl);
             });
-            return matchFresh || '';
-        }).filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''));
-        base = repaired.join('\n').replace(/^\n+/, '');
-    }
-    return base;
+            if (matchFresh) return matchFresh;
+            const semVid = window._rrLimparLinksVideo(tr.substring(colonIdx + 1));
+            if (semVid && !temAviso) {
+                return tr.substring(0, colonIdx + 1) + ' ' + semVid;
+            }
+            return null;
+        }
+        return line;
+    }).filter(l => l !== null);
+
+    return linhasProcessadas
+        .filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''))
+        .join('\n')
+        .replace(/^\n+/, '');
 };
 // ══════════════════════════════════════════════════════════════
 //  RESUMO DE ROTA  –  Logística América Rental
@@ -68,6 +152,14 @@ const RR_EQ = {
     'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
     'GUARITA DUPLA O': { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
     'GUARITA DUPLA E': { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
+    'GUARITA INDIVIDUAL OBRA':   { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA INDIVIDUAL EVENTO': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA DUPLA OBRA':        { nome: 'GUARITA DUPLA OBRA',       icon: '⚪' },
+    'GUARITA DUPLA EVENTO':      { nome: 'GUARITA DUPLA EVENTO',     icon: '⚪' },
+    'GUARITA OBRA':              { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA EVENTO':            { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA O':                 { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA E':                 { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
     'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
     'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
     'CARRINHO':       { nome: 'CARRINHO',        icon: '🛞' },
@@ -143,30 +235,34 @@ function _rrEhApenasTipoServico(str) {
         .replace(/[.,;:!?-]+$/g, '')
         .trim();
     if (!nucleo) return false;
-    return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nucleo);
+    return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO|\d+\s*M[3³]?))*$/.test(nucleo);
 }
 
-function _rrExtrairObsValida(obsMotorista, obsInternas, servico) {
-    const limparCandidata = (raw) => {
+function _rrExtrairObsValida(obsMotorista, obsInternas, servico, allowServiceName = false) {
+    const limparCandidata = (raw, allowServ) => {
         if (!raw) return '';
-        let s = String(raw)
-            .replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '')
+        let s = window._rrLimparLinksVideo(raw)
             .replace(/^[,\s]+|[,\s]+$/g, '')
             .trim();
+        if (!s || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(s)) return '';
         s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
         if (!s) return '';
-        if (_rrEhApenasTipoServico(s)) return '';
         const sNorm = s.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
         const servNorm = String(servico || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
-        if (servNorm && sNorm === servNorm) return '';
+        if (!allowServ) {
+            if (_rrEhApenasTipoServico(s)) return '';
+            if (servNorm && sNorm === servNorm) return '';
+        } else {
+            if (servNorm && sNorm === servNorm) return '';
+        }
         return s;
     };
-    const c1 = limparCandidata(obsMotorista);
+    const c1 = limparCandidata(obsMotorista, allowServiceName);
     if (c1) return c1;
-    const c2 = limparCandidata(obsInternas);
+    const c2 = limparCandidata(obsInternas, allowServiceName);
     if (c2) return c2;
     if (servico && /\s[-–]\s/.test(String(servico))) {
-        const c3 = limparCandidata(String(servico).split(/\s[-–]\s/).slice(1).join(' - '), '');
+        const c3 = limparCandidata(String(servico).split(/\s[-–]\s/).slice(1).join(' - '), false);
         if (c3) return c3;
     }
     return '';
@@ -249,8 +345,14 @@ function _rrParseNotas(notas) {
             continue;
         }
 
+        // Ignorar links de vídeo no resumo do veículo
+        const linhaSemVideo = window._rrLimparLinksVideo(linha);
+        if (!linhaSemVideo) {
+            continue;
+        }
+
         // Resto é observação livre
-        obsParts.push(linha);
+        obsParts.push(linhaSemVideo);
     }
 
     return {
@@ -388,8 +490,13 @@ function _rrMontarColB(v) {
     // 6. OUTROS
     const outros = v.os.filter(o => o.tipo === 'OUTROS');
     if (outros.length) {
-        outros.forEach(o => lines.push(o.servico.toUpperCase()));
-        lines.push('');
+        outros.forEach(o => {
+            const srvClean = String(o.servico || '').split(/\s+[-–]\s+/)[0].trim().toUpperCase();
+            if (srvClean && !/LIMPA\s+FOSSA/i.test(srvClean)) {
+                lines.push(srvClean);
+            }
+        });
+        if (lines[lines.length - 1] !== '') lines.push('');
     }
 
     // 7. COMPRAS
@@ -663,9 +770,8 @@ window.rrCarregarHistorico = async function(id) {
         _rrVeiculos.forEach(v => {
             v._dispMotorista = null;
             v._dispAjudante = null;
-            const fMap = window._rrColabFotoMap || {};
-            v._fotoMotorista = fMap[(v.motorista || "").toLowerCase().trim()] || null;
-            v._fotoAjudante  = fMap[(v.ajudante  || "").toLowerCase().trim()] || null;
+            v._fotoMotorista = window._rrResolverFotoColab(v.motorista);
+            v._fotoAjudante  = window._rrResolverFotoColab(v.ajudante);
         });
 
         // Tenta extrair a data do nome (formato "DD-MM-YYYY ...") para re-consultar disponibilidade
@@ -1030,7 +1136,12 @@ window.rrImportarPlanilha = async function(input) {
             window._rrColabHabsMap = window._rrColabHabsMap || {}; // nome_lower → habilidades_equipe[]
             list.forEach(c => {
                 const nomeKey = (c.nome_completo || '').toLowerCase().trim();
+                const nomeNorm = window._rrNormNomeColab(c.nome_completo);
                 fotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
+                if (nomeNorm) fotoMap[nomeNorm] = `/api/colaboradores/foto/${c.id}`;
+                window._rrColabFotoMap = window._rrColabFotoMap || {};
+                window._rrColabFotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
+                if (nomeNorm) window._rrColabFotoMap[nomeNorm] = `/api/colaboradores/foto/${c.id}`;
                 // Mapa de avaliadores: nome_lower → true/false (para filtrar dropdown de candidatos)
                 if ((c.departamento || '').toLowerCase().includes('motorista')) {
                     window._rrColabAvaliadorMap = window._rrColabAvaliadorMap || {};
@@ -1074,7 +1185,7 @@ window.rrImportarPlanilha = async function(input) {
                     if (!osListByCliente[cliNorm]) osListByCliente[cliNorm] = [];
                     osListByCliente[cliNorm].push(os);
                 }
-                const obsValida = _rrExtrairObsValida(os.observacoes, os.observacoes_internas, os.tipo_servico);
+                const obsValida = _rrExtrairObsValida(os.observacoes, os.observacoes_internas, os.tipo_servico, true);
                 if (os.numero_os && obsValida && !osObsMap[key]) {
                     osObsMap[key] = obsValida;
                 }
@@ -1149,13 +1260,14 @@ window.rrImportarPlanilha = async function(input) {
                     const chosenMeta = dbList.find(matchByTipo) || (dbList.length === 1 ? dbList[0] : null);
                     if (chosenMeta) matchedKey = numKey + '___' + window._rrCleanTs(chosenMeta.tipo_servico);
                 }
+                if (os.obs) os.obs = window._rrLimparLinksVideo(os.obs);
                 if (osObsMap[matchedKey]) {
                     os.obs = osObsMap[matchedKey];
-                } else if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico)) {
-                    const withObs = dbList.find(r => matchByTipo(r) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico))
-                        || dbList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico));
+                } else if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico, false)) {
+                    const withObs = dbList.find(r => matchByTipo(r) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true))
+                        || dbList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true));
                     if (withObs) {
-                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico);
+                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico, true);
                         os.observacoes_internas = withObs.observacoes_internas || '';
                     }
                 }
@@ -1171,14 +1283,14 @@ window.rrImportarPlanilha = async function(input) {
             }
 
             // Fallback por nome do cliente se ainda estiver sem observação válida
-            if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico)) {
+            if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico, false)) {
                 const cliNorm = String(os.cliente || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
                 const cliList = cliNorm ? osListByCliente[cliNorm] : null;
                 if (cliList && cliList.length) {
-                    const withObs = cliList.find(r => (!_rrDataRota || !r.data_os || String(r.data_os).slice(0, 10) === _rrDataRota) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico))
-                        || cliList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico));
+                    const withObs = cliList.find(r => (!_rrDataRota || !r.data_os || String(r.data_os).slice(0, 10) === _rrDataRota) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true))
+                        || cliList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true));
                     if (withObs) {
-                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico);
+                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico, true);
                         os.observacoes_internas = withObs.observacoes_internas || '';
                     }
                 }
@@ -1189,8 +1301,8 @@ window.rrImportarPlanilha = async function(input) {
     // Salvar foto e capacidade nos objetos de veículo
     _rrVeiculos.forEach(v => {
         // Fotos dos tripulantes
-        v._fotoMotorista = fotoMap[(v.motorista || '').toLowerCase().trim()] || null;
-        v._fotoAjudante  = fotoMap[(v.ajudante  || '').toLowerCase().trim()] || null;
+        v._fotoMotorista = window._rrResolverFotoColab(v.motorista, fotoMap);
+        v._fotoAjudante  = window._rrResolverFotoColab(v.ajudante, fotoMap);
 
         // Capacidade e Manutenção
         const placaNorm = (v.veiculo || '').split(' ')[0].replace(/[-\s]/g, '').toUpperCase();
@@ -1407,6 +1519,8 @@ function _rrRenderCorpo() {
                 onchange="window._rrAtualizarVeiculo(${i},'${campo}',this.value)"
                 title="Editar ${placeholder}">`;
 
+        if (!v._fotoMotorista && v.motorista) v._fotoMotorista = window._rrResolverFotoColab(v.motorista);
+        if (!v._fotoAjudante && v.ajudante) v._fotoAjudante = window._rrResolverFotoColab(v.ajudante);
         const fotosMot = `<div style="display:flex;align-items:center;gap:6px;" title="Motorista">
             <span id="rr-avatar-mot-${i}">${_avatarMot(v._fotoMotorista, v.motorista)}</span>
             ${_inp('motorista', v.motorista, 'Motorista...')}</div>`;
@@ -2090,12 +2204,8 @@ window._rrAtualizarVeiculo = function(idx, campo, valor) {
         const spanId  = campo === 'motorista' ? `rr-avatar-mot-${idx}` : `rr-avatar-aju-${idx}`;
         const nomeLower = (valor || '').trim().toLowerCase();
         
-        // Atualiza a foto se houver correspondência exata no datalist
-        if (window._rrColabFotoMap && window._rrColabFotoMap[nomeLower]) {
-            _rrVeiculos[idx][fotoKey] = window._rrColabFotoMap[nomeLower];
-        } else {
-            _rrVeiculos[idx][fotoKey] = null; // Remove foto se apagou ou não achou
-        }
+        // Atualiza a foto (suporta correspondência com ou sem acento)
+        _rrVeiculos[idx][fotoKey] = window._rrResolverFotoColab(valor);
 
         // Atualiza o DOM do avatar diretamente (preserva foco/tab)
         const spanEl = document.getElementById(spanId);
@@ -2164,14 +2274,27 @@ window._rrCarregarDicionarioColaboradores = async function() {
             if (nome) {
                 window._rrColabNomes.push(nome);
                 const nomeKey = nome.toLowerCase();
+                const nomeNorm = window._rrNormNomeColab(nome);
                 window._rrColabFotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
+                if (nomeNorm) window._rrColabFotoMap[nomeNorm] = `/api/colaboradores/foto/${c.id}`;
                 // Registra motoristas avaliadores para filtro do dropdown de candidatos
                 if ((c.departamento || '').toLowerCase().includes('motorista')) {
                     window._rrColabAvaliadorMap[nomeKey] = (c.motorista_avaliador || 'Não') === 'Sim';
+                    if (nomeNorm) window._rrColabAvaliadorMap[nomeNorm] = (c.motorista_avaliador || 'Não') === 'Sim';
                 }
             }
         });
         window._rrAtualizarDatalistColabs();
+        if (typeof _rrVeiculos !== 'undefined' && Array.isArray(_rrVeiculos) && _rrVeiculos.length > 0) {
+            let atualizouAlgumaFoto = false;
+            _rrVeiculos.forEach(v => {
+                const fMot = window._rrResolverFotoColab(v.motorista);
+                const fAju = window._rrResolverFotoColab(v.ajudante);
+                if (fMot && v._fotoMotorista !== fMot) { v._fotoMotorista = fMot; atualizouAlgumaFoto = true; }
+                if (fAju && v._fotoAjudante !== fAju) { v._fotoAjudante = fAju; atualizouAlgumaFoto = true; }
+            });
+            if (atualizouAlgumaFoto && typeof _rrRenderCorpo === 'function') _rrRenderCorpo();
+        }
     } catch(e) {
         console.error('[RR] Erro ao carregar dicionário de colaboradores globais', e);
     }
@@ -2442,10 +2565,9 @@ async function _rrGerarImagensRota() {
     // ── Pre-carregar fotos via fetch + auth ─────────────────────
     // Re-aplica mapa de fotos antes de gerar (garante fotos carregadas do historico)
     {
-        const fMap = window._rrColabFotoMap || {};
         _rrVeiculos.forEach(v => {
-            if (!v._fotoMotorista) v._fotoMotorista = fMap[(v.motorista || '').toLowerCase().trim()] || null;
-            if (!v._fotoAjudante)  v._fotoAjudante  = fMap[(v.ajudante  || '').toLowerCase().trim()] || null;
+            if (!v._fotoMotorista) v._fotoMotorista = window._rrResolverFotoColab(v.motorista);
+            if (!v._fotoAjudante)  v._fotoAjudante  = window._rrResolverFotoColab(v.ajudante);
         });
     }
     const cache = {};

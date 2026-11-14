@@ -783,13 +783,16 @@ async function pipelineExportarExcel(registrosOverride) {
             return t;
         }
 
-        // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente)
-        let obsStr = stripClientPrefix(r.observacoes, r.cliente);
-        let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente);
-        if (/^MANUTEN[CÇ][AÃ]O\s+AVULSA$/i.test(obsStr.trim())) {
-            obsStr = '';
-        }
-        if (!obsStr && obsIntStr && !/^MANUTEN[CÇ][AÃ]O\s+AVULSA$/i.test(obsIntStr.trim())) {
+        // Linha 2: Ícones das variáveis + OBSERVAÇÕES (em maiúscula, sem nome do cliente e sem link de vídeo misturado)
+        let obsStr = stripClientPrefix(r.observacoes, r.cliente)
+            .replace(/(?:📸\s*)?(?:V[ÍIíi]DEO\s*:\s*)?HTTPS?:\/\/\S+/giu, '')
+            .replace(/\bV[ÍIíi]DEO\s*:\s*/giu, '')
+            .trim();
+        let obsIntStr = stripClientPrefix(r.observacoes_internas, r.cliente)
+            .replace(/(?:📸\s*)?(?:V[ÍIíi]DEO\s*:\s*)?HTTPS?:\/\/\S+/giu, '')
+            .replace(/\bV[ÍIíi]DEO\s*:\s*/giu, '')
+            .trim();
+        if (!obsStr && obsIntStr) {
             obsStr = obsIntStr;
         }
         

@@ -5490,7 +5490,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 // GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
 // IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para nao ser capturada como id='resumo'
 app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome_completo, departamento, motorista_avaliador, habilidades_equipe FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+    db.all("/* INCLUIR_SERVICO */ SELECT id, nome_completo, departamento, motorista_avaliador, habilidades_equipe FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -9361,6 +9361,14 @@ const _RR_EQ_BACKEND = {
     'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
     'GUARITA DUPLA O': { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
     'GUARITA DUPLA E': { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
+    'GUARITA INDIVIDUAL OBRA':   { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA INDIVIDUAL EVENTO': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA DUPLA OBRA':        { nome: 'GUARITA DUPLA OBRA',       icon: '⚪' },
+    'GUARITA DUPLA EVENTO':      { nome: 'GUARITA DUPLA EVENTO',     icon: '⚪' },
+    'GUARITA OBRA':              { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA EVENTO':            { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA O':                 { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA E':                 { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
     'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
     'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
     'CARRINHO':       { nome: 'CARRINHO',        icon: '🛞' },

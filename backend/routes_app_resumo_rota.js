@@ -82,6 +82,14 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
         'GUARITA DUPLA O': { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
         'GUARITA DUPLA E': { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
+        'GUARITA INDIVIDUAL OBRA':   { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+        'GUARITA INDIVIDUAL EVENTO': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+        'GUARITA DUPLA OBRA':        { nome: 'GUARITA DUPLA OBRA',       icon: '⚪' },
+        'GUARITA DUPLA EVENTO':      { nome: 'GUARITA DUPLA EVENTO',     icon: '⚪' },
+        'GUARITA OBRA':              { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+        'GUARITA EVENTO':            { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+        'GUARITA O':                 { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+        'GUARITA E':                 { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
         'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
         'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
         'CARRINHO':       { nome: 'CARRINHO',        icon: '🛞' },
@@ -145,6 +153,16 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         '🔛':                      '🔛',
     };
 
+    function limparLinksVideo(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/(?:📸\s*)?(?:V[ÍIíi]DEO\s*:\s*)?HTTPS?:\/\/\S+/giu, '')
+            .replace(/\bV[ÍIíi]DEO\s*:\s*/giu, '')
+            .replace(/\s+[—–-]\s*$/g, '')
+            .replace(/^\s*[—–-]\s+/g, '')
+            .trim();
+    }
+
     function ehApenasTipoServico(str) {
         if (!str) return false;
         const nucleo = norm(str)
@@ -153,30 +171,34 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             .replace(/[.,;:!?-]+$/g, '')
             .trim();
         if (!nucleo) return false;
-        return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nucleo);
+        return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO|\d+\s*M[3³]?))*$/.test(nucleo);
     }
 
-    function extrairObsValida(obsMotorista, obsInternas, servico) {
-        const limpar = (raw) => {
+    function extrairObsValida(obsMotorista, obsInternas, servico, allowServiceName = true) {
+        const limpar = (raw, allowServ) => {
             if (!raw) return '';
-            let s = String(raw)
-                .replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '')
+            let s = limparLinksVideo(raw)
                 .replace(/^[,\s]+|[,\s]+$/g, '')
                 .trim();
+            if (!s || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(s)) return '';
             s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
             if (!s) return '';
-            if (ehApenasTipoServico(s)) return '';
             const sNorm = norm(s).toUpperCase().replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
             const servNorm = norm(servico || '').toUpperCase().replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
-            if (servNorm && sNorm === servNorm) return '';
+            if (!allowServ) {
+                if (ehApenasTipoServico(s)) return '';
+                if (servNorm && sNorm === servNorm) return '';
+            } else {
+                if (servNorm && sNorm === servNorm) return '';
+            }
             return s;
         };
-        const c1 = limpar(obsMotorista);
+        const c1 = limpar(obsMotorista, allowServiceName);
         if (c1) return c1;
-        const c2 = limpar(obsInternas);
+        const c2 = limpar(obsInternas, allowServiceName);
         if (c2) return c2;
         if (servico && /\s[-–]\s/.test(String(servico))) {
-            const c3 = limpar(String(servico).split(/\s[-–]\s/).slice(1).join(' - '));
+            const c3 = limpar(String(servico).split(/\s[-–]\s/).slice(1).join(' - '), false);
             if (c3) return c3;
         }
         return '';
@@ -432,8 +454,15 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
         const outros = (v.os || []).filter(o => o.tipo === 'OUTROS');
         if (outros.length) {
-            outros.forEach(o => lines.push(String(o.servico || '').toUpperCase()));
-            lines.push('');
+            outros.forEach(o => {
+                const srvClean = String(o.servico || '').split(/\s+[-–]\s+/)[0].trim().toUpperCase();
+                if (srvClean && !obsLinhas.some(ol => ol.includes(srvClean))) {
+                    if (!/LIMPA\s+FOSSA/i.test(srvClean)) {
+                        lines.push(srvClean);
+                    }
+                }
+            });
+            if (lines[lines.length - 1] !== '') lines.push('');
         }
 
         const compras = (v.os || []).filter(o => o.tipo === 'COMPRAS');
@@ -456,33 +485,81 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         return s.substring(0, 20).trim();
     }
 
+    function sanitizarColBTexto(base, v) {
+        if (!base) return '';
+        let txt = base;
+        if (/\?{2,}\s*ATTEND AMBIENTAL/i.test(txt)) {
+            txt = txt.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+        }
+        // Padronizar Guarita sem especificação para Guarita Individual
+        txt = txt.replace(/\bGUARITA\s+OBRA\b/gi, 'GUARITA INDIVIDUAL OBRA')
+                 .replace(/\bGUARITA\s+EVENTO\b/gi, 'GUARITA INDIVIDUAL EVENTO');
+
+        const fresh = (v && Array.isArray(v.os) && v.os.length > 0) ? montarColB(v) : '';
+        const freshLines = fresh ? fresh.split('\n') : [];
+
+        const obsComClienteTextos = [];
+        txt.split('\n').forEach(l => {
+            const tr = l.trim();
+            const cIdx = tr.indexOf(':');
+            if (cIdx !== -1 && !tr.endsWith(':')) {
+                const det = norm(tr.substring(cIdx + 1)).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+                if (det && det.length >= 8) obsComClienteTextos.push(det);
+            }
+        });
+
+        const linhasProcessadas = txt.split('\n').map(line => {
+            const tr = line.trim();
+            if (!tr) return '';
+
+            if (tr.indexOf(':') === -1 && /LIMPA\s+FOSSA/i.test(norm(tr))) {
+                const partesDash = tr.split(/\s+[-–]\s+/);
+                if (partesDash.length > 1) {
+                    const detDash = norm(partesDash.slice(1).join(' ')).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+                    if (detDash && obsComClienteTextos.some(oc => oc.includes(detDash) || detDash.includes(oc))) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            const temVideo = /V[ÍIíi]DEO\s*:\s*HTTPS?:\/\/|HTTPS?:\/\/[^\s]*FLUXOAR/i.test(tr);
+            const temAviso = tr.includes('AVISO IMPORTANTE!') || tr.includes('VERIFICAR DETALHES!');
+            if (temVideo || temAviso) {
+                const colonIdx = tr.indexOf(':');
+                if (colonIdx === -1) return null;
+                const prefix = normClienteCurto(tr.substring(0, colonIdx));
+                if (!prefix) return null;
+                const matchFresh = freshLines.find(fl => {
+                    const cIdx = fl.indexOf(':');
+                    if (cIdx === -1 || fl.trim().endsWith(':')) return false;
+                    return normClienteCurto(fl.substring(0, cIdx)) === prefix
+                        && !fl.includes('AVISO IMPORTANTE!')
+                        && !fl.includes('VERIFICAR DETALHES!')
+                        && !/V[ÍIíi]DEO\s*:\s*HTTPS?:\/\/|HTTPS?:\/\/[^\s]*FLUXOAR/i.test(fl);
+                });
+                if (matchFresh) return matchFresh;
+                const semVid = limparLinksVideo(tr.substring(colonIdx + 1));
+                if (semVid && !temAviso) {
+                    return tr.substring(0, colonIdx + 1) + ' ' + semVid;
+                }
+                return null;
+            }
+            return line;
+        }).filter(l => l !== null);
+
+        return linhasProcessadas
+            .filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''))
+            .join('\n')
+            .replace(/^\n+/, '');
+    }
+
     function obterColBBaseLimpa(v) {
         let base = v.colBEditado || montarColB(v);
         const suffixMark = '\nMotorista:';
         const suffIdx = base.indexOf(suffixMark);
         if (suffIdx !== -1) base = base.substring(0, suffIdx);
-        if (base && /\?{2,}\s*ATTEND AMBIENTAL/i.test(base)) {
-            base = base.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
-        }
-        if (base && (base.includes('AVISO IMPORTANTE!') || base.includes('VERIFICAR DETALHES!')) && v && Array.isArray(v.os) && v.os.length > 0) {
-            const fresh = montarColB(v);
-            const freshLines = fresh.split('\n');
-            const repaired = base.split('\n').map(line => {
-                if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;
-                const colonIdx = line.indexOf(':');
-                if (colonIdx === -1) return line;
-                const prefix = normClienteCurto(line.substring(0, colonIdx));
-                if (!prefix) return '';
-                const matchFresh = freshLines.find(fl => {
-                    const cIdx = fl.indexOf(':');
-                    if (cIdx === -1 || fl.trim().endsWith(':')) return false;
-                    return normClienteCurto(fl.substring(0, cIdx)) === prefix && !fl.includes('AVISO IMPORTANTE!') && !fl.includes('VERIFICAR DETALHES!');
-                });
-                return matchFresh || '';
-            }).filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''));
-            base = repaired.join('\n').replace(/^\n+/, '');
-        }
-        return base;
+        return sanitizarColBTexto(base, v);
     }
 
     // ── Migrações ───────────────────────────────────────────────────────────────
@@ -698,7 +775,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     titulo = iconesSaidaFaltando.join(' ') + (titulo ? ' ' + titulo : '');
                 }
 
-                // Se o detalhe estava como "AVISO IMPORTANTE!" ou vazio, buscar obs real da OS ou listar os itens de saída
+                // Limpar qualquer link de vídeo do detalhe e, se ficar vazio ou "AVISO IMPORTANTE!", buscar obs real da OS
+                detalhe = limparLinksVideo(detalhe);
                 if (!detalhe || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(detalhe)) {
                     let obsReal = '';
                     for (const o of osMatchList) {
@@ -1121,9 +1199,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 const cliK = normClienteCurto(o.cliente);
                 const candidatosDb = [...(osPorNumero.get(num) || []), ...(osPorCliente.get(cliK) || [])];
                 if (candidatosDb.length) {
-                    const matchObs = candidatosDb.find(d => extrairObsValida(d.observacoes, d.observacoes_internas, d.tipo_servico));
-                    if (matchObs && !extrairObsValida(o.obs, o.observacoes_internas, o.servico)) {
-                        o.obs = extrairObsValida(matchObs.observacoes, matchObs.observacoes_internas, matchObs.tipo_servico);
+                    if (o.obs) o.obs = limparLinksVideo(o.obs);
+                    const matchObs = candidatosDb.find(d => extrairObsValida(d.observacoes, d.observacoes_internas, d.tipo_servico, true));
+                    if (matchObs && !extrairObsValida(o.obs, o.observacoes_internas, o.servico, false)) {
+                        o.obs = extrairObsValida(matchObs.observacoes, matchObs.observacoes_internas, matchObs.tipo_servico, true);
                         o.observacoes_internas = matchObs.observacoes_internas || '';
                     }
                     const d0 = candidatosDb[0];

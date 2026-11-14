@@ -108,7 +108,7 @@ module.exports = function registerAppRetiradasRoutes(app, db, authenticateToken,
         }
         if (mod === 'GUARITA' || /GUARITA/.test(d)) {
             if (/DUPLA/.test(d)) return { emoji: '⚪', nome: `Guarita Dupla ${sufixo}` };
-            return { emoji: '⬜', nome: `Guarita ${sufixo}` };
+            return { emoji: '⬜', nome: `Guarita Individual ${sufixo}` };
         }
         return { emoji: '💙', nome: (MODELOS[mod] && MODELOS[mod].nome) || String(descProduto || '').trim() };
     }
