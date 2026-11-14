@@ -738,13 +738,15 @@
             ? `${c.horario_entrada} às ${c.horario_saida}`
             : (c.horario_entrada ? `Entrada: ${c.horario_entrada}` : '');
 
+        const depLbl = (c.departamento_label === 'Ajudante de Pátio') ? 'Ajudante' : (c.departamento_label || c.cargo || 'Operacional');
+
         return `
         <button type="button" class="arr-disp-card ${stPres === 'trabalhou' ? 'is-ok' : ''}"
             data-action="open-presenca-colab"
             data-origem="disponivel"
             data-colab-id="${esc(c.colab_id || c.id)}"
             data-colab-nome="${esc(c.nome)}"
-            data-colab-cargo="${esc(c.departamento_label || c.cargo || 'Operacional')}"
+            data-colab-cargo="${esc(depLbl)}"
             data-colab-categoria="${esc(c.categoria_servico || 'outros')}"
             data-colab-foto="${esc(c.foto_url || '')}"
             data-status-presenca="${esc(stPres)}"
@@ -756,7 +758,7 @@
             <div class="arr-disp-info">
                 <div class="arr-disp-name">${esc(c.nome)}</div>
                 <div class="arr-disp-meta">
-                    <span class="arr-dep-badge ${esc(c.categoria_servico || 'outros')}">${esc(c.departamento_label || c.cargo)}</span>
+                    <span class="arr-dep-badge ${esc(c.categoria_servico || 'outros')}">${esc(depLbl)}</span>
                     ${horarioTxt ? `<span class="arr-disp-hr"><i class="ph ph-clock"></i> ${esc(horarioTxt)}</span>` : ''}
                 </div>
             </div>
@@ -769,7 +771,8 @@
         </button>`;
     }
 
-    function renderBlocoTurnoDisponiveis(tituloTurno, iconeTurno, corClasse, listaColabs) {
+    function renderBlocoTurnoDisponiveis(tituloTurno, iconeTurno, corClasse, listaColabsRaw) {
+        const listaColabs = (listaColabsRaw || []).filter(c => c.categoria_servico !== 'lideranca');
         if (!listaColabs.length) {
             return `
             <section class="arr-disp-turno-sec ${corClasse}">
@@ -785,8 +788,8 @@
         const grupos = [
             { id: 'motorista', titulo: '🚚 Motoristas', itens: listaColabs.filter(c => c.categoria_servico === 'motorista') },
             { id: 'ajudante_geral', titulo: '📦 Ajudante Geral', itens: listaColabs.filter(c => c.departamento_label === 'Ajudante Geral') },
-            { id: 'ajudante_patio', titulo: '🏗️ Ajudante de Pátio', itens: listaColabs.filter(c => c.departamento_label === 'Ajudante de Pátio') },
-            { id: 'outros', titulo: '👔 Liderança / Outros', itens: listaColabs.filter(c => c.categoria_servico !== 'motorista' && c.departamento_label !== 'Ajudante Geral' && c.departamento_label !== 'Ajudante de Pátio') }
+            { id: 'ajudante_patio', titulo: 'Ajudante', itens: listaColabs.filter(c => c.departamento_label === 'Ajudante' || c.departamento_label === 'Ajudante de Pátio') },
+            { id: 'outros', titulo: 'Outros', itens: listaColabs.filter(c => c.categoria_servico !== 'motorista' && c.departamento_label !== 'Ajudante Geral' && c.departamento_label !== 'Ajudante' && c.departamento_label !== 'Ajudante de Pátio') }
         ].filter(g => g.itens.length > 0);
 
         return `
@@ -951,7 +954,8 @@
         const papel = btn.dataset.papel || ''; // 'motorista' | 'ajudante'
         const colabId = btn.dataset.colabId ? Number(btn.dataset.colabId) : null;
         const colabNome = btn.dataset.colabNome || 'Colaborador';
-        const colabCargo = btn.dataset.colabCargo || (papel === 'motorista' ? 'Motorista' : 'Ajudante');
+        const colabCargoRaw = btn.dataset.colabCargo || (papel === 'motorista' ? 'Motorista' : 'Ajudante');
+        const colabCargo = colabCargoRaw === 'Ajudante de Pátio' ? 'Ajudante' : colabCargoRaw;
         const colabCategoria = btn.dataset.colabCategoria || (papel === 'motorista' ? 'motorista' : 'ajudante');
         const colabFoto = btn.dataset.colabFoto || (colabId ? `/api/colaboradores/foto/${colabId}` : '');
         const statusInicial = btn.dataset.statusPresenca === 'falta' ? 'falta' : 'trabalhou';
@@ -967,15 +971,15 @@
         const gruposSubstitutos = [];
         if (ehEscaladoRota) {
             if (ehMotorista) {
-                const mots = (colabDispInfo.motoristas || []).filter(c => Number(c.colab_id || c.id) !== colabId);
+                const mots = (colabDispInfo.motoristas || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
                 gruposSubstitutos.push({
                     id: 'motoristas',
                     titulo: '🚚 Departamento: Motoristas Disponíveis',
                     itens: mots
                 });
             } else {
-                const ajuGeral = (colabDispInfo.ajudantes_geral || []).filter(c => Number(c.colab_id || c.id) !== colabId);
-                const ajuPatio = (colabDispInfo.ajudantes_patio || []).filter(c => Number(c.colab_id || c.id) !== colabId);
+                const ajuGeral = (colabDispInfo.ajudantes_geral || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
+                const ajuPatio = (colabDispInfo.ajudantes_patio || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
                 gruposSubstitutos.push({
                     id: 'ajudante_geral',
                     titulo: '📦 Departamento: Ajudante Geral',
@@ -983,7 +987,7 @@
                 });
                 gruposSubstitutos.push({
                     id: 'ajudante_patio',
-                    titulo: '🏗️ Departamento: Ajudante de Pátio',
+                    titulo: 'Ajudante',
                     itens: ajuPatio
                 });
             }
@@ -1025,7 +1029,7 @@
                 <div class="arr-subst-box-head">
                     <div>
                         <strong><i class="ph-fill ph-users-three"></i> Colaboradores Disponíveis para este Serviço</strong>
-                        <small>${ehMotorista ? 'Mostrando apenas Motoristas disponíveis' : 'Mostrando Ajudantes disponíveis (Ajudante Geral e Ajudante de Pátio)'}</small>
+                        <small>${ehMotorista ? 'Mostrando apenas Motoristas disponíveis' : 'Mostrando Ajudantes disponíveis (Ajudante Geral e Ajudante)'}</small>
                     </div>
                     <span class="alc-badge azul">${totalCandidatos}</span>
                 </div>
@@ -1062,13 +1066,14 @@
                             const cFoto = c.foto_url
                                 ? `<img src="${esc(c.foto_url)}" alt="" onerror="this.outerHTML='<span>${cIni}</span>'">`
                                 : `<span>${cIni}</span>`;
+                            const cDepLbl = c.departamento_label === 'Ajudante de Pátio' ? 'Ajudante' : c.departamento_label;
                             return `
                             <button type="button" class="arr-subst-item ${isSel ? 'sel' : ''}" data-subst-id="${cid}" data-subst-nome="${esc(c.nome)}">
                                 <span class="arr-subst-radio"></span>
                                 <span class="arr-mini-av" style="width:36px;height:36px;">${cFoto}</span>
                                 <div class="arr-subst-item-info">
                                     <b>${esc(c.nome)}</b>
-                                    <small>${esc(c.departamento_label)} • ${c.turno === 'noturno' ? '🌙 Noturno' : '☀️ Diurno'}${c.horario_entrada ? ' • ' + esc(c.horario_entrada) : ''}</small>
+                                    <small>${esc(cDepLbl)} • ${c.turno === 'noturno' ? '🌙 Noturno' : '☀️ Diurno'}${c.horario_entrada ? ' • ' + esc(c.horario_entrada) : ''}</small>
                                 </div>
                             </button>`;
                         }).join('')}`;

@@ -1004,18 +1004,18 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         let categoriaServico = 'outros';
         let departamentoLabel = c.departamento || c.cargo || 'Operacional';
 
-        if (dep.includes('motorista') || cargo.includes('motorista') || func === 'motorista') {
+        if (escalaUtil.ehLiderOperacional(c) || dep.includes('lider') || cargo.includes('lider')) {
+            categoriaServico = 'lideranca';
+            departamentoLabel = 'Liderança';
+        } else if (dep.includes('motorista') || cargo.includes('motorista') || func === 'motorista') {
             categoriaServico = 'motorista';
             departamentoLabel = 'Motorista';
         } else if (dep.includes('patio') || cargo.includes('patio')) {
             categoriaServico = 'ajudante';
-            departamentoLabel = 'Ajudante de Pátio';
+            departamentoLabel = 'Ajudante';
         } else if (dep.includes('ajudante') || cargo.includes('ajudante') || func === 'ajudante' || dep === 'externo') {
             categoriaServico = 'ajudante';
             departamentoLabel = 'Ajudante Geral';
-        } else if (escalaUtil.ehLiderOperacional(c) || dep.includes('lider') || cargo.includes('lider')) {
-            categoriaServico = 'lideranca';
-            departamentoLabel = 'Liderança';
         }
 
         let turno = 'diurno';
@@ -1207,8 +1207,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const nomeL = normLow(c.nome_completo);
             if (!nomeL) continue;
             if (nomeL.includes('teste') || nomeL.includes('thais ricci') || nomeL.includes('thais.ricci')) continue;
-            // Excluir Joaquim e Vitor Gabriel da liderança operacional
-            if ((nomeL.includes('joaquim') || nomeL.includes('vitor gabriel')) && (normLow(c.departamento).includes('lider') || normLow(c.cargo).includes('lider'))) {
+            // Excluir líderes operacionais da lista de disponíveis/substitutos (líderes não aparecem como ajudantes nem substituem ajudantes/motoristas)
+            if (escalaUtil.ehLiderOperacional(c) || normLow(c.departamento).includes('lider') || normLow(c.cargo).includes('lider')) {
                 continue;
             }
             if (normLow(c.tipo_contrato).includes('intermitente')) continue;
@@ -1222,6 +1222,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             if (idsNaRota.has(cid) || nomesNaRota.has(nomeL)) continue;
 
             const cls = classificarColabOperacional(c);
+            if (cls.categoria_servico === 'lideranca') continue;
             const pres = presencaPorColabId.get(cid);
             disponiveisForaRota.push({
                 colab_id: cid,
@@ -1254,7 +1255,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 noturno: dispNoturno,
                 motoristas: disponiveisForaRota.filter(x => x.categoria_servico === 'motorista'),
                 ajudantes_geral: disponiveisForaRota.filter(x => x.departamento_label === 'Ajudante Geral'),
-                ajudantes_patio: disponiveisForaRota.filter(x => x.departamento_label === 'Ajudante de Pátio')
+                ajudantes_patio: disponiveisForaRota.filter(x => x.departamento_label === 'Ajudante' || x.departamento_label === 'Ajudante de Pátio')
             }
         };
     }
@@ -1747,7 +1748,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const ajuFalta = ajuCid ? dadosDispFaltas.faltasPorColabId.get(ajuCid) : null;
             const substMotRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'motorista' && p.substituto_nome);
             const substAjuRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'ajudante' && p.substituto_nome);
-            const ajuDepLabel = (ajuInfo && /patio|pátio/i.test(norm(ajuInfo.departamento || ajuInfo.cargo || ''))) ? 'Ajudante de Pátio' : 'Ajudante Geral';
+            const ajuDepLabel = (ajuInfo && /patio|pátio/i.test(norm(ajuInfo.departamento || ajuInfo.cargo || ''))) ? 'Ajudante' : 'Ajudante Geral';
 
             return {
                 veiculo_key: vKey,

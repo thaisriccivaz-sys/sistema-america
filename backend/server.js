@@ -4374,6 +4374,13 @@ try {
     console.error('[APP-LAVAGEM] ERRO ao carregar modulo:', eAppLav.message);
 }
 
+// --- APP > LIDERANCA > SEPARACAO (separacao noturna de equipamentos, insumos e succao de veiculos com foto R2) ---
+try {
+    require('./routes_app_separacao')(app, db, authenticateToken);
+} catch (eAppSep) {
+    console.error('[APP-SEPARACAO] ERRO ao carregar modulo:', eAppSep.message);
+}
+
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
 try {
     require('./routes_faculdade_pagamentos')(app, db, authenticateToken, r2);

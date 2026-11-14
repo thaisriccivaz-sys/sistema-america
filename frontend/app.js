@@ -804,6 +804,7 @@ const BREADCRUMB_MAP = {
     'app-lideranca-entregas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Entregas', code: 'APP003' },
     'app-lideranca-resumo-rota': { path: 'APP \u2192 Lideran\u00e7a \u2192 Resumo da Rota', code: 'APP004' },
     'app-lideranca-lavagem': { path: 'APP \u2192 Lideran\u00e7a \u2192 Lavagem de Ve\u00edculos', code: 'APP005' },
+    'app-lideranca-separacao': { path: 'APP \u2192 Lideran\u00e7a \u2192 Separa\u00e7\u00e3o', code: 'APP006' },
     'uniamerica-gestao': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Gest\u00e3o de Cursos', code: 'UNI01' },
     'uniamerica-missoes': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Miss\u00f5es', code: 'UNI02' },
     // Logística
@@ -1295,6 +1296,7 @@ const TAB_META = {
     'app-lideranca-entregas': { color: '#556b2f', icon: 'ph-truck', title: 'Entregas (APP)' },
     'app-lideranca-resumo-rota': { color: '#556b2f', icon: 'ph-map-trifold', title: 'Resumo da Rota (APP)' },
     'app-lideranca-lavagem': { color: '#556b2f', icon: 'ph-drop', title: 'Lavagem de Veículos (APP)' },
+    'app-lideranca-separacao': { color: '#556b2f', icon: 'ph-package', title: 'Separação (APP)' },
     'uniamerica-gestao': { color: '#1e40af', icon: 'ph-graduation-cap', title: 'Gestão de Cursos' },
     'uniamerica-missoes': { color: '#1e40af', icon: 'ph-rocket-launch', title: 'Missões UniAmérica' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
@@ -1557,6 +1559,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'app-lideranca-lavagem' && typeof window.renderAppLiderancaLavagem === 'function') {
         setTimeout(() => window.renderAppLiderancaLavagem(), 80);
+    }
+    if (tab.target === 'app-lideranca-separacao' && typeof window.renderAppLiderancaSeparacao === 'function') {
+        setTimeout(() => window.renderAppLiderancaSeparacao(), 80);
     }
     if (tab.target === 'uniamerica-gestao' && typeof window.renderUniAmericaGestao === 'function') {
         setTimeout(() => window.renderUniAmericaGestao(), 80);
@@ -1833,6 +1838,8 @@ function navigateTo(target) {
         if (typeof window.renderAppLiderancaResumoRota === 'function') setTimeout(() => window.renderAppLiderancaResumoRota(), 80);
     } else if (target === 'app-lideranca-lavagem') {
         if (typeof window.renderAppLiderancaLavagem === 'function') setTimeout(() => window.renderAppLiderancaLavagem(), 80);
+    } else if (target === 'app-lideranca-separacao') {
+        if (typeof window.renderAppLiderancaSeparacao === 'function') setTimeout(() => window.renderAppLiderancaSeparacao(), 80);
     } else if (target === 'uniamerica-gestao') {
         if (typeof window.renderUniAmericaGestao === 'function') setTimeout(() => window.renderUniAmericaGestao(), 80);
     } else if (target === 'uniamerica-missoes') {
