@@ -803,6 +803,7 @@ const BREADCRUMB_MAP = {
     'app-lideranca-retiradas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Retiradas', code: 'APP002' },
     'app-lideranca-entregas': { path: 'APP \u2192 Lideran\u00e7a \u2192 Entregas', code: 'APP003' },
     'app-lideranca-resumo-rota': { path: 'APP \u2192 Lideran\u00e7a \u2192 Resumo da Rota', code: 'APP004' },
+    'app-lideranca-lavagem': { path: 'APP \u2192 Lideran\u00e7a \u2192 Lavagem de Ve\u00edculos', code: 'APP005' },
     'uniamerica-gestao': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Gest\u00e3o de Cursos', code: 'UNI01' },
     'uniamerica-missoes': { path: 'Treinamentos \u2192 UniAm\u00e9rica \u2192 Miss\u00f5es', code: 'UNI02' },
     // Logística
@@ -1293,6 +1294,7 @@ const TAB_META = {
     'app-lideranca-retiradas': { color: '#556b2f', icon: 'ph-arrow-u-down-left', title: 'Retiradas (APP)' },
     'app-lideranca-entregas': { color: '#556b2f', icon: 'ph-truck', title: 'Entregas (APP)' },
     'app-lideranca-resumo-rota': { color: '#556b2f', icon: 'ph-map-trifold', title: 'Resumo da Rota (APP)' },
+    'app-lideranca-lavagem': { color: '#556b2f', icon: 'ph-drop', title: 'Lavagem de Veículos (APP)' },
     'uniamerica-gestao': { color: '#1e40af', icon: 'ph-graduation-cap', title: 'Gestão de Cursos' },
     'uniamerica-missoes': { color: '#1e40af', icon: 'ph-rocket-launch', title: 'Missões UniAmérica' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
@@ -1552,6 +1554,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'app-lideranca-resumo-rota' && typeof window.renderAppLiderancaResumoRota === 'function') {
         setTimeout(() => window.renderAppLiderancaResumoRota(), 80);
+    }
+    if (tab.target === 'app-lideranca-lavagem' && typeof window.renderAppLiderancaLavagem === 'function') {
+        setTimeout(() => window.renderAppLiderancaLavagem(), 80);
     }
     if (tab.target === 'uniamerica-gestao' && typeof window.renderUniAmericaGestao === 'function') {
         setTimeout(() => window.renderUniAmericaGestao(), 80);
@@ -1826,6 +1831,8 @@ function navigateTo(target) {
         if (typeof window.renderAppLiderancaEntregas === 'function') setTimeout(() => window.renderAppLiderancaEntregas(), 80);
     } else if (target === 'app-lideranca-resumo-rota') {
         if (typeof window.renderAppLiderancaResumoRota === 'function') setTimeout(() => window.renderAppLiderancaResumoRota(), 80);
+    } else if (target === 'app-lideranca-lavagem') {
+        if (typeof window.renderAppLiderancaLavagem === 'function') setTimeout(() => window.renderAppLiderancaLavagem(), 80);
     } else if (target === 'uniamerica-gestao') {
         if (typeof window.renderUniAmericaGestao === 'function') setTimeout(() => window.renderUniAmericaGestao(), 80);
     } else if (target === 'uniamerica-missoes') {
@@ -22983,7 +22990,13 @@ window.renderMultasMotoristaTab = async function (container) {
 
     // ── Apenas multas com status relevantes aparecem no prontuário ──
     const PRONTUARIO_STATUS_VISIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
-    const multasVisiveis = multas.filter(m => PRONTUARIO_STATUS_VISIVEIS.includes(m.status));
+    const multasVisiveis = multas.filter(m => {
+        if (!PRONTUARIO_STATUS_VISIVEIS.includes(m.status)) return false;
+        if (m.status === 'Conferido' || m.status === 'Verificar erro') return false;
+        const motNorm = String(m.motivo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        if (motNorm.includes('NAO IDENTIFICACAO DO CONDUTOR INFRATOR') || (motNorm.includes('NAO IDENTIFICACAO') && motNorm.includes('PESSOA JURIDICA'))) return false;
+        return true;
+    });
     
     // Ordenar multas pela data de lançamento/atualização no RH (mais novas primeiro)
     multasVisiveis.sort((a, b) => {

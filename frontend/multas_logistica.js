@@ -69,11 +69,19 @@ function _statusMonacoBadge(m) {
     return `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
 }
 
-// Helper: cor do badge Status RH
+// Identifica a multa específica: MULTA, POR NAO IDENTIFICACAO DO CONDUTOR INFRATOR, IMPOSTA A PESSOA JURIDICA
+function _isMultaNaoIdentificacaoPJ(motivo) {
+    const m = String(motivo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    return m.includes('NAO IDENTIFICACAO DO CONDUTOR INFRATOR') || (m.includes('NAO IDENTIFICACAO') && m.includes('PESSOA JURIDICA'));
+}
+window._isMultaNaoIdentificacaoPJ = _isMultaNaoIdentificacaoPJ;
+
+// Helper: cor do badge Status RH / Logística
 function _statusRHColor(status) {
     if (status === 'Conferência') return '#ffa500';
     if (status === 'Em Andamento')   return '#fef08a';
-    if (status === 'Conferido')      return '#fef08a'; // legado -> mesma cor de Em Andamento
+    if (status === 'Conferido')      return '#86efac'; // Verde claro (Multa Não Identificação PJ)
+    if (status === 'Verificar erro') return '#fca5a5'; // Vermelho claro (Multa Não Identificação PJ)
     if (status === 'Indicado')    return '#66f1c2';
     if (status === 'Multa NIC')   return '#fecaca';
     if (status === 'Id. Deferida') return '#009933';
@@ -208,6 +216,61 @@ function _csdSelect(containerId, selectId, value) {
     document.getElementById(containerId)?.classList.remove('open');
 }
 
+function _syncStatusDropdownPorMotivo(mode, multaId) {
+    const isGm = mode === 'gm';
+    const motivoEl = document.getElementById(isGm ? 'gm-motivo' : 'nm-motivo');
+    const wrapEl = document.getElementById(isGm ? 'gm-status-dropdown-wrap' : 'nm-status-dropdown-wrap');
+    if (!motivoEl || !wrapEl) return;
+
+    const motivo = motivoEl.value || '';
+    const isPJ = _isMultaNaoIdentificacaoPJ(motivo);
+    const currSel = document.getElementById(isGm ? 'gm-status' : 'nm-status');
+    const currVal = currSel ? currSel.value : '';
+
+    const multaObj = (isGm && multaId) ? multasLogistica.find(x => x.id === multaId) : null;
+    const opts = isPJ ? ['Conferido', 'Verificar erro'] : null;
+    const bloqueados = isPJ ? [] : (isGm ? _statusBloqueadosDeclaracao(multaObj) : STATUS_EXIGEM_DECLARACAO);
+
+    let newVal = currVal;
+    if (isPJ) {
+        if (newVal !== 'Conferido' && newVal !== 'Verificar erro') {
+            newVal = 'Conferido';
+        }
+    } else {
+        if (!newVal || newVal === 'Conferido' || newVal === 'Verificar erro') {
+            newVal = 'Conferência';
+        }
+    }
+
+    const onchangeStr = isGm ? 'atualizarValoresMultaModal()' : '';
+    wrapEl.innerHTML = _buildStatusDropdown(
+        isGm ? 'csd-gm-status' : 'csd-nm-status',
+        isGm ? 'gm-status' : 'nm-status',
+        newVal,
+        opts,
+        onchangeStr,
+        bloqueados
+    );
+
+    if (isGm) {
+        const rhContainer = document.getElementById('gm-status-rh-container');
+        if (rhContainer) rhContainer.style.display = isPJ ? 'none' : '';
+        if (isPJ) {
+            const hiddenRh = document.getElementById('gm-status-rh');
+            if (hiddenRh) hiddenRh.value = '';
+        }
+        const statusSel = document.getElementById('gm-status');
+        if (statusSel) {
+            statusSel.addEventListener('change', () => {
+                const obsReq = document.getElementById('gm-obs-req');
+                if (obsReq) obsReq.style.display = (statusSel.value === 'Não Se Aplica') ? 'inline' : 'none';
+            });
+        }
+        if (typeof atualizarValoresMultaModal === 'function') atualizarValoresMultaModal();
+    }
+}
+window._syncStatusDropdownPorMotivo = _syncStatusDropdownPorMotivo;
+
 function _csdRhSelect(value) {
     const bg  = value === 'Cobrado' ? '#dcfce7' : value === 'Cobrado Parcela' ? '#dbeafe' : value === 'Recebido' ? '#fef9c3' : '#f1f5f9';
     const fg  = value === 'Cobrado' ? '#16a34a' : value === 'Cobrado Parcela' ? '#2563eb' : value === 'Recebido' ? '#d97706' : '#64748b';
@@ -258,7 +321,7 @@ function _buildMultaRow(m) {
             motoristaHtml = `<span style="font-weight:600; color:#0f172a; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; max-width:120px; font-size:0.82rem;" title="${m.motorista_nome}">${m.motorista_nome}</span>`;
         }
     } else {
-        if (m.status === 'Indicado' || m.status === 'Multa NIC') {
+        if (m.status === 'Indicado' || m.status === 'Multa NIC' || _isMultaNaoIdentificacaoPJ(m.motivo) || m.status === 'Conferido' || m.status === 'Verificar erro') {
             motoristaHtml = `<span style="color:#94a3b8; font-size:0.8rem;">—</span>`;
         } else {
             motoristaHtml = `<button onclick="abrirModalGerenciarMulta(${m.id}, true)" style="background:#f1f5f9; color:#2563eb; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.78rem; font-weight:600;">+ Adicionar Motorista</button>`;
@@ -268,7 +331,8 @@ function _buildMultaRow(m) {
     let docsExtrasList = [];
     try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
 
-    const isFinalizado = m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Antiga' || m.status === 'Ex Colaborador';
+    const isNaoIdentPJ = _isMultaNaoIdentificacaoPJ(m.motivo) || m.status === 'Conferido' || m.status === 'Verificar erro';
+    const isFinalizado = m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Antiga' || m.status === 'Ex Colaborador' || isNaoIdentPJ;
 
     const btnEditar = `<button onclick="abrirModalGerenciarMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#2563eb; margin-right:6px;" title="Editar Multa"><i class="ph ph-pencil-simple" style="font-size:1.2rem;"></i></button>`;
 
@@ -330,7 +394,7 @@ function _buildMultaRow(m) {
                         <span style="color:#94a3b8;font-size:0.75rem;font-weight:500;">Logística:</span>
                         <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '\u2014'}</span>
                     </div>
-                    ${m.status_rh ? (() => {
+                    ${(m.status_rh && !isNaoIdentPJ) ? (() => {
                         const cor = m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706';
                         const bg  = m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3';
                         return `<div style="display:flex;align-items:center;gap:6px;">
@@ -427,7 +491,7 @@ async function carregarMultasLogistica() {
             const todas = await response.json();
             // No contexto do RH, exibe apenas os status permitidos
             multasLogistica = window._isRhContext
-                ? todas.filter(m => RH_STATUS_PERMITIDOS.includes(m.status))
+                ? todas.filter(m => RH_STATUS_PERMITIDOS.includes(m.status) && !_isMultaNaoIdentificacaoPJ(m.motivo) && m.status !== 'Conferido' && m.status !== 'Verificar erro')
                 : todas;
             const tbody = document.getElementById('multas-tbody');
             if (tbody) {
@@ -446,7 +510,7 @@ async function carregarMultasLogistica() {
 
 function renderMultasLogistica(container) {
     if (!_multasSortCol) { _multasSortCol = window._isRhContext ? 'data_inclusao' : 'criado_em'; }
-    const ALL_STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido', 'Não Se Aplica', 'Antiga'];
+    const ALL_STATUS_OPTS = ['Conferência', 'Em Andamento', 'Conferido', 'Verificar erro', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido', 'Não Se Aplica', 'Antiga'];
     const RH_STATUS_OPTS  = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
     const STATUS_OPTS = window._isRhContext ? RH_STATUS_OPTS : ALL_STATUS_OPTS;
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -991,7 +1055,7 @@ function abrirModalNovaMulta() {
                     <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
                         <div style="flex:2; min-width:250px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Motivo da Multa</label>
-                            <input type="text" id="nm-motivo" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
+                            <input type="text" id="nm-motivo" oninput="window._syncStatusDropdownPorMotivo && window._syncStatusDropdownPorMotivo('nm')" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:4px;">
                         </div>
                         <div style="flex:1; min-width:120px;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Valor (R$)</label>
@@ -1026,7 +1090,7 @@ function abrirModalNovaMulta() {
                         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Forma de Resolução</label>
-                                ${_buildStatusDropdown('csd-nm-status','nm-status','Conferência', null, null, STATUS_EXIGEM_DECLARACAO)}
+                                <div id="nm-status-dropdown-wrap">${_buildStatusDropdown('csd-nm-status','nm-status','Conferência', null, null, STATUS_EXIGEM_DECLARACAO)}</div>
                             </div>
                             <div style="flex:1; min-width:120px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelas</label>
@@ -1158,6 +1222,7 @@ function interpretarTextoMulta() {
         }
     }
 
+    if (typeof window._syncStatusDropdownPorMotivo === 'function') window._syncStatusDropdownPorMotivo('nm');
     const status = document.getElementById('nm-texto-status');
     if (preenchidos.length > 0) {
         if (status) status.textContent = `✅ ${preenchidos.length} campo(s) preenchido(s)!`;
@@ -1429,9 +1494,17 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             </div>
                             <div style="flex:1; min-width:160px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status Logística</label>
-                                ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()', _statusBloqueadosDeclaracao(multa))}
+                                <div id="gm-status-dropdown-wrap">${(() => {
+                                    const _isPJ = _isMultaNaoIdentificacaoPJ(multa.motivo);
+                                    const _opts = _isPJ ? ['Conferido', 'Verificar erro'] : null;
+                                    const _bloq = _isPJ ? [] : _statusBloqueadosDeclaracao(multa);
+                                    const _initVal = _isPJ
+                                        ? ((multa.status === 'Conferido' || multa.status === 'Verificar erro') ? multa.status : 'Conferido')
+                                        : ((multa.status === 'Conferido' || multa.status === 'Verificar erro' || !multa.status) ? 'Conferência' : multa.status);
+                                    return _buildStatusDropdown('csd-gm-status', 'gm-status', _initVal, _opts, 'atualizarValoresMultaModal()', _bloq);
+                                })()}</div>
                             </div>
-                            <div style="flex:1; min-width:130px;" id="gm-status-rh-container">
+                            <div style="flex:1; min-width:130px; display:${_isMultaNaoIdentificacaoPJ(multa.motivo) ? 'none' : 'block'};" id="gm-status-rh-container">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status RH</label>
                                 ${`<div style="padding:0.55rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; min-height:36px; display:flex; align-items:center; gap:8px;">${_statusRhBadge(multa.status_rh)}</div><small style="display:block;margin-top:4px;font-size:0.72rem;color:#94a3b8;">Calculado automaticamente pelas parcelas</small><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`}
                             </div>
@@ -1482,7 +1555,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                         <!-- MOTIVO -->
                         <div style="margin-bottom:1rem;">
                             <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Motivo (Infração)</label>
-                            <input type="text" id="gm-motivo" value="${multa.motivo || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                            <input type="text" id="gm-motivo" value="${multa.motivo || ''}" oninput="window._syncStatusDropdownPorMotivo && window._syncStatusDropdownPorMotivo('gm', ${multa.id})" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
                         </div>
 
                         <!-- PLACA + LOCAL -->
@@ -2583,6 +2656,7 @@ window.processarPDFMulta = async function(input) {
             }
         }
 
+        if (typeof window._syncStatusDropdownPorMotivo === 'function') window._syncStatusDropdownPorMotivo('nm');
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('✅ Dados extraídos do PDF com sucesso!');
         }

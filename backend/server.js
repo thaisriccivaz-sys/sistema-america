@@ -1173,10 +1173,9 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN status_updated_at TEXT", err => 
     else if (!err) console.log('[MIGRATION] Coluna status_updated_at adicionada em multas_logistica.');
 });
 
-// Migração de dados: renomeia status 'Conferido' para 'Em Andamento'
-db.run("UPDATE multas_logistica SET status = 'Em Andamento' WHERE status = 'Conferido'", function(err) {
-    if (err) console.error('[MIGRATION] Erro ao renomear Conferido -> Em Andamento:', err.message);
-    else if (this.changes > 0) console.log(`[MIGRATION] ${this.changes} multa(s) renomeada(s) de Conferido para Em Andamento.`);
+// Limpa status_rh de multas por não identificação do condutor infrator (PJ) ou status Conferido / Verificar erro (não vão para o RH)
+db.run("UPDATE multas_logistica SET status_rh = NULL WHERE UPPER(motivo) LIKE '%NAO IDENTIFICACAO DO CONDUTOR INFRATOR%' OR UPPER(motivo) LIKE '%NÃO IDENTIFICAÇÃO DO CONDUTOR INFRATOR%' OR status IN ('Conferido', 'Verificar erro')", function(err) {
+    if (err) console.error('[MIGRATION] Erro ao limpar status_rh de multas PJ:', err.message);
 });
 
 // AUTO-PATCH: Move declarações HTML do slot 0 para slot 1 (Termo Assinado) nas multas existentes
@@ -4366,6 +4365,13 @@ try {
     require('./routes_app_resumo_rota')(app, db, authenticateToken);
 } catch (eAppResRota) {
     console.error('[APP-RESUMO-ROTA] ERRO ao carregar modulo:', eAppResRota.message);
+}
+
+// --- APP > LIDERANCA > LAVAGEM DE VEICULOS (lavagem simples de rota + cronograma detalhado Seg-Sex com fotos R2) ---
+try {
+    require('./routes_app_lavagem')(app, db, authenticateToken, r2);
+} catch (eAppLav) {
+    console.error('[APP-LAVAGEM] ERRO ao carregar modulo:', eAppLav.message);
 }
 
 // --- RH > PAGAMENTOS > FACULDADE (boletos mensais, boletins Jan/Jul, envio ao financeiro) ---
@@ -10530,8 +10536,20 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         }
     }
 
-    // Se o AIT está na lista de multas antigas, for??a status 'Antiga'
-    const finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
+    const _normMotivoPost = String(motivo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const _isNaoIdentPJPost = _normMotivoPost.includes('NAO IDENTIFICACAO DO CONDUTOR INFRATOR') || (_normMotivoPost.includes('NAO IDENTIFICACAO') && _normMotivoPost.includes('PESSOA JURIDICA'));
+    let finalStatus;
+    if (_isNaoIdentPJPost) {
+        if (status && status !== 'Conferido' && status !== 'Verificar erro') {
+            return res.status(400).json({ error: 'Para multa por não identificação do condutor infrator imposta à pessoa jurídica, selecione apenas "Conferido" ou "Verificar erro".' });
+        }
+        finalStatus = (status === 'Conferido' || status === 'Verificar erro') ? status : 'Conferido';
+    } else {
+        if (status === 'Conferido' || status === 'Verificar erro') {
+            return res.status(400).json({ error: `O status "${status}" só pode ser selecionado para multa por não identificação do condutor infrator imposta à pessoa jurídica.` });
+        }
+        finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
+    }
     if (finalStatus === 'Indicado' || finalStatus === 'Cobrada - Pz. Perdido') {
         return res.status(400).json({ error: `A situação "${finalStatus}" só pode ser selecionada após a Declaração de Responsabilidade ser assinada.` });
     }
@@ -10647,6 +10665,19 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
 
         // 'Indicado' e 'Cobrada - Pz. Perdido' so podem ser definidos apos a Declaracao de Responsabilidade assinada
         // (Termo Assinado no slot 1 de documentos_extras). A rota salvar-declaracao grava o status direto e nao passa por aqui.
+        const finalMotivoCheck = motivo !== undefined ? motivo : oldData.motivo;
+        const _normMotivoPut = String(finalMotivoCheck || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const isNaoIdentPJ = _normMotivoPut.includes('NAO IDENTIFICACAO DO CONDUTOR INFRATOR') || (_normMotivoPut.includes('NAO IDENTIFICACAO') && _normMotivoPut.includes('PESSOA JURIDICA'));
+
+        if (status !== undefined) {
+            if (isNaoIdentPJ && status !== 'Conferido' && status !== 'Verificar erro') {
+                return res.status(400).json({ error: 'Para multa por não identificação do condutor infrator imposta à pessoa jurídica, selecione apenas "Conferido" ou "Verificar erro".' });
+            }
+            if (!isNaoIdentPJ && (status === 'Conferido' || status === 'Verificar erro')) {
+                return res.status(400).json({ error: `O status "${status}" só pode ser selecionado para multa por não identificação do condutor infrator imposta à pessoa jurídica.` });
+            }
+        }
+
         const STATUS_EXIGEM_DECLARACAO = ['Indicado', 'Cobrada - Pz. Perdido'];
         if (status && STATUS_EXIGEM_DECLARACAO.includes(status) && status !== oldData.status) {
             let _extrasChk = [];
@@ -10657,7 +10688,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
         }
 
         const STATUS_RH_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
-        const jaEstavaNoRh = oldData.status_updated_at && STATUS_RH_ELEGIVEIS.includes(oldData.status);
+        const jaEstavaNoRh = !isNaoIdentPJ && oldData.status_updated_at && STATUS_RH_ELEGIVEIS.includes(oldData.status);
         const novoStatusUpdatedAt = (status && status !== oldData.status && !jaEstavaNoRh) ? getNowBR() : oldData.status_updated_at;
 
         db.run(
@@ -10700,6 +10731,10 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 local_infracao !== undefined ? local_infracao : oldData.local_infracao,
                 data_limite !== undefined ? data_limite : oldData.data_limite,
                 (() => {
+                    const effStatus = status !== undefined ? status : oldData.status;
+                    if (isNaoIdentPJ || effStatus === 'Conferido' || effStatus === 'Verificar erro') {
+                        return null;
+                    }
                     const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
                     let finalStatusRh = status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh;
                     
