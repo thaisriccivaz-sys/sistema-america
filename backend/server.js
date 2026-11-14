@@ -2560,7 +2560,7 @@ async function uploadDocToR2(docId, bufferOverride) {
             await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [r2Key, docId], resolve));
         }
         if (doc.tab_name === 'Fotos' && /\.(jpg|jpeg|png|webp)$/i.test(fileName)) {
-            db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ?', [r2Url || r2Key, doc.colaborador_id]);
+            db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ? AND (foto_path IS NULL OR TRIM(foto_path) = "")', [r2Url || r2Key, doc.colaborador_id]);
         }
         return r2Key;
     } catch (e) {
@@ -6697,7 +6697,294 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
 });
 
 
-// Photo Upload Endpoint com Filtro de IA de Est??dio
+// Prompt oficial de Padronização Fotográfica Corporativa – América Rental
+const PROMPT_PADRONIZACAO_FOTO_CORPORATIVA = `# PADRONIZAÇÃO FOTOGRÁFICA CORPORATIVA – AMÉRICA RENTAL
+
+Edite a fotografia original enviada, transformando-a em uma fotografia corporativa profissional, seguindo rigorosamente um padrão único de estúdio fotográfico para todos os colaboradores da América Rental.
+
+**REGRA ABSOLUTA: PRESERVAÇÃO TOTAL DA IDENTIDADE DA PESSOA.**
+
+A fotografia original deve ser utilizada como fonte da identidade. Não recrie, redesenhe, regenere ou substitua o rosto. Preserve integralmente as características originais da pessoa.
+
+### 1. PRESERVAÇÃO DO ROSTO E DA IDENTIDADE
+
+É EXPRESSAMENTE PROIBIDO alterar:
+
+- Formato, proporções e estrutura do rosto.
+- Olhos, sobrancelhas, nariz, boca e orelhas.
+- Expressão facial, sorriso ou posição dos lábios.
+- Queixo, maxilar, bochechas e testa.
+- Textura natural da pele, marcas, pintas, cicatrizes e características individuais.
+- Cor e tonalidade natural da pele.
+- Idade aparente e características físicas.
+- Barba, bigode e pelos faciais.
+- Cabelo: corte, comprimento, volume, textura, curvatura, linha capilar, cor e penteado.
+- Acessórios pessoais, como brincos e piercings.
+
+Não aplicar embelezamento facial, rejuvenescimento, maquiagem, suavização artificial da pele ou correções estéticas.
+
+**A pessoa deve continuar exatamente igual à fotografia original.** O resultado deve ser reconhecível como a mesma fotografia e a mesma pessoa, apenas com qualidade técnica e apresentação profissional superiores.
+
+### 2. ENQUADRAMENTO PADRÃO 3X4
+
+Transformar a fotografia em um retrato vertical na proporção exata de 3:4.
+
+Padronizar o enquadramento da seguinte maneira:
+
+- Pessoa perfeitamente centralizada na imagem.
+- Cabeça inteira, sem cortar nenhuma parte do cabelo.
+- Espaço pequeno e uniforme acima do cabelo.
+- Rosto posicionado no centro do enquadramento.
+- Mostrar os dois ombros e a parte superior do tronco, chegando um pouco abaixo da linha dos ombros.
+- Manter uma composição equilibrada e simétrica.
+- Olhar direcionado para a câmera, respeitando a posição original dos olhos.
+- Não aumentar, diminuir ou modificar artificialmente o tamanho da cabeça ou do corpo.
+
+A imagem final deve ter aparência de fotografia profissional para cadastro corporativo, crachá e identificação de colaboradores.
+
+### 3. ILUMINAÇÃO PADRONIZADA DE ESTÚDIO
+
+Substituir a iluminação original por uma iluminação artificial profissional, seguindo sempre o mesmo padrão:
+
+- Iluminação frontal, suave e difusa.
+- Luz principal posicionada à frente da pessoa, ligeiramente acima da altura dos olhos.
+- Preenchimento uniforme dos dois lados do rosto.
+- Iluminação equilibrada, sem sombras duras ou contrastes excessivos.
+- Exposição correta, sem áreas estouradas ou escuras.
+- Temperatura de cor neutra, aproximadamente 5.500 K.
+- Tons de pele naturais e fiéis à fotografia original.
+- Nitidez profissional, sem excesso de processamento.
+- Aparência de fotografia realizada em estúdio com equipamentos profissionais.
+
+Todas as fotografias devem apresentar exatamente a mesma identidade visual de iluminação, independentemente das condições da fotografia original.
+
+### 4. FUNDO
+
+Manter o fundo branco original, padronizando sua aparência:
+
+- Branco uniforme, limpo e levemente neutro.
+- Sem objetos, manchas, marcas ou elementos visuais.
+- Sem sombras fortes projetadas no fundo.
+- Aparência de fundo infinito de estúdio fotográfico.
+- Não adicionar cenários, texturas ou elementos decorativos.
+
+### 5. UNIFORME AMÉRICA RENTAL
+
+Melhorar a apresentação do uniforme, mantendo rigorosamente o modelo original.
+
+- Eliminar a aparência de tecido desbotado, recuperando a intensidade original das cores.
+- Deixar o uniforme com aparência de novo, limpo e bem conservado.
+- Corrigir amassados, dobras excessivas e desalinhamentos.
+- Ajustar visualmente a gola para que fique alinhada e bem posicionada.
+- Corrigir pequenas imperfeições visuais do tecido.
+- Manter a modelagem, o caimento e as proporções originais.
+- Preservar integralmente as cores, detalhes, costuras e características da peça.
+
+**LOGOTIPO:** preservar o logotipo original da América Rental, sem redesenhar, substituir, modificar letras, alterar cores ou inventar detalhes. Manter sua posição, proporção e aparência originais. Não criar um novo logotipo.
+
+O uniforme deve transmitir uma aparência profissional, organizado e bem cuidado, como se tivesse acabado de ser entregue ao colaborador.
+
+### 6. QUALIDADE FINAL
+
+Entregar uma fotografia:
+
+- Vertical, proporção 3:4.
+- Alta resolução.
+- Nitidez profissional.
+- Iluminação uniforme e padronizada.
+- Fundo branco de estúdio.
+- Enquadramento idêntico ao padrão de todas as demais fotografias.
+- Uniforme com aparência nova e alinhada.
+- Rosto e identidade absolutamente preservados.
+
+### 7. RESTRIÇÕES IMPORTANTES
+
+NÃO gerar um novo rosto.
+NÃO modificar a expressão facial.
+NÃO alterar o cabelo.
+NÃO modificar a estrutura física.
+NÃO afinar o rosto.
+NÃO aumentar os olhos.
+NÃO alterar o nariz ou a boca.
+NÃO clarear ou escurecer a pele.
+NÃO aplicar filtros de beleza.
+NÃO modificar a idade aparente.
+NÃO inventar partes do uniforme ou do logotipo.
+
+**INSTRUÇÃO FINAL:**
+
+Trabalhe exclusivamente como um editor fotográfico profissional. A imagem final deve parecer uma fotografia real da mesma pessoa, tirada em um estúdio corporativo padronizado da América Rental.
+
+A única transformação permitida é a melhoria técnica da fotografia: iluminação, exposição, fundo, enquadramento, qualidade visual e apresentação do uniforme.
+
+A identidade da pessoa deve permanecer intacta, sem qualquer alteração facial ou capilar.`;
+
+async function padronizarFotoColaboradorIA(inputBuffer) {
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    const fallback3x4 = async () => {
+        return await sharp(inputBuffer)
+            .rotate()
+            .resize(900, 1200, { fit: sharp.fit.cover, position: sharp.strategy.attention })
+            .jpeg({ quality: 95, mozjpeg: true })
+            .toBuffer();
+    };
+
+    if (!apiKey) {
+        console.warn('[FOTO-IA] GEMINI_API_KEY não configurada — usando corte 3x4 padrão.');
+        return { buffer: await fallback3x4(), iaAplicada: false, modelo: null, erro: 'GEMINI_API_KEY não configurada' };
+    }
+
+    try {
+        // Normalizar orientação EXIF e limitar resolução de envio para resposta rápida
+        const normalizedInput = await sharp(inputBuffer)
+            .rotate()
+            .resize({ width: 1200, height: 1600, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 94 })
+            .toBuffer();
+        const base64Input = normalizedInput.toString('base64');
+
+        // Descobrir modelos de imagem disponíveis na chave
+        const preferredModels = [
+            'models/gemini-2.5-flash-image',
+            'models/gemini-3.1-flash-image-preview',
+            'models/gemini-3-pro-image-preview',
+            'models/gemini-2.5-flash-image-preview',
+            'models/gemini-2.0-flash-preview-image-generation',
+            'models/gemini-2.0-flash-exp-image-generation'
+        ];
+        let availableModels = [];
+        try {
+            const rModels = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            if (rModels.ok) {
+                const dModels = await rModels.json();
+                availableModels = (dModels.models || [])
+                    .filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
+                    .map(m => m.name);
+            }
+        } catch (errList) {
+            console.warn('[FOTO-IA] Aviso ao listar modelos do Gemini:', errList.message);
+        }
+
+        const candidateSet = new Set();
+        if (availableModels.length > 0) {
+            preferredModels.forEach(m => {
+                if (availableModels.includes(m)) candidateSet.add(m.replace('models/', ''));
+            });
+            availableModels.forEach(m => {
+                if (/image/i.test(m) && !/imagen-/i.test(m)) {
+                    candidateSet.add(m.replace('models/', ''));
+                }
+            });
+        }
+        // Garantir que os modelos padrão sempre sejam tentados mesmo se não listados
+        preferredModels.forEach(m => candidateSet.add(m.replace('models/', '')));
+        const candidatos = Array.from(candidateSet);
+
+        const errosTentativas = [];
+
+        for (const modelName of candidatos) {
+            const configsToTry = [
+                { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '3:4' } },
+                { responseModalities: ['TEXT', 'IMAGE'] },
+                { responseModalities: ['IMAGE', 'TEXT'] }
+            ];
+
+            for (let cfgIdx = 0; cfgIdx < configsToTry.length; cfgIdx++) {
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                    const body = {
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [
+                                    { inlineData: { mimeType: 'image/jpeg', data: base64Input } },
+                                    { text: PROMPT_PADRONIZACAO_FOTO_CORPORATIVA }
+                                ]
+                            }
+                        ],
+                        generationConfig: configsToTry[cfgIdx]
+                    };
+
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+
+                    if (!resp.ok) {
+                        const errText = await resp.text();
+                        // Se imageConfig não for suportado por este modelo, tenta a próxima config no mesmo modelo
+                        if (resp.status === 400 && cfgIdx === 0 && /imageConfig|aspectRatio|Unknown name/i.test(errText)) {
+                            continue;
+                        }
+                        if (resp.status === 400 && cfgIdx === 1 && /responseModalities/i.test(errText)) {
+                            continue;
+                        }
+                        errosTentativas.push(`${modelName}: HTTP ${resp.status} ${errText.slice(0, 140)}`);
+                        break; // Passa para o próximo modelo
+                    }
+
+                    const data = await resp.json();
+                    const candidates = (data && data.candidates) || [];
+                    let aiImageBuffer = null;
+                    for (const cand of candidates) {
+                        const parts = (cand && cand.content && cand.content.parts) || [];
+                        for (const p of parts) {
+                            const inline = p.inlineData || p.inline_data;
+                            if (inline && inline.data) {
+                                aiImageBuffer = Buffer.from(inline.data, 'base64');
+                                break;
+                            }
+                        }
+                        if (aiImageBuffer) break;
+                    }
+
+                    if (aiImageBuffer && aiImageBuffer.length > 500) {
+                        const finalBuffer = await sharp(aiImageBuffer)
+                            .rotate()
+                            .resize(900, 1200, { fit: sharp.fit.cover, position: 'center' })
+                            .jpeg({ quality: 95, mozjpeg: true })
+                            .toBuffer();
+                        console.log(`[FOTO-IA] Foto corporativa 3x4 padronizada com sucesso via modelo ${modelName}!`);
+                        return { buffer: finalBuffer, iaAplicada: true, modelo: modelName, erro: null };
+                    } else {
+                        errosTentativas.push(`${modelName}: resposta sem imagem gerada`);
+                        break;
+                    }
+                } catch (errCall) {
+                    errosTentativas.push(`${modelName}: ${errCall.message}`);
+                    break;
+                }
+            }
+        }
+
+        console.warn('[FOTO-IA] Nenhum modelo de imagem retornou foto editada. Tentativas:', errosTentativas.join(' | '));
+        return { buffer: await fallback3x4(), iaAplicada: false, modelo: null, erro: errosTentativas.join(' | ') };
+    } catch (errGeral) {
+        console.error('[FOTO-IA] Erro geral ao padronizar foto:', errGeral.message);
+        return { buffer: await fallback3x4(), iaAplicada: false, modelo: null, erro: errGeral.message };
+    }
+}
+
+// Endpoint de pré-visualização / padronização IA imediata (para quando o colaborador ainda está sendo cadastrado)
+app.post('/api/padronizar-foto-ia', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+        const result = await padronizarFotoColaboradorIA(req.file.buffer);
+        res.json({
+            sucesso: true,
+            ia_aplicada: result.iaAplicada,
+            modelo_ia: result.modelo,
+            erro_ia: result.erro || null,
+            foto_base64: `data:image/jpeg;base64,${result.buffer.toString('base64')}`
+        });
+    } catch (e) {
+        console.error('[FOTO-IA-PREVIEW] Erro:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Photo Upload Endpoint com Filtro de IA de Estúdio Corporativo
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -6721,56 +7008,95 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
-        // Timestamp garante unicidade mesmo em servidores ef??meros (Render)
+        // Timestamp garante unicidade mesmo em servidores efêmeros (Render)
         const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14); // ex: 20260327230900
-        const filename = `Foto_${safeNome}_${timestamp}.jpg`;
-        const filepath = path.join(pasta, filename);
 
-        const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
-
-
-        // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
-        const processedBuffer = await sharp(req.file.buffer)
-            .resize(800, 1000, {
-                fit: sharp.fit.cover,
-                position: sharp.strategy.attention
-            })
+        // 1. Imagem ORIGINAL sem passar por IA (apenas rotação EXIF para não ficar deitada) → salva na aba "Fotos" do Prontuário Digital
+        const originalBuffer = await sharp(req.file.buffer)
+            .rotate()
             .jpeg({ quality: 95, mozjpeg: true })
             .toBuffer();
 
-        // 1. Histórico local em FOTOS/ (numerado)
-        fs.writeFileSync(filepath, processedBuffer);
-        console.log("Foto histórico salva localmente:", filepath);
+        const filenameOriginal = `Foto_Original_${safeNome}_${timestamp}.jpg`;
+        const filepathOriginal = path.join(pasta, filenameOriginal);
+        const caminhoRelativoOriginal = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filenameOriginal);
+        fs.writeFileSync(filepathOriginal, originalBuffer);
+        console.log("Foto original (sem IA) salva localmente:", filepathOriginal);
 
-        // 2. Foto principal (substituir) em 01_FICHA_CADASTRAL/
+        // 2. Imagem PADRONIZADA POR IA (3x4 Estúdio Corporativo América Rental) → foto de perfil do colaborador
+        let processedBuffer = null;
+        let iaAplicada = false;
+        let modeloIA = null;
+
+        if (req.body && req.body.foto_ia_base64 && typeof req.body.foto_ia_base64 === 'string' && req.body.foto_ia_base64.length > 200) {
+            try {
+                const rawB64 = req.body.foto_ia_base64.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
+                processedBuffer = await sharp(Buffer.from(rawB64, 'base64'))
+                    .rotate()
+                    .resize(900, 1200, { fit: sharp.fit.cover, position: 'center' })
+                    .jpeg({ quality: 95, mozjpeg: true })
+                    .toBuffer();
+                iaAplicada = true;
+                modeloIA = 'pre-processado';
+            } catch (_) {
+                processedBuffer = null;
+            }
+        }
+
+        if (!processedBuffer) {
+            const iaRes = await padronizarFotoColaboradorIA(originalBuffer);
+            processedBuffer = iaRes.buffer;
+            iaAplicada = iaRes.iaAplicada;
+            modeloIA = iaRes.modelo;
+        }
+
+        const filenameIA = `Foto_${safeNome}_${timestamp}.jpg`;
         const pastaFicha = path.join(BASE_PATH, safeNome, "01_FICHA_CADASTRAL");
         if (!fs.existsSync(pastaFicha)) fs.mkdirSync(pastaFicha, { recursive: true });
         const fichaFilepath = path.join(pastaFicha, `Foto_${safeNome}.jpg`);
         fs.writeFileSync(fichaFilepath, processedBuffer);
-        console.log("Foto principal salva/substitu??da:", fichaFilepath);
+        console.log("Foto corporativa (IA) salva em 01_FICHA_CADASTRAL:", fichaFilepath);
 
-        // 3. Upload para o Cloudflare R2 ou salvar base64 localmente se nao configurado
+        // 3. Upload para o Cloudflare R2 (ambas as imagens: IA para o perfil e Original sem IA para a aba Fotos do Prontuário)
         const r2 = require('./utils/r2');
-        let finalPath = caminhoRelativo;
+        const caminhoRelativoIA = path.posix.join('files', 'Colaboradores', safeNome, '01_FICHA_CADASTRAL', `Foto_${safeNome}.jpg`);
+        let finalPathIA = caminhoRelativoIA;
         let finalBase64 = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
-        let r2KeyUploaded = null;
+        let finalPathOriginal = caminhoRelativoOriginal;
+        let r2KeyOriginalUploaded = null;
 
         if (r2.isReady()) {
-            const r2Key = `Colaboradores/${safeNome}/FOTOS/${filename}`;
-            finalPath = await r2.uploadToR2(r2Key, processedBuffer, 'image/jpeg');
-            r2KeyUploaded = r2Key;
-            // Como estamos salvando no R2, nao salvamos o base64 pesado no banco para poupar espaço.
-            // Mas de acordo com o pedido para nao quebrar testes, nao vamos apagar os antigos ainda, 
-            // e os novos ficarão com foto_base64 = null (o GET usará o foto_path).
-            finalBase64 = null; 
+            // 3a. Upload da foto padronizada por IA para o perfil do colaborador
+            const r2KeyIA = `Colaboradores/${safeNome}/01_FICHA_CADASTRAL/${filenameIA}`;
+            finalPathIA = await r2.uploadToR2(r2KeyIA, processedBuffer, 'image/jpeg');
+            try {
+                await r2.uploadToR2(`Colaboradores/${safeNome}/01_FICHA_CADASTRAL/Foto_${safeNome}.jpg`, processedBuffer, 'image/jpeg');
+            } catch (_) {}
+            finalBase64 = null;
+
+            // 3b. Upload da foto ORIGINAL (sem IA) para a aba Fotos do Prontuário Digital
+            const r2KeyOrig = `Colaboradores/${safeNome}/FOTOS/${filenameOriginal}`;
+            finalPathOriginal = await r2.uploadToR2(r2KeyOrig, originalBuffer, 'image/jpeg');
+            r2KeyOriginalUploaded = r2KeyOrig;
         }
 
-        db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [finalPath, finalBase64, id]);
+        // Atualizar foto de perfil do colaborador com a imagem padronizada por IA
+        await new Promise((resolve, reject) => {
+            db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [finalPathIA, finalBase64, id], (err) => {
+                if (err) reject(err); else resolve();
+            });
+        });
 
-        // Também registrar na aba "Fotos" do Prontuário Digital
-        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, r2_key) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?, ?)`, [id, filename, finalPath, r2KeyUploaded]);
+        // Registrar na aba "Fotos" do Prontuário Digital a imagem ORIGINAL sem passar por IA
+        await new Promise((resolve) => {
+            db.run(
+                `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, r2_key) VALUES (?, 'Fotos', 'Foto de Perfil (Original)', ?, ?, ?)`,
+                [id, filenameOriginal, finalPathOriginal, r2KeyOriginalUploaded],
+                () => resolve()
+            );
+        });
 
-        // 4. Upload ass??ncrono para OneDrive
+        // 4. Upload assíncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
             (async () => {
                 try {
@@ -6779,15 +7105,21 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
                     await onedrive.ensureFolder(`${onedriveBase}/01_FICHA_CADASTRAL`);
                     await onedrive.uploadToOneDrive(`${onedriveBase}/01_FICHA_CADASTRAL`, `Foto_${safeNome}.jpg`, processedBuffer);
                     await onedrive.ensureFolder(`${onedriveBase}/FOTOS`);
-                    await onedrive.uploadToOneDrive(`${onedriveBase}/FOTOS`, filename, processedBuffer);
-                    console.log(`[OneDrive] Foto sincronizada: ${filename} e Foto_${safeNome}.jpg`);
+                    await onedrive.uploadToOneDrive(`${onedriveBase}/FOTOS`, filenameOriginal, originalBuffer);
+                    console.log(`[OneDrive] Foto IA (01_FICHA_CADASTRAL) e Original (FOTOS) sincronizadas: ${filenameOriginal}`);
                 } catch (syncErr) {
                     console.error('[OneDrive] Erro ao sincronizar foto:', syncErr.message);
                 }
             })();
         }
 
-        res.json({ sucesso: true, caminho: finalPath });
+        res.json({
+            sucesso: true,
+            caminho: finalPathIA,
+            ia_aplicada: iaAplicada,
+            modelo_ia: modeloIA,
+            foto_base64: `data:image/jpeg;base64,${processedBuffer.toString('base64')}`
+        });
     } catch (erro) {
         console.error('Erro no processamento da foto:', erro);
         res.status(500).json({ error: erro.message });
@@ -6869,6 +7201,11 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
 
             addCandidate(extractR2Key(row.foto_path));
 
+            if (row.nome_completo) {
+                const safeNome = formatarNome(row.nome_completo);
+                addCandidate(`Colaboradores/${safeNome}/01_FICHA_CADASTRAL/Foto_${safeNome}.jpg`);
+            }
+
             try {
                 const docFotos = await new Promise((resolve) => {
                     db.all(
@@ -6886,7 +7223,6 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
 
             if (row.nome_completo) {
                 const safeNome = formatarNome(row.nome_completo);
-                addCandidate(`Colaboradores/${safeNome}/01_FICHA_CADASTRAL/Foto_${safeNome}.jpg`);
                 addCandidate(`Colaboradores/${safeNome}/FOTOS/Foto_${safeNome}.jpg`);
                 addCandidate(`Colaboradores/${safeNome}/Fotos/Foto_${safeNome}.jpg`);
             }
@@ -11525,7 +11861,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
 
                     const path = require('path');
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
-                        db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
+                        db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ? AND (foto_path IS NULL OR TRIM(foto_path) = "")', [file_path, colaborador_id]);
                     }
 
                     const _tipoSimples2 = (document_type || '').split('###')[1] || '';
@@ -11553,7 +11889,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
 
                     const path = require('path');
                     if (tab_name === 'Fotos' && ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file_path).toLowerCase())) {
-                        db.run("UPDATE colaboradores SET foto_path = ? WHERE id = ?", [file_path, colaborador_id]);
+                        db.run('UPDATE colaboradores SET foto_path = ? WHERE id = ? AND (foto_path IS NULL OR TRIM(foto_path) = "")', [file_path, colaborador_id]);
                     }
 
                     const newDocId = this.lastID;
