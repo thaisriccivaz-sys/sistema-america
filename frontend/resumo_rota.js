@@ -7,6 +7,9 @@ window._rrObterColBBaseLimpa = function(v) {
     if (suffIdx !== -1) {
         base = base.substring(0, suffIdx);
     }
+    if (base && /\?{2,}\s*ATTEND AMBIENTAL/i.test(base)) {
+        base = base.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+    }
     if (base && (base.includes('AVISO IMPORTANTE!') || base.includes('VERIFICAR DETALHES!')) && v && Array.isArray(v.os) && v.os.length > 0) {
         const fresh = window._rrMontarColB(v);
         const freshLines = fresh.split('\n');
@@ -162,6 +165,10 @@ function _rrExtrairObsValida(obsMotorista, obsInternas, servico) {
     if (c1) return c1;
     const c2 = limparCandidata(obsInternas);
     if (c2) return c2;
+    if (servico && /\s[-–]\s/.test(String(servico))) {
+        const c3 = limparCandidata(String(servico).split(/\s[-–]\s/).slice(1).join(' - '), '');
+        if (c3) return c3;
+    }
     return '';
 }
 window._rrEhApenasTipoServico = _rrEhApenasTipoServico;

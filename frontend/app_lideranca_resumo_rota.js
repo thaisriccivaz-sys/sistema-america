@@ -103,6 +103,7 @@
         let total = 0;
         let concluidos = 0;
         (v.observacoes || []).forEach(o => {
+            if (o.tem_check === false) return;
             total++;
             if (o.checked) concluidos++;
         });
@@ -470,10 +471,18 @@
         const dataRotaIso = (S.dadosDia && S.dadosDia.data) || S.data || '';
         const rotaAtrasada = !!(dataRotaIso && dataRotaIso >= '2026-12-01' && dataRotaIso < hojeISO());
 
-        // 1. Observações de rota (check manual)
+        // 1. Observações de rota (todas aparecem; apenas as de variáveis/habilidades de saída possuem caixa de check)
         const obsHtml = (v.observacoes || []).length > 0 ? `
             <div class="arr-sec">
                 ${v.observacoes.map(obs => {
+                    if (obs.tem_check === false) {
+                        return `
+                        <div class="arr-row readonly">
+                            <div class="arr-row-txt">
+                                ${formatarTextoObsHtml(obs.texto)}
+                            </div>
+                        </div>`;
+                    }
                     const chipReal = obs.checked
                         ? renderPessoasChips([{ nome: obs.lider_nome || 'Líder', colab_id: obs.lider_colab_id, foto_url: obs.lider_foto_url }], 20)
                         : '';

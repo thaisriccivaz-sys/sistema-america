@@ -512,8 +512,8 @@ db.run("UPDATE admissao_assinaturas SET nome_documento = REPLACE(nome_documento,
 db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
 
 // AUTO-PATCH: Corrigir OS 2 de Rota Redonda (BRK -> ATTEND)
-db.run("UPDATE os_logistica SET cliente = '???????? ATTEND AMBIENTAL' WHERE numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
-db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(dados, 'BRK AMBIENTAL', '???????? ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
+db.run("UPDATE os_logistica SET cliente = '💦🚨 ATTEND AMBIENTAL' WHERE (numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%') OR cliente LIKE '%???%ATTEND AMBIENTAL%'", err => { if(err) console.error(err); });
+db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(dados, 'BRK AMBIENTAL', '💦🚨 ATTEND AMBIENTAL'), '???????? ATTEND AMBIENTAL', '💦🚨 ATTEND AMBIENTAL'), '??????? ATTEND AMBIENTAL', '💦🚨 ATTEND AMBIENTAL'), '?????? ATTEND AMBIENTAL', '💦🚨 ATTEND AMBIENTAL'), '???? ATTEND AMBIENTAL', '💦🚨 ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%' OR dados LIKE '%??%ATTEND AMBIENTAL%'", err => { if(err) console.error(err); });
 
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
@@ -9274,11 +9274,11 @@ app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
 
                     veiculos.forEach(v => {
                         const obsPorCliente = {};
-                        (v.os || []).forEach(o => {
+                        (v.os || []).forEach(o => { if (o.cliente && /\?{2,}\s*ATTEND AMBIENTAL/i.test(o.cliente)) o.cliente = o.cliente.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
                             const nk = String(o._numero_os || o.numero_os || '').trim();
                             const ck = normCli(o.cliente);
                             const candidatos = [...(byNum[nk] || []), ...(byCli[ck] || [])];
-                            let obsAtual = extrairObs(o.obs, o.observacoes_internas);
+                            let obsAtual = extrairObs(o.obs, o.observacoes_internas) || (o.servico && /\s[-–]\s/.test(String(o.servico)) ? String(o.servico).split(/\s[-–]\s/).slice(1).join(' - ').trim() : '');
                             if (!obsAtual && candidatos.length) {
                                 const matchRow = candidatos.find(r => extrairObs(r.observacoes, r.observacoes_internas));
                                 if (matchRow) {
@@ -9304,6 +9304,7 @@ app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
                             }
                         });
 
+                        if (v.colBEditado && /\?{2,}\s*ATTEND AMBIENTAL/i.test(v.colBEditado)) v.colBEditado = v.colBEditado.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
                         if (v.colBEditado && (v.colBEditado.includes('AVISO IMPORTANTE!') || v.colBEditado.includes('VERIFICAR DETALHES!'))) {
                             v.colBEditado = v.colBEditado.split('\n').map(line => {
                                 if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;

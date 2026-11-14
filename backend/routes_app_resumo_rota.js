@@ -175,6 +175,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         if (c1) return c1;
         const c2 = limpar(obsInternas);
         if (c2) return c2;
+        if (servico && /\s[-–]\s/.test(String(servico))) {
+            const c3 = limpar(String(servico).split(/\s[-–]\s/).slice(1).join(' - '));
+            if (c3) return c3;
+        }
         return '';
     }
 
@@ -457,6 +461,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         const suffixMark = '\nMotorista:';
         const suffIdx = base.indexOf(suffixMark);
         if (suffIdx !== -1) base = base.substring(0, suffIdx);
+        if (base && /\?{2,}\s*ATTEND AMBIENTAL/i.test(base)) {
+            base = base.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+        }
         if (base && (base.includes('AVISO IMPORTANTE!') || base.includes('VERIFICAR DETALHES!')) && v && Array.isArray(v.os) && v.os.length > 0) {
             const fresh = montarColB(v);
             const freshLines = fresh.split('\n');
@@ -648,12 +655,13 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             }
 
             if (secaoAtual === 'OBS') {
+                const linhaCorrigida = trimmed.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
                 let titulo = '';
-                let detalhe = trimmed;
-                const colonIdx = trimmed.indexOf(':');
+                let detalhe = linhaCorrigida;
+                const colonIdx = linhaCorrigida.indexOf(':');
                 if (colonIdx !== -1) {
-                    titulo = trimmed.substring(0, colonIdx + 1);
-                    detalhe = trimmed.substring(colonIdx + 1).trim();
+                    titulo = linhaCorrigida.substring(0, colonIdx + 1);
+                    detalhe = linhaCorrigida.substring(colonIdx + 1).trim();
                 }
 
                 // Verificar se esta observação pertence a um item de saída (Levar Carrinho, Levar Extensora,
@@ -662,7 +670,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 const osMatchList = cliPrefix
                     ? (veiculoObj.os || []).filter(o => normClienteCurto(o.cliente) === cliPrefix)
                     : [];
-                const itensLinha = detectarItensSaidaTexto(trimmed);
+                const itensLinha = detectarItensSaidaTexto(linhaCorrigida);
                 const itensOS = [];
                 osMatchList.forEach(o => {
                     detectarItensSaidaOS(o).forEach(it => {
@@ -674,10 +682,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     if (!todosItensSaida.some(x => x.id === it.id)) todosItensSaida.push(it);
                 });
 
-                // Filtrar: mostrar no checklist do líder APENAS observações de saída
-                if (todosItensSaida.length === 0) {
-                    continue;
-                }
+                // Todas as observações aparecem no Resumo da Rota, mas APENAS as das variáveis/habilidades
+                // de saída (Levar Carrinho, Levar Extensora, Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem)
+                // recebem o campo de selecionar o check (tem_check = true).
+                const temCheck = todosItensSaida.length > 0;
 
                 // Garantir que os ícones dos itens de saída apareçam no título
                 const iconesSaidaFaltando = [];
@@ -698,7 +706,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         if (ext) { obsReal = ext.toUpperCase(); break; }
                     }
                     detalhe = obsReal || [...new Set(todosItensSaida.map(i => i.label))].join(' / ');
-                } else {
+                    if (!detalhe) continue;
+                } else if (temCheck) {
                     // Se a OS tem habilidades de saída (ex: VAC, Reparos, Montagem, Desmontagem) que não estão mencionadas no detalhe, acrescentar
                     const labelsExtras = todosItensSaida
                         .filter(it => ['VAC', 'REPAROS', 'MONTAGEM', 'DESMONTAGEM'].includes(it.id))
@@ -712,20 +721,23 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 const textoFinal = titulo ? `${titulo} ${detalhe}` : detalhe;
                 const itemKeyOrig = 'obs_' + slug(trimmed);
                 const itemKeyFinal = 'obs_' + slug(textoFinal);
-                const chk = checksMap.get(itemKeyFinal) || checksMap.get(itemKeyOrig)
-                    || (cliPrefix ? [...checksMap.entries()].find(([k]) => k.startsWith('obs_') && k.includes(slug(cliPrefix)))?.[1] : null);
+                const chk = temCheck
+                    ? (checksMap.get(itemKeyFinal) || checksMap.get(itemKeyOrig)
+                        || (cliPrefix ? [...checksMap.entries()].find(([k]) => k.startsWith('obs_') && k.includes(slug(cliPrefix)))?.[1] : null))
+                    : null;
 
                 observacoes.push({
                     item_key: chk ? (checksMap.has(itemKeyFinal) ? itemKeyFinal : (checksMap.has(itemKeyOrig) ? itemKeyOrig : itemKeyFinal)) : itemKeyFinal,
                     texto: textoFinal,
                     titulo,
                     detalhe,
-                     _cliPrefix: cliPrefix,
-                    checked: !!(chk && chk.checked),
-                    lider_nome: chk && chk.checked ? chk.lider_nome : null,
-                    lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
-                    lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
-                    atualizado_em: chk && chk.checked ? chk.atualizado_em : null
+                    _cliPrefix: cliPrefix,
+                    tem_check: temCheck,
+                    checked: !!(temCheck && chk && chk.checked),
+                    lider_nome: temCheck && chk && chk.checked ? chk.lider_nome : null,
+                    lider_colab_id: temCheck && chk && chk.checked ? (chk.lider_colab_id || null) : null,
+                    lider_foto_url: temCheck && chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
+                    atualizado_em: temCheck && chk && chk.checked ? chk.atualizado_em : null
                 });
                 continue;
             }
@@ -837,12 +849,15 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const labelsSaida = [...new Set(itensOS.map(i => i.label))].join(' / ');
             const detalheCand = obsReal ? obsReal.toUpperCase() : labelsSaida;
 
-            const jaTemClienteEObs = observacoes.some(ex =>
+            const exMatch = observacoes.find(ex =>
                 ex._cliPrefix === cliCurto && (
                     !obsReal || norm(ex.detalhe).toUpperCase().includes(norm(obsReal).toUpperCase())
                 )
             );
-            if (jaTemClienteEObs) return;
+            if (exMatch) {
+                exMatch.tem_check = true;
+                return;
+            }
 
             const iconesUnicos = [...new Set(itensOS.map(i => i.icon).filter(Boolean))].join(' ');
             const titulo = `${iconesUnicos ? iconesUnicos + ' ' : ''}${nomeExib}:`;
@@ -857,6 +872,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 titulo,
                 detalhe: detalheCand,
                 _cliPrefix: cliCurto,
+                tem_check: true,
                 checked: !!(chk && chk.checked),
                 lider_nome: chk && chk.checked ? chk.lider_nome : null,
                 lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
@@ -1210,9 +1226,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 (mod, nomeEq, qtd) => calcStatusChecklist(osRetVeiculo, retMap, mod, qtd)
             );
 
-            // Calcular contadores gerais de progresso deste veículo
-            const totalObs = secoes.observacoes.length;
-            const feitasObs = secoes.observacoes.filter(o => o.checked).length;
+            // Calcular contadores gerais de progresso deste veículo (somente observações que possuem check)
+            const obsComCheck = secoes.observacoes.filter(o => o.tem_check !== false);
+            const totalObs = obsComCheck.length;
+            const feitasObs = obsComCheck.filter(o => o.checked).length;
 
             const entComCk = secoes.entregas.filter(e => e.status !== 'sem_checklist');
             const retComCk = secoes.retiradas.filter(r => r.status !== 'sem_checklist');
@@ -1295,7 +1312,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             totalEntRetAuto += (totalEnt + totalRet);
             feitosEntRetAuto += (feitasEnt + feitasRet);
 
-            secoes.observacoes.forEach(o => {
+            obsComCheck.forEach(o => {
                 if (vChecksDiurno.get(o.item_key)?.checked) feitosManuaisDiurno++;
                 if (vChecksNoturno.get(o.item_key)?.checked) feitosManuaisNoturno++;
             });
