@@ -581,6 +581,29 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         db.run(`CREATE INDEX IF NOT EXISTS idx_app_rr_chk_resumo ON app_resumo_rota_checks (resumo_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_app_rr_chk_data ON app_resumo_rota_checks (data_rota)`);
 
+        db.run(`CREATE TABLE IF NOT EXISTS app_resumo_rota_presenca (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            data_rota           TEXT NOT NULL,
+            colaborador_id      INTEGER NOT NULL,
+            colaborador_nome    TEXT,
+            status              TEXT NOT NULL,
+            origem              TEXT DEFAULT 'rota',
+            resumo_id           INTEGER,
+            veiculo_key         TEXT,
+            veiculo_nome        TEXT,
+            papel_rota          TEXT,
+            substituto_id       INTEGER,
+            substituto_nome     TEXT,
+            falta_id            INTEGER,
+            avisado_previamente TEXT DEFAULT 'Não',
+            observacao          TEXT,
+            lider_id            INTEGER,
+            lider_nome          TEXT,
+            atualizado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (data_rota, colaborador_id)
+        )`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_app_rr_pres_data ON app_resumo_rota_presenca (data_rota)`);
+
         // Auto-liberar permissão de 'app-lideranca-resumo-rota' para grupos que já têm acesso ao APP Liderança
         db.all(
             `SELECT DISTINCT grupo_id FROM permissoes_grupo WHERE pagina_id IN ('app-lideranca-entregas', 'app-lideranca-retiradas', 'app-lideranca-candidatos') AND (visualizar = 1 OR visualizar = '1' OR visualizar = 'true')`,
@@ -660,6 +683,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 id: c.id,
                 nome_completo: c.nome_completo,
                 cargo: c.cargo || '',
+                departamento: c.departamento || '',
                 foto_url: c.foto_base64 || `/api/colaboradores/foto/${c.id}`
             };
             byExact.set(n, info);
@@ -969,6 +993,272 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         };
     }
 
+    // ── Classificação de Turno, Departamento e Disponibilidade de Colaboradores ─
+    function classificarColabOperacional(c) {
+        const dep = normLow(c.departamento || '');
+        const cargo = normLow(c.cargo || '');
+        const func = normLow(c.funcao || '');
+        const eqNome = normLow(c.equipe_nome || '');
+        const nome = normLow(c.nome_completo || '');
+
+        let categoriaServico = 'outros';
+        let departamentoLabel = c.departamento || c.cargo || 'Operacional';
+
+        if (dep.includes('motorista') || cargo.includes('motorista') || func === 'motorista') {
+            categoriaServico = 'motorista';
+            departamentoLabel = 'Motorista';
+        } else if (dep.includes('patio') || cargo.includes('patio')) {
+            categoriaServico = 'ajudante';
+            departamentoLabel = 'Ajudante de Pátio';
+        } else if (dep.includes('ajudante') || cargo.includes('ajudante') || func === 'ajudante' || dep === 'externo') {
+            categoriaServico = 'ajudante';
+            departamentoLabel = 'Ajudante Geral';
+        } else if (escalaUtil.ehLiderOperacional(c) || dep.includes('lider') || cargo.includes('lider')) {
+            categoriaServico = 'lideranca';
+            departamentoLabel = 'Liderança';
+        }
+
+        let turno = 'diurno';
+        if (escalaUtil.ehLiderOperacional(c)) {
+            turno = escalaUtil.turnoDoLider(c);
+        } else if (eqNome.includes('noturn') || eqNome.includes('noite')) {
+            turno = 'noturno';
+        } else if (c.horario_entrada && String(c.horario_entrada).trim() >= '17:00') {
+            turno = 'noturno';
+        } else if (nome.includes('vitor leandro') || nome.includes('ana paula')) {
+            turno = 'noturno';
+        }
+
+        return {
+            categoria_servico: categoriaServico,
+            departamento_label: departamentoLabel,
+            turno
+        };
+    }
+
+    function colabEstaDeFolgaNoDia(c, dataStr, escalaDia) {
+        if (!c || !dataStr) return false;
+        if (escalaUtil.ehLiderOperacional(c) && escalaDia) {
+            const todosLideres = [
+                ...((escalaDia.diurno && escalaDia.diurno.todos) || []),
+                ...((escalaDia.noturno && escalaDia.noturno.todos) || [])
+            ];
+            const lid = todosLideres.find(l => Number(l.colab_id || l.id) === Number(c.id));
+            if (lid) return !!lid.de_folga;
+        }
+        const escalaTipo = String(c.escala_tipo || '').trim();
+        const d = new Date(dataStr + 'T12:00:00');
+        const ds = d.getDay();
+        if (!escalaTipo || escalaTipo === 'null') return ds === 0 || ds === 6;
+        if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') return ds === 0;
+        if (escalaTipo === 'padrao_seg_sexta') return ds === 0 || ds === 6;
+        return escalaUtil.colabDeFolgaNormal(c, dataStr);
+    }
+
+    async function calcularDisponiveisEFaltasDoDia(iso, rowsResumoAtivos, escalaDia, matchColabFn) {
+        const colabsOp = await dbAll(`
+            /* INCLUIR_SERVICO */
+            SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.foto_path,
+                   c.status as colab_status, c.status,
+                   c.ferias_programadas_inicio, c.ferias_programadas_fim,
+                   c.ferias_fracionadas, c.ferias_fracionadas_tipo, c.ferias_fracionadas_inicio2, c.ferias_fracionadas_fim2,
+                   c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio,
+                   c.horario_entrada, c.horario_saida,
+                   em.equipe_id, em.funcao, em.escala, eq.nome as equipe_nome,
+                   d.tipo as departamento_tipo
+            FROM colaboradores c
+            LEFT JOIN equipes_membros em ON em.colaborador_id = c.id
+            LEFT JOIN equipes eq ON eq.id = em.equipe_id
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+                                      OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
+            WHERE LOWER(COALESCE(c.status, '')) NOT LIKE '%desligado%'
+              AND LOWER(COALESCE(c.status, '')) NOT LIKE '%iniciado%'
+              AND LOWER(COALESCE(c.nome_completo, '')) NOT LIKE '%teste%'
+              AND LOWER(COALESCE(c.nome_completo, '')) NOT LIKE '%thais ricci%'
+              AND LOWER(COALESCE(c.cargo, '')) NOT LIKE '%manuten%'
+              AND LOWER(COALESCE(c.departamento, '')) NOT LIKE '%manuten%'
+              AND LOWER(COALESCE(eq.nome, '')) NOT LIKE '%manuten%'
+              AND LOWER(COALESCE(c.cargo, '')) NOT LIKE '%limpeza%'
+              AND LOWER(COALESCE(c.departamento, '')) NOT LIKE '%limpeza%'
+              AND LOWER(COALESCE(eq.nome, '')) NOT LIKE '%limpeza%'
+              AND (d.tipo = 'Operacional'
+                   OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'PATIO', 'MOTORISTA FREE'))
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%motorista%'
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%ajudante%'
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%patio%'
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%pátio%'
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%lider%'
+                   OR LOWER(COALESCE(c.departamento, '')) LIKE '%líder%'
+                   OR em.equipe_id IS NOT NULL)
+            GROUP BY c.id
+            ORDER BY c.nome_completo ASC
+        `);
+
+        const matcher = matchColabFn || buildColabMatcher(colabsOp);
+        const colabPorId = new Map();
+        colabsOp.forEach(c => colabPorId.set(Number(c.id), c));
+
+        // Buscar faltas do prontuário na data e registros de presença/substituição do Resumo da Rota
+        const faltasRows = await dbAll(
+            `SELECT * FROM faltas WHERE substr(data_falta, 1, 10) = ? ORDER BY id DESC`,
+            [iso]
+        );
+        const presencaRows = await dbAll(
+            `SELECT * FROM app_resumo_rota_presenca WHERE data_rota = ? ORDER BY id DESC`,
+            [iso]
+        );
+
+        const faltasPorColabId = new Map();
+        faltasRows.forEach(f => {
+            const cid = Number(f.colaborador_id);
+            if (cid && !faltasPorColabId.has(cid)) faltasPorColabId.set(cid, f);
+        });
+
+        const presencaPorColabId = new Map();
+        presencaRows.forEach(p => {
+            const cid = Number(p.colaborador_id);
+            if (cid && !presencaPorColabId.has(cid)) presencaPorColabId.set(cid, p);
+        });
+
+        // Identificar todos os colaboradores escalados nos veículos do dia
+        const idsNaRota = new Set();
+        const nomesNaRota = new Set();
+        (rowsResumoAtivos || []).forEach(rRow => {
+            const pDados = parseJson(rRow.dados, {});
+            const vList = Array.isArray(pDados) ? pDados : (pDados && Array.isArray(pDados.veiculos) ? pDados.veiculos : []);
+            vList.forEach(v => {
+                ['motorista', 'ajudante'].forEach(campo => {
+                    const nm = String(v[campo] || '').trim();
+                    if (!nm || nm === '—') return;
+                    nomesNaRota.add(normLow(nm));
+                    const m = matcher(nm);
+                    if (m && m.id) idsNaRota.add(Number(m.id));
+                });
+            });
+        });
+
+        // Substitutos registrados também estão na rota
+        presencaRows.forEach(p => {
+            if (p.status === 'falta' && p.substituto_id) {
+                idsNaRota.add(Number(p.substituto_id));
+            }
+            if (p.status === 'falta' && p.substituto_nome) {
+                nomesNaRota.add(normLow(p.substituto_nome));
+            }
+        });
+
+        // Montar lista consolidada de Faltas do Dia (tanto da rota quanto de disponíveis fora de rota)
+        const idsComFalta = new Set();
+        const faltasDia = [];
+
+        const registrarItemFalta = (cid, pres, fRow) => {
+            if (!cid || idsComFalta.has(cid)) return;
+            idsComFalta.add(cid);
+            const c = colabPorId.get(cid);
+            const nome = (c && c.nome_completo) || (pres && pres.colaborador_nome) || 'Colaborador';
+            const cls = c ? classificarColabOperacional(c) : {
+                categoria_servico: (pres && pres.papel_rota === 'motorista') ? 'motorista' : 'ajudante',
+                departamento_label: (pres && pres.papel_rota === 'motorista') ? 'Motorista' : 'Ajudante Geral',
+                turno: 'diurno'
+            };
+            faltasDia.push({
+                colab_id: cid,
+                nome,
+                cargo: (c && c.cargo) || cls.departamento_label,
+                departamento_label: cls.departamento_label,
+                categoria_servico: cls.categoria_servico,
+                turno: cls.turno,
+                foto_url: (c && c.foto_base64) || `/api/colaboradores/foto/${cid}`,
+                status_presenca: 'falta',
+                origem: (pres && pres.origem) || (idsNaRota.has(cid) ? 'rota' : 'disponivel'),
+                resumo_id: (pres && pres.resumo_id) || null,
+                veiculo_key: (pres && pres.veiculo_key) || null,
+                veiculo_nome: (pres && pres.veiculo_nome) || null,
+                papel_rota: (pres && pres.papel_rota) || (cls.categoria_servico === 'motorista' ? 'motorista' : 'ajudante'),
+                substituto_id: (pres && pres.substituto_id) || null,
+                substituto_nome: (pres && pres.substituto_nome) || null,
+                falta_id: (fRow && fRow.id) || (pres && pres.falta_id) || null,
+                turno_falta: (fRow && fRow.turno) || 'Dia todo',
+                avisado_previamente: (fRow && fRow.avisado_previamente) || (pres && pres.avisado_previamente) || 'Não',
+                observacao: (fRow && fRow.observacao) ?? (pres && pres.observacao) ?? '',
+                lider_nome: (pres && pres.lider_nome) || null,
+                atualizado_em: (pres && pres.atualizado_em) || null
+            });
+        };
+
+        presencaRows.forEach(p => {
+            if (p.status === 'falta') {
+                const cid = Number(p.colaborador_id);
+                registrarItemFalta(cid, p, faltasPorColabId.get(cid));
+            }
+        });
+        faltasRows.forEach(f => {
+            const cid = Number(f.colaborador_id);
+            const pres = presencaPorColabId.get(cid);
+            if (!pres || pres.status === 'falta') {
+                registrarItemFalta(cid, pres, f);
+            }
+        });
+
+        // Filtrar colaboradores disponíveis para trabalho que NÃO estão na rota e NÃO tiveram falta
+        const disponiveisForaRota = [];
+        for (const c of colabsOp) {
+            const cid = Number(c.id);
+            const nomeL = normLow(c.nome_completo);
+            if (!nomeL) continue;
+            if (nomeL.includes('teste') || nomeL.includes('thais ricci') || nomeL.includes('thais.ricci')) continue;
+            // Excluir Joaquim e Vitor Gabriel da liderança operacional
+            if ((nomeL.includes('joaquim') || nomeL.includes('vitor gabriel')) && (normLow(c.departamento).includes('lider') || normLow(c.cargo).includes('lider'))) {
+                continue;
+            }
+            if (normLow(c.tipo_contrato).includes('intermitente')) continue;
+            const st = normLow(c.colab_status || c.status);
+            if (st.includes('afastado') || st.includes('desligado') || st.includes('iniciado')) continue;
+            if (escalaUtil.colabEmFerias(c, iso)) continue;
+            if (colabEstaDeFolgaNoDia(c, iso, escalaDia)) continue;
+            if (idsComFalta.has(cid)) continue;
+
+            // Se está na rota de algum veículo no dia, não entra em "Colaboradores Disponíveis (Fora de Rota)"
+            if (idsNaRota.has(cid) || nomesNaRota.has(nomeL)) continue;
+
+            const cls = classificarColabOperacional(c);
+            const pres = presencaPorColabId.get(cid);
+            disponiveisForaRota.push({
+                colab_id: cid,
+                id: cid,
+                nome: c.nome_completo,
+                cargo: c.cargo || cls.departamento_label,
+                departamento: c.departamento || cls.departamento_label,
+                departamento_label: cls.departamento_label,
+                categoria_servico: cls.categoria_servico,
+                turno: cls.turno,
+                horario_entrada: c.horario_entrada || '',
+                horario_saida: c.horario_saida || '',
+                foto_url: c.foto_base64 || `/api/colaboradores/foto/${cid}`,
+                status_presenca: (pres && pres.status === 'trabalhou') ? 'trabalhou' : null
+            });
+        }
+
+        const dispDiurno = disponiveisForaRota.filter(x => x.turno === 'diurno');
+        const dispNoturno = disponiveisForaRota.filter(x => x.turno === 'noturno');
+
+        return {
+            presencaPorColabId,
+            faltasPorColabId,
+            presencaRows,
+            faltas_dia: faltasDia,
+            colaboradores_disponiveis: {
+                total: disponiveisForaRota.length,
+                todos: disponiveisForaRota,
+                diurno: dispDiurno,
+                noturno: dispNoturno,
+                motoristas: disponiveisForaRota.filter(x => x.categoria_servico === 'motorista'),
+                ajudantes_geral: disponiveisForaRota.filter(x => x.departamento_label === 'Ajudante Geral'),
+                ajudantes_patio: disponiveisForaRota.filter(x => x.departamento_label === 'Ajudante de Pátio')
+            }
+        };
+    }
+
     // ── Montar resposta completa de uma data ────────────────────────────────────
     async function montarResumoDoDia(iso, resumoIdOpcional, turnoOpcional, uidLogado) {
         const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -989,7 +1279,17 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         );
 
         if (!rowsResumo.length) {
-            return { data: iso, turno_ativo: turnoDefault, escala_dia: escalaDia, resumos: [], resumo_ativo: null, veiculos: [] };
+            const dispEmpty = await calcularDisponiveisEFaltasDoDia(iso, [], escalaDia, null);
+            return {
+                data: iso,
+                turno_ativo: turnoDefault,
+                escala_dia: escalaDia,
+                resumos: [],
+                resumo_ativo: null,
+                veiculos: [],
+                colaboradores_disponiveis: dispEmpty.colaboradores_disponiveis,
+                faltas_dia: dispEmpty.faltas_dia
+            };
         }
 
         // Lista de resumos disponíveis no dia
@@ -1028,8 +1328,10 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             : (parsedDados && Array.isArray(parsedDados.veiculos) ? parsedDados.veiculos : []);
 
         // Colaboradores para fotos de motoristas e ajudantes
-        const colabs = await dbAll(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, cargo, foto_path, foto_base64 FROM colaboradores`);
+        const colabs = await dbAll(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, cargo, departamento, foto_path, foto_base64 FROM colaboradores`);
         const matchColab = buildColabMatcher(colabs);
+        const resumosAtivosParaDisp = [...new Map([rowPadraoDiurno, rowPadraoNoturno, chosenRow].filter(Boolean).map(r => [r.id, r])).values()];
+        const dadosDispFaltas = await calcularDisponiveisEFaltasDoDia(iso, resumosAtivosParaDisp, escalaDia, matchColab);
 
         // Candidatos em teste na data
         const candidatosDia = await dbAll(
@@ -1437,20 +1739,44 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             const respTurnoAtual = turnoAtivo === 'noturno' ? escalaDia.noturno : escalaDia.diurno;
 
+            const motCid = motInfo ? Number(motInfo.id) : null;
+            const ajuCid = ajuInfo ? Number(ajuInfo.id) : null;
+            const motPres = motCid ? dadosDispFaltas.presencaPorColabId.get(motCid) : null;
+            const ajuPres = ajuCid ? dadosDispFaltas.presencaPorColabId.get(ajuCid) : null;
+            const motFalta = motCid ? dadosDispFaltas.faltasPorColabId.get(motCid) : null;
+            const ajuFalta = ajuCid ? dadosDispFaltas.faltasPorColabId.get(ajuCid) : null;
+            const substMotRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'motorista' && p.substituto_nome);
+            const substAjuRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'ajudante' && p.substituto_nome);
+            const ajuDepLabel = (ajuInfo && /patio|pátio/i.test(norm(ajuInfo.departamento || ajuInfo.cargo || ''))) ? 'Ajudante de Pátio' : 'Ajudante Geral';
+
             return {
                 veiculo_key: vKey,
                 veiculo: v.veiculo || `Veículo ${idx + 1}`,
                 motorista: {
                     nome: v.motorista || '—',
                     cargo: 'Motorista',
-                    colab_id: motInfo ? motInfo.id : null,
-                    foto_url: (motInfo && motInfo.foto_url) || v._fotoMotorista || null
+                    departamento_label: 'Motorista',
+                    categoria_servico: 'motorista',
+                    colab_id: motCid,
+                    foto_url: (motInfo && motInfo.foto_url) || v._fotoMotorista || null,
+                    status_presenca: (motFalta || (motPres && motPres.status === 'falta')) ? 'falta' : ((motPres && motPres.status === 'trabalhou') || substMotRow ? 'trabalhou' : null),
+                    avisado_previamente: (motFalta && motFalta.avisado_previamente) || (motPres && motPres.avisado_previamente) || 'Não',
+                    observacao_falta: (motFalta && motFalta.observacao) || (motPres && motPres.observacao) || '',
+                    substituiu_nome: (substMotRow && substMotRow.colaborador_nome) || v._falta_motorista_original || null,
+                    substituiu_colab_id: (substMotRow && substMotRow.colaborador_id) || null
                 },
                 ajudante: {
                     nome: v.ajudante || '—',
-                    cargo: 'Ajudante Geral',
-                    colab_id: ajuInfo ? ajuInfo.id : null,
-                    foto_url: (ajuInfo && ajuInfo.foto_url) || v._fotoAjudante || null
+                    cargo: ajuDepLabel,
+                    departamento_label: ajuDepLabel,
+                    categoria_servico: 'ajudante',
+                    colab_id: ajuCid,
+                    foto_url: (ajuInfo && ajuInfo.foto_url) || v._fotoAjudante || null,
+                    status_presenca: (ajuFalta || (ajuPres && ajuPres.status === 'falta')) ? 'falta' : ((ajuPres && ajuPres.status === 'trabalhou') || substAjuRow ? 'trabalhou' : null),
+                    avisado_previamente: (ajuFalta && ajuFalta.avisado_previamente) || (ajuPres && ajuPres.avisado_previamente) || 'Não',
+                    observacao_falta: (ajuFalta && ajuFalta.observacao) || (ajuPres && ajuPres.observacao) || '',
+                    substituiu_nome: (substAjuRow && substAjuRow.colaborador_nome) || v._falta_ajudante_original || null,
+                    substituiu_colab_id: (substAjuRow && substAjuRow.colaborador_id) || null
                 },
                 candidatos: candsVeic,
                 responsavel_escala: {
@@ -1564,7 +1890,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 criado_em: chosenRow.criado_em,
                 usuario_nome: chosenRow.usuario_nome
             },
-            veiculos
+            veiculos,
+            colaboradores_disponiveis: dadosDispFaltas.colaboradores_disponiveis,
+            faltas_dia: dadosDispFaltas.faltas_dia
         };
     }
 
@@ -1643,6 +1971,265 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         } catch (e) {
             console.error('[APP-RESUMO-ROTA] POST check:', e);
             res.status(500).json({ error: 'Erro ao salvar check: ' + e.message });
+        }
+    });
+
+    // ── POST /api/app/resumo-rota/presenca ──────────────────────────────────────
+    // Registra se o colaborador "Foi trabalhar" ('trabalhou') ou teve "Falta" ('falta' - Dia todo no Prontuário Digital),
+    // e permite substituir o colaborador que faltou na rota por um colaborador disponível do mesmo serviço.
+    app.post('/api/app/resumo-rota/presenca', guard, async (req, res) => {
+        try {
+            const {
+                data_rota,
+                resumo_id,
+                colaborador_id,
+                colaborador_nome,
+                status, // 'trabalhou' | 'falta'
+                origem, // 'rota' | 'disponivel'
+                veiculo_key,
+                veiculo_nome,
+                papel_rota, // 'motorista' | 'ajudante'
+                avisado_previamente,
+                observacao,
+                substituto_id,
+                substituto_nome
+            } = req.body || {};
+
+            const iso = isoDate(data_rota) || hojeSP();
+            if (!status || !['trabalhou', 'falta'].includes(status)) {
+                return res.status(400).json({ error: 'Status inválido. Use trabalhou ou falta.' });
+            }
+
+            const colabs = await dbAll(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, cargo, departamento, foto_path, foto_base64 FROM colaboradores`);
+            const matchColab = buildColabMatcher(colabs);
+
+            let colabIdFinal = colaborador_id ? Number(colaborador_id) : null;
+            let colabNomeFinal = String(colaborador_nome || '').trim();
+            if (!colabIdFinal && colabNomeFinal) {
+                const m = matchColab(colabNomeFinal);
+                if (m && m.id) {
+                    colabIdFinal = Number(m.id);
+                    colabNomeFinal = m.nome_completo || colabNomeFinal;
+                }
+            } else if (colabIdFinal) {
+                const found = colabs.find(c => Number(c.id) === colabIdFinal);
+                if (found) colabNomeFinal = found.nome_completo;
+            }
+
+            if (!colabIdFinal) {
+                return res.status(400).json({ error: 'Colaborador não encontrado no cadastro para registrar no prontuário.' });
+            }
+
+            const lider = await liderDoReq(req);
+            const avisadoVal = (avisado_previamente === 'Sim') ? 'Sim' : 'Não';
+            const obsTexto = String(observacao || '').trim();
+
+            let substIdFinal = substituto_id ? Number(substituto_id) : null;
+            let substNomeFinal = String(substituto_nome || '').trim();
+            if (substIdFinal && !substNomeFinal) {
+                const sFound = colabs.find(c => Number(c.id) === substIdFinal);
+                if (sFound) substNomeFinal = sFound.nome_completo;
+            } else if (!substIdFinal && substNomeFinal) {
+                const sm = matchColab(substNomeFinal);
+                if (sm && sm.id) {
+                    substIdFinal = Number(sm.id);
+                    substNomeFinal = sm.nome_completo || substNomeFinal;
+                }
+            }
+
+            // Função auxiliar para atualizar o veículo no JSON de logistica_resumo_rota
+            async function atualizarSubstituicaoNoResumo(resId, vKeyTarget, papel, novoNome, nomeOriginalFalta, reverter) {
+                if (!vKeyTarget || !papel || !['motorista', 'ajudante'].includes(papel)) return;
+                const mData = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                const prefBr = mData ? `${mData[3]}-${mData[2]}-${mData[1]}` : '';
+                const rows = resId
+                    ? await dbAll(`SELECT id, nome, dados FROM logistica_resumo_rota WHERE id = ?`, [resId])
+                    : (prefBr ? await dbAll(`SELECT id, nome, dados FROM logistica_resumo_rota WHERE nome LIKE ?`, [prefBr + '%']) : []);
+
+                for (const row of rows) {
+                    const pDados = parseJson(row.dados, null);
+                    if (!pDados) continue;
+                    const ehArray = Array.isArray(pDados);
+                    const vList = ehArray ? pDados : (Array.isArray(pDados.veiculos) ? pDados.veiculos : null);
+                    if (!vList) continue;
+
+                    let alterou = false;
+                    vList.forEach((vItem, idx) => {
+                        const vk = slug(vItem.veiculo || `veiculo_${idx}`);
+                        if (vk !== vKeyTarget) return;
+                        const campoOrig = papel === 'motorista' ? '_falta_motorista_original' : '_falta_ajudante_original';
+                        const campoFoto = papel === 'motorista' ? '_fotoMotorista' : '_fotoAjudante';
+                        if (reverter) {
+                            if (vItem[campoOrig]) {
+                                vItem[papel] = vItem[campoOrig];
+                                delete vItem[campoOrig];
+                                vItem[campoFoto] = `/api/colaboradores/foto/${colabIdFinal}`;
+                                alterou = true;
+                            }
+                        } else if (novoNome) {
+                            if (!vItem[campoOrig]) {
+                                vItem[campoOrig] = nomeOriginalFalta || vItem[papel] || '';
+                            }
+                            vItem[papel] = novoNome;
+                            vItem[campoFoto] = substIdFinal ? `/api/colaboradores/foto/${substIdFinal}` : null;
+                            alterou = true;
+                        }
+                    });
+
+                    if (alterou) {
+                        const novoJson = JSON.stringify(ehArray ? vList : pDados);
+                        await dbRun(`UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?`, [novoJson, row.id]);
+                    }
+                }
+            }
+
+            if (status === 'falta') {
+                // 1. Gravar ou atualizar na tabela faltas (Prontuário Digital) — sempre como "Dia todo"
+                const faltaExistente = await dbGet(
+                    `SELECT id FROM faltas WHERE colaborador_id = ? AND substr(data_falta, 1, 10) = ? ORDER BY id DESC LIMIT 1`,
+                    [colabIdFinal, iso]
+                );
+                let faltaId = faltaExistente ? faltaExistente.id : null;
+                const obsFinalProntuario = obsTexto
+                    || (origem === 'rota' && veiculo_nome
+                        ? `Falta registrada no Resumo da Rota (Veículo: ${veiculo_nome}${substNomeFinal ? ' — Substituído por: ' + substNomeFinal : ''})`
+                        : `Falta registrada no Resumo da Rota por ${lider.nome || 'Liderança'}`);
+
+                if (faltaId) {
+                    await dbRun(
+                        `UPDATE faltas SET turno = 'Dia todo', observacao = ?, avisado_previamente = ? WHERE id = ?`,
+                        [obsFinalProntuario, avisadoVal, faltaId]
+                    );
+                } else {
+                    const insFalta = await dbRun(
+                        `INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, 'Dia todo', ?, ?)`,
+                        [colabIdFinal, iso, obsFinalProntuario, avisadoVal]
+                    );
+                    faltaId = insFalta.lastID;
+
+                    // Disparar notificação interna para os usuários configurados em aviso_faltas
+                    try {
+                        const msg = `O colaborador ${colabNomeFinal} teve uma falta adicionada no dia ${iso.split('-').reverse().join('/')} (Resumo da Rota).`;
+                        const dadosNotif = JSON.stringify({ colaborador_id: colabIdFinal, data_falta: iso, id: faltaId, nome_colab: colabNomeFinal });
+                        const rowsConfig = await dbAll(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'`);
+                        for (const cfg of rowsConfig) {
+                            await dbRun(
+                                `INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'aviso_faltas', ?, ?)`,
+                                [cfg.usuario_id, msg, dadosNotif]
+                            );
+                        }
+                    } catch (_) { /* ignora erro de notificação */ }
+                }
+
+                // 2. Gravar em app_resumo_rota_presenca
+                const presAnterior = await dbGet(
+                    `SELECT * FROM app_resumo_rota_presenca WHERE data_rota = ? AND colaborador_id = ?`,
+                    [iso, colabIdFinal]
+                );
+                const origemFinal = origem || (presAnterior && presAnterior.origem) || (veiculo_key ? 'rota' : 'disponivel');
+                const vKeyFinal = veiculo_key || (presAnterior && presAnterior.veiculo_key) || null;
+                const vNomeFinal = veiculo_nome || (presAnterior && presAnterior.veiculo_nome) || null;
+                const papelFinal = papel_rota || (presAnterior && presAnterior.papel_rota) || null;
+                const resIdFinal = resumo_id || (presAnterior && presAnterior.resumo_id) || null;
+
+                await dbRun(
+                    `INSERT INTO app_resumo_rota_presenca
+                        (data_rota, colaborador_id, colaborador_nome, status, origem, resumo_id, veiculo_key, veiculo_nome, papel_rota, substituto_id, substituto_nome, falta_id, avisado_previamente, observacao, lider_id, lider_nome, atualizado_em)
+                     VALUES (?, ?, ?, 'falta', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                     ON CONFLICT(data_rota, colaborador_id) DO UPDATE SET
+                        colaborador_nome = excluded.colaborador_nome,
+                        status = 'falta',
+                        origem = excluded.origem,
+                        resumo_id = COALESCE(excluded.resumo_id, app_resumo_rota_presenca.resumo_id),
+                        veiculo_key = COALESCE(excluded.veiculo_key, app_resumo_rota_presenca.veiculo_key),
+                        veiculo_nome = COALESCE(excluded.veiculo_nome, app_resumo_rota_presenca.veiculo_nome),
+                        papel_rota = COALESCE(excluded.papel_rota, app_resumo_rota_presenca.papel_rota),
+                        substituto_id = excluded.substituto_id,
+                        substituto_nome = excluded.substituto_nome,
+                        falta_id = excluded.falta_id,
+                        avisado_previamente = excluded.avisado_previamente,
+                        observacao = excluded.observacao,
+                        lider_id = excluded.lider_id,
+                        lider_nome = excluded.lider_nome,
+                        atualizado_em = CURRENT_TIMESTAMP`,
+                    [iso, colabIdFinal, colabNomeFinal, origemFinal, resIdFinal, vKeyFinal, vNomeFinal, papelFinal, substIdFinal, substNomeFinal || null, faltaId, avisadoVal, obsTexto, lider.id, lider.nome]
+                );
+
+                // 3. Se for colaborador escalado na rota e tiver substituto selecionado, atualizar veículo e marcar substituto como trabalhando
+                if (origemFinal === 'rota' && vKeyFinal && papelFinal && substNomeFinal) {
+                    await atualizarSubstituicaoNoResumo(resIdFinal, vKeyFinal, papelFinal, substNomeFinal, colabNomeFinal, false);
+                    if (substIdFinal) {
+                        await dbRun(
+                            `INSERT INTO app_resumo_rota_presenca
+                                (data_rota, colaborador_id, colaborador_nome, status, origem, resumo_id, veiculo_key, veiculo_nome, papel_rota, lider_id, lider_nome, atualizado_em)
+                             VALUES (?, ?, ?, 'trabalhou', 'rota', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                             ON CONFLICT(data_rota, colaborador_id) DO UPDATE SET
+                                status = 'trabalhou',
+                                origem = 'rota',
+                                veiculo_key = excluded.veiculo_key,
+                                veiculo_nome = excluded.veiculo_nome,
+                                papel_rota = excluded.papel_rota,
+                                lider_id = excluded.lider_id,
+                                lider_nome = excluded.lider_nome,
+                                atualizado_em = CURRENT_TIMESTAMP`,
+                            [iso, substIdFinal, substNomeFinal, resIdFinal, vKeyFinal, vNomeFinal, papelFinal, lider.id, lider.nome]
+                        );
+                    }
+                }
+
+                return res.json({
+                    ok: true,
+                    status: 'falta',
+                    falta_id: faltaId,
+                    colaborador_id: colabIdFinal,
+                    colaborador_nome: colabNomeFinal,
+                    substituto_id: substIdFinal,
+                    substituto_nome: substNomeFinal || null
+                });
+            }
+
+            // status === 'trabalhou'
+            const presAnterior = await dbGet(
+                `SELECT * FROM app_resumo_rota_presenca WHERE data_rota = ? AND colaborador_id = ?`,
+                [iso, colabIdFinal]
+            );
+            // Remover falta do dia no Prontuário Digital caso existisse
+            await dbRun(
+                `DELETE FROM faltas WHERE colaborador_id = ? AND substr(data_falta, 1, 10) = ?`,
+                [colabIdFinal, iso]
+            );
+
+            // Se ele havia sido substituído em algum veículo da rota, reverter o veículo para o nome original dele
+            if (presAnterior && presAnterior.status === 'falta' && presAnterior.veiculo_key && presAnterior.papel_rota) {
+                await atualizarSubstituicaoNoResumo(presAnterior.resumo_id || resumo_id, presAnterior.veiculo_key, presAnterior.papel_rota, null, colabNomeFinal, true);
+            }
+
+            await dbRun(
+                `INSERT INTO app_resumo_rota_presenca
+                    (data_rota, colaborador_id, colaborador_nome, status, origem, resumo_id, veiculo_key, veiculo_nome, papel_rota, substituto_id, substituto_nome, falta_id, avisado_previamente, observacao, lider_id, lider_nome, atualizado_em)
+                 VALUES (?, ?, ?, 'trabalhou', ?, ?, ?, ?, ?, NULL, NULL, NULL, 'Não', '', ?, ?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(data_rota, colaborador_id) DO UPDATE SET
+                    colaborador_nome = excluded.colaborador_nome,
+                    status = 'trabalhou',
+                    substituto_id = NULL,
+                    substituto_nome = NULL,
+                    falta_id = NULL,
+                    observacao = '',
+                    lider_id = excluded.lider_id,
+                    lider_nome = excluded.lider_nome,
+                    atualizado_em = CURRENT_TIMESTAMP`,
+                [iso, colabIdFinal, colabNomeFinal, origem || (presAnterior && presAnterior.origem) || 'rota', resumo_id || null, veiculo_key || null, veiculo_nome || null, papel_rota || null, lider.id, lider.nome]
+            );
+
+            return res.json({
+                ok: true,
+                status: 'trabalhou',
+                colaborador_id: colabIdFinal,
+                colaborador_nome: colabNomeFinal
+            });
+        } catch (e) {
+            console.error('[APP-RESUMO-ROTA] POST presenca:', e);
+            res.status(500).json({ error: 'Erro ao salvar presença/falta: ' + e.message });
         }
     });
 

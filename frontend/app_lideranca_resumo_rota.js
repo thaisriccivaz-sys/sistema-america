@@ -22,7 +22,8 @@
         turno: null, // 'diurno' | 'noturno'
         modoAgenda: 'semana',
         cursor: new Date(),
-        filtro: 'todos', // todos | pendentes | concluidos
+        filtro: 'todos', // todos | pendentes | concluidos | faltas | disponiveis
+        filtroTurnoDisp: 'todos', // todos | diurno | noturno
         busca: '',
         dadosDia: null,
         diasAgenda: {},
@@ -198,10 +199,13 @@
 
         const dDia = S.dadosDia || {};
         const todosVeiculos = dDia.veiculos || [];
-        const resumosDoDia = dDia.resumos || [];
         const escalaDia = dDia.escala_dia || {};
         const turnoAtivo = S.turno || dDia.turno_ativo || 'diurno';
         const geral = statsGeral(todosVeiculos);
+        const colabDispInfo = dDia.colaboradores_disponiveis || { total: 0, todos: [], diurno: [], noturno: [], motoristas: [], ajudantes_geral: [], ajudantes_patio: [] };
+        const faltasDiaList = dDia.faltas_dia || [];
+        const totalDisponiveis = Number(colabDispInfo.total || (colabDispInfo.todos || []).length || 0);
+        const totalFaltas = faltasDiaList.length;
 
         const q = normBusca(S.busca);
         const veiculosFiltrados = todosVeiculos.filter(v => {
@@ -246,15 +250,6 @@
 
             ${renderPainelEscalaLideres(escalaDia, turnoAtivo)}
 
-            ${resumosDoDia.length > 1 ? `
-            <div class="arr-resumos-bar">
-                ${resumosDoDia.map(r => `
-                    <button class="alc-chip ${Number(r.id) === Number(S.resumoId) ? 'on' : ''}" data-resumo-id="${r.id}">
-                        <i class="ph ph-note"></i> ${esc(r.nome)}
-                    </button>
-                `).join('')}
-            </div>` : ''}
-
             <div class="alr-filtros">
                 <button class="alc-chip alr-chip ${S.filtro === 'todos' ? 'on' : ''}" data-f="todos">
                     <i class="ph ph-truck"></i> Todos <b class="alr-n" style="background:#475569">${geral.veicTotal}</b>
@@ -264,6 +259,12 @@
                 </button>
                 <button class="alc-chip alr-chip ${S.filtro === 'concluidos' ? 'on' : ''}" data-f="concluidos">
                     <i class="ph ph-check-circle"></i> Concluídos <b class="alr-n" style="background:#16a34a">${geral.veicConcluidos}</b>
+                </button>
+                <button class="alc-chip alr-chip ${S.filtro === 'faltas' ? 'on' : ''}" data-f="faltas" title="Faltas registradas no dia">
+                    <i class="ph ph-calendar-x"></i> Faltas <b class="alr-n" style="background:#dc2626">${totalFaltas}</b>
+                </button>
+                <button class="alc-chip alr-chip ${S.filtro === 'disponiveis' ? 'on' : ''}" data-f="disponiveis" title="Colaboradores Disponíveis para Trabalho (Fora de Rota)">
+                    <i class="ph ph-users-three"></i> Colaboradores Disponíveis <b class="alr-n" style="background:#0284c7">${totalDisponiveis}</b>
                 </button>
             </div>
 
@@ -277,6 +278,10 @@
                     </div>
                 </div>
                 <div class="arr-banner-right">
+                    <div class="arr-banner-prog" title="Quantidade de Colaboradores Disponíveis para Trabalho (Fora de Rota)">
+                        <i class="ph-fill ph-users-three"></i>
+                        <span>${totalDisponiveis} disponíveis</span>
+                    </div>
                     <div class="arr-banner-prog">
                         <i class="ph-fill ph-check-circle"></i>
                         <span id="arr-banner-prog-txt">${geral.concluidos} / ${geral.total} checks</span>
@@ -285,15 +290,19 @@
             </div>
 
             <div id="arr-cards-list">
-                ${todosVeiculos.length === 0
-                    ? `<div class="alc-vazio">
-                        <i class="ph ph-map-trifold"></i>
-                        <p>Nenhum Resumo de Rota salvo para <b>${fmtBR(S.data)}</b>.</p>
-                        <small style="color:#64748b;">Gere ou salve o Resumo da Rota na tela de Logística para visualizá-lo aqui.</small>
-                       </div>`
-                    : (veiculosFiltrados.length === 0
-                        ? `<div class="alc-vazio"><i class="ph ph-magnifying-glass"></i><p>Nenhum veículo encontrado para este filtro.</p></div>`
-                        : veiculosFiltrados.map(v => renderCardVeiculo(v, turnoAtivo, escalaDia)).join(''))
+                ${S.filtro === 'disponiveis'
+                    ? renderPainelColaboradoresDisponiveis(colabDispInfo, q)
+                    : (S.filtro === 'faltas'
+                        ? renderPainelFaltasDia(faltasDiaList, q)
+                        : (todosVeiculos.length === 0
+                            ? `<div class="alc-vazio">
+                                <i class="ph ph-map-trifold"></i>
+                                <p>Nenhum Resumo de Rota salvo para <b>${fmtBR(S.data)}</b>.</p>
+                                <small style="color:#64748b;">Gere ou salve o Resumo da Rota na tela de Logística para visualizá-lo aqui.</small>
+                               </div>`
+                            : (veiculosFiltrados.length === 0
+                                ? `<div class="alc-vazio"><i class="ph ph-magnifying-glass"></i><p>Nenhum veículo encontrado para este filtro.</p></div>`
+                                : veiculosFiltrados.map(v => renderCardVeiculo(v, turnoAtivo, escalaDia)).join(''))))
                 }
             </div>
         </div>`;
@@ -432,22 +441,64 @@
         </button>`;
     }
 
-    function renderCrewMember(pessoa, tipoClass, cargoLabel) {
+    function renderCrewMember(pessoa, tipoClass, cargoLabel, veiculoObj) {
         if (!pessoa || !pessoa.nome || pessoa.nome === '—') return '';
         const ini = esc(iniciais(pessoa.nome));
         const inner = pessoa.foto_url
             ? `<img src="${esc(pessoa.foto_url)}" alt="" onerror="this.outerHTML='<span class=\\'arr-ring-fb\\'>${ini}</span>'">`
             : `<span class="arr-ring-fb">${ini}</span>`;
+
+        if (tipoClass === 'cand') {
+            return `
+            <div class="arr-crew-item">
+                <div class="arr-ring ${tipoClass}">
+                    <div class="arr-ring-in">${inner}</div>
+                </div>
+                <div class="arr-crew-info">
+                    <div class="arr-crew-name">${esc(pessoa.nome)}</div>
+                    <div class="arr-crew-role cand">${esc(cargoLabel)}</div>
+                </div>
+            </div>`;
+        }
+
+        const papel = tipoClass === 'mot' ? 'motorista' : 'ajudante';
+        const stPres = pessoa.status_presenca || '';
+        const pillHtml = stPres === 'trabalhou'
+            ? `<span class="arr-presenca-pill ok"><i class="ph-fill ph-check-circle"></i> Trabalhando</span>`
+            : (stPres === 'falta'
+                ? `<span class="arr-presenca-pill falta"><i class="ph-fill ph-x-circle"></i> Teve Falta</span>`
+                : `<span class="arr-presenca-pill pend"><i class="ph ph-hand-tap"></i> Presença / Falta</span>`);
+
+        const substHtml = pessoa.substituiu_nome
+            ? `<span class="arr-subst-tag" title="Substituiu ${esc(pessoa.substituiu_nome)} que teve falta"><i class="ph ph-arrows-left-right"></i> Subst.: ${esc(pessoa.substituiu_nome)}</span>`
+            : '';
+
         return `
-        <div class="arr-crew-item">
+        <button type="button" class="arr-crew-item arr-crew-clickable ${stPres === 'falta' ? 'is-falta' : (stPres === 'trabalhou' ? 'is-ok' : '')}"
+            data-action="open-presenca-colab"
+            data-origem="rota"
+            data-veiculo-key="${esc((veiculoObj && veiculoObj.veiculo_key) || '')}"
+            data-veiculo-nome="${esc((veiculoObj && veiculoObj.veiculo) || '')}"
+            data-papel="${papel}"
+            data-colab-id="${esc(pessoa.colab_id || '')}"
+            data-colab-nome="${esc(pessoa.nome)}"
+            data-colab-cargo="${esc(pessoa.departamento_label || cargoLabel)}"
+            data-colab-categoria="${esc(pessoa.categoria_servico || (papel === 'motorista' ? 'motorista' : 'ajudante'))}"
+            data-colab-foto="${esc(pessoa.foto_url || '')}"
+            data-status-presenca="${esc(stPres)}"
+            data-avisado="${esc(pessoa.avisado_previamente || 'Não')}"
+            data-obs-falta="${esc(pessoa.observacao_falta || '')}"
+            title="Toque para marcar se foi trabalhar ou se teve falta">
             <div class="arr-ring ${tipoClass}">
                 <div class="arr-ring-in">${inner}</div>
             </div>
             <div class="arr-crew-info">
                 <div class="arr-crew-name">${esc(pessoa.nome)}</div>
-                <div class="arr-crew-role ${tipoClass === 'cand' ? 'cand' : ''}">${esc(cargoLabel)}</div>
+                <div class="arr-crew-role">${esc(pessoa.departamento_label || cargoLabel)}</div>
+                ${pillHtml}
+                ${substHtml}
             </div>
-        </div>`;
+        </button>`;
     }
 
     function renderCardVeiculo(v, turnoAtivo, escalaDia) {
@@ -463,9 +514,9 @@
 
         // Equipe: Motorista, Ajudante Geral e Candidato(s) se tiver
         const crewHtml = [
-            renderCrewMember(v.motorista, 'mot', v.motorista?.cargo || 'Motorista'),
-            renderCrewMember(v.ajudante, 'aju', v.ajudante?.cargo || 'Ajudante Geral'),
-            ...(v.candidatos || []).map(c => renderCrewMember(c, 'cand', c.cargo || 'Candidato em Teste'))
+            renderCrewMember(v.motorista, 'mot', v.motorista?.cargo || 'Motorista', v),
+            renderCrewMember(v.ajudante, 'aju', v.ajudante?.cargo || 'Ajudante Geral', v),
+            ...(v.candidatos || []).map(c => renderCrewMember(c, 'cand', c.cargo || 'Candidato em Teste', v))
         ].filter(Boolean).join('') || `<div style="font-size:0.8rem;color:#94a3b8;">Sem equipe definida</div>`;
 
         const dataRotaIso = (S.dadosDia && S.dadosDia.data) || S.data || '';
@@ -675,6 +726,561 @@
         </article>`;
     }
 
+    // ═══════════════ Painel: Colaboradores Disponíveis (Fora de Rota, separados por Turnos) ═══════════════
+    function renderCardColabDisponivel(c) {
+        const ini = esc(iniciais(c.nome));
+        const inner = c.foto_url
+            ? `<img src="${esc(c.foto_url)}" alt="" onerror="this.outerHTML='<span class=\\'arr-ring-fb\\'>${ini}</span>'">`
+            : `<span class="arr-ring-fb">${ini}</span>`;
+        const tipoRing = c.categoria_servico === 'motorista' ? 'mot' : 'aju';
+        const stPres = c.status_presenca || '';
+        const horarioTxt = (c.horario_entrada && c.horario_saida)
+            ? `${c.horario_entrada} às ${c.horario_saida}`
+            : (c.horario_entrada ? `Entrada: ${c.horario_entrada}` : '');
+
+        return `
+        <button type="button" class="arr-disp-card ${stPres === 'trabalhou' ? 'is-ok' : ''}"
+            data-action="open-presenca-colab"
+            data-origem="disponivel"
+            data-colab-id="${esc(c.colab_id || c.id)}"
+            data-colab-nome="${esc(c.nome)}"
+            data-colab-cargo="${esc(c.departamento_label || c.cargo || 'Operacional')}"
+            data-colab-categoria="${esc(c.categoria_servico || 'outros')}"
+            data-colab-foto="${esc(c.foto_url || '')}"
+            data-status-presenca="${esc(stPres)}"
+            data-avisado="Não"
+            data-obs-falta="">
+            <div class="arr-ring ${tipoRing}" style="width:48px;height:48px;">
+                <div class="arr-ring-in">${inner}</div>
+            </div>
+            <div class="arr-disp-info">
+                <div class="arr-disp-name">${esc(c.nome)}</div>
+                <div class="arr-disp-meta">
+                    <span class="arr-dep-badge ${esc(c.categoria_servico || 'outros')}">${esc(c.departamento_label || c.cargo)}</span>
+                    ${horarioTxt ? `<span class="arr-disp-hr"><i class="ph ph-clock"></i> ${esc(horarioTxt)}</span>` : ''}
+                </div>
+            </div>
+            <div class="arr-disp-act">
+                ${stPres === 'trabalhou'
+                    ? `<span class="arr-presenca-pill ok"><i class="ph-fill ph-check-circle"></i> Trabalhando</span>`
+                    : `<span class="arr-presenca-pill pend"><i class="ph ph-hand-tap"></i> Presença / Falta</span>`
+                }
+            </div>
+        </button>`;
+    }
+
+    function renderBlocoTurnoDisponiveis(tituloTurno, iconeTurno, corClasse, listaColabs) {
+        if (!listaColabs.length) {
+            return `
+            <section class="arr-disp-turno-sec ${corClasse}">
+                <div class="arr-disp-turno-head">
+                    <span>${iconeTurno} ${esc(tituloTurno)}</span>
+                    <span class="alc-badge cinza">0 disponíveis</span>
+                </div>
+                <div class="arr-disp-vazio">Nenhum colaborador disponível fora de rota neste turno.</div>
+            </section>`;
+        }
+
+        // Separar por departamento dentro do turno para facilitar visualização
+        const grupos = [
+            { id: 'motorista', titulo: '🚚 Motoristas', itens: listaColabs.filter(c => c.categoria_servico === 'motorista') },
+            { id: 'ajudante_geral', titulo: '📦 Ajudante Geral', itens: listaColabs.filter(c => c.departamento_label === 'Ajudante Geral') },
+            { id: 'ajudante_patio', titulo: '🏗️ Ajudante de Pátio', itens: listaColabs.filter(c => c.departamento_label === 'Ajudante de Pátio') },
+            { id: 'outros', titulo: '👔 Liderança / Outros', itens: listaColabs.filter(c => c.categoria_servico !== 'motorista' && c.departamento_label !== 'Ajudante Geral' && c.departamento_label !== 'Ajudante de Pátio') }
+        ].filter(g => g.itens.length > 0);
+
+        return `
+        <section class="arr-disp-turno-sec ${corClasse}">
+            <div class="arr-disp-turno-head">
+                <span>${iconeTurno} ${esc(tituloTurno)}</span>
+                <span class="alc-badge azul">${listaColabs.length} ${listaColabs.length === 1 ? 'disponível' : 'disponíveis'}</span>
+            </div>
+            <div class="arr-disp-turno-body">
+                ${grupos.map(g => `
+                    <div class="arr-disp-dep-group">
+                        <div class="arr-disp-dep-title">${g.titulo} <b>(${g.itens.length})</b></div>
+                        <div class="arr-disp-grid">
+                            ${g.itens.map(renderCardColabDisponivel).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </section>`;
+    }
+
+    function renderPainelColaboradoresDisponiveis(colabDispInfo, qBusca) {
+        const filtra = (arr) => (arr || []).filter(c => {
+            if (!qBusca) return true;
+            const txt = normBusca([c.nome, c.cargo, c.departamento_label, c.turno].join(' '));
+            return txt.includes(qBusca);
+        });
+
+        const diurnoList = filtra(colabDispInfo.diurno || []);
+        const noturnoList = filtra(colabDispInfo.noturno || []);
+        const totalDisp = diurnoList.length + noturnoList.length;
+        const subFiltro = S.filtroTurnoDisp || 'todos';
+
+        return `
+        <div class="arr-disp-panel">
+            <div class="arr-disp-summary">
+                <div class="arr-disp-summary-main">
+                    <i class="ph-fill ph-users-three"></i>
+                    <div>
+                        <h3>Colaboradores Disponíveis para Trabalho</h3>
+                        <span>Colaboradores fora de rota em ${fmtBR(S.data)} — toque no nome para marcar presença ou registrar falta</span>
+                    </div>
+                </div>
+                <div class="arr-disp-counters">
+                    <button type="button" class="arr-disp-cnt-btn ${subFiltro === 'todos' ? 'on' : ''}" data-turno-disp="todos">
+                        <b>${totalDisp}</b>
+                        <small>Total Disponíveis</small>
+                    </button>
+                    <button type="button" class="arr-disp-cnt-btn diurno ${subFiltro === 'diurno' ? 'on' : ''}" data-turno-disp="diurno">
+                        <b>${diurnoList.length}</b>
+                        <small>☀️ Turno Diurno</small>
+                    </button>
+                    <button type="button" class="arr-disp-cnt-btn noturno ${subFiltro === 'noturno' ? 'on' : ''}" data-turno-disp="noturno">
+                        <b>${noturnoList.length}</b>
+                        <small>🌙 Turno Noturno</small>
+                    </button>
+                </div>
+            </div>
+
+            ${(subFiltro === 'todos' || subFiltro === 'diurno')
+                ? renderBlocoTurnoDisponiveis('Turno Diurno — Colaboradores Disponíveis', '☀️', 'diurno', diurnoList)
+                : ''}
+            ${(subFiltro === 'todos' || subFiltro === 'noturno')
+                ? renderBlocoTurnoDisponiveis('Turno Noturno — Colaboradores Disponíveis', '🌙', 'noturno', noturnoList)
+                : ''}
+        </div>`;
+    }
+
+    // ═══════════════ Painel: Faltas Registradas no Dia ═══════════════
+    function renderPainelFaltasDia(faltasDiaList, qBusca) {
+        const filtradas = (faltasDiaList || []).filter(f => {
+            if (!qBusca) return true;
+            const txt = normBusca([f.nome, f.departamento_label, f.veiculo_nome, f.substituto_nome, f.observacao].join(' '));
+            return txt.includes(qBusca);
+        });
+
+        if (!filtradas.length) {
+            return `
+            <div class="alc-vazio">
+                <i class="ph ph-calendar-check" style="color:#16a34a;"></i>
+                <p>Nenhuma falta registrada para <b>${fmtBR(S.data)}</b>.</p>
+                <small style="color:#64748b;">Para registrar uma falta, toque em cima do nome de um colaborador na rota ou na aba Colaboradores Disponíveis.</small>
+            </div>`;
+        }
+
+        return `
+        <div class="arr-faltas-panel">
+            <div class="arr-faltas-head">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="ph-fill ph-calendar-x" style="font-size:1.5rem;color:#dc2626;"></i>
+                    <div>
+                        <h3 style="margin:0;font-size:1rem;color:#7f1d1d;">Faltas Registradas em ${fmtBR(S.data)}</h3>
+                        <span style="font-size:0.8rem;color:#991b1b;">Todas as faltas abaixo já foram lançadas como Dia todo no Prontuário Digital</span>
+                    </div>
+                </div>
+                <span class="alc-badge vermelho">${filtradas.length} ${filtradas.length === 1 ? 'falta' : 'faltas'}</span>
+            </div>
+            <div class="arr-disp-grid">
+                ${filtradas.map(f => {
+                    const ini = esc(iniciais(f.nome));
+                    const inner = f.foto_url
+                        ? `<img src="${esc(f.foto_url)}" alt="" onerror="this.outerHTML='<span class=\\'arr-ring-fb\\'>${ini}</span>'">`
+                        : `<span class="arr-ring-fb">${ini}</span>`;
+                    const origemTxt = f.origem === 'rota' && f.veiculo_nome
+                        ? `🚚 Escalado na rota: <b>${esc(f.veiculo_nome)}</b>`
+                        : `👥 Colaborador Disponível (Fora de Rota)`;
+                    const substTxt = f.origem === 'rota'
+                        ? (f.substituto_nome
+                            ? `<div class="arr-falta-sub ok"><i class="ph-fill ph-arrows-left-right"></i> Substituído por: <b>${esc(f.substituto_nome)}</b></div>`
+                            : `<div class="arr-falta-sub warn"><i class="ph-fill ph-warning-circle"></i> Sem substituto definido — toque para escolher</div>`)
+                        : `<div class="arr-falta-sub"><i class="ph ph-info"></i> Sem necessidade de substituição (Fora de Rota)</div>`;
+
+                    return `
+                    <button type="button" class="arr-falta-card"
+                        data-action="open-presenca-colab"
+                        data-origem="${esc(f.origem || 'disponivel')}"
+                        data-veiculo-key="${esc(f.veiculo_key || '')}"
+                        data-veiculo-nome="${esc(f.veiculo_nome || '')}"
+                        data-papel="${esc(f.papel_rota || '')}"
+                        data-colab-id="${esc(f.colab_id || '')}"
+                        data-colab-nome="${esc(f.nome)}"
+                        data-colab-cargo="${esc(f.departamento_label || f.cargo || '')}"
+                        data-colab-categoria="${esc(f.categoria_servico || '')}"
+                        data-colab-foto="${esc(f.foto_url || '')}"
+                        data-status-presenca="falta"
+                        data-avisado="${esc(f.avisado_previamente || 'Não')}"
+                        data-obs-falta="${esc(f.observacao || '')}"
+                        data-substituto-id="${esc(f.substituto_id || '')}"
+                        data-substituto-nome="${esc(f.substituto_nome || '')}">
+                        <div class="arr-falta-top">
+                            <div class="arr-ring ${f.categoria_servico === 'motorista' ? 'mot' : 'aju'}" style="width:48px;height:48px;">
+                                <div class="arr-ring-in">${inner}</div>
+                            </div>
+                            <div class="arr-disp-info">
+                                <div class="arr-disp-name">${esc(f.nome)}</div>
+                                <div class="arr-disp-meta">
+                                    <span class="arr-dep-badge ${esc(f.categoria_servico || 'outros')}">${esc(f.departamento_label || f.cargo)}</span>
+                                    <span class="arr-dep-badge">${f.turno === 'noturno' ? '🌙 Noturno' : '☀️ Diurno'}</span>
+                                    <span class="arr-presenca-pill falta"><i class="ph-fill ph-x-circle"></i> Falta (Dia todo)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="arr-falta-details">
+                            <div>${origemTxt}</div>
+                            ${substTxt}
+                            <div>Avisou previamente: <b>${esc(f.avisado_previamente || 'Não')}</b>${f.observacao ? ` • Obs: <i>${esc(f.observacao)}</i>` : ''}</div>
+                        </div>
+                    </button>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }
+
+    // ═══════════════ Modal Popup: Selecionar Presença ou Registrar Falta (+ Substituto) ═══════════════
+    function abrirModalPresencaColab(btn) {
+        const dDia = S.dadosDia || {};
+        const colabDispInfo = dDia.colaboradores_disponiveis || { todos: [], motoristas: [], ajudantes_geral: [], ajudantes_patio: [] };
+
+        const origem = btn.dataset.origem || 'rota'; // 'rota' | 'disponivel'
+        const veiculoKey = btn.dataset.veiculoKey || '';
+        const veiculoNome = btn.dataset.veiculoNome || '';
+        const papel = btn.dataset.papel || ''; // 'motorista' | 'ajudante'
+        const colabId = btn.dataset.colabId ? Number(btn.dataset.colabId) : null;
+        const colabNome = btn.dataset.colabNome || 'Colaborador';
+        const colabCargo = btn.dataset.colabCargo || (papel === 'motorista' ? 'Motorista' : 'Ajudante');
+        const colabCategoria = btn.dataset.colabCategoria || (papel === 'motorista' ? 'motorista' : 'ajudante');
+        const colabFoto = btn.dataset.colabFoto || (colabId ? `/api/colaboradores/foto/${colabId}` : '');
+        const statusInicial = btn.dataset.statusPresenca === 'falta' ? 'falta' : 'trabalhou';
+        const avisadoInicial = btn.dataset.avisado === 'Sim' ? 'Sim' : 'Não';
+        const obsInicial = btn.dataset.obsFalta || '';
+        const substIdInicial = btn.dataset.substitutoId ? Number(btn.dataset.substitutoId) : null;
+        const substNomeInicial = btn.dataset.substitutoNome || '';
+
+        const ehEscaladoRota = (origem === 'rota');
+        const ehMotorista = (papel === 'motorista' || colabCategoria === 'motorista');
+
+        // Montar grupos de substitutos disponíveis para aquele serviço (apenas quando escalado na rota)
+        const gruposSubstitutos = [];
+        if (ehEscaladoRota) {
+            if (ehMotorista) {
+                const mots = (colabDispInfo.motoristas || []).filter(c => Number(c.colab_id || c.id) !== colabId);
+                gruposSubstitutos.push({
+                    id: 'motoristas',
+                    titulo: '🚚 Departamento: Motoristas Disponíveis',
+                    itens: mots
+                });
+            } else {
+                const ajuGeral = (colabDispInfo.ajudantes_geral || []).filter(c => Number(c.colab_id || c.id) !== colabId);
+                const ajuPatio = (colabDispInfo.ajudantes_patio || []).filter(c => Number(c.colab_id || c.id) !== colabId);
+                gruposSubstitutos.push({
+                    id: 'ajudante_geral',
+                    titulo: '📦 Departamento: Ajudante Geral',
+                    itens: ajuGeral
+                });
+                gruposSubstitutos.push({
+                    id: 'ajudante_patio',
+                    titulo: '🏗️ Departamento: Ajudante de Pátio',
+                    itens: ajuPatio
+                });
+            }
+        }
+
+        const ini = esc(iniciais(colabNome));
+        const avatarHtml = colabFoto
+            ? `<img src="${esc(colabFoto)}" alt="" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #cbd5e1;" onerror="this.style.display='none'">`
+            : `<div style="width:54px;height:54px;border-radius:50%;background:#1e40af;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;">${ini}</div>`;
+
+        // Remover modal anterior se existir
+        const oldModal = document.getElementById('arr-presenca-modal-overlay');
+        if (oldModal) oldModal.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'arr-presenca-modal-overlay';
+        overlay.className = 'arr-modal-overlay';
+
+        let estadoSel = statusInicial; // 'trabalhou' | 'falta'
+        let avisadoSel = avisadoInicial;
+        let substSelecionadoId = substIdInicial;
+        let substSelecionadoNome = substNomeInicial;
+        let filtroSubst = '';
+
+        function renderSubstitutosHtml() {
+            if (!ehEscaladoRota) {
+                return `
+                <div class="arr-modal-note">
+                    <i class="ph-fill ph-info"></i>
+                    <span>Colaborador dos <b>Colaboradores Disponíveis para Trabalho</b> (fora de rota) — não precisa de substituto.</span>
+                </div>`;
+            }
+
+            const qSub = normBusca(filtroSubst);
+            const totalCandidatos = gruposSubstitutos.reduce((acc, g) => acc + g.itens.length, 0);
+
+            return `
+            <div class="arr-subst-box">
+                <div class="arr-subst-box-head">
+                    <div>
+                        <strong><i class="ph-fill ph-users-three"></i> Colaboradores Disponíveis para este Serviço</strong>
+                        <small>${ehMotorista ? 'Mostrando apenas Motoristas disponíveis' : 'Mostrando Ajudantes disponíveis (Ajudante Geral e Ajudante de Pátio)'}</small>
+                    </div>
+                    <span class="alc-badge azul">${totalCandidatos}</span>
+                </div>
+
+                <div class="alr-busca" style="margin:8px 0;">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="search" id="arr-modal-subst-search" placeholder="Pesquisar colaborador disponível para substituir..." value="${esc(filtroSubst)}" autocomplete="off">
+                </div>
+
+                <div class="arr-subst-list" id="arr-modal-subst-list">
+                    <button type="button" class="arr-subst-item ${!substSelecionadoId ? 'sel' : ''}" data-subst-id="" data-subst-nome="">
+                        <span class="arr-subst-radio"></span>
+                        <div class="arr-subst-item-info">
+                            <b>Manter sem substituto por enquanto</b>
+                            <small>Apenas registrar a falta no Prontuário Digital</small>
+                        </div>
+                    </button>
+                    ${gruposSubstitutos.map(g => {
+                        const itensFiltrados = g.itens.filter(c => {
+                            if (!qSub) return true;
+                            return normBusca(`${c.nome} ${c.departamento_label} ${c.turno}`).includes(qSub);
+                        });
+                        if (!itensFiltrados.length) {
+                            return `
+                            <div class="arr-subst-group-title">${g.titulo} (0)</div>
+                            <div class="arr-subst-empty">Nenhum disponível neste departamento.</div>`;
+                        }
+                        return `
+                        <div class="arr-subst-group-title">${g.titulo} (${itensFiltrados.length})</div>
+                        ${itensFiltrados.map(c => {
+                            const cid = Number(c.colab_id || c.id);
+                            const isSel = Number(substSelecionadoId) === cid;
+                            const cIni = esc(iniciais(c.nome));
+                            const cFoto = c.foto_url
+                                ? `<img src="${esc(c.foto_url)}" alt="" onerror="this.outerHTML='<span>${cIni}</span>'">`
+                                : `<span>${cIni}</span>`;
+                            return `
+                            <button type="button" class="arr-subst-item ${isSel ? 'sel' : ''}" data-subst-id="${cid}" data-subst-nome="${esc(c.nome)}">
+                                <span class="arr-subst-radio"></span>
+                                <span class="arr-mini-av" style="width:36px;height:36px;">${cFoto}</span>
+                                <div class="arr-subst-item-info">
+                                    <b>${esc(c.nome)}</b>
+                                    <small>${esc(c.departamento_label)} • ${c.turno === 'noturno' ? '🌙 Noturno' : '☀️ Diurno'}${c.horario_entrada ? ' • ' + esc(c.horario_entrada) : ''}</small>
+                                </div>
+                            </button>`;
+                        }).join('')}`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+
+        function renderModalInner() {
+            const obsValAtual = document.getElementById('arr-modal-obs-input')
+                ? document.getElementById('arr-modal-obs-input').value
+                : obsInicial;
+
+            overlay.innerHTML = `
+            <div class="arr-modal-card" role="dialog" aria-modal="true">
+                <div class="arr-modal-head">
+                    <div class="arr-modal-colab">
+                        ${avatarHtml}
+                        <div>
+                            <h3>${esc(colabNome)}</h3>
+                            <div class="arr-modal-sub">
+                                <span class="arr-dep-badge ${ehMotorista ? 'motorista' : 'ajudante'}">${esc(colabCargo)}</span>
+                                ${ehEscaladoRota && veiculoNome ? `<span>🚚 ${esc(veiculoNome)}</span>` : `<span>👥 Disponível (Fora de Rota)</span>`}
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="alc-icon-btn sm" id="arr-modal-close" title="Fechar"><i class="ph ph-x"></i></button>
+                </div>
+
+                <div class="arr-modal-body">
+                    <label class="arr-modal-lbl">Selecione a situação do colaborador em <b>${fmtBR(S.data)}</b>:</label>
+                    <div class="arr-status-choice">
+                        <button type="button" class="arr-choice-btn ok ${estadoSel === 'trabalhou' ? 'on' : ''}" data-choice="trabalhou">
+                            <i class="ph-fill ph-check-circle"></i>
+                            <div>
+                                <b>Foi trabalhar</b>
+                                <small>Compareceu normalmente</small>
+                            </div>
+                        </button>
+                        <button type="button" class="arr-choice-btn falta ${estadoSel === 'falta' ? 'on' : ''}" data-choice="falta">
+                            <i class="ph-fill ph-calendar-x"></i>
+                            <div>
+                                <b>Teve Falta</b>
+                                <small>Falta do dia todo (Prontuário)</small>
+                            </div>
+                        </button>
+                    </div>
+
+                    ${estadoSel === 'falta' ? `
+                    <div class="arr-falta-form">
+                        <div class="arr-falta-banner">
+                            <i class="ph-fill ph-warning-circle"></i>
+                            <span>Esta falta será registrada automaticamente como <b>Dia todo</b> no <b>Prontuário Digital</b> do colaborador.</span>
+                        </div>
+
+                        <div class="arr-form-row">
+                            <label class="arr-modal-lbl">Avisado previamente?</label>
+                            <div class="arr-avisado-pills">
+                                <button type="button" class="arr-pill-btn ${avisadoSel === 'Sim' ? 'on sim' : ''}" data-avisado-val="Sim">✓ Sim, avisou</button>
+                                <button type="button" class="arr-pill-btn ${avisadoSel === 'Não' ? 'on nao' : ''}" data-avisado-val="Não">✗ Não avisou</button>
+                            </div>
+                        </div>
+
+                        <div class="arr-form-row">
+                            <label class="arr-modal-lbl" for="arr-modal-obs-input">Observação da falta (opcional):</label>
+                            <input type="text" id="arr-modal-obs-input" class="arr-modal-input" placeholder="Ex: não comunicou, imprevisto pessoal..." value="${esc(obsValAtual)}" autocomplete="off">
+                        </div>
+
+                        <div id="arr-modal-subst-container">
+                            ${renderSubstitutosHtml()}
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="arr-trabalhou-info">
+                        <i class="ph-fill ph-check-circle"></i>
+                        <div>
+                            <b>Confirmar presença no dia ${fmtBR(S.data)}</b>
+                            <small>${btn.dataset.statusPresenca === 'falta' ? 'A falta registrada anteriormente para hoje será removida do Prontuário Digital.' : 'O colaborador ficará marcado como trabalhando hoje.'}</small>
+                        </div>
+                    </div>
+                    `}
+                </div>
+
+                <div class="arr-modal-foot">
+                    <button type="button" class="alc-btn alc-btn-ghost" id="arr-modal-cancel">Cancelar</button>
+                    <button type="button" class="alc-btn ${estadoSel === 'falta' ? 'arr-btn-danger' : 'alc-btn-primary'}" id="arr-modal-save">
+                        <i class="ph-bold ${estadoSel === 'falta' ? 'ph-calendar-x' : 'ph-check'}"></i>
+                        ${estadoSel === 'falta'
+                            ? (ehEscaladoRota && substSelecionadoNome ? 'Registrar Falta e Substituir' : 'Registrar Falta no Prontuário')
+                            : 'Confirmar que Foi Trabalhar'}
+                    </button>
+                </div>
+            </div>`;
+
+            bindModalEvents();
+        }
+
+        function bindSubstListEvents() {
+            overlay.querySelectorAll('[data-subst-id]').forEach(b => {
+                b.onclick = () => {
+                    substSelecionadoId = b.dataset.substId ? Number(b.dataset.substId) : null;
+                    substSelecionadoNome = b.dataset.substNome || '';
+                    overlay.querySelectorAll('[data-subst-id]').forEach(x => x.classList.toggle('sel', x === b));
+                    const saveBtn = document.getElementById('arr-modal-save');
+                    if (saveBtn && estadoSel === 'falta') {
+                        saveBtn.innerHTML = `<i class="ph-bold ph-calendar-x"></i> ${ehEscaladoRota && substSelecionadoNome ? 'Registrar Falta e Substituir' : 'Registrar Falta no Prontuário'}`;
+                    }
+                };
+            });
+
+            const inpSub = document.getElementById('arr-modal-subst-search');
+            if (inpSub) {
+                inpSub.oninput = () => {
+                    const pos = inpSub.selectionStart;
+                    filtroSubst = inpSub.value;
+                    const cont = document.getElementById('arr-modal-subst-container');
+                    if (cont) {
+                        cont.innerHTML = renderSubstitutosHtml();
+                        bindSubstListEvents();
+                        const newInp = document.getElementById('arr-modal-subst-search');
+                        if (newInp) {
+                            newInp.focus();
+                            try { newInp.setSelectionRange(pos, pos); } catch (_) {}
+                        }
+                    }
+                };
+            }
+        }
+
+        function bindModalEvents() {
+            const close = () => overlay.remove();
+            const bClose = document.getElementById('arr-modal-close');
+            const bCancel = document.getElementById('arr-modal-cancel');
+            if (bClose) bClose.onclick = close;
+            if (bCancel) bCancel.onclick = close;
+            overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
+
+            overlay.querySelectorAll('[data-choice]').forEach(b => {
+                b.onclick = () => {
+                    estadoSel = b.dataset.choice;
+                    renderModalInner();
+                };
+            });
+
+            overlay.querySelectorAll('[data-avisado-val]').forEach(b => {
+                b.onclick = () => {
+                    avisadoSel = b.dataset.avisadoVal;
+                    overlay.querySelectorAll('[data-avisado-val]').forEach(x => {
+                        const val = x.dataset.avisadoVal;
+                        x.className = 'arr-pill-btn' + (val === avisadoSel ? (' on ' + (val === 'Sim' ? 'sim' : 'nao')) : '');
+                    });
+                };
+            });
+
+            bindSubstListEvents();
+
+            const bSave = document.getElementById('arr-modal-save');
+            if (bSave) {
+                bSave.onclick = async () => {
+                    const obsTexto = document.getElementById('arr-modal-obs-input')?.value || '';
+                    bSave.disabled = true;
+                    bSave.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Salvando...`;
+                    try {
+                        await api('/api/app/resumo-rota/presenca', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                data_rota: S.data,
+                                resumo_id: S.resumoId,
+                                colaborador_id: colabId,
+                                colaborador_nome: colabNome,
+                                status: estadoSel,
+                                origem,
+                                veiculo_key: veiculoKey || null,
+                                veiculo_nome: veiculoNome || null,
+                                papel_rota: papel || null,
+                                avisado_previamente: avisadoSel,
+                                observacao: obsTexto,
+                                substituto_id: estadoSel === 'falta' ? substSelecionadoId : null,
+                                substituto_nome: estadoSel === 'falta' ? substSelecionadoNome : null
+                            })
+                        });
+                        vibrar(25);
+                        close();
+                        await carregar(true);
+                        if (window.Swal) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: estadoSel === 'falta' ? 'Falta registrada no Prontuário!' : 'Presença confirmada!',
+                                text: estadoSel === 'falta'
+                                    ? (substSelecionadoNome ? `Falta lançada para ${colabNome} e substituído por ${substSelecionadoNome}.` : `Falta do dia todo lançada para ${colabNome}.`)
+                                    : `${colabNome} marcado como trabalhando em ${fmtBR(S.data)}.`,
+                                timer: 2200,
+                                showConfirmButton: false
+                            });
+                        }
+                    } catch (e) {
+                        bSave.disabled = false;
+                        renderModalInner();
+                        if (window.Swal) {
+                            Swal.fire({ icon: 'error', title: 'Erro ao salvar', text: e.message });
+                        } else {
+                            alert('Erro: ' + e.message);
+                        }
+                    }
+                };
+            }
+        }
+
+        document.body.appendChild(overlay);
+        renderModalInner();
+    }
+
     // ═══════════════ Eventos e Interações ═══════════════
     function bindEventosLista() {
         const root = document.getElementById('app-lideranca-resumo-rota-container');
@@ -750,6 +1356,17 @@
                 S.filtro = b.dataset.f;
                 renderLista();
             };
+        });
+
+        root.querySelectorAll('[data-turno-disp]').forEach(b => {
+            b.onclick = () => {
+                S.filtroTurnoDisp = b.dataset.turnoDisp || 'todos';
+                renderLista();
+            };
+        });
+
+        root.querySelectorAll('[data-action="open-presenca-colab"]').forEach(btn => {
+            btn.onclick = () => abrirModalPresencaColab(btn);
         });
 
         root.querySelectorAll('[data-action="toggle-check"]').forEach(btn => {
