@@ -460,34 +460,7 @@
     }
 
     function renderEscalaHTML() {
-        if (!state.escala) return '';
-        const d = state.escala.diurno || {};
-        const n = state.escala.noturno || {};
-        const respD = d.nomes || (d.escalados && d.escalados.map(x => x.nome_curto || x.nome).join(' / ')) || 'Não definido';
-        const respN = n.nomes || (n.escalados && n.escalados.map(x => x.nome_curto || x.nome).join(' / ')) || 'Não definido';
-        const folgaD = (d.folga || []).map(x => x.nome_curto || x.nome).join(', ');
-        const folgaN = (n.folga || []).map(x => x.nome_curto || x.nome).join(', ');
-
-        return `
-            <div class="alav-escala-grid">
-                <div class="alav-escala-card">
-                    <div>
-                        <div style="font-size:0.75rem;font-weight:700;color:#d97706;display:flex;align-items:center;gap:5px;"><i class="ph ph-sun"></i> Escala Diurna (Rotas do Dia)</div>
-                        <div style="font-size:0.92rem;font-weight:800;color:#0f172a;margin-top:2px;">${esc(respD)}</div>
-                        ${folgaD ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">Folga no dia: ${esc(folgaD)}</div>` : ''}
-                    </div>
-                    <span style="font-size:0.74rem;background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:999px;font-weight:700;">Diurno</span>
-                </div>
-                <div class="alav-escala-card" style="border-color:#93c5fd;background:#f8fafc;">
-                    <div>
-                        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;display:flex;align-items:center;gap:5px;"><i class="ph ph-moon-stars"></i> Escala Noturna (Execução da Lavagem)</div>
-                        <div style="font-size:0.92rem;font-weight:800;color:#0f172a;margin-top:2px;">${esc(respN)}</div>
-                        ${folgaN ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">Folga no dia: ${esc(folgaN)}</div>` : ''}
-                    </div>
-                    <span style="font-size:0.74rem;background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:999px;font-weight:700;">Lavagem à Noite</span>
-                </div>
-            </div>
-        `;
+        return '';
     }
 
     function renderCronogramaSemanalHTML() {

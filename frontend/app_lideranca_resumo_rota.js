@@ -122,11 +122,12 @@
             total++;
             if (todosCkCompletos) concluidos++;
         }
-        (v.manutencoes || []).forEach(it => {
-            (it.insumos || []).forEach(ins => {
-                total++;
-                if (ins.checked) concluidos++;
-            });
+        const insVeic = Array.isArray(v.insumos_veiculo)
+            ? v.insumos_veiculo
+            : (v.manutencoes || []).flatMap(it => it.insumos || []);
+        insVeic.forEach(ins => {
+            total++;
+            if (ins.checked) concluidos++;
         });
         return {
             total,
@@ -639,54 +640,71 @@
                 }).join('')}
             </div>` : '';
 
-        // 4. Manutenção + Insumos necessários por equipamento (check manual em cada insumo)
+        // 4. Manutenção (quantidade total de equipamentos) + Insumos consolidados por veículo
+        const listaManut = v.manutencoes || [];
+        const totalEqManut = Number(v.total_equipamentos_manutencao) || listaManut.reduce((acc, m) => acc + (Number(m.qtd) || 0), 0);
+        const insumosVeic = Array.isArray(v.insumos_veiculo)
+            ? v.insumos_veiculo
+            : listaManut.flatMap(it => it.insumos || []);
+        const insConcluidosVeic = insumosVeic.filter(x => x.checked).length;
+        const todosInsOkVeic = insumosVeic.length > 0 && insConcluidosVeic === insumosVeic.length;
+        const clsCardInsVeic = insumosVeic.length === 0
+            ? ''
+            : (todosInsOkVeic ? 'concluido' : (insConcluidosVeic > 0 ? 'em-andamento' : (rotaAtrasada ? 'atrasado' : '')));
+
         let ultimoTituloManut = '';
-        const manutencoesHtml = (v.manutencoes || []).length > 0 ? `
+        const manutencoesHtml = listaManut.length > 0 ? `
             <div class="arr-sec">
-                ${v.manutencoes.map(it => {
-                    const mostrarTitulo = it.secao_titulo && it.secao_titulo !== ultimoTituloManut;
-                    if (it.secao_titulo) ultimoTituloManut = it.secao_titulo;
-                    const insumos = it.insumos || [];
-                    const insConcluidos = insumos.filter(x => x.checked).length;
-                    const todosInsOk = insumos.length > 0 && insConcluidos === insumos.length;
-                    const clsManut = insumos.length === 0 ? '' : (todosInsOk ? 'concluido' : (insConcluidos > 0 ? 'em-andamento' : (rotaAtrasada ? 'atrasado' : '')));
-                    return `
-                    ${mostrarTitulo ? `<div class="arr-sec-title manutencao">${esc(it.secao_titulo)}</div>` : ''}
-                    <div class="arr-manut-card ${clsManut}">
-                        <div class="arr-manut-head">
-                            <span>${esc(it.texto)}</span>
-                            ${insumos.length > 0
-                                ? `<span class="alc-badge ${todosInsOk ? 'verde' : 'laranja'}">${insConcluidos}/${insumos.length} insumos</span>`
-                                : `<span class="alc-badge cinza">Sem insumos</span>`
-                            }
-                        </div>
-                        ${insumos.length > 0 ? `
-                        <div class="arr-insumos-list">
-                            ${insumos.map(ins => {
-                                const chipIns = ins.checked
-                                    ? renderPessoasChips([{ nome: ins.lider_nome || 'Líder', colab_id: ins.lider_colab_id, foto_url: ins.lider_foto_url }], 20)
-                                    : '';
-                                const subInsHtml = ins.checked
-                                    ? `<small class="arr-row-sub">✅ Realizado por: ${chipIns}${ins.atualizado_em ? ' (' + esc(fmtDataHora(ins.atualizado_em)) + ')' : ''}</small>`
-                                    : '';
-                                const clsIns = ins.checked ? 'checked' : (rotaAtrasada ? 'vencido' : '');
-                                return `
-                                <button type="button" class="arr-insumo-row ${clsIns}"
-                                    data-action="toggle-check"
-                                    data-veiculo-key="${esc(v.veiculo_key)}"
-                                    data-tipo="insumo"
-                                    data-key="${esc(ins.item_key)}">
-                                    <span class="arr-insumo-ico">${esc(ins.icone || '📦')}</span>
-                                    <span class="arr-insumo-txt">
-                                        ${esc(ins.texto)}
-                                        ${subInsHtml}
-                                    </span>
-                                    <span class="arr-chk"><i class="ph-bold ph-check"></i></span>
-                                </button>`;
-                            }).join('')}
-                        </div>` : `<div class="arr-sem-insumos">Este equipamento não requer insumos de manutenção.</div>`}
-                    </div>`;
-                }).join('')}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <div class="arr-sec-title manutencao" style="margin-bottom:0;">🔧 MANUTENÇÃO:</div>
+                    <span class="alc-badge azul">Total: ${totalEqManut} equipamento${totalEqManut === 1 ? '' : 's'}</span>
+                </div>
+                <div class="arr-manut-card" style="margin-bottom:8px;">
+                    <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;">
+                        ${listaManut.map(it => {
+                            const ehAvulsa = /AVULSA/i.test(it.secao_titulo || '');
+                            const mostrarSub = ehAvulsa && it.secao_titulo !== ultimoTituloManut;
+                            if (ehAvulsa) ultimoTituloManut = it.secao_titulo;
+                            return `
+                            ${mostrarSub ? `<div style="font-size:0.74rem;font-weight:800;color:#b45309;margin-top:4px;">${esc(it.secao_titulo)}</div>` : ''}
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:800;font-size:0.88rem;color:#78350f;">
+                                <span>${esc(it.texto)}</span>
+                                <span style="font-size:0.75rem;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:999px;">${Number(it.qtd) || 0} un.</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                ${insumosVeic.length > 0 ? `
+                <div class="arr-manut-card ${clsCardInsVeic}">
+                    <div class="arr-manut-head">
+                        <span>🧪 INSUMOS DO VEÍCULO (TOTAL DA MANUTENÇÃO)</span>
+                        <span class="alc-badge ${todosInsOkVeic ? 'verde' : 'laranja'}">${insConcluidosVeic}/${insumosVeic.length} insumos</span>
+                    </div>
+                    <div class="arr-insumos-list">
+                        ${insumosVeic.map(ins => {
+                            const chipIns = ins.checked
+                                ? renderPessoasChips([{ nome: ins.lider_nome || 'Líder', colab_id: ins.lider_colab_id, foto_url: ins.lider_foto_url }], 20)
+                                : '';
+                            const subInsHtml = ins.checked
+                                ? `<small class="arr-row-sub">✅ Realizado por: ${chipIns}${ins.atualizado_em ? ' (' + esc(fmtDataHora(ins.atualizado_em)) + ')' : ''}</small>`
+                                : '';
+                            const clsIns = ins.checked ? 'checked' : (rotaAtrasada ? 'vencido' : '');
+                            return `
+                            <button type="button" class="arr-insumo-row ${clsIns}"
+                                data-action="toggle-check"
+                                data-veiculo-key="${esc(v.veiculo_key)}"
+                                data-tipo="insumo"
+                                data-key="${esc(ins.item_key)}">
+                                <span class="arr-insumo-ico">${esc(ins.icone || '📦')}</span>
+                                <span class="arr-insumo-txt">
+                                    ${esc(ins.texto)}
+                                    ${subInsHtml}
+                                </span>
+                                <span class="arr-chk"><i class="ph-bold ph-check"></i></span>
+                            </button>`;
+                        }).join('')}
+                    </div>
+                </div>` : ''}
             </div>` : '';
 
         const clsVcard = st.total > 0 && st.completo
@@ -967,19 +985,21 @@
         const ehEscaladoRota = (origem === 'rota');
         const ehMotorista = (papel === 'motorista' || colabCategoria === 'motorista');
 
-        // Montar grupos de substitutos disponíveis para aquele serviço (apenas quando escalado na rota)
+        // Montar grupos de substitutos disponíveis para aquele serviço e do MESMO TURNO da rota (apenas quando escalado na rota)
+        const turnoRotaAtual = S.turno || dDia.turno_ativo || 'diurno';
+        const ehMesmoTurno = c => (c.turno || 'diurno') === turnoRotaAtual;
         const gruposSubstitutos = [];
         if (ehEscaladoRota) {
             if (ehMotorista) {
-                const mots = (colabDispInfo.motoristas || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
+                const mots = (colabDispInfo.motoristas || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca' && ehMesmoTurno(c));
                 gruposSubstitutos.push({
                     id: 'motoristas',
                     titulo: '🚚 Departamento: Motoristas Disponíveis',
                     itens: mots
                 });
             } else {
-                const ajuGeral = (colabDispInfo.ajudantes_geral || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
-                const ajuPatio = (colabDispInfo.ajudantes_patio || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca');
+                const ajuGeral = (colabDispInfo.ajudantes_geral || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca' && ehMesmoTurno(c));
+                const ajuPatio = (colabDispInfo.ajudantes_patio || []).filter(c => Number(c.colab_id || c.id) !== colabId && c.categoria_servico !== 'lideranca' && ehMesmoTurno(c));
                 gruposSubstitutos.push({
                     id: 'ajudante_geral',
                     titulo: '📦 Departamento: Ajudante Geral',
@@ -1400,9 +1420,12 @@
         if (tipo === 'obs') {
             targetItem = (vObj.observacoes || []).find(o => o.item_key === itemKey);
         } else if (tipo === 'insumo') {
-            for (const eq of (vObj.manutencoes || [])) {
-                const found = (eq.insumos || []).find(ins => ins.item_key === itemKey);
-                if (found) { targetItem = found; break; }
+            targetItem = (vObj.insumos_veiculo || []).find(ins => ins.item_key === itemKey) || null;
+            if (!targetItem) {
+                for (const eq of (vObj.manutencoes || [])) {
+                    const found = (eq.insumos || []).find(ins => ins.item_key === itemKey);
+                    if (found) { targetItem = found; break; }
+                }
             }
         }
         if (!targetItem) return;

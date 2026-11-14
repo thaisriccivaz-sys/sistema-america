@@ -204,19 +204,52 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         return '';
     }
 
-    // Itens de saída que devem aparecer para o líder no Resumo da Rota:
-    // - Variáveis/Ícones: Levar Carrinho (🛒), Levar Extensora (🌀), Apoio de Sucção (💧), Levar EPI (🦺)
+    // Itens de saída que devem aparecer com CHECK para o líder no Resumo da Rota:
+    // - Variáveis/Ícones: Levar Carrinho (🛒), Levar Extensora (🌀), Levar EPI (🦺), Utilitário (🛻), Carretinha (🔗)
     // - Habilidade da Equipe: VAC (🏗️), Reparos (🔧), Montagem (🛠️), Desmontagem (🛠️)
+    // Obs.: Serviços de Sucção Evento (💧) e Manutenção Avulsa não possuem campo de check.
     const REGRAS_SAIDA_LIDER = [
         { id: 'CARRINHO',    icon: '🛒', label: 'LEVAR CARRINHO',   regex: /🛒|LEVAR\s+CARRINHO/i },
         { id: 'EXTENSORA',   icon: '🌀', label: 'LEVAR EXTENSORA',  regex: /🌀|LEVAR\s+EXTENSORA|\bEXTENSORA\b/i },
-        { id: 'SUCCAO',      icon: '💧', label: 'APOIO DE SUCÇÃO',  regex: /💧|APOIO\s+(?:DE\s+)?SUCC?[AÃ]O/i },
         { id: 'EPI',         icon: '🦺', label: 'LEVAR EPI',        regex: /🦺|LEVAR\s+EPI|\bEPI\b/i },
+        { id: 'UTILITARIO',  icon: '🛻', label: 'IR DE UTILITÁRIO', regex: /🛻|\bUTILIT[AÁ]RIO\b|\b(?:S[OÓ]\s+MANDAR|IR\s+DE)\s+(?:STRADA|SAVEIRO|FIORINO|MONTANA|COURIER|UTILIT[AÁ]RIO)\b/i },
+        { id: 'CARRETINHA',  icon: '🔗', label: 'IR DE CARRETINHA', regex: /🔗|\bCARRETINHA\b/i },
         { id: 'VAC',         icon: '🏗️', label: 'VAC',              regex: /🏗️|\bVAC\b/i },
         { id: 'REPAROS',     icon: '🔧', label: 'REPAROS',          regex: /🔧|\bREPAROS?\b/i },
         { id: 'DESMONTAGEM', icon: '🛠️', label: 'DESMONTAGEM',      regex: /\bDESMONTAGEM\b/i },
         { id: 'MONTAGEM',    icon: '🛠️', label: 'MONTAGEM',         regex: /🛠️|\bMONTAGEM\b/i },
     ];
+
+    function ehDetalheSemCheckObrigatorio(detalheStr) {
+        const d = norm(detalheStr || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!d) return true;
+        if (/^MANUTENCAO AVULSA(\s*\(.*\))?$/.test(d)) return true;
+        if (/^(SUCCAO|APOIO DE SUCCAO|LIMPA FOSSA|DESCARTE)(\s+(EVENTO|OBRA|DE BANHEIRO|DE FOSSA|AMBIENTAL))?(\s*\(.*\))?$/.test(d)) return true;
+        return false;
+    }
+
+    function dedupEmojisPrefixo(str) {
+        if (!str) return '';
+        const s = String(str).trim();
+        const m = s.match(/^([\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️🛻]+)(.*)$/u);
+        if (!m) return s;
+        const prefixRaw = m[1];
+        const rest = (m[2] || '').trim();
+        const tokens = prefixRaw.match(/(?:🧑🏾‍🦽|[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}]\uFE0F?)/gu) || [];
+        const unique = [];
+        tokens.forEach(tk => {
+            const cleanTk = tk.replace(/\uFE0F$/u, '');
+            if (!unique.some(u => u.replace(/\uFE0F$/u, '') === cleanTk)) {
+                unique.push(tk);
+            }
+        });
+        // Se já tem 💦 (Attend/Descarte), não duplicar com 💧 ao lado
+        const filtered = (unique.includes('💦') && unique.includes('💧') && /ATTEND/i.test(rest))
+            ? unique.filter(u => u !== '💧')
+            : unique;
+        if (!filtered.length) return rest;
+        return rest ? `${filtered.join(' ')} ${rest}` : filtered.join(' ');
+    }
 
     function detectarItensSaidaTexto(texto) {
         const s = String(texto || '');
@@ -457,7 +490,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             outros.forEach(o => {
                 const srvClean = String(o.servico || '').split(/\s+[-–]\s+/)[0].trim().toUpperCase();
                 if (srvClean && !obsLinhas.some(ol => ol.includes(srvClean))) {
-                    if (!/LIMPA\s+FOSSA/i.test(srvClean)) {
+                    if (!/LIMPA\s+FOSSA|SUCC?[AÃ]O/i.test(norm(srvClean))) {
                         lines.push(srvClean);
                     }
                 }
@@ -480,7 +513,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
     function normClienteCurto(str) {
         let s = String(str || '').trim();
-        s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '').trim();
+        s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️🛻]+/gu, '').trim();
         s = norm(s).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
         return s.substring(0, 20).trim();
     }
@@ -504,7 +537,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const cIdx = tr.indexOf(':');
             if (cIdx !== -1 && !tr.endsWith(':')) {
                 const det = norm(tr.substring(cIdx + 1)).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
-                if (det && det.length >= 8) obsComClienteTextos.push(det);
+                if (det && det.length >= 6) obsComClienteTextos.push(det);
             }
         });
 
@@ -512,7 +545,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const tr = line.trim();
             if (!tr) return '';
 
-            if (tr.indexOf(':') === -1 && /LIMPA\s+FOSSA/i.test(norm(tr))) {
+            if (tr.indexOf(':') === -1 && /LIMPA\s+FOSSA|SUCC?[AÃ]O/i.test(norm(tr))) {
                 const partesDash = tr.split(/\s+[-–]\s+/);
                 if (partesDash.length > 1) {
                     const detDash = norm(partesDash.slice(1).join(' ')).toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
@@ -757,16 +790,20 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             if (secaoAtual === 'OBS') {
                 const linhaCorrigida = trimmed.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+                const colonIdx = linhaCorrigida.indexOf(':');
+                if (colonIdx === -1 && /LIMPA\s+FOSSA|SUCC?[AÃ]O|MANUTEN[CÇ][AÃ]O\s+AVULSA/i.test(norm(linhaCorrigida))) {
+                    continue;
+                }
                 let titulo = '';
                 let detalhe = linhaCorrigida;
-                const colonIdx = linhaCorrigida.indexOf(':');
                 if (colonIdx !== -1) {
-                    titulo = linhaCorrigida.substring(0, colonIdx + 1);
+                    titulo = dedupEmojisPrefixo(linhaCorrigida.substring(0, colonIdx + 1));
                     detalhe = linhaCorrigida.substring(colonIdx + 1).trim();
+                } else {
+                    detalhe = dedupEmojisPrefixo(linhaCorrigida);
                 }
 
-                // Verificar se esta observação pertence a um item de saída (Levar Carrinho, Levar Extensora,
-                // Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem)
+                // Verificar se esta observação pertence a um item de saída com check
                 const cliPrefix = colonIdx !== -1 ? normClienteCurto(titulo.slice(0, -1)) : '';
                 const osMatchList = cliPrefix
                     ? (veiculoObj.os || []).filter(o => normClienteCurto(o.cliente) === cliPrefix)
@@ -783,22 +820,6 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     if (!todosItensSaida.some(x => x.id === it.id)) todosItensSaida.push(it);
                 });
 
-                // Todas as observações aparecem no Resumo da Rota, mas APENAS as das variáveis/habilidades
-                // de saída (Levar Carrinho, Levar Extensora, Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem)
-                // recebem o campo de selecionar o check (tem_check = true).
-                const temCheck = todosItensSaida.length > 0;
-
-                // Garantir que os ícones dos itens de saída apareçam no título
-                const iconesSaidaFaltando = [];
-                todosItensSaida.forEach(it => {
-                    if (it.icon && !titulo.includes(it.icon) && !iconesSaidaFaltando.includes(it.icon)) {
-                        iconesSaidaFaltando.push(it.icon);
-                    }
-                });
-                if (iconesSaidaFaltando.length > 0) {
-                    titulo = iconesSaidaFaltando.join(' ') + (titulo ? ' ' + titulo : '');
-                }
-
                 // Limpar qualquer link de vídeo do detalhe e, se ficar vazio ou "AVISO IMPORTANTE!", buscar obs real da OS
                 detalhe = limparLinksVideo(detalhe);
                 if (!detalhe || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(detalhe)) {
@@ -809,7 +830,23 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     }
                     detalhe = obsReal || [...new Set(todosItensSaida.map(i => i.label))].join(' / ');
                     if (!detalhe) continue;
-                } else if (temCheck) {
+                }
+
+                // Manutenção Avulsa e Sucção Evento / Descarte NÃO possuem campo de check
+                const semCheckPorTipo = ehDetalheSemCheckObrigatorio(detalhe);
+                const temCheck = !semCheckPorTipo && todosItensSaida.length > 0;
+
+                // Garantir que os ícones dos itens de saída apareçam no título sem duplicar
+                if (temCheck) {
+                    const iconesSaidaFaltando = [];
+                    todosItensSaida.forEach(it => {
+                        if (it.icon && !titulo.includes(it.icon) && !iconesSaidaFaltando.includes(it.icon)) {
+                            iconesSaidaFaltando.push(it.icon);
+                        }
+                    });
+                    if (iconesSaidaFaltando.length > 0) {
+                        titulo = iconesSaidaFaltando.join(' ') + (titulo ? ' ' + titulo : '');
+                    }
                     // Se a OS tem habilidades de saída (ex: VAC, Reparos, Montagem, Desmontagem) que não estão mencionadas no detalhe, acrescentar
                     const labelsExtras = todosItensSaida
                         .filter(it => ['VAC', 'REPAROS', 'MONTAGEM', 'DESMONTAGEM'].includes(it.id))
@@ -819,6 +856,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         detalhe = `${detalhe} (${labelsExtras.join(' / ')})`;
                     }
                 }
+                if (titulo) titulo = dedupEmojisPrefixo(titulo);
 
                 const textoFinal = titulo ? `${titulo} ${detalhe}` : detalhe;
                 const itemKeyOrig = 'obs_' + slug(trimmed);
@@ -899,23 +937,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             } else if (secaoAtual === 'MANUTENCAO' || secaoAtual === 'AVULSA') {
                 const tipoSecao = secaoAtual === 'AVULSA' ? '❗ MANUTENÇÃO AVULSA:' : tituloManut;
                 const prefixSec = secaoAtual === 'AVULSA' ? 'avulsa' : 'manut';
-                const insumosCalc = calcularInsumosEquipamento(nomeEq, qtd).map(ins => {
-                    const ik = `ins_${prefixSec}_${slug(nomeEq)}_${ins.id}`;
-                    const chk = checksMap.get(ik);
-                    return Object.assign({}, ins, {
-                        item_key: ik,
-                        checked: !!(chk && chk.checked),
-                        lider_nome: chk && chk.checked ? chk.lider_nome : null,
-                        lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
-                        lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
-                        atualizado_em: chk && chk.checked ? chk.atualizado_em : null
-                    });
-                });
+                const insumosCalc = calcularInsumosEquipamento(nomeEq, qtd);
                 const semInsumoKey = `manut_eq_${prefixSec}_${slug(nomeEq)}`;
-                const chkEq = checksMap.get(semInsumoKey);
-                const todosInsumosOk = insumosCalc.length > 0
-                    ? insumosCalc.every(i => i.checked)
-                    : !!(chkEq && chkEq.checked);
 
                 manutencoes.push({
                     secao_titulo: tipoSecao,
@@ -925,31 +948,76 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     qtd,
                     nome: nomeEq,
                     texto: `${iconeEq ? iconeEq + ' ' : ''}${qtd} × ${nomeEq}`,
-                    insumos: insumosCalc,
-                    tem_insumos: insumosCalc.length > 0,
-                    checked: todosInsumosOk,
-                    insumos_feitos: insumosCalc.filter(i => i.checked).length,
-                    insumos_total: insumosCalc.length
+                    insumos_base: insumosCalc
                 });
             } else {
                 outros.push({ secao: secaoAtual, texto: trimmed });
             }
         }
 
-        // Garantir que TODAS as OSs do veículo com itens de saída (Levar Carrinho, Levar Extensora,
-        // Apoio de Sucção, Levar EPI, VAC, Reparos, Montagem, Desmontagem) apareçam no checklist do líder,
-        // mesmo que v.colBEditado tenha sido salvo antes de incluir Habilidade da Equipe ou sem texto de obs
+        // Consolidar quantidade total de equipamentos para manutenção e total de insumos por veículo
+        const totalEquipamentosManut = manutencoes.reduce((acc, m) => acc + (Number(m.qtd) || 0), 0);
+        const insumosConsolidadosMap = new Map();
+        manutencoes.forEach(m => {
+            (m.insumos_base || []).forEach(ins => {
+                const atual = insumosConsolidadosMap.get(ins.id) || {
+                    id: ins.id,
+                    icone: ins.icone,
+                    nome: ins.nome,
+                    qtd: 0,
+                    unidade: ins.unidade
+                };
+                atual.qtd += Number(ins.qtd || 0);
+                insumosConsolidadosMap.set(ins.id, atual);
+            });
+        });
+
+        const formatarTextoInsumoTotal = (ins) => {
+            if (ins.id === 'quimica') return `${ins.qtd} ${ins.qtd === 1 ? 'química' : 'químicas'}`;
+            if (ins.id === 'papel_higienico') return `${ins.qtd} ${ins.qtd === 1 ? 'pacote' : 'pacotes'} de papel higiênico`;
+            if (ins.id === 'papel_toalha') return `${ins.qtd} ${ins.qtd === 1 ? 'pacote' : 'pacotes'} de papel toalha`;
+            if (ins.id === 'sabonete') return `${ins.qtd}ml sabonete líquido`;
+            return `${ins.qtd} ${ins.unidade || ''} ${ins.nome}`;
+        };
+
+        const insumosVeiculo = [...insumosConsolidadosMap.values()].map(ins => {
+            const ik = `ins_veic_${ins.id}`;
+            let chk = checksMap.get(ik);
+            if (!chk) {
+                // Compatibilidade com checks gravados anteriormente por equipamento
+                const legacyMatches = [...checksMap.entries()].filter(([k, val]) => k.startsWith('ins_') && k.endsWith('_' + ins.id) && val && val.checked);
+                if (legacyMatches.length > 0) chk = legacyMatches[0][1];
+            }
+            return {
+                id: ins.id,
+                item_key: ik,
+                icone: ins.icone,
+                nome: ins.nome,
+                qtd: ins.qtd,
+                unidade: ins.unidade,
+                texto: formatarTextoInsumoTotal(ins),
+                checked: !!(chk && chk.checked),
+                lider_nome: chk && chk.checked ? chk.lider_nome : null,
+                lider_colab_id: chk && chk.checked ? (chk.lider_colab_id || null) : null,
+                lider_foto_url: chk && chk.checked ? (chk.lider_foto_url || (chk.lider_colab_id ? `/api/colaboradores/foto/${chk.lider_colab_id}` : null)) : null,
+                atualizado_em: chk && chk.checked ? chk.atualizado_em : null
+            };
+        });
+
+        // Garantir que TODAS as OSs do veículo com itens de saída válidos apareçam no checklist do líder
         (veiculoObj.os || []).forEach(o => {
+            if (o.tipo === 'AVULSA') return;
             const itensOS = detectarItensSaidaOS(o);
             if (!itensOS.length) return;
             const cliCurto = normClienteCurto(o.cliente);
             let nomeExib = String(o.cliente || '').trim()
-                .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔧🛠️]+/gu, '')
+                .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🔧🛠️🛻]+/gu, '')
                 .trim();
             if (nomeExib.length > 20) nomeExib = nomeExib.substring(0, 20).trim();
             const obsReal = extrairObsValida(o.obs, o.observacoes_internas, o.servico);
             const labelsSaida = [...new Set(itensOS.map(i => i.label))].join(' / ');
             const detalheCand = obsReal ? obsReal.toUpperCase() : labelsSaida;
+            if (ehDetalheSemCheckObrigatorio(detalheCand)) return;
 
             const exMatch = observacoes.find(ex =>
                 ex._cliPrefix === cliCurto && (
@@ -957,12 +1025,14 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 )
             );
             if (exMatch) {
-                exMatch.tem_check = true;
+                if (!ehDetalheSemCheckObrigatorio(exMatch.detalhe)) {
+                    exMatch.tem_check = true;
+                }
                 return;
             }
 
             const iconesUnicos = [...new Set(itensOS.map(i => i.icon).filter(Boolean))].join(' ');
-            const titulo = `${iconesUnicos ? iconesUnicos + ' ' : ''}${nomeExib}:`;
+            const titulo = dedupEmojisPrefixo(`${iconesUnicos ? iconesUnicos + ' ' : ''}${nomeExib}:`);
             const textoFinal = `${titulo} ${detalheCand}`;
             const itemKeyFinal = 'obs_' + slug(textoFinal);
             const chk = checksMap.get(itemKeyFinal)
@@ -989,6 +1059,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             entregas,
             retiradas,
             manutencoes,
+            total_equipamentos_manutencao: totalEquipamentosManut,
+            insumos_veiculo: insumosVeiculo,
             outros
         };
     }
@@ -1021,11 +1093,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         let turno = 'diurno';
         if (escalaUtil.ehLiderOperacional(c)) {
             turno = escalaUtil.turnoDoLider(c);
-        } else if (eqNome.includes('noturn') || eqNome.includes('noite')) {
+        } else if (eqNome.includes('noturn') || eqNome.includes('noite') || dep.includes('noturn') || cargo.includes('noturn')) {
             turno = 'noturno';
-        } else if (c.horario_entrada && String(c.horario_entrada).trim() >= '17:00') {
+        } else if (c.horario_entrada && (String(c.horario_entrada).trim() >= '17:00' || String(c.horario_entrada).trim() <= '04:00')) {
             turno = 'noturno';
-        } else if (nome.includes('vitor leandro') || nome.includes('ana paula')) {
+        } else if (nome.includes('vitor leandro') || nome.includes('ana paula') || nome.includes('nathan rodrigues') || nome.includes('natam ')) {
             turno = 'noturno';
         }
 
@@ -1682,7 +1754,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const totalRet = retComCk.length > 0 ? 1 : 0;
             const feitasRet = (retComCk.length > 0 && todosCkCompletos) ? 1 : 0;
 
-            const todosInsumos = secoes.manutencoes.flatMap(m => m.insumos);
+            const todosInsumos = secoes.insumos_veiculo || [];
             const totalIns = todosInsumos.length;
             const feitosIns = todosInsumos.filter(i => i.checked).length;
 
@@ -1746,8 +1818,42 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const ajuPres = ajuCid ? dadosDispFaltas.presencaPorColabId.get(ajuCid) : null;
             const motFalta = motCid ? dadosDispFaltas.faltasPorColabId.get(motCid) : null;
             const ajuFalta = ajuCid ? dadosDispFaltas.faltasPorColabId.get(ajuCid) : null;
-            const substMotRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'motorista' && p.substituto_nome);
-            const substAjuRow = dadosDispFaltas.presencaRows.find(p => p.status === 'falta' && p.veiculo_key === vKey && p.papel_rota === 'ajudante' && p.substituto_nome);
+
+            // Substituição é vinculada estritamente ao resumo/turno atual (o mesmo veículo pode sair de dia e à noite sem vínculo entre colaboradores)
+            const substMotRow = dadosDispFaltas.presencaRows.find(p =>
+                p.status === 'falta' &&
+                p.veiculo_key === vKey &&
+                p.papel_rota === 'motorista' &&
+                p.substituto_nome &&
+                String(p.resumo_id || '') === String(chosenRow.id) &&
+                normLow(p.substituto_nome) === normLow(v.motorista || '')
+            );
+            const substAjuRow = dadosDispFaltas.presencaRows.find(p =>
+                p.status === 'falta' &&
+                p.veiculo_key === vKey &&
+                p.papel_rota === 'ajudante' &&
+                p.substituto_nome &&
+                String(p.resumo_id || '') === String(chosenRow.id) &&
+                normLow(p.substituto_nome) === normLow(v.ajudante || '')
+            );
+
+            let substMotOrigNome = (substMotRow && substMotRow.colaborador_nome) || v._falta_motorista_original || null;
+            if (substMotOrigNome) {
+                const origMotColab = matchColab(substMotOrigNome);
+                const origMotClass = origMotColab ? classificarColabOperacional(origMotColab) : null;
+                if (origMotClass && origMotClass.turno && origMotClass.turno !== turnoAtivo) {
+                    substMotOrigNome = null;
+                }
+            }
+            let substAjuOrigNome = (substAjuRow && substAjuRow.colaborador_nome) || v._falta_ajudante_original || null;
+            if (substAjuOrigNome) {
+                const origAjuColab = matchColab(substAjuOrigNome);
+                const origAjuClass = origAjuColab ? classificarColabOperacional(origAjuColab) : null;
+                if (origAjuClass && origAjuClass.turno && origAjuClass.turno !== turnoAtivo) {
+                    substAjuOrigNome = null;
+                }
+            }
+
             const ajuDepLabel = (ajuInfo && /patio|pátio/i.test(norm(ajuInfo.departamento || ajuInfo.cargo || ''))) ? 'Ajudante' : 'Ajudante Geral';
 
             return {
@@ -1760,11 +1866,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     categoria_servico: 'motorista',
                     colab_id: motCid,
                     foto_url: (motInfo && motInfo.foto_url) || v._fotoMotorista || null,
-                    status_presenca: (motFalta || (motPres && motPres.status === 'falta')) ? 'falta' : ((motPres && motPres.status === 'trabalhou') || substMotRow ? 'trabalhou' : null),
+                    status_presenca: (motFalta || (motPres && motPres.status === 'falta')) ? 'falta' : ((motPres && motPres.status === 'trabalhou') || substMotOrigNome ? 'trabalhou' : null),
                     avisado_previamente: (motFalta && motFalta.avisado_previamente) || (motPres && motPres.avisado_previamente) || 'Não',
                     observacao_falta: (motFalta && motFalta.observacao) || (motPres && motPres.observacao) || '',
-                    substituiu_nome: (substMotRow && substMotRow.colaborador_nome) || v._falta_motorista_original || null,
-                    substituiu_colab_id: (substMotRow && substMotRow.colaborador_id) || null
+                    substituiu_nome: substMotOrigNome,
+                    substituiu_colab_id: substMotOrigNome && substMotRow ? substMotRow.colaborador_id : null
                 },
                 ajudante: {
                     nome: v.ajudante || '—',
@@ -1773,11 +1879,11 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     categoria_servico: 'ajudante',
                     colab_id: ajuCid,
                     foto_url: (ajuInfo && ajuInfo.foto_url) || v._fotoAjudante || null,
-                    status_presenca: (ajuFalta || (ajuPres && ajuPres.status === 'falta')) ? 'falta' : ((ajuPres && ajuPres.status === 'trabalhou') || substAjuRow ? 'trabalhou' : null),
+                    status_presenca: (ajuFalta || (ajuPres && ajuPres.status === 'falta')) ? 'falta' : ((ajuPres && ajuPres.status === 'trabalhou') || substAjuOrigNome ? 'trabalhou' : null),
                     avisado_previamente: (ajuFalta && ajuFalta.avisado_previamente) || (ajuPres && ajuPres.avisado_previamente) || 'Não',
                     observacao_falta: (ajuFalta && ajuFalta.observacao) || (ajuPres && ajuPres.observacao) || '',
-                    substituiu_nome: (substAjuRow && substAjuRow.colaborador_nome) || v._falta_ajudante_original || null,
-                    substituiu_colab_id: (substAjuRow && substAjuRow.colaborador_id) || null
+                    substituiu_nome: substAjuOrigNome,
+                    substituiu_colab_id: substAjuOrigNome && substAjuRow ? substAjuRow.colaborador_id : null
                 },
                 candidatos: candsVeic,
                 responsavel_escala: {
@@ -1794,6 +1900,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 entregas: secoes.entregas,
                 retiradas: secoes.retiradas,
                 manutencoes: secoes.manutencoes,
+                total_equipamentos_manutencao: secoes.total_equipamentos_manutencao || 0,
+                insumos_veiculo: todosInsumos,
                 outros: secoes.outros,
                 resumo_insumos_veiculo: [...resumoInsumosMap.values()],
                 progresso: {
@@ -1832,7 +1940,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 );
                 tot += sec.observacoes.length;
                 fts += sec.observacoes.filter(o => o.checked).length;
-                const insAll = sec.manutencoes.flatMap(m => m.insumos);
+                const insAll = sec.insumos_veiculo || [];
                 tot += insAll.length;
                 fts += insAll.filter(i => i.checked).length;
                 if (sec.entregas.some(e => e.status !== 'sem_checklist')) tot += 1;
@@ -2060,6 +2168,12 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                         if (vk !== vKeyTarget) return;
                         const campoOrig = papel === 'motorista' ? '_falta_motorista_original' : '_falta_ajudante_original';
                         const campoFoto = papel === 'motorista' ? '_fotoMotorista' : '_fotoAjudante';
+                        if (!resId && nomeOriginalFalta) {
+                            const atualNorm = normLow(vItem[papel] || '');
+                            const origNorm = normLow(vItem[campoOrig] || '');
+                            const alvoNorm = normLow(nomeOriginalFalta);
+                            if (atualNorm !== alvoNorm && origNorm !== alvoNorm) return;
+                        }
                         if (reverter) {
                             if (vItem[campoOrig]) {
                                 vItem[papel] = vItem[campoOrig];
