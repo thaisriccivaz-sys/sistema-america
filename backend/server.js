@@ -112,6 +112,7 @@ const SMTP_CONFIG = {
 const _globalTransporter = nodemailer.createTransport(SMTP_CONFIG);
 async function sendMailHelper(opts) {
     // Gera versão texto puro automaticamente a partir do HTML se nao fornecida
+    // Isso reduz significativamente a chance de cair em spam
     let textPlain = opts.text;
     if (!textPlain && opts.html) {
         textPlain = opts.html
@@ -126,37 +127,22 @@ async function sendMailHelper(opts) {
             .replace(/\n{3,}/g, '\n\n')
             .trim();
     }
-    // IMPORTANTE: quando o envio é via SMTP autenticado (ex: Gmail), o endereço do remetente (From)
-    // DEVE ser o próprio SMTP_USER autenticado para não ser bloqueado por SPF/DMARC como spoofing
-    // no servidor de destino (@americarental.com.br).
-    const authUser = (SMTP_CONFIG.auth && SMTP_CONFIG.auth.user) ? String(SMTP_CONFIG.auth.user).trim() : '';
-    const senderAddr = authUser || process.env.EMAIL_FROM || 'suporte@americarental.com.br';
-    const replyToAddr = opts.replyTo || process.env.EMAIL_FROM || senderAddr;
-
-    let finalFrom = `"América Rental - Sistema" <${senderAddr}>`;
-    if (opts.from) {
-        if (authUser && !String(opts.from).toLowerCase().includes(authUser.toLowerCase())) {
-            const nameMatch = String(opts.from).match(/^\s*"?([^"<]+)"?\s*</);
-            const displayName = nameMatch ? nameMatch[1].trim() : 'América Rental - Sistema';
-            finalFrom = `"${displayName}" <${authUser}>`;
-        } else {
-            finalFrom = opts.from;
-        }
-    }
-
-    const cleanHeaders = {
-        'X-Mailer': 'America-Rental-ERP/1.0',
-        ...(opts.headers || {})
-    };
-    delete cleanHeaders['Precedence'];
-    delete cleanHeaders['List-Unsubscribe'];
+    const defaultEmail = process.env.EMAIL_FROM || SMTP_CONFIG.auth.user || 'suporte@americarental.com.br';
+    const finalFrom = opts.from || `"América Rental" <${defaultEmail}>`;
+    const finalReplyTo = opts.replyTo || defaultEmail;
 
     const mailPayload = {
         ...opts,
         from: finalFrom,
-        replyTo: replyToAddr,
+        replyTo: finalReplyTo,
         text: textPlain,
-        headers: cleanHeaders
+        headers: {
+            'X-Mailer': 'America-Rental-ERP/1.0',
+            'X-Priority': '3',
+            'Precedence': 'bulk',
+            'List-Unsubscribe': `<mailto:${defaultEmail}?subject=Cancelar>`,
+            ...(opts.headers || {})
+        }
     };
 
     try {
@@ -357,6 +343,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         return emailsList;
     } catch(e) {
         console.error('[sendEmailParaNotificados] Erro:', e.message);
+        if (mailOpts && mailOpts._throwOnError) throw e;
         return [];
     }
 }
@@ -33312,8 +33299,8 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
                 ...(fotoAttachment ? [fotoAttachment] : [])
             ]
         };
-        await sendMailHelper(mailOpts);
-        res.json({ ok: true, message: `E-mail de teste enviado para ${emailDestino}`, item: item.nome, fotoTipo: fotoAttachment ? 'CID inline' : (item.foto_url ? 'URL direta' : 'Sem foto') });
+        const infoMail = await sendMailHelper(mailOpts);
+        res.json({ ok: true, message: `E-mail de teste enviado para ${emailDestino}`, item: item.nome, fotoTipo: fotoAttachment ? 'CID inline' : (item.foto_url ? 'URL direta' : 'Sem foto'), smtp: { host: SMTP_CONFIG.host, port: SMTP_CONFIG.port, user: SMTP_CONFIG.auth && SMTP_CONFIG.auth.user, emailFromEnv: process.env.EMAIL_FROM || null, accepted: infoMail && infoMail.accepted, rejected: infoMail && infoMail.rejected, response: infoMail && infoMail.response, messageId: infoMail && infoMail.messageId } });
     } catch(e) {
         console.error('[ESTOQUE TESTE EMAIL] Erro:', e.message);
         res.status(500).json({ error: e.message });
