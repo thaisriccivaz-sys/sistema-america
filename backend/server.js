@@ -352,6 +352,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             console.log(`[Notif Email] Tipo="${tipo}" enviado com sucesso para: ${emailsList.join(', ')}`);
         } catch (mailErr) {
             console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
+            if (mailOpts && mailOpts._throwOnError) throw mailErr;
         }
         return emailsList;
     } catch(e) {
@@ -23960,7 +23961,7 @@ app.post('/api/estoque/enviar-email-minimo', authenticateToken, (req, res) => {
             }
 
             const { subject, html } = montarEmailConsolidadoEstoque(dbTipo, listaItens, dados.dataFmtBR, dados.horaFmtBR);
-            await sendEmailParaNotificados(dbTipo, { subject, html, _resolvedEmails: destEmails });
+            await sendEmailParaNotificados(dbTipo, { subject, html, _resolvedEmails: destEmails, _throwOnError: true });
             res.json({
                 success: true,
                 total_itens: listaItens.length,
