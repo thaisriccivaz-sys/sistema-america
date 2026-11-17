@@ -1259,6 +1259,7 @@ function updateBreadcrumb(key) {
         ).join('');
 }
 let appOpenTabs = [];
+window.appOpenTabs = appOpenTabs;
 
 // ── METADADOS DE ABAS: cor, ícone e módulo por tela ─────────────────────────
 const TAB_META = {
@@ -1417,7 +1418,7 @@ function renderAppTabs() {
              onmouseover="this.style.opacity='1'; if(!${t.active}) this.style.background='#f1f5f9';"
              onmouseout="this.style.opacity='${t.active ? '1' : '0.55'}'; if(!${t.active}) this.style.background='transparent';">
             ${t.icon ? `<i class="ph ${t.icon}" style="font-size:0.88rem;"></i>` : ''}
-            <span title="${displayTitle}">${displayTitle.length > 15 ? displayTitle.substring(0, 15) + '…' : displayTitle}</span>
+            <span title="${displayTitle}">${displayTitle.length > 20 ? displayTitle.substring(0, 20) + '…' : displayTitle}</span>
             <i class="ph-bold ph-x"
                onclick="event.stopPropagation(); closeAppTab('${t.tabId}')"
                style="color:#ef4444; margin-left:4px; border-radius:50%; padding:2px; font-size:0.75rem;"

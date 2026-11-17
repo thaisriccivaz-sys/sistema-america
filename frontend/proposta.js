@@ -1459,6 +1459,9 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         ultimoClienteAtivo: window._ultimoClienteNomePropostaAtivo || '',
         contratoVinculadoTipoAtivo: window._contratoVinculadoTipoAtivo || ''
     };
+    if (m === 'proposta' && typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        window.atualizarTituloAbaPropostaAtiva(null, chave);
+    }
 };
 
 window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
@@ -1545,9 +1548,10 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
 
 window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOverride = null) {
     if (window._modoTelaComercial === 'contrato') return;
-    if (!Array.isArray(window.appOpenTabs)) return;
+    const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
+    if (!Array.isArray(tabsArr)) return;
     const chave = tabIdOverride || (typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('proposta') : 'comercial-proposta');
-    const tab = window.appOpenTabs.find(t => t && t.tabId === chave) || window.appOpenTabs.find(t => t && t.active && t.target === 'comercial-proposta');
+    const tab = tabsArr.find(t => t && t.tabId === chave) || tabsArr.find(t => t && t.active && t.target === 'comercial-proposta');
     if (!tab || tab.target !== 'comercial-proposta') return;
 
     const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[tab.tabId];
@@ -1572,7 +1576,7 @@ window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOv
     }
 
     const novoTitulo = (idRef && codStr && codStr.toUpperCase() !== 'AUTO')
-        ? `Proposta ${codStr}`
+        ? `${codStr} - Proposta`
         : 'Proposta';
 
     if (tab.title !== novoTitulo) {
