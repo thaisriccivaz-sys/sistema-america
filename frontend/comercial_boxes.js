@@ -173,7 +173,7 @@
             mostrar_condicoes_topo: true,
             mostrar_faixa_valores_contemplados: true,
             faixa_valores_img: '/assets/faixa-valores-contemplados-evento.png?v=20261101v8',
-            mostrar_dias_evento_item: false,
+            mostrar_dias_evento_item: true,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
         },
@@ -205,10 +205,15 @@
         'AVARIA': {
             nome_quadro: 'Quadro de Valores — Proposta Avaria (Fixo)',
             tipo_titulo: 'AVARIA',
-            info_rotulo: 'EVENTO:',
-            cor_primaria: '#7b4195',
-            ocultar_nome_evento: false,
-            mostrar_dias_evento_item: true,
+            info_rotulo: 'DA OBRA:',
+            cor_primaria: '#1e5782',
+            cor_rotulo_valor_total: '#1e5782',
+            ocultar_nome_evento: true,
+            ocultar_data_fim: true,
+            mostrar_condicoes_topo: true,
+            mostrar_faixa_valores_contemplados: true,
+            faixa_valores_img: '/assets/faixa-valores-contemplados-obra.png?v=20261101v8',
+            mostrar_dias_evento_item: false,
             titulo_equipamentos: 'EQUIPAMENTOS:',
             titulo_servicos: 'SERVIÇOS:'
         }
@@ -399,12 +404,20 @@
             extra.mostrar_faixa_valores_contemplados = true;
             extra.faixa_valores_img = '/assets/faixa-valores-contemplados-evento.png?v=20261101v8';
             extra.mostrar_dias_evento_item = true;
+        } else if (modEfetivo === 'AVARIA') {
+            if (!extra.info_rotulo) extra.info_rotulo = 'DA OBRA:';
+            extra.ocultar_nome_evento = true;
+            extra.ocultar_data_fim = true;
+            extra.mostrar_condicoes_topo = true;
+            extra.mostrar_faixa_valores_contemplados = true;
+            extra.faixa_valores_img = '/assets/faixa-valores-contemplados-obra.png?v=20261101v8';
+            extra.mostrar_dias_evento_item = false;
         }
         return Object.assign({}, base, extra);
     };
 
-    /* Cache leve de clientes, contatos, endereços e equipamentos para enriquecer o Quadro Fixo */
-    window._boxCacheDadosAux = { carregado: false, clientes: [], contatos: [], enderecos: [], equipamentos: [], propostasEvento: [], propostasTodas: [] };
+    /* Cache leve de clientes, contatos, endereços, colaboradores e equipamentos para enriquecer o Quadro Fixo */
+    window._boxCacheDadosAux = { carregado: false, clientes: [], contatos: [], enderecos: [], equipamentos: [], colaboradores: [], propostasEvento: [], propostasTodas: [] };
     window._boxPropostaPreviewId = 'auto';
     window._boxesModeloAtivo = 'EVENTO';
     window._boxesModeloBaseAditivo = 'EVENTO';
@@ -414,17 +427,19 @@
         const c = window._boxCacheDadosAux;
         if (c.carregado && !forcar) return c;
         try {
-            const [clientes, contatos, enderecos, equipamentos, propostas] = await Promise.all([
+            const [clientes, contatos, enderecos, equipamentos, propostas, colaboradores] = await Promise.all([
                 typeof apiGet === 'function' ? apiGet('/clientes').catch(() => []) : [],
                 typeof apiGet === 'function' ? apiGet('/contatos').catch(() => []) : [],
                 typeof apiGet === 'function' ? apiGet('/enderecos-entrega').catch(() => []) : [],
                 typeof apiGet === 'function' ? apiGet('/estoque-equipamentos').catch(() => []) : [],
-                typeof apiGet === 'function' ? apiGet('/propostas').catch(() => []) : []
+                typeof apiGet === 'function' ? apiGet('/propostas').catch(() => []) : [],
+                typeof apiGet === 'function' ? apiGet('/colaboradores').catch(() => []) : []
             ]);
             c.clientes = Array.isArray(clientes) ? clientes : [];
             c.contatos = Array.isArray(contatos) ? contatos : [];
             c.enderecos = Array.isArray(enderecos) ? enderecos : [];
             c.equipamentos = Array.isArray(equipamentos) ? equipamentos : [];
+            c.colaboradores = Array.isArray(colaboradores) ? colaboradores : [];
             c.propostasTodas = Array.isArray(propostas) ? propostas : [];
             c.propostasEvento = c.propostasTodas.filter(p =>
                 norm(String(p.tipo || '').replace(/^proposta\s+/i, '')) === 'evento'
@@ -434,6 +449,70 @@
             console.warn('[BOXES] Aviso ao carregar cache auxiliar:', e);
         }
         return c;
+    };
+
+    /* Resolve o nome real do atendente (nunca o nome de usuário com ponto ex: THAIS.RICCI) */
+    window.resolverNomeExibicaoAtendenteProposta = function (propOuRaw) {
+        const limparFormatoNome = (str, origemLogin = '') => {
+            let s = String(str || '').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!s) return '';
+            const origLimpa = String(origemLogin || '').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            const origPartes = origLimpa.split(' ').filter(Boolean);
+            const palavras = s.split(' ').filter(Boolean);
+            // Se o login tinha 2 palavras (ex: THAIS.RICCI) e o nome completo no RH tem essas mesmas palavras com acento, prioriza a forma curta correspondente ou Primeiro + Último se muito longo
+            if (origPartes.length >= 2 && palavras.length > origPartes.length) {
+                const matchExato = [];
+                for (const op of origPartes) {
+                    const achada = palavras.find(pl => norm(pl) === norm(op));
+                    if (achada) matchExato.push(achada);
+                }
+                if (matchExato.length === origPartes.length) {
+                    return matchExato.join(' ');
+                }
+            }
+            if (s.length > 26 && palavras.length > 2) {
+                return palavras[0] + ' ' + palavras[palavras.length - 1];
+            }
+            return s;
+        };
+
+        if (propOuRaw && typeof propOuRaw === 'object') {
+            if (propOuRaw.atendente_nome && !String(propOuRaw.atendente_nome).includes('.')) {
+                return limparFormatoNome(propOuRaw.atendente_nome, propOuRaw.atendente || '');
+            }
+        }
+        const raw = (propOuRaw && typeof propOuRaw === 'object')
+            ? String(propOuRaw.atendente || propOuRaw.representante || propOuRaw.criado_por || '').trim()
+            : String(propOuRaw || '').trim();
+        if (!raw) return '';
+
+        const rawNormEspaco = norm(raw).replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const ctx = window._contextoUsuarioComercial;
+        if (ctx && ctx.nome_colaborador && !String(ctx.nome_colaborador).includes('.')) {
+            const uCtxNorm = norm(ctx.username || '').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            const nCtxNorm = norm(ctx.nome_colaborador).replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            if (rawNormEspaco === uCtxNorm || rawNormEspaco === nCtxNorm) {
+                return limparFormatoNome(ctx.nome_colaborador, raw);
+            }
+        }
+
+        const c = window._boxCacheDadosAux;
+        const colabs = (c && Array.isArray(c.colaboradores) && c.colaboradores.length)
+            ? c.colaboradores
+            : (Array.isArray(window._colaboradoresData) ? window._colaboradoresData : []);
+        if (colabs.length && rawNormEspaco) {
+            const pRaw = rawNormEspaco.split(' ').filter(x => x.length >= 2);
+            const achado = colabs.find(cl => norm(cl.nome_completo) === rawNormEspaco)
+                || colabs.find(cl => {
+                    const pCl = norm(cl.nome_completo).split(/\s+/).filter(x => x.length >= 2);
+                    return pRaw.length >= 2 && pRaw.every(w => pCl.includes(w));
+                });
+            if (achado && achado.nome_completo) {
+                return limparFormatoNome(achado.nome_completo, raw);
+            }
+        }
+
+        return limparFormatoNome(raw, raw);
     };
 
     /* Busca a "Especificação Técnica" no cadastro do equipamento pelo código ou nome para exibir abaixo do produto na proposta */
@@ -818,6 +897,7 @@
                 prop = {
                     id: (typeof _propostasEditandoId !== 'undefined' && _propostasEditandoId) ? _propostasEditandoId : null,
                     tipo: tipoForm || 'EVENTO',
+                    atendente: document.getElementById('prop-atendente')?.value || '',
                     tabela_precos: document.getElementById('prop-tabela')?.value || '',
                     contrato_vinculado: (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(inpContratoAdt?.value || '') : String(inpContratoAdt?.value || '').split(/\s*-\s*/)[0].trim()),
                     contrato_vinculado_id: inpContratoAdt?.getAttribute('data-contrato-id') || null,
@@ -857,12 +937,13 @@
         if (!prop) {
             const descDemo = 'Descrição de Produtos aqui, o texto pode ser grande. Descrição de Produtos aqui, o texto pode ser grande e deve quebrar a linha ao final da linha pontilhada';
             const obsDemo = 'OBSERVAÇÃO TAMBÉM PODE SER GRANDE E DEVE ESTAR EM CAIXA ALTA';
-            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA') || String(modeloEfetivo || '').trim().toUpperCase() === 'VENDA' || String(modeloEfetivo || '').trim().toUpperCase() === 'EQUIPAMENTOS';
+            const ehDemoObra = String(modeloEfetivo || '').trim().toUpperCase().startsWith('OBRA') || String(modeloEfetivo || '').trim().toUpperCase() === 'VENDA' || String(modeloEfetivo || '').trim().toUpperCase() === 'AVARIA';
             const ehDemoLimpaFossa = String(modeloEfetivo || '').trim().toUpperCase().startsWith('LIMPA FOSSA');
             const ehDemoSemDiarias = ehDemoObra || ehDemoLimpaFossa;
             return {
                 modelo_tipo: modeloEfetivo,
                 eh_aditivo: modeloNorm === 'ADITIVO',
+                eh_avaria: modeloNorm === 'AVARIA',
                 eh_demo: true,
                 tipo_titulo: tituloTopoResolvido,
                 info_rotulo: cfgModelo.info_rotulo || 'EVENTO:',
@@ -878,6 +959,7 @@
                 data_fim: 'DD/MM/AA',
                 validade_proposta: 'DD/MM/AA',
                 condicao_pagamento: 'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
+                atendente_nome: 'NOME DO ATENDENTE',
                 contrato_vinculado: 'APENAS PARA ADITIVO',
                 diarias_contrato: 'DIÁRIAS DE CONTRATO',
                 instalacao_linha1: 'NOME DO LOCAL',
@@ -954,7 +1036,8 @@
                 : JSON.parse(prop.produtos_aprovados || '[]');
         } catch (_) { prodsAprov = []; }
 
-        const ehModeloEventoCalc = String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const modCalcUp = String(modeloEfetivo || prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ehModeloEventoCalc = modCalcUp === 'EVENTO' || modCalcUp === 'EQUIPAMENTOS' || modCalcUp === 'EQUIPAMENTO';
         const diasContratoPropNum = Number(prop.dias_contrato || 0);
         const itensFormatados = (itensRaw || []).map((it, idxIt) => {
             const qtd = Math.max(1, Number(it.quantidade ?? it.qtde ?? 1) || 1);
@@ -1029,9 +1112,11 @@
         const numSeq = formatarNumeroPropostaSequencial(prop.codigo, prop.contrato, prop.id);
         const resumoDiariasRodape = calcularResumoDiariasRodape(prop, itensRaw);
 
+        const nomeAtendenteFinal = window.resolverNomeExibicaoAtendenteProposta(prop);
         return {
             modelo_tipo: modeloEfetivo,
             eh_aditivo: modeloNorm === 'ADITIVO',
+            eh_avaria: modeloNorm === 'AVARIA',
             eh_demo: false,
             proposta_comparativa: isPropComparativa,
             produtos_aprovados: Array.isArray(prodsAprov) ? prodsAprov : [],
@@ -1049,6 +1134,7 @@
             data_fim: fimFmt || iniFmt || '—',
             validade_proposta: valFmt || '—',
             condicao_pagamento: condPag || '—',
+            atendente_nome: nomeAtendenteFinal,
             contrato_vinculado: contratoVinc,
             diarias_contrato: diariasContrato,
             instalacao_linha1: inst.linha1,
@@ -1098,14 +1184,14 @@
         const rotuloInstalacao = cfg.rotulo_instalacao || d.rotulo_instalacao || (String(infoRotulo).toUpperCase().includes('FOSSA') ? 'ENDEREÇO:' : 'INSTALAÇÃO:');
         const ocultarNomeEvento = cfg.ocultar_nome_evento !== undefined ? Boolean(cfg.ocultar_nome_evento) : Boolean(d.ocultar_nome_evento);
         const ocultarDataFim = cfg.ocultar_data_fim !== undefined ? Boolean(cfg.ocultar_data_fim) : Boolean(d.ocultar_data_fim);
-        const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (['EVENTO', 'EQUIPAMENTOS'].includes(String(d.modelo_tipo || '').toUpperCase()));
-        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'VENDA', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarCondicoesTopo = cfg.mostrar_condicoes_topo !== undefined ? Boolean(cfg.mostrar_condicoes_topo) : (['EVENTO', 'EQUIPAMENTOS', 'AVARIA'].includes(String(d.modelo_tipo || '').toUpperCase()));
+        const mostrarFaixaValores = cfg.mostrar_faixa_valores_contemplados !== undefined ? Boolean(cfg.mostrar_faixa_valores_contemplados) : (['EVENTO', 'EQUIPAMENTOS', 'OBRA', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'VENDA', 'LIMPA FOSSA', 'LIMPA FOSSA MENSAL', 'AVARIA'].includes(String(d.modelo_tipo || '').toUpperCase()));
         const faixaValoresImg = cfg.faixa_valores_img || (String(ROXO).toLowerCase() === '#1e5782' ? '/assets/faixa-valores-contemplados-obra.png?v=20261101v8' : '/assets/faixa-valores-contemplados-evento.png?v=20261101v8');
         const mostrarDiasItem = cfg.mostrar_dias_evento_item !== false;
         const modTipoQuadroUpper = String(d.modelo_tipo || modeloRef || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ocultarInstalacaoTopo = cfg.ocultar_instalacao !== undefined ? Boolean(cfg.ocultar_instalacao) : (Boolean(d.ocultar_instalacao) || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'VENDAS');
         const ehModeloEventoPuro = modTipoQuadroUpper === 'EVENTO';
-        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'EQUIPAMENTOS';
+        const ehQuadroObra = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ') || modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'AVARIA';
         const ehQuadroLimpaFossa = modTipoQuadroUpper === 'LIMPA FOSSA' || modTipoQuadroUpper.startsWith('LIMPA FOSSA');
         const rotuloDiasItemQuadro = ehModeloEventoPuro ? 'Dia de Evento ou Sucção:' : 'Dia de Evento / Sucção:';
         const tituloEquip = cfg.titulo_equipamentos || 'EQUIPAMENTOS:';
@@ -1114,8 +1200,9 @@
         const sepEndTopo = separarRuaBairroCidade(d.instalacao_linha2);
         const endRuaTopo = d.instalacao_rua !== undefined ? d.instalacao_rua : sepEndTopo.rua;
         const endBairroCidTopo = d.instalacao_bairro_cidade !== undefined ? d.instalacao_bairro_cidade : sepEndTopo.bairro_cidade;
-        const exibirContratoBaseTopo = Boolean(d.eh_aditivo || d.eh_demo || (d.contrato_vinculado && String(d.contrato_vinculado).trim()));
-        const textoContratoBaseTopo = (d.eh_demo && !d.eh_aditivo) ? (d.contrato_vinculado || 'APENAS PARA ADITIVO') : (d.contrato_vinculado || '—');
+        const exibirContratoBaseTopo = Boolean(d.eh_aditivo || d.eh_avaria || d.eh_demo || (d.contrato_vinculado && String(d.contrato_vinculado).trim()));
+        const textoContratoBaseTopo = (d.eh_demo && !d.eh_aditivo && !d.eh_avaria) ? (d.contrato_vinculado || 'APENAS PARA ADITIVO') : (d.contrato_vinculado || '—');
+        const nomeAtendenteTopo = String(d.atendente_nome || (typeof window.resolverNomeExibicaoAtendenteProposta === 'function' ? window.resolverNomeExibicaoAtendenteProposta(d) : '') || '').trim();
         const razaoSocialTopo = truncarRazaoSocialProposta(d.razao_social, 30);
 
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
@@ -1300,7 +1387,7 @@
 
                     <!-- Bloco logo + dados do cliente + informações do evento + condições da proposta -->
                     <div style="display:flex; align-items:stretch; position:relative; z-index:2; background:#fff;${mostrarFaixaValores ? '' : ` box-shadow:0 ${u(10)} ${u(14)} -${u(10)} rgba(15,23,42,0.18);`} flex-shrink:0;">
-                        <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(358) : u(415)}; height:${u(260)}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <div style="background:${ROXO}; width:${mostrarCondicoesTopo ? u(358) : u(415)}; min-height:${u(260)}; align-self:stretch; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                             <img src="/assets/logo-quadro-evento.png" alt="América Rental desde 1999" style="height:${mostrarCondicoesTopo ? u(220) : u(224)}; width:auto; display:block;">
                         </div>
                         ${mostrarCondicoesTopo ? `
@@ -1335,13 +1422,14 @@
                                     <span style="color:${ROXO}; font-size:${u(22)};">&#9656;</span>
                                     <span>CONDIÇÕES DA <span class="bq-d">PROPOSTA:</span></span>
                                 </div>
-                                <div style="color:#333; margin-top:${u(20)};">
-                                    <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">${esc(d.condicao_pagamento || '—')}</div>
+                                <div style="color:#333; margin-top:${u(16)};">
+                                    <div class="bq-d" style="font-size:${u(19.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${exibirContratoBaseTopo ? u(9) : u(12)};">${esc(d.condicao_pagamento || '—')}</div>
                                     ${ocultarDataFim
-                                        ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>`
-                                        : `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(15)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>`
+                                        ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${exibirContratoBaseTopo ? u(9) : u(12)};">DATA: <span class="bq-d">${esc(d.data_inicio || '—')}</span></div>`
+                                        : `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${exibirContratoBaseTopo ? u(9) : u(12)};">DATA DO CONTRATO: <span class="bq-d">${esc(d.data_inicio || '—')}</span> A <span class="bq-d">${esc(d.data_fim || d.data_inicio || '—')}</span></div>`
                                     }
-                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${u(14)};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
+                                    <div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap; margin-bottom:${(nomeAtendenteTopo || exibirContratoBaseTopo) ? (exibirContratoBaseTopo ? u(9) : u(12)) : '0'};">VALIDADE DA PROPOSTA: <span class="bq-d">${esc(d.validade_proposta || '—')}</span></div>
+                                    ${nomeAtendenteTopo ? `<div style="font-size:${u(18.5)}; line-height:1.25; text-transform:uppercase; white-space:nowrap;${exibirContratoBaseTopo ? ` margin-bottom:${u(9)};` : ''}">ATENDENTE: <span class="bq-d">${esc(nomeAtendenteTopo)}</span></div>` : ''}
                                     ${exibirContratoBaseTopo ? `<div style="font-size:${u(18.5)}; line-height:1.25; color:${ROXO}; text-transform:uppercase; white-space:nowrap;">CONTRATO BASE: <span class="bq-d">${esc(textoContratoBaseTopo)}</span></div>` : ''}
                                 </div>
                             </div>

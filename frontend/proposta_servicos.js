@@ -12,7 +12,7 @@
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
     window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
-    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = [];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EQUIPAMENTOS', 'EQUIPAMENTO'];
 
     const tipoLimpo = (tipo) => {
         if (typeof window.obterTipoEfetivoProposta === 'function') {
@@ -773,16 +773,7 @@
             window._propServicosAdicionados = [];
             return true;
         }
-        // Serviço nunca é obrigatório em EVENTO (nem o valor: 0,00 vira CORTESIA)
-        if (!window.tipoPropostaServicoObrigatorio(tipo)) return true;
         const lista = window._propServicosAdicionados || [];
-        if (lista.length === 0) {
-            // Com Frete FOB marcado, o serviço deixa de ser obrigatório na obra
-            if (document.getElementById('prop-serv-fob')?.checked) return true;
-            alert('Em propostas de obra (mensal, quinzenal ou semanal) é obrigatório adicionar pelo menos um Serviço (ou marcar Frete FOB).');
-            document.getElementById('prop-serv-codigo')?.focus();
-            return false;
-        }
         lista.forEach(s => {
             const nomeS = s.servico || s.descricao || '';
             if (window.servicoEhMontagemOuDesmontagem && window.servicoEhMontagemOuDesmontagem(nomeS, s.codigo)) {
@@ -792,6 +783,15 @@
                 s.cortesia = true;
             }
         });
+        // Serviço obrigatório apenas em OBRA (em EQUIPAMENTOS o quadro é exibido mas opcional)
+        if (!window.tipoPropostaServicoObrigatorio(tipo)) return true;
+        if (lista.length === 0) {
+            // Com Frete FOB marcado, o serviço deixa de ser obrigatório na obra
+            if (document.getElementById('prop-serv-fob')?.checked) return true;
+            alert('Em propostas de obra (mensal, quinzenal ou semanal) é obrigatório adicionar pelo menos um Serviço (ou marcar Frete FOB).');
+            document.getElementById('prop-serv-codigo')?.focus();
+            return false;
+        }
         return true;
     };
 })();

@@ -41744,10 +41744,67 @@ app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
 });
 
 // GET /api/propostas - Listar todas
+function enriquecerAtendenteNomePropostas(lista, cb) {
+  const arr = Array.isArray(lista) ? lista : (lista ? [lista] : []);
+  if (!arr.length) return cb(lista);
+  const normA = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  db.all('SELECT username, nome, email FROM usuarios', [], (eU, uRows) => {
+    db.all("SELECT nome_completo, email, email_corporativo FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'", [], (eC, cRows) => {
+      const usuarios = Array.isArray(uRows) ? uRows : [];
+      const colabs = Array.isArray(cRows) ? cRows : [];
+      const cacheMap = new Map();
+      const resolver = (raw) => {
+        const k = String(raw || '').trim();
+        if (!k) return '';
+        if (cacheMap.has(k)) return cacheMap.get(k);
+        const rawNorm = normA(k).replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const partesRaw = rawNorm.split(' ').filter(x => x.length >= 2);
+        const uMatch = usuarios.find(u => normA(u.username) === normA(k) || normA(u.nome).replace(/[._-]+/g, ' ') === rawNorm) || null;
+        let cMatch = colabs.find(c => normA(c.nome_completo) === rawNorm) || null;
+        if (!cMatch && uMatch && uMatch.email) {
+          const emNorm = normA(uMatch.email);
+          cMatch = colabs.find(c => normA(c.email_corporativo) === emNorm || normA(c.email) === emNorm) || null;
+        }
+        if (!cMatch && partesRaw.length >= 2) {
+          cMatch = colabs.find(c => {
+            const pCl = normA(c.nome_completo).split(/\s+/).filter(x => x.length >= 2);
+            return partesRaw.every(w => pCl.includes(w));
+          }) || null;
+        }
+        const cand = (cMatch && cMatch.nome_completo)
+          ? String(cMatch.nome_completo).trim()
+          : ((uMatch && uMatch.nome && !String(uMatch.nome).includes('.')) ? String(uMatch.nome).trim() : k);
+        const limpo = cand.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const pls = limpo.split(' ').filter(Boolean);
+        let finalNome = limpo;
+        if (partesRaw.length >= 2 && pls.length > partesRaw.length) {
+          const mEx = [];
+          for (const op of partesRaw) {
+            const ach = pls.find(pl => normA(pl) === op);
+            if (ach) mEx.push(ach);
+          }
+          if (mEx.length === partesRaw.length) finalNome = mEx.join(' ');
+          else if (limpo.length > 26 && pls.length > 2) finalNome = pls[0] + ' ' + pls[pls.length - 1];
+        } else if (limpo.length > 26 && pls.length > 2) {
+          finalNome = pls[0] + ' ' + pls[pls.length - 1];
+        }
+        cacheMap.set(k, finalNome);
+        return finalNome;
+      };
+      arr.forEach(r => {
+        if (r && typeof r === 'object') {
+          r.atendente_nome = resolver(r.atendente || r.representante || r.criado_por || '');
+        }
+      });
+      cb(lista);
+    });
+  });
+}
+
 app.get('/api/propostas', authenticateToken, (req, res) => {
   db.all('SELECT * FROM propostas ORDER BY criado_em DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows || []);
+    enriquecerAtendenteNomePropostas(rows || [], (enriched) => res.json(enriched));
   });
 });
 
@@ -41756,7 +41813,7 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
   db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
-    res.json(row);
+    enriquecerAtendenteNomePropostas(row, (enriched) => res.json(enriched));
   });
 });
 

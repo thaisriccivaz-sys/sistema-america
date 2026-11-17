@@ -655,7 +655,8 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const modeloEfetivo = (temParceirosQuadro && tipoPropNorm === 'EVENTO')
             ? 'EQUIPAMENTOS'
             : (ehAditivo ? await resolverModeloOriginarioAditivoPublico(p) : tipoPropNorm);
-        const ehEventoCalcPub = String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'EVENTO';
+        const modPubUp = String(modeloEfetivo || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ehEventoCalcPub = modPubUp === 'EVENTO' || modPubUp === 'EQUIPAMENTOS' || modPubUp === 'EQUIPAMENTO';
         const diasContratoPubNum = Number(p.dias_contrato || 0);
         const isCompPub = Boolean(Number(p.proposta_comparativa) === 1);
         const prodsAprovPub = lerJson(p.produtos_aprovados);
@@ -798,7 +799,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         };
 
         const ehObraLike = modeloEfetivo === 'OBRA' || ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'].includes(modeloEfetivo);
-        const ehVendaLike = modeloEfetivo === 'VENDA';
+        const ehVendaLike = modeloEfetivo === 'VENDA' || modeloEfetivo === 'AVARIA';
         const ehFossaLike = modeloEfetivo === 'LIMPA FOSSA' || modeloEfetivo === 'LIMPA FOSSA MENSAL';
         const tituloTopoFinal = ehObraLike
             ? await resolverSubtituloObraPublico(p)
@@ -899,10 +900,57 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             } catch (_) {}
         }
 
+        let atendenteNomeFinal = '';
+        const rawAtendente = String(p.atendente || p.representante || p.criado_por || '').trim();
+        if (rawAtendente) {
+            try {
+                const [uRows, cRows] = await Promise.all([
+                    dbAll('SELECT username, nome, email FROM usuarios').catch(() => []),
+                    dbAll("SELECT nome_completo, email, email_corporativo FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'").catch(() => [])
+                ]);
+                const rawNorm = norm(rawAtendente).replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+                const partesRaw = rawNorm.split(' ').filter(x => x.length >= 2);
+                const uMatch = (uRows || []).find(u => norm(u.username) === norm(rawAtendente) || norm(u.nome).replace(/[._-]+/g, ' ') === rawNorm) || null;
+                let cMatch = (cRows || []).find(c => norm(c.nome_completo) === rawNorm) || null;
+                if (!cMatch && uMatch && uMatch.email) {
+                    const emNorm = norm(uMatch.email);
+                    cMatch = (cRows || []).find(c => norm(c.email_corporativo) === emNorm || norm(c.email) === emNorm) || null;
+                }
+                if (!cMatch && partesRaw.length >= 2) {
+                    cMatch = (cRows || []).find(c => {
+                        const pCl = norm(c.nome_completo).split(/\s+/).filter(x => x.length >= 2);
+                        return partesRaw.every(w => pCl.includes(w));
+                    }) || null;
+                }
+                const candidatoNome = (cMatch && cMatch.nome_completo)
+                    ? String(cMatch.nome_completo).trim()
+                    : ((uMatch && uMatch.nome && !String(uMatch.nome).includes('.')) ? String(uMatch.nome).trim() : rawAtendente);
+                const limpoCand = candidatoNome.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+                const palavrasCand = limpoCand.split(' ').filter(Boolean);
+                if (partesRaw.length >= 2 && palavrasCand.length > partesRaw.length) {
+                    const mEx = [];
+                    for (const op of partesRaw) {
+                        const ach = palavrasCand.find(pl => norm(pl) === op);
+                        if (ach) mEx.push(ach);
+                    }
+                    atendenteNomeFinal = (mEx.length === partesRaw.length) ? mEx.join(' ') : (limpoCand.length > 26 && palavrasCand.length > 2 ? (palavrasCand[0] + ' ' + palavrasCand[palavrasCand.length - 1]) : limpoCand);
+                } else if (limpoCand.length > 26 && palavrasCand.length > 2) {
+                    atendenteNomeFinal = palavrasCand[0] + ' ' + palavrasCand[palavrasCand.length - 1];
+                } else {
+                    atendenteNomeFinal = limpoCand;
+                }
+            } catch (_) {
+                atendenteNomeFinal = rawAtendente.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+        }
+        if (atendenteNomeFinal) contratadaPadrao.representante = atendenteNomeFinal;
+
         return {
             tipo_titulo: tituloTopoFinal,
             modelo_tipo: modeloEfetivo || 'EVENTO',
             eh_aditivo: ehAditivo,
+            eh_avaria: tipoPropNorm === 'AVARIA',
+            atendente_nome: atendenteNomeFinal,
             eh_demo: false,
             proposta_comparativa: Boolean(Number(p.proposta_comparativa) === 1),
             produtos_aprovados: lerJson(p.produtos_aprovados),
