@@ -43373,23 +43373,25 @@ function gerarHtmlProposta(p) {
     </body></html>`;
 }
 
-// DELETE /api/propostas/:id - Excluir proposta
+// DELETE /api/propostas/:id - Excluir proposta ou contrato (exige senha comerc123 ou permissao)
 app.delete('/api/propostas/:id', authenticateToken, async (req, res) => {
   try {
+    const senhaInformada = String((req.query && req.query.senha) || (req.body && req.body.senha) || '').trim();
+    const senhaValida = senhaInformada === 'comerc123';
     const ctx = await resolverContextoUsuarioComercial(req.user);
-    if (!ctx.pode_excluir_proposta) {
-      return res.status(403).json({ error: 'Apenas Thais.Ricci e gestores de departamento possuem permissão para excluir propostas.' });
+    if (!senhaValida && !ctx.pode_excluir_proposta) {
+      return res.status(403).json({ error: 'Senha inválida ou usuário sem permissão para excluir.' });
     }
     db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (errG, row) => {
       if (errG) return res.status(500).json({ error: errG.message });
-      if (!row) return res.status(404).json({ error: 'Proposta não encontrada' });
+      if (!row) return res.status(404).json({ error: 'Proposta/Contrato não encontrado' });
       const faseUp = String(row.fase_negociacao || '').trim().toUpperCase();
-      if (!ctx.is_thais && (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA')) {
-        return res.status(400).json({ error: 'Propostas assinadas ou aprovadas não podem ser excluídas.' });
+      if (!senhaValida && !ctx.is_thais && (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA')) {
+        return res.status(400).json({ error: 'Propostas assinadas ou aprovadas exigem a senha comercial para exclusão.' });
       }
       db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Proposta/Contrato não encontrado' });
         res.json({ success: true });
       });
     });

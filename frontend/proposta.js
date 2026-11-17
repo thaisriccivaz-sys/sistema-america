@@ -9239,9 +9239,10 @@ window.verDocumentoHistoricoProposta = async function(propId, logId) {
 
 /* ── Excluir proposta ───────────────────────────────────────────────── */
 async function excluirProposta(id) {
-    const senha = window.prompt('Digite a senha para excluir a proposta:');
+    const isModoContrato = window._modoTelaComercial === 'contrato';
+    const senha = window.prompt(isModoContrato ? 'Digite a senha para excluir o contrato:' : 'Digite a senha para excluir a proposta:');
     if (senha === null) return;
-    if (senha !== 'comerc123') {
+    if (String(senha).trim() !== 'comerc123') {
         if (typeof Swal !== 'undefined') {
             Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
         } else {
@@ -9249,9 +9250,9 @@ async function excluirProposta(id) {
         }
         return;
     }
-    if (!confirm('Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.')) return;
+    if (!confirm(`Tem certeza que deseja excluir ${isModoContrato ? 'este contrato' : 'esta proposta'}? Esta ação não pode ser desfeita.`)) return;
     try {
-        const resp = await apiDelete(`/propostas/${id}`);
+        const resp = await apiDelete(`/propostas/${id}?senha=comerc123`);
         if (resp && resp.success) {
             fecharFormProposta();
             await carregarPropostas();
@@ -19115,7 +19116,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
-        const exibirColExcluirModal = !isModoContratoModal && Boolean(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais());
+        const exibirColExcluirModal = true;
         const mapearPropostasComCnpj = (listaBruta) => (listaBruta || []).filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && Boolean(String(p.contrato || '').trim())) : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
@@ -19129,15 +19130,18 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
+        const totalColunasModal = (isModoContratoModal ? 7 : 8) + (exibirColExcluirModal ? 1 : 0);
+
         const renderRows = (list) => {
             if (list.length === 0) {
-                return `<tr><td colspan="${exibirColExcluirModal ? 8 : 7}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
+                return `<tr><td colspan="${totalColunasModal}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
             }
             return list.map(p => {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
                 const codExib = isModoContratoModal ? (p.contrato || '—') : (p.codigo || '—');
+                const numContratoProp = String(p.contrato || '').trim();
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true)
@@ -19145,6 +19149,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${codExib}</td>
+                        ${!isModoContratoModal ? `<td style="padding:10px 12px; font-weight:700; color:${numContratoProp ? '#0f172a' : '#94a3b8'}; text-align:center; white-space:nowrap;">${numContratoProp ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.76rem;">${numContratoProp}</span>` : '—'}</td>` : ''}
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#334155; text-align:center; white-space:nowrap;">${tipoExib}</td>
@@ -19152,7 +19157,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${totalFmt}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${faseExib}</td>
                         ${exibirColExcluirModal ? `<td style="padding:8px 12px; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">
-                            <button type="button" onclick="event.stopPropagation(); window.excluirPropostaModalBusca(${p.id})" title="Excluir Proposta" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                            <button type="button" onclick="event.stopPropagation(); window.excluirPropostaModalBusca(${p.id})" title="Excluir ${isModoContratoModal ? 'Contrato' : 'Proposta'}" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                 <i class="ph ph-trash" style="font-size:0.88rem;"></i> Excluir
                             </button>
                         </td>` : ''}
@@ -19167,8 +19172,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
                     
                     <!-- Header -->
-                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-file-search" style="color:#7048e8; font-size:1.3rem;"></i> ${window._modoTelaComercial === 'contrato' ? 'Pesquisar Contratos' : 'Pesquisar Propostas'}
+                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-file-search" style="color:#7048e8; font-size:1.3rem;"></i> ${window._modoTelaComercial === 'contrato' ? 'Pesquisar Contratos' : 'Pesquisar Propostas'}</span>
+                        <button type="button" onclick="Swal.close()" style="background:none; border:none; color:#64748b; font-size:1.3rem; cursor:pointer; line-height:1;" title="Fechar">&times;</button>
                     </div>
                     
                     <!-- Body/Filters -->
@@ -19177,7 +19183,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         <!-- Inputs -->
                         <div style="display:grid; grid-template-columns: 1fr 2fr 1.5fr; gap:0.75rem;">
                             <div>
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">${isModoContratoModal ? 'Nº do Contrato' : 'Código'}</label>
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">${isModoContratoModal ? 'Nº do Contrato' : 'Proposta'}</label>
                                 <input type="text" id="modal-search-codigo" placeholder="Ex: 01, 02..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; box-sizing:border-box; outline:none; height:36px;">
                             </div>
                             <div>
@@ -19191,11 +19197,12 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                         </div>
 
                         <!-- GridView Container -->
-                        <div style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="max-height:calc(88vh - 210px); min-height:55vh; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Código'}</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Proposta'}</th>
+                                        ${!isModoContratoModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px; white-space:nowrap;">Contrato</th>' : ''}
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:130px; white-space:nowrap;">Tipo</th>
@@ -19219,26 +19226,35 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 </div>
             `,
             showConfirmButton: false,
-            width: '1200px',
+            width: '100%',
             customClass: {
                 popup: 'custom-swal-padding-zero'
             },
             didOpen: () => {
+                const swalPopup = typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+                if (swalPopup) {
+                    swalPopup.style.width = '98vw';
+                    swalPopup.style.maxWidth = '98vw';
+                    swalPopup.style.margin = '1vh auto';
+                }
                 const inputCodigo = document.getElementById('modal-search-codigo');
                 const inputRazao = document.getElementById('modal-search-razao');
                 const inputCnpj = document.getElementById('modal-search-cnpj');
                 const tbody = document.getElementById('modal-proposta-tbody');
                 const countSpan = document.getElementById('modal-proposta-count');
 
+                const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
                 const filterProps = () => {
                     const codVal = (inputCodigo?.value || '').toLowerCase().trim();
-                    const razVal = (inputRazao?.value || '').toLowerCase().trim();
+                    const razVal = normStr(inputRazao?.value || '');
                     const cnpjVal = (inputCnpj?.value || '').replace(/\D/g, '');
 
                     const filtered = propostasComCnpj.filter(p => {
                         const codRef = String((isModoContratoModal ? p.contrato : p.codigo) || '').toLowerCase();
-                        const matchCodigo = !codVal || codRef.includes(codVal);
-                        const matchRazao = !razVal || (p.cliente_nome && p.cliente_nome.toLowerCase().includes(razVal));
+                        const contrRef = String(p.contrato || '').toLowerCase();
+                        const matchCodigo = !codVal || codRef.includes(codVal) || (!isModoContratoModal && contrRef.includes(codVal));
+                        const matchRazao = !razVal || (p.cliente_nome && normStr(p.cliente_nome).includes(razVal));
                         
                         const cnpjClean = p.cliente_cnpj ? p.cliente_cnpj.replace(/\D/g, '') : '';
                         const matchCnpj = !cnpjVal || cnpjClean.includes(cnpjVal);
@@ -19262,7 +19278,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     inputCodigo.value = filtroCodigoInicial;
                     filterProps();
                 }
-                if (temCachePronto) {
+                if (temClientesEmCache) {
                     apiGet('/propostas').then(fresh => {
                         if (Array.isArray(fresh) && document.getElementById('modal-proposta-tbody')) {
                             _propostasData = fresh;
@@ -19276,12 +19292,20 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         window.excluirPropostaModalBusca = async function(id) {
-            if (!(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais())) return;
             const pObj = (_propostasData || []).find(pr => Number(pr.id) === Number(id));
-            const cod = (pObj && pObj.codigo) ? pObj.codigo : id;
-            if (!window.confirm(`Tem certeza que deseja excluir a proposta Nº ${cod}? Esta ação não pode ser desfeita.`)) return;
+            const isContrato = isModoContratoModal;
+            const cod = isContrato
+                ? ((pObj && pObj.contrato) ? pObj.contrato : ((pObj && pObj.codigo) ? pObj.codigo : id))
+                : ((pObj && pObj.codigo) ? pObj.codigo : id);
+            const senha = window.prompt(`Digite a senha para excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}:`);
+            if (senha === null) return;
+            if (String(senha).trim() !== 'comerc123') {
+                alert('Senha incorreta! Exclusão cancelada.');
+                return;
+            }
+            if (!window.confirm(`Tem certeza que deseja excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}? Esta ação não pode ser desfeita.`)) return;
             try {
-                const resp = await apiDelete(`/propostas/${id}`);
+                const resp = await apiDelete(`/propostas/${id}?senha=comerc123`);
                 if (resp && resp.success) {
                     _propostasData = (_propostasData || []).filter(pr => Number(pr.id) !== Number(id));
                     if (typeof window._removerPropostaDoModalBusca === 'function') {
@@ -19290,12 +19314,14 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     if (Number(_propostasEditandoId) === Number(id)) {
                         abrirFormProposta(null);
                     }
-                    if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(`Proposta Nº ${cod} excluída.`);
+                    if (typeof mostrarToastSucesso === 'function') {
+                        mostrarToastSucesso(`${isContrato ? 'Contrato' : 'Proposta'} Nº ${cod} excluíd${isContrato ? 'o' : 'a'}.`);
+                    }
                 } else {
                     alert('Erro ao excluir: ' + (resp?.error || 'Erro desconhecido'));
                 }
             } catch (e) {
-                console.error('[PROPOSTAS] Erro ao excluir proposta do modal:', e);
+                console.error('[PROPOSTAS] Erro ao excluir do modal:', e);
                 alert('Erro ao comunicar com o servidor.');
             }
         };
