@@ -15,6 +15,7 @@
     var _devAtribId = null;
     var _filterQ = '';
     var _filterStatus = '';
+    var _filterExpansivel = '';
     var _filterEmailQ = '';
     var _filterEmailStatus = '';
     var _sortCol = 'nome_colaborador';
@@ -302,6 +303,11 @@
             '<div style="background:#f8fafc;padding:0.75rem 1rem;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">' +
             '<i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>' +
             '<input id="comp-filter-q" type="text" placeholder="Buscar por colaborador, modelo, patrimônio ou série..." value="' + _filterQ.replace(/"/g, '&quot;') + '" oninput="window.computadoresFilter()" style="flex:1;min-width:200px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">' +
+            '<select id="comp-filter-expansivel" onchange="window.computadoresFilter()" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;cursor:pointer;outline:none;">' +
+            '<option value="">Memória expansível</option>' +
+            '<option value="1"' + (_filterExpansivel === '1' ? ' selected' : '') + '>Sim</option>' +
+            '<option value="0"' + (_filterExpansivel === '0' ? ' selected' : '') + '>Não / Desconhecido</option>' +
+            '</select>' +
             '<select id="comp-filter-status" onchange="window.computadoresFilter()" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;cursor:pointer;outline:none;">' +
             '<option value="">Todos os Status</option>' +
             ['Em uso', 'Reserva', 'Manutenção', 'Devolvido'].map(function (s) {
@@ -313,15 +319,21 @@
     }
 
     function renderTable() {
-        var fq = _filterQ.trim().toLowerCase();
+        function _norm(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+        var fq = _norm(_filterQ.trim());
         var filtered = _computadores.filter(function (c) {
             if (_filterStatus && c.status !== _filterStatus) return false;
+            if (_filterExpansivel !== '') {
+                var isExp = (c.expansivel === 1 || c.expansivel === '1' || c.expansivel === true || String(c.expansivel || '').toLowerCase() === 'sim');
+                if (_filterExpansivel === '1' && !isExp) return false;
+                if (_filterExpansivel === '0' && isExp) return false;
+            }
             if (!fq) return true;
-            return (c.nome_colaborador && c.nome_colaborador.toLowerCase().includes(fq)) ||
-                (c.modelo && c.modelo.toLowerCase().includes(fq)) ||
-                (c.patrimonio && c.patrimonio.toLowerCase().includes(fq)) ||
-                (c.numero_serie && c.numero_serie.toLowerCase().includes(fq)) ||
-                (c.departamento_colaborador && c.departamento_colaborador.toLowerCase().includes(fq));
+            return (c.nome_colaborador && _norm(c.nome_colaborador).includes(fq)) ||
+                (c.modelo && _norm(c.modelo).includes(fq)) ||
+                (c.patrimonio && _norm(c.patrimonio).includes(fq)) ||
+                (c.numero_serie && _norm(c.numero_serie).includes(fq)) ||
+                (c.departamento_colaborador && _norm(c.departamento_colaborador).includes(fq));
         });
 
         var sm = _sortDir === 'asc' ? 1 : -1;
@@ -771,7 +783,10 @@
         var fId = document.activeElement ? document.activeElement.id : null;
         var sStart = document.activeElement ? document.activeElement.selectionStart : null;
         _filterQ = (document.getElementById('comp-filter-q') || {}).value || '';
-        if (_activeTab === 'computadores') _filterStatus = (document.getElementById('comp-filter-status') || {}).value || '';
+        if (_activeTab === 'computadores') {
+            _filterStatus = (document.getElementById('comp-filter-status') || {}).value || '';
+            _filterExpansivel = (document.getElementById('comp-filter-expansivel') || {}).value || '';
+        }
         var wrap = document.getElementById('comp-tab-content');
         if (!wrap) return;
         if (_activeTab === 'colaboradores') wrap.innerHTML = renderTabColaboradores();
