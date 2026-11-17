@@ -9291,7 +9291,7 @@ app.get('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/resumo-rota/:id - Pega dados de um resumo específico (enriquecendo observações e reparando "AVISO IMPORTANTE!")
+// GET /api/logistica/resumo-rota/:id - Pega dados de um resumo específico (enriquecendo observações da data e limpando lixo/antigas)
 app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM logistica_resumo_rota WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -9313,81 +9313,158 @@ app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
             const params = nums.length > 0 ? [...nums, dataIso] : [dataIso];
 
             db.all(sql, params, (osErr, osRows) => {
-                if (!osErr && osRows && osRows.length) {
-                    const ehApenasServico = (s) => {
-                        if (!s) return false;
-                        const nuc = String(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                            .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\u{200C}\u{200B}\u{FEFF}\s❗⭕🔗🌀🚨🔧🛠️]+/gu, '')
-                            .replace(/[.,;:!?-]+$/g, '').trim();
-                        if (!nuc) return false;
-                        return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nuc);
-                    };
-                    const extrairObs = (obsM, obsI) => {
-                        for (const raw of [obsM, obsI]) {
-                            if (!raw) continue;
-                            let s = String(raw).replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '').replace(/^[,\s]+|[,\s]+$/g, '').trim();
-                            s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
-                            if (s && !ehApenasServico(s)) return s;
-                        }
-                        return '';
-                    };
-                    const normCli = (c) => String(c || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
-                    const byNum = {};
-                    const byCli = {};
-                    osRows.forEach(r => {
+                const stripEmojis = (str) => String(str || '')
+                    .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️🛻]+/gu, '')
+                    .trim();
+
+                const ehDetalheInvalido = (detStr) => {
+                    if (!detStr) return true;
+                    const d = stripEmojis(detStr).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+                    if (!d) return true;
+                    if (d.includes('[OBJECT OBJECT]')) return true;
+                    return /^(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO)(?:\s*[/,;-]\s*(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO))*$/i.test(d);
+                };
+
+                const ehApenasServico = (s) => {
+                    if (!s) return false;
+                    const nuc = stripEmojis(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!?-]+$/g, '').trim();
+                    if (!nuc) return false;
+                    return /^(ENTREGA|RETIRADA|MANUTENCAO|COMPRAS|VISITA|LIMPA\s+FOSSA|APOIO\s+DE\s+SUCCAO|SUCCAO|TROCA\s+DE\s+EQUIPAMENTO)(\s+(DE|DO|DA|EM|OBRA|EVENTO|AVULSA|AVULSO|TOTAL|PARCIAL|TECNICA|AMERICA|EQUIPAMENTO|SUCCAO))*$/.test(nuc);
+                };
+
+                const extrairObs = (obsM) => {
+                    if (!obsM || typeof obsM === 'object') return '';
+                    let s = String(obsM).replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '').replace(/^[,s]+|[,s]+$/g, '').trim();
+                    s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
+                    if (!s || ehApenasServico(s) || ehDetalheInvalido(s)) return '';
+                    return s;
+                };
+
+                const normTxt = (t) => stripEmojis(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+                const normCli = (c) => normTxt(c).substring(0, 20).trim();
+
+                const byNumHoje = {};
+                const obsHojeSet = new Set();
+                const obsAntigasSet = new Set();
+
+                (osRows || []).forEach(r => {
+                    const rData = r.data_os ? String(r.data_os).slice(0, 10) : '';
+                    const ehHoje = !dataIso || !rData || rData === dataIso;
+                    const obsTxt = extrairObs(r.observacoes);
+                    const obsNorm = obsTxt ? normTxt(obsTxt) : '';
+                    if (ehHoje) {
                         const nk = String(r.numero_os || '').trim();
-                        if (nk) { if (!byNum[nk]) byNum[nk] = []; byNum[nk].push(r); }
-                        const ck = normCli(r.cliente);
-                        if (ck) { if (!byCli[ck]) byCli[ck] = []; byCli[ck].push(r); }
-                    });
+                        if (nk) { if (!byNumHoje[nk]) byNumHoje[nk] = []; byNumHoje[nk].push(r); }
+                        if (obsNorm) obsHojeSet.add(obsNorm);
+                    } else if (obsNorm) {
+                        obsAntigasSet.add(obsNorm);
+                    }
+                });
 
-                    veiculos.forEach(v => {
-                        const obsPorCliente = {};
-                        (v.os || []).forEach(o => { if (o.cliente && /\?{2,}\s*ATTEND AMBIENTAL/i.test(o.cliente)) o.cliente = o.cliente.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
-                            const nk = String(o._numero_os || o.numero_os || '').trim();
-                            const ck = normCli(o.cliente);
-                            const candidatos = [...(byNum[nk] || []), ...(byCli[ck] || [])];
-                            let obsAtual = extrairObs(o.obs, o.observacoes_internas) || (o.servico && /\s[-–]\s/.test(String(o.servico)) ? String(o.servico).split(/\s[-–]\s/).slice(1).join(' - ').trim() : '');
-                            if (!obsAtual && candidatos.length) {
-                                const matchRow = candidatos.find(r => extrairObs(r.observacoes, r.observacoes_internas));
-                                if (matchRow) {
-                                    obsAtual = extrairObs(matchRow.observacoes, matchRow.observacoes_internas);
-                                    o.obs = obsAtual;
-                                    o.observacoes_internas = matchRow.observacoes_internas || '';
-                                }
-                            }
-                            if (candidatos.length) {
-                                const r0 = candidatos[0];
-                                if ((!o.habilidades || !o.habilidades.length) && r0.habilidades) {
-                                    try { o.habilidades = typeof r0.habilidades === 'string' ? JSON.parse(r0.habilidades) : r0.habilidades; } catch (_) {}
-                                }
-                                if ((!o.variaveis || !o.variaveis.length) && r0.variaveis) {
-                                    try { o.variaveis = typeof r0.variaveis === 'string' ? JSON.parse(r0.variaveis) : r0.variaveis; } catch (_) {}
-                                }
-                                if ((!o.habilidade_equipe || !o.habilidade_equipe.length) && r0.habilidade_equipe) {
-                                    try { o.habilidade_equipe = typeof r0.habilidade_equipe === 'string' ? JSON.parse(r0.habilidade_equipe) : r0.habilidade_equipe; } catch (_) {}
-                                }
-                            }
-                            if (ck && obsAtual && !obsPorCliente[ck]) {
-                                obsPorCliente[ck] = obsAtual.toUpperCase();
-                            }
-                        });
+                veiculos.forEach(v => {
+                    const obsPorCliente = {};
+                    const obsValidasVeicNorm = new Set();
 
-                        if (v.colBEditado && /\?{2,}\s*ATTEND AMBIENTAL/i.test(v.colBEditado)) v.colBEditado = v.colBEditado.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
-                        if (v.colBEditado && (v.colBEditado.includes('AVISO IMPORTANTE!') || v.colBEditado.includes('VERIFICAR DETALHES!'))) {
-                            v.colBEditado = v.colBEditado.split('\n').map(line => {
-                                if (!line.includes('AVISO IMPORTANTE!') && !line.includes('VERIFICAR DETALHES!')) return line;
-                                const cIdx = line.indexOf(':');
-                                if (cIdx === -1) return line;
-                                const cliKey = normCli(line.substring(0, cIdx));
-                                const realTxt = cliKey ? obsPorCliente[cliKey] : '';
-                                if (realTxt) return line.substring(0, cIdx + 1) + ' ' + realTxt;
-                                return '';
-                            }).filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === '')).join('\n').replace(/^\n+/, '');
+                    (v.os || []).forEach(o => {
+                        if (o.cliente && /\?{2,}\s*ATTEND AMBIENTAL/i.test(o.cliente)) o.cliente = o.cliente.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+                        const nk = String(o._numero_os || o.numero_os || '').trim();
+                        const ck = normCli(o.cliente);
+                        const candidatosHoje = byNumHoje[nk] || [];
+
+                        // Extrair observação que veio da planilha (notas_raw)
+                        let obsDaPlanilha = '';
+                        if (o.notas_raw) {
+                            const linhasNotas = String(o.notas_raw).replace(/\r\r\n|\r\n|\r/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+                            for (const ln of linhasNotas) {
+                                const lnUp = normTxt(ln);
+                                if (ehApenasServico(lnUp)) continue;
+                                if (/^\d+\s+\S/.test(ln) || /^\d+X\s*-/.test(lnUp)) continue;
+                                const cand = extrairObs(ln);
+                                if (cand) { obsDaPlanilha = cand; break; }
+                            }
+                        }
+                        if (obsDaPlanilha) obsValidasVeicNorm.add(normTxt(obsDaPlanilha));
+
+                        let obsAtual = extrairObs(o.obs);
+                        const obsAtualNorm = obsAtual ? normTxt(obsAtual) : '';
+
+                        // Se o.obs veio de uma OS antiga (está em obsAntigasSet, mas não veio da planilha nem das OS de hoje), limpar!
+                        if (obsAtualNorm && obsAntigasSet.has(obsAtualNorm) && !obsHojeSet.has(obsAtualNorm) && (!obsDaPlanilha || normTxt(obsDaPlanilha) !== obsAtualNorm)) {
+                            o.obs = obsDaPlanilha || '';
+                            o.observacoes_internas = '';
+                            obsAtual = o.obs;
+                        } else if (ehDetalheInvalido(o.obs)) {
+                            o.obs = obsDaPlanilha || '';
+                            obsAtual = o.obs;
+                        }
+
+                        if (!obsAtual && candidatosHoje.length) {
+                            const matchRow = candidatosHoje.find(r => extrairObs(r.observacoes));
+                            if (matchRow) {
+                                obsAtual = extrairObs(matchRow.observacoes);
+                                o.obs = obsAtual;
+                            }
+                        }
+                        if (obsAtual) obsValidasVeicNorm.add(normTxt(obsAtual));
+
+                        if (candidatosHoje.length) {
+                            const r0 = candidatosHoje[0];
+                            if ((!o.habilidades || !o.habilidades.length) && r0.habilidades) {
+                                try { o.habilidades = typeof r0.habilidades === 'string' ? JSON.parse(r0.habilidades) : r0.habilidades; } catch (_) {}
+                            }
+                            if ((!o.variaveis || !o.variaveis.length) && r0.variaveis) {
+                                try { o.variaveis = typeof r0.variaveis === 'string' ? JSON.parse(r0.variaveis) : r0.variaveis; } catch (_) {}
+                            }
+                            if ((!o.habilidade_equipe || !o.habilidade_equipe.length) && r0.habilidade_equipe) {
+                                try { o.habilidade_equipe = typeof r0.habilidade_equipe === 'string' ? JSON.parse(r0.habilidade_equipe) : r0.habilidade_equipe; } catch (_) {}
+                            }
+                        }
+                        if (ck && obsAtual && !obsPorCliente[ck]) {
+                            obsPorCliente[ck] = obsAtual.toUpperCase();
                         }
                     });
-                    row.dados = JSON.stringify(Array.isArray(parsed) ? veiculos : { ...parsed, veiculos });
-                }
+
+                    if (v.colBEditado) {
+                        if (/\?{2,}\s*ATTEND AMBIENTAL/i.test(v.colBEditado)) v.colBEditado = v.colBEditado.replace(/\?{2,}\s*ATTEND AMBIENTAL/gi, '💦🚨 ATTEND AMBIENTAL');
+                        const coreSeen = new Map();
+                        const cleanedLines = [];
+                        v.colBEditado.split('\n').forEach(line => {
+                            const tr = line.trim();
+                            if (!tr) { cleanedLines.push(''); return; }
+                            const cIdx = tr.indexOf(':');
+                            if (cIdx !== -1 && !tr.endsWith(':')) {
+                                let detPart = tr.substring(cIdx + 1).trim();
+                                if (tr.includes('AVISO IMPORTANTE!') || tr.includes('VERIFICAR DETALHES!')) {
+                                    const cliKey = normCli(tr.substring(0, cIdx));
+                                    const realTxt = cliKey ? obsPorCliente[cliKey] : '';
+                                    if (!realTxt) return;
+                                    line = tr.substring(0, cIdx + 1) + ' ' + realTxt;
+                                    detPart = realTxt;
+                                }
+                                if (ehDetalheInvalido(detPart)) return;
+                                const detNorm = normTxt(detPart);
+                                if (detNorm && obsAntigasSet.has(detNorm) && !obsHojeSet.has(detNorm) && !obsValidasVeicNorm.has(detNorm)) {
+                                    return;
+                                }
+                                const coreKey = normTxt(tr);
+                                if (coreSeen.has(coreKey)) {
+                                    const prevIdx = coreSeen.get(coreKey);
+                                    if (tr.length > cleanedLines[prevIdx].trim().length) {
+                                        cleanedLines[prevIdx] = line;
+                                    }
+                                    return;
+                                }
+                                coreSeen.set(coreKey, cleanedLines.length);
+                            }
+                            cleanedLines.push(line);
+                        });
+                        v.colBEditado = cleanedLines
+                            .filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''))
+                            .join('\n')
+                            .replace(/^\n+/, '');
+                    }
+                });
+                row.dados = JSON.stringify(Array.isArray(parsed) ? veiculos : { ...parsed, veiculos });
                 res.json(row || {});
             });
         } catch (e) {

@@ -38,6 +38,21 @@ window._rrResolverFotoColab = function(nome, mapOpcional) {
     return null;
 };
 
+window._rrEhDetalheInvalidoResumo = function(detStr) {
+    if (!detStr) return true;
+    const d = String(detStr)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️🛻]+/gu, '')
+        .trim();
+    if (!d) return true;
+    if (d.includes('[OBJECT OBJECT]')) return true;
+    if (/^(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO)(?:\s*[/,;-]\s*(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO))*$/i.test(d)) {
+        return true;
+    }
+    return false;
+};
+
 window._rrObterColBBaseLimpa = function(v) {
     let base = v.colBEditado || window._rrMontarColB(v);
     const suffixMark = '\nMotorista:';
@@ -55,8 +70,11 @@ window._rrObterColBBaseLimpa = function(v) {
     const fresh = (v && Array.isArray(v.os) && v.os.length > 0) ? window._rrMontarColB(v) : '';
     const freshLines = fresh ? fresh.split('\n') : [];
 
-    const normCli = (str) => String(str || '')
-        .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '')
+    const stripEmojis = (str) => String(str || '')
+        .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️🛻]+/gu, '')
+        .trim();
+
+    const normCli = (str) => stripEmojis(str)
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
 
@@ -65,7 +83,9 @@ window._rrObterColBBaseLimpa = function(v) {
         const tr = l.trim();
         const cIdx = tr.indexOf(':');
         if (cIdx !== -1 && !tr.endsWith(':')) {
-            const det = tr.substring(cIdx + 1).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+            const detRaw = tr.substring(cIdx + 1).trim();
+            if (window._rrEhDetalheInvalidoResumo(detRaw)) return;
+            const det = detRaw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
             if (det && det.length >= 8) obsComClienteTextos.push(det);
         }
     });
@@ -85,6 +105,14 @@ window._rrObterColBBaseLimpa = function(v) {
             return null;
         }
 
+        const cIdxCheck = tr.indexOf(':');
+        if (cIdxCheck !== -1 && !tr.endsWith(':')) {
+            const detAfterColon = tr.substring(cIdxCheck + 1).trim();
+            if (window._rrEhDetalheInvalidoResumo(detAfterColon)) {
+                return null;
+            }
+        }
+
         const temVideo = /V[ÍIíi]DEO\s*:\s*HTTPS?:\/\/|HTTPS?:\/\/[^\s]*FLUXOAR/i.test(tr);
         const temAviso = tr.includes('AVISO IMPORTANTE!') || tr.includes('VERIFICAR DETALHES!');
         if (temVideo || temAviso) {
@@ -102,7 +130,7 @@ window._rrObterColBBaseLimpa = function(v) {
             });
             if (matchFresh) return matchFresh;
             const semVid = window._rrLimparLinksVideo(tr.substring(colonIdx + 1));
-            if (semVid && !temAviso) {
+            if (semVid && !temAviso && !window._rrEhDetalheInvalidoResumo(semVid)) {
                 return tr.substring(0, colonIdx + 1) + ' ' + semVid;
             }
             return null;
@@ -110,7 +138,28 @@ window._rrObterColBBaseLimpa = function(v) {
         return line;
     }).filter(l => l !== null);
 
-    return linhasProcessadas
+    // Deduplicar linhas de observação com mesmo CLIENTE + DETALHE (mantendo a versão que possui ícone/emoji no início)
+    const obsIndexByCore = new Map();
+    const linhasDedup = [];
+    for (const l of linhasProcessadas) {
+        const tr = l.trim();
+        const cIdx = tr.indexOf(':');
+        if (cIdx !== -1 && !tr.endsWith(':')) {
+            const coreKey = stripEmojis(tr).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+            if (obsIndexByCore.has(coreKey)) {
+                const prevIdx = obsIndexByCore.get(coreKey);
+                const prevLine = linhasDedup[prevIdx];
+                if (tr.length > prevLine.trim().length) {
+                    linhasDedup[prevIdx] = l;
+                }
+                continue;
+            }
+            obsIndexByCore.set(coreKey, linhasDedup.length);
+        }
+        linhasDedup.push(l);
+    }
+
+    return linhasDedup
         .filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''))
         .join('\n')
         .replace(/^\n+/, '');
@@ -240,13 +289,14 @@ function _rrEhApenasTipoServico(str) {
 
 function _rrExtrairObsValida(obsMotorista, obsInternas, servico, allowServiceName = false) {
     const limparCandidata = (raw, allowServ) => {
-        if (!raw) return '';
-        let s = window._rrLimparLinksVideo(raw)
-            .replace(/^[,\s]+|[,\s]+$/g, '')
+        if (!raw || typeof raw === 'object') return '';
+        let s = window._rrLimparLinksVideo(String(raw))
+            .replace(/^[,s]+|[,s]+$/g, '')
             .trim();
         if (!s || /AVISO IMPORTANTE!|VERIFICAR DETALHES!/i.test(s)) return '';
+        if (window._rrEhDetalheInvalidoResumo && window._rrEhDetalheInvalidoResumo(s)) return '';
         s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]*MANUTEN[CÇ][AÃ]O\s+AVULSA\s*[-–:]\s*/iu, '').trim();
-        if (!s) return '';
+        if (!s || (window._rrEhDetalheInvalidoResumo && window._rrEhDetalheInvalidoResumo(s))) return '';
         const sNorm = s.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
         const servNorm = String(servico || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨🔧🛠️]+/gu, '').trim();
         if (!allowServ) {
@@ -259,8 +309,6 @@ function _rrExtrairObsValida(obsMotorista, obsInternas, servico, allowServiceNam
     };
     const c1 = limparCandidata(obsMotorista, allowServiceName);
     if (c1) return c1;
-    const c2 = limparCandidata(obsInternas, allowServiceName);
-    if (c2) return c2;
     if (servico && /\s[-–]\s/.test(String(servico))) {
         const c3 = limparCandidata(String(servico).split(/\s[-–]\s/).slice(1).join(' - '), false);
         if (c3) return c3;
@@ -390,13 +438,18 @@ function _rrMontarColB(v) {
     const lines = [];
 
     // 1. OBS + Ícone de informações importantes (sem duplicatas)
-    const obsLinhasSet = new Set();
+    const obsPorChaveCore = new Map();
     const obsLinhas = [];
     v.os.forEach(os => {
-        let habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
-        let vars = Array.isArray(os.variaveis) ? os.variaveis.join(' ') : (os.variaveis || '');
-        let habEq = Array.isArray(os.habilidade_equipe) ? os.habilidade_equipe.join(' ') : (os.habilidade_equipe || '');
-        const textoParaIcone = [os.cliente, os.obs, os.observacoes_internas, os.notas_raw, habs, vars, habEq].filter(Boolean).join(' ');
+        const strList = (val) => {
+            if (!val) return '';
+            const arr = Array.isArray(val) ? val : [val];
+            return arr.map(x => (x && typeof x === 'object') ? (x.nome || x.label || x.valor || '') : String(x || '')).filter(Boolean).join(' ');
+        };
+        let habs = strList(os.habilidades);
+        let vars = strList(os.variaveis);
+        let habEq = strList(os.habilidade_equipe);
+        const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs, vars, habEq].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
@@ -404,7 +457,7 @@ function _rrMontarColB(v) {
             icon = '🚨' + icon;
         }
 
-        if (!os.obs && !os.observacoes_internas && !icon) return;
+        if (!os.obs && !os.notas_raw && !icon) return;
 
         let nomeOriginal = (os.cliente || '').trim();
         let nome = nomeOriginal;
@@ -414,33 +467,29 @@ function _rrMontarColB(v) {
             nome = nome.substring(0, 20).trim();
         }
 
-        let obsExtraida = _rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico);
+        let obsExtraida = _rrExtrairObsValida(os.obs, '', os.servico);
         if (!obsExtraida && os.notas_raw) {
             const parsedRaw = _rrParseNotas(os.notas_raw);
             obsExtraida = _rrExtrairObsValida(parsedRaw.obs, '', os.servico);
         }
 
         let obsLimpa = (obsExtraida || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '').trim().toUpperCase();
-
-        // Se ainda não há texto de observação, verificar se há variáveis/habilidades operacionais de saída para descrever
-        if (!obsLimpa) {
-            const itensSaida = [];
-            const varList = Array.isArray(os.variaveis) ? os.variaveis : (os.variaveis ? [os.variaveis] : []);
-            const habEqList = Array.isArray(os.habilidade_equipe) ? os.habilidade_equipe : (os.habilidade_equipe ? [os.habilidade_equipe] : []);
-            const habList = Array.isArray(os.habilidades) ? os.habilidades : (os.habilidades ? [os.habilidades] : []);
-            [...varList, ...habEqList, ...habList].forEach(it => {
-                const u = String(it || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                if (!u || u === 'AVULSO' || u.includes('INFORMACOES IMPORTANTES') || u === 'NOTURNO' || u === 'UTILITARIO' || u.includes('CAMINHAO')) return;
-                if (!itensSaida.includes(u)) itensSaida.push(u);
-            });
-            if (itensSaida.length > 0) {
-                obsLimpa = itensSaida.join(' / ');
-            }
+        if (window._rrEhDetalheInvalidoResumo && window._rrEhDetalheInvalidoResumo(obsLimpa)) {
+            obsLimpa = '';
         }
 
         if (obsLimpa) {
-            const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
-            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
+            const coreKey = `${nome}: ${obsLimpa}`;
+            const linhaObs = `${icon ? icon + ' ' : ''}${coreKey}`;
+            if (obsPorChaveCore.has(coreKey)) {
+                const idxExist = obsPorChaveCore.get(coreKey);
+                if (icon && obsLinhas[idxExist].length < linhaObs.length) {
+                    obsLinhas[idxExist] = linhaObs;
+                }
+            } else {
+                obsPorChaveCore.set(coreKey, obsLinhas.length);
+                obsLinhas.push(linhaObs);
+            }
         }
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
@@ -1173,23 +1222,22 @@ window.rrImportarPlanilha = async function(input) {
             };
             
             list.forEach(os => {
+                // Ignorar OS de datas antigas quando temos a data da rota detectada
+                const dataOsIso = os.data_os ? String(os.data_os).slice(0, 10) : '';
+                const ehMesmaDataRota = !_rrDataRota || !dataOsIso || dataOsIso === _rrDataRota;
+
                 const ts = window._rrCleanTs(os.tipo_servico);
                 const key = String(os.numero_os || '').trim() + '___' + ts;
                 const numKey = String(os.numero_os || '').trim();
-                if (numKey) {
+                if (numKey && ehMesmaDataRota) {
                     if (!osListByNum[numKey]) osListByNum[numKey] = [];
                     osListByNum[numKey].push(os);
                 }
-                const cliNorm = String(os.cliente || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
-                if (cliNorm) {
-                    if (!osListByCliente[cliNorm]) osListByCliente[cliNorm] = [];
-                    osListByCliente[cliNorm].push(os);
-                }
-                const obsValida = _rrExtrairObsValida(os.observacoes, os.observacoes_internas, os.tipo_servico, true);
+                const obsValida = ehMesmaDataRota ? _rrExtrairObsValida(os.observacoes, '', os.tipo_servico, false) : '';
                 if (os.numero_os && obsValida && !osObsMap[key]) {
                     osObsMap[key] = obsValida;
                 }
-                if (os.numero_os) {
+                if (os.numero_os && ehMesmaDataRota) {
                     let habs = [];
                     if (os.habilidades) {
                         try {
@@ -1223,7 +1271,6 @@ window.rrImportarPlanilha = async function(input) {
                     if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
                     if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
                     if (!osHabEquipeMap[key] && habEquipe.length) osHabEquipeMap[key] = habEquipe;
-                    // Fallback por obs: guarda {habs,vars} keyed pelo texto da obs
                     if (obsValida && (habs.length || vars.length)) {
                         const _ok = obsValida.trim().toUpperCase().substring(0, 80);
                         if (_ok && !window._rrObsMetaMap[_ok]) window._rrObsMetaMap[_ok] = { habs, vars };
@@ -1237,9 +1284,10 @@ window.rrImportarPlanilha = async function(input) {
         console.error('[RR] Erro ao buscar dados para insights', e);
     }
 
-    // Preencher obs, habilidades e variaveis de cada OS com valores do banco
+    // Preencher obs, habilidades e variaveis de cada OS com valores do banco (somente da mesma data e mesmo tipo de serviço)
     _rrVeiculos.forEach(v => {
         v.os.forEach(os => {
+            if (os.obs) os.obs = window._rrLimparLinksVideo(os.obs);
             const numKey = String(os._numero_os || '').trim();
             const ts = window._rrCleanTs(os.servico);
             const key = numKey ? (numKey + '___' + ts) : '';
@@ -1248,28 +1296,20 @@ window.rrImportarPlanilha = async function(input) {
             if (numKey && osListByNum[numKey]) {
                 const dbList = osListByNum[numKey];
                 const osTipoBase = os.tipo || '';
-                const matchByTipo = (r) => {
+                const matchByTipoEstrito = (r) => {
                     const rTs = window._rrCleanTs(r.tipo_servico);
-                    if (osTipoBase === 'AVULSA' && rTs.includes('AVULSA')) return true;
-                    if ((osTipoBase === 'MANUTENCAO' || osTipoBase === 'AVULSA') && rTs.includes('MANUTEN')) return true;
-                    if (osTipoBase === 'ENTREGA' && rTs.includes('ENTREGA')) return true;
-                    if (osTipoBase === 'RETIRADA' && rTs.includes('RETIRADA')) return true;
-                    return false;
+                    if (osTipoBase === 'AVULSA') return rTs.includes('AVULSA');
+                    if (osTipoBase === 'MANUTENCAO') return rTs.includes('MANUTEN') && !rTs.includes('AVULSA');
+                    if (osTipoBase === 'ENTREGA') return rTs.includes('ENTREGA');
+                    if (osTipoBase === 'RETIRADA') return rTs.includes('RETIRADA');
+                    return rTs === ts;
                 };
-                if (!osHabsMap[key] && !osVarsMap[key]) {
-                    const chosenMeta = dbList.find(matchByTipo) || (dbList.length === 1 ? dbList[0] : null);
+                if (!osObsMap[key] && !osHabsMap[key] && !osVarsMap[key]) {
+                    const chosenMeta = dbList.find(matchByTipoEstrito);
                     if (chosenMeta) matchedKey = numKey + '___' + window._rrCleanTs(chosenMeta.tipo_servico);
                 }
-                if (os.obs) os.obs = window._rrLimparLinksVideo(os.obs);
-                if (osObsMap[matchedKey]) {
+                if (!os.obs && osObsMap[matchedKey]) {
                     os.obs = osObsMap[matchedKey];
-                } else if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico, false)) {
-                    const withObs = dbList.find(r => matchByTipo(r) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true))
-                        || dbList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true));
-                    if (withObs) {
-                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico, true);
-                        os.observacoes_internas = withObs.observacoes_internas || '';
-                    }
                 }
                 if (osHabsMap[matchedKey] && (!os.habilidades || !os.habilidades.length)) {
                     os.habilidades = osHabsMap[matchedKey];
@@ -1279,20 +1319,6 @@ window.rrImportarPlanilha = async function(input) {
                 }
                 if (osHabEquipeMap[matchedKey] && (!os.habilidade_equipe || !os.habilidade_equipe.length)) {
                     os.habilidade_equipe = osHabEquipeMap[matchedKey];
-                }
-            }
-
-            // Fallback por nome do cliente se ainda estiver sem observação válida
-            if (!_rrExtrairObsValida(os.obs, os.observacoes_internas, os.servico, false)) {
-                const cliNorm = String(os.cliente || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9\s]/g, '').trim().substring(0, 20).trim();
-                const cliList = cliNorm ? osListByCliente[cliNorm] : null;
-                if (cliList && cliList.length) {
-                    const withObs = cliList.find(r => (!_rrDataRota || !r.data_os || String(r.data_os).slice(0, 10) === _rrDataRota) && _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true))
-                        || cliList.find(r => _rrExtrairObsValida(r.observacoes, r.observacoes_internas, r.tipo_servico, true));
-                    if (withObs) {
-                        os.obs = _rrExtrairObsValida(withObs.observacoes, withObs.observacoes_internas, withObs.tipo_servico, true);
-                        os.observacoes_internas = withObs.observacoes_internas || '';
-                    }
                 }
             }
         });

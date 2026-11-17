@@ -438,16 +438,16 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
 
             let obsLimpa = String(obsExtraida || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽🔧🛠️]+/gu, '').trim().toUpperCase();
 
-            if (!obsLimpa) {
-                const itensSaida = detectarItensSaidaOS(os);
-                if (itensSaida.length > 0) {
-                    obsLimpa = [...new Set(itensSaida.map(i => i.label))].join(' / ');
+            if (obsLimpa && !/^(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO)(?:\s*[/,;-]\s*(?:\[OBJECT\s+OBJECT\]|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO))*$/i.test(obsLimpa) && !obsLimpa.includes('[OBJECT OBJECT]')) {
+                const coreKey = `${nome}: ${obsLimpa}`;
+                const linhaObs = `${icon ? icon + ' ' : ''}${coreKey}`;
+                const prevIdx = obsLinhas.findIndex(l => l.endsWith(coreKey));
+                if (prevIdx !== -1) {
+                    if (linhaObs.length > obsLinhas[prevIdx].length) obsLinhas[prevIdx] = linhaObs;
+                } else if (!obsLinhasSet.has(linhaObs)) {
+                    obsLinhasSet.add(linhaObs);
+                    obsLinhas.push(linhaObs);
                 }
-            }
-
-            if (obsLimpa) {
-                const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
-                if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
             }
         });
         if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
@@ -578,10 +578,34 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 }
                 return null;
             }
+            const cIdxInv = tr.indexOf(':');
+            if (cIdxInv !== -1 && !tr.endsWith(':')) {
+                const detInv = norm(tr.substring(cIdxInv + 1)).toUpperCase().replace(/[^A-Z0-9\s\[/,;-\]]/g, '').trim();
+                if (!detInv || detInv.includes('OBJECT OBJECT') || /^(?:OBJECT\s+OBJECT|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO)(?:\s*[/,;-]\s*(?:OBJECT\s+OBJECT|CARGA|TANQUE|UTILITARIO|CAMINHAO|NOTURNO|DIURNO|AVULSO))*$/i.test(detInv)) {
+                    return null;
+                }
+            }
             return line;
         }).filter(l => l !== null);
 
-        return linhasProcessadas
+        const coreMap = new Map();
+        const dedupLines = [];
+        for (const l of linhasProcessadas) {
+            const tr = l.trim();
+            const cIdx = tr.indexOf(':');
+            if (cIdx !== -1 && !tr.endsWith(':')) {
+                const coreK = norm(tr).toUpperCase().replace(/[^A-Z0-9:\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                if (coreMap.has(coreK)) {
+                    const pIdx = coreMap.get(coreK);
+                    if (tr.length > dedupLines[pIdx].trim().length) dedupLines[pIdx] = l;
+                    continue;
+                }
+                coreMap.set(coreK, dedupLines.length);
+            }
+            dedupLines.push(l);
+        }
+
+        return dedupLines
             .filter((l, idx, arr) => !(l === '' && idx > 0 && arr[idx - 1] === ''))
             .join('\n')
             .replace(/^\n+/, '');
@@ -1515,19 +1539,28 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             if (uKey) retMap.set(`${r.os_id}|${uKey}`, r);
         });
 
-        // Indexar OS de os_logistica por numero_os e por nome curto do cliente
+        // Indexar OS de os_logistica separando as que são efetivamente da data da rota (iso) das antigas
         const osPorNumero = new Map();
-        const osPorCliente = new Map();
+        const osPorNumeroHoje = new Map();
+        const obsHojeNormSet = new Set();
+        const obsAntigasNormSet = new Set();
         osDoDia.forEach(o => {
             const num = String(o.numero_os || '').trim();
+            const ehDaDataRota = !o.data_os || String(o.data_os).slice(0, 10) === iso;
+            const obsCand = extrairObsValida(o.observacoes, '', o.tipo_servico, false);
+            const obsNorm = obsCand ? norm(obsCand).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+            if (ehDaDataRota) {
+                if (obsNorm) obsHojeNormSet.add(obsNorm);
+                if (num) {
+                    if (!osPorNumeroHoje.has(num)) osPorNumeroHoje.set(num, []);
+                    osPorNumeroHoje.get(num).push(o);
+                }
+            } else if (obsNorm) {
+                obsAntigasNormSet.add(obsNorm);
+            }
             if (num) {
                 if (!osPorNumero.has(num)) osPorNumero.set(num, []);
                 osPorNumero.get(num).push(o);
-            }
-            const cliK = normClienteCurto(o.cliente);
-            if (cliK) {
-                if (!osPorCliente.has(cliK)) osPorCliente.set(cliK, []);
-                osPorCliente.get(cliK).push(o);
             }
         });
 
@@ -1569,18 +1602,40 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             const vistosEnt = new Set();
             const vistosRet = new Set();
 
+            const obsValidasVeicNorm = new Set();
             (v.os || []).forEach(o => {
                 const num = String(o._numero_os || o.numero_os || '').trim();
-                const cliK = normClienteCurto(o.cliente);
-                const candidatosDb = [...(osPorNumero.get(num) || []), ...(osPorCliente.get(cliK) || [])];
-                if (candidatosDb.length) {
-                    if (o.obs) o.obs = limparLinksVideo(o.obs);
-                    const matchObs = candidatosDb.find(d => extrairObsValida(d.observacoes, d.observacoes_internas, d.tipo_servico, true));
-                    if (matchObs && !extrairObsValida(o.obs, o.observacoes_internas, o.servico, false)) {
-                        o.obs = extrairObsValida(matchObs.observacoes, matchObs.observacoes_internas, matchObs.tipo_servico, true);
-                        o.observacoes_internas = matchObs.observacoes_internas || '';
+                const candidatosHoje = osPorNumeroHoje.get(num) || [];
+                const candidatosDb = candidatosHoje.length ? candidatosHoje : (osPorNumero.get(num) || []);
+                if (o.obs) o.obs = limparLinksVideo(o.obs);
+
+                let obsDaPlanilha = '';
+                if (o.notas_raw) {
+                    const notasLinhas = String(o.notas_raw).replace(/\r\r\n|\r\n|\r/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+                    for (const ln of notasLinhas) {
+                        const lnUp = norm(ln).toUpperCase();
+                        if (ehApenasTipoServico(lnUp)) continue;
+                        if (/^\d+\s+\S/.test(ln) || /^\d+X\s*-/.test(lnUp)) continue;
+                        const cand = extrairObsValida(ln, '', o.servico, false);
+                        if (cand) { obsDaPlanilha = cand; break; }
                     }
-                    const d0 = candidatosDb[0];
+                }
+                if (obsDaPlanilha) {
+                    obsValidasVeicNorm.add(norm(obsDaPlanilha).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim());
+                }
+
+                const obsAtualNorm = o.obs ? norm(o.obs).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+                if (obsAtualNorm && obsAntigasNormSet.has(obsAtualNorm) && !obsHojeNormSet.has(obsAtualNorm) && (!obsDaPlanilha || norm(obsDaPlanilha).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() !== obsAtualNorm)) {
+                    o.obs = obsDaPlanilha || '';
+                    o.observacoes_internas = '';
+                }
+
+                if (candidatosHoje.length) {
+                    const matchObs = candidatosHoje.find(d => extrairObsValida(d.observacoes, '', d.tipo_servico, false));
+                    if (matchObs && !extrairObsValida(o.obs, '', o.servico, false)) {
+                        o.obs = extrairObsValida(matchObs.observacoes, '', matchObs.tipo_servico, false);
+                    }
+                    const d0 = candidatosHoje[0];
                     if ((!o.habilidades || !o.habilidades.length) && d0.habilidades) {
                         o.habilidades = parseJson(d0.habilidades, [d0.habilidades]);
                     }
@@ -1590,6 +1645,9 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                     if ((!o.habilidade_equipe || !o.habilidade_equipe.length) && d0.habilidade_equipe) {
                         o.habilidade_equipe = parseJson(d0.habilidade_equipe, [d0.habilidade_equipe]);
                     }
+                }
+                if (o.obs) {
+                    obsValidasVeicNorm.add(norm(o.obs).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim());
                 }
                 if (o.tipo === 'ENTREGA') {
                     const dbOs = candidatosDb.find(d => /entrega/i.test(norm(d.tipo_servico))) || candidatosDb[0];
@@ -1671,6 +1729,16 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 };
             }
 
+            if (v.colBEditado && obsAntigasNormSet.size > 0) {
+                v.colBEditado = v.colBEditado.split('\n').filter(line => {
+                    const tr = line.trim();
+                    const cIdx = tr.indexOf(':');
+                    if (cIdx === -1 || tr.endsWith(':')) return true;
+                    const detN = norm(tr.substring(cIdx + 1)).toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (detN && obsAntigasNormSet.has(detN) && !obsHojeNormSet.has(detN) && !obsValidasVeicNorm.has(detN)) return false;
+                    return true;
+                }).join('\n');
+            }
             const colB = obterColBBaseLimpa(v);
             const secoes = parseSecoesColB(
                 colB,
