@@ -1601,6 +1601,13 @@ function _rrRenderCorpo() {
                 </div>`;
             }
 
+            if (String(status || '').toLowerCase() === 'aviso') {
+                return `<div style="background:#fff7ed;color:#ea580c;padding:8px 16px;border-bottom:1px solid #fed7aa;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-warning-circle" style="font-size:1rem;color:#ea580c;"></i>
+                    <span><b>${nome}</b> — Aviso${motivo ? ': ' + motivo : ''}</span>
+                </div>`;
+            }
+
             const label = {
                 'ferias':   'Férias',
                 'afastado': 'Afastado',
@@ -1619,13 +1626,13 @@ function _rrRenderCorpo() {
         const _ajuDisp = _dispInfo(v._dispAjudante,  v.ajudante);
         const badgeDisp = [_motDisp, _ajuDisp].filter(Boolean).join('');
 
-        // Badges de Aviso da Agenda Logística
+        // Badges de Aviso da Agenda Logística (em laranja)
         const _avisoInfo = (disp, nome) => {
             if (!disp || !nome || !nome.trim()) return null;
             const avisos = disp.avisos || [];
             if (!avisos.length) return null;
-            return avisos.map(titulo => `<div style="background:#fef2f2;color:#dc2626;padding:8px 16px;border-bottom:1px solid #fecaca;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
-                <i class="ph ph-warning-circle" style="font-size:1rem;"></i>
+            return avisos.map(titulo => `<div style="background:#fff7ed;color:#ea580c;padding:8px 16px;border-bottom:1px solid #fed7aa;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-warning-circle" style="font-size:1rem;color:#ea580c;"></i>
                 <span><b>${nome}</b> — Aviso: ${titulo}</span>
             </div>`).join('');
         };
