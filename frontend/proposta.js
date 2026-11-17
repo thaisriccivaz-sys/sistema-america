@@ -21892,7 +21892,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             return `
                 <tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome) : ''}" onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${_escHtmlProp(p.codigo || p.id)}</td>
-                    <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${_escHtmlProp(p.nome || '—')}</td>
+                    <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${window.formatarNomeProdutoComVacHtml(p.nome || '—')}</td>
                     <td style="padding:10px 12px; color:#475569; font-weight:600;">${_escHtmlProp(p.fonte_fornecimento || '—')}</td>
                     <td style="padding:10px 12px; color:#475569;">${_escHtmlProp(p.grupo_produto || '—')}</td>
                     <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${valStr}</td>
@@ -22454,13 +22454,14 @@ window.adicionarProdutoProposta = async function() {
 
     if (valorTotalFinal <= 0) {
         let confirmarCortesia = false;
+        const msgCortProd = 'Tem certeza que deseja adicionar um produto com valor zerado (é cortesia mesmo)?';
         if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
             const resCortesia = await Swal.fire({
                 icon: 'question',
-                title: 'Produto Cortesia (R$ 0,00)',
-                text: 'Tem certeza que deseja adicionar o produto cortesia?',
+                title: 'Produto com Valor Zerado (Cortesia)',
+                text: msgCortProd,
                 showCancelButton: true,
-                confirmButtonText: 'Sim, adicionar',
+                confirmButtonText: 'Sim, é cortesia',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#16a34a',
                 cancelButtonColor: '#64748b',
@@ -22468,7 +22469,7 @@ window.adicionarProdutoProposta = async function() {
             });
             confirmarCortesia = Boolean(resCortesia && resCortesia.isConfirmed);
         } else {
-            confirmarCortesia = window.confirm('Tem certeza que deseja adicionar o produto cortesia?');
+            confirmarCortesia = window.confirm(msgCortProd);
         }
         if (!confirmarCortesia) {
             return;
@@ -22835,7 +22836,7 @@ window.renderizarProdutosPropostaGrid = function() {
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div style="${styleRiscadoGrid}">${_escHtmlProp(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
+                    <div style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 10px;">
@@ -23018,7 +23019,7 @@ window._renderTabelaPrecosInt = async function() {
                             <tr class="tp-row-item" data-search="${_escHtmlProp((item.codigo_equipamento + ' ' + item.nome_equipamento + ' ' + (item.grupo_produto || '')).toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:8px 12px; font-weight:700; color:#7048e8; text-align:center;">${_escHtmlProp(item.codigo_equipamento || '—')}</td>
                                 <td style="padding:8px 12px; font-weight:600; color:#1e293b;">
-                                    <span>${_escHtmlProp(item.nome_equipamento)}</span>
+                                    <span>${window.formatarNomeProdutoComVacHtml(item.nome_equipamento)}</span>
                                     ${item.grupo_produto ? `<span style="margin-left:6px; font-size:0.68rem; font-weight:700; padding:1px 6px; border-radius:999px; background:#ede9fe; color:#6d28d9; vertical-align:middle;">${_escHtmlProp(item.grupo_produto)}</span>` : ''}
                                 </td>
                                 <td style="padding:8px 12px; text-align:right;">
@@ -25020,6 +25021,10 @@ function _escHtmlProp(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 }
+
+window.formatarNomeProdutoComVacHtml = function(str) {
+    return _escHtmlProp(str == null ? '' : str).replace(/\b(VAC)\b/gi, '<span style="color:#dc2626; font-weight:800;">$1</span>');
+};
 
 function _fmtMoedaNumProp(v) {
     return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -35,10 +35,17 @@
 
     /* A opção de Frete FOB apenas deve aparecer nos serviços do tipo mobilização ou desmobilização
        com todos os códigos no final ZC, ZV ou ZA (ex: MOBILIZAÇÃO ZC, DESMOBILIZAÇÃO O02XZV, etc.) */
+    window.servicoEhMontagemOuDesmontagem = function (nomeServico, codigoServico) {
+        const s = norm(String(nomeServico || '').trim());
+        const c = norm(String(codigoServico || '').trim());
+        return /\b(des)?montag/.test((s + ' ' + c).trim());
+    };
+
     window.servicoPermiteFreteFob = function (nomeServico, codigoServico) {
         const s = norm(String(nomeServico || '').trim());
         const c = norm(String(codigoServico || '').trim());
         const combinado = (s + ' ' + c).trim();
+        if (/\b(des)?montag/.test(combinado)) return false;
         if (!/(des)?mobilizac/.test(combinado)) return false;
         return /z[cva]\s*$/i.test(s) || /z[cva]\s*$/i.test(c);
     };
@@ -297,6 +304,8 @@
         } else if (modo === 'rs' && rsVal > 0) {
             const descRs = Math.max(0, rsVal);
             unitLiq = Math.max(0, base - descRs);
+        } else {
+            if (origem === 'pct' && rsEl) rsEl.value = '0,00';
         }
         unitEl.value = fmtM(unitLiq);
     };
@@ -475,36 +484,33 @@
             : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
 
         let unit = fob ? 0 : parseM(unitEl?.value); if (isNaN(unit)) unit = 0;
-        let total = fob ? 0 : unit;
-
-        if (!fob && total <= 0 && window.tipoPropostaServicoObrigatorio()) {
-            alert(permiteFob
-                ? 'Informe o valor do serviço ou marque a opção Frete FOB (valor do frete não obrigatório).'
-                : 'Informe o valor do serviço.');
-            unitEl?.focus();
-            return;
-        }
-
-        const baseAttr = parseFloat(unitEl?.getAttribute('data-preco-base'));
-        const valorBase = fob ? 0 : ((!isNaN(baseAttr) && baseAttr > 0) ? baseAttr : unit);
-        const modo = fob ? '' : (unitEl?.getAttribute('data-desc-mode') || '');
         const pct = fob ? 0 : Math.max(0, parseFloat(pctEl?.value) || 0);
         const rs = fob ? 0 : Math.max(0, parseM(rsEl?.value));
+        const baseAttr = parseFloat(unitEl?.getAttribute('data-preco-base'));
+        const valorBase = fob ? 0 : ((!isNaN(baseAttr) && baseAttr > 0) ? baseAttr : (unit > 0 ? unit : (rs > 0 ? rs : 0)));
+        const modo = fob ? '' : (unitEl?.getAttribute('data-desc-mode') || (pct > 0 ? 'pct' : (rs > 0 ? 'rs' : '')));
         let descontoTipo = '';
         if (!fob) {
-            if (modo === 'pct' && pct > 0) descontoTipo = 'pct';
-            else if (rs > 0) descontoTipo = 'valor';
+            if (modo === 'pct' && pct > 0) {
+                descontoTipo = 'pct';
+                unit = Math.max(0, valorBase * (1 - Math.min(100, pct) / 100));
+            } else if (rs > 0) {
+                descontoTipo = 'valor';
+                unit = Math.max(0, valorBase - rs);
+            }
         }
+        let total = fob ? 0 : unit;
 
         if (!fob && total <= 0) {
             let confirmarCortesia = false;
+            const msgCortServ = 'Tem certeza que deseja adicionar um serviço com valor zerado (é cortesia mesmo)?';
             if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
                 const resCort = await Swal.fire({
                     icon: 'question',
-                    title: 'Serviço Cortesia (R$ 0,00)',
-                    text: 'Tem certeza que deseja adicionar o serviço cortesia?',
+                    title: 'Serviço com Valor Zerado (Cortesia)',
+                    text: msgCortServ,
                     showCancelButton: true,
-                    confirmButtonText: 'Sim, adicionar',
+                    confirmButtonText: 'Sim, é cortesia',
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#16a34a',
                     cancelButtonColor: '#64748b',
@@ -512,7 +518,7 @@
                 });
                 confirmarCortesia = Boolean(resCort && resCort.isConfirmed);
             } else {
-                confirmarCortesia = window.confirm('Tem certeza que deseja adicionar o serviço cortesia?');
+                confirmarCortesia = window.confirm(msgCortServ);
             }
             if (!confirmarCortesia) return;
         }
@@ -525,6 +531,7 @@
             observacao: (document.getElementById('prop-serv-obs')?.value || '').trim(),
             quantidade: 1,
             frete_fob: fob,
+            cortesia: Boolean(!fob && total <= 0),
             valor_base: valorBase,
             desconto_tipo: descontoTipo,
             desconto_pct: descontoTipo === 'pct' ? pct : 0,
@@ -728,7 +735,7 @@
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div>${esc(nome)} ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : ''}</div>
+                    <div>${typeof window.formatarNomeProdutoComVacHtml === 'function' ? window.formatarNomeProdutoComVacHtml(nome) : esc(nome)} ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : (vUnit <= 0 ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">CORTESIA</span>' : '')}</div>
                     ${permiteFobItem ? `<label style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; color:#64748b; font-weight:600; margin-top:3px; cursor:pointer;">
                         <input type="checkbox" ${isFob ? 'checked' : ''} onchange="window.atualizarItemServicoProposta(${idx}, 'frete_fob', this.checked)" style="width:auto; margin:0;"> Frete FOB
                     </label>` : ''}
@@ -776,11 +783,15 @@
             document.getElementById('prop-serv-codigo')?.focus();
             return false;
         }
-        const semValor = lista.find(s => !s.frete_fob && !(parseFloat(s.valor_total) > 0));
-        if (semValor) {
-            alert(`O serviço "${semValor.servico || semValor.descricao || ''}" está sem valor. Informe o valor ou marque Frete FOB.`);
-            return false;
-        }
+        lista.forEach(s => {
+            const nomeS = s.servico || s.descricao || '';
+            if (window.servicoEhMontagemOuDesmontagem && window.servicoEhMontagemOuDesmontagem(nomeS, s.codigo)) {
+                s.frete_fob = false;
+            }
+            if (!s.frete_fob && !(parseFloat(s.valor_total) > 0)) {
+                s.cortesia = true;
+            }
+        });
         return true;
     };
 })();
