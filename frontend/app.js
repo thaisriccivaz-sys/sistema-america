@@ -16661,7 +16661,7 @@ async function checkUserNotificacoes() {
                             <i class="ph ${icon}"></i> ${titulo} (${veicsRv.length || 1})
                         </div>
                         <div style="color:#0f172a;font-size:0.82rem;font-weight:600;margin-bottom:6px;">
-                            Revisão próxima ou no marco (≤ 1.000 km ou ≤ 30 dias). Realize o agendamento:
+                            Revisão próxima ou no marco (≤ 1.000 km utilitários / ≤ 2.000 km caminhões e caminhonetes ou ≤ 30 dias). Realize o agendamento:
                         </div>
                         <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:6px 10px;max-height:110px;overflow-y:auto;">
                             ${listaRvHtml}

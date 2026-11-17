@@ -23171,17 +23171,17 @@ function _fmParamsRevisao(v) {
     const ehCar = _ehCarretinhaTipo(v && v.tipo_veiculo);
     if (ehCar) {
         const base = String((v && v.data_inicio_garantia) || '').slice(0, 10) || String((v && v.created_at) || '').slice(0, 10);
-        return { ehCar: true, ehCam: false, kmAtual: 0, passoKm: 10000, passoMeses: 12, dtIni: base };
+        return { ehCar: true, ehCam: false, kmAtual: 0, passoKm: 10000, passoMeses: 12, alertaKm: 1000, dtIni: base };
     }
     const ehCam = _ehCaminhaoOuCaminhoneteTipo(v && v.tipo_veiculo);
     const baseKm = ehCam ? 20000 : 10000;
     const baseMeses = ehCam ? 24 : 12;
     const uso = Number((v && v.uso_severo) || 0) === 1;
-    return { ehCar: false, ehCam, kmAtual: Number((v && v.km_atual) || 0), passoKm: uso ? (baseKm / 2) : baseKm, passoMeses: uso ? (baseMeses / 2) : baseMeses, dtIni: String((v && v.data_inicio_garantia) || '').slice(0, 10) };
+    return { ehCar: false, ehCam, kmAtual: Number((v && v.km_atual) || 0), passoKm: uso ? (baseKm / 2) : baseKm, passoMeses: uso ? (baseMeses / 2) : baseMeses, alertaKm: ehCam ? 2000 : 1000, dtIni: String((v && v.data_inicio_garantia) || '').slice(0, 10) };
 }
 function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
     const lista = Array.isArray(revs) ? revs : [];
-    const { ehCar, kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
+    const { ehCar, kmAtual, passoKm, passoMeses, alertaKm, dtIni } = _fmParamsRevisao(v);
     const mapa = {};
     lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
     let prev = null, temVencida = false, ultimaVencida = null, qtdVencidas = 0, ultimo = null;
@@ -23227,7 +23227,7 @@ function _fmResumoRevisaoVeiculo(v, revs, hojeIso) {
             eh_carretinha: !!ehCar
         };
     } else if (ultimo && !ultimo.realizada) {
-        const proxKm = kmAtual > 0 && ultimo.diffKm > 0 && ultimo.diffKm <= 1000;
+        const proxKm = kmAtual > 0 && ultimo.diffKm > 0 && ultimo.diffKm <= (alertaKm || 1000);
         const proxTempo = ultimo.diffDias !== null && ultimo.diffDias >= 0 && ultimo.diffDias <= 30;
         if (proxKm || proxTempo) {
             marcoPendente = {
@@ -23422,7 +23422,7 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
     // Ja agendada / em revisao: nao precisa avisar para agendar
     const temAgendamento = lista.some(r => r.status === 'agendada');
     if (temAgendamento) return null;
-    const { kmAtual, passoKm, passoMeses, dtIni } = _fmParamsRevisao(v);
+    const { kmAtual, passoKm, passoMeses, alertaKm, dtIni } = _fmParamsRevisao(v);
     const mapa = {};
     lista.forEach(r => { mapa[Number(r.marco_km)] = r; });
     let prev = null;
@@ -23439,7 +23439,7 @@ function _fmMarcoRevisaoAtingido(v, revs, hojeIso) {
         }
         const diffKm = kmLimite - kmAtual;
         const diffDias = dtLimite ? _fmDiffDiasISO(dtLimite, hojeIso) : null;
-        const porKm = kmAtual > 0 && diffKm <= 1000;
+        const porKm = kmAtual > 0 && diffKm <= (alertaKm || 1000);
         const porData = diffDias !== null && diffDias <= 30;
         const vencida = !realizada && ((kmAtual > 0 && diffKm <= 0) || (diffDias !== null && diffDias < 0));
         if (!realizada && (porKm || porData)) {
@@ -23490,7 +23490,7 @@ async function verificarMarcoRevisaoCron() {
         const html = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:680px;margin:0 auto;border:1px solid #eee;border-radius:10px;overflow:hidden;">'
             + '<div style="text-align:center;padding:20px 20px 10px;"><img src="cid:empresa-logo" style="max-height:80px;"></div>'
             + '<div style="padding:20px 24px;"><h2 style="color:#ea580c;border-bottom:2px solid #f97316;padding-bottom:10px;margin-top:0;">🔧 Agendar Revisão — Marco de manutenção preventiva (' + novos.length + ' veículo' + (novos.length > 1 ? 's' : '') + ')</h2>'
-            + '<p>O(s) veículo(s) abaixo está(ão) <strong>próximo(s) ou no marco de revisão preventiva</strong> (faltando até 1.000 km ou até 30 dias). Por favor, <strong>realize o agendamento da revisão</strong> no sistema:</p>'
+            + '<p>O(s) veículo(s) abaixo está(ão) <strong>próximo(s) ou no marco de revisão preventiva</strong> (faltando até 1.000 km para utilitários, até 2.000 km para caminhões/caminhonetes ou até 30 dias). Por favor, <strong>realize o agendamento da revisão</strong> no sistema:</p>'
             + '<table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;"><thead><tr style="background:#fff7ed;color:#9a3412;">'
             + '<th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Placa</th><th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Veículo</th>'
             + '<th style="padding:10px 12px;border:1px solid #fde68a;text-align:center;">Marco</th><th style="padding:10px 12px;border:1px solid #fde68a;text-align:left;">Situação / Motivo</th></tr></thead><tbody>' + linhas + '</tbody></table>'

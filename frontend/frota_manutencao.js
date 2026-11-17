@@ -885,6 +885,9 @@ window._mnRevPassoKm = function(v) {
     const usoSevero = !window._mnRevEhCarretinha(v) && Number((v && v.uso_severo) || 0) === 1;
     return usoSevero ? Math.round(baseKm / 2) : baseKm;
 };
+window._mnRevAlertaKm = function(v) {
+    return window._mnRevEhCaminhaoOuCaminhonete(v) ? 2000 : 1000;
+};
 window._mnRevPassoMeses = function(v) {
     if (window._mnRevEhCarretinha(v)) return 12;
     const baseMeses = window._mnRevEhCaminhaoOuCaminhonete(v) ? 24 : 12;
@@ -1234,6 +1237,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     const usoSevero = !ehCar && Number(v.uso_severo || 0) === 1;
     const passoKm = window._mnRevPassoKm(v);
     const passoMeses = window._mnRevPassoMeses(v);
+    const alertaKm = window._mnRevAlertaKm(v);
     const dtPrimeiraRev = dtIniGar ? _mnRevSomarMesesISO(dtIniGar, passoMeses) : '';
 
     // Marcos: cada ciclo respeita +passoKm ou +passoMeses (o que ocorrer primeiro) a partir da ultima revisao realizada.
@@ -1291,7 +1295,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             eh_carretinha: !!ehCar
         };
     } else if (ultimoItem && !ultimoItem.realizada) {
-        const proxKmCalc = kmAtual > 0 && ultimoItem.diffKm > 0 && ultimoItem.diffKm <= 1000;
+        const proxKmCalc = kmAtual > 0 && ultimoItem.diffKm > 0 && ultimoItem.diffKm <= alertaKm;
         const proxTempoCalc = ultimoItem.diffDias !== null && ultimoItem.diffDias >= 0 && ultimoItem.diffDias <= 30;
         if (proxKmCalc || proxTempoCalc) {
             marcoPendenteLocal = {
@@ -1354,7 +1358,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             tempoStatusTxt = (reg && reg.data_revisao) ? `Em ${_mnRevFmtDataBR(reg.data_revisao)}` : 'Data não informada';
             prevalenciaTxt = (reg && reg.concessionaria) ? `Concessionária: ${reg.concessionaria}${reg.numero_os ? ' (OS ' + reg.numero_os + ')' : ''}` : 'Revisão concluída e registrada';
         } else {
-            const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= 1000;
+            const proxKm = kmAtual > 0 && diffKm > 0 && diffKm <= alertaKm;
             const proxTempo = diffDias !== null && diffDias >= 0 && diffDias <= 30;
             if (m.vencida) {
                 sitCor = '#dc2626'; sitBg = '#fef2f2'; sitBorda = '#fca5a5';
@@ -1376,7 +1380,7 @@ window._mnRenderPainelRevisaoVeiculo = function() {
             kmStatusTxt = kmAtual > 0
                 ? (diffKm <= 0
                     ? `<span style="color:#dc2626;font-weight:800;">Passou ${Math.abs(diffKm).toLocaleString('pt-BR')} km</span>`
-                    : `<span style="color:${diffKm <= 1000 ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
+                    : `<span style="color:${diffKm <= alertaKm ? '#d97706' : '#0f172a'};font-weight:700;">Faltam ${diffKm.toLocaleString('pt-BR')} km</span>`)
                 : '<span style="color:#94a3b8;">KM atual não informado</span>';
 
             if (ehCar) {
