@@ -2510,7 +2510,7 @@ async function uploadDocToR2(docId, bufferOverride) {
                 'Advertências': 'Advertencias', 'EPI': 'EPI', 'Fotos': 'Fotos',
                 'AVALIACAO': 'Avaliacao', 'FACULDADE': 'Faculdade',
                 '01_FICHA_CADASTRAL': 'Ficha_Cadastral', 'Terapia': 'Terapia',
-                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas',
+                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas', 'RESCISAO': 'Rescisao',
             };
             return map[tab] || (tab || 'Outros').replace(/[^a-zA-Z0-9_]/g, '_');
         };
@@ -2582,7 +2582,7 @@ async function uploadSignedDocToR2(docId, signedBuffer) {
                 'Advertências': 'Advertencias', 'EPI': 'EPI', 'Fotos': 'Fotos',
                 'AVALIACAO': 'Avaliacao', 'FACULDADE': 'Faculdade',
                 '01_FICHA_CADASTRAL': 'Ficha_Cadastral', 'Terapia': 'Terapia',
-                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas',
+                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas', 'RESCISAO': 'Rescisao',
             };
             return map[tab] || (tab || 'Outros').replace(/[^a-zA-Z0-9_]/g, '_');
         };
@@ -3318,8 +3318,76 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
+async function reconciliarDocumentosRescisaoAssinafy() {
+    try {
+        const dbGetP = (sql, params) => new Promise((res, rej) => db.get(sql, params, (e, r) => e ? rej(e) : res(r)));
+        const dbAllP = (sql, params) => new Promise((res, rej) => db.all(sql, params, (e, r) => e ? rej(e) : res(r || [])));
+        const dbRunP = (sql, params) => new Promise((res, rej) => db.run(sql, params, function (e) { e ? rej(e) : res(this); }));
+
+        // 1. Garantir que o documento de Rescisão da Débora (assinafy_id = 1052601d4746c874b58c34e8306a) esteja vinculado na aba RESCISAO
+        const deboraAssinafyId = '1052601d4746c874b58c34e8306a';
+        const existingDeboraDoc = await dbGetP('SELECT id, tab_name, r2_key, signed_r2_key, assinafy_status FROM documentos WHERE assinafy_id = ?', [deboraAssinafyId]);
+        const deboraColab = await dbGetP(
+            `SELECT id, nome_completo FROM colaboradores
+             WHERE REPLACE(REPLACE(COALESCE(cpf,''),'.',''),'-','') = '61104136317'
+                OR LOWER(TRIM(COALESCE(nome_completo,''))) LIKE '%bora alexandre salvador soares%'
+             LIMIT 1`,
+            []
+        );
+
+        let targetDocId = existingDeboraDoc ? existingDeboraDoc.id : null;
+        if (!existingDeboraDoc && deboraColab) {
+            const ins = await dbRunP(
+                `INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path, upload_date, assinafy_id, assinafy_status, assinafy_url, assinafy_sent_at, assinafy_signed_at)
+                 VALUES (?, 'RESCISAO', 'Rescisao Debora', 'Rescisao Debora.pdf', '', '2026-11-13 19:36:29', ?, 'Assinado', ?, '2026-11-13 19:36:48', '2026-11-13 19:41:50')`,
+                [deboraColab.id, deboraAssinafyId, `https://app.assinafy.com.br/sign/${deboraAssinafyId}`]
+            );
+            targetDocId = ins.lastID;
+            console.log(`[RESCISAO-SYNC] Documento 'Rescisao Debora.pdf' restaurado no banco (id=${targetDocId}, colab_id=${deboraColab.id}).`);
+        } else if (existingDeboraDoc && existingDeboraDoc.tab_name !== 'RESCISAO') {
+            await dbRunP(`UPDATE documentos SET tab_name = 'RESCISAO', assinafy_status = 'Assinado' WHERE id = ?`, [existingDeboraDoc.id]);
+            console.log(`[RESCISAO-SYNC] Documento id=${existingDeboraDoc.id} movido para tab_name='RESCISAO'.`);
+        }
+
+        // 2. Baixar PDFs original e assinado do Assinafy para o Cloudflare R2 se ainda não estiverem salvos no R2
+        if (targetDocId && r2Utils && r2Utils.isReady && r2Utils.isReady()) {
+            const curDoc = await dbGetP('SELECT id, r2_key, signed_r2_key, assinafy_id FROM documentos WHERE id = ?', [targetDocId]);
+            if (curDoc && (!curDoc.r2_key || !curDoc.signed_r2_key)) {
+                try {
+                    if (!curDoc.r2_key) {
+                        const rOrig = await fetch(`https://api.assinafy.com.br/v1/documents/${deboraAssinafyId}/download/original`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                        if (rOrig.ok) {
+                            const bufOrig = Buffer.from(await rOrig.arrayBuffer());
+                            await uploadDocToR2(curDoc.id, bufOrig);
+                        }
+                    }
+                    if (!curDoc.signed_r2_key) {
+                        const rCert = await fetch(`https://api.assinafy.com.br/v1/documents/${deboraAssinafyId}/download/certificated`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                        if (rCert.ok) {
+                            let bufCert = Buffer.from(await rCert.arrayBuffer());
+                            if (signPdfPfx && signPdfPfx.verificarDisponibilidade && signPdfPfx.verificarDisponibilidade().disponivel) {
+                                try {
+                                    bufCert = await signPdfPfx.assinarPDF(bufCert, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
+                                } catch (_) {}
+                            }
+                            await uploadSignedDocToR2(curDoc.id, bufCert);
+                        }
+                    }
+                } catch (eR2) {
+                    console.warn('[RESCISAO-SYNC] Falha ao sincronizar PDFs da Rescisao para o R2:', eR2.message);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[RESCISAO-SYNC] Erro na reconciliacao de documentos de rescisao:', e.message);
+    }
+}
+
 // Iniciar polling após o servidor subir (aguarda 60s e depois a cada 3 minutos)
 // Intervalo aumentado para reduzir carga na memória do Render (era 30s)
+setTimeout(() => {
+    reconciliarDocumentosRescisaoAssinafy();
+}, 3000);
 setTimeout(() => {
     pollAdmissaoAssinaturas();
     setInterval(pollAdmissaoAssinaturas, 3 * 60 * 1000);
@@ -4076,7 +4144,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             }
         }
 
-        res.json(all.slice(0, 500));
+        res.json(all.slice(0, 5000));
     } catch (e) {
         console.error('[/admissao-assinaturas/todos] Erro:', e.message);
         res.status(500).json({ error: e.message });
@@ -11502,7 +11570,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
     }
 
 
-    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS'];
+    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS', 'RESCISAO'];
     const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
     if (isMultiplo) {

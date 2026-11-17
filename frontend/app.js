@@ -13552,9 +13552,10 @@ window.vincularDescricaoAtividades = async function (anexoId, titulo) {
         const file = new File([blob], fileName, { type: contentType });
 
         // 3. Fazer upload como documento do colaborador
+        const isRescisaoActive = !!document.getElementById('rescisao-docs-list');
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('tab_name', isRescisaoActive ? 'RESCISAO' : 'CONTRATOS_AVULSOS');
         formData.append('document_type', 'Descrição de Atividades');
         formData.append('colaborador_id', viewedColaborador.id);
         formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
@@ -13863,6 +13864,10 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             borderBgColor = 'border:1.5px solid #2563eb; background:#eff6ff;';
             dividerColor = '#bfdbfe';
             categoryBadge = '<div style="margin-bottom:6px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span></div>';
+        } else if (doc.tab_name === 'RESCISAO') {
+            borderBgColor = 'border:1.5px solid #dc2626; background:#fef2f2;';
+            dividerColor = '#fca5a5';
+            categoryBadge = '<div style="margin-bottom:6px;"><span style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Rescisão</span></div>';
         } else {
             borderBgColor = 'border:1.5px solid #c026d3; background:#fdf4ff;';
             dividerColor = '#f0abfc';
@@ -13958,8 +13963,9 @@ window.excluirContratoComSenha = async function (docId, tipo) {
             });
         }
         if (res.ok) {
-            if (typeof showToast !== 'undefined') showToast('Contrato excluído com sucesso.', 'success');
+            if (typeof showToast !== 'undefined') showToast('Documento excluído com sucesso.', 'success');
             await window._reloadContratosContainer();
+            if (typeof window._reloadRescisaoContainer === 'function') await window._reloadRescisaoContainer();
         } else {
             const d = await res.json().catch(() => ({}));
             alert('Erro ao excluir: ' + (d.error || res.statusText));
@@ -14071,6 +14077,7 @@ window.uploadContratoAvulsoSobrescrever = async function (input, docId, docType)
         Swal.close();
         if (typeof showToast !== 'undefined') showToast('Documento anexado no Prontuário!', 'success');
         await window._reloadContratosContainer();
+        if (typeof window._reloadRescisaoContainer === 'function') await window._reloadRescisaoContainer();
     } catch (err) {
         Swal.close();
         Swal.fire('Erro', err.message, 'error');
@@ -19770,9 +19777,9 @@ window.loadAssinaturasDigitais = async function () {
                 </select>
                 <select id="ass-filter-situacao" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="Todos">Todos (Ativos e Desligados)</option>
                     <option value="Ativos">Apenas Ativos</option>
                     <option value="Desligados">Apenas Desligados</option>
-                    <option value="">Todos</option>
                 </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
@@ -19834,7 +19841,7 @@ window.filtrarAssinaturas = function () {
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
     const filterStatus = document.getElementById('digitais-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
-    const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Ativos';
+    const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Todos';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     const filtered = dados.filter(d => {
@@ -19898,7 +19905,10 @@ window.filtrarAssinaturas = function () {
         return `
         <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
             <td style="padding:0.75rem 1rem;">
-                <div style="font-weight:600;color:#1e293b;">${d.colaborador_nome || '—'}</div>
+                <div style="font-weight:600;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span>${d.colaborador_nome || '—'}</span>
+                    ${(d.colaborador_status || '').toLowerCase() === 'desligado' ? '<span style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;border-radius:10px;padding:1px 7px;font-size:0.66rem;font-weight:700;">Desligado</span>' : ''}
+                </div>
                 <div style="font-size:0.75rem;color:#94a3b8;">${d.colaborador_cargo || ''}${d.colaborador_departamento && d.colaborador_cargo !== d.colaborador_departamento ? ' · ' + d.colaborador_departamento : ''}</div>
             </td>
             <td style="padding:0.75rem 1rem;">
@@ -21835,6 +21845,7 @@ setInterval(() => {
             // Sempre tenta recarregar a aba Contratos; _reloadContratosContainer só executa
             // se o usuário estiver de fato na aba Contratos (ca-list-container no DOM)
             window._reloadContratosContainer().catch(() => { });
+            if (typeof window._reloadRescisaoContainer === 'function') window._reloadRescisaoContainer().catch(() => { });
             // Se o workflow de admissão estiver aberto, atualiza também
             if (document.getElementById('admissao-signature-list') && typeof window.initAdmissaoWorkflow === 'function' && viewedColaborador) {
                 window.initAdmissaoWorkflow(viewedColaborador.id, 2, true);
