@@ -1375,6 +1375,28 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
             [prefixoBr + '%']
         );
 
+        const candsTodosDiaRows = await dbAll(
+            `SELECT id, nome, tipo, status, foto_base64, rota_motorista,
+                    COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) AS data_teste_1,
+                    data_teste_2, data_teste_extra
+             FROM candidatos_teste
+             WHERE COALESCE(status, '') NOT IN ('Teste Finalizado', 'Aprovado', 'Reprovado', 'ARQUIVADO')
+               AND (COALESCE(NULLIF(TRIM(data_teste_1), ''), NULLIF(TRIM(data_teste), '')) = ?
+                    OR data_teste_2 = ?
+                    OR data_teste_extra = ?)`,
+            [iso, iso, iso]
+        );
+        const candidatosPrimeiroDia = candsTodosDiaRows
+            .filter(c => c.data_teste_1 === iso && c.data_teste_2 !== iso && c.data_teste_extra !== iso)
+            .map(c => ({
+                id: c.id,
+                nome: c.nome,
+                tipo: c.tipo || 'Ajudante',
+                cargo: 'Candidato 1º Dia: ' + ((c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante'),
+                etapa_label: '1º Dia de Teste (Pátio)',
+                foto_url: c.foto_base64 || null
+            }));
+
         if (!rowsResumo.length) {
             const dispEmpty = await calcularDisponiveisEFaltasDoDia(iso, [], escalaDia, null);
             return {
@@ -1384,6 +1406,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 resumos: [],
                 resumo_ativo: null,
                 veiculos: [],
+                candidatos_primeiro_dia: candidatosPrimeiroDia,
                 colaboradores_disponiveis: dispEmpty.colaboradores_disponiveis,
                 faltas_dia: dispEmpty.faltas_dia
             };
@@ -1430,13 +1453,8 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
         const resumosAtivosParaDisp = [...new Map([rowPadraoDiurno, rowPadraoNoturno, chosenRow].filter(Boolean).map(r => [r.id, r])).values()];
         const dadosDispFaltas = await calcularDisponiveisEFaltasDoDia(iso, resumosAtivosParaDisp, escalaDia, matchColab);
 
-        // Candidatos em teste na data
-        const candidatosDia = await dbAll(
-            `SELECT id, nome, tipo, foto_base64, rota_motorista, data_teste_1, data_teste_2, data_teste_extra
-             FROM candidatos_teste
-             WHERE data_teste_1 = ? OR data_teste_2 = ? OR data_teste_extra = ? OR data_teste = ?`,
-            [iso, iso, iso, iso]
-        );
+        // Candidatos que saem em rota nos veículos (2º dia e dia extra); os do 1º dia vão em candidatos_primeiro_dia
+        const candidatosDia = candsTodosDiaRows.filter(c => c.data_teste_2 === iso || c.data_teste_extra === iso);
 
         // Resolvedor de colaborador para converter usernames (ex: Thais.Ricci) em nome do colaborador + foto
         const resolverColab = await escalaUtil.criarResolvedorColaborador(db);
@@ -2068,6 +2086,7 @@ module.exports = function registerAppResumoRotaRoutes(app, db, authenticateToken
                 usuario_nome: chosenRow.usuario_nome
             },
             veiculos,
+            candidatos_primeiro_dia: candidatosPrimeiroDia,
             colaboradores_disponiveis: dadosDispFaltas.colaboradores_disponiveis,
             faltas_dia: dadosDispFaltas.faltas_dia
         };

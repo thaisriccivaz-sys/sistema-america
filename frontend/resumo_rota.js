@@ -1989,8 +1989,24 @@ async function _rrRenderColabDisponiveis() {
 // ══════════════════════════════════════════════════════════════
 //  CANDIDATOS EM TESTE — seção no Resumo de Rota
 // ══════════════════════════════════════════════════════════════
+window._rrObterMotoristaCandidatoNaData = function(c, dataRota) {
+    if (!c || !c.rota_motorista) return '';
+    const d = dataRota || window._rrDataRotaAtual || '';
+    let cMot = String(c.rota_motorista).trim();
+    if (cMot.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(cMot);
+            cMot = (d && parsed[d]) ? String(parsed[d]).trim() : '';
+        } catch (e) {
+            cMot = '';
+        }
+    }
+    return cMot;
+};
+
 async function _rrRenderCandidatosTeste() {
     const dataRota = window._rrDataRotaAtual;
+    window._rrCandidatosTesteData = [];
     if (!dataRota) return;
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -2005,29 +2021,27 @@ async function _rrRenderCandidatosTeste() {
         return;
     }
 
-    if (!candidatos.length) return;
-
-    const candidatosVisiveis = candidatos.filter(function(c) {
-        const e1 = c.data_teste_1 === dataRota;
+    // No Resumo da Rota do Rota Redonda, candidatos de 1º dia de teste NÃO aparecem para distribuição;
+    // aparecem APENAS os candidatos do 2º dia de teste (data_teste_2) e do dia extra (data_teste_extra).
+    const candidatosVisiveis = (candidatos || []).filter(function(c) {
         const e2 = c.data_teste_2 === dataRota;
         const eExtra = c.data_teste_extra === dataRota;
-        return e1 || e2 || eExtra;
+        return e2 || eExtra;
     });
 
-    // Guardar todos os candidatos globalmente (incluindo rota_motorista) para uso no rodapé dos cards
-    window._rrCandidatosTesteData = candidatos;
+    // Guardar globalmente apenas os candidatos elegíveis para rota (2º dia e dia extra)
+    window._rrCandidatosTesteData = candidatosVisiveis;
     // Atualizar in-place os cards de veículo (textarea colB + avatar candidato no header)
     _rrPatchVehicleCards();
     if (!candidatosVisiveis.length) {
         const p = document.getElementById('rr-candidatos-teste-painel');
-        if (p) p.style.cssText = 'display:none;';
+        if (p) { p.innerHTML = ''; p.style.cssText = 'display:none;'; }
         return;
     }
 
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
 
-    // Use the placeholder div injected in corpo.innerHTML
     const painel = document.getElementById('rr-candidatos-teste-painel');
     if (!painel) { console.warn('[RR] Placeholder rr-candidatos-teste-painel not found'); return; }
     painel.style.cssText = 'margin-bottom:16px;border-radius:14px;overflow:hidden;border:2px solid rgba(124,58,237,0.3);background:#fff;';
@@ -2044,14 +2058,12 @@ async function _rrRenderCandidatosTeste() {
     function diaInfo(c) {
         if (c.data_teste_extra === dataRota) return '<span style="background:#fce7f3;color:#be185d;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">DIA EXTRA</span>';
         if (c.data_teste_2 === dataRota) return '<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">2º DIA</span>';
-        if (c.data_teste_1 === dataRota) return '<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">1º DIA</span>';
         return '';
     }
 
     function cardCandidato(c) {
         const isMot = (c.tipo||'').toLowerCase().includes('motorista');
-        let assignedMot = c.rota_motorista || '';
-        if (assignedMot.startsWith('{')) { try { assignedMot = JSON.parse(assignedMot)[dataRota] || ''; } catch(e){} }
+        const assignedMot = window._rrObterMotoristaCandidatoNaData(c, dataRota);
 
         const tipoLabel = isMot ? '🚚 Motorista' : '🪣 Ajudante';
         const tipoCor = isMot ? '#2563eb' : '#d97706';
@@ -2063,8 +2075,8 @@ async function _rrRenderCandidatosTeste() {
             return avaliadorMap[nomeKey] === true;
         });
         if (!veiculosCandidato.length) veiculosCandidato = _rrVeiculos || [];
-        const opts = veiculosCandidato.map(function(v, _i, arr) {
-            const sel = assignedMot && assignedMot === v.motorista ? ' selected' : '';
+        const opts = veiculosCandidato.map(function(v) {
+            const sel = assignedMot && v.motorista && assignedMot.toLowerCase().trim() === v.motorista.toLowerCase().trim() ? ' selected' : '';
             return '<option value="' + _rrVeiculos.indexOf(v) + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (_rrVeiculos.indexOf(v)+1))) + '</option>';
         }).join('');
         return '<div style="background:#fff;border-radius:12px;border:2px solid rgba(124,58,237,0.2);padding:16px;min-width:280px;max-width:320px;display:flex;flex-direction:column;gap:12px;">' +
@@ -2077,8 +2089,8 @@ async function _rrRenderCandidatosTeste() {
                 '</div>' +
             '</div>' +
             '<div>' +
-                '<div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Atribuir ao motorista</div>' +
-                '<select onchange="window._rrAtribuirCandidato(' + c.id + ', this.value, \'' + dataRota + '\')" style="width:100%;border:1px solid #c4b5fd;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#1e293b;background:#faf5ff;outline:none;cursor:pointer;">' +
+                '<div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Atribuir ao motorista <span style="color:#dc2626;">*</span></div>' +
+                '<select id="rr-select-cand-' + c.id + '" data-cand-id="' + c.id + '" onchange="this.style.borderColor=\'#c4b5fd\'; window._rrAtribuirCandidato(' + c.id + ', this.value, \'' + dataRota + '\')" style="width:100%;border:1px solid #c4b5fd;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#1e293b;background:#faf5ff;outline:none;cursor:pointer;">' +
                     '<option value="">— Selecionar motorista —</option>' +
                     opts +
                 '</select>' +
@@ -2089,12 +2101,12 @@ async function _rrRenderCandidatosTeste() {
     const header = '<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:14px 20px;display:flex;align-items:center;gap:14px;">' +
         '<i class="ph ph-clipboard-text" style="font-size:1.5rem;color:rgba(255,255,255,0.9);"></i>' +
         '<div>' +
-            '<div style="color:#fff;font-weight:800;font-size:1rem;">Candidatos em Dia de Teste</div>' +
-            '<div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;">Atribua cada candidato a um motorista da rota de hoje</div>' +
+            '<div style="color:#fff;font-weight:800;font-size:1rem;">Candidatos em Dia de Teste (2º Dia / Dia Extra)</div>' +
+            '<div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;">Obrigatório atribuir cada candidato a um motorista da rota antes de salvar</div>' +
         '</div>' +
         '<div style="margin-left:auto;background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;text-align:center;">' +
             '<div style="color:#fff;font-size:1.2rem;font-weight:800;">' + candidatosVisiveis.length + '</div>' +
-            '<div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">em teste hoje</div>' +
+            '<div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">para rota hoje</div>' +
         '</div>' +
     '</div>';
 
@@ -2103,7 +2115,6 @@ async function _rrRenderCandidatosTeste() {
     '</div>';
 
     painel.innerHTML = header + body;
-    // painel is already in the DOM as a placeholder, so innerHTML is enough
 }
 
 // Atualiza in-place textareas colB e avatares de candidato no cabeçalho de cada veículo
@@ -2375,6 +2386,44 @@ window.rrExportarExcel = async function() {
     if (faltouObs) {
         showToast('Preencha as Observações do Roteirizador para todas as saídas!', 'error');
         return;
+    }
+
+    // Validar que todos os candidatos de 2º dia / dia extra estão vinculados a um motorista da rota
+    const candsRotaDia = window._rrCandidatosTesteData || [];
+    if (candsRotaDia.length > 0) {
+        const dataRotaVal = window._rrDataRotaAtual || '';
+        const motoristasNaRota = new Set(
+            (_rrVeiculos || []).map(v => String(v.motorista || '').toLowerCase().trim()).filter(Boolean)
+        );
+        const candsSemMotorista = [];
+        candsRotaDia.forEach(c => {
+            const motAtrib = (window._rrObterMotoristaCandidatoNaData ? window._rrObterMotoristaCandidatoNaData(c, dataRotaVal) : String(c.rota_motorista || '')).toLowerCase().trim();
+            const selEl = document.getElementById('rr-select-cand-' + c.id);
+            if (!motAtrib || !motoristasNaRota.has(motAtrib)) {
+                candsSemMotorista.push(c.nome || 'Candidato');
+                if (selEl) selEl.style.border = '2px solid #dc2626';
+            } else if (selEl) {
+                selEl.style.border = '1px solid #c4b5fd';
+            }
+        });
+
+        if (candsSemMotorista.length > 0) {
+            const painelCand = document.getElementById('rr-candidatos-teste-painel');
+            if (painelCand && typeof painelCand.scrollIntoView === 'function') {
+                painelCand.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Candidato sem motorista vinculado',
+                    html: 'Não é possível salvar o Resumo da Rota sem vincular todos os candidatos em teste (2º Dia / Dia Extra) a um motorista:<br><br><b>' + candsSemMotorista.join('<br>') + '</b>',
+                    confirmButtonColor: '#7c3aed'
+                });
+            } else {
+                showToast('Vincule o(s) candidato(s) a um motorista antes de salvar: ' + candsSemMotorista.join(', '), 'error');
+            }
+            return;
+        }
     }
 
     // ── Se já veio do histórico, apenas baixa sem pedir nome ou salvar ──

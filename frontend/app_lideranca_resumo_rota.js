@@ -290,6 +290,8 @@
                 </div>
             </div>
 
+            ${renderCandidatosPrimeiroDia(dDia.candidatos_primeiro_dia || [])}
+
             <div id="arr-cards-list">
                 ${S.filtro === 'disponiveis'
                     ? renderPainelColaboradoresDisponiveis(colabDispInfo, q)
@@ -337,6 +339,41 @@
             const n = p.nome_curto || p.nome;
             return `<span class="arr-lider-chip">${renderAvatarMini(p, sizePx || 24)}<b>${esc(n)}</b></span>`;
         }).join('')}</span>`;
+    }
+
+    function renderCandidatosPrimeiroDia(lista) {
+        const arr = Array.isArray(lista) ? lista : [];
+        if (!arr.length) return '';
+        return `
+        <section style="background:#fff;border:2px solid #c4b5fd;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 10px rgba(124,58,237,0.08);">
+            <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;color:#fff;">
+                    <i class="ph-fill ph-flask" style="font-size:1.25rem;"></i>
+                    <div>
+                        <div style="font-weight:800;font-size:0.92rem;">Candidatos em Teste — 1º Dia (Pátio)</div>
+                        <div style="font-size:0.74rem;color:rgba(255,255,255,0.82);">Acompanhamento de 1º dia de teste na liderança</div>
+                    </div>
+                </div>
+                <span class="alc-badge" style="background:rgba(255,255,255,0.22);color:#fff;font-weight:800;">${arr.length} candidato${arr.length === 1 ? '' : 's'}</span>
+            </div>
+            <div style="padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;">
+                ${arr.map(c => {
+                    const ini = esc(iniciais(c.nome || '?'));
+                    const av = c.foto_url
+                        ? `<img src="${esc(c.foto_url)}" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2.5px solid #7c3aed;flex-shrink:0;" onerror="this.style.display='none'">`
+                        : `<div style="width:42px;height:42px;border-radius:50%;background:#ede9fe;color:#6d28d9;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.95rem;border:2px solid #c4b5fd;flex-shrink:0;">${ini}</div>`;
+                    return `
+                    <div style="display:flex;align-items:center;gap:10px;background:#faf5ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:8px 12px;min-width:220px;flex:1 1 240px;">
+                        ${av}
+                        <div style="min-width:0;flex:1;">
+                            <div style="font-weight:800;font-size:0.88rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.nome)}</div>
+                            <div style="font-size:0.74rem;font-weight:700;color:#6d28d9;margin-top:2px;">🧪 ${esc(c.cargo || 'Candidato 1º Dia')}</div>
+                            <span style="display:inline-block;margin-top:3px;background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:1px 7px;font-size:0.65rem;font-weight:800;">1º DIA DE TESTE</span>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </section>`;
     }
 
     function renderPainelEscalaLideres(escalaDia, turnoAtivo) {
