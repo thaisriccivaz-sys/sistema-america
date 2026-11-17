@@ -111,6 +111,8 @@ const PROP_STATUS_CORES = {
     'Convertida em OS':             { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'ph-clipboard-text' },
     'Sem Resposta':                 { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-clock-countdown' },
     'ENVIADO PARA ASSINATURA':      { bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' },
+    'PROPOSTA ASSINADA':            { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-seal-check' },
+    'Proposta Assinada':            { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-seal-check' },
     'APROVADO - ADITIVO ASSINADO':  { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-check-circle' },
 };
 
@@ -129,8 +131,8 @@ window.obterConfigFaseNegociacao = function(faseRaw) {
     if (f === 'ENVIADO PARA ASSINATURA') {
         return { nome: 'ENVIADO PARA ASSINATURA', ...PROP_STATUS_CORES['ENVIADO PARA ASSINATURA'] };
     }
-    if (f === 'APROVADO - ADITIVO ASSINADO') {
-        return { nome: 'APROVADO - ADITIVO ASSINADO', ...PROP_STATUS_CORES['APROVADO - ADITIVO ASSINADO'] };
+    if (f === 'PROPOSTA ASSINADA' || f === 'APROVADO - ADITIVO ASSINADO') {
+        return { nome: 'PROPOSTA ASSINADA', ...PROP_STATUS_CORES['PROPOSTA ASSINADA'] };
     }
     if (f === 'APROVADA' || f === 'APROVADO') {
         return { nome: 'Aprovada', ...PROP_STATUS_CORES['Aprovada'] };
@@ -416,6 +418,12 @@ window.formatarNomeColaboradorAssinatura = function(raw) {
     return s;
 };
 
+window.propostaTipoUsaAssinafy = function(tipoRaw) {
+    const raw = (tipoRaw !== undefined && tipoRaw !== null) ? tipoRaw : (document.getElementById('prop-tipo')?.value || '');
+    const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    return t === 'ADITIVO' || t === 'VENDA' || t === 'VENDAS' || t === 'AVARIA' || t === 'AVARIAS';
+};
+
 window.propostaFoiAssinadaViaAssinafy = function(p) {
     if (!p) return false;
     const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
@@ -423,6 +431,7 @@ window.propostaFoiAssinadaViaAssinafy = function(p) {
         String(p.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
         (p.assinafy_signed_r2_key && String(p.assinafy_signed_r2_key).trim()) ||
         (p.assinafy_signed_at && String(p.assinafy_signed_at).trim()) ||
+        faseUp === 'PROPOSTA ASSINADA' ||
         faseUp === 'APROVADO - ADITIVO ASSINADO'
     );
 };
@@ -437,6 +446,7 @@ window.propostaEstaAssinadaOuAprovada = function(p) {
         (p.aceite_publico_em && String(p.aceite_publico_em).trim()) ||
         faseUp === 'PRÉ APROVADA' ||
         faseUp === 'APROVADA' ||
+        faseUp === 'PROPOSTA ASSINADA' ||
         faseUp === 'APROVADO - ADITIVO ASSINADO' ||
         faseUp === 'ENVIADO PARA ASSINATURA'
     );
@@ -1676,7 +1686,7 @@ window.switchPropostaTab = function(tab) {
         }
         window._modoTelaComercial = 'proposta';
         const snapAlvo = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoProp];
-        _propostasEditandoId = snapAlvo ? (snapAlvo.editandoId || null) : null;
+        _propostasEditandoId = snapAlvo ? (snapAlvo.editandoId || null) : (window._propostasEditandoId_proposta || null);
         window._propostasEditandoId_proposta = _propostasEditandoId;
         tab = 'form';
     } else if (tab === 'form') {
@@ -1719,12 +1729,12 @@ window.switchPropostaTab = function(tab) {
             const modoNovo = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
             if (mudouModoComercial) {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
-                    window._resetarEstadoMemoriaFormComercial(modoNovo);
+                    if (!_propostasEditandoId) window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
                 }
             } else if (viewForm.innerHTML.trim() === '') {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
-                    window._resetarEstadoMemoriaFormComercial(modoNovo);
+                    if (!_propostasEditandoId) window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
                 }
             } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
@@ -2619,7 +2629,8 @@ function _renderFormPropostaInt() {
                     <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar proposta para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase())) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
                     <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
                     </button>
@@ -2733,9 +2744,10 @@ function _renderFormPropostaInt() {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
                                         const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
-                                        const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
+                                        const ehTipoAssinafyOpt = window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'));
+                                        const isEnvBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'PROPOSTA ENVIADA';
                                         const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
-                                        const isApBloq = f.toUpperCase() === 'APROVADA';
+                                        const isApBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'APROVADA';
                                         const isDisabled = foiAssinadaAssinafyOpt
                                             ? (f.toUpperCase() !== 'REPROVADA')
                                             : (isEnvBloq || isPreAp || isApBloq);
@@ -2747,7 +2759,7 @@ function _renderFormPropostaInt() {
                                                     ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
                                                     : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '')));
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
-                                    }).join('') + (['ENVIADO PARA ASSINATURA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())
+                                    }).join('') + (['ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())
                                         ? `<option value="${_escHtmlProp(String(v('fase_negociacao')).trim())}" selected disabled>${_escHtmlProp(String(v('fase_negociacao')).trim().toUpperCase())}</option>`
                                         : ''))}
                             </select>
@@ -2772,10 +2784,11 @@ function _renderFormPropostaInt() {
                                             </div>`;
                                         }).join('')
                                         : PROP_FASES.map(f => {
+                                            const ehTipoAssinafyOpt = window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'));
                                             const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
-                                            const isEnvBloq = f.toUpperCase() === 'PROPOSTA ENVIADA';
+                                            const isEnvBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'PROPOSTA ENVIADA';
                                             const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
-                                            const isApBloq = f.toUpperCase() === 'APROVADA';
+                                            const isApBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'APROVADA';
                                             const isDisabled = foiAssinadaAssinafyOpt
                                                 ? (f.toUpperCase() !== 'REPROVADA')
                                                 : (isEnvBloq || isPreAp || isApBloq);
@@ -3360,7 +3373,7 @@ function _renderFormPropostaInt() {
             const pSync = rSync?.proposta;
             const novaFaseSync = String(pSync?.fase_negociacao || '').trim().toUpperCase();
             const assinadoSync = String(pSync?.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(pSync?.assinafy_signed_r2_key);
-            if (novaFaseSync === 'APROVADO - ADITIVO ASSINADO' || (assinadoSync && novaFaseSync !== faseUpRender) || (assinadoSync && !foiAssinadaAssinafyRender)) {
+            if (novaFaseSync === 'PROPOSTA ASSINADA' || novaFaseSync === 'APROVADO - ADITIVO ASSINADO' || (assinadoSync && novaFaseSync !== faseUpRender) || (assinadoSync && !foiAssinadaAssinafyRender)) {
                 window._ultimoSyncAssinafyPropId = null;
                 await carregarPropostas();
                 if (Number(_propostasEditandoId) === Number(id)) {
@@ -3435,12 +3448,17 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         }
     }
 
+    const tipoAtuForm = document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '';
+    const usaAssinafyTipo = Boolean(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(tipoAtuForm));
+
     const btnAprovar = document.getElementById('btn-prop-aprovar');
     if (btnAprovar) {
         const mostrarAprovar = Boolean(_propostasEditandoId)
             && window._modoTelaComercial !== 'contrato'
+            && !usaAssinafyTipo
             && !foiAssinadaAssinafy
             && faseForm !== 'APROVADA'
+            && faseForm !== 'PROPOSTA ASSINADA'
             && faseForm !== 'APROVADO - ADITIVO ASSINADO'
             && faseForm !== 'ENVIADO PARA ASSINATURA';
         btnAprovar.style.display = mostrarAprovar ? 'inline-flex' : 'none';
@@ -3460,6 +3478,24 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
                 btnAprovar.style.pointerEvents = 'auto';
                 btnAprovar.title = '';
             }
+        }
+    }
+
+    const btnEnviarAssinafy = document.getElementById('btn-prop-enviar-assinafy');
+    if (btnEnviarAssinafy) {
+        const situacaoMudou = !['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(faseForm);
+        const mostrarEnviarAssinafy = Boolean(_propostasEditandoId)
+            && window._modoTelaComercial !== 'contrato'
+            && usaAssinafyTipo
+            && !foiAssinadaAssinafy
+            && situacaoMudou;
+        btnEnviarAssinafy.style.display = mostrarEnviarAssinafy ? 'inline-flex' : 'none';
+        if (mostrarEnviarAssinafy) {
+            btnEnviarAssinafy.disabled = false;
+            btnEnviarAssinafy.style.background = '#0f766e';
+            btnEnviarAssinafy.style.color = '#ffffff';
+            btnEnviarAssinafy.style.cursor = 'pointer';
+            btnEnviarAssinafy.style.pointerEvents = 'auto';
         }
     }
 
@@ -7037,7 +7073,7 @@ window.salvarPropostaNova = async function() {
         await window.confirmarSalvarProposta(false);
         return;
     }
-    if (_propostasEditandoId && window._modoTelaComercial !== 'contrato') {
+    if (_propostasEditandoId && window._modoTelaComercial !== 'contrato' && !(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(tipo))) {
         const fNormSalvar = String(fase || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
         if (fNormSalvar === 'PROPOSTA ENVIADA' || fNormSalvar === 'ENVIADA' || fNormSalvar === 'PRE APROVADA') {
             fase = 'Em Elaboração';
@@ -8028,21 +8064,37 @@ window.abrirContratoDaProposta = async function(id) {
 window.abrirPropostaDiretoId = async function(id) {
     const targetId = Number(id);
     if (!targetId) return;
+    window._modoTelaComercial = 'proposta';
+    window._propostasEditandoId_proposta = targetId;
+    _propostasEditandoId = targetId;
     if (typeof window.navigateTo === 'function') {
         window.navigateTo('comercial-proposta');
+    }
+    await carregarPropostas();
+    const encontrada = (_propostasData || []).find(p => Number(p.id) === targetId)
+        || (_propostasData || []).find(p => Number(p.codigo) === targetId);
+    const realId = encontrada ? Number(encontrada.id) : targetId;
+    window._modoTelaComercial = 'proposta';
+    window._propostasEditandoId_proposta = realId;
+    _propostasEditandoId = realId;
+    if (!document.getElementById('prop-view-form')) {
+        renderTelaPropostas();
     }
     const chaveSnap = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('proposta') : 'proposta';
     if (window._snapshotsFormComercial) {
         delete window._snapshotsFormComercial[chaveSnap];
     }
-    await carregarPropostas();
-    window._modoTelaComercial = 'proposta';
-    window._propostasEditandoId_proposta = targetId;
-    _propostasEditandoId = targetId;
-    await abrirFormProposta(targetId);
+    await abrirFormProposta(realId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
         window.salvarSnapshotEstadoFormComercial('proposta');
     }
+    setTimeout(async () => {
+        if (window._modoTelaComercial === 'proposta' && Number(_propostasEditandoId) !== Number(realId)) {
+            window._propostasEditandoId_proposta = realId;
+            _propostasEditandoId = realId;
+            await abrirFormProposta(realId);
+        }
+    }, 250);
 };
 
 window.duplicarPropostaAtual = async function() {
@@ -21890,7 +21942,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             const valStr = valTab !== null ? `R$ ${Number(valTab).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
             const valParam = valTab !== null ? Number(valTab) : 'null';
             return `
-                <tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p.nome) : ''}" onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <tr class="${typeof window.classeDestaqueZona === 'function' ? window.classeDestaqueZona(p) : ''}" onclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" ondblclick="window.selecionarProdutoBusca('${codExib}', '${nomeExib}', ${valParam})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${_escHtmlProp(p.codigo || p.id)}</td>
                     <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${window.formatarNomeProdutoComVacHtml(p.nome || '—')}</td>
                     <td style="padding:10px 12px; color:#475569; font-weight:600;">${_escHtmlProp(p.fonte_fornecimento || '—')}</td>

@@ -16411,6 +16411,8 @@ async function checkUserNotificacoes() {
                     bg = '#eff6ff'; color = '#1971c2'; icon = 'ph-currency-dollar'; titulo = 'Custos de Frota'; navTarget = (dados && dados.tipo === 'revisao') ? 'compras-revisao' : 'compras-corretivas';
                 } else if (notif.tipo === 'proposta_pre_aprovada') {
                     bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-check-circle'; titulo = 'PROPOSTA PRÉ APROVADA'; navTarget = 'comercial-propostas';
+                } else if (notif.tipo === 'proposta_assinada_assinafy') {
+                    bg = '#dcfce7'; color = '#15803d'; icon = 'ph-seal-check'; titulo = 'PROPOSTA ASSINADA (ASSINAFY)'; navTarget = 'comercial-propostas';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16705,6 +16707,16 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;"><b>Nome do Contato:</b> ${dados.contato_nome || '—'}</div>
                     `;
+                } else if (notif.tipo === 'proposta_assinada_assinafy') {
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.12rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> PROPOSTA DE ${(dados.tipo_proposta || 'ADITIVO').toUpperCase()} ASSINADA
+                        </div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número da proposta:</b> ${dados.numero_proposta || dados.codigo || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Tipo:</b> ${dados.tipo_proposta || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;"><b>Assinado por:</b> ${dados.contato_nome || '—'}</div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16716,7 +16728,7 @@ async function checkUserNotificacoes() {
 
                 // Definir ação do botão Ver Detalhes
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
-                if (notif.tipo === 'proposta_pre_aprovada' && dados.proposta_id) {
+                if ((notif.tipo === 'proposta_pre_aprovada' || notif.tipo === 'proposta_assinada_assinafy') && dados.proposta_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (typeof window.abrirPropostaDiretoId === 'function') { window.abrirPropostaDiretoId(${Number(dados.proposta_id)}); } else { navigateTo('comercial-propostas'); setTimeout(function(){ if(window.editarProposta) window.editarProposta(${Number(dados.proposta_id)}); }, 500); }`;
                 } else if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;

@@ -112,8 +112,25 @@
         return (!isNaN(n) && n > 0) ? n : 0;
     };
 
+    window.ehPropostaTipoLimpaFossa = function () {
+        const raw = document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '';
+        const t = typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(raw) : raw;
+        const n = norm(String(t || '').replace(/^proposta\s+/i, ''));
+        return n === 'limpa fossa' || n === 'limpa fossa mensal';
+    };
+
     /* true quando o item deve ficar destacado em azul para a proposta atual */
-    window.itemDestacadoPorZona = function (nome, manutFiltro) {
+    window.itemDestacadoPorZona = function (nomeOuObj, manutFiltro, codigoOpt) {
+        const ehObj = nomeOuObj && typeof nomeOuObj === 'object';
+        const nome = ehObj ? (nomeOuObj.nome || nomeOuObj.produto || nomeOuObj.descricao || '') : nomeOuObj;
+        const codigo = String(ehObj ? (nomeOuObj.codigo || nomeOuObj.id || '') : (codigoOpt || '')).trim();
+        if (window.ehPropostaTipoLimpaFossa()) {
+            const codNum = codigo.replace(/\D/g, '').replace(/^0+/, '');
+            const nomeN = norm(nome);
+            if (codNum === '548' || codigo === '00548' || (nomeN === 'limpa fossa' && (!codNum || codNum === '548'))) {
+                return true;
+            }
+        }
         const zonaProp = window.obterZonaPropostaLetra();
         if (!zonaProp) return false;
         const cod = window.extrairCodigoZonaProduto(nome);
@@ -123,16 +140,16 @@
         return true;
     };
 
-    window.classeDestaqueZona = function (nome, manutFiltro) {
-        return window.itemDestacadoPorZona(nome, manutFiltro) ? 'prop-zona-destaque' : '';
+    window.classeDestaqueZona = function (nomeOuObj, manutFiltro, codigoOpt) {
+        return window.itemDestacadoPorZona(nomeOuObj, manutFiltro, codigoOpt) ? 'prop-zona-destaque' : '';
     };
 
     /* Itens destacados primeiro (ordem original mantida dentro de cada grupo) */
     window.ordenarPorDestaqueZona = function (lista, manutFiltro) {
         const arr = Array.isArray(lista) ? lista : [];
-        if (!window.obterZonaPropostaLetra()) return arr;
+        if (!window.obterZonaPropostaLetra() && !window.ehPropostaTipoLimpaFossa()) return arr;
         const dest = [], resto = [];
-        arr.forEach(p => (window.itemDestacadoPorZona(p.nome, manutFiltro) ? dest : resto).push(p));
+        arr.forEach(p => (window.itemDestacadoPorZona(p, manutFiltro) ? dest : resto).push(p));
         return dest.concat(resto);
     };
 

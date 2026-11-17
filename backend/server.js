@@ -18270,6 +18270,9 @@ app.post("/webhook/assinafy", async (req, res) => {
             setTimeout(() => {
                 console.log('[WEBHOOK] Engatilhando processamento unificado via polling...');
                 pollAdmissaoAssinaturas().catch(e => console.error('[WEBHOOK-POLL-TRIGGER] Erro:', e));
+                if (typeof pollPropostasAditivoAssinafy === 'function') {
+                    pollPropostasAditivoAssinafy().catch(e => console.error('[WEBHOOK-POLL-PROPOSTA] Erro:', e));
+                }
             }, 1500);
         }
 
@@ -42145,9 +42148,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     const oldFaseUpper = String(oldRow.fase_negociacao || '').trim().toUpperCase();
     const reqFaseRaw = String(d.fase_negociacao || '').trim();
     const reqFaseUpper = reqFaseRaw.toUpperCase();
+    const tipoUpPut = String(d.tipo || oldRow.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ehAditivoPut = tipoUpPut === 'ADITIVO';
+    const ehFluxoAssinafyPut = ehAditivoPut || tipoUpPut === 'VENDA' || tipoUpPut === 'VENDAS' || tipoUpPut === 'AVARIA' || tipoUpPut === 'AVARIAS';
     const jaAssinadoAssinafy = String(oldRow.assinafy_status || '').trim().toLowerCase() === 'assinado'
       || Boolean(oldRow.assinafy_signed_r2_key)
       || Boolean(oldRow.assinafy_signed_at)
+      || oldFaseUpper === 'PROPOSTA ASSINADA'
       || oldFaseUpper === 'APROVADO - ADITIVO ASSINADO';
 
     if (jaAssinadoAssinafy && !d.modo_contrato) {
@@ -42175,7 +42182,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.distancia_km = oldRow.distancia_km || 0;
       d.valor_zona_calculado = oldRow.valor_zona_calculado || 0;
       d.valor_distancia_calculado = oldRow.valor_distancia_calculado || 0;
-    } else if (oldFaseUpper === 'APROVADA' || oldFaseUpper === 'APROVADO - ADITIVO ASSINADO') {
+    } else if ((oldFaseUpper === 'APROVADA' && !ehFluxoAssinafyPut) || oldFaseUpper === 'PROPOSTA ASSINADA' || oldFaseUpper === 'APROVADO - ADITIVO ASSINADO') {
       if (d.modo_contrato) {
         d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'AGUARDANDO ASSINATURA';
         d.fase_negociacao = oldRow.fase_negociacao || 'Aprovada';
@@ -42184,19 +42191,18 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       }
     }
 
-    const ehAditivoPut = String(d.tipo || oldRow.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
     const reqFaseAfterCheck = String(d.fase_negociacao || '').trim().toUpperCase();
-    const isAgoraAprovada = reqFaseAfterCheck === 'APROVADA' || reqFaseAfterCheck === 'APROVADO - ADITIVO ASSINADO';
+    const isAgoraAprovada = reqFaseAfterCheck === 'APROVADA' || reqFaseAfterCheck === 'PROPOSTA ASSINADA' || reqFaseAfterCheck === 'APROVADO - ADITIVO ASSINADO';
     const tinhaAssinaturaOuPreAp = Boolean(oldRow.assinatura_r2_key || oldRow.aceite_publico_em || oldFaseUpper === 'PRÉ APROVADA');
     const invalidarAssinaturaPorEdicao = Boolean(!jaAssinadoAssinafy && (d.acao_estornar || (!d.modo_contrato && !isAgoraAprovada && tinhaAssinaturaOuPreAp)));
-    if (!jaAssinadoAssinafy && !d.acao_estornar && !d.modo_contrato && !isAgoraAprovada) {
+    if (!jaAssinadoAssinafy && !d.acao_estornar && !d.modo_contrato && !isAgoraAprovada && !ehFluxoAssinafyPut) {
       const fReqNorm = String(d.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
       if (fReqNorm === 'PROPOSTA ENVIADA' || fReqNorm === 'ENVIADA' || fReqNorm === 'PRE APROVADA' || (oldFaseUpper === 'ENVIADO PARA ASSINATURA' && fReqNorm === 'ENVIADO PARA ASSINATURA')) {
         d.fase_negociacao = 'Em Elaboração';
       }
     }
 
-    const needNovoNumContrato = !ehAditivoPut
+    const needNovoNumContrato = !ehFluxoAssinafyPut
       && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
       && (oldFaseUpper !== 'APROVADA' || !oldRow.contrato || !/^\d+$/.test(String(oldRow.contrato).trim()));
 
@@ -42676,6 +42682,169 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
 });
 
 // ── Assinafy para Propostas de Aditivo ───────────────────────────────────────
+
+async function notificarPropostaAssinadaAssinafy(p, signedAtIso, tipoPropRaw) {
+  try {
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const matchNomeFlex = (a, b) => {
+      const sa = norm(a).replace(/[._-]+/g, ' ').trim();
+      const sb = norm(b).replace(/[._-]+/g, ' ').trim();
+      if (!sa || !sb) return false;
+      if (sa === sb || sa.includes(sb) || sb.includes(sa)) return true;
+      const pa = sa.split(/\s+/).filter(x => x.length >= 2);
+      const pb = sb.split(/\s+/).filter(x => x.length >= 2);
+      if (pa.length >= 2 && pa.every(w => pb.includes(w))) return true;
+      if (pb.length >= 2 && pb.every(w => pa.includes(w))) return true;
+      if (pa.length >= 2 && pb.length >= 2 && pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]) return true;
+      return false;
+    };
+
+    const qAll = (sql, params = []) => new Promise((res) => db.all(sql, params, (e, r) => res(Array.isArray(r) ? r : [])));
+    const [usuarios, colabs, emailsCorp, departamentos] = await Promise.all([
+      qAll('SELECT id, username, nome, email, departamento FROM usuarios'),
+      qAll('SELECT id, nome_completo, email, email_corporativo, departamento FROM colaboradores'),
+      qAll("SELECT email, colaborador_id, colaborador_nome FROM emails_corporativos WHERE status = 'ativo'"),
+      qAll('SELECT id, nome, responsavel_id, responsavel_nome FROM departamentos')
+    ]);
+
+    const resolverPessoa = (termoNome, colabIdHint) => {
+      const tNorm = norm(termoNome);
+      let colab = colabIdHint ? (colabs.find(c => Number(c.id) === Number(colabIdHint)) || null) : null;
+      if (!colab && tNorm) {
+        colab = colabs.find(c => norm(c.nome_completo) === tNorm) || colabs.find(c => matchNomeFlex(tNorm, c.nome_completo)) || null;
+      }
+      let user = null;
+      if (tNorm) {
+        user = usuarios.find(u => norm(u.username) === tNorm || norm(u.nome) === tNorm)
+          || usuarios.find(u => matchNomeFlex(tNorm, u.nome) || matchNomeFlex(tNorm, u.username))
+          || null;
+      }
+      const ecColab = colab
+        ? (emailsCorp.find(e => Number(e.colaborador_id) === Number(colab.id)) || emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, colab.nome_completo)))
+        : null;
+      if (!user && colab) {
+        user = usuarios.find(u =>
+          matchNomeFlex(colab.nome_completo, u.nome) ||
+          matchNomeFlex(colab.nome_completo, u.username) ||
+          (colab.email_corporativo && norm(u.email) === norm(colab.email_corporativo)) ||
+          (colab.email && norm(u.email) === norm(colab.email)) ||
+          (ecColab && ecColab.email && norm(u.email) === norm(ecColab.email))
+        ) || null;
+      }
+      if (!colab && user) {
+        colab = colabs.find(c =>
+          matchNomeFlex(user.nome, c.nome_completo) ||
+          matchNomeFlex(user.username, c.nome_completo) ||
+          (user.email && (norm(c.email_corporativo) === norm(user.email) || norm(c.email) === norm(user.email)))
+        ) || null;
+      }
+      let email = null;
+      if (colab) {
+        const ec = emailsCorp.find(e => Number(e.colaborador_id) === Number(colab.id)) || emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, colab.nome_completo));
+        if (ec && ec.email && String(ec.email).includes('@')) email = String(ec.email).trim().toLowerCase();
+        else if (colab.email_corporativo && String(colab.email_corporativo).includes('@')) email = String(colab.email_corporativo).trim().toLowerCase();
+      }
+      if (!email && tNorm) {
+        const ec2 = emailsCorp.find(e => matchNomeFlex(e.colaborador_nome, termoNome));
+        if (ec2 && ec2.email && String(ec2.email).includes('@')) email = String(ec2.email).trim().toLowerCase();
+      }
+      if (!email && user && user.email && String(user.email).includes('@')) email = String(user.email).trim().toLowerCase();
+      if (!email && colab && colab.email && String(colab.email).includes('@')) email = String(colab.email).trim().toLowerCase();
+
+      return { usuario_id: user ? Number(user.id) : null, email };
+    };
+
+    // 1) Atendente vinculado na proposta
+    const nomeAtendente = String(p.atendente || p.representante || p.criado_por || '').trim();
+    const infoAtendente = resolverPessoa(nomeAtendente, null);
+
+    // 2) Gestor do departamento Comercial
+    const deptoComercial = departamentos.find(d => norm(d.nome) === 'comercial')
+      || departamentos.find(d => norm(d.nome).includes('comercial'))
+      || null;
+    const infoGestor = deptoComercial
+      ? resolverPessoa(deptoComercial.responsavel_nome || '', deptoComercial.responsavel_id || null)
+      : { usuario_id: null, email: null };
+
+    // 3) Usuário thais.ricci
+    const infoThais = resolverPessoa('thais.ricci', null);
+    if (!infoThais.usuario_id) {
+      const uThais = usuarios.find(u => norm(u.username).includes('thais') || norm(u.nome).includes('thais ricci'));
+      if (uThais) infoThais.usuario_id = Number(uThais.id);
+    }
+    const emailThais = infoThais.email || 'thais.ricci@americarental.com.br';
+
+    const userIdsNotificar = Array.from(new Set([infoAtendente.usuario_id, infoGestor.usuario_id, infoThais.usuario_id].filter(Boolean)));
+    const emailsNotificar = Array.from(new Set([infoAtendente.email, infoGestor.email, emailThais].filter(Boolean)));
+
+    const numProp = String(p.codigo || p.id || '').trim();
+    const cliProp = String(p.cliente_nome || '—').replace(/^(?:\uD83D\uDC8E|\uD83E\uDD47|\uD83E\uDD48|\uD83E\uDD49|💎|🥇|🥈|🥉)\s*/gu, '').trim();
+    const contProp = String(p.assinafy_signer_name || p.contato_nome || '—').trim();
+    const tUp = String(tipoPropRaw || p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const tipoLabel = tUp === 'VENDA' || tUp === 'VENDAS' ? 'Venda' : (tUp === 'AVARIA' || tUp === 'AVARIAS' ? 'Avaria' : 'Aditivo');
+
+    const [dPart, tPart] = String(signedAtIso || '').split(' ');
+    const dataHoraBr = dPart ? `${dPart.split('-').reverse().join('/')}${tPart ? ' às ' + tPart : ''}` : new Date().toLocaleString('pt-BR');
+    const baseUrl = String(process.env.PUBLIC_PROPOSTA_BASE_URL || 'https://fluxoar.com.br').replace(/\/+$/, '');
+    const linkDiretoProposta = `${baseUrl}/?abrir_proposta=${encodeURIComponent(p.id)}`;
+
+    const dadosJson = JSON.stringify({
+      proposta_id: p.id,
+      numero_proposta: numProp,
+      codigo: numProp,
+      tipo_proposta: tipoLabel,
+      cliente_nome: cliProp,
+      contato_nome: contProp,
+      assinado_em: dataHoraBr,
+      url: `/?abrir_proposta=${encodeURIComponent(p.id)}`
+    });
+    const msgPopup = `Proposta de ${tipoLabel} Nº ${numProp} assinada via Assinafy | Cliente: ${cliProp}`;
+
+    for (const uid of userIdsNotificar) {
+      db.run(
+        `INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados, lida, criado_em)
+         VALUES (?, 'proposta_assinada_assinafy', ?, ?, 0, ?)`,
+        [uid, msgPopup, dadosJson, signedAtIso || new Date().toISOString().replace('T', ' ').substring(0, 19)]
+      );
+    }
+
+    if (typeof sendMailHelper === 'function' && emailsNotificar.length > 0) {
+      const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+      const htmlEmail = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#ffffff;">
+          <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+          </div>
+          <div style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
+            <h2 style="color:#15803d;text-align:center;margin-top:0;font-weight:800;">✅ PROPOSTA DE ${tipoLabel.toUpperCase()} ASSINADA</h2>
+            <p style="margin:0 0 16px 0;">A proposta comercial de <strong>${tipoLabel}</strong> foi <strong>assinada pelo cliente via Assinafy</strong> e sua situação mudou automaticamente para <strong>Proposta Assinada</strong>:</p>
+            <div style="background:#f0fdf4;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #16a34a;">
+              <p style="margin:4px 0;"><strong>Tipo:</strong> ${tipoLabel}</p>
+              <p style="margin:4px 0;"><strong>Número da proposta:</strong> ${numProp}</p>
+              <p style="margin:4px 0;"><strong>Nome do Cliente:</strong> ${cliProp}</p>
+              <p style="margin:4px 0;"><strong>Signatário (Contato):</strong> ${contProp}</p>
+              <p style="margin:4px 0;"><strong>Data/Hora da Assinatura:</strong> ${dataHoraBr}</p>
+            </div>
+            <div style="text-align:center;margin:22px 0 8px 0;">
+              <a href="${linkDiretoProposta}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 26px;border-radius:8px;">
+                Abrir Proposta Nº ${numProp} no Sistema
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+      await sendMailHelper({
+        to: emailsNotificar.join(', '),
+        subject: `PROPOSTA DE ${tipoLabel.toUpperCase()} ASSINADA - Nº ${numProp} - ${cliProp}`,
+        html: htmlEmail,
+        attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+      }).catch(eM => console.error('[ASSINAFY-PROP] Erro ao enviar email de proposta assinada:', eM.message));
+    }
+  } catch (errNotif) {
+    console.error('[ASSINAFY-PROP] Erro em notificarPropostaAssinadaAssinafy:', errNotif.message);
+  }
+}
+
 async function pollPropostasAditivoAssinafy(specificPropId = null) {
   try {
     if (Date.now() < _assinafyPoll401BlockUntil) return { checked: 0, updated: 0 };
@@ -42785,17 +42954,21 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
 
         const tipoPropPoll = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehAditivoPoll = tipoPropPoll === 'ADITIVO';
+        const ehVendaPoll = tipoPropPoll === 'VENDA' || tipoPropPoll === 'VENDAS';
+        const ehAvariaPoll = tipoPropPoll === 'AVARIA' || tipoPropPoll === 'AVARIAS';
+        const ehAssinafyTipoPoll = ehAditivoPoll || ehVendaPoll || ehAvariaPoll;
         const faseAnterior = String(prop.fase_negociacao || 'ENVIADO PARA ASSINATURA');
         const faseAntUpper = faseAnterior.trim().toUpperCase();
         const estavaReprovada = faseAntUpper === 'REPROVADA' || faseAntUpper === 'REPROVADO';
         const faseAlvoAssinada = estavaReprovada
           ? 'Reprovada'
-          : (ehAditivoPoll ? 'APROVADO - ADITIVO ASSINADO' : 'Aprovada');
+          : (ehAssinafyTipoPoll ? 'PROPOSTA ASSINADA' : 'Aprovada');
         const jaEstavaAssinado = String(prop.assinafy_status || '').trim().toLowerCase() === 'assinado'
+          || faseAntUpper === 'PROPOSTA ASSINADA'
           || faseAntUpper === 'APROVADO - ADITIVO ASSINADO';
 
-        let contratoAssinadoFinal = ehAditivoPoll ? null : (prop.contrato || null);
-        if (!ehAditivoPoll && !estavaReprovada && (!contratoAssinadoFinal || !/^\d+$/.test(String(contratoAssinadoFinal).trim()))) {
+        let contratoAssinadoFinal = ehAssinafyTipoPoll ? null : (prop.contrato || null);
+        if (!ehAssinafyTipoPoll && !estavaReprovada && (!contratoAssinadoFinal || !/^\d+$/.test(String(contratoAssinadoFinal).trim()))) {
           contratoAssinadoFinal = await new Promise((resCod) => gerarCodigoContrato(resCod));
         }
 
@@ -42816,7 +42989,7 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
           );
         });
 
-        if (!ehAditivoPoll && contratoAssinadoFinal) {
+        if (!ehAssinafyTipoPoll && contratoAssinadoFinal) {
           sincronizarContratoDaProposta(prop.id);
         }
 
@@ -42834,6 +43007,7 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
             ['CLIENTE (Assinafy)', faseAnterior, faseAlvoAssinada, prop.id, snapAssinado]
           );
           console.log(`[POLL-ASSINAFY] Proposta #${prop.id} (Código ${prop.codigo}, Tipo ${tipoPropPoll}) assinada no Assinafy -> ${faseAlvoAssinada}`);
+          notificarPropostaAssinadaAssinafy(prop, signedAtVal, tipoPropPoll).catch(eN => console.warn('[NOTIF-ASSINAFY-PROP]', eN.message));
         }
         updatedCount++;
       } catch (errItem) {
@@ -43192,6 +43366,7 @@ app.get('/api/comercial/assinaturas', authenticateToken, async (req, res) => {
       const foiAssinado = statusAssinafyRaw === 'assinado'
         || Boolean(r.assinafy_signed_r2_key)
         || Boolean(r.assinafy_signed_at)
+        || faseUpper === 'PROPOSTA ASSINADA'
         || faseUpper === 'APROVADO - ADITIVO ASSINADO';
       let situacaoAssinatura = foiAssinado ? 'Assinado' : 'Aguardando Assinatura';
       if (faseUpper === 'REPROVADA' || faseUpper === 'REPROVADO') {
