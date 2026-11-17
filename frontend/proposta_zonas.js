@@ -124,14 +124,33 @@
         const ehObj = nomeOuObj && typeof nomeOuObj === 'object';
         const nome = ehObj ? (nomeOuObj.nome || nomeOuObj.produto || nomeOuObj.descricao || '') : nomeOuObj;
         const codigo = String(ehObj ? (nomeOuObj.codigo || nomeOuObj.id || '') : (codigoOpt || '')).trim();
+        const zonaProp = window.obterZonaPropostaLetra();
+
         if (window.ehPropostaTipoLimpaFossa()) {
             const codNum = codigo.replace(/\D/g, '').replace(/^0+/, '');
             const nomeN = norm(nome);
-            if (codNum === '548' || codigo === '00548' || (nomeN === 'limpa fossa' && (!codNum || codNum === '548'))) {
-                return true;
+            const ehItemLimpaFossa = codNum === '548' || codigo === '00548' || nomeN.includes('limpa fossa');
+            if (!ehItemLimpaFossa) return false;
+
+            const codZonaItem = window.extrairCodigoZonaProduto(nome);
+            if (codZonaItem && codZonaItem.zona) {
+                return Boolean(zonaProp && codZonaItem.zona === zonaProp);
             }
+            // Se existir no estoque algum item de Limpa Fossa específico para a zona da proposta (ex: LIMPA FOSSA ZC/ZA/ZV), prioriza apenas o da zona
+            const estoque = Array.isArray(window._equipamentosEstoqueData) ? window._equipamentosEstoqueData : [];
+            if (zonaProp && estoque.length > 0) {
+                const temLimpaFossaDaZona = estoque.some(eq => {
+                    const nEq = norm(eq.nome || '');
+                    if (!nEq.includes('limpa fossa')) return false;
+                    const cz = window.extrairCodigoZonaProduto(eq.nome || '');
+                    return Boolean(cz && cz.zona === zonaProp);
+                });
+                if (temLimpaFossaDaZona) return false;
+            }
+            // Produto 00548 - LIMPA FOSSA (sem sufixo ZC/ZA/ZV): destaca considerando a zona identificada (ou como padrão do tipo Limpa Fossa)
+            return codNum === '548' || codigo === '00548' || nomeN === 'limpa fossa';
         }
-        const zonaProp = window.obterZonaPropostaLetra();
+
         if (!zonaProp) return false;
         const cod = window.extrairCodigoZonaProduto(nome);
         if (!cod || cod.zona !== zonaProp) return false;

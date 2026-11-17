@@ -1024,7 +1024,7 @@ window.carregarPermissoesOnline = async function () {
             mapPerms['uniamerica-missoes'] = true;
         }
 
-        if (mapPerms['comercial-proposta']) {
+        if (mapPerms['comercial-proposta'] || mapPerms['comercial-contratos']) {
             if (mapPerms['comercial-enderecos'] === undefined) mapPerms['comercial-enderecos'] = true;
             if (mapPerms['comercial-clientes'] === undefined) mapPerms['comercial-clientes'] = true;
             if (mapPerms['comercial-contatos'] === undefined) mapPerms['comercial-contatos'] = true;
@@ -1032,6 +1032,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-modelos-propostas'] === undefined) mapPerms['comercial-modelos-propostas'] = true;
             if (mapPerms['comercial-tabela-precos'] === undefined) mapPerms['comercial-tabela-precos'] = true;
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
+            if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
         }
         if (mapPerms['rh-agenda-gestor-escala']) {
             mapPerms['rh-agenda'] = true;

@@ -66,6 +66,9 @@ function filterExperienciaList(searchVal) {
             } else if (_expSortField === 'admissao') {
                 valA = parseDateBR_or_ISO(a.data_admissao) || new Date(0);
                 valB = parseDateBR_or_ISO(b.data_admissao) || new Date(0);
+            } else if (_expSortField === 'vencimento1') {
+                valA = parseDateBR_or_ISO(a.prazo1_fim) || new Date(0);
+                valB = parseDateBR_or_ISO(b.prazo1_fim) || new Date(0);
             } else if (_expSortField === 'vencimento') {
                 valA = parseDateBR_or_ISO(a.prazo2_fim) || new Date(0);
                 valB = parseDateBR_or_ISO(b.prazo2_fim) || new Date(0);
@@ -644,6 +647,16 @@ function getColabAvatarExp(c, size = 32) {
 
 function buildExpRowData(c) {
     const admissao = c.data_admissao ? formatarDataBR(c.data_admissao) : '-';
+    let prazo1Raw = c.prazo1_fim || '';
+    if (!prazo1Raw && c.data_admissao) {
+        const dtAdm = parseDateBR_or_ISO(c.data_admissao);
+        if (dtAdm && !isNaN(dtAdm.getTime())) {
+            const p1 = new Date(dtAdm);
+            p1.setDate(p1.getDate() + 44);
+            prazo1Raw = p1.toISOString().split('T')[0];
+        }
+    }
+    const prazo1Fim = prazo1Raw ? formatarDataBR(prazo1Raw) : '-';
     const prazo2Fim = c.prazo2_fim ? formatarDataBR(c.prazo2_fim) : '-';
 
     // Status badge (sempre em 1 linha com white-space:nowrap e inline-flex)
@@ -744,7 +757,7 @@ function buildExpRowData(c) {
     const avatarHtml = getColabAvatarExp(c, 32);
     const isFinalized = situacao === 'finalizado';
 
-    return { admissao, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized };
+    return { admissao, prazo1Fim, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized };
 }
 
 function renderExperienciaList(lista, targetTbodyId = 'table-experiencia-body', isGestorView = false) {
@@ -754,12 +767,12 @@ function renderExperienciaList(lista, targetTbodyId = 'table-experiencia-body', 
     tbody.innerHTML = '';
 
     if (!lista || lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem;font-style:italic;">Nenhum colaborador em período de experiência encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:2rem;font-style:italic;">Nenhum colaborador em período de experiência encontrado.</td></tr>';
         return;
     }
 
     lista.forEach(c => {
-        const { admissao, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized } = buildExpRowData(c);
+        const { admissao, prazo1Fim, prazo2Fim, statusBadge, formBadge, diasRestantesHtml, avatarHtml, isFinalized } = buildExpRowData(c);
 
         const tr = document.createElement('tr');
         const colabCell = isGestorView
@@ -772,6 +785,7 @@ function renderExperienciaList(lista, targetTbodyId = 'table-experiencia-body', 
             <td style="padding:6px 8px;font-size:0.82rem;">${c.departamento || '-'}</td>
             <td style="padding:6px 8px;font-size:0.82rem;white-space:nowrap;">${admissao}</td>
             <td style="padding:6px 8px;font-size:0.82rem;">${c.responsavel_nome || '-'}</td>
+            <td style="padding:6px 8px;font-size:0.82rem;white-space:nowrap;">${prazo1Fim}</td>
             <td style="padding:6px 8px;font-size:0.82rem;white-space:nowrap;">${prazo2Fim}${diasRestantesHtml}</td>
             <td style="padding:6px 8px;white-space:nowrap;">${statusBadge}</td>
             <td style="padding:6px 8px;white-space:nowrap;">${formBadge}</td>
@@ -856,6 +870,8 @@ async function openExperienciaModal(colaboradorId) {
                         <div><span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;">FUNÇÃO</span><span style="font-weight:600;color:#0f172a;">${colab.cargo || '-'}</span></div>
                         <div><span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;">DATA DE ADMISSÃO</span><span style="font-weight:600;color:#0f172a;">${formatarDataBR(colab.data_admissao)}</span></div>
                         <div><span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;">RESPONSÁVEL DA ÁREA</span><span style="font-weight:600;color:#0f172a;">${form && form.responsavel_nome ? form.responsavel_nome : (colab.responsavel_nome || '-')}</span></div>
+                        <div><span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;">FIM 1º PRAZO (45 DIAS)</span><span style="font-weight:600;color:#0f172a;">${(() => { if (colab.prazo1_fim) return formatarDataBR(colab.prazo1_fim); const d = parseDateBR_or_ISO(colab.data_admissao); if (!d) return '-'; d.setDate(d.getDate() + 44); return formatarDataBR(d.toISOString().split('T')[0]); })()}</span></div>
+                        <div><span style="font-size:0.75rem;color:#94a3b8;font-weight:600;display:block;">FIM 2º PRAZO (90 DIAS)</span><span style="font-weight:600;color:#0f172a;">${(() => { if (colab.prazo2_fim) return formatarDataBR(colab.prazo2_fim); const d = parseDateBR_or_ISO(colab.data_admissao); if (!d) return '-'; d.setDate(d.getDate() + 89); return formatarDataBR(d.toISOString().split('T')[0]); })()}</span></div>
                     </div>
                 </div>
 
@@ -1701,7 +1717,8 @@ function renderExperienciaGestorShell() {
                             <th style="padding:6px 8px;">Departamento</th>
                             <th id="th-exp-gestor-admissao" style="cursor:pointer;padding:6px 8px;" onclick="sortExperienciaGestorList('admissao')">Admissão <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
                             <th style="padding:6px 8px;">Responsável</th>
-                            <th id="th-exp-gestor-vencimento" style="cursor:pointer;padding:6px 8px;" onclick="sortExperienciaGestorList('vencimento')">Fim 2º Prazo <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
+                            <th id="th-exp-gestor-vencimento1" style="cursor:pointer;padding:6px 8px;white-space:nowrap;" onclick="sortExperienciaGestorList('vencimento1')">Fim 1º Prazo <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
+                            <th id="th-exp-gestor-vencimento" style="cursor:pointer;padding:6px 8px;white-space:nowrap;" onclick="sortExperienciaGestorList('vencimento')">Fim 2º Prazo <i class="ph ph-arrows-down-up" style="color:#94a3b8;font-size:0.75rem;"></i></th>
                             <th style="padding:6px 8px;">Resultado</th>
                             <th style="padding:6px 8px;">Formulário</th>
                             <th style="text-align:right;padding:6px 8px;">Ações</th>
@@ -1815,6 +1832,9 @@ function filterExperienciaGestorList(searchVal) {
             } else if (_expGestorSortField === 'admissao') {
                 valA = parseDateBR_or_ISO(a.data_admissao) || new Date(0);
                 valB = parseDateBR_or_ISO(b.data_admissao) || new Date(0);
+            } else if (_expGestorSortField === 'vencimento1') {
+                valA = parseDateBR_or_ISO(a.prazo1_fim) || new Date(0);
+                valB = parseDateBR_or_ISO(b.prazo1_fim) || new Date(0);
             } else if (_expGestorSortField === 'vencimento') {
                 valA = parseDateBR_or_ISO(a.prazo2_fim) || new Date(0);
                 valB = parseDateBR_or_ISO(b.prazo2_fim) || new Date(0);

@@ -43090,8 +43090,16 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
     const ehAditivo = tipoNorm === 'ADITIVO';
     const ehVenda = tipoNorm === 'VENDA' || tipoNorm === 'VENDAS';
     const ehAvaria = tipoNorm === 'AVARIA' || tipoNorm === 'AVARIAS';
-    if (!ehAditivo && !ehVenda && !ehAvaria) {
-      return res.status(400).json({ error: 'O envio automático para assinatura via Assinafy aplica-se a propostas do tipo ADITIVO, VENDA ou AVARIA.' });
+    const temContrato = Boolean(p.contrato && String(p.contrato).trim());
+    const jaAssinadoNoBanco = String(p.assinafy_status || '').trim().toLowerCase() === 'assinado'
+      || Boolean(p.assinafy_signed_r2_key)
+      || Boolean(p.assinafy_signed_at)
+      || ['PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(p.fase_negociacao || '').trim().toUpperCase());
+    if (jaAssinadoNoBanco) {
+      return res.status(400).json({ error: 'Este documento já foi assinado via Assinafy e não pode ser reenviado.' });
+    }
+    if (!ehAditivo && !ehVenda && !ehAvaria && !temContrato) {
+      return res.status(400).json({ error: 'O envio para assinatura via Assinafy aplica-se a propostas do tipo ADITIVO, VENDA, AVARIA ou Contratos gerados.' });
     }
 
     try {
@@ -43429,10 +43437,17 @@ app.get('/api/comercial/assinaturas', authenticateToken, async (req, res) => {
       if (faseUpper === 'REPROVADA' || faseUpper === 'REPROVADO') {
         situacaoAssinatura = foiAssinado ? 'Assinado (Proposta Reprovada)' : 'Reprovada';
       }
+      const tPropUp = String(r.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+      const ehPropAssinafy = tPropUp === 'ADITIVO' || tPropUp === 'VENDA' || tPropUp === 'VENDAS' || tPropUp === 'AVARIA' || tPropUp === 'AVARIAS';
+      const ehContratoDoc = Boolean(!ehPropAssinafy && r.contrato && String(r.contrato).trim());
+      const codExib = ehContratoDoc
+        ? String(r.contrato).trim()
+        : (r.codigo || String(r.id).padStart(2, '0'));
       return {
         id: r.id,
-        codigo: r.codigo || String(r.id).padStart(2, '0'),
-        tipo_documento: 'Proposta',
+        codigo: codExib,
+        contrato: r.contrato || '',
+        tipo_documento: ehContratoDoc ? 'Contrato' : 'Proposta',
         tipo_proposta: r.tipo || '',
         categoria: formatarCategoria(r),
         cliente_nome: r.cliente_nome || '',
