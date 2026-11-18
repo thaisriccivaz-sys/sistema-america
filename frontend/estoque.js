@@ -3903,3 +3903,290 @@ if (!window._comboEquipamentoClickOutsideBound) {
         }
     });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ATUALIZAÇÃO OBRIGATÓRIA DE INSUMOS — TODA TERÇA-FEIRA ÀS 17H
+// - Das 16h às 17h (60 min): Aviso amarelo no canto inferior esquerdo com contagem regressiva
+// - A partir das 17h: Popup obrigatório travado na tela (sem botão X) para o usuário
+//   selecionado na notificação "Mínimo para reposição de estoque" até atualizar todos os Insumos.
+// ══════════════════════════════════════════════════════════════════════════════
+(function () {
+    let _insumosStatus = null;
+    let _segundosRestantes = 0;
+    let _tickInterval = null;
+    let _modalTravadoAberto = false;
+
+    const fmtMMSS = (totalSeg) => {
+        const s = Math.max(0, Math.floor(totalSeg));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${String(m).padStart(2, '0')}m ${String(r).padStart(2, '0')}s`;
+    };
+
+    function removerAvisoAmareloInsumos() {
+        const el = document.getElementById('aviso-insumos-contagem-60m');
+        if (el) el.remove();
+    }
+
+    function renderizarAvisoAmareloInsumos() {
+        if (!_insumosStatus || !_insumosStatus.pendente || _insumosStatus.fase !== 'contagem') {
+            removerAvisoAmareloInsumos();
+            return;
+        }
+        let div = document.getElementById('aviso-insumos-contagem-60m');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'aviso-insumos-contagem-60m';
+            div.style.cssText = 'position:fixed; bottom:24px; left:24px; background:#fef9c3; color:#713f12; border:2px solid #eab308; border-left:6px solid #ca8a04; padding:14px 18px; border-radius:12px; box-shadow:0 14px 32px rgba(0,0,0,0.22); z-index:99990; display:flex; align-items:flex-start; gap:12px; font-family:Inter, sans-serif; max-width:390px; animation: slideInLeft 0.3s ease-out;';
+            div.innerHTML = `
+                <i class="ph ph-clock-countdown" style="font-size:2.1rem; color:#ca8a04; flex-shrink:0; margin-top:2px;"></i>
+                <div style="flex:1;">
+                    <div style="font-weight:800; font-size:0.9rem; color:#854d0e; margin-bottom:4px;">
+                        ⚠️ Atualização Obrigatória de Insumos (17h)
+                    </div>
+                    <div style="font-size:0.81rem; color:#713f12; line-height:1.4; margin-bottom:8px;">
+                        A tela será travada em <strong id="aviso-insumos-timer-txt" style="font-size:0.98rem; color:#b45309; background:#fef08a; padding:1px 6px; border-radius:4px;">--:--</strong> até que as quantidades dos itens de <b>Insumos</b> sejam atualizadas.
+                    </div>
+                    <button type="button" onclick="window.abrirPopupObrigatorioInsumos(false)"
+                        style="background:#ca8a04; color:#fff; border:none; border-radius:7px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-check-square-offset"></i> Atualizar Insumos Agora
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(div);
+        }
+        const timerEl = document.getElementById('aviso-insumos-timer-txt');
+        if (timerEl) timerEl.textContent = fmtMMSS(_segundosRestantes);
+    }
+
+    window.abrirPopupObrigatorioInsumos = function (travadoObrigatorio = true) {
+        if (!_insumosStatus || !Array.isArray(_insumosStatus.itens) || _insumosStatus.itens.length === 0) return;
+        if (_modalTravadoAberto && travadoObrigatorio && document.getElementById('modal-insumos-obrigatorio-overlay')) return;
+
+        _modalTravadoAberto = true;
+        if (travadoObrigatorio) removerAvisoAmareloInsumos();
+
+        const oldOverlay = document.getElementById('modal-insumos-obrigatorio-overlay');
+        if (oldOverlay) oldOverlay.remove();
+
+        const escH = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const itens = _insumosStatus.itens;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'modal-insumos-obrigatorio-overlay';
+        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.82); backdrop-filter:blur(4px); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; font-family:Inter, sans-serif;';
+
+        overlay.innerHTML = `
+            <div style="background:#fff; width:920px; max-width:98vw; max-height:92vh; border-radius:16px; box-shadow:0 25px 60px rgba(0,0,0,0.45); border:2px solid #eab308; display:flex; flex-direction:column; overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#fef08a,#fde047); padding:16px 22px; border-bottom:2px solid #eab308; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:44px; height:44px; border-radius:12px; background:#ca8a04; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0;">
+                            <i class="ph ph-lock-key"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:1.12rem; font-weight:800; color:#713f12;">
+                                Atualização Obrigatória de Estoque — Categoria: Insumos
+                            </h3>
+                            <p style="margin:3px 0 0; font-size:0.8rem; color:#854d0e; font-weight:600;">
+                                Confira e informe a quantidade atualizada de todos os itens de Insumos abaixo para liberar o sistema.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding:14px 20px; overflow-y:auto; flex:1;">
+                    <div id="insumos-lock-erro" style="display:none; margin-bottom:12px; padding:10px 14px; border-radius:8px; background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; font-size:0.83rem; font-weight:700;"></div>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.83rem; text-align:left;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#334155; font-size:0.74rem; text-transform:uppercase;">
+                                <th style="padding:10px 12px;">Item de Insumo</th>
+                                <th style="padding:10px 10px;">Endereço / Tipo</th>
+                                <th style="padding:10px 10px; text-align:center;">Saldo Anterior</th>
+                                <th style="padding:10px 12px; width:190px; text-align:right;">Quantidade Atualizada *</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itens.map((it, idx) => {
+                                const minRef = parseInt(it.quantidade_minima, 10) || 0;
+                                const qtdAnt = parseInt(it.quantidade_atual, 10) || 0;
+                                const isLow = (minRef > 0 && qtdAnt <= minRef) || qtdAnt === 0;
+                                const bgRow = isLow ? '#fff1f2' : '#ffffff';
+                                const borderLeft = isLow ? '4px solid #ef4444' : '4px solid transparent';
+                                const tipoBadge = String(it.tipo_estoque || 'matriz').toLowerCase() === 'reposicao'
+                                    ? '<span style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 7px;font-size:0.7rem;font-weight:700;">🔄 Reposição</span>'
+                                    : '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 7px;font-size:0.7rem;font-weight:700;">🏢 Matriz</span>';
+                                return `
+                                    <tr style="background:${bgRow}; border-left:${borderLeft}; border-bottom:1px solid #e2e8f0;">
+                                        <td style="padding:9px 12px; font-weight:700; color:${isLow ? '#b91c1c' : '#0f172a'};">
+                                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                                <span>${escH(it.nome)}</span>
+                                                ${it.tamanho ? `<span style="background:#dbeafe;color:#1e40af;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:800;">Tam. ${escH(it.tamanho)}</span>` : ''}
+                                                ${isLow ? `<span style="background:#ef4444;color:#fff;padding:1px 7px;border-radius:999px;font-size:0.65rem;font-weight:800;">ESTOQUE MÍNIMO</span>` : ''}
+                                            </div>
+                                        </td>
+                                        <td style="padding:9px 10px;">
+                                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                                <span style="font-weight:600; color:#334155;">${escH(it.endereco_nome || 'Geral')}</span>
+                                                ${tipoBadge}
+                                            </div>
+                                        </td>
+                                        <td style="padding:9px 10px; text-align:center;">
+                                            <span style="font-size:0.98rem; font-weight:800; color:${isLow ? '#dc2626' : '#16a34a'};">${qtdAnt}</span>
+                                            ${minRef > 0 ? `<div style="font-size:0.7rem; color:#64748b;">mín ${minRef}</div>` : ''}
+                                        </td>
+                                        <td style="padding:9px 12px; text-align:right;">
+                                            <input type="number" class="insumo-obrigatorio-inp" data-idx="${idx}" min="0" step="1"
+                                                value="${qtdAnt}" required
+                                                style="width:110px; padding:7px 10px; border:1.5px solid #ca8a04; border-radius:8px; font-size:0.9rem; font-weight:800; text-align:center; background:#fefce8; color:#0f172a;">
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="padding:14px 22px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <span style="font-size:0.78rem; color:#64748b; font-weight:600;">
+                        <i class="ph ph-info"></i> Este popup é obrigatório e fecha automaticamente após atualizar as quantidades de todos os itens de Insumos.
+                    </span>
+                    <button type="button" id="btn-confirmar-insumos-obrigatorio"
+                        style="background:#16a34a; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:0.88rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px; box-shadow:0 4px 12px rgba(22,163,74,0.3);">
+                        <i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Salvar e Atualizar Quantidades de Insumos
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const btnConfirmar = document.getElementById('btn-confirmar-insumos-obrigatorio');
+        const erroBox = document.getElementById('insumos-lock-erro');
+
+        btnConfirmar?.addEventListener('click', async () => {
+            const inputs = Array.from(overlay.querySelectorAll('.insumo-obrigatorio-inp'));
+            const payloadItens = [];
+            for (const inp of inputs) {
+                const idx = parseInt(inp.getAttribute('data-idx'), 10);
+                const origItem = itens[idx];
+                const rawVal = String(inp.value ?? '').trim();
+                const q = parseInt(rawVal, 10);
+                if (rawVal === '' || isNaN(q) || q < 0) {
+                    if (erroBox) {
+                        erroBox.textContent = `Informe uma quantidade válida (0 ou mais) para o item "${origItem?.nome || ''}".`;
+                        erroBox.style.display = 'block';
+                    }
+                    inp.focus();
+                    return;
+                }
+                payloadItens.push({
+                    estoque_id: origItem.estoque_id,
+                    saldo_id: origItem.saldo_id,
+                    endereco_id: origItem.endereco_id,
+                    tamanho: origItem.tamanho || '',
+                    nome: origItem.nome,
+                    quantidade: q
+                });
+            }
+
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<i class="ph ph-spinner"></i> Salvando...';
+            if (erroBox) erroBox.style.display = 'none';
+
+            try {
+                const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+                const r = await fetch(API_URL + '/estoque/insumos-obrigatorio/concluir', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ciclo_chave: _insumosStatus.ciclo_chave,
+                        itens: payloadItens
+                    })
+                });
+                const resJson = await r.json();
+                if (!r.ok) throw new Error(resJson.error || 'Falha ao atualizar insumos');
+
+                _insumosStatus.pendente = false;
+                _insumosStatus.fase = 'concluido';
+                _modalTravadoAberto = false;
+                removerAvisoAmareloInsumos();
+                overlay.remove();
+                if (typeof window.renderEstoqueTable === 'function') window.renderEstoqueTable();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Insumos Atualizados!',
+                        text: 'As quantidades de todos os itens de Insumos foram atualizadas com sucesso.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (err) {
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = '<i class="ph ph-check-circle" style="font-size:1.1rem;"></i> Salvar e Atualizar Quantidades de Insumos';
+                if (erroBox) {
+                    erroBox.textContent = err.message || 'Erro ao salvar quantidades de insumos.';
+                    erroBox.style.display = 'block';
+                }
+            }
+        });
+    };
+
+    async function verificarStatusInsumosObrigatorio() {
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            if (!token) return;
+            const loginView = document.getElementById('view-login');
+            if (loginView && loginView.classList.contains('active')) return;
+
+            const r = await fetch(API_URL + '/estoque/insumos-obrigatorio/status', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!r.ok) return;
+            const data = await r.json();
+            _insumosStatus = data;
+
+            if (!data.obrigado || !data.pendente) {
+                removerAvisoAmareloInsumos();
+                const ov = document.getElementById('modal-insumos-obrigatorio-overlay');
+                if (ov) ov.remove();
+                _modalTravadoAberto = false;
+                return;
+            }
+
+            if (data.fase === 'contagem') {
+                _segundosRestantes = parseInt(data.segundos_para_travar, 10) || 0;
+                renderizarAvisoAmareloInsumos();
+            } else if (data.fase === 'travado') {
+                _segundosRestantes = 0;
+                removerAvisoAmareloInsumos();
+                window.abrirPopupObrigatorioInsumos(true);
+            }
+        } catch (e) {}
+    }
+
+    if (!_tickInterval) {
+        _tickInterval = setInterval(() => {
+            if (!_insumosStatus || !_insumosStatus.pendente) return;
+            if (_insumosStatus.fase === 'contagem') {
+                _segundosRestantes = Math.max(0, _segundosRestantes - 1);
+                renderizarAvisoAmareloInsumos();
+                if (_segundosRestantes <= 0) {
+                    _insumosStatus.fase = 'travado';
+                    removerAvisoAmareloInsumos();
+                    window.abrirPopupObrigatorioInsumos(true);
+                }
+            } else if (_insumosStatus.fase === 'travado') {
+                if (!document.getElementById('modal-insumos-obrigatorio-overlay')) {
+                    window.abrirPopupObrigatorioInsumos(true);
+                }
+            }
+        }, 1000);
+    }
+
+    setTimeout(verificarStatusInsumosObrigatorio, 2500);
+    setInterval(verificarStatusInsumosObrigatorio, 20000);
+})();

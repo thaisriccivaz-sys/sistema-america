@@ -73,9 +73,13 @@ const TELAS_SISTEMA = [
     { modulo: 'Financeiro', pagina_id: 'compras-revisao', pagina_nome: 'Revisão', icone: 'ph-seal-check' },
     { modulo: 'Financeiro', pagina_id: 'compras-estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     // Módulo Comercial
+    { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-tabela-precos', pagina_nome: 'Tabela Preços', icone: 'ph-table' },
+    { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
-    { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
+    { modulo: 'Comercial', pagina_id: 'comercial-contratos', pagina_nome: 'Contratos', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-assinaturas', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
     { modulo: 'Comercial', pagina_id: 'comercial-enderecos', pagina_nome: 'Endereços', icone: 'ph-map-pin' },
     { modulo: 'Comercial', pagina_id: 'comercial-clientes', pagina_nome: 'Cadastro de Cliente', icone: 'ph-user-plus' },
     { modulo: 'Comercial', pagina_id: 'comercial-contatos', pagina_nome: 'Cadastro de Contato', icone: 'ph-address-book' },
@@ -682,7 +686,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'estoque-equipamentos', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-eventos', 'comercial-comissao'] }]
+        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-tabela-precos', 'estoque-equipamentos'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
