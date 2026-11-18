@@ -11,8 +11,8 @@
     const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
-    window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
-    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EQUIPAMENTOS', 'EQUIPAMENTO'];
+    window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'EQUIPAMENTOS', 'EQUIPAMENTO'];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = [];
 
     const tipoLimpo = (tipo) => {
         if (typeof window.obterTipoEfetivoProposta === 'function') {
@@ -80,9 +80,7 @@
         const tit = document.getElementById('prop-servicos-titulo');
         const hint = document.getElementById('prop-servicos-hint');
         if (tit) tit.textContent = obrig ? 'Serviços da Proposta *' : 'Serviços da Proposta';
-        if (hint) hint.textContent = obrig
-            ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB'
-            : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)';
+        if (hint) hint.textContent = '';
         window.alternarFreteFobServicoProposta();
     };
 
@@ -113,7 +111,7 @@
         <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços da Proposta *' : 'Serviços da Proposta'}</span>
-                <span id="prop-servicos-hint" style="font-size:0.72rem; font-weight:500; color:#64748b;">${obrigatorio ? 'Obrigatório adicionar pelo menos 1 serviço (grupo SERVIÇOS) — ou marcar Frete FOB' : 'Opcional — não é obrigatório preencher (grupo SERVIÇOS)'}</span>
+                <span id="prop-servicos-hint" style="display:none;"></span>
             </h4>
 
             <div style="display:grid; grid-template-columns:2fr 2.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
@@ -783,12 +781,11 @@
                 s.cortesia = true;
             }
         });
-        // Serviço obrigatório apenas em OBRA (em EQUIPAMENTOS o quadro é exibido mas opcional)
         if (!window.tipoPropostaServicoObrigatorio(tipo)) return true;
         if (lista.length === 0) {
-            // Com Frete FOB marcado, o serviço deixa de ser obrigatório na obra
+            // Com Frete FOB marcado, o serviço deixa de ser obrigatório
             if (document.getElementById('prop-serv-fob')?.checked) return true;
-            alert('Em propostas de obra (mensal, quinzenal ou semanal) é obrigatório adicionar pelo menos um Serviço (ou marcar Frete FOB).');
+            alert('É obrigatório adicionar pelo menos um Serviço na proposta (ou marcar Frete FOB).');
             document.getElementById('prop-serv-codigo')?.focus();
             return false;
         }

@@ -36,7 +36,6 @@ const PROP_TIPOS = [
     'OBRA QUINZENAL',
     'OBRA SEMANAL',
     'LIMPA FOSSA',
-    'LIMPA FOSSA MENSAL',
     'VENDA',
     'ADITIVO',
     'EQUIPAMENTOS',
@@ -23186,6 +23185,9 @@ window._renderTabelaPrecosInt = async function() {
 
     await window._garantirTabelasPrecoCarregadas(true);
     const data = window._comercialTabelasPrecoData || { configs: [], itens: [] };
+    if (!PROP_TIPOS.includes(window._abaAtivaTabelaPrecos)) {
+        window._abaAtivaTabelaPrecos = 'OBRA MENSAL';
+    }
     const aba = window._abaAtivaTabelaPrecos || 'OBRA MENSAL';
     const cfgAtual = (data.configs || []).find(c => String(c.tipo_proposta || '').toUpperCase() === aba) || {
         tipo_proposta: aba,
@@ -23211,8 +23213,11 @@ window._renderTabelaPrecosInt = async function() {
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="window.baixarTabelaValoresPrecos('${aba}')" style="background:#0284c7; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
+                        <i class="ph ph-download-simple" style="font-size:1.05rem;"></i> Baixar tabela de valores
+                    </button>
                     <label style="background:#10b981; color:#fff; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.25);">
-                        <i class="ph ph-file-xls" style="font-size:1.05rem;"></i> Anexar Planilha (.xlsx) — ${_escHtmlProp(aba)}
+                        <i class="ph ph-file-xls" style="font-size:1.05rem;"></i> Atualizar valores
                         <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window.uploadPlanilhaTabelaPrecos(this, '${aba}')">
                     </label>
                     <button type="button" onclick="window.abrirModalNovoItemTabelaPreco('${aba}')" style="background:#7048e8; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
@@ -23288,7 +23293,7 @@ window._renderTabelaPrecosInt = async function() {
                         ${itensAba.length === 0 ? `
                             <tr>
                                 <td colspan="4" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
-                                    Nenhum valor cadastrado para a aba <strong>${_escHtmlProp(aba)}</strong>. Clique em <strong>Anexar Planilha (.xlsx)</strong> ou <strong>+ Equipamento na Tabela</strong>.
+                                    Nenhum valor cadastrado para a aba <strong>${_escHtmlProp(aba)}</strong>. Clique em <strong>Baixar tabela de valores</strong>, edite e suba em <strong>Atualizar valores</strong> ou use <strong>+ Equipamento na Tabela</strong>.
                                 </td>
                             </tr>
                         ` : itensAba.map(item => `
@@ -23342,6 +23347,38 @@ window.salvarConfigContratoTabelaPreco = async function(tipoProposta) {
         }
     } catch (e) {
         Swal.fire('Erro', 'Falha ao salvar tipo de contrato: ' + (e.message || e), 'error');
+    }
+};
+
+window.baixarTabelaValoresPrecos = async function(tipoProposta) {
+    try {
+        const aba = tipoProposta || window._abaAtivaTabelaPrecos || 'OBRA MENSAL';
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const baseUrl = (typeof API_URL !== 'undefined' ? API_URL : '/api');
+        const resp = await fetch(`${baseUrl}/comercial/tabelas-preco/exportar?tipo_proposta=${encodeURIComponent(aba)}`, {
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        if (!resp.ok) {
+            let errMsg = 'Falha ao baixar tabela de valores';
+            try {
+                const j = await resp.json();
+                if (j && j.error) errMsg = j.error;
+            } catch (e) {}
+            throw new Error(errMsg);
+        }
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeAba = String(aba).replace(/[^A-Z0-9_-]/gi, '_');
+        a.download = `Tabela_Valores_${safeAba}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Não foi possível baixar a tabela de valores.', 'error');
     }
 };
 

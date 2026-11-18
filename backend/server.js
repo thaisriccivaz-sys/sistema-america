@@ -49682,6 +49682,106 @@ app.put('/api/comercial/tabelas-preco/config', authenticateToken, (req, res) => 
   });
 });
 
+// GET /api/comercial/tabelas-preco/exportar - Baixar planilha Excel (.xlsx) com todos os produtos para edição e atualização de valores
+app.get('/api/comercial/tabelas-preco/exportar', authenticateToken, (req, res) => {
+  const tipoProposta = String(req.query?.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
+  db.all(
+    `SELECT id, codigo, nome, COALESCE(grupo_produto, '') as grupo_produto, COALESCE(fonte_fornecimento, '') as fonte_fornecimento
+     FROM estoque_equipamentos
+     ORDER BY CAST(codigo AS INTEGER) ASC, codigo ASC, nome ASC`,
+    [],
+    (errEq, eqRows) => {
+      if (errEq) return res.status(500).json({ error: errEq.message });
+      db.all(
+        `SELECT equipamento_id, codigo_equipamento, nome_equipamento, valor_produto, valor_manutencao, qtd_manutencao, valor_total
+         FROM comercial_tabelas_preco_itens
+         WHERE UPPER(TRIM(tipo_proposta)) = ?
+         ORDER BY id ASC`,
+        [tipoProposta],
+        (errIt, itensTab) => {
+          if (errIt) return res.status(500).json({ error: errIt.message });
+          try {
+            const XLSX = require('xlsx');
+            const mapById = new Map();
+            const mapByCod = new Map();
+            const mapByNome = new Map();
+            (itensTab || []).forEach(it => {
+              if (it.equipamento_id) mapById.set(Number(it.equipamento_id), it);
+              if (it.codigo_equipamento) mapByCod.set(String(it.codigo_equipamento).trim().toUpperCase(), it);
+              if (it.nome_equipamento) mapByNome.set(String(it.nome_equipamento).replace(/\s+/g, ' ').trim().toUpperCase(), it);
+            });
+
+            const usadosNomes = new Set();
+            const comValor = [];
+            const semValor = [];
+
+            (eqRows || []).forEach(eq => {
+              const codNorm = String(eq.codigo || '').trim().toUpperCase();
+              const nomeNorm = String(eq.nome || '').replace(/\s+/g, ' ').trim().toUpperCase();
+              const itemPreco = mapById.get(Number(eq.id)) || (codNorm ? mapByCod.get(codNorm) : null) || (nomeNorm ? mapByNome.get(nomeNorm) : null);
+              if (nomeNorm) usadosNomes.add(nomeNorm);
+              const vTotal = itemPreco ? (parseFloat(itemPreco.valor_total) || 0) : 0;
+              const rowData = [
+                String(eq.codigo || '').trim(),
+                String(eq.nome || '').trim(),
+                String(eq.grupo_produto || '').trim(),
+                String(eq.fonte_fornecimento || '').trim(),
+                vTotal > 0 ? Number(vTotal.toFixed(2)) : ''
+              ];
+              if (itemPreco && vTotal > 0) {
+                comValor.push(rowData);
+              } else {
+                semValor.push(rowData);
+              }
+            });
+
+            // Incluir também itens que estavam na aba mas eventualmente não tinham vínculo direto por nome exato
+            (itensTab || []).forEach(it => {
+              const nomeNorm = String(it.nome_equipamento || '').replace(/\s+/g, ' ').trim().toUpperCase();
+              if (nomeNorm && !usadosNomes.has(nomeNorm)) {
+                usadosNomes.add(nomeNorm);
+                const vTotal = parseFloat(it.valor_total) || 0;
+                comValor.push([
+                  String(it.codigo_equipamento || '').trim(),
+                  String(it.nome_equipamento || '').trim(),
+                  '',
+                  '',
+                  vTotal > 0 ? Number(vTotal.toFixed(2)) : ''
+                ]);
+              }
+            });
+
+            const aoa = [
+              ['CÓDIGO', 'EQUIPAMENTO', 'GRUPO', 'FONTE DE FORNECIMENTO', 'VALOR FINAL (R$)'],
+              ...comValor,
+              ...semValor
+            ];
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [
+              { wch: 12 },
+              { wch: 56 },
+              { wch: 20 },
+              { wch: 24 },
+              { wch: 18 }
+            ];
+            const sheetTitle = tipoProposta.substring(0, 31) || 'VALORES';
+            XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+            const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+            const safeTipo = tipoProposta.replace(/[^A-Z0-9_-]/g, '_');
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="Tabela_Valores_${safeTipo}.xlsx"`);
+            res.send(buf);
+          } catch (e) {
+            res.status(500).json({ error: e.message });
+          }
+        }
+      );
+    }
+  );
+});
+
 // POST /api/comercial/tabelas-preco/upload - Upload de planilha Excel (.xlsx) para um tipo de proposta
 app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportEquipamentos.single('arquivo'), async (req, res) => {
   try {
@@ -49734,32 +49834,72 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       console.warn('[R2] Falha ao enviar planilha de preços ao R2:', eR2.message);
     }
 
-    // Ler linhas da aba (suporta planilha com ou sem linha de cabeçalho)
+    const parseNumExcel = (v) => {
+      if (typeof v === 'number') return isNaN(v) ? 0 : v;
+      let s = String(v ?? '').replace(/R\$/gi, '').replace(/\s+/g, '').trim();
+      if (!s) return 0;
+      if (s.includes(',') && s.includes('.')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if (s.includes(',')) {
+        s = s.replace(',', '.');
+      }
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    };
+
+    // Ler linhas da aba (suporta planilha exportada [CÓDIGO, EQUIPAMENTO, GRUPO, FONTE, VALOR FINAL (R$)] e formatos legados)
     const header = (rows[0] || []).map(h => String(h || '').trim().toUpperCase());
-    const primeiraLinhaEhDados = rows[0] && rows[0].length >= 2 && !isNaN(parseFloat(String(rows[0][1] ?? '').replace(',', '.'))) && parseFloat(String(rows[0][1] ?? '').replace(',', '.')) > 0 && !['PRODUTO', 'VALOR', 'PREÇO', 'PRECO', 'CUSTO'].includes(header[1]);
+    const primeiraLinhaEhDados = rows[0] && rows[0].length >= 2 && parseNumExcel(rows[0][1]) > 0 && !['PRODUTO', 'EQUIPAMENTO', 'VALOR', 'PREÇO', 'PRECO', 'CUSTO'].some(k => (header[1] || '').includes(k));
     const startRowIdx = primeiraLinhaEhDados ? 0 : 1;
+
+    const temColCodigo = !primeiraLinhaEhDados && header[0] && (header[0].includes('COD') || header[0].includes('CÓD'));
+    const idxValorFinalHeader = !primeiraLinhaEhDados
+      ? header.findIndex(h => h.includes('VALOR FINAL') || h.includes('CUSTO TOTAL') || h.includes('VALOR TOTAL') || h === 'VALOR (R$)' || h === 'VALOR' || h.includes('PREÇO') || h.includes('PRECO'))
+      : -1;
+
     const parsedItems = [];
     for (let i = startRowIdx; i < rows.length; i++) {
       const r = rows[i];
       if (!r || !r.some(x => x !== '')) continue;
-      // Suporta formato [Nome, ValorProduto, ValorManutencao, QtdManutencao, CustoTotal] ou [Codigo, Nome, Valor]
-      let nome = String(r[0] || '').replace(/\s+/g, ' ').trim();
-      let valProd = parseFloat(String(r[1] ?? '0').replace(',', '.')) || 0;
-      let valManut = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
-      let qtdManut = parseInt(String(r[3] ?? '0'), 10) || 0;
-      let valTotal = parseFloat(String(r[4] ?? '0').replace(',', '.')) || 0;
 
-      if (!primeiraLinhaEhDados && header[0] && (header[0].includes('COD') || header[0].includes('CÓD')) && r[1]) {
+      let codigo = '';
+      let nome = '';
+      let valProd = 0;
+      let valManut = 0;
+      let qtdManut = 0;
+      let valTotal = 0;
+
+      if (temColCodigo) {
+        codigo = String(r[0] || '').trim();
         nome = String(r[1] || '').replace(/\s+/g, ' ').trim();
-        valProd = parseFloat(String(r[2] ?? '0').replace(',', '.')) || 0;
-        valTotal = parseFloat(String(r[5] ?? r[2] ?? '0').replace(',', '.')) || valProd;
-      } else if (!valTotal && valProd > 0 && r.length <= 3) {
-        valTotal = valProd;
+        if (idxValorFinalHeader >= 2) {
+          valTotal = parseNumExcel(r[idxValorFinalHeader]);
+          valProd = valTotal;
+        } else {
+          // Fallback: busca última coluna numérica ou coluna 2/4/5
+          valTotal = parseNumExcel(r[4] !== undefined && r[4] !== '' ? r[4] : (r[5] !== undefined && r[5] !== '' ? r[5] : r[2]));
+          valProd = valTotal;
+        }
+      } else {
+        nome = String(r[0] || '').replace(/\s+/g, ' ').trim();
+        valProd = parseNumExcel(r[1]);
+        valManut = parseNumExcel(r[2]);
+        qtdManut = parseInt(String(r[3] ?? '0'), 10) || 0;
+        valTotal = idxValorFinalHeader >= 1 ? parseNumExcel(r[idxValorFinalHeader]) : parseNumExcel(r[4]);
+        if (!valTotal && valProd > 0 && r.length <= 3) {
+          valTotal = valProd;
+        }
       }
-      if (!nome) continue;
+
+      if (!nome && !codigo) continue;
+      // Quando a planilha exportada contém todos os produtos do estoque, importa na aba os itens com valor informado (> 0)
+      if (valTotal <= 0 && valProd <= 0) continue;
+      if (!valTotal && valProd > 0) valTotal = valProd;
+
       parsedItems.push({
+        codigo_equipamento: codigo,
         nome_equipamento: nome,
-        valor_produto: valProd,
+        valor_produto: valProd || valTotal,
         valor_manutencao: valManut,
         qtd_manutencao: qtdManut,
         valor_total: valTotal
@@ -49767,16 +49907,18 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
     }
 
     if (parsedItems.length === 0) {
-      return res.status(400).json({ error: 'Nenhum produto válido encontrado na planilha.' });
+      return res.status(400).json({ error: 'Nenhum produto com valor maior que zero foi encontrado na planilha.' });
     }
 
     // Sincronizar equipamentos com estoque_equipamentos e atualizar comercial_tabelas_preco_itens
     db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
       if (errEq) return res.status(500).json({ error: errEq.message });
       const mapEq = new Map();
+      const mapEqCod = new Map();
       let maxCod = 0;
       (eqRows || []).forEach(e => {
         if (e.nome) mapEq.set(String(e.nome).replace(/\s+/g, ' ').trim().toUpperCase(), e);
+        if (e.codigo) mapEqCod.set(String(e.codigo).trim().toUpperCase(), e);
         const m = String(e.codigo || '').match(/(\d+)/);
         if (m) {
           const n = parseInt(m[1], 10);
@@ -49784,11 +49926,24 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
         }
       });
 
+      const resolveEquip = (it) => {
+        const codKey = String(it.codigo_equipamento || '').trim().toUpperCase();
+        if (codKey && mapEqCod.has(codKey)) return mapEqCod.get(codKey);
+        const nomeKey = String(it.nome_equipamento || '').replace(/\s+/g, ' ').trim().toUpperCase();
+        if (nomeKey && mapEq.has(nomeKey)) return mapEq.get(nomeKey);
+        return null;
+      };
+
       const syncEquip = (idx, cb) => {
         if (idx >= parsedItems.length) return cb();
         const it = parsedItems[idx];
+        const existing = resolveEquip(it);
+        if (existing) {
+          if (!it.nome_equipamento && existing.nome) it.nome_equipamento = existing.nome;
+          return syncEquip(idx + 1, cb);
+        }
+        if (!it.nome_equipamento) return syncEquip(idx + 1, cb);
         const key = it.nome_equipamento.replace(/\s+/g, ' ').trim().toUpperCase();
-        if (mapEq.has(key)) return syncEquip(idx + 1, cb);
         maxCod++;
         const novoCod = String(maxCod).padStart(5, '0');
         const ehContainer = key.includes('CONTAINER');
@@ -49800,7 +49955,9 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
           [novoCod, it.nome_equipamento, fonte, grupo, usuario, agora, agora],
           function(errIns) {
             if (!errIns && this.lastID) {
-              mapEq.set(key, { id: this.lastID, codigo: novoCod, nome: it.nome_equipamento });
+              const novoObj = { id: this.lastID, codigo: novoCod, nome: it.nome_equipamento };
+              mapEq.set(key, novoObj);
+              mapEqCod.set(novoCod, novoObj);
             }
             syncEquip(idx + 1, cb);
           }
@@ -49816,12 +49973,12 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
           parsedItems.forEach(it => {
-            const eq = mapEq.get(it.nome_equipamento.toUpperCase());
+            const eq = resolveEquip(it);
             stmt.run([
               tipoProposta,
               eq ? eq.id : null,
-              eq ? eq.codigo : '',
-              it.nome_equipamento,
+              eq ? eq.codigo : (it.codigo_equipamento || ''),
+              (eq && eq.nome) ? eq.nome : it.nome_equipamento,
               it.valor_produto,
               it.valor_manutencao,
               it.qtd_manutencao,
@@ -49832,12 +49989,6 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
           stmt.finalize(() => {
             db.get('SELECT id, r2_key FROM comercial_tabelas_preco_config WHERE tipo_proposta = ?', [tipoProposta], async (errC, rowC) => {
               if (rowC) {
-                if (rowC.r2_key && r2KeySaved) {
-                  try {
-                    const r2 = require('./utils/r2');
-                    if (r2.isReady()) await r2.deleteFromR2(rowC.r2_key);
-                  } catch (e) {}
-                }
                 db.run(
                   'UPDATE comercial_tabelas_preco_config SET arquivo_nome = ?, r2_key = COALESCE(?, r2_key), atualizado_por = ?, atualizado_em = ? WHERE id = ?',
                   [req.file.originalname, r2KeySaved, usuario, agora, rowC.id],
