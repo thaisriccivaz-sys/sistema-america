@@ -33193,6 +33193,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
     db.run("UPDATE estoque SET categoria = 'Automotivo' WHERE categoria = 'Peças Automotivas'", () => {});
     db.run("UPDATE estoque SET categoria = 'Peças para Sanitários/Equipamentos' WHERE categoria = 'Peças para Sanitários'", () => {});
+    db.run("UPDATE permissoes_grupo SET modulo = 'Comercial' WHERE pagina_id = 'estoque-equipamentos'", () => {});
 });
 
 // Helper: Consolidar automaticamente produtos existentes que foram cadastrados separados por tamanho

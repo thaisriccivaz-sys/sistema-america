@@ -39,7 +39,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261111v1" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261118v2" defer></script>
+    <script src="estoque.js?v=20261118v3" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
@@ -392,6 +392,9 @@
                             <a href="#" class="nav-item nav-item-sub" data-target="comercial-tabela-precos"
                                 onclick="navigateTo('comercial-tabela-precos'); return false;"><i
                                     class="ph ph-table"></i> Tabela Preços</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="estoque-equipamentos"
+                                onclick="navigateTo('estoque-equipamentos'); return false;"><i
+                                    class="ph ph-cube"></i> Equipamentos</a>
                         </div>
                     </div>
                     <a href="#" class="nav-item" data-target="comercial-credenciamento"><i
@@ -3845,7 +3848,6 @@
                     <!-- Abas do Estoque -->
                     <ul class="nav-tabs" style="display:flex; list-style:none; padding:0; margin:0 0 1.5rem 0; border-bottom:2px solid #e2e8f0; gap:2rem;">
                         <li id="tab-estoque-itens" onclick="window.switchTabEstoque('itens')" style="padding:0.75rem 0; font-weight:700; font-size:0.95rem; cursor:pointer; color:#e67700; border-bottom:3px solid #e67700; margin-bottom:-2px;">Itens em Estoque</li>
-                        <li id="tab-estoque-equipamentos" onclick="window.switchTabEstoque('equipamentos')" style="padding:0.75rem 0; font-weight:600; font-size:0.95rem; cursor:pointer; color:#64748b; border-bottom:3px solid transparent; margin-bottom:-2px;">Equipamentos</li>
                         <li id="tab-estoque-historico" onclick="window.switchTabEstoque('historico')" style="padding:0.75rem 0; font-weight:600; font-size:0.95rem; cursor:pointer; color:#64748b; border-bottom:3px solid transparent; margin-bottom:-2px;">Histórico de Movimentações</li>
                     </ul>
 
@@ -3938,8 +3940,42 @@
                         </div>
                     </div>
 
-                    <!-- ABA: EQUIPAMENTOS -->
-                    <div id="content-estoque-equipamentos" class="card p-4" style="display:none;">
+                    <!-- ABA: HISTÓRICO -->
+                    <div id="content-estoque-historico" class="card p-4" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Data / Hora <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Produto <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Tipo <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Usuário <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-estoque-historico">
+                                    <tr><td colspan="5" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: COMERCIAL -> ADMINISTRAÇÃO -> EQUIPAMENTOS -->
+                <section id="view-estoque-equipamentos" class="content-view">
+                    <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <div style="width:52px; height:52px; border-radius:50%; border:2px dashed #7048e8; display:flex; align-items:center; justify-content:center; color:#7048e8; font-size:1.6rem;">
+                                <i class="ph ph-cube"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0; font-size:1.6rem; color:#1e293b;">Controle de Equipamentos</h2>
+                                <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Gerencie os equipamentos comerciais vinculados às propostas e tabelas de preços.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="content-estoque-equipamentos" class="card p-4" style="display:block;">
                         <div style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap; align-items:flex-end;">
                             <div style="flex:1.4; min-width:220px;">
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:0.25rem;">Buscar por nome ou código</label>
@@ -3994,26 +4030,6 @@
                                 </thead>
                                 <tbody id="table-estoque-equipamentos">
                                     <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ABA: HISTÓRICO -->
-                    <div id="content-estoque-historico" class="card p-4" style="display:none;">
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Data / Hora <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Produto <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Tipo <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Qtd. <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;" title="Ordenar">Usuário <i class="ph ph-arrows-down-up" style="font-size:0.85em; color:#94a3b8; margin-left:4px;"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-estoque-historico">
-                                    <tr><td colspan="5" style="text-align:center;color:#64748b;">Carregando histórico...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -6878,7 +6894,7 @@
     <script src="gerenciar_avaliacoes.js?v=20261110v2"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1791925000000"></script>
-    <script src="usuarios.js?v=20261114v1"></script>
+    <script src="usuarios.js?v=20261118v1"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -6904,7 +6920,7 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261021v1"></script>
     <script src="comercial_credenciamento.js"></script>
-    <script src="proposta.js?v=20261118v1"></script>
+    <script src="proposta.js?v=20261118v2"></script>
     <script src="proposta_dias_produto.js?v=20261102v8"></script>
     <script src="proposta_zonas.js?v=20261117v2"></script>
     <script src="comercial_eventos.js?v=20261102v1"></script>
@@ -6922,7 +6938,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=20261113v5"></script>
-    <script src="app.js?v=20261117v5"></script>
+    <script src="app.js?v=20261118v1"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->

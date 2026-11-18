@@ -844,6 +844,7 @@ const BREADCRUMB_MAP = {
     'comercial-eventos': { path: 'Comercial → Cadastros → Evento', code: 'COM009' },
     'comercial-modelos-propostas': { path: 'Comercial → Administração → Modelo Proposta', code: 'COM007' },
     'comercial-tabela-precos': { path: 'Comercial → Administração → Tabela Preços', code: 'COM008' },
+    'estoque-equipamentos': { path: 'Comercial → Administração → Equipamentos', code: 'COM012' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
@@ -1007,13 +1008,11 @@ window.carregarPermissoesOnline = async function () {
         window.frotaPerms = { gestao: !!mapPerms['logistica-frota'], manutencao: !!mapPerms['logistica-frota-manutencao'] };
         if (window.frotaPerms.manutencao) mapPerms['logistica-frota'] = true;
 
-        // Estoque: duas liberações independentes — Estoque (Itens de Estoque) e Estoque (Equipamentos).
-        // O item do menu aparece se o usuário tiver qualquer uma; as abas internas respeitam cada uma.
+        // Estoque (Administrativo) e Equipamentos (Comercial → Administração → Equipamentos) são telas independentes
         window.estoquePerms = {
             itens: !!mapPerms['estoque'],
             equipamentos: !!mapPerms['estoque-equipamentos']
         };
-        if (window.estoquePerms.equipamentos) mapPerms['estoque'] = true;
 
         const _hasUaAdmin = !!(mapPerms['uniamerica-gestao-admin'] || mapPerms['uniamerica-gestao']);
         const _hasUaUsuario = !!mapPerms['uniamerica-gestao-usuario'];
@@ -1031,6 +1030,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-eventos'] === undefined) mapPerms['comercial-eventos'] = true;
             if (mapPerms['comercial-modelos-propostas'] === undefined) mapPerms['comercial-modelos-propostas'] = true;
             if (mapPerms['comercial-tabela-precos'] === undefined) mapPerms['comercial-tabela-precos'] = true;
+            if (mapPerms['estoque-equipamentos'] === undefined) mapPerms['estoque-equipamentos'] = true;
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
             if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
         }
@@ -1356,6 +1356,7 @@ const TAB_META = {
     'comercial-assinaturas': { color: '#7048e8', icon: 'ph-signature', title: 'Assinaturas' },
     'comercial-modelos-propostas': { color: '#7048e8', icon: 'ph-files', title: 'Modelo Proposta' },
     'comercial-tabela-precos': { color: '#7048e8', icon: 'ph-table', title: 'Tabela Preços' },
+    'estoque-equipamentos': { color: '#7048e8', icon: 'ph-cube', title: 'Equipamentos' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
     'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
     'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },
@@ -1573,6 +1574,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
         setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
+    }
+    if (tab.target === 'estoque-equipamentos' && typeof window.carregarEquipamentosEstoque === 'function') {
+        setTimeout(() => window.carregarEquipamentosEstoque(), 50);
     }
     if (_comercialSubTabMap[tab.target]) {
         const subTab = _comercialSubTabMap[tab.target];

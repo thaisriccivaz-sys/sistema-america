@@ -23244,25 +23244,8 @@ window._renderTabelaPrecosInt = async function() {
                 }).join('')}
             </div>
 
-            <!-- Card de Configuração do Tipo de Contrato Vinculado + Busca -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem; display:grid; grid-template-columns: 1.3fr 1fr; gap:1rem; align-items:flex-end;">
-                <div>
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">
-                        <i class="ph ph-file-text" style="color:#7048e8;"></i> Tipo de Contrato Vinculado à Tabela (${_escHtmlProp(aba)})
-                    </label>
-                    <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <input type="text" id="tp-config-contrato-input" list="tp-datalist-contratos" value="${_escHtmlProp(cfgAtual.tipo_contrato || '')}"
-                            placeholder="Selecione ou digite o tipo de contrato vinculado..."
-                            style="flex:1; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; height:36px;">
-                        <datalist id="tp-datalist-contratos">
-                            ${modelosContratoOpcoes.map(m => `<option value="${_escHtmlProp(m)}"></option>`).join('')}
-                        </datalist>
-                        <button type="button" onclick="window.salvarConfigContratoTabelaPreco('${aba}')"
-                            style="background:#16a34a; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.9rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                            <i class="ph ph-check"></i> Salvar Contrato
-                        </button>
-                    </div>
-                </div>
+            <!-- Card de Busca -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
                 <div>
                     <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtrar Equipamento na Aba</label>
                     <input type="text" id="tp-filtro-equipamento" placeholder="🔍 Filtrar por código ou nome do equipamento..."

@@ -75,6 +75,7 @@ const TELAS_SISTEMA = [
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
+    { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
     { modulo: 'Comercial', pagina_id: 'comercial-enderecos', pagina_nome: 'Endereços', icone: 'ph-map-pin' },
     { modulo: 'Comercial', pagina_id: 'comercial-clientes', pagina_nome: 'Cadastro de Cliente', icone: 'ph-user-plus' },
     { modulo: 'Comercial', pagina_id: 'comercial-contatos', pagina_nome: 'Cadastro de Contato', icone: 'ph-address-book' },
@@ -83,7 +84,7 @@ const TELAS_SISTEMA = [
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque (Itens de Estoque)', icone: 'ph-package' },
-    { modulo: 'Administrativo', pagina_id: 'estoque-equipamentos', pagina_nome: 'Estoque (Equipamentos)', icone: 'ph-cube' },
+
     { modulo: 'Administrativo', pagina_id: 'celulares-corporativos', pagina_nome: 'Celulares Corporativos', icone: 'ph-device-mobile' },
     { modulo: 'Administrativo', pagina_id: 'computadores-corporativos', pagina_nome: 'Computadores', icone: 'ph-desktop' },
     { modulo: 'Administrativo', pagina_id: 'administrativo-senhas', pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
@@ -681,11 +682,11 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-eventos', 'comercial-comissao'] }]
+        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'estoque-equipamentos', 'comercial-enderecos', 'comercial-clientes', 'comercial-contatos', 'comercial-eventos', 'comercial-comissao'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'estoque-equipamentos', 'celulares-corporativos', 'computadores-corporativos', 'emails-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos', 'emails-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',
