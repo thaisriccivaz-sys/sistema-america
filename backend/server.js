@@ -34953,237 +34953,109 @@ app.post('/api/estoque/repor', authenticateToken, (req, res) => {
     processarItem(0);
 });
 
-// ── ATUALIZAÇÃO OBRIGATÓRIA DE INSUMOS (TODA TERÇA-FEIRA ÀS 17H, COM CONTAGEM DE 60 MIN A PARTIR DAS 16H) ──
-db.run(`CREATE TABLE IF NOT EXISTS estoque_insumos_ciclos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ciclo_chave TEXT NOT NULL UNIQUE,
-    concluido_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-    concluido_por TEXT,
-    usuario_id INTEGER,
-    detalhes_json TEXT
-)`, () => {});
-
-function _calcularCicloInsumosTercaBR() {
-    // Horário de Brasília (UTC-3)
-    const nowBR = new Date(Date.now() - 3 * 3600 * 1000);
-    const dayOfWeek = nowBR.getUTCDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
-    const hour = nowBR.getUTCHours();
-    const minute = nowBR.getUTCMinutes();
-    const second = nowBR.getUTCSeconds();
-    const secondsToday = hour * 3600 + minute * 60 + second;
-
-    const fmtDateUTC = (d) => {
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const dd = String(d.getUTCDate()).padStart(2, '0');
-        return `${y}-${m}-${dd}`;
-    };
-
-    // Terça-feira entre 16:00:00 e 16:59:59 -> contagem regressiva de 60 minutos até 17:00
-    if (dayOfWeek === 2 && secondsToday >= 16 * 3600 && secondsToday < 17 * 3600) {
-        const cicloChave = fmtDateUTC(nowBR);
-        return {
-            ciclo_chave: cicloChave,
-            data_limite_iso: `${cicloChave} 17:00:00`,
-            inicio_janela_iso: `${cicloChave} 16:00:00`,
-            fase: 'contagem',
-            segundos_para_travar: (17 * 3600) - secondsToday
-        };
-    }
-
-    // Terça-feira >= 17:00:00 -> ciclo de hoje já travado até concluir
-    if (dayOfWeek === 2 && secondsToday >= 17 * 3600) {
-        const cicloChave = fmtDateUTC(nowBR);
-        return {
-            ciclo_chave: cicloChave,
-            data_limite_iso: `${cicloChave} 17:00:00`,
-            inicio_janela_iso: `${cicloChave} 16:00:00`,
-            fase: 'travado',
-            segundos_para_travar: 0
-        };
-    }
-
-    // Outros dias (ou terça antes das 16h): verificar a última terça-feira às 17h
-    let diasDesdeUltimaTerca = 0;
-    if (dayOfWeek === 2 && secondsToday < 16 * 3600) {
-        diasDesdeUltimaTerca = 7;
-    } else if (dayOfWeek > 2) {
-        diasDesdeUltimaTerca = dayOfWeek - 2;
-    } else {
-        diasDesdeUltimaTerca = dayOfWeek + 5;
-    }
-    const ultimaTerca = new Date(nowBR.getTime() - diasDesdeUltimaTerca * 24 * 3600 * 1000);
-    const cicloChave = fmtDateUTC(ultimaTerca);
-    return {
-        ciclo_chave: cicloChave,
-        data_limite_iso: `${cicloChave} 17:00:00`,
-        inicio_janela_iso: `${cicloChave} 16:00:00`,
-        fase: 'travado',
-        segundos_para_travar: 0,
-        eh_ciclo_anterior: true
-    };
-}
-
-app.get('/api/estoque/insumos-obrigatorio/status', authenticateToken, (req, res) => {
-    const userId = req.user ? req.user.id : 0;
-    if (!userId) return res.json({ obrigado: false, pendente: false });
-
-    // Verifica se o usuário logado está selecionado na notificação "Mínimo para reposição de estoque" (estoque_reposicao)
-    db.get(
-        "SELECT id FROM config_notificacoes WHERE tipo = 'estoque_reposicao' AND usuario_id = ? LIMIT 1",
-        [userId],
-        (errCfg, rowCfg) => {
-            if (errCfg) return res.status(500).json({ error: errCfg.message });
-            if (!rowCfg) {
-                return res.json({ obrigado: false, pendente: false });
+// ── APP › LIDERANÇA › INSUMOS (Contagem e atualização de Insumos do endereço de Reposição) ──
+app.get('/api/app/lideranca/insumos', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT id, nome, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_url, foto_base64, atualizado_em
+         FROM estoque
+         WHERE LOWER(TRIM(COALESCE(categoria, ''))) = 'insumos'
+         ORDER BY nome ASC`,
+        [],
+        (errEst, itensInsumos) => {
+            if (errEst) return res.status(500).json({ error: errEst.message });
+            if (!itensInsumos || itensInsumos.length === 0) {
+                return res.json({ itens: [] });
             }
 
-            const infoCiclo = _calcularCicloInsumosTercaBR();
+            const idsInsumos = itensInsumos.map(i => i.id);
+            const ph = idsInsumos.map(() => '?').join(',');
+            db.all(
+                `SELECT s.id as saldo_id, s.estoque_id, s.endereco_id, COALESCE(s.tamanho, '') as tamanho,
+                        s.quantidade, s.quantidade_minima, s.quantidade_maxima, COALESCE(s.tipo_estoque, 'matriz') as tipo_estoque,
+                        COALESCE(s.rua, '') as rua, e.nome as endereco_nome
+                 FROM estoque_saldo_por_endereco s
+                 JOIN estoque_enderecos e ON e.id = s.endereco_id
+                 WHERE s.estoque_id IN (${ph})
+                 ORDER BY e.nome ASC, s.tamanho ASC`,
+                idsInsumos,
+                (errSal, rowsSaldos) => {
+                    if (errSal) return res.status(500).json({ error: errSal.message });
 
-            // Verifica se este ciclo de terça-feira já foi concluído
-            db.get(
-                'SELECT id, concluido_em, concluido_por FROM estoque_insumos_ciclos WHERE ciclo_chave = ? LIMIT 1',
-                [infoCiclo.ciclo_chave],
-                (errCic, rowCiclo) => {
-                    if (errCic) return res.status(500).json({ error: errCic.message });
-                    if (rowCiclo) {
-                        return res.json({
-                            obrigado: true,
-                            pendente: false,
-                            fase: 'concluido',
-                            ciclo_chave: infoCiclo.ciclo_chave,
-                            concluido_em: rowCiclo.concluido_em,
-                            concluido_por: rowCiclo.concluido_por
-                        });
-                    }
+                    const saldosPorItem = {};
+                    (rowsSaldos || []).forEach(r => {
+                        if (!saldosPorItem[r.estoque_id]) saldosPorItem[r.estoque_id] = [];
+                        saldosPorItem[r.estoque_id].push(r);
+                    });
 
-                    // Buscar todos os itens da categoria Insumos
-                    db.all(
-                        `SELECT id, nome, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_url, foto_base64, criado_em, atualizado_em
-                         FROM estoque
-                         WHERE LOWER(TRIM(COALESCE(categoria, ''))) = 'insumos'
-                         ORDER BY nome ASC`,
-                        [],
-                        (errEst, itensInsumos) => {
-                            if (errEst) return res.status(500).json({ error: errEst.message });
-                            if (!itensInsumos || itensInsumos.length === 0) {
-                                return res.json({ obrigado: true, pendente: false, fase: 'sem_insumos', itens: [] });
-                            }
+                    const linhas = [];
+                    itensInsumos.forEach(item => {
+                        const todosSaldos = saldosPorItem[item.id] || [];
+                        // Prioriza os saldos do endereço de Reposição (tipo_estoque = 'reposicao'); se o item de Insumo ainda não tiver linha 'reposicao', exibe as existentes
+                        const saldosRepos = todosSaldos.filter(s => String(s.tipo_estoque || '').toLowerCase() === 'reposicao');
+                        const saldosExibir = saldosRepos.length > 0 ? saldosRepos : todosSaldos;
 
-                            // Se estivermos verificando um ciclo de terça-feira anterior, só trava se já existia algum item de Insumos antes do fechamento daquela terça às 17h
-                            if (infoCiclo.eh_ciclo_anterior) {
-                                const algumExistiaAntesDaTerca = itensInsumos.some(it => {
-                                    const dtCriado = String(it.criado_em || '').substring(0, 19);
-                                    return !dtCriado || dtCriado <= infoCiclo.data_limite_iso;
+                        if (saldosExibir.length === 0) {
+                            linhas.push({
+                                row_key: `est_${item.id}_0_`,
+                                estoque_id: item.id,
+                                saldo_id: null,
+                                endereco_id: null,
+                                endereco_nome: 'Reposição',
+                                tamanho: '',
+                                tipo_estoque: 'reposicao',
+                                nome: item.nome,
+                                foto: item.foto_url || item.foto_base64 || '',
+                                quantidade_atual: parseInt(item.quantidade_atual, 10) || 0,
+                                quantidade_minima: parseInt(item.quantidade_minima, 10) || 0,
+                                quantidade_maxima: parseInt(item.quantidade_maxima, 10) || 0,
+                                atualizado_em: item.atualizado_em || ''
+                            });
+                        } else {
+                            saldosExibir.forEach(s => {
+                                const minRef = (parseInt(s.quantidade_minima, 10) > 0)
+                                    ? parseInt(s.quantidade_minima, 10)
+                                    : (!s.tamanho ? (parseInt(item.quantidade_minima, 10) || 0) : 0);
+                                const maxRef = (parseInt(s.quantidade_maxima, 10) > 0)
+                                    ? parseInt(s.quantidade_maxima, 10)
+                                    : (!s.tamanho ? (parseInt(item.quantidade_maxima, 10) || 0) : 0);
+                                linhas.push({
+                                    row_key: `est_${item.id}_${s.endereco_id}_${s.tamanho || ''}`,
+                                    estoque_id: item.id,
+                                    saldo_id: s.saldo_id,
+                                    endereco_id: s.endereco_id,
+                                    endereco_nome: s.endereco_nome + (s.rua ? ' - ' + s.rua : ''),
+                                    tamanho: s.tamanho || '',
+                                    tipo_estoque: s.tipo_estoque || 'reposicao',
+                                    nome: item.nome,
+                                    foto: item.foto_url || item.foto_base64 || '',
+                                    quantidade_atual: parseInt(s.quantidade, 10) || 0,
+                                    quantidade_minima: minRef,
+                                    quantidade_maxima: maxRef,
+                                    atualizado_em: item.atualizado_em || ''
                                 });
-                                if (!algumExistiaAntesDaTerca) {
-                                    return res.json({
-                                        obrigado: true,
-                                        pendente: false,
-                                        fase: 'aguardando_proxima_terca',
-                                        ciclo_chave: infoCiclo.ciclo_chave,
-                                        itens: []
-                                    });
-                                }
-                            }
-
-                            const idsInsumos = itensInsumos.map(i => i.id);
-                            const ph = idsInsumos.map(() => '?').join(',');
-                            db.all(
-                                `SELECT s.id as saldo_id, s.estoque_id, s.endereco_id, COALESCE(s.tamanho, '') as tamanho,
-                                        s.quantidade, s.quantidade_minima, s.quantidade_maxima, COALESCE(s.tipo_estoque, 'matriz') as tipo_estoque,
-                                        COALESCE(s.rua, '') as rua, e.nome as endereco_nome
-                                 FROM estoque_saldo_por_endereco s
-                                 JOIN estoque_enderecos e ON e.id = s.endereco_id
-                                 WHERE s.estoque_id IN (${ph})
-                                 ORDER BY CASE WHEN COALESCE(LOWER(TRIM(s.tipo_estoque)), 'matriz') = 'reposicao' THEN 1 ELSE 0 END ASC, e.nome ASC, s.tamanho ASC`,
-                                idsInsumos,
-                                (errSal, rowsSaldos) => {
-                                    if (errSal) return res.status(500).json({ error: errSal.message });
-
-                                    const saldosPorItem = {};
-                                    (rowsSaldos || []).forEach(r => {
-                                        if (!saldosPorItem[r.estoque_id]) saldosPorItem[r.estoque_id] = [];
-                                        saldosPorItem[r.estoque_id].push(r);
-                                    });
-
-                                    const linhasParaAtualizar = [];
-                                    itensInsumos.forEach(item => {
-                                        const saldos = saldosPorItem[item.id] || [];
-                                        if (saldos.length === 0) {
-                                            linhasParaAtualizar.push({
-                                                row_key: `est_${item.id}_0_`,
-                                                estoque_id: item.id,
-                                                saldo_id: null,
-                                                endereco_id: null,
-                                                endereco_nome: 'Geral',
-                                                tamanho: '',
-                                                tipo_estoque: 'matriz',
-                                                nome: item.nome,
-                                                foto: item.foto_url || item.foto_base64 || '',
-                                                quantidade_atual: parseInt(item.quantidade_atual, 10) || 0,
-                                                quantidade_minima: parseInt(item.quantidade_minima, 10) || 0,
-                                                quantidade_maxima: parseInt(item.quantidade_maxima, 10) || 0
-                                            });
-                                        } else {
-                                            saldos.forEach(s => {
-                                                const minRef = (parseInt(s.quantidade_minima, 10) > 0)
-                                                    ? parseInt(s.quantidade_minima, 10)
-                                                    : (!s.tamanho ? (parseInt(item.quantidade_minima, 10) || 0) : 0);
-                                                const maxRef = (parseInt(s.quantidade_maxima, 10) > 0)
-                                                    ? parseInt(s.quantidade_maxima, 10)
-                                                    : (!s.tamanho ? (parseInt(item.quantidade_maxima, 10) || 0) : 0);
-                                                linhasParaAtualizar.push({
-                                                    row_key: `est_${item.id}_${s.endereco_id}_${s.tamanho || ''}`,
-                                                    estoque_id: item.id,
-                                                    saldo_id: s.saldo_id,
-                                                    endereco_id: s.endereco_id,
-                                                    endereco_nome: s.endereco_nome + (s.rua ? ' - ' + s.rua : ''),
-                                                    tamanho: s.tamanho || '',
-                                                    tipo_estoque: s.tipo_estoque || 'matriz',
-                                                    nome: item.nome,
-                                                    foto: item.foto_url || item.foto_base64 || '',
-                                                    quantidade_atual: parseInt(s.quantidade, 10) || 0,
-                                                    quantidade_minima: minRef,
-                                                    quantidade_maxima: maxRef
-                                                });
-                                            });
-                                        }
-                                    });
-
-                                    res.json({
-                                        obrigado: true,
-                                        pendente: true,
-                                        fase: infoCiclo.fase,
-                                        segundos_para_travar: infoCiclo.segundos_para_travar,
-                                        ciclo_chave: infoCiclo.ciclo_chave,
-                                        itens: linhasParaAtualizar
-                                    });
-                                }
-                            );
+                            });
                         }
-                    );
+                    });
+
+                    res.json({ itens: linhas });
                 }
             );
         }
     );
 });
 
-app.post('/api/estoque/insumos-obrigatorio/concluir', authenticateToken, (req, res) => {
+app.post('/api/app/lideranca/insumos/atualizar', authenticateToken, (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
-    const userId = req.user ? req.user.id : null;
-    const { ciclo_chave, itens } = req.body || {};
-    const infoCiclo = _calcularCicloInsumosTercaBR();
-    const chaveFinal = String(ciclo_chave || infoCiclo.ciclo_chave).trim();
+    const { itens } = req.body || {};
 
     if (!Array.isArray(itens) || itens.length === 0) {
-        return res.status(400).json({ error: 'Informe as quantidades atualizadas de todos os itens de Insumos.' });
+        return res.status(400).json({ error: 'Informe ao menos um item de Insumo para atualizar.' });
     }
 
     for (const it of itens) {
         const q = parseInt(it.quantidade, 10);
         if (isNaN(q) || q < 0) {
-            return res.status(400).json({ error: `Quantidade inválida para o item "${it.nome || ''}". Preencha todos os itens.` });
+            return res.status(400).json({ error: `Quantidade inválida para "${it.nome || 'Insumo'}".` });
         }
     }
 
@@ -35194,22 +35066,7 @@ app.post('/api/estoque/insumos-obrigatorio/concluir', authenticateToken, (req, r
             const idsArr = Array.from(estoqueIdsAfetados);
             const syncTotais = (iIdx) => {
                 if (iIdx >= idsArr.length) {
-                    const agora = new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-                    db.run(
-                        `INSERT INTO estoque_insumos_ciclos (ciclo_chave, concluido_em, concluido_por, usuario_id, detalhes_json)
-                         VALUES (?, ?, ?, ?, ?)
-                         ON CONFLICT(ciclo_chave) DO UPDATE SET
-                           concluido_em = EXCLUDED.concluido_em,
-                           concluido_por = EXCLUDED.concluido_por,
-                           usuario_id = EXCLUDED.usuario_id,
-                           detalhes_json = EXCLUDED.detalhes_json`,
-                        [chaveFinal, agora, usuario, userId, JSON.stringify(itens)],
-                        (errC) => {
-                            if (errC) return res.status(500).json({ error: errC.message });
-                            return res.json({ success: true, ciclo_chave: chaveFinal, total_atualizados: itens.length });
-                        }
-                    );
-                    return;
+                    return res.json({ success: true, total_atualizados: itens.length });
                 }
                 const estId = idsArr[iIdx];
                 db.get('SELECT COUNT(*) as cnt, COALESCE(SUM(quantidade), 0) as total FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [estId], (eS, rS) => {
@@ -35256,7 +35113,7 @@ app.post('/api/estoque/insumos-obrigatorio/concluir', authenticateToken, (req, r
                             const diff = Math.abs(novaQtd - oldSaldo);
                             db.run(
                                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [estId, diff, 'Atualização Insumos', usuario, `Conferência obrigatória de Insumos (${oldSaldo} → ${novaQtd})`, endId, rowS ? rowS.endereco_nome : null],
+                                [estId, diff, 'Contagem Insumos (APP)', usuario, `Contagem APP Liderança (${oldSaldo} → ${novaQtd})`, endId, rowS ? rowS.endereco_nome : null],
                                 () => atualizarProximo(idx + 1)
                             );
                         }
@@ -35270,7 +35127,7 @@ app.post('/api/estoque/insumos-obrigatorio/concluir', authenticateToken, (req, r
                 () => {
                     db.run(
                         'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, NULL, NULL)',
-                        [estId, novaQtd, 'Atualização Insumos', usuario, `Conferência obrigatória de Insumos (Saldo: ${novaQtd})`],
+                        [estId, novaQtd, 'Contagem Insumos (APP)', usuario, `Contagem APP Liderança (Saldo: ${novaQtd})`],
                         () => atualizarProximo(idx + 1)
                     );
                 }
