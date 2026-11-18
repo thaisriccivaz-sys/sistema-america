@@ -2942,7 +2942,7 @@ function _renderFormPropostaInt() {
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
                         </h4>
-                        <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '0.85fr 1.1fr 1.5fr 1.6fr' : '1fr 1fr 0.7fr 1.5fr 1.4fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
+                        <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '0.85fr 1.1fr 1.8fr' : '1fr 1fr 0.75fr 1.6fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
                             <div id="prop-wrapper-periodo-ini">
                                 <label class="prop-lbl" id="prop-lbl-periodo-ini">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Previsão de Entrega *' : 'Período Início *'}</label>
                                 <input type="date" id="prop-periodo-ini" value="${v('periodo_inicio')}"
@@ -2961,9 +2961,9 @@ function _renderFormPropostaInt() {
                                     oninput="calcularFimContrato()"
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                             </div>
-                            <div>
+                            <div id="prop-wrapper-tabela-precos" style="display:none;">
                                 <label class="prop-lbl">Tabela de Preços *</label>
-                                <input type="text" id="prop-tabela" list="datalist-prop-tabelas" value="${_escHtmlProp(v('tabela_precos') || (v('tipo') ? String(v('tipo')).replace(/^PROPOSTA\\s+/i,'') : ''))}"
+                                <input type="text" id="prop-tabela" list="datalist-prop-tabelas" value="${_escHtmlProp((v('tipo') ? String(v('tipo')).replace(/^PROPOSTA\\s+/i,'') : '') || v('tabela_precos'))}"
                                     onchange="if(typeof window.onChangeTabelaPrecosManual === 'function') window.onChangeTabelaPrecosManual(this.value);"
                                     placeholder="Selecione ou digite a tabela..."
                                     style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
@@ -7248,7 +7248,7 @@ window.salvarPropostaNova = async function() {
         hora_fim: obter('prop-hora-fim') || '00:00',
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
-        tabela_precos: obter('prop-tabela'),
+        tabela_precos: (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipo) : '') || obter('prop-tabela') || String(tipo || '').replace(/^PROPOSTA\s+/i, '').trim(),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         contrato_vinculado: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
@@ -7721,7 +7721,7 @@ window.estornarPropostaEdicao = async function() {
         hora_fim: obter('prop-hora-fim') || '00:00',
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
-        tabela_precos: obter('prop-tabela'),
+        tabela_precos: (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipo) : '') || obter('prop-tabela') || String(tipo || '').replace(/^PROPOSTA\s+/i, '').trim(),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         contrato_vinculado: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
@@ -7937,7 +7937,7 @@ window.aprovarPropostaEdicao = async function() {
         hora_fim: obter('prop-hora-fim') || '00:00',
         dias_contrato: parseInt(obter('prop-dias') || 0),
         dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
-        tabela_precos: obter('prop-tabela'),
+        tabela_precos: (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipo) : '') || obter('prop-tabela') || String(tipo || '').replace(/^PROPOSTA\s+/i, '').trim(),
         nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
         servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
         contrato_vinculado: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
@@ -19663,7 +19663,7 @@ window.obterValorTabelaPorTipoEProduto = function(tipoPropostaRaw, prodObjOrCode
 
 window.atualizarPrecosContainerPorDiasContrato = function() {
     if (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) return;
-    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const tipoRef = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
 
     // 1) Atualizar produto atualmente selecionado no campo de adição, se for CONTAINER
     const inputProd = document.getElementById('prop-prod-codigo');
@@ -19802,8 +19802,8 @@ window.atualizarLayoutCamposVendaProposta = function(tipo, isCarregamentoEdicao 
     if (lblDias) lblDias.textContent = ehVenda ? 'Dias para Entrega' : 'Dias Contrato';
     if (rowPeriodo) {
         rowPeriodo.style.gridTemplateColumns = ehVenda
-            ? '0.85fr 1.1fr 1.5fr 1.6fr'
-            : '1fr 1fr 0.7fr 1.5fr 1.4fr';
+            ? '0.85fr 1.1fr 1.8fr'
+            : '1fr 1fr 0.75fr 1.6fr';
     }
     if (wrapEndInst) wrapEndInst.style.display = ehVenda ? 'none' : 'flex';
     if (linhaEvInst) linhaEvInst.style.display = ehVenda ? 'none' : 'flex';
@@ -21226,6 +21226,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         } else if (tipoBaseLimpo) {
             tabelaEl.value = tipoBaseLimpo;
         }
+        if (tabelaEl.value && typeof window.onChangeTabelaPrecosManual === 'function') {
+            window.onChangeTabelaPrecosManual(tabelaEl.value);
+        }
     }
     const normIsoDataContrato = (d) => {
         const s = String(d || '').trim();
@@ -22081,7 +22084,7 @@ window.pesquisarOuAbrirBuscaProdutoProposta = async function() {
         const produtos = Array.isArray(todosEquipamentos) ? todosEquipamentos : [];
         window._equipamentosEstoqueData = produtos;
         if (window._boxCacheDadosAux) window._boxCacheDadosAux.equipamentos = produtos;
-        const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+        const tipoAtual = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
 
         if (termo) {
             const matches = window.filtrarListaEquipamentosProposta(produtos, { termo });
@@ -22133,7 +22136,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
     const tipoPropostaAtivo = document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '';
     const tipoEfetivo = typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipoPropostaAtivo) : tipoPropostaAtivo;
     const tipoNorm = normStr(String(tipoEfetivo || '').replace(/^proposta\s+/i, ''));
-    const tipoAtual = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const tipoAtual = tipoEfetivo || document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '';
 
     const produtosBase = window.filtrarEquipamentosBasePorTipoProposta(produtos, tipoPropostaAtivo);
 
@@ -22454,7 +22457,7 @@ window.onInputProdutoPropostaTexto = async function() {
         return;
     }
     await window._garantirTabelasPrecoCarregadas(false);
-    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const tipoRef = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: txt, nome: txt });
     if (typeof window.preencherManutSemanaPorProduto === 'function') {
         window.preencherManutSemanaPorProduto(txt);
@@ -22610,7 +22613,7 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
         window.preencherManutSemanaPorProduto(nomeLimpo || nome || cod);
     }
     await window._garantirTabelasPrecoCarregadas(false);
-    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const tipoRef = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
     const valFinal = (valorSugerido !== null && valorSugerido !== undefined)
         ? Number(valorSugerido)
         : window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: cod, nome: nomeLimpo || nome });
@@ -22686,7 +22689,7 @@ window.adicionarProdutoProposta = async function() {
         return;
     }
 
-    const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+    const tipoRef = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo, nome: produtoNome });
     let unitDigitado = window.parseMoedaProposta(inputValor?.value);
     if (isNaN(unitDigitado)) unitDigitado = 0;

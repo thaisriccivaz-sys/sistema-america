@@ -341,7 +341,7 @@
                 window._listarServicosEstoque(),
                 typeof window.garantirRegiaoPropostaIdentificada === 'function' ? window.garantirRegiaoPropostaIdentificada() : Promise.resolve()
             ]);
-            const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+            const tipoRef = tipoLimpo();
             if (termo) {
                 const matches = window._filtrarServicosPorTermo(servicos, termo);
                 if (matches.length === 1) {
@@ -358,7 +358,7 @@
     };
 
     window.abrirModalBuscaServicos = function (termoInicial, servicos) {
-        const tipoRef = document.getElementById('prop-tabela')?.value || document.getElementById('prop-tipo')?.value || '';
+        const tipoRef = tipoLimpo();
         const rows = (lista) => {
             if (!lista.length) return '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum serviço encontrado.</td></tr>';
             return lista.map(p => {
