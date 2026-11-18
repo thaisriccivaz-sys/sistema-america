@@ -23245,7 +23245,7 @@ window._renderTabelaPrecosInt = async function() {
             </div>
 
             <!-- Card de Configuração do Tipo de Contrato Vinculado + Busca -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem; display:grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap:1rem; align-items:flex-end;">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem; display:grid; grid-template-columns: 1.3fr 1fr; gap:1rem; align-items:flex-end;">
                 <div>
                     <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">
                         <i class="ph ph-file-text" style="color:#7048e8;"></i> Tipo de Contrato Vinculado à Tabela (${_escHtmlProp(aba)})
@@ -23261,13 +23261,6 @@ window._renderTabelaPrecosInt = async function() {
                             style="background:#16a34a; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.9rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
                             <i class="ph ph-check"></i> Salvar Contrato
                         </button>
-                    </div>
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Planilha Vinculada</label>
-                    <div style="height:36px; padding:0 0.75rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#334155; font-weight:600;">
-                        <i class="ph ph-microsoft-excel-logo" style="color:#16a34a; font-size:1.1rem;"></i>
-                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_escHtmlProp(cfgAtual.arquivo_nome || 'Nenhuma planilha anexada')}</span>
                     </div>
                 </div>
                 <div>
@@ -23350,12 +23343,11 @@ window.salvarConfigContratoTabelaPreco = async function(tipoProposta) {
     }
 };
 
-window.baixarTabelaValoresPrecos = async function(tipoProposta) {
+window.baixarTabelaValoresPrecos = async function() {
     try {
-        const aba = tipoProposta || window._abaAtivaTabelaPrecos || 'OBRA MENSAL';
         const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         const baseUrl = (typeof API_URL !== 'undefined' ? API_URL : '/api');
-        const resp = await fetch(`${baseUrl}/comercial/tabelas-preco/exportar?tipo_proposta=${encodeURIComponent(aba)}`, {
+        const resp = await fetch(`${baseUrl}/comercial/tabelas-preco/exportar`, {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + tok }
         });
@@ -23371,8 +23363,7 @@ window.baixarTabelaValoresPrecos = async function(tipoProposta) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const safeAba = String(aba).replace(/[^A-Z0-9_-]/gi, '_');
-        a.download = `Tabela_Valores_${safeAba}.xlsx`;
+        a.download = 'Tabela_de_Valores.xlsx';
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -23390,8 +23381,8 @@ window.uploadPlanilhaTabelaPrecos = async function(inputEl, tipoProposta) {
     formData.append('tipo_proposta', tipoProposta);
 
     Swal.fire({
-        title: 'Importando Planilha...',
-        text: `Processando valores para ${tipoProposta}...`,
+        title: 'Atualizando Valores...',
+        text: 'Processando os equipamentos e tabelas de preços da planilha...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
@@ -23404,10 +23395,13 @@ window.uploadPlanilhaTabelaPrecos = async function(inputEl, tipoProposta) {
             body: formData
         });
         const resJson = await resp.json();
-        if (!resp.ok) throw new Error(resJson.error || 'Erro ao importar planilha');
+        if (!resp.ok) throw new Error(resJson.error || 'Erro ao atualizar valores');
         Swal.close();
         await window._renderTabelaPrecosInt();
-        Swal.fire('Sucesso', `Planilha importada com sucesso! (${resJson.total_importados} equipamentos carregados na aba ${tipoProposta})`, 'success');
+        const msgDetalhe = Array.isArray(resJson.tabelas_atualizadas) && resJson.tabelas_atualizadas.length > 0
+            ? `Valores atualizados com sucesso em ${resJson.tabelas_atualizadas.length} tabela(s) (${resJson.tabelas_atualizadas.join(', ')}) — total de ${resJson.total_importados} valor(es) aplicado(s)!`
+            : `Planilha importada com sucesso! (${resJson.total_importados} equipamentos carregados na aba ${tipoProposta})`;
+        Swal.fire('Sucesso', msgDetalhe, 'success');
     } catch (e) {
         Swal.close();
         Swal.fire('Erro', e.message || 'Falha ao importar planilha.', 'error');
@@ -23457,9 +23451,26 @@ window.excluirLinhaTabelaPreco = async function(itemId) {
 };
 
 window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
+    await window._garantirTabelasPrecoCarregadas(true);
     const equipamentos = await apiGet('/estoque-equipamentos').catch(() => []);
     const listaEq = Array.isArray(equipamentos) ? equipamentos : [];
     const normTp = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const abaUpper = String(tipoProposta || '').trim().toUpperCase();
+    const itensExistentesAba = (window._comercialTabelasPrecoData?.itens || []).filter(
+        i => String(i.tipo_proposta || '').trim().toUpperCase() === abaUpper
+    );
+
+    const acharItemCadastrado = (eq) => {
+        if (!eq) return null;
+        const eqId = Number(eq.id || 0);
+        const eqCod = normTp(eq.codigo);
+        const eqNome = normTp(eq.nome);
+        return itensExistentesAba.find(i =>
+            (eqId && Number(i.equipamento_id) === eqId) ||
+            (eqCod && normTp(i.codigo_equipamento) === eqCod) ||
+            (eqNome && normTp(i.nome_equipamento) === eqNome)
+        ) || null;
+    };
 
     const { value: formValues } = await Swal.fire({
         title: `Adicionar Equipamento — ${tipoProposta}`,
@@ -23484,10 +23495,14 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                     <input type="hidden" id="swal-tp-eq-id" value="">
                     <input type="hidden" id="swal-tp-eq-cod" value="">
                     <input type="hidden" id="swal-tp-eq-nome" value="">
+                    <input type="hidden" id="swal-tp-existing-item-id" value="">
                     <div id="swal-tp-eq-list" style="margin-top:6px; max-height:230px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;"></div>
                 </div>
                 <div>
-                    <label style="font-size:0.78rem; font-weight:700; color:#166534;">Valor Final (R$) *</label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <label id="swal-tp-vt-label" style="font-size:0.78rem; font-weight:700; color:#166534;">Valor Final (R$) *</label>
+                        <span id="swal-tp-existing-badge" style="display:none; font-size:0.73rem; font-weight:700; color:#b45309; background:#fef3c7; border:1px solid #fde68a; padding:2px 8px; border-radius:999px;"></span>
+                    </div>
                     <input type="number" step="0.01" id="swal-tp-vt" value="0" style="width:100%; padding:8px; border:1px solid #86efac; background:#f0fdf4; border-radius:6px; font-size:0.88rem; font-weight:800; margin-top:4px; box-sizing:border-box;">
                 </div>
             </div>
@@ -23503,7 +23518,29 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
             const inpId = document.getElementById('swal-tp-eq-id');
             const inpCod = document.getElementById('swal-tp-eq-cod');
             const inpNome = document.getElementById('swal-tp-eq-nome');
+            const inpExistingId = document.getElementById('swal-tp-existing-item-id');
+            const badgeExisting = document.getElementById('swal-tp-existing-badge');
             const inpVt = document.getElementById('swal-tp-vt');
+
+            const aplicarEstadoExistente = (eq) => {
+                const jaCad = acharItemCadastrado(eq);
+                if (jaCad) {
+                    if (inpExistingId) inpExistingId.value = String(jaCad.id || '');
+                    const vAtual = Number(jaCad.valor_total || 0);
+                    if (inpVt) inpVt.value = vAtual.toFixed(2);
+                    if (badgeExisting) {
+                        badgeExisting.textContent = `Já cadastrado: R$ ${vAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (editando valor)`;
+                        badgeExisting.style.display = 'inline-block';
+                    }
+                } else {
+                    if (inpExistingId) inpExistingId.value = '';
+                    if (inpVt) inpVt.value = '0';
+                    if (badgeExisting) {
+                        badgeExisting.textContent = '';
+                        badgeExisting.style.display = 'none';
+                    }
+                }
+            };
 
             const selecionarEq = (eq) => {
                 if (!eq) return;
@@ -23515,6 +23552,7 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                 inpSearch.style.borderColor = '#16a34a';
                 inpSearch.style.background = '#f0fdf4';
                 if (btnClear) btnClear.style.display = 'inline-flex';
+                aplicarEstadoExistente(eq);
                 renderLista(inpSearch.value, true);
                 if (inpVt) {
                     inpVt.focus();
@@ -23548,9 +23586,16 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                     const nomeHtml = typeof window.formatarNomeProdutoComVacHtml === 'function'
                         ? window.formatarNomeProdutoComVacHtml(e.nome || '')
                         : _escHtmlProp(e.nome || '');
+                    const itemCad = acharItemCadastrado(e);
+                    const precoBadgeHtml = itemCad
+                        ? `<span style="font-size:0.7rem; font-weight:800; color:#166534; background:#dcfce7; border:1px solid #86efac; padding:2px 6px; border-radius:4px; white-space:nowrap;">R$ ${Number(itemCad.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
+                        : '';
                     return `<div data-eq-id="${e.id}" style="padding:8px 10px; border-bottom:1px solid #f1f5f9; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px; background:${isSel ? '#dcfce7' : '#fff'}; font-weight:${isSel ? '800' : '600'}; color:${isSel ? '#166534' : '#1e293b'};" onmouseover="if('${e.id}'!==document.getElementById('swal-tp-eq-id')?.value) this.style.background='#f8fafc'" onmouseout="if('${e.id}'!==document.getElementById('swal-tp-eq-id')?.value) this.style.background='#fff'">
                         <span>${codTxt}${nomeHtml}</span>
-                        ${e.grupo_produto ? `<span style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px; white-space:nowrap;">${_escHtmlProp(e.grupo_produto)}</span>` : ''}
+                        <span style="display:inline-flex; align-items:center; gap:6px; flex-shrink:0;">
+                            ${precoBadgeHtml}
+                            ${e.grupo_produto ? `<span style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px; white-space:nowrap;">${_escHtmlProp(e.grupo_produto)}</span>` : ''}
+                        </span>
                     </div>`;
                 }).join('');
 
@@ -23573,6 +23618,32 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                 inpSearch.style.background = '#fff';
                 if (btnClear) btnClear.style.display = inpSearch.value ? 'inline-flex' : 'none';
                 renderLista(inpSearch.value, false);
+
+                // Se ao digitar restar 1 único equipamento ou match exato por código/nome, já exibe o valor cadastrado para edição
+                const q = normTp(inpSearch.value);
+                if (q) {
+                    const exato = listaEq.find(e =>
+                        normTp(e.codigo) === q ||
+                        normTp(e.nome) === q ||
+                        normTp((e.codigo ? e.codigo + ' - ' : '') + (e.nome || '')) === q
+                    );
+                    if (exato) {
+                        aplicarEstadoExistente(exato);
+                    } else {
+                        const matches = listaEq.filter(e =>
+                            normTp(e.codigo).includes(q) ||
+                            normTp(e.nome).includes(q) ||
+                            normTp((e.codigo ? e.codigo + ' - ' : '') + (e.nome || '')).includes(q)
+                        );
+                        if (matches.length === 1) {
+                            aplicarEstadoExistente(matches[0]);
+                        } else {
+                            aplicarEstadoExistente(null);
+                        }
+                    }
+                } else {
+                    aplicarEstadoExistente(null);
+                }
             });
 
             inpSearch?.addEventListener('keydown', (ev) => {
@@ -23591,6 +23662,7 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
                 inpSearch.style.borderColor = '#cbd5e1';
                 inpSearch.style.background = '#fff';
                 btnClear.style.display = 'none';
+                aplicarEstadoExistente(null);
                 renderLista('', false);
                 inpSearch.focus();
             });
@@ -23598,14 +23670,30 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
             setTimeout(() => inpSearch?.focus(), 50);
         },
         preConfirm: () => {
-            const eqId = document.getElementById('swal-tp-eq-id')?.value || '';
-            const eqCod = document.getElementById('swal-tp-eq-cod')?.value || '';
-            const eqNome = document.getElementById('swal-tp-eq-nome')?.value || '';
+            let eqId = document.getElementById('swal-tp-eq-id')?.value || '';
+            let eqCod = document.getElementById('swal-tp-eq-cod')?.value || '';
+            let eqNome = document.getElementById('swal-tp-eq-nome')?.value || '';
+            if (!eqId) {
+                const q = normTp(document.getElementById('swal-tp-eq-search')?.value || '');
+                if (q) {
+                    const matches = listaEq.filter(e =>
+                        normTp(e.codigo).includes(q) ||
+                        normTp(e.nome).includes(q) ||
+                        normTp((e.codigo ? e.codigo + ' - ' : '') + (e.nome || '')).includes(q)
+                    );
+                    if (matches.length === 1) {
+                        eqId = String(matches[0].id);
+                        eqCod = String(matches[0].codigo || '');
+                        eqNome = String(matches[0].nome || '');
+                    }
+                }
+            }
             if (!eqId) {
                 Swal.showValidationMessage('Selecione um equipamento na lista pesquisada.');
                 return false;
             }
             return {
+                existing_item_id: document.getElementById('swal-tp-existing-item-id')?.value || '',
                 tipo_proposta: tipoProposta,
                 equipamento_id: parseInt(eqId, 10),
                 codigo_equipamento: eqCod,
@@ -23622,8 +23710,11 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
         try {
             await apiPost('/comercial/tabelas-preco/item', formValues);
             await window._renderTabelaPrecosInt();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Valor salvo na tabela com sucesso!');
+            }
         } catch (e) {
-            Swal.fire('Erro', 'Falha ao adicionar equipamento na tabela.', 'error');
+            Swal.fire('Erro', 'Falha ao salvar equipamento na tabela.', 'error');
         }
     }
 };

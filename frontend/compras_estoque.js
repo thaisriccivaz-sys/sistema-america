@@ -7,7 +7,7 @@
 
     const CATEGORIAS_PRODUTO = [
         'EPI', 'Uniforme', 'Copa', 'Pets', 'Itens de Escritório',
-        'Peças para Sanitários/Equipamentos', 'Produtos Químicos', 'Limpeza e Higiene',
+        'Insumos', 'Peças para Sanitários/Equipamentos', 'Produtos Químicos', 'Limpeza e Higiene',
         'Ferramentas', 'Elétrica', 'Hidráulica', 'Ferragens e Fixadores',
         'Pintura e Acabamento', 'Lubrificantes e Fluidos', 'Automotivo',
         'Pneus e Borracharia', 'Informática e Eletrônicos', 'Descartáveis',
@@ -138,6 +138,7 @@
         else if (n.includes('almoxarifado')) c = { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
         else if (n.includes('loja')) c = { bg: '#fefce8', color: '#a16207', border: '#fef08a' };
         else if (n.includes('galpao')) c = { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' };
+        else if (n.includes('container')) c = { bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' };
         return '<span style="display:inline-flex;align-items:center;gap:4px;background:' + c.bg + ';color:' + c.color + ';border:1px solid ' + c.border + ';border-radius:6px;padding:3px 6px;font-size:0.7rem;font-weight:600;white-space:normal;line-height:1.2;">' +
             esc(nome) + (low ? ' <i class="ph ph-warning" style="font-size:0.78rem;"></i>' : '') + '</span>';
     }

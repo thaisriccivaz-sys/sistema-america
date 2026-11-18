@@ -10,6 +10,8 @@ function getBadgeColors(nome, isLow) {
         return { bg: '#fefce8', color: '#a16207', border: '#fef08a' }; // yellow
     } else if (n.includes('galpao')) {
         return { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' }; // purple
+    } else if (n.includes('container')) {
+        return { bg: '#ecfeff', color: '#0e7490', border: '#a5f3fc' }; // cyan
     }
     return { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' }; // default slate
 }
@@ -151,6 +153,7 @@ const _CATEGORIAS_ESTOQUE_LISTA = [
     'Ferramentas',
     'Hidráulica',
     'Informática e Eletrônicos',
+    'Insumos',
     'Itens de Escritório',
     'Limpeza e Higiene',
     'Lubrificantes e Fluidos',

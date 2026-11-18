@@ -33185,8 +33185,9 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => {
     if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela enderecos:', err.message);
-    // Seed: criar endereço 'Geral' se nao existir
+    // Seed: criar endereços 'Geral' e 'Containers' se nao existirem
     db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
+    db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Containers')", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
     db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
@@ -49638,13 +49639,35 @@ app.get('/api/comercial/tabelas-preco', authenticateToken, (req, res) => {
       [],
       (errIt, itens) => {
         if (errIt) return res.status(500).json({ error: errIt.message });
-        res.json({
-          configs: configs || [],
-          itens: (itens || []).map(x => ({
+        // Garantir no máximo 1 registro por equipamento dentro do mesmo tipo_proposta (mantendo o mais recente)
+        const dedupMap = new Map();
+        const idsDuplicadosParaRemover = [];
+        (itens || []).forEach(x => {
+          const itemFormatado = {
             ...x,
             equipamento_id: x.eq_id_atual || x.equipamento_id,
             codigo_equipamento: x.codigo_atual || x.codigo_equipamento || ''
-          }))
+          };
+          const tpKey = String(itemFormatado.tipo_proposta || '').trim().toUpperCase();
+          const eqKey = itemFormatado.equipamento_id
+            ? `ID:${itemFormatado.equipamento_id}`
+            : (itemFormatado.codigo_equipamento
+              ? `COD:${String(itemFormatado.codigo_equipamento).trim().toUpperCase()}`
+              : `NOME:${String(itemFormatado.nome_equipamento || '').replace(/\s+/g, ' ').trim().toUpperCase()}`);
+          const fullKey = `${tpKey}::${eqKey}`;
+          if (dedupMap.has(fullKey)) {
+            const anterior = dedupMap.get(fullKey);
+            if (anterior && anterior.id) idsDuplicadosParaRemover.push(anterior.id);
+          }
+          dedupMap.set(fullKey, itemFormatado);
+        });
+        if (idsDuplicadosParaRemover.length > 0) {
+          const placeholders = idsDuplicadosParaRemover.map(() => '?').join(',');
+          db.run(`DELETE FROM comercial_tabelas_preco_itens WHERE id IN (${placeholders})`, idsDuplicadosParaRemover, () => {});
+        }
+        res.json({
+          configs: configs || [],
+          itens: Array.from(dedupMap.values())
         });
       }
     );
@@ -49682,9 +49705,20 @@ app.put('/api/comercial/tabelas-preco/config', authenticateToken, (req, res) => 
   });
 });
 
-// GET /api/comercial/tabelas-preco/exportar - Baixar planilha Excel (.xlsx) com todos os produtos para edição e atualização de valores
+const TIPOS_TABELA_PRECO_COLUNAS = [
+  'EVENTO',
+  'OBRA MENSAL',
+  'OBRA QUINZENAL',
+  'OBRA SEMANAL',
+  'LIMPA FOSSA',
+  'VENDA',
+  'ADITIVO',
+  'EQUIPAMENTOS',
+  'AVARIA'
+];
+
+// GET /api/comercial/tabelas-preco/exportar - Baixar planilha Excel (.xlsx) com todos os produtos e todas as tabelas de preços em colunas
 app.get('/api/comercial/tabelas-preco/exportar', authenticateToken, (req, res) => {
-  const tipoProposta = String(req.query?.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
   db.all(
     `SELECT id, codigo, nome, COALESCE(grupo_produto, '') as grupo_produto, COALESCE(fonte_fornecimento, '') as fonte_fornecimento
      FROM estoque_equipamentos
@@ -49693,85 +49727,93 @@ app.get('/api/comercial/tabelas-preco/exportar', authenticateToken, (req, res) =
     (errEq, eqRows) => {
       if (errEq) return res.status(500).json({ error: errEq.message });
       db.all(
-        `SELECT equipamento_id, codigo_equipamento, nome_equipamento, valor_produto, valor_manutencao, qtd_manutencao, valor_total
+        `SELECT tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento, valor_total
          FROM comercial_tabelas_preco_itens
-         WHERE UPPER(TRIM(tipo_proposta)) = ?
          ORDER BY id ASC`,
-        [tipoProposta],
-        (errIt, itensTab) => {
+        [],
+        (errIt, todosItens) => {
           if (errIt) return res.status(500).json({ error: errIt.message });
           try {
             const XLSX = require('xlsx');
-            const mapById = new Map();
-            const mapByCod = new Map();
-            const mapByNome = new Map();
-            (itensTab || []).forEach(it => {
-              if (it.equipamento_id) mapById.set(Number(it.equipamento_id), it);
-              if (it.codigo_equipamento) mapByCod.set(String(it.codigo_equipamento).trim().toUpperCase(), it);
-              if (it.nome_equipamento) mapByNome.set(String(it.nome_equipamento).replace(/\s+/g, ' ').trim().toUpperCase(), it);
+            const mapsPorTipo = {};
+            TIPOS_TABELA_PRECO_COLUNAS.forEach(tp => {
+              mapsPorTipo[tp] = { byId: new Map(), byCod: new Map(), byNome: new Map() };
+            });
+
+            (todosItens || []).forEach(it => {
+              const tp = String(it.tipo_proposta || '').trim().toUpperCase();
+              if (!mapsPorTipo[tp]) return;
+              const m = mapsPorTipo[tp];
+              if (it.equipamento_id) m.byId.set(Number(it.equipamento_id), it);
+              if (it.codigo_equipamento) m.byCod.set(String(it.codigo_equipamento).trim().toUpperCase(), it);
+              if (it.nome_equipamento) m.byNome.set(String(it.nome_equipamento).replace(/\s+/g, ' ').trim().toUpperCase(), it);
             });
 
             const usadosNomes = new Set();
-            const comValor = [];
-            const semValor = [];
+            const linhasProdutos = [];
 
             (eqRows || []).forEach(eq => {
+              const eqId = Number(eq.id || 0);
               const codNorm = String(eq.codigo || '').trim().toUpperCase();
               const nomeNorm = String(eq.nome || '').replace(/\s+/g, ' ').trim().toUpperCase();
-              const itemPreco = mapById.get(Number(eq.id)) || (codNorm ? mapByCod.get(codNorm) : null) || (nomeNorm ? mapByNome.get(nomeNorm) : null);
               if (nomeNorm) usadosNomes.add(nomeNorm);
-              const vTotal = itemPreco ? (parseFloat(itemPreco.valor_total) || 0) : 0;
-              const rowData = [
+
+              const valoresCols = TIPOS_TABELA_PRECO_COLUNAS.map(tp => {
+                const m = mapsPorTipo[tp];
+                const it = (eqId ? m.byId.get(eqId) : null) || (codNorm ? m.byCod.get(codNorm) : null) || (nomeNorm ? m.byNome.get(nomeNorm) : null);
+                const vTotal = it ? (parseFloat(it.valor_total) || 0) : 0;
+                return vTotal > 0 ? Number(vTotal.toFixed(2)) : '';
+              });
+
+              linhasProdutos.push([
                 String(eq.codigo || '').trim(),
                 String(eq.nome || '').trim(),
                 String(eq.grupo_produto || '').trim(),
                 String(eq.fonte_fornecimento || '').trim(),
-                vTotal > 0 ? Number(vTotal.toFixed(2)) : ''
-              ];
-              if (itemPreco && vTotal > 0) {
-                comValor.push(rowData);
-              } else {
-                semValor.push(rowData);
-              }
+                ...valoresCols
+              ]);
             });
 
-            // Incluir também itens que estavam na aba mas eventualmente não tinham vínculo direto por nome exato
-            (itensTab || []).forEach(it => {
+            // Incluir eventuais itens de tabela de preço que não estavam em estoque_equipamentos
+            (todosItens || []).forEach(it => {
               const nomeNorm = String(it.nome_equipamento || '').replace(/\s+/g, ' ').trim().toUpperCase();
               if (nomeNorm && !usadosNomes.has(nomeNorm)) {
                 usadosNomes.add(nomeNorm);
-                const vTotal = parseFloat(it.valor_total) || 0;
-                comValor.push([
+                const codNorm = String(it.codigo_equipamento || '').trim().toUpperCase();
+                const valoresCols = TIPOS_TABELA_PRECO_COLUNAS.map(tp => {
+                  const m = mapsPorTipo[tp];
+                  const found = (codNorm ? m.byCod.get(codNorm) : null) || m.byNome.get(nomeNorm);
+                  const vTotal = found ? (parseFloat(found.valor_total) || 0) : 0;
+                  return vTotal > 0 ? Number(vTotal.toFixed(2)) : '';
+                });
+                linhasProdutos.push([
                   String(it.codigo_equipamento || '').trim(),
                   String(it.nome_equipamento || '').trim(),
                   '',
                   '',
-                  vTotal > 0 ? Number(vTotal.toFixed(2)) : ''
+                  ...valoresCols
                 ]);
               }
             });
 
             const aoa = [
-              ['CÓDIGO', 'EQUIPAMENTO', 'GRUPO', 'FONTE DE FORNECIMENTO', 'VALOR FINAL (R$)'],
-              ...comValor,
-              ...semValor
+              ['CÓDIGO', 'EQUIPAMENTO', 'GRUPO', 'FONTE DE FORNECIMENTO', ...TIPOS_TABELA_PRECO_COLUNAS],
+              ...linhasProdutos
             ];
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             ws['!cols'] = [
               { wch: 12 },
-              { wch: 56 },
-              { wch: 20 },
-              { wch: 24 },
-              { wch: 18 }
+              { wch: 54 },
+              { wch: 18 },
+              { wch: 22 },
+              ...TIPOS_TABELA_PRECO_COLUNAS.map(tp => ({ wch: Math.max(tp.length + 4, 15) }))
             ];
-            const sheetTitle = tipoProposta.substring(0, 31) || 'VALORES';
-            XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+            XLSX.utils.book_append_sheet(wb, ws, 'TABELA DE VALORES');
             const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-            const safeTipo = tipoProposta.replace(/[^A-Z0-9_-]/g, '_');
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename="Tabela_Valores_${safeTipo}.xlsx"`);
+            res.setHeader('Content-Disposition', 'attachment; filename="Tabela_de_Valores.xlsx"');
             res.send(buf);
           } catch (e) {
             res.status(500).json({ error: e.message });
@@ -49782,38 +49824,16 @@ app.get('/api/comercial/tabelas-preco/exportar', authenticateToken, (req, res) =
   );
 });
 
-// POST /api/comercial/tabelas-preco/upload - Upload de planilha Excel (.xlsx) para um tipo de proposta
+// POST /api/comercial/tabelas-preco/upload - Upload de planilha Excel (.xlsx) atualizando todos os tipos de tabela de preço
 app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportEquipamentos.single('arquivo'), async (req, res) => {
   try {
-    const tipoProposta = String(req.body?.tipo_proposta || '').trim().toUpperCase();
-    if (!tipoProposta) return res.status(400).json({ error: 'Informe o tipo de proposta.' });
+    const tipoPropostaFallback = String(req.body?.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
     if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Selecione um arquivo Excel (.xlsx) válido.' });
 
     const usuario = req.user?.nome || req.user?.username || 'Sistema';
     const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
     const XLSX = require('xlsx');
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-
-    // Escolhe a aba correspondente ao tipo de proposta (se houver várias abas) ou a primeira aba
-    let targetSheetName = workbook.SheetNames[0];
-    const mapAlias = {
-      'OBRA MENSAL': ['PACOTE MENSAL', 'OBRA MENSAL', 'MENSAL'],
-      'OBRA QUINZENAL': ['PACOTE QUINZENAL', 'OBRA QUINZENAL', 'QUINZENAL'],
-      'OBRA SEMANAL': ['PACOTE SEMANAL', 'OBRA SEMANAL', 'SEMANAL']
-    };
-    const candidatosAba = mapAlias[tipoProposta] || [tipoProposta];
-    for (const sName of workbook.SheetNames) {
-      const sUpper = sName.trim().toUpperCase();
-      if (candidatosAba.some(c => sUpper === c || sUpper.includes(c))) {
-        targetSheetName = sName;
-        break;
-      }
-    }
-
-    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheetName], { header: 1, defval: '' });
-    if (!rows || rows.length < 2) {
-      return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
-    }
 
     // Upload para Cloudflare R2 seguindo a regra obrigatória de armazenamento R2
     let r2KeySaved = null;
@@ -49823,7 +49843,7 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
         const d = new Date();
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const safeTipo = tipoProposta.replace(/[^A-Z0-9_-]/g, '_');
+        const safeTipo = tipoPropostaFallback.replace(/[^A-Z0-9_-]/g, '_');
         const r2Key = `Comercial/TabelasPreco/${yyyy}/${mm}/${Date.now()}_${safeTipo}.xlsx`;
         await r2.uploadToR2(r2Key, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         r2KeySaved = r2Key;
@@ -49847,7 +49867,223 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       return isNaN(n) ? 0 : n;
     };
 
-    // Ler linhas da aba (suporta planilha exportada [CÓDIGO, EQUIPAMENTO, GRUPO, FONTE, VALOR FINAL (R$)] e formatos legados)
+    const firstSheetName = workbook.SheetNames[0];
+    const firstSheetRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { header: 1, defval: '' });
+    if (!firstSheetRows || firstSheetRows.length < 2) {
+      return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
+    }
+
+    const headerRow0 = (firstSheetRows[0] || []).map(h => String(h || '').replace(/\s+/g, ' ').trim().toUpperCase());
+    const aliasHeaderToTipo = {
+      'EVENTO': 'EVENTO',
+      'OBRA MENSAL': 'OBRA MENSAL',
+      'PACOTE MENSAL': 'OBRA MENSAL',
+      'OBRA QUINZENAL': 'OBRA QUINZENAL',
+      'PACOTE QUINZENAL': 'OBRA QUINZENAL',
+      'OBRA SEMANAL': 'OBRA SEMANAL',
+      'PACOTE SEMANAL': 'OBRA SEMANAL',
+      'LIMPA FOSSA': 'LIMPA FOSSA',
+      'VENDA': 'VENDA',
+      'ADITIVO': 'ADITIVO',
+      'EQUIPAMENTOS': 'EQUIPAMENTOS',
+      'EQUIPAMENTO': 'EQUIPAMENTOS',
+      'AVARIA': 'AVARIA'
+    };
+
+    // Verifica se a planilha está no formato multicolunas (tipos de tabela de preço separados em colunas E, F, G...)
+    const colunasTipoDetectadas = [];
+    headerRow0.forEach((hText, colIdx) => {
+      const hClean = hText.replace(/\s*\(R\$\)\s*$/i, '').trim();
+      if (aliasHeaderToTipo[hClean]) {
+        colunasTipoDetectadas.push({ colIdx, tipo: aliasHeaderToTipo[hClean] });
+      }
+    });
+
+    if (colunasTipoDetectadas.length >= 1) {
+      const idxCod = headerRow0.findIndex(h => h.includes('COD') || h.includes('CÓD'));
+      const idxNome = headerRow0.findIndex(h => h.includes('EQUIPAMENTO') || h.includes('PRODUTO') || h.includes('DESCRI') || h.includes('NOME'));
+      const idxGrupo = headerRow0.findIndex(h => h.includes('GRUPO'));
+      const idxFonte = headerRow0.findIndex(h => h.includes('FONTE'));
+      const colCod = idxCod >= 0 ? idxCod : 0;
+      const colNome = idxNome >= 0 ? idxNome : 1;
+
+      const linhasEquip = [];
+      for (let i = 1; i < firstSheetRows.length; i++) {
+        const r = firstSheetRows[i];
+        if (!r || !r.some(x => x !== '')) continue;
+        const codigo = String(r[colCod] || '').trim();
+        const nome = String(r[colNome] || '').replace(/\s+/g, ' ').trim();
+        const grupo = idxGrupo >= 0 ? String(r[idxGrupo] || '').trim().toUpperCase() : '';
+        const fonte = idxFonte >= 0 ? String(r[idxFonte] || '').trim().toUpperCase() : '';
+        if (!nome && !codigo) continue;
+
+        const valoresPorTipo = {};
+        colunasTipoDetectadas.forEach(({ colIdx, tipo }) => {
+          const v = parseNumExcel(r[colIdx]);
+          if (v > 0) valoresPorTipo[tipo] = v;
+        });
+
+        linhasEquip.push({ codigo, nome, grupo, fonte, valoresPorTipo });
+      }
+
+      if (linhasEquip.length === 0) {
+        return res.status(400).json({ error: 'Nenhum equipamento encontrado na planilha.' });
+      }
+
+      db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
+        if (errEq) return res.status(500).json({ error: errEq.message });
+        const mapEq = new Map();
+        const mapEqCod = new Map();
+        let maxCod = 0;
+        (eqRows || []).forEach(e => {
+          if (e.nome) mapEq.set(String(e.nome).replace(/\s+/g, ' ').trim().toUpperCase(), e);
+          if (e.codigo) mapEqCod.set(String(e.codigo).trim().toUpperCase(), e);
+          const m = String(e.codigo || '').match(/(\d+)/);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxCod) maxCod = n;
+          }
+        });
+
+        const resolveEquip = (row) => {
+          const codKey = String(row.codigo || '').trim().toUpperCase();
+          if (codKey && mapEqCod.has(codKey)) return mapEqCod.get(codKey);
+          const nomeKey = String(row.nome || '').replace(/\s+/g, ' ').trim().toUpperCase();
+          if (nomeKey && mapEq.has(nomeKey)) return mapEq.get(nomeKey);
+          return null;
+        };
+
+        const syncEquipMulti = (idx, cb) => {
+          if (idx >= linhasEquip.length) return cb();
+          const itemRow = linhasEquip[idx];
+          const existing = resolveEquip(itemRow);
+          if (existing) {
+            if (!itemRow.nome && existing.nome) itemRow.nome = existing.nome;
+            return syncEquipMulti(idx + 1, cb);
+          }
+          if (!itemRow.nome) return syncEquipMulti(idx + 1, cb);
+          const key = itemRow.nome.replace(/\s+/g, ' ').trim().toUpperCase();
+          maxCod++;
+          const novoCod = itemRow.codigo ? String(itemRow.codigo).trim() : String(maxCod).padStart(5, '0');
+          const ehContainer = key.includes('CONTAINER');
+          const grupo = itemRow.grupo || (ehContainer ? 'CONTAINER' : (key.includes('TRAILER') ? 'TRAILER' : (key.includes(' VAC') ? 'VAC' : (key.includes('PCD') ? 'PCD' : (key.includes('LUXO') ? 'VIP' : 'ESTRUTURAS')))));
+          const fonte = itemRow.fonte || (ehContainer ? 'PRÓPRIO AVULSO' : 'PACOTE OBRA');
+          db.run(
+            `INSERT INTO estoque_equipamentos (codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, produto_venda, tipo_item, criado_por, created_at, updated_at)
+             VALUES (?, ?, 'UNIDADE [UN]', ?, ?, '', 0, 'matriz', ?, ?, ?)`,
+            [novoCod, itemRow.nome, fonte, grupo, usuario, agora, agora],
+            function(errIns) {
+              if (!errIns && this.lastID) {
+                const novoObj = { id: this.lastID, codigo: novoCod, nome: itemRow.nome };
+                mapEq.set(key, novoObj);
+                mapEqCod.set(novoCod.toUpperCase(), novoObj);
+              }
+              syncEquipMulti(idx + 1, cb);
+            }
+          );
+        };
+
+        syncEquipMulti(0, () => {
+          const tiposUnicos = Array.from(new Set(colunasTipoDetectadas.map(c => c.tipo)));
+          const placeholdersTipos = tiposUnicos.map(() => '?').join(',');
+          db.run(`DELETE FROM comercial_tabelas_preco_itens WHERE tipo_proposta IN (${placeholdersTipos})`, tiposUnicos, (errDel) => {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            const stmt = db.prepare(`INSERT INTO comercial_tabelas_preco_itens (
+              tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
+              valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+            let totalImportados = 0;
+            const inseridosPorTipoEquip = new Set();
+
+            linhasEquip.forEach(itemRow => {
+              const eq = resolveEquip(itemRow);
+              const eqId = eq ? eq.id : null;
+              const eqCod = eq ? eq.codigo : (itemRow.codigo || '');
+              const eqNome = (eq && eq.nome) ? eq.nome : itemRow.nome;
+              const dedupIdKey = eqId ? `ID:${eqId}` : `NOME:${String(eqNome || '').toUpperCase()}`;
+
+              tiposUnicos.forEach(tp => {
+                const val = itemRow.valoresPorTipo[tp] || 0;
+                if (val > 0) {
+                  const chaveUnica = `${tp}::${dedupIdKey}`;
+                  if (inseridosPorTipoEquip.has(chaveUnica)) return;
+                  inseridosPorTipoEquip.add(chaveUnica);
+                  totalImportados++;
+                  stmt.run([
+                    tp,
+                    eqId,
+                    eqCod,
+                    eqNome,
+                    val,
+                    0,
+                    0,
+                    val,
+                    agora
+                  ]);
+                }
+              });
+            });
+
+            stmt.finalize(() => {
+              let doneCfg = 0;
+              tiposUnicos.forEach(tp => {
+                db.get('SELECT id FROM comercial_tabelas_preco_config WHERE tipo_proposta = ?', [tp], (errC, rowC) => {
+                  const finishOne = () => {
+                    doneCfg++;
+                    if (doneCfg === tiposUnicos.length) {
+                      res.json({
+                        success: true,
+                        total_importados: totalImportados,
+                        tabelas_atualizadas: tiposUnicos,
+                        sheet: firstSheetName
+                      });
+                    }
+                  };
+                  if (rowC) {
+                    db.run(
+                      'UPDATE comercial_tabelas_preco_config SET arquivo_nome = ?, r2_key = COALESCE(?, r2_key), atualizado_por = ?, atualizado_em = ? WHERE id = ?',
+                      [req.file.originalname, r2KeySaved, usuario, agora, rowC.id],
+                      finishOne
+                    );
+                  } else {
+                    db.run(
+                      'INSERT INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em) VALUES (?, "", ?, ?, ?, ?)',
+                      [tp, req.file.originalname, r2KeySaved, usuario, agora],
+                      finishOne
+                    );
+                  }
+                });
+              });
+            });
+          });
+        });
+      });
+      return;
+    }
+
+    // Fallback: Planilha de 1 única tabela de preço (ou múltiplas abas)
+    const tipoProposta = tipoPropostaFallback;
+    let targetSheetName = workbook.SheetNames[0];
+    const mapAlias = {
+      'OBRA MENSAL': ['PACOTE MENSAL', 'OBRA MENSAL', 'MENSAL'],
+      'OBRA QUINZENAL': ['PACOTE QUINZENAL', 'OBRA QUINZENAL', 'QUINZENAL'],
+      'OBRA SEMANAL': ['PACOTE SEMANAL', 'OBRA SEMANAL', 'SEMANAL']
+    };
+    const candidatosAba = mapAlias[tipoProposta] || [tipoProposta];
+    for (const sName of workbook.SheetNames) {
+      const sUpper = sName.trim().toUpperCase();
+      if (candidatosAba.some(c => sUpper === c || sUpper.includes(c))) {
+        targetSheetName = sName;
+        break;
+      }
+    }
+
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheetName], { header: 1, defval: '' });
+    if (!rows || rows.length < 2) {
+      return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
+    }
+
     const header = (rows[0] || []).map(h => String(h || '').trim().toUpperCase());
     const primeiraLinhaEhDados = rows[0] && rows[0].length >= 2 && parseNumExcel(rows[0][1]) > 0 && !['PRODUTO', 'EQUIPAMENTO', 'VALOR', 'PREÇO', 'PRECO', 'CUSTO'].some(k => (header[1] || '').includes(k));
     const startRowIdx = primeiraLinhaEhDados ? 0 : 1;
@@ -49876,7 +50112,6 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
           valTotal = parseNumExcel(r[idxValorFinalHeader]);
           valProd = valTotal;
         } else {
-          // Fallback: busca última coluna numérica ou coluna 2/4/5
           valTotal = parseNumExcel(r[4] !== undefined && r[4] !== '' ? r[4] : (r[5] !== undefined && r[5] !== '' ? r[5] : r[2]));
           valProd = valTotal;
         }
@@ -49892,7 +50127,6 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       }
 
       if (!nome && !codigo) continue;
-      // Quando a planilha exportada contém todos os produtos do estoque, importa na aba os itens com valor informado (> 0)
       if (valTotal <= 0 && valProd <= 0) continue;
       if (!valTotal && valProd > 0) valTotal = valProd;
 
@@ -49910,7 +50144,6 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
       return res.status(400).json({ error: 'Nenhum produto com valor maior que zero foi encontrado na planilha.' });
     }
 
-    // Sincronizar equipamentos com estoque_equipamentos e atualizar comercial_tabelas_preco_itens
     db.all('SELECT id, codigo, nome FROM estoque_equipamentos', [], (errEq, eqRows) => {
       if (errEq) return res.status(500).json({ error: errEq.message });
       const mapEq = new Map();
@@ -49972,8 +50205,12 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
             valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
+          const inseridosSet = new Set();
           parsedItems.forEach(it => {
             const eq = resolveEquip(it);
+            const eqKey = eq ? `ID:${eq.id}` : `NOME:${String(it.nome_equipamento || '').toUpperCase()}`;
+            if (inseridosSet.has(eqKey)) return;
+            inseridosSet.add(eqKey);
             stmt.run([
               tipoProposta,
               eq ? eq.id : null,
@@ -49992,13 +50229,13 @@ app.post('/api/comercial/tabelas-preco/upload', authenticateToken, uploadImportE
                 db.run(
                   'UPDATE comercial_tabelas_preco_config SET arquivo_nome = ?, r2_key = COALESCE(?, r2_key), atualizado_por = ?, atualizado_em = ? WHERE id = ?',
                   [req.file.originalname, r2KeySaved, usuario, agora, rowC.id],
-                  () => res.json({ success: true, total_importados: parsedItems.length, sheet: targetSheetName })
+                  () => res.json({ success: true, total_importados: inseridosSet.size, tabelas_atualizadas: [tipoProposta], sheet: targetSheetName })
                 );
               } else {
                 db.run(
                   'INSERT INTO comercial_tabelas_preco_config (tipo_proposta, tipo_contrato, arquivo_nome, r2_key, atualizado_por, atualizado_em) VALUES (?, "", ?, ?, ?, ?)',
                   [tipoProposta, req.file.originalname, r2KeySaved, usuario, agora],
-                  () => res.json({ success: true, total_importados: parsedItems.length, sheet: targetSheetName })
+                  () => res.json({ success: true, total_importados: inseridosSet.size, tabelas_atualizadas: [tipoProposta], sheet: targetSheetName })
                 );
               }
             });
@@ -50034,30 +50271,79 @@ app.put('/api/comercial/tabelas-preco/item/:id', authenticateToken, (req, res) =
   );
 });
 
-// POST /api/comercial/tabelas-preco/item - Adicionar equipamento manualmente à tabela de preços
+// POST /api/comercial/tabelas-preco/item - Adicionar ou atualizar equipamento na tabela de preços (sem permitir duplicidade no mesmo tipo_proposta)
 app.post('/api/comercial/tabelas-preco/item', authenticateToken, (req, res) => {
-  const { tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento, valor_produto, valor_manutencao, qtd_manutencao, valor_total } = req.body || {};
+  const { existing_item_id, tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento, valor_produto, valor_manutencao, qtd_manutencao, valor_total } = req.body || {};
   if (!tipo_proposta || !nome_equipamento) return res.status(400).json({ error: 'Tipo de proposta e equipamento são obrigatórios.' });
+  const tpClean = String(tipo_proposta).trim().toUpperCase();
+  const codClean = String(codigo_equipamento || '').trim();
+  const nomeClean = String(nome_equipamento || '').replace(/\s+/g, ' ').trim();
+  const eqIdNum = equipamento_id ? parseInt(equipamento_id, 10) : null;
+  const vp = parseFloat(valor_produto) || parseFloat(valor_total) || 0;
+  const vm = parseFloat(valor_manutencao) || 0;
+  const qm = parseInt(qtd_manutencao, 10) || 0;
+  const vt = parseFloat(valor_total) || 0;
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
-  db.run(
-    `INSERT INTO comercial_tabelas_preco_itens (
-      tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
-      valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
+  db.all(
+    `SELECT id FROM comercial_tabelas_preco_itens
+     WHERE UPPER(TRIM(tipo_proposta)) = ?
+       AND (
+         (? IS NOT NULL AND id = ?)
+         OR (? IS NOT NULL AND equipamento_id = ?)
+         OR (? != '' AND UPPER(TRIM(codigo_equipamento)) = UPPER(?))
+         OR UPPER(TRIM(nome_equipamento)) = UPPER(?)
+       )
+     ORDER BY id DESC`,
     [
-      tipo_proposta,
-      equipamento_id || null,
-      codigo_equipamento || '',
-      nome_equipamento,
-      parseFloat(valor_produto) || 0,
-      parseFloat(valor_manutencao) || 0,
-      parseInt(qtd_manutencao, 10) || 0,
-      parseFloat(valor_total) || 0,
-      agora
+      tpClean,
+      existing_item_id ? Number(existing_item_id) : null,
+      existing_item_id ? Number(existing_item_id) : null,
+      eqIdNum,
+      eqIdNum,
+      codClean,
+      codClean,
+      nomeClean
     ],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: this.lastID });
+    (errFind, rowsExist) => {
+      if (errFind) return res.status(500).json({ error: errFind.message });
+      if (rowsExist && rowsExist.length > 0) {
+        const keepId = rowsExist[0].id;
+        const extraIds = rowsExist.slice(1).map(r => r.id);
+        db.run(
+          `UPDATE comercial_tabelas_preco_itens SET
+            equipamento_id = COALESCE(?, equipamento_id),
+            codigo_equipamento = CASE WHEN ? != '' THEN ? ELSE codigo_equipamento END,
+            nome_equipamento = ?,
+            valor_produto = ?,
+            valor_manutencao = ?,
+            qtd_manutencao = ?,
+            valor_total = ?,
+            atualizado_em = ?
+           WHERE id = ?`,
+          [eqIdNum, codClean, codClean, nomeClean, vp, vm, qm, vt, agora, keepId],
+          function(errUpd) {
+            if (errUpd) return res.status(500).json({ error: errUpd.message });
+            if (extraIds.length > 0) {
+              const ph = extraIds.map(() => '?').join(',');
+              db.run(`DELETE FROM comercial_tabelas_preco_itens WHERE id IN (${ph})`, extraIds, () => {});
+            }
+            res.json({ success: true, id: keepId, updated: true });
+          }
+        );
+      } else {
+        db.run(
+          `INSERT INTO comercial_tabelas_preco_itens (
+            tipo_proposta, equipamento_id, codigo_equipamento, nome_equipamento,
+            valor_produto, valor_manutencao, qtd_manutencao, valor_total, atualizado_em
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [tpClean, eqIdNum, codClean, nomeClean, vp, vm, qm, vt, agora],
+          function(errIns) {
+            if (errIns) return res.status(500).json({ error: errIns.message });
+            res.json({ success: true, id: this.lastID, updated: false });
+          }
+        );
+      }
     }
   );
 });
