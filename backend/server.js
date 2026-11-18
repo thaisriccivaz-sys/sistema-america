@@ -34812,6 +34812,146 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
     });
 });
 
+// Reposição de estoque: retira produtos do Estoque Matriz e coloca no Estoque de Reposição
+app.post('/api/estoque/repor', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+    const rawItens = Array.isArray(req.body?.itens) ? req.body.itens : (req.body ? [req.body] : []);
+    const itensValidos = rawItens
+        .map(it => ({
+            estoque_id_origem: parseInt(it.estoque_id_origem || it.estoque_id, 10),
+            endereco_origem_id: parseInt(it.endereco_origem_id, 10),
+            tamanho_origem: String(it.tamanho_origem ?? it.tamanho ?? '').trim().toUpperCase(),
+            estoque_id_destino: parseInt(it.estoque_id_destino || it.estoque_id, 10),
+            endereco_destino_id: parseInt(it.endereco_destino_id, 10),
+            tamanho_destino: String(it.tamanho_destino ?? it.tamanho ?? '').trim().toUpperCase(),
+            quantidade: parseInt(it.quantidade, 10)
+        }))
+        .filter(it => it.estoque_id_origem > 0 && it.endereco_origem_id > 0 && it.estoque_id_destino > 0 && it.endereco_destino_id > 0 && it.quantidade > 0);
+
+    if (itensValidos.length === 0) {
+        return res.status(400).json({ error: 'Informe ao menos um item com quantidade maior que zero e endereço Matriz válido.' });
+    }
+
+    const resultados = [];
+
+    const processarItem = (idx) => {
+        if (idx >= itensValidos.length) {
+            return res.json({ success: true, total_repostos: resultados.length, resultados });
+        }
+        const it = itensValidos[idx];
+
+        db.get(
+            `SELECT s.*, e.nome as endereco_nome, est.nome as produto_nome, est.departamento, est.quantidade_minima as item_min
+             FROM estoque_saldo_por_endereco s
+             JOIN estoque_enderecos e ON e.id = s.endereco_id
+             JOIN estoque est ON est.id = s.estoque_id
+             WHERE s.estoque_id = ? AND s.endereco_id = ? AND UPPER(COALESCE(s.tamanho, '')) = ?`,
+            [it.estoque_id_origem, it.endereco_origem_id, it.tamanho_origem],
+            (errO, rowOrigem) => {
+                if (errO) return res.status(500).json({ error: errO.message });
+                if (!rowOrigem) {
+                    return res.status(400).json({ error: 'Endereço de estoque Matriz de origem não encontrado para este produto.' });
+                }
+                const saldoMatrizAtual = parseInt(rowOrigem.quantidade, 10) || 0;
+                if (saldoMatrizAtual < it.quantidade) {
+                    const labelProd = rowOrigem.produto_nome + (it.tamanho_origem ? ` (Tam. ${it.tamanho_origem})` : '');
+                    return res.status(400).json({
+                        error: `Saldo insuficiente no Estoque Matriz para "${labelProd}" em ${rowOrigem.endereco_nome}: disponível ${saldoMatrizAtual}, solicitado ${it.quantidade}.`
+                    });
+                }
+
+                db.get(
+                    `SELECT s.*, e.nome as endereco_nome
+                     FROM estoque_saldo_por_endereco s
+                     JOIN estoque_enderecos e ON e.id = s.endereco_id
+                     WHERE s.estoque_id = ? AND s.endereco_id = ? AND UPPER(COALESCE(s.tamanho, '')) = ?`,
+                    [it.estoque_id_destino, it.endereco_destino_id, it.tamanho_destino],
+                    (errD, rowDestino) => {
+                        if (errD) return res.status(500).json({ error: errD.message });
+                        if (!rowDestino) {
+                            return res.status(400).json({ error: 'Endereço de Reposição de destino não encontrado para este produto.' });
+                        }
+                        const saldoReposAtual = parseInt(rowDestino.quantidade, 10) || 0;
+                        const novoSaldoMatriz = saldoMatrizAtual - it.quantidade;
+                        const novoSaldoRepos = saldoReposAtual + it.quantidade;
+
+                        db.run(
+                            'UPDATE estoque_saldo_por_endereco SET quantidade = ? WHERE id = ?',
+                            [novoSaldoMatriz, rowOrigem.id],
+                            (errUpdO) => {
+                                if (errUpdO) return res.status(500).json({ error: errUpdO.message });
+                                db.run(
+                                    'UPDATE estoque_saldo_por_endereco SET quantidade = ? WHERE id = ?',
+                                    [novoSaldoRepos, rowDestino.id],
+                                    (errUpdD) => {
+                                        if (errUpdD) return res.status(500).json({ error: errUpdD.message });
+
+                                        // Atualizar quantidade_atual total na tabela estoque
+                                        const syncTotalEstoque = (estId, cb) => {
+                                            db.get('SELECT COALESCE(SUM(quantidade), 0) as total FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [estId], (eSum, rSum) => {
+                                                const tot = rSum ? (parseInt(rSum.total, 10) || 0) : 0;
+                                                db.run('UPDATE estoque SET quantidade_atual = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [tot, estId], () => cb());
+                                            });
+                                        };
+
+                                        syncTotalEstoque(it.estoque_id_origem, () => {
+                                            const afterSync = () => {
+                                                // Verificar se o Estoque Matriz entrou em estoque mínimo após a retirada
+                                                const minMatriz = (parseInt(rowOrigem.quantidade_minima, 10) > 0)
+                                                    ? parseInt(rowOrigem.quantidade_minima, 10)
+                                                    : (!it.tamanho_origem ? (parseInt(rowOrigem.item_min, 10) || 0) : 0);
+                                                const nomeItemNotif = it.tamanho_origem ? `${rowOrigem.produto_nome} (Tam. ${it.tamanho_origem})` : rowOrigem.produto_nome;
+                                                notificarEstoqueMinimo(
+                                                    db,
+                                                    it.estoque_id_origem,
+                                                    nomeItemNotif,
+                                                    rowOrigem.departamento || '',
+                                                    it.endereco_origem_id,
+                                                    saldoMatrizAtual,
+                                                    novoSaldoMatriz,
+                                                    minMatriz,
+                                                    'compra',
+                                                    it.tamanho_origem
+                                                );
+
+                                                const motivoHist = `Reposição: Matriz (${rowOrigem.endereco_nome}: ${saldoMatrizAtual} → ${novoSaldoMatriz}) p/ Reposição (${rowDestino.endereco_nome}: ${saldoReposAtual} → ${novoSaldoRepos})${it.tamanho_destino ? ' [Tam. ' + it.tamanho_destino + ']' : ''}`;
+                                                db.run(
+                                                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                                    [it.estoque_id_destino, it.quantidade, 'Reposição', usuario, motivoHist, it.endereco_destino_id, rowDestino.endereco_nome],
+                                                    () => {
+                                                        resultados.push({
+                                                            estoque_id_origem: it.estoque_id_origem,
+                                                            endereco_origem_id: it.endereco_origem_id,
+                                                            novo_saldo_matriz: novoSaldoMatriz,
+                                                            estoque_id_destino: it.estoque_id_destino,
+                                                            endereco_destino_id: it.endereco_destino_id,
+                                                            novo_saldo_reposicao: novoSaldoRepos,
+                                                            quantidade_reposta: it.quantidade
+                                                        });
+                                                        processarItem(idx + 1);
+                                                    }
+                                                );
+                                            };
+
+                                            if (it.estoque_id_destino !== it.estoque_id_origem) {
+                                                syncTotalEstoque(it.estoque_id_destino, afterSync);
+                                            } else {
+                                                afterSync();
+                                            }
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    };
+
+    processarItem(0);
+});
+
 // Obter todos os saldos por endereço (para todos os itens de uma vez - usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(

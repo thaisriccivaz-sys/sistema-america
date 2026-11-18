@@ -2395,6 +2395,466 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
 window.abrirModalGlobalEntrada = () => window.abrirModalGlobalMovimentacao('entrada');
 window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida');
 
+// ── Modal de Reposição (Retira do Estoque Matriz → Coloca no Estoque de Reposição) ──
+window.abrirModalReposicaoEstoque = async function() {
+    const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
+
+    Swal.fire({
+        title: 'Carregando produtos de reposição...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const normTxt = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const escHtml = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const carregarLinhasReposicao = async () => {
+        const [rProd, rSaldos] = await Promise.all([
+            fetch(API_URL + "/estoque", { headers: { "Authorization": "Bearer " + token } }),
+            fetch(API_URL + "/estoque-saldos", { headers: { "Authorization": "Bearer " + token } })
+        ]);
+        const produtos = rProd.ok ? await rProd.json() : [];
+        const saldosMap = rSaldos.ok ? await rSaldos.json() : {};
+
+        // Agrupar por nome normalizado para encontrar origens Matriz no mesmo item ou em item homônimo
+        const prodPorNome = {};
+        (produtos || []).forEach(p => {
+            const k = normTxt(p.nome);
+            if (!prodPorNome[k]) prodPorNome[k] = [];
+            prodPorNome[k].push(p);
+        });
+
+        const linhas = [];
+        (produtos || []).forEach(prod => {
+            const saldosProd = saldosMap[prod.id] || [];
+            const saldosRepos = saldosProd.filter(s => String(s.tipo_estoque || '').toLowerCase() === 'reposicao');
+            if (saldosRepos.length === 0) return;
+
+            saldosRepos.forEach(sRep => {
+                const tamRep = String(sRep.tamanho || '').trim().toUpperCase();
+                // Buscar opções de estoque Matriz (mesmo produto e tamanho primeiro; senão mesmo nome e tamanho)
+                let origensMatriz = saldosProd
+                    .filter(s => String(s.tipo_estoque || 'matriz').toLowerCase() !== 'reposicao' && String(s.tamanho || '').trim().toUpperCase() === tamRep)
+                    .map(s => ({
+                        estoque_id: prod.id,
+                        endereco_id: s.endereco_id,
+                        endereco_nome: window._nomeEnderecoComRua ? window._nomeEnderecoComRua(s) : s.nome,
+                        tamanho: tamRep,
+                        quantidade: parseInt(s.quantidade, 10) || 0
+                    }));
+
+                if (origensMatriz.length === 0) {
+                    const homonimos = prodPorNome[normTxt(prod.nome)] || [];
+                    homonimos.forEach(pHom => {
+                        if (pHom.id === prod.id) return;
+                        const sHomList = saldosMap[pHom.id] || [];
+                        sHomList
+                            .filter(s => String(s.tipo_estoque || 'matriz').toLowerCase() !== 'reposicao' && String(s.tamanho || '').trim().toUpperCase() === tamRep)
+                            .forEach(s => {
+                                origensMatriz.push({
+                                    estoque_id: pHom.id,
+                                    endereco_id: s.endereco_id,
+                                    endereco_nome: window._nomeEnderecoComRua ? window._nomeEnderecoComRua(s) : s.nome,
+                                    tamanho: tamRep,
+                                    quantidade: parseInt(s.quantidade, 10) || 0
+                                });
+                            });
+                    });
+                }
+
+                // Ordenar origens Matriz pelo maior saldo disponível
+                origensMatriz.sort((a, b) => b.quantidade - a.quantidade);
+
+                const qtdRep = parseInt(sRep.quantidade, 10) || 0;
+                const minRep = (parseInt(sRep.quantidade_minima, 10) > 0)
+                    ? parseInt(sRep.quantidade_minima, 10)
+                    : (!tamRep ? (parseInt(prod.quantidade_minima, 10) || 0) : 0);
+                const maxRep = (parseInt(sRep.quantidade_maxima, 10) > 0)
+                    ? parseInt(sRep.quantidade_maxima, 10)
+                    : (!tamRep ? (parseInt(prod.quantidade_maxima, 10) || 0) : 0);
+
+                // Em vermelho se estiver no estoque mínimo (<= minRep quando minRep > 0) ou zerado
+                const isMinimo = (minRep > 0 && qtdRep <= minRep) || qtdRep === 0;
+
+                linhas.push({
+                    rowKey: `${prod.id}_${sRep.endereco_id}_${tamRep}`,
+                    estoque_id_destino: prod.id,
+                    nome: prod.nome || '',
+                    categoria: prod.categoria || '—',
+                    foto: prod.foto_url || prod.foto_base64 || '',
+                    tamanho: tamRep,
+                    endereco_destino_id: sRep.endereco_id,
+                    endereco_destino_nome: window._nomeEnderecoComRua ? window._nomeEnderecoComRua(sRep) : (sRep.nome || ''),
+                    qtd_reposicao: qtdRep,
+                    min_reposicao: minRep,
+                    max_reposicao: maxRep,
+                    is_minimo: isMinimo,
+                    origens_matriz: origensMatriz
+                });
+            });
+        });
+
+        // Ordenar: itens em estoque mínimo (vermelho) primeiro, depois por nome e tamanho
+        linhas.sort((a, b) => {
+            if (a.is_minimo !== b.is_minimo) return a.is_minimo ? -1 : 1;
+            const cmpNome = a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+            if (cmpNome !== 0) return cmpNome;
+            return (window._ordemTamanhoEstoque ? window._ordemTamanhoEstoque(a.tamanho) - window._ordemTamanhoEstoque(b.tamanho) : 0);
+        });
+
+        return linhas;
+    };
+
+    let linhasRepos = [];
+    try {
+        linhasRepos = await carregarLinhasReposicao();
+    } catch (e) {
+        return Swal.fire('Erro', 'Não foi possível carregar os itens de reposição: ' + (e.message || e), 'error');
+    }
+
+    const totalItens = linhasRepos.length;
+    const totalMinimo = linhasRepos.filter(l => l.is_minimo).length;
+
+    const modalHtml = `
+        <div style="text-align:left; font-family:'Inter',sans-serif;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; background:#f8fafc; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <span style="display:inline-flex; align-items:center; gap:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 10px; border-radius:999px; font-size:0.78rem; font-weight:700;">
+                        <i class="ph ph-package"></i> Total Reposição: <b id="rep-kpi-total">${totalItens}</b>
+                    </span>
+                    <span style="display:inline-flex; align-items:center; gap:6px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; padding:4px 10px; border-radius:999px; font-size:0.78rem; font-weight:700;">
+                        <i class="ph ph-warning-circle"></i> No Estoque Mínimo / Zerado: <b id="rep-kpi-minimo">${totalMinimo}</b>
+                    </span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:260px; justify-content:flex-end;">
+                    <div style="position:relative; flex:1; max-width:340px;">
+                        <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b;"></i>
+                        <input type="text" id="rep-modal-search" placeholder="Pesquisar produto, categoria ou endereço..." autocomplete="off"
+                            style="width:100%; padding:7px 10px 7px 32px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.83rem; box-sizing:border-box; text-transform:none !important; outline:none;">
+                    </div>
+                    <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:700; color:#dc2626; background:#fff1f2; border:1px solid #fecdd3; padding:6px 10px; border-radius:8px; cursor:pointer; user-select:none; white-space:nowrap;">
+                        <input type="checkbox" id="rep-modal-only-min" style="accent-color:#dc2626; cursor:pointer;">
+                        Apenas Estoque Mínimo
+                    </label>
+                </div>
+            </div>
+
+            <div style="max-height:58vh; overflow-y:auto; border:1px solid #e2e8f0; border-radius:10px; background:#fff;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f1f5f9; color:#334155; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em; position:sticky; top:0; z-index:5; border-bottom:2px solid #cbd5e1;">
+                            <th style="padding:10px 12px;">Produto (Reposição)</th>
+                            <th style="padding:10px 10px;">Endereço Reposição</th>
+                            <th style="padding:10px 10px; text-align:center;">Saldo Reposição</th>
+                            <th style="padding:10px 10px;">Retirar do Estoque Matriz</th>
+                            <th style="padding:10px 12px; width:210px; text-align:right;">Qtd. a Repor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rep-modal-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: '<span style="display:inline-flex;align-items:center;gap:8px;font-size:1.15rem;color:#0f172a;"><i class="ph ph-arrows-left-right" style="color:#2563eb;"></i> Reposição de Estoque (Matriz → Reposição)</span>',
+        width: '1040px',
+        html: modalHtml,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-check-circle"></i> Confirmar Reposições Preenchidas',
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#2563eb',
+        didOpen: () => {
+            const tbody = document.getElementById('rep-modal-tbody');
+            const inpSearch = document.getElementById('rep-modal-search');
+            const cbOnlyMin = document.getElementById('rep-modal-only-min');
+            const kpiTotal = document.getElementById('rep-kpi-total');
+            const kpiMin = document.getElementById('rep-kpi-minimo');
+
+            const atualizarPreviaLinha = (rowKey) => {
+                const l = linhasRepos.find(x => x.rowKey === rowKey);
+                if (!l) return;
+                const selOrig = document.getElementById(`rep-orig-${rowKey}`);
+                const inpQtd = document.getElementById(`rep-qtd-${rowKey}`);
+                const prevEl = document.getElementById(`rep-prev-${rowKey}`);
+                if (!prevEl || !inpQtd) return;
+
+                const qtd = parseInt(inpQtd.value, 10) || 0;
+                const origIdx = selOrig ? (parseInt(selOrig.value, 10) || 0) : 0;
+                const orig = l.origens_matriz[origIdx] || null;
+                if (!orig || qtd <= 0) {
+                    prevEl.innerHTML = '';
+                    return;
+                }
+                const ficaraMatriz = orig.quantidade - qtd;
+                const ficaraRepos = l.qtd_reposicao + qtd;
+                if (ficaraMatriz < 0) {
+                    prevEl.innerHTML = `<span style="color:#dc2626;font-weight:700;">⚠️ Saldo Matriz insuficiente (disp: ${orig.quantidade})</span>`;
+                } else {
+                    prevEl.innerHTML = `<span style="color:#1e40af;font-weight:700;">Matriz: ${orig.quantidade} → <b>${ficaraMatriz}</b> | Reposição: ${l.qtd_reposicao} → <b style="color:#16a34a;">${ficaraRepos}</b></span>`;
+                }
+            };
+
+            const executarReposicao = async (itensPayload) => {
+                try {
+                    const r = await fetch(API_URL + "/estoque/repor", {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ itens: itensPayload })
+                    });
+                    const resJson = await r.json();
+                    if (!r.ok) throw new Error(resJson.error || 'Erro ao realizar reposição');
+
+                    linhasRepos = await carregarLinhasReposicao();
+                    if (kpiTotal) kpiTotal.textContent = String(linhasRepos.length);
+                    if (kpiMin) kpiMin.textContent = String(linhasRepos.filter(x => x.is_minimo).length);
+                    renderTabelaRepos();
+                    window.renderEstoqueTable();
+
+                    Swal.showValidationMessage('');
+                    const toastEl = document.createElement('div');
+                    toastEl.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#16a34a;color:#fff;padding:10px 18px;border-radius:8px;font-weight:700;font-size:0.86rem;z-index:999999;box-shadow:0 8px 20px rgba(0,0,0,0.2);';
+                    toastEl.innerHTML = '<i class="ph ph-check-circle"></i> Reposição aplicada com sucesso! Estoque Matriz e Reposição atualizados.';
+                    document.body.appendChild(toastEl);
+                    setTimeout(() => toastEl.remove(), 2600);
+                } catch (err) {
+                    Swal.showValidationMessage(err.message || 'Falha ao repor estoque');
+                }
+            };
+
+            const renderTabelaRepos = () => {
+                if (!tbody) return;
+                const q = normTxt(inpSearch?.value || '');
+                const onlyMin = Boolean(cbOnlyMin?.checked);
+
+                const filtradas = linhasRepos.filter(l => {
+                    if (onlyMin && !l.is_minimo) return false;
+                    if (!q) return true;
+                    const txt = normTxt(`${l.nome} ${l.categoria} ${l.tamanho} ${l.endereco_destino_nome}`);
+                    return txt.includes(q);
+                });
+
+                if (filtradas.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="padding:28px; text-align:center; color:#94a3b8; font-size:0.88rem;">
+                                Nenhum produto de reposição encontrado para o filtro selecionado.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = filtradas.map(l => {
+                    const bgRow = l.is_minimo ? '#fff1f2' : '#ffffff';
+                    const borderLeft = l.is_minimo ? '4px solid #ef4444' : '4px solid transparent';
+                    const corQtd = l.is_minimo ? '#dc2626' : '#16a34a';
+                    const fotoThumb = l.foto
+                        ? `<img src="${escHtml(l.foto)}" style="width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">`
+                        : `<div style="width:34px;height:34px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;"><i class="ph ph-package"></i></div>`;
+
+                    const minMaxTxt = (l.min_reposicao > 0 || l.max_reposicao > 0)
+                        ? `<div style="font-size:0.72rem;color:${l.is_minimo ? '#b91c1c' : '#64748b'};font-weight:600;margin-top:2px;">min ${l.min_reposicao || 0}${l.max_reposicao > 0 ? ' | max ' + l.max_reposicao : ''}</div>`
+                        : `<div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">—</div>`;
+
+                    let colMatrizHtml = '';
+                    const temMatriz = l.origens_matriz.length > 0;
+                    const maxDispInicial = temMatriz ? l.origens_matriz[0].quantidade : 0;
+
+                    if (!temMatriz) {
+                        colMatrizHtml = `<span style="color:#dc2626;font-size:0.76rem;font-weight:700;"><i class="ph ph-warning"></i> Sem endereço Matriz vinculado</span>`;
+                    } else if (l.origens_matriz.length === 1) {
+                        const o = l.origens_matriz[0];
+                        colMatrizHtml = `
+                            <input type="hidden" id="rep-orig-${l.rowKey}" value="0">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.74rem;font-weight:700;">🏢 ${escHtml(o.endereco_nome)}</span>
+                                <span style="font-size:0.8rem;font-weight:800;color:${o.quantidade > 0 ? '#0f172a' : '#dc2626'};">Saldo: ${o.quantidade}</span>
+                            </div>
+                            <div id="rep-prev-${l.rowKey}" style="font-size:0.72rem;margin-top:3px;"></div>
+                        `;
+                    } else {
+                        colMatrizHtml = `
+                            <select id="rep-orig-${l.rowKey}" data-row-key="${l.rowKey}" class="rep-orig-select"
+                                style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:700;background:#fff;color:#0f172a;">
+                                ${l.origens_matriz.map((o, idx) => `<option value="${idx}">🏢 ${escHtml(o.endereco_nome)} (Saldo: ${o.quantidade})</option>`).join('')}
+                            </select>
+                            <div id="rep-prev-${l.rowKey}" style="font-size:0.72rem;margin-top:3px;"></div>
+                        `;
+                    }
+
+                    return `
+                        <tr style="background:${bgRow}; border-left:${borderLeft}; border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:9px 12px; vertical-align:middle;">
+                                <div style="display:flex; align-items:center; gap:9px;">
+                                    ${fotoThumb}
+                                    <div>
+                                        <div style="font-weight:700; color:${l.is_minimo ? '#b91c1c' : '#0f172a'}; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                            <span>${escHtml(l.nome)}</span>
+                                            ${l.tamanho ? `<span style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;padding:1px 7px;border-radius:999px;font-size:0.7rem;font-weight:800;">Tam. ${escHtml(l.tamanho)}</span>` : ''}
+                                            ${l.is_minimo ? `<span style="background:#ef4444;color:#fff;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">ESTOQUE MÍNIMO</span>` : ''}
+                                        </div>
+                                        <div style="font-size:0.73rem; color:#64748b;">${escHtml(l.categoria)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:9px 10px; vertical-align:middle;">
+                                <span style="display:inline-flex;align-items:center;gap:4px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;">
+                                    🔄 ${escHtml(l.endereco_destino_nome)}
+                                </span>
+                            </td>
+                            <td style="padding:9px 10px; vertical-align:middle; text-align:center;">
+                                <div style="font-size:1.02rem; font-weight:800; color:${corQtd};">${l.qtd_reposicao}</div>
+                                ${minMaxTxt}
+                            </td>
+                            <td style="padding:9px 10px; vertical-align:middle;">
+                                ${colMatrizHtml}
+                            </td>
+                            <td style="padding:9px 12px; vertical-align:middle; text-align:right; white-space:nowrap;">
+                                <div style="display:inline-flex; align-items:center; gap:6px;">
+                                    <input type="number" id="rep-qtd-${l.rowKey}" class="rep-qtd-input" data-row-key="${l.rowKey}"
+                                        min="0" max="${maxDispInicial}" value="" placeholder="0" ${!temMatriz || maxDispInicial <= 0 ? 'disabled' : ''}
+                                        style="width:78px; padding:6px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-weight:800; text-align:center; background:${!temMatriz || maxDispInicial <= 0 ? '#f1f5f9' : '#fff'};">
+                                    <button type="button" class="rep-btn-row" data-row-key="${l.rowKey}" ${!temMatriz || maxDispInicial <= 0 ? 'disabled' : ''}
+                                        style="background:${!temMatriz || maxDispInicial <= 0 ? '#cbd5e1' : '#2563eb'}; color:#fff; border:none; border-radius:6px; padding:6px 11px; font-size:0.78rem; font-weight:700; cursor:${!temMatriz || maxDispInicial <= 0 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; gap:4px;">
+                                        <i class="ph ph-arrows-left-right"></i> Repor
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tbody.querySelectorAll('.rep-qtd-input').forEach(inp => {
+                    inp.addEventListener('input', () => {
+                        Swal.resetValidationMessage();
+                        atualizarPreviaLinha(inp.dataset.rowKey);
+                    });
+                });
+
+                tbody.querySelectorAll('.rep-orig-select').forEach(sel => {
+                    sel.addEventListener('change', () => {
+                        const rk = sel.dataset.rowKey;
+                        const l = linhasRepos.find(x => x.rowKey === rk);
+                        const inp = document.getElementById(`rep-qtd-${rk}`);
+                        if (l && inp) {
+                            const orig = l.origens_matriz[parseInt(sel.value, 10) || 0];
+                            inp.max = orig ? orig.quantidade : 0;
+                        }
+                        atualizarPreviaLinha(rk);
+                    });
+                });
+
+                tbody.querySelectorAll('.rep-btn-row').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const rk = btn.dataset.rowKey;
+                        const l = linhasRepos.find(x => x.rowKey === rk);
+                        if (!l) return;
+                        const inp = document.getElementById(`rep-qtd-${rk}`);
+                        const sel = document.getElementById(`rep-orig-${rk}`);
+                        const qtd = parseInt(inp?.value, 10) || 0;
+                        if (qtd <= 0) {
+                            Swal.showValidationMessage(`Informe a quantidade a repor para "${l.nome}".`);
+                            inp?.focus();
+                            return;
+                        }
+                        const origIdx = sel ? (parseInt(sel.value, 10) || 0) : 0;
+                        const orig = l.origens_matriz[origIdx];
+                        if (!orig) {
+                            Swal.showValidationMessage(`Produto "${l.nome}" não possui endereço Matriz vinculado.`);
+                            return;
+                        }
+                        if (qtd > orig.quantidade) {
+                            Swal.showValidationMessage(`Saldo insuficiente no Matriz (${orig.endereco_nome}): disponível ${orig.quantidade}, informado ${qtd}.`);
+                            return;
+                        }
+                        btn.disabled = true;
+                        await executarReposicao([{
+                            estoque_id_origem: orig.estoque_id,
+                            endereco_origem_id: orig.endereco_id,
+                            tamanho_origem: orig.tamanho,
+                            estoque_id_destino: l.estoque_id_destino,
+                            endereco_destino_id: l.endereco_destino_id,
+                            tamanho_destino: l.tamanho,
+                            quantidade: qtd
+                        }]);
+                    });
+                });
+            };
+
+            inpSearch?.addEventListener('input', renderTabelaRepos);
+            cbOnlyMin?.addEventListener('change', renderTabelaRepos);
+            renderTabelaRepos();
+            setTimeout(() => inpSearch?.focus(), 60);
+        },
+        preConfirm: async () => {
+            const paraRepor = [];
+            for (const l of linhasRepos) {
+                const inp = document.getElementById(`rep-qtd-${l.rowKey}`);
+                if (!inp) continue;
+                const qtd = parseInt(inp.value, 10) || 0;
+                if (qtd <= 0) continue;
+                const sel = document.getElementById(`rep-orig-${l.rowKey}`);
+                const origIdx = sel ? (parseInt(sel.value, 10) || 0) : 0;
+                const orig = l.origens_matriz[origIdx];
+                if (!orig) {
+                    Swal.showValidationMessage(`O produto "${l.nome}" não possui estoque Matriz vinculado.`);
+                    return false;
+                }
+                if (qtd > orig.quantidade) {
+                    Swal.showValidationMessage(`Saldo insuficiente no Matriz para "${l.nome}" (disponível: ${orig.quantidade}, informado: ${qtd}).`);
+                    return false;
+                }
+                paraRepor.push({
+                    estoque_id_origem: orig.estoque_id,
+                    endereco_origem_id: orig.endereco_id,
+                    tamanho_origem: orig.tamanho,
+                    estoque_id_destino: l.estoque_id_destino,
+                    endereco_destino_id: l.endereco_destino_id,
+                    tamanho_destino: l.tamanho,
+                    quantidade: qtd
+                });
+            }
+
+            if (paraRepor.length === 0) {
+                Swal.showValidationMessage('Preencha a quantidade em pelo menos um produto para confirmar a reposição (ou clique em Fechar).');
+                return false;
+            }
+
+            try {
+                const r = await fetch(API_URL + "/estoque/repor", {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ itens: paraRepor })
+                });
+                const resJson = await r.json();
+                if (!r.ok) throw new Error(resJson.error || 'Erro ao realizar reposição');
+                return resJson;
+            } catch (e) {
+                Swal.showValidationMessage(e.message || 'Falha ao realizar reposição.');
+                return false;
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Reposição Concluída!',
+                text: `${result.value.total_repostos} reposição(ões) transferida(s) do Estoque Matriz para o Estoque de Reposição.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+            window.renderEstoqueTable();
+        }
+    });
+};
+
 
     window.formatarPlacas = function(placas) {
         if (!placas) return '';
