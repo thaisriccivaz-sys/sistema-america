@@ -997,7 +997,7 @@ function renderTelaPropostas() {
                     font-family: 'Inter', sans-serif !important;
                     outline: none !important;
                     transition: all 0.2s !important;
-                    text-transform: uppercase !important;
+                    text-transform: none !important;
                 }
                 [id^="prop-view-"] input::placeholder,
                 [id^="prop-view-"] textarea::placeholder,
@@ -1058,7 +1058,7 @@ function renderTelaPropostas() {
                     box-sizing: border-box !important;
                     font-family: 'Inter', sans-serif !important;
                     outline: none !important;
-                    text-transform: uppercase !important;
+                    text-transform: none !important;
                 }
 
                 /* Alinhamento de botões de busca / addon / whatsapp com a altura de 26px */
@@ -27102,12 +27102,14 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
 
     document.querySelectorAll('#mc-live-preview [data-q-cli]').forEach(inp => {
         const k = inp.getAttribute('data-q-cli');
-        if (k && est.quadro_cliente) est.quadro_cliente[k] = inp.value;
+        const val = inp.tagName === 'INPUT' || inp.tagName === 'TEXTAREA' ? inp.value : (inp.textContent || '').trim();
+        if (k && est.quadro_cliente) est.quadro_cliente[k] = val;
     });
 
     document.querySelectorAll('#mc-live-preview [data-q-int]').forEach(inp => {
         const k = inp.getAttribute('data-q-int');
-        if (k && est.quadro_interveniente) est.quadro_interveniente[k] = inp.value;
+        const val = inp.tagName === 'INPUT' || inp.tagName === 'TEXTAREA' ? inp.value : (inp.textContent || '').trim();
+        if (k && est.quadro_interveniente) est.quadro_interveniente[k] = val;
     });
 
     document.querySelectorAll('#mc-live-preview [data-ass-idx]').forEach(inp => {
@@ -27168,19 +27170,15 @@ window.atualizarPreviewModeloContratoAtivo = function() {
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(window._valoresAvariasList || []);
 
-    const cellInputStyle = 'border:1px dashed transparent; background:transparent; font-family:Arial, Helvetica, sans-serif; font-size:9.5pt; color:#0f172a; padding:2px 4px; border-radius:4px; outline:none; text-transform:none; box-sizing:border-box;';
-    const renderCellQ = (scopeAttr, lblKey, valKey, lblW = 'auto') => `
-        <div style="display:flex; align-items:center; gap:4px; width:100%;">
-            <input type="text" ${scopeAttr}="${lblKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}"
-                onfocus="window._mcUltimoElementoFocado=this; this.style.borderColor='#94a3b8'; this.style.background='#fff';"
-                onblur="this.style.borderColor='transparent'; this.style.background='transparent';"
+    const renderCellQ = (scopeAttr, lblKey, valKey) => `
+        <div style="display:flex; align-items:center; gap:6px; width:100%;">
+            <span contenteditable="true" ${scopeAttr}="${lblKey}"
                 oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                style="${cellInputStyle} font-weight:700; width:${lblW}; flex-shrink:0;">
-            <input type="text" ${scopeAttr}="${valKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[valKey] : qi[valKey]) || '')}"
-                onfocus="window._mcUltimoElementoFocado=this; this.style.borderColor='#94a3b8'; this.style.background='#fff';"
-                onblur="this.style.borderColor='transparent'; this.style.background='transparent';"
+                style="font-weight:700; font-size:9.5pt; color:#0f172a; white-space:nowrap; outline:none; padding:1px 2px; border-radius:3px; text-transform:none !important;">${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}</span>
+            <input type="text" class="mc-q-val-inp" ${scopeAttr}="${valKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[valKey] : qi[valKey]) || '')}"
+                onfocus="window._mcUltimoElementoFocado=this"
                 oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                style="${cellInputStyle} flex:1; min-width:60px;">
+                style="flex:1; min-width:50px;">
         </div>
     `;
 
@@ -27317,6 +27315,53 @@ window.atualizarPreviewModeloContratoAtivo = function() {
     `;
 
     previewEl.innerHTML = `
+        <style>
+            #mc-live-preview .america-contrato-sheet,
+            #mc-live-preview .america-contrato-sheet input,
+            #mc-live-preview .america-contrato-sheet textarea,
+            #mc-live-preview .america-contrato-sheet span {
+                text-transform: none !important;
+                font-family: Arial, Helvetica, sans-serif !important;
+            }
+            #mc-live-preview .america-contrato-sheet #mc-sheet-edit-titulo {
+                height: auto !important;
+                padding: 8px 12px !important;
+                font-size: 13pt !important;
+                font-weight: 800 !important;
+                background: #f8fafc !important;
+                border: 1px dashed #94a3b8 !important;
+            }
+            #mc-live-preview .america-contrato-sheet #mc-edit-preambulo,
+            #mc-live-preview .america-contrato-sheet #mc-edit-texto {
+                font-size: 10pt !important;
+                line-height: 1.56 !important;
+                padding: 10px 12px !important;
+                color: #0f172a !important;
+                background: #ffffff !important;
+                border: 1px dashed #cbd5e1 !important;
+                border-radius: 6px !important;
+            }
+            #mc-live-preview .america-contrato-sheet .mc-q-val-inp {
+                height: 24px !important;
+                padding: 2px 6px !important;
+                font-size: 9.5pt !important;
+                color: #0f172a !important;
+                background: transparent !important;
+                border: 1px dashed transparent !important;
+                border-radius: 4px !important;
+            }
+            #mc-live-preview .america-contrato-sheet .mc-q-val-inp:focus {
+                background: #ffffff !important;
+                border-color: #94a3b8 !important;
+                box-shadow: none !important;
+            }
+            #mc-live-preview .america-contrato-sheet [data-ass-idx] {
+                height: 24px !important;
+                padding: 2px 6px !important;
+                background: #ffffff !important;
+                border: 1px dashed #cbd5e1 !important;
+            }
+        </style>
         <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
             <!-- Topo com o Logo da Empresa ocupando a largura total da página (Editável pelo botão Editar Topo) -->
             <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; position:relative;">
