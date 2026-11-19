@@ -78,7 +78,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-tabela-precos', pagina_nome: 'Tabela Preços', icone: 'ph-table' },
     { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
     { modulo: 'Comercial', pagina_id: 'comercial-valores-avarias', pagina_nome: 'Valores de Avarias', icone: 'ph-warning-octagon' },
-    { modulo: 'Comercial', pagina_id: 'comercial-modelos-contrato', pagina_nome: 'Modelos de Contratos', icone: 'ph-file-doc' },
+    { modulo: 'Comercial', pagina_id: 'comercial-modelos-contrato', pagina_nome: 'Modelos Contratos', icone: 'ph-file-doc' },
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
     { modulo: 'Comercial', pagina_id: 'comercial-contratos', pagina_nome: 'Contratos', icone: 'ph-files' },

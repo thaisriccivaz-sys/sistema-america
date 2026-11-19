@@ -847,7 +847,7 @@ const BREADCRUMB_MAP = {
     'comercial-tabela-precos': { path: 'Comercial → Administração → Tabela Preços', code: 'COM008' },
     'estoque-equipamentos': { path: 'Comercial → Administração → Equipamentos', code: 'COM012' },
     'comercial-valores-avarias': { path: 'Comercial → Administração → Valores de Avarias', code: 'COM013' },
-    'comercial-modelos-contrato': { path: 'Comercial → Administração → Modelos de Contratos', code: 'COM014' },
+    'comercial-modelos-contrato': { path: 'Comercial → Administração → Modelos Contratos', code: 'COM014' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
@@ -1367,7 +1367,7 @@ const TAB_META = {
     'comercial-tabela-precos': { color: '#7048e8', icon: 'ph-table', title: 'Tabela Preços' },
     'estoque-equipamentos': { color: '#7048e8', icon: 'ph-cube', title: 'Equipamentos' },
     'comercial-valores-avarias': { color: '#7048e8', icon: 'ph-warning-octagon', title: 'Valores de Avarias' },
-    'comercial-modelos-contrato': { color: '#7048e8', icon: 'ph-file-doc', title: 'Modelos de Contratos' },
+    'comercial-modelos-contrato': { color: '#7048e8', icon: 'ph-file-doc', title: 'Modelos Contratos' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
     'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
     'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },

@@ -26355,12 +26355,15 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
     `;
 
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias);
+    const topoImgSrc = typeof window.obterUrlTopoModeloContrato === 'function'
+        ? window.obterUrlTopoModeloContrato(m)
+        : '/assets/logo-header.png';
 
     return `
         <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
-            <!-- Topo com o Logo da Empresa -->
+            <!-- Topo com o Logo da Empresa (por Tipo de Contrato) -->
             <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; display:flex; align-items:center; justify-content:space-between;">
-                <img src="/assets/logo-header.png" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
+                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
             </div>
 
             <!-- Título do Contrato -->
@@ -26379,7 +26382,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
             <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
                 <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
-                    <img src="/assets/logo-header.png" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
+                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
                 </div>
                 <div style="text-align:center; font-weight:800; font-size:12pt; color:#0f172a; text-transform:uppercase; margin-bottom:6px; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
                     ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
@@ -26392,6 +26395,16 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             </div>
         </div>
     `;
+};
+
+window.obterUrlTopoModeloContrato = function(m) {
+    if (!m) return '/assets/logo-header.png';
+    if (m.topo_url && String(m.topo_url).trim()) return String(m.topo_url).trim();
+    if (m.topo_r2_key && m.id) {
+        const rev = encodeURIComponent(String(m.topo_r2_key).slice(-16));
+        return `/api/public/modelos-contrato/${m.id}/topo-arquivo?v=${rev}`;
+    }
+    return '/assets/logo-header.png';
 };
 
 window.gerarHtmlDocumentoContratoCompleto = function(modelo, dadosContrato, listaAvarias) {
@@ -26417,7 +26430,7 @@ window.gerarHtmlDocumentoContratoCompleto = function(modelo, dadosContrato, list
 </head>
 <body>
     <div class="no-print-bar">
-        <div style="font-size:13px; font-weight:700;">📄 Visualização de Impressão — ${_escHtmlProp(titulo)} (Com Tabela de Valores de Avarias na Última Página)</div>
+        <div style="font-size:13px; font-weight:700;">📄 Visualização de Impressão — ${_escHtmlProp(titulo)}</div>
         <div style="display:flex; gap:8px;">
             <button onclick="window.print()" style="background:#7048e8; color:#fff; border:none; padding:7px 16px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">🖨️ Imprimir / Salvar PDF</button>
             <button onclick="window.close()" style="background:#475569; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">Fechar</button>
@@ -26485,7 +26498,37 @@ window.imprimirContratoComModelo = async function(pObj) {
 
 window._modelosContratoList = [];
 window._modeloContratoAtivo = null;
-window._mcCategoriaMnemonicoAtiva = 'TODOS';
+window._mcUltimoCampoFocado = 'mc-edit-texto';
+
+/* Filtra quais mnemônicos pertencem ao Tipo de Contrato selecionado na lista da esquerda */
+window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
+    if (!item) return false;
+    const t = String(codigoTipoRaw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const tag = String(item.tag || '').trim().toUpperCase();
+    const cat = String(item.categoria || '').trim();
+
+    // Campos de Interveniente aparecem apenas quando o tipo selecionado é INTERVENIENTE
+    if (cat === 'Interveniente' || tag.startsWith('{{INTERVENIENTE_')) {
+        return t === 'INTERVENIENTE';
+    }
+    // Campos de Contrato Vinculado / Base aparecem apenas quando o tipo selecionado é ADITIVO
+    if (tag === '{{CONTRATO_VINCULADO}}' || tag === '{{CONTRATO_VINCULADO_TIPO}}') {
+        return t === 'ADITIVO';
+    }
+    // Campos de Evento aparecem apenas em EVENTO e EQUIPAMENTOS
+    if (tag === '{{NOME_EVENTO}}' || tag === '{{DIAS_EVENTO}}') {
+        return t === 'EVENTO' || t === 'EQUIPAMENTOS';
+    }
+    // Hora início / Hora fim aparecem em EVENTO, EQUIPAMENTOS e LIMPA FOSSA
+    if (tag === '{{HORA_INICIO}}' || tag === '{{HORA_FIM}}') {
+        return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'LIMPA FOSSA';
+    }
+    // Tabela de Serviços aparece nos tipos que possuem quadro de serviços
+    if (tag === '{{TABELA_SERVICOS}}') {
+        return ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'EQUIPAMENTOS', 'ADITIVO', 'INTERVENIENTE'].includes(t);
+    }
+    return true;
+};
 
 window._renderModelosContratoInt = async function() {
     const container = document.getElementById('prop-view-modelos-contrato');
@@ -26500,29 +26543,20 @@ window._renderModelosContratoInt = async function() {
                         <i class="ph ph-file-doc"></i>
                     </div>
                     <div>
-                        <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#1e293b;">Modelos de Contratos</h3>
-                        <p style="margin:2px 0 0 0; font-size:0.78rem; color:#64748b;">
-                            1 modelo para cada tipo de contrato (exceto Avaria e Venda) + Interveniente · Topo com logo da empresa · Mnemônicos clicáveis · Última página com Tabela de Valores de Avarias
-                        </p>
+                        <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#1e293b;">Modelos Contratos</h3>
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                    <button type="button" onclick="window.restaurarTextoPadraoModeloContratoAtivo()" title="Restaurar o texto padrão de fábrica deste contrato" style="background:#fff; color:#475569; border:1px solid #cbd5e1; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
-                        <i class="ph ph-arrow-counter-clockwise"></i> Restaurar Padrão
-                    </button>
                     <button type="button" onclick="window.imprimirModeloContratoAtivo()" style="background:#0f172a; color:#fff; border:none; padding:0.45rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-printer"></i> Visualizar / Imprimir PDF
                     </button>
                     <button type="button" onclick="window.salvarModeloContratoAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 1.05rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(22,163,74,0.25);">
                         <i class="ph ph-floppy-disk"></i> Salvar Modelo
                     </button>
-                    <button type="button" onclick="window._renderModelosContratoInt()" title="Recarregar Modelos" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
-                        <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
-                    </button>
                 </div>
             </div>
 
-            <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Editor + Mnemônicos + Preview com Tabela de Avarias) -->
+            <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Topo + Mnemônicos + Pré-visualização Editável do Contrato) -->
             <div style="display:grid; grid-template-columns: 260px 1fr; gap:0.85rem; align-items:start;">
                 <!-- Coluna Esquerda: Tipos de Contrato -->
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:60px;">
@@ -26539,20 +26573,19 @@ window._renderModelosContratoInt = async function() {
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Editor + Mnemônicos + Preview -->
+                <!-- Coluna Direita: Topo/Mnemônicos + Pré-visualização Editável do Contrato -->
                 <div style="display:flex; flex-direction:column; gap:0.85rem;">
                     <div id="mc-editor-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div style="text-align:center; padding:2rem; color:#94a3b8;">Selecione um tipo de contrato ao lado para editar.</div>
                     </div>
 
-                    <!-- Preview Completo do Contrato + Última Página (Tabela de Valores de Avarias) -->
+                    <!-- Pré-visualização do Contrato (Editável diretamente) -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.55rem; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; gap:8px;">
                             <div>
                                 <h4 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                                    <i class="ph ph-eye" style="color:#7048e8;"></i> Pré-visualização do Contrato (Com Topo da Empresa e Última Página de Valores de Avarias)
+                                    <i class="ph ph-eye" style="color:#7048e8;"></i> Pré-visualização do Contrato
                                 </h4>
-                                <span style="font-size:0.75rem; color:#64748b;">A última página exibe automaticamente todos os itens cadastrados em <b>Comercial → Administração → Valores de Avarias</b>.</span>
                             </div>
                             <button type="button" onclick="window.imprimirModeloContratoAtivo()" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
                                 <i class="ph ph-printer"></i> Abrir em Tela Cheia / PDF
@@ -26643,84 +26676,136 @@ window._renderEditorModeloContratoAtivo = function() {
     const m = window._modeloContratoAtivo;
     if (!card || !m) return;
 
-    const categorias = ['TODOS', 'Contrato', 'Cliente', 'Contato', 'Interveniente', 'Período e Local', 'Produtos e Valores'];
+    const topoImgSrc = window.obterUrlTopoModeloContrato(m);
+    const temTopoCustom = Boolean(m.topo_r2_key || (m.topo_url && m.topo_url !== '/assets/logo-header.png'));
 
     card.innerHTML = `
-        <!-- Topo Fixo do Contrato com Logo da Empresa -->
+        <!-- Topo Padrão do Contrato com Logo da Empresa (Editável por Tipo de Contrato) -->
         <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:10px 14px; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:260px;">
-                <img src="/assets/logo-header.png" alt="Logo América Rental" style="height:54px; max-width:340px; object-fit:contain; background:#fff; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <img id="mc-topo-img-card" src="${_escHtmlProp(topoImgSrc)}" alt="Topo do Contrato" style="height:54px; max-width:340px; object-fit:contain; background:#fff; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0;">
                 <div>
                     <div style="font-size:0.78rem; font-weight:800; color:#0f172a;">Topo Padrão do Contrato com Logo da Empresa</div>
-                    <div style="font-size:0.72rem; color:#64748b;">Exibido automaticamente no cabeçalho do contrato e no Anexo I (Tabela de Valores de Avarias).</div>
                 </div>
             </div>
-            <span style="background:#ede9fe; color:#5b21b6; font-weight:800; font-size:0.76rem; padding:4px 10px; border-radius:999px;">
-                Tipo: ${_escHtmlProp(m.codigo_tipo || m.nome)}
-            </span>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <input type="file" id="mc-input-file-topo" accept="image/*" style="display:none;" onchange="window.enviarTopoPersonalizadoModeloContrato(this)">
+                <button type="button" onclick="document.getElementById('mc-input-file-topo')?.click()"
+                    style="background:#7048e8; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-image-square"></i> Editar Topo
+                </button>
+                ${temTopoCustom ? `
+                <button type="button" onclick="window.removerTopoPersonalizadoModeloContrato()"
+                    style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:5px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-trash"></i> Remover Topo
+                </button>` : ''}
+                <span style="background:#ede9fe; color:#5b21b6; font-weight:800; font-size:0.76rem; padding:4px 10px; border-radius:999px;">
+                    Tipo: ${_escHtmlProp(m.codigo_tipo || m.nome)}
+                </span>
+            </div>
         </div>
 
         <!-- Campo Título do Contrato -->
         <div style="margin-bottom:0.85rem;">
             <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Título do Contrato (Aceita mnemônicos como {{NUMERO_CONTRATO}})</label>
             <input type="text" id="mc-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
-                oninput="window._onInputCamposModeloContratoAtivo()"
+                onfocus="window._mcUltimoCampoFocado='mc-edit-titulo'"
+                oninput="window._onInputCamposModeloContratoAtivo('titulo')"
                 placeholder="Ex: CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${_escHtmlProp(m.nome)}"
                 style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.85rem; font-weight:700; color:#0f172a; box-sizing:border-box; text-transform:none;">
         </div>
 
-        <!-- Painel de Mnemônicos (Todos os campos da tela de Contrato) -->
-        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:0.75rem 0.9rem; margin-bottom:0.85rem;">
+        <!-- Painel de Mnemônicos (Filtrado automaticamente pelo Tipo de Contrato selecionado na esquerda) -->
+        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:0.75rem 0.9rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.55rem;">
                 <div>
                     <div style="font-size:0.8rem; font-weight:800; color:#4c1d95; display:flex; align-items:center; gap:5px;">
                         <i class="ph ph-brackets-curly"></i> Mnemônicos dos Campos do Contrato (Clique para inserir no texto)
                     </div>
-                    <div style="font-size:0.72rem; color:#6d28d9;">Posicione o cursor na caixa de texto abaixo e clique em qualquer mnemônico para adicioná-lo ao contrato.</div>
                 </div>
                 <input type="text" id="mc-mnemonico-search" placeholder="🔍 Buscar campo ou mnemônico..."
                     oninput="window.renderizarChipsMnemonicosContrato()"
                     style="width:240px; height:30px; padding:0 0.6rem; border:1px solid #c4b5fd; border-radius:6px; font-size:0.78rem; background:#fff; outline:none; text-transform:none;">
             </div>
-            <div id="mc-mnemonico-cat-bar" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:0.55rem;">
-                ${categorias.map(cat => `
-                    <button type="button" onclick="window.selecionarCategoriaMnemonicoContrato('${cat}')"
-                        data-mc-cat="${cat}"
-                        style="padding:3px 9px; border-radius:999px; font-size:0.72rem; font-weight:700; cursor:pointer; border:1px solid ${window._mcCategoriaMnemonicoAtiva === cat ? '#7048e8' : '#c4b5fd'}; background:${window._mcCategoriaMnemonicoAtiva === cat ? '#7048e8' : '#fff'}; color:${window._mcCategoriaMnemonicoAtiva === cat ? '#fff' : '#4c1d95'};">
-                        ${cat}
-                    </button>
-                `).join('')}
-            </div>
-            <div id="mc-mnemonicos-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:145px; overflow-y:auto; padding:2px;"></div>
-        </div>
-
-        <!-- Campo para digitar o texto do contrato -->
-        <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label style="font-size:0.78rem; font-weight:800; color:#1e293b;">
-                    <i class="ph ph-article" style="color:#7048e8;"></i> Texto do Contrato
-                </label>
-                <span style="font-size:0.72rem; color:#64748b;">A última página (Anexo I — Tabela de Valores de Avarias) é anexada automaticamente ao final do contrato.</span>
-            </div>
-            <textarea id="mc-edit-texto" rows="20"
-                oninput="window._onInputCamposModeloContratoAtivo()"
-                placeholder="Digite aqui o texto completo do contrato e clique nos mnemônicos acima para inserir os campos..."
-                style="width:100%; padding:0.85rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.84rem; font-family:'Inter', monospace; line-height:1.55; color:#0f172a; box-sizing:border-box; resize:vertical; text-transform:none;">${_escHtmlProp(m.texto_contrato || '')}</textarea>
+            <div id="mc-mnemonicos-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:155px; overflow-y:auto; padding:2px;"></div>
         </div>
     `;
 
     window.renderizarChipsMnemonicosContrato();
 };
 
-window.selecionarCategoriaMnemonicoContrato = function(cat) {
-    window._mcCategoriaMnemonicoAtiva = cat || 'TODOS';
-    document.querySelectorAll('#mc-mnemonico-cat-bar button[data-mc-cat]').forEach(btn => {
-        const isAtiva = btn.getAttribute('data-mc-cat') === window._mcCategoriaMnemonicoAtiva;
-        btn.style.background = isAtiva ? '#7048e8' : '#fff';
-        btn.style.color = isAtiva ? '#fff' : '#4c1d95';
-        btn.style.borderColor = isAtiva ? '#7048e8' : '#c4b5fd';
+window.enviarTopoPersonalizadoModeloContrato = async function(inputEl) {
+    const file = inputEl && inputEl.files && inputEl.files[0];
+    const m = window._modeloContratoAtivo;
+    if (!file || !m || !m.id) return;
+    const fd = new FormData();
+    fd.append('arquivo', file);
+    try {
+        Swal.fire({ title: 'Salvando topo do contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(`/api/comercial/modelos-contrato/${m.id}/topo`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+            body: fd
+        });
+        const j = await resp.json().catch(() => ({}));
+        Swal.close();
+        if (!resp.ok || !j.success) throw new Error(j.error || 'Não foi possível salvar a imagem de topo.');
+        if (j.modelo) {
+            m.topo_r2_key = j.modelo.topo_r2_key;
+            m.topo_mime_type = j.modelo.topo_mime_type;
+            m.topo_url = j.modelo.topo_url;
+            const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
+            if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
+            window._comercialModelosContrato = window._modelosContratoList;
+        }
+        window._renderEditorModeloContratoAtivo();
+        window.atualizarPreviewModeloContratoAtivo();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Topo do contrato atualizado com sucesso!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Erro ao enviar imagem de topo.', 'error');
+    } finally {
+        if (inputEl) inputEl.value = '';
+    }
+};
+
+window.removerTopoPersonalizadoModeloContrato = async function() {
+    const m = window._modeloContratoAtivo;
+    if (!m || !m.id) return;
+    const conf = await Swal.fire({
+        title: 'Restaurar topo padrão?',
+        text: `O tipo de contrato "${m.nome}" voltará a usar o topo padrão da empresa.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, restaurar padrão',
+        cancelButtonText: 'Cancelar'
     });
-    window.renderizarChipsMnemonicosContrato();
+    if (!conf.isConfirmed) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(`/api/comercial/modelos-contrato/${m.id}/topo`, {
+            method: 'DELETE',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || !j.success) throw new Error(j.error || 'Erro ao restaurar topo padrão.');
+        m.topo_r2_key = null;
+        m.topo_mime_type = null;
+        m.topo_url = '';
+        const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
+        if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
+        window._comercialModelosContrato = window._modelosContratoList;
+        window._renderEditorModeloContratoAtivo();
+        window.atualizarPreviewModeloContratoAtivo();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Topo padrão restaurado!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Erro ao restaurar topo padrão.', 'error');
+    }
 };
 
 window.renderizarChipsMnemonicosContrato = function() {
@@ -26728,10 +26813,11 @@ window.renderizarChipsMnemonicosContrato = function() {
     if (!box) return;
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const q = norm(document.getElementById('mc-mnemonico-search')?.value || '');
-    const cat = window._mcCategoriaMnemonicoAtiva || 'TODOS';
+    const m = window._modeloContratoAtivo;
+    const tipoAtivo = m ? (m.codigo_tipo || m.nome || '') : '';
 
     const lista = (window.CONTRATO_MNEMONICOS_CATALOGO || []).filter(item => {
-        if (cat !== 'TODOS' && item.categoria !== cat) return false;
+        if (!window.mnemonicoPertenceAoTipoContrato(item, tipoAtivo)) return false;
         if (!q) return true;
         return norm(item.tag).includes(q) || norm(item.label).includes(q) || norm(item.categoria).includes(q);
     });
@@ -26753,34 +26839,129 @@ window.renderizarChipsMnemonicosContrato = function() {
     `).join('');
 };
 
-window.inserirMnemonicoNoTextoContrato = function(tag) {
-    const textarea = document.getElementById('mc-edit-texto');
+window._autoAjustarAlturaTextareaContrato = function(el) {
+    const textarea = el || document.getElementById('mc-edit-texto');
     if (!textarea) return;
-    const start = textarea.selectionStart ?? textarea.value.length;
-    const end = textarea.selectionEnd ?? textarea.value.length;
-    const val = textarea.value;
-    textarea.value = val.slice(0, start) + tag + val.slice(end);
-    textarea.focus();
-    const newPos = start + tag.length;
-    textarea.setSelectionRange(newPos, newPos);
-    window._onInputCamposModeloContratoAtivo();
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.max(420, textarea.scrollHeight + 12) + 'px';
 };
 
-window._onInputCamposModeloContratoAtivo = function() {
+window.inserirMnemonicoNoTextoContrato = function(tag) {
+    const targetId = window._mcUltimoCampoFocado === 'mc-edit-titulo' ? 'mc-edit-titulo' : 'mc-edit-texto';
+    const el = document.getElementById(targetId) || document.getElementById('mc-edit-texto');
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const val = el.value;
+    el.value = val.slice(0, start) + tag + val.slice(end);
+    el.focus();
+    const newPos = start + tag.length;
+    el.setSelectionRange(newPos, newPos);
+    window._onInputCamposModeloContratoAtivo(targetId === 'mc-edit-titulo' ? 'titulo' : 'texto');
+};
+
+window._onInputCamposModeloContratoAtivo = function(origem = '') {
     const m = window._modeloContratoAtivo;
     if (!m) return;
     const inpTit = document.getElementById('mc-edit-titulo');
+    const inpTitSheet = document.getElementById('mc-sheet-edit-titulo');
     const inpTxt = document.getElementById('mc-edit-texto');
-    if (inpTit) m.titulo_contrato = inpTit.value;
-    if (inpTxt) m.texto_contrato = inpTxt.value;
-    window.atualizarPreviewModeloContratoAtivo();
+    if (origem === 'titulo_sheet' && inpTitSheet) {
+        m.titulo_contrato = inpTitSheet.value;
+        if (inpTit && inpTit !== document.activeElement) inpTit.value = m.titulo_contrato;
+    } else if (inpTit) {
+        m.titulo_contrato = inpTit.value;
+        if (inpTitSheet && inpTitSheet !== document.activeElement) inpTitSheet.value = m.titulo_contrato;
+    }
+    if (inpTxt) {
+        m.texto_contrato = inpTxt.value;
+        window._autoAjustarAlturaTextareaContrato(inpTxt);
+    }
 };
 
 window.atualizarPreviewModeloContratoAtivo = function() {
     const previewEl = document.getElementById('mc-live-preview');
     const m = window._modeloContratoAtivo;
     if (!previewEl || !m) return;
-    previewEl.innerHTML = window.gerarHtmlLayoutContratoPadrao(m, null, window._valoresAvariasList || []);
+
+    const topoImgSrc = window.obterUrlTopoModeloContrato(m);
+    const ctx = window.montarContextoMnemonicosContrato({}, null, null, null, window._valoresAvariasList || []);
+    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
+    const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(window._valoresAvariasList || []);
+
+    const blocoAssinaturasHtml = `
+        <div style="margin-top:28px; page-break-inside:avoid; display:grid; grid-template-columns:${ehInterveniente ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:28px; padding-top:16px;">
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCATÁRIA / CONTRATANTE</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">{{CLIENTE_RAZAO_SOCIAL}}</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: {{CLIENTE_CNPJ}}</div>
+            </div>
+            ${ehInterveniente ? `
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">INTERVENIENTE</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">{{INTERVENIENTE_RAZAO_SOCIAL}}</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: {{INTERVENIENTE_CNPJ}}</div>
+            </div>
+            ` : ''}
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCADORA / CONTRATADA</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ: 03.434.448/0001-01</div>
+            </div>
+        </div>
+    `;
+
+    previewEl.innerHTML = `
+        <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
+            <!-- Topo com o Logo da Empresa (Editável por Tipo de Contrato) -->
+            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative;">
+                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
+                <button type="button" onclick="document.getElementById('mc-input-file-topo')?.click()"
+                    title="Alterar imagem de topo deste tipo de contrato"
+                    style="position:absolute; right:0; top:0; background:rgba(15,23,42,0.78); color:#fff; border:none; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-pencil-simple"></i> Editar Topo
+                </button>
+            </div>
+
+            <!-- Título do Contrato (Editável diretamente na folha do contrato) -->
+            <div style="margin-bottom:16px;">
+                <input type="text" id="mc-sheet-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
+                    onfocus="window._mcUltimoCampoFocado='mc-edit-titulo'"
+                    oninput="window._onInputCamposModeloContratoAtivo('titulo_sheet')"
+                    title="Clique para editar o título do contrato"
+                    style="width:100%; text-align:center; font-weight:800; font-size:13pt; color:#0f172a; letter-spacing:0.02em; padding:8px 12px; background:#f8fafc; border:1px dashed #94a3b8; border-radius:4px; box-sizing:border-box; outline:none; text-transform:none;">
+            </div>
+
+            <!-- Corpo do Contrato (Editável diretamente na Pré-visualização) -->
+            <div class="america-contrato-body">
+                <textarea id="mc-edit-texto"
+                    onfocus="window._mcUltimoCampoFocado='mc-edit-texto'"
+                    oninput="window._onInputCamposModeloContratoAtivo('texto')"
+                    placeholder="Digite aqui o texto completo do contrato e clique nos mnemônicos acima para inserir os campos..."
+                    style="width:100%; min-height:460px; padding:12px 14px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10.5pt; line-height:1.58; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(m.texto_contrato || '')}</textarea>
+            </div>
+
+            <!-- Assinaturas -->
+            ${blocoAssinaturasHtml}
+
+            <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
+            <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
+                <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
+                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
+                </div>
+                <div style="text-align:center; font-weight:800; font-size:12pt; color:#0f172a; text-transform:uppercase; margin-bottom:6px; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
+                    ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
+                </div>
+                <div style="font-size:9.5pt; color:#334155; margin-bottom:12px; text-align:justify;">
+                    Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação:
+                </div>
+                ${tabelaAvariasHtml}
+                ${blocoAssinaturasHtml}
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => window._autoAjustarAlturaTextareaContrato(), 0);
 };
 
 window.salvarModeloContratoAtivo = async function() {
@@ -26809,39 +26990,6 @@ window.salvarModeloContratoAtivo = async function() {
         }
     } catch (e) {
         Swal.fire('Erro', 'Erro ao salvar modelo de contrato: ' + e.message, 'error');
-    }
-};
-
-window.restaurarTextoPadraoModeloContratoAtivo = async function() {
-    const m = window._modeloContratoAtivo;
-    if (!m || !m.id) return;
-    const conf = await Swal.fire({
-        title: `Restaurar modelo "${m.nome}"?`,
-        text: 'O título e o texto deste contrato voltarão para o modelo padrão de fábrica.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#7048e8',
-        confirmButtonText: 'Sim, restaurar padrão',
-        cancelButtonText: 'Cancelar'
-    });
-    if (!conf.isConfirmed) return;
-    try {
-        const res = await apiPost(`/comercial/modelos-contrato/${m.id}/restaurar-padrao`, {});
-        if (res && res.success) {
-            m.titulo_contrato = res.titulo_contrato || m.titulo_contrato;
-            m.texto_contrato = res.texto_contrato || m.texto_contrato;
-            const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
-            if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
-            window._renderEditorModeloContratoAtivo();
-            window.atualizarPreviewModeloContratoAtivo();
-            if (typeof mostrarToastSucesso === 'function') {
-                mostrarToastSucesso('Texto padrão restaurado com sucesso!');
-            }
-        } else {
-            Swal.fire('Aviso', (res && res.error) || 'Não foi possível restaurar o texto padrão.', 'warning');
-        }
-    } catch (e) {
-        Swal.fire('Erro', 'Falha ao restaurar padrão: ' + e.message, 'error');
     }
 };
 

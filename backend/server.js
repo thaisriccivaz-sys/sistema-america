@@ -46603,6 +46603,8 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
   titulo_contrato TEXT DEFAULT '',
   texto_contrato TEXT DEFAULT '',
   caputs TEXT DEFAULT '[]',
+  topo_r2_key TEXT,
+  topo_mime_type TEXT,
   created_at TEXT,
   updated_at TEXT
 )`, (errMcTable) => {
@@ -46616,6 +46618,8 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
     "titulo_contrato TEXT DEFAULT ''",
     "texto_contrato TEXT DEFAULT ''",
     "caputs TEXT DEFAULT '[]'",
+    'topo_r2_key TEXT',
+    'topo_mime_type TEXT',
     'created_at TEXT',
     'updated_at TEXT'
   ].forEach(colDef => {
@@ -46658,11 +46662,19 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
   }, 400);
 });
 
+function montarModeloContratoRow(r) {
+  if (!r) return r;
+  const rev = r.topo_r2_key ? encodeURIComponent(String(r.topo_r2_key).slice(-16)) : '';
+  return Object.assign({}, r, {
+    topo_url: r.topo_r2_key ? (`/api/public/modelos-contrato/${r.id}/topo-arquivo?v=${rev}`) : ''
+  });
+}
+
 // GET /api/comercial/modelos-contrato - Listar todos os modelos de contrato
 app.get('/api/comercial/modelos-contrato', authenticateToken, (req, res) => {
   db.all('SELECT * FROM comercial_modelos_contrato ORDER BY CASE WHEN ordem > 0 THEN ordem ELSE 999 END ASC, id ASC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows || []);
+    res.json((rows || []).map(montarModeloContratoRow));
   });
 });
 
@@ -46671,8 +46683,94 @@ app.get('/api/comercial/modelos-contrato/:id', authenticateToken, (req, res) => 
   db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Modelo não encontrado' });
-    res.json(row);
+    res.json(montarModeloContratoRow(row));
   });
+});
+
+// GET /api/public/modelos-contrato/:id/topo-arquivo - Servir imagem do topo personalizado do contrato via R2
+app.get('/api/public/modelos-contrato/:id/topo-arquivo', (req, res) => {
+  db.get('SELECT id, topo_r2_key, topo_mime_type FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], async (err, row) => {
+    if (err || !row || !row.topo_r2_key) return res.status(404).send('Arquivo não encontrado');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento não configurado');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(row.topo_r2_key);
+      res.setHeader('Content-Type', contentType || row.topo_mime_type || 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.pipe(res);
+    } catch (e) {
+      res.status(500).send('Erro ao ler arquivo de topo do contrato');
+    }
+  });
+});
+
+const uploadTopoContratoMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }
+});
+
+// POST /api/comercial/modelos-contrato/:id/topo - Upload de imagem de topo personalizado por tipo de contrato (Cloudflare R2)
+app.post('/api/comercial/modelos-contrato/:id/topo', authenticateToken, uploadTopoContratoMem.single('arquivo'), async (req, res) => {
+  try {
+    const r2b = require('./utils/r2');
+    if (!r2b.isReady()) return res.status(503).json({ error: 'Armazenamento (R2) não configurado.' });
+    const rowAtual = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], (e, r) => e ? reject(e) : resolve(r));
+    });
+    if (!rowAtual) return res.status(404).json({ error: 'Modelo de contrato não encontrado.' });
+    const file = req.file;
+    if (!file || !file.buffer) {
+      return res.status(400).json({ error: 'Selecione uma imagem de topo para enviar.' });
+    }
+    const agoraBr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
+    const yyyy = agoraBr.getUTCFullYear();
+    const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+    const slug = String(rowAtual.codigo_tipo || rowAtual.nome || 'CONTRATO')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+      .toUpperCase().slice(0, 30) || 'CONTRATO';
+    const hash = require('crypto').randomBytes(4).toString('hex');
+    const extRaw = path.extname(file.originalname || '').replace('.', '').toLowerCase() || 'png';
+    const ext = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(extRaw) ? extRaw : 'png';
+    const novaKey = `Comercial/Contratos/Topo/${yyyy}/${mm}/${dd}_TOPO_${slug}_${hash}.${ext}`;
+    const novoMime = file.mimetype || 'image/png';
+
+    await r2b.uploadToR2(novaKey, file.buffer, novoMime);
+
+    const agoraStr = agoraBr.toISOString().replace('T', ' ').substring(0, 19);
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE comercial_modelos_contrato SET topo_r2_key = ?, topo_mime_type = ?, updated_at = ? WHERE id = ?',
+        [novaKey, novoMime, agoraStr, rowAtual.id],
+        (e) => e ? reject(e) : resolve()
+      );
+    });
+
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [rowAtual.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloContratoRow(rowFinal) });
+  } catch (e) {
+    console.error('[MODELOS_CONTRATO_TOPO] Erro ao salvar topo:', e);
+    res.status(500).json({ error: e.message || 'Erro ao salvar imagem de topo.' });
+  }
+});
+
+// DELETE /api/comercial/modelos-contrato/:id/topo - Restaurar topo padrão (mantém arquivo no R2, limpa referência no banco)
+app.delete('/api/comercial/modelos-contrato/:id/topo', authenticateToken, async (req, res) => {
+  try {
+    const agoraStr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE comercial_modelos_contrato SET topo_r2_key = NULL, topo_mime_type = NULL, updated_at = ? WHERE id = ?',
+        [agoraStr, req.params.id],
+        (e) => e ? reject(e) : resolve()
+      );
+    });
+    const rowFinal = await new Promise((resolve) => db.get('SELECT * FROM comercial_modelos_contrato WHERE id = ?', [req.params.id], (e, r) => resolve(r)));
+    res.json({ success: true, modelo: montarModeloContratoRow(rowFinal) });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao restaurar topo padrão.' });
+  }
 });
 
 // POST /api/comercial/modelos-contrato - Criar um modelo de contrato
