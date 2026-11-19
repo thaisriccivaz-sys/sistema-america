@@ -43889,7 +43889,11 @@ function gerarHtmlProposta(p) {
         ${(() => {
             if (p.itens) {
                 try {
-                    const list = JSON.parse(p.itens);
+                    let list = JSON.parse(p.itens);
+                    if (Number(p.proposta_comparativa) === 1 && Array.isArray(list) && list.length > 0 && list.some(x => x && typeof x.aprovado_comparativa === 'boolean')) {
+                        const filtrados = list.filter(x => x && x.aprovado_comparativa !== false);
+                        if (filtrados.length > 0) list = filtrados;
+                    }
                     if (list && list.length > 0) {
                         return `
                         <div class="section">

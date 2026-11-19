@@ -7842,19 +7842,72 @@ window.aprovarPropostaEdicao = async function() {
     if (typeof window.validarListaProdutosEquipamentosDiasContrato === 'function' && !window.validarListaProdutosEquipamentosDiasContrato(tipo)) return;
 
     const isComparativa = Boolean(document.getElementById('prop-comparativa')?.checked);
-    const propExistente = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+    let propExistente = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+    let dadosDocFresh = null;
+    if (_propostasEditandoId && isComparativa) {
+        try {
+            const respFresh = await apiGet('/propostas/' + _propostasEditandoId + '/dados-documento-assinado');
+            if (respFresh && respFresh.proposta) {
+                propExistente = Object.assign({}, propExistente || {}, respFresh.proposta);
+                const idxP = (_propostasData || []).findIndex(p => Number(p.id) === Number(_propostasEditandoId));
+                if (idxP >= 0) _propostasData[idxP] = Object.assign({}, _propostasData[idxP], respFresh.proposta);
+            }
+            if (respFresh && respFresh.dados) {
+                dadosDocFresh = respFresh.dados;
+            }
+        } catch (_) {}
+    }
     let produtosAprovadosSel = [];
     try {
-        if (propExistente && propExistente.produtos_aprovados) {
+        if (dadosDocFresh && Array.isArray(dadosDocFresh.produtos_aprovados) && dadosDocFresh.produtos_aprovados.length > 0) {
+            produtosAprovadosSel = dadosDocFresh.produtos_aprovados.filter(Boolean);
+        } else if (propExistente && propExistente.produtos_aprovados) {
             produtosAprovadosSel = Array.isArray(propExistente.produtos_aprovados)
-                ? propExistente.produtos_aprovados
-                : JSON.parse(propExistente.produtos_aprovados || '[]');
+                ? propExistente.produtos_aprovados.filter(Boolean)
+                : JSON.parse(propExistente.produtos_aprovados || '[]').filter(Boolean);
+        } else if (Array.isArray(window._propProdutosAprovadosAtual) && window._propProdutosAprovadosAtual.length > 0) {
+            produtosAprovadosSel = window._propProdutosAprovadosAtual.filter(Boolean);
         }
     } catch (_) { produtosAprovadosSel = []; }
+
+    let itensDbFresh = [];
+    try {
+        if (propExistente && propExistente.itens) {
+            itensDbFresh = Array.isArray(propExistente.itens) ? propExistente.itens : JSON.parse(propExistente.itens || '[]');
+        }
+    } catch (_) { itensDbFresh = []; }
+
+    const foiAprovadoPeloClienteLink = Boolean(
+        (propExistente && (propExistente.aceite_publico_em || propExistente.assinatura_r2_key)) ||
+        (dadosDocFresh && (dadosDocFresh.aceite_publico_em || dadosDocFresh.assinatura_url)) ||
+        produtosAprovadosSel.length > 0
+    );
+
+    const verificarItemAprovadoCliente = (it, idx, rotuloGerado, nomeLimpo) => {
+        if (produtosAprovadosSel.length > 0 && typeof window.itemComparativaEstaAprovado === 'function') {
+            const cloneSemFlag = Object.assign({}, it);
+            delete cloneSemFlag.aprovado_comparativa;
+            if (window.itemComparativaEstaAprovado(cloneSemFlag, idx, produtosAprovadosSel)) return true;
+        }
+        if (itensDbFresh[idx] && typeof itensDbFresh[idx].aprovado_comparativa === 'boolean') {
+            return itensDbFresh[idx].aprovado_comparativa;
+        }
+        if (typeof it.aprovado_comparativa === 'boolean') {
+            return it.aprovado_comparativa;
+        }
+        const normCmp = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\bVAC\b/g, '').replace(/\s+/g, ' ').trim();
+        const nIt = normCmp(nomeLimpo);
+        const rIt = normCmp(rotuloGerado);
+        return produtosAprovadosSel.some(s => {
+            const sN = normCmp(s);
+            return Boolean(sN && (sN === rIt || sN.includes(nIt) || nIt.includes(sN.split(' (QTD:')[0].trim())));
+        });
+    };
 
     const itensAtuaisAprov = window._propProdutosAdicionados || [];
     if (isComparativa && itensAtuaisAprov.length > 0) {
         const ehEvAprov = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento(tipo) : false;
+        const temSelecaoCliente = produtosAprovadosSel.length > 0 || itensDbFresh.some(x => x && typeof x.aprovado_comparativa === 'boolean') || itensAtuaisAprov.some(x => x && typeof x.aprovado_comparativa === 'boolean');
         const opcoesHtml = itensAtuaisAprov.map((it, idx) => {
             const nomeIt = String(it.produto || it.descricao || it.nome || ('Produto ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
             const qtdIt = Number(it.quantidade || 1);
@@ -7865,20 +7918,42 @@ window.aprovarPropostaEdicao = async function() {
             const totIt = subIt * multDiasIt;
             const totFmt = totIt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const rotulo = `${nomeIt} (Qtd: ${qtdIt}) — R$ ${totFmt}`;
-            const jaMarcado = (typeof it.aprovado_comparativa === 'boolean')
-                ? it.aprovado_comparativa
-                : produtosAprovadosSel.some(s => String(s).toUpperCase().includes(nomeIt.toUpperCase()));
-            return `<label style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; cursor:pointer; font-size:0.84rem; font-weight:700; color:#0f172a;">
-                <input type="checkbox" class="swal-chk-prod-aprov" data-item-idx="${idx}" value="${_escHtmlProp(rotulo)}" ${jaMarcado ? 'checked' : ''} style="width:17px; height:17px; margin-top:2px; accent-color:#1d4ed8; cursor:pointer;">
-                <span>${_escHtmlProp(rotulo)}</span>
+            const aprovadoCliente = temSelecaoCliente ? verificarItemAprovadoCliente(it, idx, rotulo, nomeIt) : false;
+            const jaMarcado = temSelecaoCliente ? aprovadoCliente : false;
+            const badgeClienteHtml = temSelecaoCliente
+                ? (aprovadoCliente
+                    ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; white-space:nowrap; margin-left:auto; flex-shrink:0;">✓ Aprovado pelo cliente</span>`
+                    : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap; margin-left:auto; flex-shrink:0;">Não selecionado pelo cliente</span>`)
+                : '';
+            const borderRow = (temSelecaoCliente && aprovadoCliente) ? '1.5px solid #86efac' : '1px solid #cbd5e1';
+            const bgRow = (temSelecaoCliente && aprovadoCliente) ? '#f0fdf4' : '#fff';
+            return `<label style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border:${borderRow}; border-radius:8px; background:${bgRow}; cursor:pointer; font-size:0.84rem; font-weight:700; color:#0f172a;">
+                <span style="display:flex; align-items:flex-start; gap:8px;">
+                    <input type="checkbox" class="swal-chk-prod-aprov" data-item-idx="${idx}" value="${_escHtmlProp(rotulo)}" ${jaMarcado ? 'checked' : ''} style="width:17px; height:17px; margin-top:2px; accent-color:#1d4ed8; cursor:pointer; flex-shrink:0;">
+                    <span>${_escHtmlProp(rotulo)}</span>
+                </span>
+                ${badgeClienteHtml}
             </label>`;
         }).join('');
+
+        const bannerAprovClienteHtml = (foiAprovadoPeloClienteLink && produtosAprovadosSel.length > 0) ? `
+            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+                <div style="font-size:0.76rem; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">
+                    Opção(ões) aprovada(s) pelo cliente no link:
+                </div>
+                ${produtosAprovadosSel.map(p => `<div style="font-size:0.83rem; font-weight:800; color:#0f172a;">• ${_escHtmlProp(p)}</div>`).join('')}
+                <div style="font-size:0.75rem; color:#334155; margin-top:6px;">
+                    O sistema já marcou abaixo a(s) opção(ões) aprovada(s) pelo cliente para gerar o contrato. Você pode manter ou editar a seleção abaixo:
+                </div>
+            </div>
+        ` : '';
 
         const selResp = await Swal.fire({
             title: 'Proposta Comparativa — Produtos Aprovados',
             html: `
                 <div style="text-align:left; font-family:'Inter',sans-serif;">
-                    <p style="font-size:0.86rem; color:#334155; margin:0 0 10px 0;">Selecione qual(is) produto(s) da proposta estão sendo aprovados:</p>
+                    ${bannerAprovClienteHtml}
+                    <p style="font-size:0.86rem; color:#334155; margin:0 0 10px 0;">Selecione qual(is) produto(s) da proposta estão sendo aprovados para o contrato:</p>
                     <div style="display:flex; flex-direction:column; gap:8px; max-height:48vh; overflow-y:auto;">${opcoesHtml}</div>
                 </div>
             `,
@@ -8379,6 +8454,16 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
         }
         const d = resp.dados;
         const pRow = resp.proposta || (_propostasData || []).find(x => Number(x.id) === Number(targetId)) || {};
+        if (resp.proposta) {
+            const idxCached = (_propostasData || []).findIndex(x => Number(x.id) === Number(targetId));
+            if (idxCached >= 0) _propostasData[idxCached] = Object.assign({}, _propostasData[idxCached], resp.proposta);
+        }
+        if (Number(_propostasEditandoId) === Number(targetId) && Array.isArray(d.produtos_aprovados) && d.produtos_aprovados.length > 0) {
+            window._propProdutosAprovadosAtual = d.produtos_aprovados.filter(Boolean);
+            if (typeof window.renderizarProdutosPropostaGrid === 'function') {
+                window.renderizarProdutosPropostaGrid();
+            }
+        }
         const temAssinafy = Boolean(
             (pRow.assinafy_id && String(pRow.assinafy_id).trim()) ||
             (pRow.assinafy_signed_r2_key && String(pRow.assinafy_signed_r2_key).trim()) ||
@@ -9600,6 +9685,20 @@ async function imprimirProposta(id) {
         let itensProp = [];
         try {
             itensProp = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []);
+            if (Number(p.proposta_comparativa) === 1 && itensProp.length > 0) {
+                let prodsAprovPrint = [];
+                try {
+                    prodsAprovPrint = Array.isArray(p.produtos_aprovados) ? p.produtos_aprovados.filter(Boolean) : JSON.parse(p.produtos_aprovados || '[]').filter(Boolean);
+                } catch (_) { prodsAprovPrint = []; }
+                if (prodsAprovPrint.length > 0 || itensProp.some(x => x && typeof x.aprovado_comparativa === 'boolean')) {
+                    const filtradosPrint = itensProp.filter((it, idxIt) =>
+                        typeof window.itemComparativaEstaAprovado === 'function'
+                            ? window.itemComparativaEstaAprovado(it, idxIt, prodsAprovPrint)
+                            : it.aprovado_comparativa !== false
+                    );
+                    if (filtradosPrint.length > 0) itensProp = filtradosPrint;
+                }
+            }
         } catch (e) { itensProp = []; }
 
         const valoresComp = [];
@@ -23047,11 +23146,17 @@ window.renderizarProdutosPropostaGrid = function() {
 
     const isComparativaGrid = Boolean(document.getElementById('prop-comparativa')?.checked);
     const prodsAprovGrid = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
-    const temFiltroCompGrid = Boolean(isComparativaGrid && prodsAprovGrid.length > 0 && typeof window.itemComparativaEstaAprovado === 'function');
+    const temBoolAprovGrid = list.some(x => x && typeof x.aprovado_comparativa === 'boolean');
+    const temFiltroCompGrid = Boolean(isComparativaGrid && (prodsAprovGrid.length > 0 || temBoolAprovGrid) && typeof window.itemComparativaEstaAprovado === 'function');
 
     tbody.innerHTML = list.map((p, idx) => {
-        const naoAprovadoGrid = Boolean(temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idx, prodsAprovGrid));
+        const naoAprovadoGrid = Boolean(temFiltroCompGrid && !(prodsAprovGrid.length > 0 ? window.itemComparativaEstaAprovado(p, idx, prodsAprovGrid) : p.aprovado_comparativa !== false));
         const styleRiscadoGrid = naoAprovadoGrid ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
+        const badgeAprovCompGridHtml = temFiltroCompGrid
+            ? (!naoAprovadoGrid
+                ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">✓ Aprovado pelo cliente</span>`
+                : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Não aprovado</span>`)
+            : '';
         const nomeProd = String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
         const obsProd = p.observacao !== undefined ? p.observacao : '';
         const qtd = parseInt(p.quantidade, 10) || 1;
@@ -23112,9 +23217,9 @@ window.renderizarProdutosPropostaGrid = function() {
             ? parseInt(p.manut_semana, 10)
             : (usaManutGrid && typeof window.extrairManutSemanaDeProduto === 'function' ? window.extrairManutSemanaDeProduto(nomeProd || p.codigo) : 0);
         return `
-            <tr style="border-bottom:1px solid #e2e8f0;">
+            <tr style="border-bottom:1px solid #e2e8f0; ${(temFiltroCompGrid && !naoAprovadoGrid) ? 'background:#f0fdf4;' : ''}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)} ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}</div>
+                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}${badgeAprovCompGridHtml}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 10px;">

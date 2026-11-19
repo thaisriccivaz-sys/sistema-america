@@ -861,16 +861,19 @@
         if (!Array.isArray(produtosAprovadosArr) || produtosAprovadosArr.length === 0) return true;
         if (it && typeof it.aprovado_comparativa === 'boolean') return it.aprovado_comparativa;
         const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+        const semVac = (s) => normTxt(s).replace(/\bVAC\b/g, '').replace(/\s+/g, ' ').trim();
         const nomeRaw = String((it && (it.produto || it.descricao || it.nome)) || '').replace(/^\d+\s*-\s*/, '').trim();
         const nomeN = normTxt(nomeRaw);
+        const nomeSemVac = semVac(nomeRaw);
         const qtdN = Math.max(1, Number((it && (it.quantidade ?? it.qtde)) || 1) || 1);
         const prefixoQtd = `${nomeN} (QTD: ${qtdN})`;
+        const prefixoQtdSemVac = `${nomeSemVac} (QTD: ${qtdN})`;
         return produtosAprovadosArr.some(ap => {
             const apN = normTxt(ap).replace(/^\d+\s*-\s*/, '').trim();
             if (!apN || !nomeN) return false;
-            if (apN.startsWith(prefixoQtd)) return true;
+            if (apN.startsWith(prefixoQtd) || semVac(apN).startsWith(prefixoQtdSemVac)) return true;
             const apSemQtd = apN.split(/\s*\(QTD:/)[0].split(/\s*[—-]\s*R\$/)[0].trim();
-            return apSemQtd === nomeN || apN === nomeN;
+            return apSemQtd === nomeN || apN === nomeN || semVac(apSemQtd) === nomeSemVac;
         });
     };
 
