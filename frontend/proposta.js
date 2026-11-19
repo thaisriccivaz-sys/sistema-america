@@ -26527,6 +26527,39 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
     return tabelaCliente + tabelaInterv;
 };
 
+/* Converte texto simples em HTML editável preservando quebras de linha, ou retorna o HTML caso já possua formatação */
+window.converterTextoContratoParaHtmlEditavel = function(raw) {
+    const s = String(raw || '');
+    if (!s.trim()) return '';
+    if (/<(div|p|br|span|b|strong|i|em|u|font|ul|ol|li|h[1-6]|table)\b/i.test(s)) {
+        return s;
+    }
+    return s.split(/\r?\n/).map(line => {
+        const t = line.trim();
+        if (!t) return '<div><br></div>';
+        const esc = _escHtmlProp(line);
+        if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(t)) {
+            return `<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1;">${esc}</div>`;
+        }
+        return `<div style="margin-bottom:5px;">${esc}</div>`;
+    }).join('');
+};
+
+/* Resolve mnemônicos dentro de HTML rico (escapando valores de texto e injetando tabelas HTML) */
+window.resolverHtmlRicoModeloContrato = function(htmlOuTextoBruto, ctx) {
+    const raw = String(htmlOuTextoBruto || '');
+    if (!raw.trim()) return '';
+    const temHtml = /<(div|p|br|span|b|strong|i|em|u|font|ul|ol|li|h[1-6]|table)\b/i.test(raw);
+    const htmlBase = temHtml ? raw : window.converterTextoContratoParaHtmlEditavel(raw);
+
+    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}'];
+    const mapEscapado = {};
+    Object.keys(ctx || {}).forEach(k => {
+        mapEscapado[k] = htmlTags.includes(k) ? String(ctx[k] ?? '') : _escHtmlProp(String(ctx[k] ?? ''));
+    });
+    return window.resolverTextoModeloContrato(htmlBase, mapEscapado, false);
+};
+
 window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
     const m = modelo || {};
     const ctx = window.montarContextoMnemonicosContrato(
@@ -26541,56 +26574,16 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
         Boolean(dadosContrato?.proposta?.interveniente_nome);
 
-    const tituloResolvido = window.resolverTextoModeloContrato(
-        m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`,
-        ctx,
-        false
-    );
+    const rawTitulo = m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`;
+    const tituloTemHtml = /<(div|p|br|span|b|strong|i|em|u|font)\b/i.test(rawTitulo);
+    const tituloResolvidoHtml = tituloTemHtml
+        ? window.resolverHtmlRicoModeloContrato(rawTitulo, ctx)
+        : _escHtmlProp(window.resolverTextoModeloContrato(rawTitulo, ctx, false));
+    const tituloResolvidoTextoLimpo = window.resolverTextoModeloContrato(rawTitulo.replace(/<[^>]+>/g, ''), ctx, false);
 
-    const formatarBlocoTextoParaHtml = (textoBruto) => {
-        const pre = window.resolverTextoModeloContrato(textoBruto || '', ctx, true);
-        const ls = String(pre || '').split(/\r?\n/);
-        const out = [];
-        for (let i = 0; i < ls.length; i++) {
-            const rawLine = ls[i].trim();
-            if (!rawLine) {
-                out.push('<div style="height:6px;"></div>');
-                continue;
-            }
-            if (rawLine === '{{TABELA_PRODUTOS}}') {
-                out.push(ctx['{{TABELA_PRODUTOS}}']);
-                continue;
-            }
-            if (rawLine === '{{TABELA_SERVICOS}}') {
-                out.push(ctx['{{TABELA_SERVICOS}}']);
-                continue;
-            }
-            if (rawLine === '{{TABELA_VALORES_AVARIAS}}') {
-                out.push(ctx['{{TABELA_VALORES_AVARIAS}}']);
-                continue;
-            }
-            let escaped = _escHtmlProp(rawLine);
-            if (escaped.includes('{{TABELA_PRODUTOS}}')) {
-                escaped = escaped.split('{{TABELA_PRODUTOS}}').join(ctx['{{TABELA_PRODUTOS}}']);
-            }
-            if (escaped.includes('{{TABELA_SERVICOS}}')) {
-                escaped = escaped.split('{{TABELA_SERVICOS}}').join(ctx['{{TABELA_SERVICOS}}']);
-            }
-            if (escaped.includes('{{TABELA_VALORES_AVARIAS}}')) {
-                escaped = escaped.split('{{TABELA_VALORES_AVARIAS}}').join(ctx['{{TABELA_VALORES_AVARIAS}}']);
-            }
-            if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(rawLine)) {
-                out.push(`<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1; text-transform:uppercase;">${escaped}</div>`);
-                continue;
-            }
-            out.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:6px;">${escaped}</div>`);
-        }
-        return out.join('\n');
-    };
-
-    const htmlPreambulo = formatarBlocoTextoParaHtml(est.preambulo);
+    const htmlPreambulo = window.resolverHtmlRicoModeloContrato(est.preambulo, ctx);
     const htmlTabelaCliente = window.gerarHtmlTabelaDadosClienteContrato(est, ctx, ehInterveniente);
-    const htmlClausulas = formatarBlocoTextoParaHtml(est.clausulas);
+    const htmlClausulas = window.resolverHtmlRicoModeloContrato(est.clausulas, ctx);
 
     const renderAssinaturasPdfHtml = (listaAss) => {
         const arr = Array.isArray(listaAss) ? listaAss : [];
@@ -26627,15 +26620,15 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             </div>
 
             <!-- Título do Contrato -->
-            <div style="text-align:center; font-weight:800; font-size:13pt; color:#0f172a; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:16px; padding:8px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
-                ${_escHtmlProp(tituloResolvido)}
+            <div style="text-align:center; font-weight:800; font-size:13pt; color:#0f172a; letter-spacing:0.02em; margin-bottom:16px; padding:8px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
+                ${tituloResolvidoHtml}
             </div>
 
             <!-- Preâmbulo + Tabela de Dados do Cliente + Cláusulas -->
-            <div class="america-contrato-body">
-                ${htmlPreambulo}
+            <div class="america-contrato-body" style="font-size:10pt; line-height:1.52; color:#1e293b; text-align:justify;">
+                <div>${htmlPreambulo}</div>
                 ${htmlTabelaCliente}
-                ${htmlClausulas}
+                <div>${htmlClausulas}</div>
             </div>
 
             <!-- Assinaturas -->
@@ -26650,7 +26643,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
                     ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
                 </div>
                 <div style="font-size:9.5pt; color:#334155; margin-bottom:12px; text-align:justify;">
-                    Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação, integrante do <strong>${_escHtmlProp(tituloResolvido)}</strong> firmado com <strong>${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</strong>:
+                    Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação, integrante do <strong>${_escHtmlProp(tituloResolvidoTextoLimpo)}</strong> firmado com <strong>${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</strong>:
                 </div>
                 ${tabelaAvariasHtml}
                 ${blocoAssinaturasAvariasHtml}
@@ -26752,7 +26745,104 @@ window._modelosContratoList = [];
 window._modeloContratoAtivo = null;
 window._estruturaContratoAtivo = null;
 window._mcUltimoElementoFocado = null;
+window._mcUltimaSelecaoRange = null;
 window._mcMnemonicosAberto = false; // Inicia minimizado com setinha para baixo
+
+window._mcSalvarSelecaoRichText = function(el) {
+    if (el) window._mcUltimoElementoFocado = el;
+    try {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            const r = sel.getRangeAt(0);
+            const previewEl = document.getElementById('mc-live-preview');
+            if (previewEl && previewEl.contains(r.commonAncestorContainer)) {
+                window._mcUltimaSelecaoRange = r.cloneRange();
+            }
+        }
+    } catch (_) {}
+};
+
+window._mcRestaurarSelecaoRichText = function() {
+    try {
+        if (window._mcUltimaSelecaoRange) {
+            const previewEl = document.getElementById('mc-live-preview');
+            if (previewEl && previewEl.contains(window._mcUltimaSelecaoRange.commonAncestorContainer)) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(window._mcUltimaSelecaoRange);
+                return true;
+            }
+        }
+    } catch (_) {}
+    return false;
+};
+
+/* Aplica Negrito, Itálico, Sublinhado, Cor da Fonte, Fonte, Tamanho da Fonte ou Alinhamento na Pré-visualização do Contrato */
+window.aplicarFormatacaoContrato = function(comando, valor = null) {
+    window._mcRestaurarSelecaoRichText();
+    let elFoco = window._mcUltimoElementoFocado;
+    if (!elFoco || !document.body.contains(elFoco) || elFoco.tagName === 'INPUT') {
+        elFoco = document.getElementById('mc-edit-texto') || document.getElementById('mc-edit-preambulo');
+    }
+    if (elFoco && typeof elFoco.focus === 'function') {
+        elFoco.focus();
+        window._mcRestaurarSelecaoRichText();
+    }
+
+    try {
+        document.execCommand('styleWithCSS', false, true);
+    } catch (_) {}
+
+    if (comando === 'fontSizePt') {
+        const ptVal = String(valor || '10pt').trim();
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+            document.execCommand('styleWithCSS', false, false);
+            document.execCommand('fontSize', false, '7');
+            const root = document.getElementById('mc-live-preview');
+            if (root) {
+                root.querySelectorAll('font[size="7"]').forEach(f => {
+                    const sp = document.createElement('span');
+                    sp.style.fontSize = ptVal;
+                    sp.innerHTML = f.innerHTML;
+                    f.parentNode.replaceChild(sp, f);
+                });
+                root.querySelectorAll('span[style*="xx-large"], span[style*="xxx-large"]').forEach(sp => {
+                    sp.style.fontSize = ptVal;
+                });
+            }
+        } else if (elFoco && elFoco.isContentEditable) {
+            elFoco.style.fontSize = ptVal;
+        }
+    } else if (comando === 'fontName') {
+        if (valor) {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                document.execCommand('fontName', false, valor);
+            } else if (elFoco && elFoco.isContentEditable) {
+                elFoco.style.fontFamily = valor;
+            }
+        }
+    } else if (comando === 'foreColor') {
+        if (valor) {
+            const inpCor = document.getElementById('mc-fmt-color');
+            if (inpCor && inpCor.value.toLowerCase() !== String(valor).toLowerCase()) {
+                try { inpCor.value = valor; } catch (_) {}
+            }
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                document.execCommand('foreColor', false, valor);
+            } else if (elFoco && elFoco.isContentEditable) {
+                elFoco.style.color = valor;
+            }
+        }
+    } else {
+        document.execCommand(comando, false, valor);
+    }
+
+    window._mcSalvarSelecaoRichText(elFoco);
+    window._sincronizarEstruturaParaModeloContratoAtivo();
+};
 
 /* Filtra quais mnemônicos pertencem ao Tipo de Contrato selecionado na lista da esquerda */
 window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
@@ -26826,9 +26916,9 @@ window._renderModelosContratoInt = async function() {
                 <div style="display:flex; flex-direction:column; gap:0.85rem;">
                     <div id="mc-editor-card"></div>
 
-                    <!-- Pré-visualização do Contrato (Editável diretamente) -->
+                    <!-- Pré-visualização do Contrato (Editável diretamente com Barra de Formatação) -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.55rem; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.65rem; padding-bottom:0.55rem; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; gap:8px;">
                             <div>
                                 <h4 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
                                     <i class="ph ph-eye" style="color:#7048e8;"></i> Pré-visualização do Contrato
@@ -26838,6 +26928,102 @@ window._renderModelosContratoInt = async function() {
                                 <i class="ph ph-printer"></i> Abrir em Tela Cheia / PDF
                             </button>
                         </div>
+
+                        <!-- Barra de Formatação de Texto (Fonte, Tamanho, Negrito, Itálico, Sublinhado, Cor da Fonte, Alinhamento) -->
+                        <div id="mc-richtext-toolbar" style="position:sticky; top:58px; z-index:40; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:6px 10px; margin-bottom:0.75rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap; box-shadow:0 2px 6px rgba(15,23,42,0.05);">
+                            <!-- Seletor de Fonte -->
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#475569;">Fonte:</span>
+                                <select id="mc-fmt-font" onchange="window.aplicarFormatacaoContrato('fontName', this.value)"
+                                    title="Alterar fonte do texto selecionado"
+                                    style="height:28px !important; padding:0 8px !important; border:1px solid #cbd5e1 !important; border-radius:6px !important; font-size:0.78rem !important; background:#fff !important; color:#0f172a !important; font-weight:600; cursor:pointer; text-transform:none !important;">
+                                    <option value="Arial, Helvetica, sans-serif">Arial</option>
+                                    <option value="'Inter', sans-serif">Inter</option>
+                                    <option value="Calibri, sans-serif">Calibri</option>
+                                    <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                                    <option value="Georgia, serif">Georgia</option>
+                                    <option value="Verdana, sans-serif">Verdana</option>
+                                    <option value="Tahoma, sans-serif">Tahoma</option>
+                                    <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                                    <option value="'Courier New', Courier, monospace">Courier New</option>
+                                </select>
+                            </div>
+
+                            <!-- Seletor de Tamanho da Fonte -->
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#475569;">Tamanho:</span>
+                                <select id="mc-fmt-size" onchange="window.aplicarFormatacaoContrato('fontSizePt', this.value)"
+                                    title="Alterar tamanho da fonte do texto selecionado"
+                                    style="height:28px !important; width:76px; padding:0 6px !important; border:1px solid #cbd5e1 !important; border-radius:6px !important; font-size:0.78rem !important; background:#fff !important; color:#0f172a !important; font-weight:600; cursor:pointer; text-transform:none !important;">
+                                    <option value="8pt">8 pt</option>
+                                    <option value="9pt">9 pt</option>
+                                    <option value="9.5pt">9.5 pt</option>
+                                    <option value="10pt" selected>10 pt</option>
+                                    <option value="10.5pt">10.5 pt</option>
+                                    <option value="11pt">11 pt</option>
+                                    <option value="12pt">12 pt</option>
+                                    <option value="13pt">13 pt</option>
+                                    <option value="14pt">14 pt</option>
+                                    <option value="16pt">16 pt</option>
+                                    <option value="18pt">18 pt</option>
+                                    <option value="20pt">20 pt</option>
+                                    <option value="24pt">24 pt</option>
+                                </select>
+                            </div>
+
+                            <div style="width:1px; height:22px; background:#cbd5e1; margin:0 2px;"></div>
+
+                            <!-- Negrito, Itálico, Sublinhado -->
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('bold')"
+                                title="Negrito (Ctrl+B)"
+                                style="width:30px; height:28px !important; padding:0 !important; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer; font-weight:900; font-size:0.85rem !important;">
+                                <b>B</b>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('italic')"
+                                title="Itálico (Ctrl+I)"
+                                style="width:30px; height:28px !important; padding:0 !important; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer; font-style:italic; font-family:Georgia, serif; font-weight:700; font-size:0.85rem !important;">
+                                <i>I</i>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('underline')"
+                                title="Sublinhado (Ctrl+U)"
+                                style="width:30px; height:28px !important; padding:0 !important; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer; text-decoration:underline; font-weight:800; font-size:0.85rem !important;">
+                                <u>U</u>
+                            </button>
+
+                            <div style="width:1px; height:22px; background:#cbd5e1; margin:0 2px;"></div>
+
+                            <!-- Cor da Fonte -->
+                            <div style="display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:2px 7px; height:28px; box-sizing:border-box;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#475569;">Cor:</span>
+                                <input type="color" id="mc-fmt-color" value="#0f172a"
+                                    onchange="window.aplicarFormatacaoContrato('foreColor', this.value)"
+                                    title="Escolher cor da fonte"
+                                    style="width:22px !important; height:20px !important; padding:0 !important; border:none !important; background:transparent !important; cursor:pointer;">
+                                <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('foreColor', '#0f172a')" title="Preto" style="width:15px; height:15px !important; padding:0 !important; border-radius:999px !important; background:#0f172a; border:1px solid #cbd5e1; cursor:pointer;"></button>
+                                <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('foreColor', '#1d4ed8')" title="Azul" style="width:15px; height:15px !important; padding:0 !important; border-radius:999px !important; background:#1d4ed8; border:1px solid #cbd5e1; cursor:pointer;"></button>
+                                <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('foreColor', '#7048e8')" title="Roxo" style="width:15px; height:15px !important; padding:0 !important; border-radius:999px !important; background:#7048e8; border:1px solid #cbd5e1; cursor:pointer;"></button>
+                                <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('foreColor', '#dc2626')" title="Vermelho" style="width:15px; height:15px !important; padding:0 !important; border-radius:999px !important; background:#dc2626; border:1px solid #cbd5e1; cursor:pointer;"></button>
+                                <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('foreColor', '#15803d')" title="Verde" style="width:15px; height:15px !important; padding:0 !important; border-radius:999px !important; background:#15803d; border:1px solid #cbd5e1; cursor:pointer;"></button>
+                            </div>
+
+                            <div style="width:1px; height:22px; background:#cbd5e1; margin:0 2px;"></div>
+
+                            <!-- Alinhamento -->
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('justifyLeft')" title="Alinhar à esquerda" style="width:28px; height:28px !important; padding:0 !important; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer;">
+                                <i class="ph ph-text-align-left"></i>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('justifyCenter')" title="Centralizar" style="width:28px; height:28px !important; padding:0 !important; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer;">
+                                <i class="ph ph-text-align-center"></i>
+                            </button>
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('justifyFull')" title="Justificar" style="width:28px; height:28px !important; padding:0 !important; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer;">
+                                <i class="ph ph-text-align-justify"></i>
+                            </button>
+
+                            <button type="button" onmousedown="event.preventDefault(); window.aplicarFormatacaoContrato('removeFormat')" title="Limpar formatação do trecho selecionado" style="height:28px !important; padding:0 8px !important; background:#fff; color:#64748b; border:1px solid #cbd5e1; border-radius:6px !important; cursor:pointer; font-size:0.72rem !important; font-weight:700;">
+                                <i class="ph ph-eraser"></i> Limpar
+                            </button>
+                        </div>
+
                         <div id="mc-live-preview" style="background:#eef2f6; padding:18px; border-radius:10px; border:1px solid #cbd5e1; overflow-x:auto;"></div>
                     </div>
                 </div>
@@ -26851,13 +27037,21 @@ window._renderModelosContratoInt = async function() {
             apiGet('/comercial/valores-avarias').catch(() => [])
         ]);
         window._valoresAvariasList = Array.isArray(avarias) ? avarias : [];
-        const ordemPadrao = ['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'ADITIVO', 'EQUIPAMENTOS', 'INTERVENIENTE'];
-        const proibidos = new Set(['AVARIA', 'AVARIAS', 'PROPOSTA AVARIAS', 'VENDA', 'VENDAS', 'PROPOSTA VENDA']);
+        const ordemPadrao = ['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'EQUIPAMENTOS', 'INTERVENIENTE'];
+        const proibidos = new Set([
+            'AVARIA', 'AVARIAS', 'PROPOSTA AVARIAS',
+            'VENDA', 'VENDAS', 'PROPOSTA VENDA',
+            'PROPOSTA SIMPLIFICADA', 'PROPOSTA COMPLETA',
+            'LOCAÇÃO OBRA', 'LOCACAO OBRA',
+            'LOCAÇÃO EVENTO', 'LOCACAO EVENTO',
+            'ADITIVO', 'TERMO ADITIVO', 'PROPOSTA ADITIVO'
+        ]);
 
         window._modelosContratoList = (Array.isArray(rows) ? rows : [])
             .filter(r => {
                 const k = String(r.codigo_tipo || r.nome || '').trim().toUpperCase();
-                return !proibidos.has(k);
+                const n = String(r.nome || '').trim().toUpperCase();
+                return !proibidos.has(k) && !proibidos.has(n);
             })
             .sort((a, b) => {
                 const ka = String(a.codigo_tipo || a.nome || '').trim().toUpperCase();
@@ -26914,6 +27108,8 @@ window.selecionarModeloContrato = function(id) {
     if (!found) return;
     window._modeloContratoAtivo = JSON.parse(JSON.stringify(found));
     window._estruturaContratoAtivo = window.extrairEstruturaModeloContrato(window._modeloContratoAtivo);
+    window._mcUltimoElementoFocado = null;
+    window._mcUltimaSelecaoRange = null;
     window.filtrarListaSidebarModelosContrato();
     window._renderEditorModeloContratoAtivo();
     window.atualizarPreviewModeloContratoAtivo();
@@ -27059,9 +27255,9 @@ window.renderizarChipsMnemonicosContrato = function() {
     }
 
     box.innerHTML = lista.map(item => `
-        <button type="button" onclick="window.inserirMnemonicoNoTextoContrato('${item.tag}')"
+        <button type="button" onmousedown="event.preventDefault(); window.inserirMnemonicoNoTextoContrato('${item.tag}')"
             title="Clique para inserir ${_escHtmlProp(item.tag)} (${_escHtmlProp(item.label)})"
-            style="background:#fff; border:1px solid #c4b5fd; border-radius:6px; padding:4px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; color:#1e293b; transition:all 0.12s;"
+            style="background:#fff; border:1px solid #c4b5fd; border-radius:6px; padding:4px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; color:#1e293b; transition:all 0.12s; height:auto !important;"
             onmouseover="this.style.background='#ede9fe'; this.style.borderColor='#7048e8'"
             onmouseout="this.style.background='#fff'; this.style.borderColor='#c4b5fd'">
             <code style="font-weight:800; color:#5b21b6; font-size:0.73rem;">${_escHtmlProp(item.tag)}</code>
@@ -27070,30 +27266,44 @@ window.renderizarChipsMnemonicosContrato = function() {
     `).join('');
 };
 
-window._autoAjustarAlturaTextareaContrato = function() {
-    ['mc-edit-preambulo', 'mc-edit-texto'].forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.style.height = 'auto';
-        const minH = id === 'mc-edit-preambulo' ? 88 : 380;
-        el.style.height = Math.max(minH, el.scrollHeight + 10) + 'px';
-    });
-};
-
 window.inserirMnemonicoNoTextoContrato = function(tag) {
     let el = window._mcUltimoElementoFocado;
     if (!el || !document.body.contains(el)) {
         el = document.getElementById('mc-edit-texto') || document.getElementById('mc-edit-preambulo');
     }
     if (!el) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const val = el.value;
-    el.value = val.slice(0, start) + tag + val.slice(end);
-    el.focus();
-    const newPos = start + tag.length;
-    try { el.setSelectionRange(newPos, newPos); } catch (_) {}
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const val = el.value;
+        el.value = val.slice(0, start) + tag + val.slice(end);
+        el.focus();
+        const newPos = start + tag.length;
+        try { el.setSelectionRange(newPos, newPos); } catch (_) {}
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+    }
+
+    if (el.isContentEditable) {
+        el.focus();
+        window._mcRestaurarSelecaoRichText();
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+            const range = sel.getRangeAt(0);
+            range.deleteContents();
+            const textNode = document.createTextNode(tag);
+            range.insertNode(textNode);
+            range.setStartAfter(textNode);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            window._mcUltimaSelecaoRange = range.cloneRange();
+        } else {
+            el.insertAdjacentText('beforeend', tag);
+        }
+        window._sincronizarEstruturaParaModeloContratoAtivo();
+    }
 };
 
 window._sincronizarEstruturaParaModeloContratoAtivo = function() {
@@ -27102,13 +27312,19 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
     if (!m || !est) return;
 
     const inpTitSheet = document.getElementById('mc-sheet-edit-titulo');
-    if (inpTitSheet) m.titulo_contrato = inpTitSheet.value;
+    if (inpTitSheet) {
+        m.titulo_contrato = inpTitSheet.isContentEditable ? inpTitSheet.innerHTML : inpTitSheet.value;
+    }
 
     const inpPre = document.getElementById('mc-edit-preambulo');
-    if (inpPre) est.preambulo = inpPre.value;
+    if (inpPre) {
+        est.preambulo = inpPre.isContentEditable ? inpPre.innerHTML : inpPre.value;
+    }
 
     const inpClau = document.getElementById('mc-edit-texto');
-    if (inpClau) est.clausulas = inpClau.value;
+    if (inpClau) {
+        est.clausulas = inpClau.isContentEditable ? inpClau.innerHTML : inpClau.value;
+    }
 
     document.querySelectorAll('#mc-live-preview [data-q-cli]').forEach(inp => {
         const k = inp.getAttribute('data-q-cli');
@@ -27133,7 +27349,6 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
 
     m.caputs = JSON.stringify(est);
     m.texto_contrato = [est.preambulo, est.clausulas].filter(Boolean).join('\n\n');
-    window._autoAjustarAlturaTextareaContrato();
 };
 
 window.removerBlocoAssinaturaModeloContrato = function(idx, grupo = 'principal') {
@@ -27192,6 +27407,9 @@ window.atualizarPreviewModeloContratoAtivo = function() {
     const renderCellQ = (scopeAttr, lblKey, valKey) => `
         <div style="display:flex; align-items:center; gap:6px; width:100%;">
             <span contenteditable="true" ${scopeAttr}="${lblKey}"
+                onfocus="window._mcSalvarSelecaoRichText(this)"
+                onkeyup="window._mcSalvarSelecaoRichText(this)"
+                onmouseup="window._mcSalvarSelecaoRichText(this)"
                 oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
                 style="font-weight:700; font-size:9.5pt; color:#0f172a; white-space:nowrap; outline:none; padding:1px 2px; border-radius:3px; text-transform:none !important;">${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}</span>
             <input type="text" class="mc-q-val-inp" ${scopeAttr}="${valKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[valKey] : qi[valKey]) || '')}"
@@ -27206,45 +27424,45 @@ window.atualizarPreviewModeloContratoAtivo = function() {
             <tbody>
                 <tr style="background:#f8fafc;">
                     <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
-                        ${renderCellQ('data-q-cli', 'lbl_contratante', 'val_contratante', '92px')}
+                        ${renderCellQ('data-q-cli', 'lbl_contratante', 'val_contratante')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
-                        ${renderCellQ('data-q-cli', 'lbl_cnpj', 'val_cnpj', '52px')}
+                        ${renderCellQ('data-q-cli', 'lbl_cnpj', 'val_cnpj')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
                     <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_endereco', 'val_endereco', '175px')}
+                        ${renderCellQ('data-q-cli', 'lbl_endereco', 'val_endereco')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
-                        ${renderCellQ('data-q-cli', 'lbl_cep', 'val_cep', '44px')}
+                        ${renderCellQ('data-q-cli', 'lbl_cep', 'val_cep')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
-                        ${renderCellQ('data-q-cli', 'lbl_cidade', 'val_cidade', '60px')}
+                        ${renderCellQ('data-q-cli', 'lbl_cidade', 'val_cidade')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
-                        ${renderCellQ('data-q-cli', 'lbl_estado', 'val_estado', '58px')}
+                        ${renderCellQ('data-q-cli', 'lbl_estado', 'val_estado')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
                     <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_ie', 'val_ie', '130px')}
+                        ${renderCellQ('data-q-cli', 'lbl_ie', 'val_ie')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_telefone', 'val_telefone', '68px')}
+                        ${renderCellQ('data-q-cli', 'lbl_telefone', 'val_telefone')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_contato', 'val_contato', '64px')}
+                        ${renderCellQ('data-q-cli', 'lbl_contato', 'val_contato')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_tel_contato', 'val_tel_contato', '88px')}
+                        ${renderCellQ('data-q-cli', 'lbl_tel_contato', 'val_tel_contato')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-cli', 'lbl_email', 'val_email', '54px')}
+                        ${renderCellQ('data-q-cli', 'lbl_email', 'val_email')}
                     </td>
                 </tr>
             </tbody>
@@ -27257,37 +27475,37 @@ window.atualizarPreviewModeloContratoAtivo = function() {
             <tbody>
                 <tr style="background:#f8fafc;">
                     <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
-                        ${renderCellQ('data-q-int', 'lbl_interveniente', 'val_interveniente', '98px')}
+                        ${renderCellQ('data-q-int', 'lbl_interveniente', 'val_interveniente')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
-                        ${renderCellQ('data-q-int', 'lbl_cnpj', 'val_cnpj', '52px')}
+                        ${renderCellQ('data-q-int', 'lbl_cnpj', 'val_cnpj')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
                     <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-int', 'lbl_endereco', 'val_endereco', '76px')}
+                        ${renderCellQ('data-q-int', 'lbl_endereco', 'val_endereco')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
-                        ${renderCellQ('data-q-int', 'lbl_cep', 'val_cep', '44px')}
+                        ${renderCellQ('data-q-int', 'lbl_cep', 'val_cep')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
-                        ${renderCellQ('data-q-int', 'lbl_cidade', 'val_cidade', '60px')}
+                        ${renderCellQ('data-q-int', 'lbl_cidade', 'val_cidade')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
-                        ${renderCellQ('data-q-int', 'lbl_estado', 'val_estado', '58px')}
+                        ${renderCellQ('data-q-int', 'lbl_estado', 'val_estado')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-int', 'lbl_ie', 'val_ie', '130px')}
+                        ${renderCellQ('data-q-int', 'lbl_ie', 'val_ie')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-int', 'lbl_telefone', 'val_telefone', '68px')}
+                        ${renderCellQ('data-q-int', 'lbl_telefone', 'val_telefone')}
                     </td>
                     <td style="padding:5px 8px; border:1px solid #cbd5e1;">
-                        ${renderCellQ('data-q-int', 'lbl_email', 'val_email', '54px')}
+                        ${renderCellQ('data-q-int', 'lbl_email', 'val_email')}
                     </td>
                 </tr>
             </tbody>
@@ -27341,32 +27559,47 @@ window.atualizarPreviewModeloContratoAtivo = function() {
         'avarias'
     );
 
+    const htmlTituloEditavel = /<(div|p|br|span|b|strong|i|em|u|font)\b/i.test(String(m.titulo_contrato || ''))
+        ? String(m.titulo_contrato || '')
+        : _escHtmlProp(m.titulo_contrato || '');
+    const htmlPreambuloEditavel = window.converterTextoContratoParaHtmlEditavel(est.preambulo || '');
+    const htmlClausulasEditavel = window.converterTextoContratoParaHtmlEditavel(est.clausulas || '');
+
     previewEl.innerHTML = `
         <style>
             #mc-live-preview .america-contrato-sheet,
             #mc-live-preview .america-contrato-sheet input,
             #mc-live-preview .america-contrato-sheet textarea,
-            #mc-live-preview .america-contrato-sheet span {
+            #mc-live-preview .america-contrato-sheet .mc-rich-editor {
                 text-transform: none !important;
-                font-family: Arial, Helvetica, sans-serif !important;
             }
             #mc-live-preview .america-contrato-sheet #mc-sheet-edit-titulo {
-                height: auto !important;
+                min-height: 38px;
                 padding: 8px 12px !important;
-                font-size: 13pt !important;
-                font-weight: 800 !important;
+                font-size: 13pt;
+                font-weight: 800;
                 background: #f8fafc !important;
                 border: 1px dashed #94a3b8 !important;
+                border-radius: 4px;
+                text-align: center;
+                outline: none;
             }
-            #mc-live-preview .america-contrato-sheet #mc-edit-preambulo,
-            #mc-live-preview .america-contrato-sheet #mc-edit-texto {
-                font-size: 10pt !important;
-                line-height: 1.56 !important;
+            #mc-live-preview .america-contrato-sheet .mc-rich-editor {
+                font-size: 10pt;
+                line-height: 1.56;
                 padding: 10px 12px !important;
-                color: #0f172a !important;
+                color: #0f172a;
                 background: #ffffff !important;
                 border: 1px dashed #cbd5e1 !important;
                 border-radius: 6px !important;
+                outline: none;
+                text-align: justify;
+                word-break: break-word;
+            }
+            #mc-live-preview .america-contrato-sheet .mc-rich-editor:focus,
+            #mc-live-preview .america-contrato-sheet #mc-sheet-edit-titulo:focus {
+                border-color: #7048e8 !important;
+                box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.1) !important;
             }
             #mc-live-preview .america-contrato-sheet .mc-q-val-inp {
                 height: 24px !important;
@@ -27408,35 +27641,38 @@ window.atualizarPreviewModeloContratoAtivo = function() {
                 </div>
             </div>
 
-            <!-- Título do Contrato (Editável diretamente na folha do contrato) -->
+            <!-- Título do Contrato (Editável diretamente na folha do contrato com suporte a formatação) -->
             <div style="margin-bottom:14px;">
-                <input type="text" id="mc-sheet-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
-                    onfocus="window._mcUltimoElementoFocado=this"
+                <div id="mc-sheet-edit-titulo" contenteditable="true"
+                    onfocus="window._mcSalvarSelecaoRichText(this)"
+                    onkeyup="window._mcSalvarSelecaoRichText(this)"
+                    onmouseup="window._mcSalvarSelecaoRichText(this)"
                     oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                    title="Clique para editar o título do contrato"
-                    style="width:100%; text-align:center; font-weight:800; font-size:13pt; color:#0f172a; letter-spacing:0.02em; padding:8px 12px; background:#f8fafc; border:1px dashed #94a3b8; border-radius:4px; box-sizing:border-box; outline:none; text-transform:none;">
+                    title="Clique para editar e formatar o título do contrato">${htmlTituloEditavel}</div>
             </div>
 
-            <!-- Preâmbulo do Contrato (Editável) -->
+            <!-- Preâmbulo do Contrato (Editável com Negrito, Sublinhado, Itálico, Fonte, Tamanho e Cor) -->
             <div style="margin-bottom:6px;">
-                <textarea id="mc-edit-preambulo"
-                    onfocus="window._mcUltimoElementoFocado=this"
+                <div id="mc-edit-preambulo" class="mc-rich-editor" contenteditable="true"
+                    onfocus="window._mcSalvarSelecaoRichText(this)"
+                    onkeyup="window._mcSalvarSelecaoRichText(this)"
+                    onmouseup="window._mcSalvarSelecaoRichText(this)"
                     oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                    placeholder="Texto introdutório do contrato..."
-                    style="width:100%; min-height:88px; padding:10px 12px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.55; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(est.preambulo || '')}</textarea>
+                    style="min-height:80px;">${htmlPreambuloEditavel}</div>
             </div>
 
             <!-- Dados do Cliente mostrados como TABELA na Pré-visualização -->
             ${tabelaClienteEditavelHtml}
             ${tabelaIntervenienteEditavelHtml}
 
-            <!-- Cláusulas do Contrato (Editável diretamente na Pré-visualização) -->
+            <!-- Cláusulas do Contrato (Editável com Negrito, Sublinhado, Itálico, Fonte, Tamanho e Cor) -->
             <div class="america-contrato-body">
-                <textarea id="mc-edit-texto"
-                    onfocus="window._mcUltimoElementoFocado=this"
+                <div id="mc-edit-texto" class="mc-rich-editor" contenteditable="true"
+                    onfocus="window._mcSalvarSelecaoRichText(this)"
+                    onkeyup="window._mcSalvarSelecaoRichText(this)"
+                    onmouseup="window._mcSalvarSelecaoRichText(this)"
                     oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                    placeholder="Digite aqui as cláusulas do contrato e clique nos mnemônicos acima para inserir os campos..."
-                    style="width:100%; min-height:420px; padding:12px 14px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.58; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(est.clausulas || '')}</textarea>
+                    style="min-height:420px;">${htmlClausulasEditavel}</div>
             </div>
 
             <!-- Assinaturas (Editáveis e Excluíveis) -->
@@ -27458,8 +27694,6 @@ window.atualizarPreviewModeloContratoAtivo = function() {
             </div>
         </div>
     `;
-
-    setTimeout(() => window._autoAjustarAlturaTextareaContrato(), 0);
 };
 
 window.salvarModeloContratoAtivo = async function() {
