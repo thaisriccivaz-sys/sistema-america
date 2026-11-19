@@ -26372,6 +26372,9 @@ window.extrairEstruturaModeloContrato = function(m) {
             clausulas: parsedCaputs.clausulas !== undefined ? String(parsedCaputs.clausulas) : String(m.texto_contrato || ''),
             assinaturas: Array.isArray(parsedCaputs.assinaturas)
                 ? parsedCaputs.assinaturas
+                : window._padraoAssinaturasContrato(ehInterveniente),
+            assinaturas_avarias: Array.isArray(parsedCaputs.assinaturas_avarias)
+                ? parsedCaputs.assinaturas_avarias
                 : window._padraoAssinaturasContrato(ehInterveniente)
         };
     }
@@ -26416,7 +26419,8 @@ window.extrairEstruturaModeloContrato = function(m) {
         quadro_cliente: qCliPadrao,
         quadro_interveniente: qIntPadrao,
         clausulas: clausulasLinhas.join('\n').trim(),
-        assinaturas: window._padraoAssinaturasContrato(ehInterveniente)
+        assinaturas: window._padraoAssinaturasContrato(ehInterveniente),
+        assinaturas_avarias: window._padraoAssinaturasContrato(ehInterveniente)
     };
 };
 
@@ -26588,23 +26592,29 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
     const htmlTabelaCliente = window.gerarHtmlTabelaDadosClienteContrato(est, ctx, ehInterveniente);
     const htmlClausulas = formatarBlocoTextoParaHtml(est.clausulas);
 
-    const assinaturasAtivas = Array.isArray(est.assinaturas) ? est.assinaturas : [];
-    const blocoAssinaturasHtml = assinaturasAtivas.length > 0 ? `
-        <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:repeat(${assinaturasAtivas.length}, 1fr); gap:28px; padding-top:16px;">
-            ${assinaturasAtivas.map(ass => {
-                const tRes = _escHtmlProp(window.resolverTextoModeloContrato(ass.titulo || '', ctx, false));
-                const l1Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha1 || '', ctx, false));
-                const l2Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha2 || '', ctx, false));
-                return `
-                    <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                        ${tRes ? `<div style="font-weight:700; font-size:10pt; color:#0f172a;">${tRes}</div>` : ''}
-                        ${l1Res ? `<div style="font-size:9.5pt; color:#334155; margin-top:2px;">${l1Res}</div>` : ''}
-                        ${l2Res ? `<div style="font-size:8.5pt; color:#64748b;">${l2Res}</div>` : ''}
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    ` : '';
+    const renderAssinaturasPdfHtml = (listaAss) => {
+        const arr = Array.isArray(listaAss) ? listaAss : [];
+        if (!arr.length) return '';
+        return `
+            <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:repeat(${arr.length}, 1fr); gap:28px; padding-top:16px;">
+                ${arr.map(ass => {
+                    const tRes = _escHtmlProp(window.resolverTextoModeloContrato(ass.titulo || '', ctx, false));
+                    const l1Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha1 || '', ctx, false));
+                    const l2Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha2 || '', ctx, false));
+                    return `
+                        <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                            ${tRes ? `<div style="font-weight:700; font-size:10pt; color:#0f172a;">${tRes}</div>` : ''}
+                            ${l1Res ? `<div style="font-size:9.5pt; color:#334155; margin-top:2px;">${l1Res}</div>` : ''}
+                            ${l2Res ? `<div style="font-size:8.5pt; color:#64748b;">${l2Res}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    };
+
+    const blocoAssinaturasHtml = renderAssinaturasPdfHtml(est.assinaturas);
+    const blocoAssinaturasAvariasHtml = renderAssinaturasPdfHtml(est.assinaturas_avarias !== undefined ? est.assinaturas_avarias : est.assinaturas);
 
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias);
     const topoImgSrc = window.obterUrlTopoModeloContrato(m);
@@ -26643,7 +26653,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
                     Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação, integrante do <strong>${_escHtmlProp(tituloResolvido)}</strong> firmado com <strong>${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</strong>:
                 </div>
                 ${tabelaAvariasHtml}
-                ${blocoAssinaturasHtml}
+                ${blocoAssinaturasAvariasHtml}
             </div>
         </div>
     `;
@@ -27115,8 +27125,9 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
     document.querySelectorAll('#mc-live-preview [data-ass-idx]').forEach(inp => {
         const idx = Number(inp.getAttribute('data-ass-idx'));
         const field = inp.getAttribute('data-ass-field');
-        if (Array.isArray(est.assinaturas) && est.assinaturas[idx] && field) {
-            est.assinaturas[idx][field] = inp.value;
+        const grupo = inp.getAttribute('data-ass-grupo') === 'avarias' ? 'assinaturas_avarias' : 'assinaturas';
+        if (Array.isArray(est[grupo]) && est[grupo][idx] && field) {
+            est[grupo][idx][field] = inp.value;
         }
     });
 
@@ -27125,24 +27136,32 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
     window._autoAjustarAlturaTextareaContrato();
 };
 
-window.removerBlocoAssinaturaModeloContrato = function(idx) {
+window.removerBlocoAssinaturaModeloContrato = function(idx, grupo = 'principal') {
     const est = window._estruturaContratoAtivo;
-    if (!est || !Array.isArray(est.assinaturas)) return;
+    if (!est) return;
     window._sincronizarEstruturaParaModeloContratoAtivo();
-    est.assinaturas.splice(idx, 1);
+    const chave = grupo === 'avarias' ? 'assinaturas_avarias' : 'assinaturas';
+    if (!Array.isArray(est[chave])) return;
+    est[chave].splice(idx, 1);
     if (window._modeloContratoAtivo) {
         window._modeloContratoAtivo.caputs = JSON.stringify(est);
     }
     window.atualizarPreviewModeloContratoAtivo();
 };
 
-window.adicionarBlocoAssinaturaModeloContrato = function() {
+window.adicionarBlocoAssinaturaModeloContrato = function(grupo = 'principal') {
     const est = window._estruturaContratoAtivo;
     if (!est) return;
     window._sincronizarEstruturaParaModeloContratoAtivo();
-    if (!Array.isArray(est.assinaturas)) est.assinaturas = [];
-    est.assinaturas.push({
-        titulo: 'ASSINATURA',
+    const chave = grupo === 'avarias' ? 'assinaturas_avarias' : 'assinaturas';
+    if (!Array.isArray(est[chave])) est[chave] = [];
+    const ehSegundo = est[chave].length === 1;
+    est[chave].push(ehSegundo ? {
+        titulo: 'LOCADORA / CONTRATADA',
+        linha1: 'AMÉRICA RENTAL EQUIPAMENTOS LTDA',
+        linha2: 'CNPJ: 03.434.448/0001-01'
+    } : {
+        titulo: 'LOCATÁRIA / CONTRATANTE',
         linha1: '{{CLIENTE_RAZAO_SOCIAL}}',
         linha2: 'CNPJ/CPF: {{CLIENTE_CNPJ}}'
     });
@@ -27275,44 +27294,52 @@ window.atualizarPreviewModeloContratoAtivo = function() {
         </table>
     ` : '';
 
-    const assinaturas = Array.isArray(est.assinaturas) ? est.assinaturas : [];
-    const blocoAssinaturasEditavelHtml = `
-        <div style="margin-top:26px; padding-top:12px;">
-            ${assinaturas.length > 0 ? `
-            <div style="display:grid; grid-template-columns:repeat(${assinaturas.length}, 1fr); gap:22px;">
-                ${assinaturas.map((ass, idx) => `
-                    <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center; position:relative; background:#f8fafc; border-radius:0 0 6px 6px; padding-bottom:8px; padding-left:6px; padding-right:6px;">
-                        <button type="button" onclick="window.removerBlocoAssinaturaModeloContrato(${idx})"
-                            title="Excluir este campo de assinatura"
-                            style="position:absolute; top:4px; right:4px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; width:22px; height:22px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem;">
-                            <i class="ph ph-trash"></i>
-                        </button>
-                        <input type="text" data-ass-idx="${idx}" data-ass-field="titulo" value="${_escHtmlProp(ass.titulo || '')}"
-                            onfocus="window._mcUltimoElementoFocado=this"
-                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                            placeholder="Título da assinatura..."
-                            style="width:88%; text-align:center; font-weight:700; font-size:9.5pt; color:#0f172a; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
-                        <input type="text" data-ass-idx="${idx}" data-ass-field="linha1" value="${_escHtmlProp(ass.linha1 || '')}"
-                            onfocus="window._mcUltimoElementoFocado=this"
-                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                            placeholder="Razão Social / Nome..."
-                            style="width:94%; text-align:center; font-size:9pt; color:#334155; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
-                        <input type="text" data-ass-idx="${idx}" data-ass-field="linha2" value="${_escHtmlProp(ass.linha2 || '')}"
-                            onfocus="window._mcUltimoElementoFocado=this"
-                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                            placeholder="CNPJ / CPF..."
-                            style="width:94%; text-align:center; font-size:8.5pt; color:#64748b; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; outline:none; text-transform:none;">
-                    </div>
-                `).join('')}
-            </div>` : ''}
-            <div style="text-align:right; margin-top:8px;">
-                <button type="button" onclick="window.adicionarBlocoAssinaturaModeloContrato()"
-                    style="background:#f1f5f9; color:#334155; border:1px dashed #94a3b8; padding:4px 10px; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-plus-circle"></i> Adicionar Assinatura
-                </button>
+    const renderBlocoAssinaturasEditavel = (listaAss, grupo) => {
+        const arr = Array.isArray(listaAss) ? listaAss : [];
+        return `
+            <div style="margin-top:26px; padding-top:12px;">
+                ${arr.length > 0 ? `
+                <div style="display:grid; grid-template-columns:repeat(${arr.length}, 1fr); gap:22px;">
+                    ${arr.map((ass, idx) => `
+                        <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center; position:relative; background:#f8fafc; border-radius:0 0 6px 6px; padding-bottom:8px; padding-left:6px; padding-right:6px;">
+                            <button type="button" onclick="window.removerBlocoAssinaturaModeloContrato(${idx}, '${grupo}')"
+                                title="Excluir este campo de assinatura"
+                                style="position:absolute; top:4px; right:4px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; width:22px; height:22px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem;">
+                                <i class="ph ph-trash"></i>
+                            </button>
+                            <input type="text" data-ass-grupo="${grupo}" data-ass-idx="${idx}" data-ass-field="titulo" value="${_escHtmlProp(ass.titulo || '')}"
+                                onfocus="window._mcUltimoElementoFocado=this"
+                                oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                                placeholder="Título da assinatura..."
+                                style="width:88%; text-align:center; font-weight:700; font-size:9.5pt; color:#0f172a; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
+                            <input type="text" data-ass-grupo="${grupo}" data-ass-idx="${idx}" data-ass-field="linha1" value="${_escHtmlProp(ass.linha1 || '')}"
+                                onfocus="window._mcUltimoElementoFocado=this"
+                                oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                                placeholder="Razão Social / Nome..."
+                                style="width:94%; text-align:center; font-size:9pt; color:#334155; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
+                            <input type="text" data-ass-grupo="${grupo}" data-ass-idx="${idx}" data-ass-field="linha2" value="${_escHtmlProp(ass.linha2 || '')}"
+                                onfocus="window._mcUltimoElementoFocado=this"
+                                oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                                placeholder="CNPJ / CPF..."
+                                style="width:94%; text-align:center; font-size:8.5pt; color:#64748b; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; outline:none; text-transform:none;">
+                        </div>
+                    `).join('')}
+                </div>` : ''}
+                <div style="text-align:right; margin-top:8px;">
+                    <button type="button" onclick="window.adicionarBlocoAssinaturaModeloContrato('${grupo}')"
+                        style="background:#f1f5f9; color:#334155; border:1px dashed #94a3b8; padding:4px 10px; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="ph ph-plus-circle"></i> Adicionar Assinatura
+                    </button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    };
+
+    const blocoAssinaturasEditavelHtml = renderBlocoAssinaturasEditavel(est.assinaturas, 'principal');
+    const blocoAssinaturasAvariasEditavelHtml = renderBlocoAssinaturasEditavel(
+        Array.isArray(est.assinaturas_avarias) ? est.assinaturas_avarias : window._padraoAssinaturasContrato(ehInterveniente),
+        'avarias'
+    );
 
     previewEl.innerHTML = `
         <style>
@@ -27427,6 +27454,7 @@ window.atualizarPreviewModeloContratoAtivo = function() {
                     Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação:
                 </div>
                 ${tabelaAvariasHtml}
+                ${blocoAssinaturasAvariasEditavelHtml}
             </div>
         </div>
     `;
