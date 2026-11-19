@@ -4,6 +4,7 @@
 
 let osState = {
     loadedId: null,
+    manutencaoBloqueada: false,
     produtos: [],
     tiposServico: new Set(),
     acoes: new Set(),
@@ -1108,6 +1109,7 @@ function duplicarOsNaTela(payload) {
     osState.clienteNome = payload.cliente || '';
     osState.enderecoSelecionado = payload.endereco || '';
     osState.modoDuplicado = true;
+    osState.manutencaoBloqueada = !!payload.manutencao_bloqueada;
     osState.agendaVerificada = false; // reativa a trava da agenda
 
     // Re-renderiza a tela
@@ -1162,6 +1164,8 @@ function duplicarOsNaTela(payload) {
           if (tipoServEl) tipoServEl.value = '';
           const tipoServSearch = document.getElementById('rr-tipo-servico-search');
           if (tipoServSearch) tipoServSearch.value = '';
+        const chkBloqDup = document.getElementById('rr-chk-bloquear-manutencao');
+        if (chkBloqDup) chkBloqDup.checked = !!osState.manutencaoBloqueada;
         // Atualiza UI (produtos, tipo OS, ícones)
         atualizarDropdownProdutos();
         atualizarIconesCliente();
@@ -1508,6 +1512,13 @@ function carregarRegistroNaTela(os) {
     const tsSearch = document.getElementById('rr-tipo-servico-search');
     if (tsSearch && os.tipo_servico) tsSearch.value = os.tipo_servico;
 
+    // Bloquear Manutenção (sincronizado com Observações da OS)
+    osState.manutencaoBloqueada = !!os.manutencao_bloqueada;
+    const chkBloquearManut = document.getElementById('rr-chk-bloquear-manutencao');
+    if (chkBloquearManut) {
+        chkBloquearManut.checked = !!os.manutencao_bloqueada;
+    }
+
     // Manutenção Quinzenal
     const chkQuinzenal = document.getElementById('rr-chk-quinzenal');
     if (chkQuinzenal) {
@@ -1580,6 +1591,52 @@ function carregarRegistroNaTela(os) {
     // Forçar recálculo de capacidades e tempo que estava faltando ao abrir OS
     calcularTempo();
 }
+
+window.rrOnToggleBloquearManutencao = async function(chk) {
+    const bloqueado = !!chk?.checked;
+    osState.manutencaoBloqueada = bloqueado;
+    const numOsAtual = (document.getElementById('rr-input-os')?.value || '').trim();
+    const loadedId = osState.loadedId ? Number(osState.loadedId) : null;
+    if (!loadedId && !numOsAtual) return;
+
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const resp = await fetch('/api/logistica/videos-os/lote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                ids: loadedId ? [loadedId] : [],
+                numero_os: numOsAtual || undefined,
+                acao: bloqueado ? 'bloquear' : 'desbloquear'
+            })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || 'Erro ao atualizar bloqueio da manutenção.');
+        mostrarToastAviso(bloqueado ? '🔒 Manutenção bloqueada para esta OS.' : '🔓 Manutenção liberada para esta OS.');
+        if (typeof vidosCarregar === 'function' && document.getElementById('vidos-tbody')) {
+            vidosCarregar();
+        }
+    } catch (err) {
+        console.error('[rrOnToggleBloquearManutencao]', err);
+        chk.checked = !bloqueado;
+        osState.manutencaoBloqueada = !bloqueado;
+        mostrarToastAviso('Erro ao atualizar bloqueio: ' + err.message);
+    }
+};
+
+window.rrSincronizarBloqueioDaTelaObservacoes = function(ids, numerosOs, bloqueado) {
+    const numOsTela = (document.getElementById('rr-input-os')?.value || '').trim();
+    const matchId = osState.loadedId && Array.isArray(ids) && ids.map(Number).includes(Number(osState.loadedId));
+    const matchNum = numOsTela && Array.isArray(numerosOs) && numerosOs.map(s => String(s).trim()).includes(numOsTela);
+    if (matchId || matchNum) {
+        osState.manutencaoBloqueada = !!bloqueado;
+        const chk = document.getElementById('rr-chk-bloquear-manutencao');
+        if (chk) chk.checked = !!bloqueado;
+    }
+};
 
 function parseDiasFront(diasJson) {
     if (!diasJson) return [];
@@ -2731,7 +2788,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     tipo_os: osState.tipoOs,
                     habilidades: [],
                     variaveis: [...osState.acoes],
-                    habilidade_equipe: [...osState.habEquipe]
+                    habilidade_equipe: [...osState.habEquipe],
+                    manutencao_bloqueada: document.getElementById('rr-chk-bloquear-manutencao')?.checked ? 1 : (osState.manutencaoBloqueada ? 1 : 0)
                 };
 
                 // Usa a mesma função de duplicar
@@ -2859,7 +2917,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 habilidade_equipe: habEquipeSelecionadas,
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
                 manutencao_quinzenal: document.getElementById('rr-chk-quinzenal')?.checked ? 1 : 0,
-                primeira_manutencao: document.getElementById('rr-input-primeira-manutencao')?.value || ''
+                primeira_manutencao: document.getElementById('rr-input-primeira-manutencao')?.value || '',
+                manutencao_bloqueada: document.getElementById('rr-chk-bloquear-manutencao')?.checked ? 1 : 0
             };
 
             // Validação de Manutenção Quinzenal
@@ -2935,6 +2994,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // Se a manutenção estiver bloqueada, pergunta se deseja manter o bloqueio ou liberar
+            const chkBloqSave = document.getElementById('rr-chk-bloquear-manutencao');
+            const estaBloqueadaSave = Boolean((chkBloqSave && chkBloqSave.checked) || osState.manutencaoBloqueada);
+            if (estaBloqueadaSave) {
+                const escolhaBloqueio = await new Promise((resolve) => {
+                    if (typeof Swal !== 'undefined' && Swal.fire) {
+                        Swal.fire({
+                            title: 'Manutenção Bloqueada',
+                            text: 'Esta OS está com a manutenção bloqueada. Gostaria de manter o bloqueio das manutenções ou liberar?',
+                            icon: 'warning',
+                            showDenyButton: true,
+                            showCancelButton: false,
+                            allowOutsideClick: false,
+                            confirmButtonText: 'Manter Bloqueio',
+                            denyButtonText: 'Liberar Manutenção',
+                            confirmButtonColor: '#dc2626',
+                            denyButtonColor: '#16a34a'
+                        }).then((resSwal) => {
+                            if (resSwal.isDenied) resolve('liberar');
+                            else if (resSwal.isConfirmed) resolve('manter');
+                            else resolve(null);
+                        });
+                    } else {
+                        const manter = confirm('Esta OS está com a manutenção bloqueada.\n\nClique em OK para MANTER o bloqueio ou em Cancelar para LIBERAR as manutenções.');
+                        resolve(manter ? 'manter' : 'liberar');
+                    }
+                });
+                if (!escolhaBloqueio) return;
+                if (escolhaBloqueio === 'liberar') {
+                    if (chkBloqSave) chkBloqSave.checked = false;
+                    osState.manutencaoBloqueada = false;
+                    payload.manutencao_bloqueada = 0;
+                } else {
+                    if (chkBloqSave) chkBloqSave.checked = true;
+                    osState.manutencaoBloqueada = true;
+                    payload.manutencao_bloqueada = 1;
+                }
+            }
+
             // Desabilita botão durante o save
             btnGerarOsFinal.disabled = true;
             btnGerarOsFinal.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando…';
@@ -3001,8 +3099,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         mostrarToastAviso('✅ Ambas as OS da Troca foram salvas (Entrega e Retirada)!');
                     }
                     exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
-                    // Atualiza histórico automaticamente
+                    // Atualiza histórico e tela de Observações da OS automaticamente
                     if (typeof window._rrRecarregarHistorico === 'function') window._rrRecarregarHistorico();
+                    if (typeof vidosCarregar === 'function' && document.getElementById('vidos-tbody')) vidosCarregar();
 
                     // ── Disparo automático de chamado SAC para Visita Técnica ────
                     const _ts = (payloadsParaEnviar[0].tipo_servico || '').toLowerCase()
@@ -3102,6 +3201,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnLimpar = e.target.closest('#btn-limpar-os');
         if (btnLimpar) {
             osState.loadedId = null;
+            osState.manutencaoBloqueada = false;
             osState.modoDuplicado = false;
             osState.produtos = []; osState.tiposServico = new Set(); osState.habEquipe = new Set();
       osState.acoes = new Set(); osState.clienteConfirmado = true;
@@ -4228,15 +4328,23 @@ function renderRotaRedonda() {
                     <input type="hidden" id="rr-chk-agenda-clicado" value="0">
                 </div>
                 
-                <!-- MANUTENÇÃO QUINZENAL -->
-                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.5rem; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 12px; border-radius: 4px;">
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: #b45309; cursor: pointer;">
-                        <input type="checkbox" id="rr-chk-quinzenal" onchange="document.getElementById('rr-data-quinzenal-container').style.display = this.checked ? 'flex' : 'none';">
-                        Manutenção Quinzenal
-                    </label>
-                    <div id="rr-data-quinzenal-container" style="display: none; align-items: center; gap: 6px;">
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #b45309;">1ª Manutenção:</label>
-                        <input type="date" id="rr-input-primeira-manutencao" style="font-size: 0.75rem; padding: 2px 6px; border: 1px solid #fcd34d; border-radius: 4px; outline: none; color: #92400e; background: #fff;">
+                <!-- BLOQUEAR MANUTENÇÃO + MANUTENÇÃO QUINZENAL -->
+                <div style="display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 0.5rem;">
+                    <div style="display: flex; align-items: center; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 4px; flex-shrink: 0;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; color: #dc2626; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="rr-chk-bloquear-manutencao" style="accent-color: #dc2626; cursor: pointer;" onchange="if (typeof window.rrOnToggleBloquearManutencao === 'function') window.rrOnToggleBloquearManutencao(this);">
+                            Bloquear Manutenção
+                        </label>
+                    </div>
+                    <div style="display: flex; flex: 1; gap: 1rem; align-items: center; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 12px; border-radius: 4px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: #b45309; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="rr-chk-quinzenal" onchange="document.getElementById('rr-data-quinzenal-container').style.display = this.checked ? 'flex' : 'none';">
+                            Manutenção Quinzenal
+                        </label>
+                        <div id="rr-data-quinzenal-container" style="display: none; align-items: center; gap: 6px;">
+                            <label style="font-size: 0.75rem; font-weight: 600; color: #b45309;">1ª Manutenção:</label>
+                            <input type="date" id="rr-input-primeira-manutencao" style="font-size: 0.75rem; padding: 2px 6px; border: 1px solid #fcd34d; border-radius: 4px; outline: none; color: #92400e; background: #fff;">
+                        </div>
                     </div>
                 </div>
 

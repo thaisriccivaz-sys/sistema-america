@@ -250,7 +250,7 @@ async function vidosCarregar() {
             }
             
             tr.innerHTML = `
-                <td style="padding:10px; text-align:center;"><input type="checkbox" class="vidos-chk-row" value="${os.id}" onchange="vidosUpdateCheckboxes()"></td>
+                <td style="padding:10px; text-align:center;"><input type="checkbox" class="vidos-chk-row" value="${os.id}" data-numero-os="${os.numero_os || ''}" onchange="vidosUpdateCheckboxes()"></td>
                 <td style="padding:10px;"><b>${os.numero_os || '—'}</b><br><span style="font-size:0.7rem; color:${os.manutencao_bloqueada ? '#ef4444' : 'transparent'}; font-weight:bold;">${os.manutencao_bloqueada ? 'BLOQUEADO' : ''}</span></td>
                 <td style="padding:10px;">
                     <div style="color:#1e293b;">${os.cliente || '—'}</div>
@@ -362,6 +362,7 @@ window.vidosAcaoLote = async function(acao) {
     if(!confirm(msg)) return;
     
     const ids = Array.from(cbs).map(cb => parseInt(cb.value));
+    const numerosOs = Array.from(cbs).map(cb => cb.getAttribute('data-numero-os') || '').filter(Boolean);
     
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
@@ -377,6 +378,10 @@ window.vidosAcaoLote = async function(acao) {
         const data = await resp.json();
         if(!resp.ok) throw new Error(data.error || 'Erro na operação em lote');
         
+        if ((acao === 'bloquear' || acao === 'desbloquear') && typeof window.rrSincronizarBloqueioDaTelaObservacoes === 'function') {
+            window.rrSincronizarBloqueioDaTelaObservacoes(ids, numerosOs, acao === 'bloquear');
+        }
+
         if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(data.message);
         else alert(data.message);
         

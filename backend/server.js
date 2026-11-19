@@ -24976,7 +24976,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio,
-        manutencao_quinzenal, primeira_manutencao, habilidade_equipe
+        manutencao_quinzenal, primeira_manutencao, habilidade_equipe, manutencao_bloqueada
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
 
@@ -25007,8 +25007,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
             // Cliente OK (mesmo ou nova OS) → insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao, habilidade_equipe)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao, habilidade_equipe, manutencao_bloqueada)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
                     lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
                     contrato, data_os, responsavel, telefone, email, tipo_servico,
@@ -25019,10 +25019,14 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                     typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                     typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
                     link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null,
-                    typeof habilidade_equipe === 'object' ? JSON.stringify(habilidade_equipe) : (habilidade_equipe || null)],
+                    typeof habilidade_equipe === 'object' ? JSON.stringify(habilidade_equipe) : (habilidade_equipe || null),
+                    manutencao_bloqueada ? 1 : 0],
                 function (err) {
                     if (err) return res.status(500).json({ error: err.message });
                     const newId = this.lastID;
+                    if (manutencao_bloqueada !== undefined && numero_os && String(numero_os).trim()) {
+                        db.run(`UPDATE os_logistica SET manutencao_bloqueada = ? WHERE TRIM(CAST(numero_os AS TEXT)) = ?`, [manutencao_bloqueada ? 1 : 0, String(numero_os).trim()]);
+                    }
                     db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                         [loggedUser, 'OS Logística', 'Criação de OS', '', `OS ${numero_os} | ${cliente} | ${tipo_servico || ''}`, newId]);
                     res.status(201).json({ ok: true, id: newId });
@@ -25041,7 +25045,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio,
-        manutencao_quinzenal, primeira_manutencao, habilidade_equipe
+        manutencao_quinzenal, primeira_manutencao, habilidade_equipe, manutencao_bloqueada
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     const osId = req.params.id;
@@ -25050,12 +25054,13 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     // A validação de conflito de cliente só se aplica ao criar uma nova OS (POST).
     db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
         if (errOld) return res.status(500).json({ error: errOld.message });
+        const manutBloqVal = manutencao_bloqueada !== undefined ? (manutencao_bloqueada ? 1 : 0) : (oldRow && oldRow.manutencao_bloqueada ? 1 : 0);
 
         db.run(`UPDATE os_logistica SET 
             numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
             contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
             turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
-            manutencao_quinzenal=?, primeira_manutencao=?, habilidade_equipe=?,
+            manutencao_quinzenal=?, primeira_manutencao=?, habilidade_equipe=?, manutencao_bloqueada=?,
             atualizado_em=datetime('now') WHERE id=?`,
             [numero_os, tipo_os, cliente, endereco, complemento, cep,
                 lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
@@ -25068,9 +25073,13 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                 typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
                 link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null,
                 typeof habilidade_equipe === 'object' ? JSON.stringify(habilidade_equipe) : (habilidade_equipe || null),
+                manutBloqVal,
                 osId],
             function (err) {
                 if (err) return res.status(500).json({ error: err.message });
+                if (manutencao_bloqueada !== undefined && numero_os && String(numero_os).trim()) {
+                    db.run(`UPDATE os_logistica SET manutencao_bloqueada = ? WHERE TRIM(CAST(numero_os AS TEXT)) = ?`, [manutBloqVal, String(numero_os).trim()]);
+                }
 
                 // Auditoria: detectar campos alterados
                 if (oldRow) {
@@ -39854,22 +39863,29 @@ app.delete('/api/logistica/os/:numero_os/link-video', authenticateToken, (req, r
 
 // ====== AÇÕES EM LOTE PARA OBSERVAÇÕES OS ======
 app.post('/api/logistica/videos-os/lote', authenticateToken, (req, res) => {
-    const { ids, acao } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido' });
+    const { ids, acao, numero_os } = req.body;
+    const validIds = Array.isArray(ids) ? ids.filter(id => id !== null && id !== undefined && id !== '') : [];
+    const numOsTrim = numero_os !== undefined && numero_os !== null ? String(numero_os).trim() : '';
+    if (validIds.length === 0 && !numOsTrim) return res.status(400).json({ error: 'Nenhum ID fornecido' });
     
-    if (acao === 'bloquear') {
-        const placeholders = ids.map(() => '?').join(',');
-        db.run(`UPDATE os_logistica SET manutencao_bloqueada = 1 WHERE id IN (${placeholders})`, ids, function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true, message: 'Manutenções bloqueadas com sucesso.' });
-        });
-    } else if (acao === 'desbloquear') {
-        const placeholders = ids.map(() => '?').join(',');
-        db.run(`UPDATE os_logistica SET manutencao_bloqueada = 0 WHERE id IN (${placeholders})`, ids, function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true, message: 'Manutenções desbloqueadas com sucesso.' });
-        });
+    if (acao === 'bloquear' || acao === 'desbloquear') {
+        const valBloq = acao === 'bloquear' ? 1 : 0;
+        const msgOk = acao === 'bloquear' ? 'Manutenções bloqueadas com sucesso.' : 'Manutenções desbloqueadas com sucesso.';
+        if (validIds.length > 0) {
+            const placeholders = validIds.map(() => '?').join(',');
+            const sql = `UPDATE os_logistica SET manutencao_bloqueada = ? WHERE id IN (${placeholders}) OR (TRIM(CAST(numero_os AS TEXT)) != '' AND TRIM(CAST(numero_os AS TEXT)) IN (SELECT TRIM(CAST(numero_os AS TEXT)) FROM os_logistica WHERE id IN (${placeholders})))`;
+            db.run(sql, [valBloq, ...validIds, ...validIds], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, message: msgOk });
+            });
+        } else {
+            db.run(`UPDATE os_logistica SET manutencao_bloqueada = ? WHERE TRIM(CAST(numero_os AS TEXT)) = ?`, [valBloq, numOsTrim], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, message: msgOk });
+            });
+        }
     } else if (acao === 'excluir_videos') {
+        if (validIds.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido' });
         const placeholders = ids.map(() => '?').join(',');
         // Set link_video to null for all selected OSs
         db.run(`UPDATE os_logistica SET link_video = NULL WHERE id IN (${placeholders})`, ids, function(err) {
