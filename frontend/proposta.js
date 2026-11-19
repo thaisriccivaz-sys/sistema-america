@@ -401,8 +401,14 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
     try {
         const ctx = await apiGet('/comercial/me-contexto');
         if (ctx && typeof ctx === 'object') {
-            if (window.usuarioLogadoEhThais()) ctx.pode_excluir_proposta = true;
+            if (window.usuarioLogadoEhThais()) {
+                ctx.pode_excluir_proposta = true;
+                ctx.is_gestor_departamento = true;
+            }
             window._contextoUsuarioComercial = ctx;
+            if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
+                setTimeout(() => window.aplicarPermissaoDescontoPropostaDOM(), 0);
+            }
             return ctx;
         }
     } catch (e) {
@@ -413,9 +419,12 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
     window._contextoUsuarioComercial = {
         username: uRaw,
         nome_colaborador: window.formatarNomeColaboradorAssinatura ? window.formatarNomeColaboradorAssinatura(uRaw) : uRaw,
-        is_gestor_departamento: false,
+        is_gestor_departamento: Boolean(isThais || (Array.isArray(window._myManagedDeptsGlob) && window._myManagedDeptsGlob.length > 0)),
         pode_excluir_proposta: isThais
     };
+    if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
+        setTimeout(() => window.aplicarPermissaoDescontoPropostaDOM(), 0);
+    }
     return window._contextoUsuarioComercial;
 };
 
@@ -476,6 +485,107 @@ window.podeExcluirPropostaAtual = function(p) {
         return true;
     }
     return false;
+};
+
+/* Regra: Apenas o gestor de algum departamento que tiver liberação de acesso para a tela de proposta pode incluir desconto */
+window.usuarioPodeIncluirDescontoProposta = function() {
+    if (typeof window.usuarioLogadoEhThais === 'function' && window.usuarioLogadoEhThais()) return true;
+    const ctx = window._contextoUsuarioComercial;
+    if (ctx && ctx.is_gestor_departamento === true) return true;
+    if (Array.isArray(window._myManagedDeptsGlob) && window._myManagedDeptsGlob.length > 0) return true;
+    return false;
+};
+
+/* Regra: Verifica se o produto ou serviço tem valor (> 0) cadastrado na Tabela de Valores para o tipo de proposta atual */
+window.itemTemValorNaTabelaPrecos = function(prodOuServObj, tipoOverride = null) {
+    if (!prodOuServObj) return false;
+    if (typeof window.obterValorTabelaPorTipoEProduto === 'function') {
+        const tipoRef = tipoOverride !== null
+            ? tipoOverride
+            : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+        const v = window.obterValorTabelaPorTipoEProduto(tipoRef, prodOuServObj);
+        if (v !== null && v !== undefined && !isNaN(Number(v)) && Number(v) > 0) {
+            return true;
+        }
+        if (window._comercialTabelasPrecoData && Array.isArray(window._comercialTabelasPrecoData.itens) && window._comercialTabelasPrecoData.itens.length > 0) {
+            return false;
+        }
+    }
+    if (typeof prodOuServObj === 'object' && prodOuServObj.tem_valor_tabela === true) return true;
+    return false;
+};
+
+/* Bloqueia/libera edição direta de Valor Unitário e Valor Total na adição de produto conforme Tabela de Valores */
+window.atualizarBloqueioEdicaoValoresProdutoProposta = function() {
+    const inpCod = document.getElementById('prop-prod-codigo');
+    const valUnitEl = document.getElementById('prop-prod-valor');
+    const valTotalEl = document.getElementById('prop-valor-total');
+    if (!valUnitEl || !valTotalEl) return;
+
+    const cod = (inpCod?.getAttribute('data-codigo') || '').trim();
+    const nome = (inpCod?.getAttribute('data-nome') || inpCod?.value || '').trim();
+    const attrValTab = parseFloat(valUnitEl.getAttribute('data-valor-tabela'));
+    const temPorAttr = !isNaN(attrValTab) && attrValTab > 0;
+    const temPorBusca = Boolean((cod || nome) && window.itemTemValorNaTabelaPrecos({ codigo: cod, nome: nome, produto: nome }));
+    const temValorTabela = Boolean((cod || nome) && (temPorAttr || temPorBusca));
+
+    const msgBloqueio = 'Este produto possui valor cadastrado na Tabela de Valores. Para alterar o valor, utilize os campos de Desconto (%) ou Desconto (R$).';
+    [valUnitEl, valTotalEl].forEach(el => {
+        if (!el) return;
+        if (temValorTabela) {
+            el.readOnly = true;
+            el.setAttribute('data-bloqueado-tabela', '1');
+            el.style.background = '#f1f5f9';
+            el.style.cursor = 'not-allowed';
+            el.title = msgBloqueio;
+        } else {
+            el.readOnly = false;
+            el.setAttribute('data-bloqueado-tabela', '0');
+            el.style.background = '#fff';
+            el.style.cursor = '';
+            el.title = '';
+        }
+    });
+};
+
+/* Aplica no DOM a permissão de desconto (somente gestores de departamento) e o bloqueio de valores tabelados */
+window.aplicarPermissaoDescontoPropostaDOM = function() {
+    const podeDesc = window.usuarioPodeIncluirDescontoProposta();
+    const msgSemPermissao = 'Apenas gestores de departamento possuem permissão para incluir desconto.';
+    const descPctEl = document.getElementById('prop-desc-pct');
+    const descRsEl = document.getElementById('prop-desc-rs');
+
+    [descPctEl, descRsEl].forEach(el => {
+        if (!el) return;
+        if (!podeDesc) {
+            el.readOnly = true;
+            el.disabled = true;
+            el.style.background = '#f1f5f9';
+            el.style.cursor = 'not-allowed';
+            el.style.color = '#94a3b8';
+            el.title = msgSemPermissao;
+            if (el.id === 'prop-desc-pct' && parseFloat(el.value) > 0) el.value = '0';
+            if (el.id === 'prop-desc-rs' && window.parseMoedaProposta && window.parseMoedaProposta(el.value) > 0) el.value = '0,00';
+        } else {
+            el.readOnly = false;
+            const secaoProd = document.getElementById('prop-secao-produtos');
+            const wrapDep = document.getElementById('prop-campos-dependentes-tipo');
+            const bloqueadoPorSecao = (secaoProd && secaoProd.style.opacity === '0.55') || (wrapDep && wrapDep.style.opacity === '0.55');
+            if (!bloqueadoPorSecao) {
+                el.disabled = false;
+                el.style.pointerEvents = '';
+            }
+            el.style.background = '#fff';
+            el.style.cursor = '';
+            el.style.color = '';
+            el.title = '';
+        }
+    });
+
+    window.atualizarBloqueioEdicaoValoresProdutoProposta();
+    if (typeof window.atualizarBloqueioEdicaoValoresServicoProposta === 'function') {
+        window.atualizarBloqueioEdicaoValoresServicoProposta();
+    }
 };
 
 async function carregarPropostas() {
@@ -3743,6 +3853,9 @@ window.onChangeClientePropostaInput = function(novoValor) {
     }
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
+    }
+    if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
+        window.aplicarPermissaoDescontoPropostaDOM();
     }
 };
 
@@ -21656,6 +21769,7 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         if (inputValor) {
             const numVal = val !== null ? Number(val) : 0;
             inputValor.setAttribute('data-preco-base', String(numVal));
+            inputValor.setAttribute('data-valor-tabela', String(numVal > 0 ? numVal : 0));
             inputValor.value = typeof window.formatarMoedaCentavosProposta === 'function' ? window.formatarMoedaCentavosProposta(numVal) : numVal.toFixed(2);
         }
         if (typeof window.recalcularPreviewProdutoProposta === 'function') {
@@ -21715,6 +21829,7 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         if (inputValor) {
             const numVal = val !== null ? Number(val) : 0;
             inputValor.setAttribute('data-preco-base', String(numVal));
+            inputValor.setAttribute('data-valor-tabela', String(numVal > 0 ? numVal : 0));
             inputValor.value = typeof window.formatarMoedaCentavosProposta === 'function' ? window.formatarMoedaCentavosProposta(numVal) : numVal.toFixed(2);
         }
         if (typeof window.recalcularPreviewProdutoProposta === 'function') {
@@ -22609,8 +22724,10 @@ window.onInputProdutoPropostaTexto = async function() {
         inputCodigo.removeAttribute('data-nome');
         if (inputValor) {
             inputValor.setAttribute('data-preco-base', '0');
+            inputValor.setAttribute('data-valor-tabela', '0');
             inputValor.value = '0,00';
         }
+        window.atualizarBloqueioEdicaoValoresProdutoProposta();
         window.recalcularPreviewProdutoProposta('equip');
         if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
             window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
@@ -22623,11 +22740,16 @@ window.onInputProdutoPropostaTexto = async function() {
     if (typeof window.preencherManutSemanaPorProduto === 'function') {
         window.preencherManutSemanaPorProduto(txt);
     }
-    if (vTab !== null && inputValor) {
-        inputCodigo.setAttribute('data-nome', txt);
-        inputValor.setAttribute('data-preco-base', String(Number(vTab)));
-        window.recalcularPreviewProdutoProposta('equip');
+    if (inputValor) {
+        const numTab = (vTab !== null && vTab !== undefined && !isNaN(Number(vTab)) && Number(vTab) > 0) ? Number(vTab) : 0;
+        inputValor.setAttribute('data-valor-tabela', String(numTab));
+        if (vTab !== null) {
+            inputCodigo.setAttribute('data-nome', txt);
+            inputValor.setAttribute('data-preco-base', String(Number(vTab)));
+            window.recalcularPreviewProdutoProposta('equip');
+        }
     }
+    window.atualizarBloqueioEdicaoValoresProdutoProposta();
     if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
         window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
     }
@@ -22648,6 +22770,21 @@ window.recalcularPreviewProdutoProposta = function(origem = '') {
     if (isNaN(qtd) || qtd < minQtdPreview) {
         qtd = minQtdPreview;
         if (qtdEl) qtdEl.value = String(minQtdPreview);
+    }
+
+    const podeDescPreview = typeof window.usuarioPodeIncluirDescontoProposta === 'function' ? window.usuarioPodeIncluirDescontoProposta() : false;
+    if (!podeDescPreview) {
+        if (descPctEl && parseFloat(descPctEl.value) > 0) descPctEl.value = '0';
+        if (descRsEl && window.parseMoedaProposta(descRsEl.value) > 0) descRsEl.value = '0,00';
+        valUnitEl.setAttribute('data-desc-mode', '');
+        if (origem === 'pct' || origem === 'rs') {
+            origem = 'equip';
+        }
+    }
+
+    const bloqueadoPorTabela = valUnitEl.getAttribute('data-bloqueado-tabela') === '1';
+    if ((origem === 'unit' || origem === 'total') && bloqueadoPorTabela) {
+        origem = 'equip';
     }
 
     if (origem === 'total' && !ehVendaPreview) {
@@ -22781,8 +22918,10 @@ window.selecionarProdutoBusca = async function(cod, nome, valorSugerido = null) 
     const precoBase = (valFinal !== null && valFinal !== undefined && !isNaN(valFinal)) ? Number(valFinal) : 0;
     if (inputValor) {
         inputValor.setAttribute('data-preco-base', String(precoBase));
+        inputValor.setAttribute('data-valor-tabela', String(precoBase > 0 ? precoBase : 0));
         inputValor.value = window.formatarMoedaCentavosProposta(precoBase);
     }
+    window.atualizarBloqueioEdicaoValoresProdutoProposta();
     window.recalcularPreviewProdutoProposta('equip');
     if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
         window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
@@ -22946,6 +23085,7 @@ window.adicionarProdutoProposta = async function() {
         dias_evento: ehProdServico ? [] : [...diasSelecionados],
         manutencao_diaria: ehProdServico ? false : Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
         valor_base: precoBase,
+        tem_valor_tabela: Boolean((vTab !== null && vTab !== undefined && !isNaN(Number(vTab)) && Number(vTab) > 0) || (parseFloat(inputValor?.getAttribute('data-valor-tabela')) > 0)),
         desconto_tipo: descontoTipo,
         desconto_pct: descontoTipo === 'pct' ? descPct : 0,
         desconto_rs: descontoTipo === 'valor' ? descRs : (descontoTipo === 'pct' ? (precoBase * quantidade * descPct / 100) : 0),
@@ -22973,11 +23113,13 @@ window.adicionarProdutoProposta = async function() {
     if (inputValor) {
         inputValor.value = '0,00';
         inputValor.removeAttribute('data-preco-base');
+        inputValor.removeAttribute('data-valor-tabela');
         inputValor.removeAttribute('data-desc-mode');
     }
     if (valTotalEl) {
         valTotalEl.value = '0,00';
     }
+    window.atualizarBloqueioEdicaoValoresProdutoProposta();
 
     if (!ehProdServico && window.tipoPropostaUsaDiasEvento() && typeof window.manterDiasProximoProduto === 'function' && !window.manterDiasProximoProduto()) {
         window._propDiasEventoSelecionados = [];
@@ -22996,6 +23138,10 @@ window.adicionarProdutoProposta = async function() {
 
 window.atualizarDescontoItemProdutoProposta = function(idx, tipoNovo, valorNovo, reRender = true) {
     if (!window._propProdutosAdicionados || !window._propProdutosAdicionados[idx]) return;
+    if (typeof window.usuarioPodeIncluirDescontoProposta === 'function' && !window.usuarioPodeIncluirDescontoProposta()) {
+        if (reRender) window.renderizarProdutosPropostaGrid();
+        return;
+    }
     const item = window._propProdutosAdicionados[idx];
     const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
     const vUnitAtual = parseFloat(item.valor ?? item.valor_unitario ?? 0) || 0;
@@ -23071,6 +23217,11 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo, reRender =
             item.valor_total = vUnit * qtd;
         }
     } else if (campo === 'valor') {
+        const temValTab = window.itemTemValorNaTabelaPrecos({ codigo: item.codigo, nome: item.produto || item.descricao, grupo_produto: item.grupo_produto, tem_valor_tabela: item.tem_valor_tabela });
+        if (temValTab) {
+            if (reRender) window.renderizarProdutosPropostaGrid();
+            return;
+        }
         const vNovo = Math.max(0, window.parseMoedaProposta(valorNovo));
         const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
         item.valor = vNovo;
@@ -23080,6 +23231,27 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo, reRender =
         item.desconto_pct = 0;
         item.desconto_rs = 0;
         item.valor_total = vNovo * qtd;
+    } else if (campo === 'valor_total') {
+        const temValTab = window.itemTemValorNaTabelaPrecos({ codigo: item.codigo, nome: item.produto || item.descricao, grupo_produto: item.grupo_produto, tem_valor_tabela: item.tem_valor_tabela });
+        if (temValTab) {
+            if (reRender) window.renderizarProdutosPropostaGrid();
+            return;
+        }
+        const vTotalDigitado = Math.max(0, window.parseMoedaProposta(valorNovo));
+        const qtd = Math.max(1, parseInt(item.quantidade, 10) || 1);
+        const ehEventoGrid = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
+        const nDiariasLinha = (ehEventoGrid && typeof window.obterQtdDiariasProdutoEvento === 'function')
+            ? Math.max(1, window.obterQtdDiariasProdutoEvento(item))
+            : 1;
+        const subtotalCalc = vTotalDigitado / nDiariasLinha;
+        const vUnitCalc = subtotalCalc / qtd;
+        item.valor = vUnitCalc;
+        item.valor_unitario = vUnitCalc;
+        item.valor_base = vUnitCalc;
+        item.desconto_tipo = '';
+        item.desconto_pct = 0;
+        item.desconto_rs = 0;
+        item.valor_total = subtotalCalc;
     } else if (campo === 'observacao') {
         item.observacao = String(valorNovo || '');
     } else if (campo === 'manut_semana') {
@@ -23111,7 +23283,30 @@ window._atualizarCelulasTotaisLinhaProduto = function(idx) {
     const tdSub = document.querySelector(`[data-prod-subtotal="${idx}"]`);
     if (tdSub) tdSub.textContent = 'R$ ' + subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const tdTot = document.querySelector(`[data-prod-total="${idx}"]`);
-    if (tdTot) tdTot.textContent = 'R$ ' + valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const inpTot = document.querySelector(`[data-prod-total-input="${idx}"]`);
+    if (inpTot) {
+        if (document.activeElement !== inpTot) {
+            inpTot.value = window.formatarMoedaCentavosProposta(valorTotalFinalLinha);
+        }
+    } else if (tdTot) {
+        tdTot.textContent = 'R$ ' + valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    const tdSomaProds = document.getElementById('prop-td-soma-total-produtos');
+    if (tdSomaProds && Array.isArray(window._propProdutosAdicionados)) {
+        const isCompG = Boolean(document.getElementById('prop-comparativa')?.checked);
+        const prodsApG = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
+        const temBoolApG = window._propProdutosAdicionados.some(x => x && typeof x.aprovado_comparativa === 'boolean');
+        const temFiltroCG = Boolean(isCompG && (prodsApG.length > 0 || temBoolApG) && typeof window.itemComparativaEstaAprovado === 'function');
+        const somaProds = window._propProdutosAdicionados.reduce((acc, p, idxP) => {
+            if (temFiltroCG && !(prodsApG.length > 0 ? window.itemComparativaEstaAprovado(p, idxP, prodsApG) : p.aprovado_comparativa !== false)) return acc;
+            const q = parseInt(p.quantidade, 10) || 1;
+            const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
+            const st = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vu);
+            const multD = (ehEventoGrid && typeof window.obterQtdDiariasProdutoEvento === 'function') ? window.obterQtdDiariasProdutoEvento(p) : 1;
+            return acc + (st * multD);
+        }, 0);
+        tdSomaProds.textContent = 'R$ ' + somaProds.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     const inpUnit = document.querySelector(`[data-prod-unit-input="${idx}"]`);
     if (inpUnit && document.activeElement !== inpUnit) {
         inpUnit.value = window.formatarMoedaCentavosProposta(vUnit);
@@ -23127,6 +23322,11 @@ window.onInputDescontoRsItemProdutoProposta = function(idx, inputEl) {
 window.onInputValorItemProdutoProposta = function(idx, inputEl) {
     window.aplicarMascaraCentavosInput(inputEl);
     window.atualizarItemProdutoProposta(idx, 'valor', inputEl.value, false);
+};
+
+window.onInputValorTotalItemProdutoProposta = function(idx, inputEl) {
+    window.aplicarMascaraCentavosInput(inputEl);
+    window.atualizarItemProdutoProposta(idx, 'valor_total', inputEl.value, false);
 };
 
 window.atualizarHorarioDiaProdutoProposta = function(prodIdx, diaIdx, novoHorario, campo = 'ini') {
@@ -23167,6 +23367,17 @@ window.removerProdutoProposta = function(idx) {
 };
 
 window.renderizarProdutosPropostaGrid = function() {
+    if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
+        window.aplicarPermissaoDescontoPropostaDOM();
+    }
+    if (!window._comercialTabelasPrecoData && !window._carregandoTabelasPrecoGridLock && typeof window._garantirTabelasPrecoCarregadas === 'function') {
+        window._carregandoTabelasPrecoGridLock = true;
+        window._garantirTabelasPrecoCarregadas(false).finally(() => {
+            window._carregandoTabelasPrecoGridLock = false;
+            if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
+            if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
+        });
+    }
     const tbody = document.getElementById('prop-produtos-tbody');
     if (!tbody) return;
 
@@ -23243,31 +23454,34 @@ window.renderizarProdutosPropostaGrid = function() {
                     </button>`
             : '';
 
+        const podeDescGrid = typeof window.usuarioPodeIncluirDescontoProposta === 'function' ? window.usuarioPodeIncluirDescontoProposta() : false;
+        const temValorTabelaItem = window.itemTemValorNaTabelaPrecos({ codigo: p.codigo, nome: nomeProd, grupo_produto: p.grupo_produto, tem_valor_tabela: p.tem_valor_tabela });
+        p.tem_valor_tabela = temValorTabelaItem;
+        const titleSemPermDesc = 'Apenas gestores de departamento possuem permissão para incluir desconto.';
+        const titleBloqTabela = 'Valor cadastrado na Tabela de Valores. Para alterar o valor, utilize o campo de Desconto.';
+
         const descTipoAtual = p.desconto_tipo === 'pct' ? 'pct' : 'valor';
         const descValAtual = descTipoAtual === 'pct'
             ? (parseFloat(p.desconto_pct) || 0)
             : (parseFloat(p.desconto_rs) || 0);
         const temDescAtivo = descValAtual > 0;
-        const descBg = !temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7');
+        const descBg = !podeDescGrid ? '#f1f5f9' : (!temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7'));
         const descBorder = !temDescAtivo ? '#cbd5e1' : (descTipoAtual === 'pct' ? '#fde68a' : '#bbf7d0');
-        const descColor = !temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d');
+        const descColor = !podeDescGrid ? '#94a3b8' : (!temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d'));
         const inputDescHtml = descTipoAtual === 'pct'
             ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
-                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'pct', this.value)"
-                    title="Editar desconto (%)"
-                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${styleRiscadoGrid}">`
+                    ${!podeDescGrid ? 'disabled readonly' : `onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'pct', this.value)"`}
+                    title="${!podeDescGrid ? titleSemPermDesc : 'Editar desconto (%)'}"
+                    style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescGrid ? 'cursor:not-allowed;' : ''} ${styleRiscadoGrid}">`
             : `<input type="text" inputmode="numeric" value="${window.formatarMoedaCentavosProposta(descValAtual)}" placeholder="0,00"
-                    onfocus="window.posicionarCursorFimMoeda(this)"
-                    onclick="window.posicionarCursorFimMoeda(this)"
-                    oninput="window.onInputDescontoRsItemProdutoProposta(${idx}, this)"
-                    onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'valor', this.value)"
-                    title="Editar desconto (R$)"
-                    style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${styleRiscadoGrid}">`;
+                    ${!podeDescGrid ? 'disabled readonly' : `onfocus="window.posicionarCursorFimMoeda(this)" onclick="window.posicionarCursorFimMoeda(this)" oninput="window.onInputDescontoRsItemProdutoProposta(${idx}, this)" onchange="window.atualizarDescontoItemProdutoProposta(${idx}, 'valor', this.value)"`}
+                    title="${!podeDescGrid ? titleSemPermDesc : 'Editar desconto (R$)'}"
+                    style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescGrid ? 'cursor:not-allowed;' : ''} ${styleRiscadoGrid}">`;
         const descHtml = `
-            <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
-                <select onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"
-                    title="Tipo de desconto (R$ ou %)"
-                    style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:pointer; outline:none;">
+            <div title="${!podeDescGrid ? titleSemPermDesc : ''}" style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px; ${!podeDescGrid ? 'opacity:0.75; cursor:not-allowed;' : ''}">
+                <select ${!podeDescGrid ? 'disabled' : `onchange="window.atualizarDescontoItemProdutoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"`}
+                    title="${!podeDescGrid ? titleSemPermDesc : 'Tipo de desconto (R$ ou %)'}"
+                    style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:${!podeDescGrid ? 'not-allowed' : 'pointer'}; outline:none;">
                     <option value="valor" ${descTipoAtual === 'valor' ? 'selected' : ''}>R$</option>
                     <option value="pct" ${descTipoAtual === 'pct' ? 'selected' : ''}>%</option>
                 </select>
@@ -23303,18 +23517,25 @@ window.renderizarProdutosPropostaGrid = function() {
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
                     <input type="text" inputmode="numeric" data-prod-unit-input="${idx}" value="${window.formatarMoedaCentavosProposta(vUnit)}"
-                        onfocus="window.posicionarCursorFimMoeda(this)"
-                        onclick="window.posicionarCursorFimMoeda(this)"
-                        oninput="window.onInputValorItemProdutoProposta(${idx}, this)"
-                        onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"
-                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a; ${styleRiscadoGrid}">
+                        ${temValorTabelaItem
+                            ? `readonly data-bloqueado-tabela="1" title="${titleBloqTabela}"`
+                            : `onfocus="window.posicionarCursorFimMoeda(this)" onclick="window.posicionarCursorFimMoeda(this)" oninput="window.onInputValorItemProdutoProposta(${idx}, this)" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"`}
+                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaItem ? '#475569' : '#0f172a'}; background:${temValorTabelaItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaItem ? 'cursor:not-allowed;' : ''} ${styleRiscadoGrid}">
                 </td>
                 ${ehEventoGrid ? `
                 <td data-prod-subtotal="${idx}" style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>` : ''}
                 <td data-prod-total="${idx}" style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
-                    R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${temValorTabelaItem
+                        ? `<span title="${titleBloqTabela}">R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
+                        : `<input type="text" inputmode="numeric" data-prod-total-input="${idx}" value="${window.formatarMoedaCentavosProposta(valorTotalFinalLinha)}"
+                            onfocus="window.posicionarCursorFimMoeda(this)"
+                            onclick="window.posicionarCursorFimMoeda(this)"
+                            oninput="window.onInputValorTotalItemProdutoProposta(${idx}, this)"
+                            onchange="window.atualizarItemProdutoProposta(${idx}, 'valor_total', this.value)"
+                            title="Editar valor total (R$)"
+                            style="width:110px; padding:4px 6px; border:1px solid #86efac; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#15803d; background:#fff; ${styleRiscadoGrid}">`}
                 </td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
@@ -23329,7 +23550,7 @@ window.renderizarProdutosPropostaGrid = function() {
     }).join('') + `
         <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
             <td colspan="${(usaManutGrid ? 6 : 5) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
-            <td style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p, idxP) => {
+            <td id="prop-td-soma-total-produtos" style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p, idxP) => {
                 if (temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid)) return acc;
                 const q = parseInt(p.quantidade, 10) || 1;
                 const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;

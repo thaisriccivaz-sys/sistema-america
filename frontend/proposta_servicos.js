@@ -242,7 +242,72 @@
                 unitEl.value = fmtM(base);
                 unitEl.setAttribute('data-desc-mode', '');
             }
+            if (typeof window.atualizarBloqueioEdicaoValoresServicoProposta === 'function') {
+                window.atualizarBloqueioEdicaoValoresServicoProposta();
+            }
             window.recalcularPreviewServicoProposta('equip');
+        }
+    };
+
+    window.atualizarBloqueioEdicaoValoresServicoProposta = function () {
+        const fob = !!document.getElementById('prop-serv-fob')?.checked;
+        if (fob) return;
+        const pctEl = document.getElementById('prop-serv-desc-pct');
+        const rsEl = document.getElementById('prop-serv-desc-rs');
+        const unitEl = document.getElementById('prop-serv-valor');
+        const inp = document.getElementById('prop-serv-codigo');
+
+        const podeDesc = typeof window.usuarioPodeIncluirDescontoProposta === 'function'
+            ? window.usuarioPodeIncluirDescontoProposta()
+            : false;
+        const msgSemPermissao = 'Apenas gestores de departamento possuem permissão para incluir desconto.';
+
+        [pctEl, rsEl].forEach(el => {
+            if (!el) return;
+            if (!podeDesc) {
+                el.readOnly = true;
+                el.disabled = true;
+                el.style.background = '#f1f5f9';
+                el.style.cursor = 'not-allowed';
+                el.style.color = '#94a3b8';
+                el.title = msgSemPermissao;
+                if (el.id === 'prop-serv-desc-pct' && parseFloat(el.value) > 0) el.value = '0';
+                if (el.id === 'prop-serv-desc-rs' && window.parseMoedaProposta && window.parseMoedaProposta(el.value) > 0) el.value = '0,00';
+            } else {
+                el.readOnly = false;
+                const wrapDep = document.getElementById('prop-campos-dependentes-tipo');
+                const bloqueadoPorSecao = wrapDep && wrapDep.style.opacity === '0.55';
+                if (!bloqueadoPorSecao) {
+                    el.disabled = false;
+                    el.style.pointerEvents = '';
+                }
+                el.style.background = '#fff';
+                el.style.cursor = '';
+                el.style.color = '';
+                el.title = '';
+            }
+        });
+
+        if (unitEl) {
+            const cod = (inp?.getAttribute('data-codigo') || '').trim();
+            const nome = (inp?.getAttribute('data-nome') || inp?.value || '').trim();
+            const attrValTab = parseFloat(unitEl.getAttribute('data-valor-tabela'));
+            const temPorAttr = !isNaN(attrValTab) && attrValTab > 0;
+            const temPorBusca = Boolean((cod || nome) && typeof window.itemTemValorNaTabelaPrecos === 'function' && window.itemTemValorNaTabelaPrecos({ codigo: cod, nome: nome, servico: nome }));
+            const temValorTabela = Boolean((cod || nome) && (temPorAttr || temPorBusca));
+            if (temValorTabela) {
+                unitEl.readOnly = true;
+                unitEl.setAttribute('data-bloqueado-tabela', '1');
+                unitEl.style.background = '#f1f5f9';
+                unitEl.style.cursor = 'not-allowed';
+                unitEl.title = 'Este serviço possui valor cadastrado na Tabela de Valores. Para alterar o valor, utilize os campos de Desconto (%) ou Desconto (R$).';
+            } else {
+                unitEl.readOnly = false;
+                unitEl.setAttribute('data-bloqueado-tabela', '0');
+                unitEl.style.background = '#fff';
+                unitEl.style.cursor = '';
+                unitEl.title = '';
+            }
         }
     };
 
@@ -254,8 +319,29 @@
         if (!txt) {
             inp.removeAttribute('data-codigo');
             inp.removeAttribute('data-nome');
-            if (valEl) { valEl.setAttribute('data-preco-base', '0'); valEl.value = '0,00'; }
+            if (valEl) {
+                valEl.setAttribute('data-preco-base', '0');
+                valEl.setAttribute('data-valor-tabela', '0');
+                valEl.value = '0,00';
+            }
+            window.atualizarBloqueioEdicaoValoresServicoProposta();
             window.recalcularPreviewServicoProposta('equip');
+        } else {
+            if (window._garantirTabelasPrecoCarregadas) await window._garantirTabelasPrecoCarregadas(false);
+            const tipoRef = tipoLimpo();
+            const vTab = typeof window.obterValorTabelaPorTipoEProduto === 'function'
+                ? window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo: txt, nome: txt })
+                : null;
+            if (valEl) {
+                const numTab = (vTab !== null && vTab !== undefined && !isNaN(Number(vTab)) && Number(vTab) > 0) ? Number(vTab) : 0;
+                valEl.setAttribute('data-valor-tabela', String(numTab));
+                if (vTab !== null) {
+                    inp.setAttribute('data-nome', txt);
+                    valEl.setAttribute('data-preco-base', String(Number(vTab)));
+                    window.recalcularPreviewServicoProposta('equip');
+                }
+            }
+            window.atualizarBloqueioEdicaoValoresServicoProposta();
         }
         window.atualizarVisibilidadeFobServicoInput();
     };
@@ -281,6 +367,20 @@
             ? window.formatarMoedaCentavosProposta
             : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
 
+        const podeDescServ = typeof window.usuarioPodeIncluirDescontoProposta === 'function'
+            ? window.usuarioPodeIncluirDescontoProposta()
+            : false;
+        if (!podeDescServ) {
+            if (pctEl && parseFloat(pctEl.value) > 0) pctEl.value = '0';
+            if (rsEl && parseM(rsEl.value) > 0) rsEl.value = '0,00';
+            unitEl.setAttribute('data-desc-mode', '');
+            if (origem === 'pct' || origem === 'rs') {
+                origem = 'equip';
+            }
+        }
+        if ((origem === 'unit' || origem === 'total') && unitEl.getAttribute('data-bloqueado-tabela') === '1') {
+            origem = 'equip';
+        }
         if (origem === 'unit' || origem === 'total') {
             const u = Math.max(0, parseM(unitEl.value));
             unitEl.setAttribute('data-preco-base', String(u));
@@ -450,9 +550,11 @@
             : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
         if (valEl) {
             valEl.setAttribute('data-preco-base', String(base));
+            valEl.setAttribute('data-valor-tabela', String(base > 0 ? base : 0));
             if (!fobAtivo) valEl.value = fmtM(base);
             valEl.setAttribute('data-desc-mode', '');
         }
+        window.atualizarBloqueioEdicaoValoresServicoProposta();
         if (!fobAtivo) {
             const pctEl = document.getElementById('prop-serv-desc-pct'); if (pctEl) pctEl.value = '0';
             const rsEl = document.getElementById('prop-serv-desc-rs'); if (rsEl) rsEl.value = '0,00';
@@ -531,6 +633,9 @@
         }
 
         if (!window._propServicosAdicionados) window._propServicosAdicionados = [];
+        const vTabServ = typeof window.obterValorTabelaPorTipoEProduto === 'function'
+            ? window.obterValorTabelaPorTipoEProduto(tipoLimpo(), { codigo, nome })
+            : null;
         window._propServicosAdicionados.push({
             codigo: codigo || '—',
             servico: nome,
@@ -540,6 +645,7 @@
             frete_fob: fob,
             cortesia: Boolean(!fob && total <= 0),
             valor_base: valorBase,
+            tem_valor_tabela: Boolean((vTabServ !== null && vTabServ !== undefined && !isNaN(Number(vTabServ)) && Number(vTabServ) > 0) || (parseFloat(unitEl?.getAttribute('data-valor-tabela')) > 0)),
             desconto_tipo: descontoTipo,
             desconto_pct: descontoTipo === 'pct' ? pct : 0,
             desconto_rs: descontoTipo === 'valor' ? rs : (descontoTipo === 'pct' ? (valorBase * pct / 100) : 0),
@@ -554,7 +660,7 @@
         const obsEl = document.getElementById('prop-serv-obs'); if (obsEl) obsEl.value = '';
         if (pctEl) pctEl.value = '0';
         if (rsEl) rsEl.value = '0,00';
-        if (unitEl) { unitEl.value = '0,00'; unitEl.removeAttribute('data-preco-base'); unitEl.removeAttribute('data-desc-mode'); }
+        if (unitEl) { unitEl.value = '0,00'; unitEl.removeAttribute('data-preco-base'); unitEl.removeAttribute('data-valor-tabela'); unitEl.removeAttribute('data-desc-mode'); }
         const fobEl = document.getElementById('prop-serv-fob'); if (fobEl) fobEl.checked = false;
         window.alternarFreteFobServicoProposta();
         window.atualizarVisibilidadeFobServicoInput();
@@ -566,6 +672,10 @@
     window.atualizarDescontoItemServicoProposta = function (idx, tipoNovo, valorNovo, reRender = true) {
         const item = (window._propServicosAdicionados || [])[idx];
         if (!item || item.frete_fob) return;
+        if (typeof window.usuarioPodeIncluirDescontoProposta === 'function' && !window.usuarioPodeIncluirDescontoProposta()) {
+            if (reRender) window.renderizarServicosPropostaGrid();
+            return;
+        }
         const parseM = typeof window.parseMoedaProposta === 'function'
             ? window.parseMoedaProposta
             : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
@@ -634,6 +744,12 @@
             : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
         if (campo === 'valor') {
             if (item.frete_fob) return;
+            const temValTab = typeof window.itemTemValorNaTabelaPrecos === 'function'
+                && window.itemTemValorNaTabelaPrecos({ codigo: item.codigo, nome: item.servico || item.descricao, tem_valor_tabela: item.tem_valor_tabela });
+            if (temValTab) {
+                if (reRender) window.renderizarServicosPropostaGrid();
+                return;
+            }
             const vNovo = Math.max(0, parseM(valorNovo));
             item.valor = vNovo;
             item.valor_unitario = vNovo;
@@ -683,6 +799,9 @@
     };
 
     window.renderizarServicosPropostaGrid = function () {
+        if (typeof window.atualizarBloqueioEdicaoValoresServicoProposta === 'function') {
+            window.atualizarBloqueioEdicaoValoresServicoProposta();
+        }
         const tbody = document.getElementById('prop-servicos-tbody');
         if (typeof window.calcularValorTotalProposta === 'function') {
             try { window.calcularValorTotalProposta(); } catch (e) {}
@@ -707,31 +826,30 @@
             if (isFob) {
                 descHtml = '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:800; font-size:0.75rem;">FOB</span>';
             } else {
+                const podeDescServGrid = typeof window.usuarioPodeIncluirDescontoProposta === 'function' ? window.usuarioPodeIncluirDescontoProposta() : false;
+                const titleSemPermDescServ = 'Apenas gestores de departamento possuem permissão para incluir desconto.';
                 const descTipoAtual = s.desconto_tipo === 'pct' ? 'pct' : 'valor';
                 const descValAtual = descTipoAtual === 'pct'
                     ? (parseFloat(s.desconto_pct) || 0)
                     : (parseFloat(s.desconto_rs) || 0);
                 const temDescAtivo = descValAtual > 0;
-                const descBg = !temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7');
+                const descBg = !podeDescServGrid ? '#f1f5f9' : (!temDescAtivo ? '#f8fafc' : (descTipoAtual === 'pct' ? '#fef3c7' : '#dcfce7'));
                 const descBorder = !temDescAtivo ? '#cbd5e1' : (descTipoAtual === 'pct' ? '#fde68a' : '#bbf7d0');
-                const descColor = !temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d');
+                const descColor = !podeDescServGrid ? '#94a3b8' : (!temDescAtivo ? '#334155' : (descTipoAtual === 'pct' ? '#b45309' : '#15803d'));
                 const inputDescServHtml = descTipoAtual === 'pct'
                     ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
-                            onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'pct', this.value)"
-                            title="Editar desconto (%)"
-                            style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`
+                            ${!podeDescServGrid ? 'disabled readonly' : `onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'pct', this.value)"`}
+                            title="${!podeDescServGrid ? titleSemPermDescServ : 'Editar desconto (%)'}"
+                            style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''}">`
                     : `<input type="text" inputmode="numeric" value="${fmtM(descValAtual)}" placeholder="0,00"
-                            onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
-                            onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
-                            oninput="window.onInputDescontoRsItemServicoProposta(${idx}, this)"
-                            onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'valor', this.value)"
-                            title="Editar desconto (R$)"
-                            style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box;">`;
+                            ${!podeDescServGrid ? 'disabled readonly' : `onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" oninput="window.onInputDescontoRsItemServicoProposta(${idx}, this)" onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'valor', this.value)"`}
+                            title="${!podeDescServGrid ? titleSemPermDescServ : 'Editar desconto (R$)'}"
+                            style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''}">`;
                 descHtml = `
-                    <div style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px;">
-                        <select onchange="window.atualizarDescontoItemServicoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"
-                            title="Tipo de desconto (R$ ou %)"
-                            style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:pointer; outline:none;">
+                    <div title="${!podeDescServGrid ? titleSemPermDescServ : ''}" style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px; ${!podeDescServGrid ? 'opacity:0.75; cursor:not-allowed;' : ''}">
+                        <select ${!podeDescServGrid ? 'disabled' : `onchange="window.atualizarDescontoItemServicoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"`}
+                            title="${!podeDescServGrid ? titleSemPermDescServ : 'Tipo de desconto (R$ ou %)'}"
+                            style="border:none; background:transparent; color:${descColor}; font-weight:800; font-size:0.72rem; padding:0 4px 0 6px; height:100%; cursor:${!podeDescServGrid ? 'not-allowed' : 'pointer'}; outline:none;">
                             <option value="valor" ${descTipoAtual === 'valor' ? 'selected' : ''}>R$</option>
                             <option value="pct" ${descTipoAtual === 'pct' ? 'selected' : ''}>%</option>
                         </select>
@@ -739,6 +857,9 @@
                     </div>
                 `;
             }
+            const temValorTabelaServItem = Boolean(typeof window.itemTemValorNaTabelaPrecos === 'function' && window.itemTemValorNaTabelaPrecos({ codigo: s.codigo, nome: nome, servico: nome, tem_valor_tabela: s.tem_valor_tabela }));
+            s.tem_valor_tabela = temValorTabelaServItem;
+            const titleBloqTabelaServ = 'Valor cadastrado na Tabela de Valores. Para alterar o valor, utilize o campo de Desconto.';
             return `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
@@ -756,11 +877,10 @@
                     ${isFob
                         ? '<input type="text" value="FOB" disabled style="width:115px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed;">'
                         : `<input type="text" inputmode="numeric" data-serv-unit-input="${idx}" value="${fmtM(vUnit)}"
-                            onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
-                            onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
-                            oninput="window.onInputValorItemServicoProposta(${idx}, this)"
-                            onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)"
-                            style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:#0f172a;">`
+                            ${temValorTabelaServItem
+                                ? `readonly data-bloqueado-tabela="1" title="${titleBloqTabelaServ}"`
+                                : `onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" oninput="window.onInputValorItemServicoProposta(${idx}, this)" onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)"`}
+                            style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaServItem ? '#475569' : '#0f172a'}; background:${temValorTabelaServItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaServItem ? 'cursor:not-allowed;' : ''}">`
                     }
                 </td>
                 <td style="padding:8px 10px; text-align:center;">

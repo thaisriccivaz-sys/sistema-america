@@ -42208,22 +42208,38 @@ function resolverContextoUsuarioComercial(userJwt) {
           ? String(colab.nome_completo).trim()
           : (dbUser.nome && !String(dbUser.nome).includes('.') ? String(dbUser.nome).trim() : (rawNome || rawUsername));
 
-        db.all('SELECT id, nome, responsavel_id, responsavel_nome FROM departamentos', [], (eD, deptos) => {
+        db.all(`SELECT d.*,
+                       MAX(COALESCE(u2.username, u.username)) as responsavel_username,
+                       MAX(COALESCE(u2.id, u.id)) as responsavel_usuario_id
+                FROM departamentos d
+                LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome)) AND COALESCE(u.ativo, 1) = 1
+                LEFT JOIN colaboradores c ON c.id = d.responsavel_id
+                LEFT JOIN usuarios u2 ON COALESCE(u2.ativo, 1) = 1 AND (
+                    LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email_corporativo))
+                    OR LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email))
+                    OR LOWER(TRIM(u2.email)) = LOWER(TRIM(c.email_corporativo))
+                    OR LOWER(TRIM(u2.email)) = LOWER(TRIM(c.email))
+                    OR LOWER(TRIM(u2.nome)) = LOWER(TRIM(c.nome_completo))
+                )
+                GROUP BY d.id`, [], (eD, deptos) => {
           const listDeptos = Array.isArray(deptos) ? deptos : [];
           const uNorm = normStr(rawUsername || dbUser.username || '');
           const nNorm = normStr(nomeColaborador);
+          const myUserId = dbUser.id || u.id || null;
           const isThais = uNorm === 'thais.ricci' || uNorm.includes('thais.ricci') || (nNorm.includes('thais') && nNorm.includes('ricci'));
           const isGestorDepto = listDeptos.some(d => {
+            if (myUserId && d.responsavel_usuario_id && Number(d.responsavel_usuario_id) === Number(myUserId)) return true;
+            if (uNorm && d.responsavel_username && normStr(d.responsavel_username) === uNorm) return true;
             if (colab && d.responsavel_id && Number(d.responsavel_id) === Number(colab.id)) return true;
             if (d.responsavel_nome && (matchNomeFlex(d.responsavel_nome, nomeColaborador) || matchNomeFlex(d.responsavel_nome, rawUsername) || matchNomeFlex(d.responsavel_nome, nomeUser))) return true;
             return false;
           });
           resolve({
-            usuario_id: dbUser.id || u.id || null,
+            usuario_id: myUserId,
             username: rawUsername || dbUser.username || '',
             nome_colaborador: nomeColaborador || rawUsername || 'Colaborador',
             colaborador_id: colab ? colab.id : null,
-            is_gestor_departamento: isGestorDepto,
+            is_gestor_departamento: Boolean(isThais || isGestorDepto),
             pode_excluir_proposta: Boolean(isThais || isGestorDepto)
           });
         });
